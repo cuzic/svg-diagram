@@ -82,6 +82,8 @@ export interface BoxStyleOpts extends BoxChrome {
   noteTone?: TextTone;
   /** Number/string badge on the title's baseline. Requires `title`. */
   step?: number | string;
+  /** The word a screen reader hears before the step number (default 手順). */
+  stepWord?: string;
   /** An SVG pictogram at the box's left edge (32px); the text is indented to clear it. With `step` the badge sits right of the icon. Put a label beside it: the icon alone is hidden from screen readers. */
   icon?: IconName;
   /** Colour of the icon (default 'text'); a dimmed box draws it muted. */

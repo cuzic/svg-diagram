@@ -6,6 +6,15 @@ import {EMU, emu, type Rect} from './xml.ts';
 
 export interface Pt {x: number; y: number}
 
+/** Whether p is inside the closed outline `pts` (convex), or within `pad` of its edge. */
+export function inOutline(p: Pt, pts: readonly Pt[], pad: number): boolean {
+  const n = pts.length, at = (i: number) => pts[i % n] as Pt;
+  const sides = pts.map((_, i) => { const u = at(i), v = at(i + 1); return (p.x - v.x) * (u.y - v.y) - (u.x - v.x) * (p.y - v.y); });
+  if (n >= 3 && (sides.every(d => d >= 0) || sides.every(d => d <= 0))) return true;
+  const seg = (u: Pt, v: Pt) => { const L = (v.x - u.x) ** 2 + (v.y - u.y) ** 2, t = L ? Math.max(0, Math.min(1, ((p.x - u.x) * (v.x - u.x) + (p.y - u.y) * (v.y - u.y)) / L)) : 0; return Math.hypot(p.x - u.x - t * (v.x - u.x), p.y - u.y - t * (v.y - u.y)); };
+  return Math.min(...pts.map((u, i) => seg(u, at(i + 1)))) <= pad;
+}
+
 const MIN_EXT = 12700; // 1pt: the smallest ext a degenerate (zero-width) U shape gets
 
 export interface ConnXfrm {

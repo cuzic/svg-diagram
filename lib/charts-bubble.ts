@@ -20,8 +20,13 @@ export interface BubbleOpts extends ChartOpts {
   /** What the area stands for ('売上') and its unit ('億円'): the legend reads "円の面積 = 売上". */
   sizeTitle?: string;
   sizeUnit?: string;
+  /** The words of the size legend: what the area is called (default '円の面積') and one circle (default '円'). */
+  areaLabel?: string;
+  circleLabel?: string;
+  /** The brackets around the size of one circle in the legend (default （ and ）). */
+  brackets?: readonly [open: string, close: string];
 }
-export interface BubbleSpec {points: BubblePoint[]; x: BubbleAxis; y: BubbleAxis; sizeTitle: string; sizeUnit: string}
+export interface BubbleSpec {points: BubblePoint[]; x: BubbleAxis; y: BubbleAxis; sizeTitle: string; sizeUnit: string; areaLabel: string; circleLabel: string; brackets: readonly [string, string]}
 
 const TONES = ['accent', 'danger', 'muted', 'text'];
 export function resolveBubble(points: readonly BubblePoint[], opts: BubbleOpts = {}): BubbleSpec {
@@ -39,7 +44,7 @@ export function resolveBubble(points: readonly BubblePoint[], opts: BubbleOpts =
     for (const f of ['min', 'max', 'line'] as const) if (a[f] !== undefined) finiteNum('bubble', `${k}.${f}`, a[f]);
     if (a.min !== undefined && a.max !== undefined && !(a.max > a.min)) fail('bubble', `${k}.max must be larger than ${k}.min`);
   }
-  return {points: list, x: opts.x ?? {}, y: opts.y ?? {}, sizeTitle: opts.sizeTitle ?? '', sizeUnit: opts.sizeUnit ?? ''};
+  return {points: list, x: opts.x ?? {}, y: opts.y ?? {}, sizeTitle: opts.sizeTitle ?? '', sizeUnit: opts.sizeUnit ?? '', areaLabel: opts.areaLabel ?? '円の面積', circleLabel: opts.circleLabel ?? '円', brackets: opts.brackets ?? ['（', '）']};
 }
 export function bubbleAlt(s: BubbleSpec): string {
   const u = (a: BubbleAxis) => a.unit ?? '';
@@ -65,7 +70,7 @@ export function bubbleTexts(s: BubbleSpec): [string, number][] {
   return out;
 }
 
-const legendText = (s: BubbleSpec, ref: number): string => `${s.sizeTitle ? `円の面積 = ${s.sizeTitle}` : '円の面積'}（円 = ${numText(ref)}${s.sizeUnit}）`;
+const legendText = (s: BubbleSpec, ref: number): string => `${s.sizeTitle ? `${s.areaLabel} = ${s.sizeTitle}` : s.areaLabel}${s.brackets[0]}${s.circleLabel} = ${numText(ref)}${s.sizeUnit}${s.brackets[1]}`;
 type Scale = ReturnType<typeof niceScale>;
 /** The same scale one tick wider on one side (the step stays, so the ticks stay the multiples the description measured). */
 const widen = (sc: Scale, side: 'lo' | 'hi'): Scale => {

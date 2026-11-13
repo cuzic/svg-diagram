@@ -54,6 +54,8 @@ export interface BarsOpts extends RevealOpts, ScopeOpts {
   cumulative?: {guide?: number};
   /** Vertical bars only: labels at the edges between bars (one more than there are bars), written under the edges instead of under the bars. A histogram's class boundaries. Not with `labels: 'none'`. */
   edges?: string[];
+  /** What joins the two ends of a range bar's value text (default '〜'). */
+  rangeMark?: string;
 }
 export type BarsTone = 'accent' | 'danger' | 'muted' | 'text';
 export interface BarsLine {at: number; label?: string; tone?: BarsTone; /** Default true. */ dashed?: boolean}

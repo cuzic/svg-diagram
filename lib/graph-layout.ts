@@ -172,9 +172,11 @@ export interface LayeredOpts {
    * hold. A layer that fits is not touched; without `fold` nothing is added to the layering. `folded` in the result lists the layers that were cut.
    */
   fold?: number;
+  /** Stop once the order of each layer is found, and return only how many links cross between the layers (`orderCrossings`): a search ranks orders with it (ADR 0053). */
+  orderOnly?: boolean;
 }
 export interface LayeredEdgeOut {from: string; to: string; /** index of this edge in the input list */ index: number; /** centre to centre, through the layers it skips; reversed edges are drawn from `from` anyway */ points: Pt[]; reversed: boolean; self: boolean; /** runs in an outer lane (see LayeredOpts.outer) */ outer?: true}
-export interface LayeredLayout {nodes: Map<string, Placed>; edges: LayeredEdgeOut[]; /** layer index of each node (0 = first) */ layers: Map<string, number>; w: number; h: number; /** only with `fold`, when a layer was cut: its number before the cut (from 0) and the rows it became */ folded?: {layer: number; rows: number}[]}
+export interface LayeredLayout {/** Only with `orderOnly`: the links that cross between the layers once they are ordered. */ orderCrossings?: number; nodes: Map<string, Placed>; edges: LayeredEdgeOut[]; /** layer index of each node (0 = first) */ layers: Map<string, number>; w: number; h: number; /** only with `fold`, when a layer was cut: its number before the cut (from 0) and the rows it became */ folded?: {layer: number; rows: number}[]}
 
 /**
  * Which edges (by index in `edges`) a layering reverses to be acyclic. The `declared` ones (a return the author named, `back: true`)
@@ -326,6 +328,11 @@ function brandesKoepf(rows: string[][], succ: Map<string, string[]>, pred: Map<s
  * Nodes keep input order inside a layer until barycentre sweeps cut crossings; an edge that skips layers goes through a
  * dummy slot per layer so it does not run over the nodes in between. `start` ids (the entry states) are pinned to layer 0.
  */
+/** How many links cross between the layers when the nodes are written in this order: the ordering of layoutLayered and nothing after it, so a search can rank orders without laying each one out. */
+export function orderCrossings(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]; back?: readonly number[]} = {}): number {
+  return layoutLayered(nodes, edges, {...opts, orderOnly: true}).orderCrossings ?? 0;
+}
+
 export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]; back?: readonly number[]} = {}): LayeredLayout {
   const dir = opts.dir ?? 'right', gap = opts.gap ?? GAP, levelGap = opts.levelGap ?? LEVEL_GAP * 1.5, sweeps = opts.sweeps ?? 4;
   const ids = new Set<string>();
@@ -505,6 +512,8 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
       }
     }
   }
+
+  if (opts.orderOnly) return {nodes: new Map(), edges: [], layers: new Map(), w: 0, h: 0, orderCrossings: allCrossings()} as unknown as LayeredLayout;
 
   // 5. coordinates: layers along one axis, each layer centred on the widest, then relaxed toward the neighbours without overlap
   const thick = rows.map(r => Math.max(0, ...r.map(id => along(must(slots.get(id)).size))));

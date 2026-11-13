@@ -16,9 +16,13 @@ export interface StackedOpts extends ChartOpts {
   domain?: readonly [number, number];
   /** false: this chart's axis is its own on purpose (chart-axis-mismatch leaves it alone). */
   axisGroup?: false;
+  /** The word before each column's total (default '計'). */
+  totalLabel?: string;
+  /** The brackets around a share (default （ and ）). */
+  brackets?: readonly [open: string, close: string];
 }
 export type StackMode = 'stacked' | 'percent' | 'mekko';
-export interface StackedSpec {mode: StackMode; series: string[]; columns: {label: string; values: number[]; total: number; id?: string}[]; unit: string; domain?: [number, number]; axisGroup?: false}
+export interface StackedSpec {mode: StackMode; series: string[]; columns: {label: string; values: number[]; total: number; id?: string}[]; unit: string; domain?: [number, number]; axisGroup?: false; totalLabel: string; brackets: readonly [string, string]}
 
 export function resolveStacked(who: string, columns: readonly StackColumn[], mode: StackMode, opts: StackedOpts): StackedSpec {
   if (!Array.isArray(columns) || columns.length === 0) fail(who, 'needs at least one column');
@@ -48,7 +52,7 @@ export function resolveStacked(who: string, columns: readonly StackColumn[], mod
   if (opts.axisGroup !== undefined && opts.axisGroup !== false) fail(who, `axisGroup must be false (this chart's axis is its own) or left out (got ${JSON.stringify(opts.axisGroup)})`);
   const domain = checkDomain(who, opts.domain);
   if (domain && mode !== 'stacked') fail(who, 'domain is for stacked columns (percent and mekko have no value axis to share)');
-  const spec: StackedSpec = {mode, series, columns: cols, unit: opts.unit ?? '', ...(domain ? {domain} : {}), ...(opts.axisGroup === false ? {axisGroup: false as const} : {})};
+  const spec: StackedSpec = {mode, series, columns: cols, unit: opts.unit ?? '', totalLabel: opts.totalLabel ?? '計', brackets: opts.brackets ?? ['（', '）'], ...(domain ? {domain} : {}), ...(opts.axisGroup === false ? {axisGroup: false as const} : {})};
   stackedScale(spec);
   return spec;
 }
@@ -66,8 +70,8 @@ export function stackedTexts(s: StackedSpec): [string, number][] {
   const out: [string, number][] = [];
   for (const n of s.series) out.push([n, 400], [n, 700]);
   for (const c of s.columns) {
-    out.push([c.label, 400], [c.label, 700], [`計 ${numText(c.total)}${s.unit}`, 400], [`${numText(c.total)}${s.unit}`, 700]);
-    if (s.mode === 'mekko') out.push([`（${pct(c.total, s.columns.reduce((a, b) => a + b.total, 0))}）`, 400]);
+    out.push([c.label, 400], [c.label, 700], [`${s.totalLabel} ${numText(c.total)}${s.unit}`, 400], [`${numText(c.total)}${s.unit}`, 700]);
+    if (s.mode === 'mekko') out.push([`${s.brackets[0]}${pct(c.total, s.columns.reduce((a, b) => a + b.total, 0))}${s.brackets[1]}`, 400]);
     s.series.forEach((n, i) => { if (must(c.values[i]) > 0) out.push([segText(s, must(c.values[i]), c.total), 700], [`${n} ${segText(s, must(c.values[i]), c.total)}`, 700]); });
   }
   const top = stackedScale(s);
@@ -110,7 +114,7 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
   const catLines: {main: string[]; second: string[]; cx: number; row: number}[] = [];
   const prevRight: number[] = [-Infinity, -Infinity, -Infinity];
   s.columns.forEach((k, i) => {
-    const second = s.mode === 'stacked' ? [] : s.mode === 'mekko' ? [`計 ${numText(k.total)}${s.unit}`, `（${pct(k.total, total)}）`] : [`計 ${numText(k.total)}${s.unit}`];
+    const second = s.mode === 'stacked' ? [] : s.mode === 'mekko' ? [`${s.totalLabel} ${numText(k.total)}${s.unit}`, `${s.brackets[0]}${pct(k.total, total)}${s.brackets[1]}`] : [`${s.totalLabel} ${numText(k.total)}${s.unit}`];
     const natural = Math.max(c.tw(k.label, true), ...second.map(t => c.tw(t)));
     const slotW = (plotR - plotL) / n - 8;
     const tries = s.mode === 'mekko' ? [Math.max(must(widths[i]), Math.min(natural, 128)), Math.max(must(widths[i]) + 24, 60), Math.max(must(widths[i]), 40), 72] : [slotW];

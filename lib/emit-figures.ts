@@ -12,7 +12,7 @@ import {visibleAt} from './reveal.ts';
 import {MARK_STROKE, plateStyle} from './image.ts';
 import type {LaidOutQuadrant} from './quadrant.ts';
 import type {LaidOutFlowShape} from './flow-shapes.ts';
-import {snap4, escapeAttr, emojiSpan, resolveTextColor, lineAttrs, arrowPath, resolveBoxStyle} from './emit-common.ts';
+import {snap4, escapeAttr, escapeXml, emojiSpan, resolveTextColor, lineAttrs, arrowPath, resolveBoxStyle} from './emit-common.ts';
 import type {PathCut} from './emit-common.ts';
 import {HOP_R} from './cause-hop.ts';
 import {renderBoxRect} from './emit-boxes.ts';
@@ -329,7 +329,7 @@ function coreBadge(n: LaidOutCause['nodes'][number], id: string, b: LaidOutCause
   const x = side === 'left' ? n.x - BADGE_W - BADGE_GAP : side === 'right' ? n.x + n.w + BADGE_GAP : n.x + 6;
   const y = side === 'top' ? n.y - BADGE_H - BADGE_GAP : side === 'bottom' ? n.y + n.h + BADGE_GAP : n.y + 6;
   const fill = b.dim ? PALETTE.muted : colorOf('accent', day);
-  return `<rect x="${snap4(x)}" y="${snap4(y)}" width="${BADGE_W}" height="${BADGE_H}" rx="8" fill="${fill}"/>\n  <text x="${snap4(x + BADGE_W / 2)}" y="${snap4(y + 16)}" text-anchor="middle" font-size="14" font-weight="700" fill="${PALETTE.bg}">中核</text>`;
+  return `<rect x="${snap4(x)}" y="${snap4(y)}" width="${BADGE_W}" height="${BADGE_H}" rx="8" fill="${fill}"/>\n  <text x="${snap4(x + BADGE_W / 2)}" y="${snap4(y + 16)}" text-anchor="middle" font-size="14" font-weight="700" fill="${PALETTE.bg}">${escapeXml(b.coreBadge ?? '中核')}</text>`;
 }
 export function renderCause(b: LaidOutCause, day: Theme, tones: ToneEnv): string {
   const out: string[] = [];

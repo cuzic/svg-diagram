@@ -72,6 +72,8 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
 ## npm パッケージ・tsc の無い環境で使う
 
+**JSON で図を渡す(`svg-diagram/spec`)**: `.ts` のソースはコードとして実行されるので、外部から図を受け取るサーバーには渡せない。`validateSpec()` / `specToDiagram()` は JSON を検査して、決まった部品(今は `flowchart` / `swimlane` / `sequence`)だけを DSL に変換する。`image()`・`math()`・`slide` / `fill`・`icon` は持たない。間違いは `parts[0].nodes[2].label` のように場所つきで返る。`partCatalog()` は部品ごとの説明・スキーマ・例を返す。Node では `svg-diagram/render` の `renderSpec(json)` が、ファイルを書かずに SVG と検査結果を返す(`lintRendering()`、`svgToPng()` も同じ入口にある)。
+
 Node と Chromium だけの環境(ChatGPT の Code Interpreter など)では、`.ts` をそのまま `node` で動かし、Chromium は playwright を介さず直接動かし、文字幅と PNG は Chromium で測って描く。手順と環境変数は [docs/chatgpt-code-interpreter.md](docs/chatgpt-code-interpreter.md)。
 
 ## Web ページで使う(`svg-diagram/browser`)
@@ -197,7 +199,8 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 | bubble(points, {x, y, sizeTitle, sizeUnit}) | バブルチャート。x・y が数値軸、円の**面積**が 3 つ目の指標（凡例の円つき）。`x.line` / `y.line` で境目の破線。名前は円の中か横、軸は円がはみ出さないよう自動で広がる |
 | butterfly(rows, {leftLabel, rightLabel, unit}) | バタフライチャート。中央の項目名をはさんで、左右の群の棒を同じ目盛りで比べる。`sort: 'left'｜'right'` |
 | combo(categories, series, {y, y2}) | コンボチャート（棒 + 折れ線）。棒は左軸、折れ線は右軸（`axis: 'left'` で左）。値は単位つきで全部書き、入らないものは `<desc>` に残る |
-| harvey(rows, cols, values, {levels, highlight}) | ハーベイボールの評価表。値は 0〜4（四分円の数）、`null` は未評価。形（扇）で段階を示し、凡例つき |
+| compare(rows, cols, cells, {corner}) | ○△× と理由を併記した比較表。セルは `[マーク, 理由]`、`null` は未評価。マークはセル左の中央に置き、理由との間を破線で区切る |
+| harvey(rows, cols, values, {levels, highlight}) | ハーベイボールの評価表。値は 0〜4（四分円の数）、`null` は未評価。形（扇）で段階を示し、凡例つき。`[3, '理由']` と書くと、ボールの横に破線で区切って理由を書く |
 | pyramid / curve | ピラミッド、曲線 |
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
 | math(tex, {role, inline, align, tone, alt}) | TeX の数式（MathJax で輪郭にして SVG へ。Web フォント・foreignObject 不要）。下の「数式」 |
@@ -733,6 +736,7 @@ connect('plan.p0:right', 'sched.p0:left')
 | バタフライチャート | `butterfly(rows, {leftLabel, rightLabel, unit})` | `examples/chart-butterfly.ts` |
 | コンボチャート（棒 + 折れ線） | `combo(categories, series, {y, y2})` | `examples/chart-combo.ts` |
 | ハーベイボール | `harvey(rows, cols, values, {levels, highlight})` | `examples/chart-harvey.ts` |
+| 比較表（○△× と理由） | `compare(rows, cols, cells, {corner})` | `examples/chart-compare.ts` |
 
 ```ts
 waterfall([{label: '前期', value: 1000}, {label: '価格', value: 220}, {label: '数量', value: -130}, {label: '小計', kind: 'subtotal'}, {label: '今期', kind: 'total'}], {unit: '百万円'})

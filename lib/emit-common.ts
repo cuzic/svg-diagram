@@ -4,7 +4,8 @@ import type {Point, Theme, EmphasisTone, LineStyle, Arrow, Align} from './types/
 import type {WrappedRun, Span} from './types/text-bands.ts';
 
 import {must} from './must.ts';
-export const EMOJI_G = new RegExp(EMOJI_RE.source, 'gu');
+// one emoji as it draws: with its skin tone or variation selector, and the pictographs a zero-width joiner joins to it, in one <tspan>
+export const EMOJI_G = new RegExp(`(?:${EMOJI_RE.source})(?:[\\u{1F3FB}-\\u{1F3FF}\\u{FE0F}]|\\u{200D}\\p{Extended_Pictographic}\\u{FE0F}?)*`, 'gu');
 
 
 export function snap4(n: number): number {

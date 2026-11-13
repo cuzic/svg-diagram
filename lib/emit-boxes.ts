@@ -19,10 +19,11 @@ import {must} from './must.ts';
 // centered on the title's own baseline (same offset every hand-authored
 // "① foo" box in this deck used between the badge and its number glyph).
 // On a solid box the badge / tag pill has the box's own fill, so a white ring keeps it apart from the box.
-export const ringed = (band: LaidOutBox): boolean => !band.dim && isSolidTone(band.tone);
+export const ringed = (band: Pick<LaidOutBox, 'dim' | 'tone'>): boolean => !band.dim && isSolidTone(band.tone);
 
 
-export function renderStepBadge(band: LaidOutBox, day: Theme, roles?: Roles): string {
+/** Where a box's step badge is: its centre and radius, the number's size and baseline (the title's own). The svg and the PPTX place it alike. */
+export function stepBadgeAt(band: Pick<LaidOutBox, 'x' | 'y' | 'w' | 'wrappedRuns' | 'padX' | 'padY' | 'align' | 'iconAt' | 'titleW' | 'icon'>, roles?: Roles): {cx: number; cy: number; r: number; size: number; baseline: number} {
   const g = roles ? stepBadgeGeom(roles) : {r: STEP_BADGE_R, offset: STEP_BADGE_BASELINE_OFFSET, indent: STEP_INDENT, size: 16}, R = g.r; // a canvas diagram grows the badge with its text
   const titleRun = must(band.wrappedRuns[0]);
   // the same padding the text and the icon use (a swimlane step has its own)
@@ -32,8 +33,12 @@ export function renderStepBadge(band: LaidOutBox, day: Theme, roles?: Roles): st
   const align = band.align ?? (band.iconAt === 'top' ? 'center' : 'left');
   const textX = band.titleW === undefined || align === 'left' ? undefined : align === 'center' ? (left + right) / 2 - band.titleW / 2 : right - band.titleW;
   const cx = textX !== undefined ? textX - g.indent + R : band.x + px + R + (band.icon && band.iconAt !== 'top' ? ICON_INDENT : 0);
-  const cy = titleBaselineY - g.offset;
-  return badgeSvg({cx, cy, r: R, w: 2 * R, shape: 'circle', label: String(band.step), aria: `手順 ${band.step}`, size: g.size, fill: PALETTE[day].accent, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), baseline: titleBaselineY, snap: snap4, esc: escapeXml});
+  return {cx, cy: titleBaselineY - g.offset, r: R, size: g.size, baseline: titleBaselineY};
+}
+
+export function renderStepBadge(band: LaidOutBox, day: Theme, roles?: Roles): string {
+  const {cx, cy, r: R, size, baseline} = stepBadgeAt(band, roles);
+  return badgeSvg({cx, cy, r: R, w: 2 * R, shape: 'circle', label: String(band.step), aria: `${band.stepWord ?? '手順'} ${band.step}`, size, fill: PALETTE[day].accent, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), baseline, snap: snap4, esc: escapeXml});
 }
 
 
