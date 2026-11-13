@@ -14,7 +14,7 @@ export function renderBowtie(b: LaidOutBowtie, day: Theme, tones: ToneEnv): stri
   const out: string[] = [], on = partsOn(b), pa = (part?: string): string => part ? partAttr(on, part) : '';
   const line = b.dim ? PALETTE.muted : PALETTE.text;
   for (const e of b.edges) {
-    if (e.arrow) out.push(arrowPath(e.points, line, undefined));
+    if (e.arrow) out.push(marked(arrowPath(e.points, line, undefined), pa(e.part)));
     else out.push(`<path d="M${e.points.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${line}" stroke-width="2"${pa(e.part)}/>`);
   }
   out.push(`<circle cx="${snap4(b.knot.cx)}" cy="${snap4(b.knot.cy)}" r="${b.knot.r}" fill="${PALETTE.bg}" stroke="${b.dim ? PALETTE.muted : PALETTE.danger}" stroke-width="3"${pa(b.knot.part)}/>`);

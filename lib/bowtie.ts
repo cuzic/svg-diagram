@@ -64,8 +64,8 @@ export function layoutBowtie(band: BowtieBand, x: number, y: number, w: number, 
     type: 'bowtie', ...(band.id === undefined ? {} : {id: band.id}), ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until}),
     x, y, w, h: g.h,
     // ADR 0054: the knot (the hazard's box, the circle and the stems through it) is one part
-    nodes: g.nodes.map(n => ({x: n.x + dx, y: n.y + dy, w: n.w, h: n.h, role: n.role, ...(n.role === 'hazard' ? {part: KNOT} : {})})),
-    edges: g.edges.map(e => ({arrow: e.arrow, points: e.points.map(p => ({x: p.x + dx, y: p.y + dy})), ...(e.knot ? {part: KNOT} : {})})),
+    nodes: g.nodes.map(n => ({x: n.x + dx, y: n.y + dy, w: n.w, h: n.h, role: n.role, ...(n.role === 'hazard' ? {part: KNOT} : n.part ? {part: n.part} : {})})),
+    edges: g.edges.map(e => ({arrow: e.arrow, points: e.points.map(p => ({x: p.x + dx, y: p.y + dy})), ...(e.knot ? {part: KNOT} : e.part ? {part: e.part} : {})})),
     knot: {cx: g.knot.cx + dx, cy: g.knot.cy + dy, r: KNOT_R, part: KNOT},
     texts: [], anchors: [], labelBoxes: [],
     ...(fitted.applied.length ? {fitApplied: fitted.applied} : {}),
@@ -79,7 +79,7 @@ export function layoutBowtie(band: BowtieBand, x: number, y: number, w: number, 
   return out;
 }
 
-interface Placed {x: number; y: number; w: number; h: number; role: BowtieRole; label: string; lines: NodeLines}
+interface Placed {x: number; y: number; w: number; h: number; role: BowtieRole; label: string; lines: NodeLines; /** ADR 0054: its row's part */ part?: string}
 
 function place(band: BowtieBand, maxW: number, widthOf: WidthOf, roles: Roles, mode: WrapMode, floor: boolean) {
   const measure = (label: string, role: BowtieRole, cap = maxW): Item => ({role, label, lines: measureNode(label, undefined, cap, widthOf, roles, mode, floor)});
@@ -103,7 +103,7 @@ function place(band: BowtieBand, maxW: number, widthOf: WidthOf, roles: Roles, m
   const H = Math.max(sideH(left.length, rowHL), sideH(right.length, rowHR), stackH);
   // the centre of row i of n: the side with the most rows keeps ROW_GAP between its rows; a side with fewer is spread over the same height
   const centre = (i: number, n: number, h: number): number => n > 1 ? h / 2 + i * (H - h) / (n - 1) : H / 2;
-  const nodes: Placed[] = [], edges: {points: {x: number; y: number}[]; arrow: boolean; knot?: true}[] = [];
+  const nodes: Placed[] = [], edges: {points: {x: number; y: number}[]; arrow: boolean; knot?: true; part?: string}[] = [];
   const topX = leftW + BUS_GAP;
   let cy0 = (H - stackH) / 2;
   if (hazard) { nodes.push({x: topX + (topW - hazard.lines.w) / 2, y: cy0, w: hazard.lines.w, h: hazard.lines.h, role: 'hazard', label: hazard.label, lines: hazard.lines}); cy0 += hazard.lines.h + STEM; }
@@ -117,25 +117,27 @@ function place(band: BowtieBand, maxW: number, widthOf: WidthOf, roles: Roles, m
   edges.push({points: [{x: knot.cx, y: knot.cy + KNOT_R}, {x: knot.cx, y: topRect.y}], arrow: false, knot: true});
   const dedupe = (pts: {x: number; y: number}[]) => pts.filter((q, j, a) => j === 0 || q.x !== a[j - 1]?.x || q.y !== a[j - 1]?.y);
   const busL = leftW + BUS_GAP / 2, busR = topX + topW + BUS_GAP / 2;
+  // ADR 0054: a row (a threat and its barriers, or the barriers and a consequence, with the arrows between them) is a part; the arrow
+  // to or from the top event is glued to a box outside the row, so it stays out (as an AND's arrows, D4)
   left.forEach((row, i) => {
-    const cy = centre(i, left.length, rowHL);
+    const cy = centre(i, left.length, rowHL), part = partStep('threat', i, row[0]?.label ?? '');
     let px = 0, prev: Placed | undefined;
     row.forEach((it, k) => {
-      const p: Placed = {x: px, y: cy - it.lines.h / 2, w: must(lw[k]), h: it.lines.h, role: it.role, label: it.label, lines: it.lines};
+      const p: Placed = {x: px, y: cy - it.lines.h / 2, w: must(lw[k]), h: it.lines.h, role: it.role, label: it.label, lines: it.lines, part};
       nodes.push(p);
-      if (prev) edges.push({points: [{x: prev.x + prev.w, y: cy}, {x: p.x, y: cy}], arrow: true});
+      if (prev) edges.push({points: [{x: prev.x + prev.w, y: cy}, {x: p.x, y: cy}], arrow: true, part});
       prev = p; px += must(lw[k]) + COL_GAP;
     });
     const end = prev as Placed, ye = entry(cy);
     edges.push({points: dedupe([{x: end.x + end.w, y: cy}, {x: busL, y: cy}, {x: busL, y: ye}, {x: topX, y: ye}]), arrow: true});
   });
   right.forEach((row, i) => {
-    const cy = centre(i, right.length, rowHR);
+    const cy = centre(i, right.length, rowHR), part = partStep('consequence', i, row.end.label);
     let px = topX + topW + BUS_GAP, prev: Placed | undefined;
     const put = (it: Item, w: number, x: number): Placed => {
-      const p: Placed = {x, y: cy - it.lines.h / 2, w, h: it.lines.h, role: it.role, label: it.label, lines: it.lines};
+      const p: Placed = {x, y: cy - it.lines.h / 2, w, h: it.lines.h, role: it.role, label: it.label, lines: it.lines, part};
       nodes.push(p);
-      if (prev) edges.push({points: [{x: prev.x + prev.w, y: cy}, {x: p.x, y: cy}], arrow: true});
+      if (prev) edges.push({points: [{x: prev.x + prev.w, y: cy}, {x: p.x, y: cy}], arrow: true, part});
       else { const ye = entry(cy); edges.push({points: dedupe([{x: topX + topW, y: ye}, {x: busR, y: ye}, {x: busR, y: cy}, {x: p.x, y: cy}]), arrow: true}); }
       return p;
     };
