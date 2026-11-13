@@ -310,7 +310,8 @@ test('a state diagram glues its start dot, draws an end state\'s inner frame, an
   assert.equal(r.pictures, 0);
   const slide = entry(r.pptx!, 'ppt/slides/slide1.xml');
   assert.equal(slide.match(/<a:stCxn /g)?.length, 2);
-  assert.match(slide, /name="end-b"/);
+  // the end state's box and inner frame are one group, named by its text and id (ADR 0054)
+  assert.match(slide, /name="state: 完了 \[b\]"[\s\S]*?name="inner frame"/);
   assert.ok([...slide].every(c => (c.codePointAt(0) ?? 0) >= 9));
   assert.match(slide, /<a:t>完了<\/a:t>/);
   assert.deepEqual(xmlProblems(slide), []);
@@ -344,7 +345,7 @@ test('a cause tree is native shapes: every arrow glued to cause and effect', asy
   const r = await renderPptxEdge(spec(example('causeTree')), realEngine(), {rasterize: () => PNG});
   assert.equal(r.pictures, 0);
   const slide = entry(r.pptx!, 'ppt/slides/slide1.xml');
-  const arrows = slide.split('<p:cxnSp>').slice(1).filter(c => /name="arrow-/.test(c));
+  const arrows = slide.split('<p:cxnSp>').slice(1).filter(c => /name="arrow: /.test(c));
   assert.ok(arrows.length > 0);
   for (const a of arrows) { assert.match(a, /<a:stCxn /); assert.match(a, /<a:endCxn /); }
   assert.deepEqual(xmlProblems(slide), []);
@@ -353,9 +354,12 @@ test('a cause tree is native shapes: every arrow glued to cause and effect', asy
 test('a cutting arrow has no head and is not glued to what it cuts: it ends in a bar', async () => {
   const tree = {type: 'causeTree', tree: 'crt', coreDriver: true, nodes: [{id: 'u', label: '遅れる', role: 'ude'}, {id: 'r', label: '評価の仕組み', role: 'root'}, {id: 't', label: '枠を見直す', role: 'trim'}], links: [{from: 'r', to: 'u'}, {from: 't', to: 'u', kind: 'blocks'}]};
   const slide = entry((await renderPptxEdge(spec(tree), realEngine(), {rasterize: () => PNG})).pptx!, 'ppt/slides/slide1.xml');
-  const cut = slide.split('<p:cxnSp>').find(c => /name="arrow-t-u"/.test(c)) ?? '';
+  // the line and its bar are one group (ADR 0054)
+  const group = /name="cut: 枠を見直す → 遅れる"[\s\S]*?<\/p:grpSp>/.exec(slide)?.[0] ?? '';
+  const cut = group.split('<p:cxnSp>').find(c => /name="line"/.test(c)) ?? '';
+  assert.ok(cut);
   assert.doesNotMatch(cut, /tailEnd|<a:endCxn/);
-  assert.match(slide, /name="bar-t-u"/);
+  assert.match(group, /name="bar"/);
   assert.deepEqual(xmlProblems(slide), []);
 });
 
@@ -383,9 +387,10 @@ test('a legend with fault-tree symbols stays a picture; causeXml and legendXml r
   const c = causeXml(band as never, ld, NO_TONES, {sans: 'S', mono: 'M'}, () => ++n);
   assert.deepEqual(c.glue.map(g => g.dslId), ['a', 'h']);
   // the core driver: a 3.5px frame and its badge; the obstacle: a hexagon (six sides) with a 2px frame
-  assert.match(c.xml, /name="a"[\s\S]*?<a:ln w="33338">/);
-  assert.match(c.xml, /name="core-badge-a"[\s\S]*<a:t>中核<\/a:t>/);
-  assert.match(c.xml, /name="h"[\s\S]*?(<a:lnTo>[\s\S]*?){5}<a:close\/>[\s\S]*?<a:ln w="19050">/);
+  // (ADR 0054: the box and its badge are one group; the badge holds its word)
+  assert.match(c.xml, /name="node \[a\]"[\s\S]*?name="box \[a\]"[\s\S]*?<a:ln w="33338">/);
+  assert.match(c.xml, /name="badge: 中核"[\s\S]*<a:t>中核<\/a:t>/);
+  assert.match(c.xml, /name="box \[h\]"[\s\S]*?(<a:lnTo>[\s\S]*?){5}<a:close\/>[\s\S]*?<a:ln w="19050">/);
 });
 
 test('chevrons, a cycle, a funnel, a pyramid, a Venn diagram and a value chain are native shapes', async () => {

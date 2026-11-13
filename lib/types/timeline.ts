@@ -93,7 +93,7 @@ export interface GanttBand extends GanttOpts {
   type: 'gantt';
   rows: GanttRow[];
 }
-export interface TimelineText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: 'text' | 'muted' | 'accent' | 'danger'; bold: boolean; size: number}
+export interface TimelineText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: 'text' | 'muted' | 'accent' | 'danger'; bold: boolean; size: number; /** ADR 0054: the part it is grouped in (an event, the axis, the remaining span). */ part?: string}
 export interface LaidOutTimeline extends Rect, Dimmed {
   type: 'timeline';
   id?: string;
@@ -105,14 +105,14 @@ export interface LaidOutTimeline extends Rect, Dimmed {
   /** deadline.line 'full': the vertical line through the figure. */
   fullLine?: {x: number; y1: number; y2: number};
   /** The bracket under the ticks that carries the remaining-span label. */
-  bracket?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'};
+  bracket?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'; part?: string};
   ticks: {x: number; y1: number; y2: number}[];
   /** Numeric timeline: thin lines (lane baselines and separators), bars and dimension lines. */
   guides?: {x1: number; x2: number; y: number}[];
   bars?: (Rect & {tone: 'accent' | 'danger' | 'muted'})[];
   dims?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger' | 'muted'}[];
-  stems: {x: number; y1: number; y2: number; tone: 'accent' | 'danger' | 'muted'}[];
-  dots: {x: number; y: number; r: number; tone: 'accent' | 'danger' | 'muted'}[];
+  stems: {x: number; y1: number; y2: number; tone: 'accent' | 'danger' | 'muted'; part?: string}[];
+  dots: {x: number; y: number; r: number; tone: 'accent' | 'danger' | 'muted'; part?: string}[];
   texts: TimelineText[];
   labelBoxes: (Rect & {label: string})[];
 }

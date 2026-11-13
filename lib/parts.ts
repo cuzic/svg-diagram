@@ -21,6 +21,8 @@ export const partStep = (kind: string, key: string | number, label: string): str
 export const PLANE_AXES = partStep('axes', 0, '');
 /** A Gantt chart's date axis: its line, ticks and dates (lib/gantt.ts). */
 export const GANTT_AXIS = partStep('axis', 0, '');
+/** A timeline's axis: its line, ticks and dates (lib/timeline.ts). */
+export const TIMELINE_AXIS = partStep('axis', 0, '');
 
 /** ` data-part="…"` when `on` (the band was drawn with parts), else nothing. */
 export const partAttr = (on: boolean | undefined, ...steps: string[]): string => on && steps.length ? ` data-part="${escapeAttr(steps.join('/'))}"` : '';

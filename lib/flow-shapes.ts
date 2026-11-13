@@ -6,6 +6,7 @@
 //   * venn labels sit in their own region (a pair's label in the part only that pair shares, not in the middle),
 //   * a side key of concentric() is tied to its ring by a leader line, so the key does not depend on colour.
 // verify.ts checks that every label stays inside the figure and that no two labels overlap.
+import {partStep} from './parts.ts';
 import {resolveLoopBacks} from './loop-back.ts';
 import type {LoopBack} from './types/containers.ts';
 import {assertScope} from './scope-name.ts';
@@ -46,12 +47,12 @@ export type FlowShapeBand = ChevronBand | FunnelBand | CycleBand | VennBand | Co
 
 /** A flow-shape text's colour: a text tone, or 'bg' (white) on a filled (solid) item. */
 export type FlowTextTone = TextTone | 'bg';
-export interface FlowText extends Rect {text: string; tx: number; ty: number; size: number; weight: 400 | 700; anchor: 'start' | 'middle' | 'end'; tone: FlowTextTone}
+export interface FlowText extends Rect {text: string; tx: number; ty: number; size: number; weight: 400 | 700; anchor: 'start' | 'middle' | 'end'; tone: FlowTextTone; /** ADR 0054: the part it is grouped in (a concentric ring's key). */ part?: string}
 export type FlowPrimitive =
   | ({k: 'polygon'; points: [number, number][]; tone: EmphasisTone; strong?: boolean; /** the id of the item this is the frame of (ADR 0034: withNodeIds turns it into `dataNode`) */ node?: string; dataNode?: string} & Dimmed)
-  | ({k: 'circle'; cx: number; cy: number; r: number; tone: TextTone; opacity?: number; dash?: string; /** Drawn as a box of this tone (filled, outlined) instead of a tinted ring. */ fill?: EmphasisTone; node?: string; dataNode?: string} & Dimmed)
+  | ({k: 'circle'; cx: number; cy: number; r: number; tone: TextTone; opacity?: number; dash?: string; /** Drawn as a box of this tone (filled, outlined) instead of a tinted ring. */ fill?: EmphasisTone; node?: string; dataNode?: string; /** ADR 0054 */ part?: string} & Dimmed)
   | ({k: 'rect'; x: number; y: number; w: number; h: number; tone: TextTone} & Dimmed)
-  | ({k: 'path'; d: string; tone: TextTone; arrow?: boolean; thin?: boolean; /** Drawn as a box of this tone (filled, outlined) instead of a line; `box` is the extent of what is drawn. */ fill?: EmphasisTone; box?: Rect; node?: string; dataNode?: string} & Dimmed);
+  | ({k: 'path'; d: string; tone: TextTone; arrow?: boolean; thin?: boolean; /** Drawn as a box of this tone (filled, outlined) instead of a line; `box` is the extent of what is drawn. */ fill?: EmphasisTone; box?: Rect; node?: string; dataNode?: string; /** ADR 0054 */ part?: string} & Dimmed);
 export interface LaidOutFlowShape extends Rect, Dimmed {type: FlowShapeBand['type']; id?: string; reveal?: number; until?: number; primitives: FlowPrimitive[]; texts: FlowText[]; anchors: Anchor[]; labelBoxes: (Rect & {label: string})[]; /** emblem: the bounding box of each shape that has an id (the checks' obstacle, which may be larger than its anchor). */ bounds?: Anchor[]}
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -239,13 +240,13 @@ class Texts {
   }
   width(text: string, weight: 400 | 700 = 700, size = this.roles.note): number { return textWidth(this.widthOf, text, size, weight); }
   /** Places a wrapped block with its top at `top`; `x` is its centre (middle), left edge (start) or right edge (end). */
-  place(block: ReturnType<Texts['wrap']>, x: number, top: number, tone: FlowTextTone = 'text', anchor: FlowText['anchor'] = 'middle'): void {
+  place(block: ReturnType<Texts['wrap']>, x: number, top: number, tone: FlowTextTone = 'text', anchor: FlowText['anchor'] = 'middle', part?: string): void {
     const {size, weight} = block;
     block.lines.forEach((line, i) => {
       const tw = textWidth(this.widthOf, line, size, weight), ty = top + i * size * LINE + size * ((LINE - 1.2) / 2 + 1); // the glyph box (1.2 sizes) centred in its line
       const left = anchor === 'middle' ? x - tw / 2 : anchor === 'start' ? x : x - tw;
       const box = {x: left, y: ty - size, w: tw, h: size * 1.2};
-      this.out.texts.push({text: line, tx: x, ty, size, weight, anchor, tone, ...box});
+      this.out.texts.push({text: line, tx: x, ty, size, weight, anchor, tone, ...box, ...(part ? {part} : {})});
       this.out.labelBoxes.push({label: block.text, ...box});
     });
   }
@@ -452,9 +453,10 @@ function layoutConcentric(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, an
     ordered.forEach((ring, i) => {
       const k = must(keys[i]), top = out.y + 8 + i * slot + (slot - k.h) / 2, ly = top + Math.min(k.h, lh) / 2;
       const rm = (radius(i) + (i < n - 1 ? radius(i + 1) : 0)) / 2, a = -Math.PI / 6, dot: Pt = [g4(cx + rm * Math.cos(a)), g4(cy + rm * Math.sin(a))];
-      out.primitives.push({k: 'path', d: `M${dot[0].toFixed(1)},${dot[1].toFixed(1)} L${(keyLeft - 8).toFixed(1)},${ly.toFixed(1)}`, tone: 'muted', thin: true});
-      out.primitives.push({k: 'circle', cx: dot[0], cy: dot[1], r: 3.5, tone: 'text', opacity: 1});
-      t.place(k, keyLeft, top, ring.tone ?? 'text', 'start');
+      const part = partStep('callout', ring.id ?? i, ringLabel(ring)); // ADR 0054: the leader, its dot and the key
+      out.primitives.push({k: 'path', d: `M${dot[0].toFixed(1)},${dot[1].toFixed(1)} L${(keyLeft - 8).toFixed(1)},${ly.toFixed(1)}`, tone: 'muted', thin: true, part});
+      out.primitives.push({k: 'circle', cx: dot[0], cy: dot[1], r: 3.5, tone: 'text', opacity: 1, part});
+      t.place(k, keyLeft, top, ring.tone ?? 'text', 'start', part);
     });
   }
   let innerBottom = -Infinity; // the bottom of the innermost ring's label: the centre text goes below it
