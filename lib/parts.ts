@@ -17,6 +17,8 @@ const dec = (s: string): string => s.replace(/%2F/g, '/').replace(/%7C/g, '|').r
 export const partStep = (kind: string, key: string | number | {index: string}, label: string): string =>
   `${enc(kind)}:${typeof key === 'number' ? `#${key}` : typeof key === 'object' ? `#${enc(key.index)}` : enc(key)}|${enc(label)}`;
 
+/** A chart's axis (its grid lines, ticks, tick texts and name): `which` is x, y, or y2 for a second value axis. */
+export const axisPart = (which: string): string => partStep('axis', {index: which}, which);
 /** A chart's legend (its entries are parts inside it: partStep('entry', …)). */
 export const LEGEND = partStep('legend', 0, '');
 /** A plane's axes, their ticks and their names: one part (lib/plane.ts). */

@@ -1,5 +1,6 @@
 // tornado(): a sensitivity chart. Each row is one input; its two bars run from the base result to the result in the low case and in the
 // high case, so the longest row is the input the result is most sensitive to and the rows fall in order of that length.
+import {axisPart, partStep} from './parts.ts';
 import {Canvas, checkDomain, checkIds, checkInset, insetOrNeed, checkText, fail, finiteNum, numText, thinTicks, valueScale} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 
@@ -102,10 +103,11 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
   }));
   // grid and axis
   const tk = sc.ticks.map(v => ({v})), shown = thinTicks(tk, xOf, t => c.tw(numText(t.v)), 12);
-  for (const t of tk) { c.line(xOf(t.v), y0, xOf(t.v), bodyB, {stroke: 'border'}); if (shown.has(t)) c.text(numText(t.v), xOf(t.v), bodyB + S + 8, 'middle', 'muted'); }
+  c.withPart(axisPart('x'), () => { for (const t of tk) { c.line(xOf(t.v), y0, xOf(t.v), bodyB, {stroke: 'border'}); if (shown.has(t)) c.text(numText(t.v), xOf(t.v), bodyB + S + 8, 'middle', 'muted'); } });
   // rows
   let y = y0;
-  s.items.forEach((it, k) => {
+  // ADR 0054 D9.2: a row (its name, its two bars and their values) is a part
+  s.items.forEach((it, k) => c.withPart(partStep('row', it.id ?? k, it.label), () => {
     const cy = y + must(rowH[k]) / 2, top = cy - barH / 2;
     c.lines(must(wrapped[k]), g.x + labelW - 10, cy - (must(wrapped[k]).length - 1) * lineH / 2 + S * 0.36, 'end', 'text', {of: it.id ?? `#${k}`});
     const xb = xOf(s.base), same = sameSide(it);
@@ -125,14 +127,15 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
       if (!c.place(text, [out, alt], b.tone === 'muted' ? 'text' : b.tone, {bold: true, of: it.id ?? `#${k}`})) fail('tornado', `the value "${text}" of "${it.label}" has no room`);
     });
     y += must(rowH[k]);
-  });
+  }));
   // the base line over the bars, its name above
   const xb = r1(xOf(s.base));
-  c.line(xb, y0 - 6, xb, bodyB, {stroke: 'text', sw: 2});
+  const base = partStep('base', 0, s.baseLabel);
+  c.withPart(base, () => c.line(xb, y0 - 6, xb, bodyB, {stroke: 'text', sw: 2}));
   // its name centred on it, kept inside the figure when the base is near an edge
   const baseText = `${s.baseLabel} ${vText(s.base)}`, half = c.tw(baseText, true) / 2;
   if (2 * half > g.w) fail('tornado', `the base label "${baseText}" is wider than the figure (shorten baseLabel, or raise width)`);
-  c.text(baseText, Math.min(Math.max(xb, g.x + half), g.x + g.w - half), y0 - 12, 'middle', 'text', {bold: true});
+  c.withPart(base, () => c.text(baseText, Math.min(Math.max(xb, g.x + half), g.x + g.w - half), y0 - 12, 'middle', 'text', {bold: true}));
   void Canvas;
   return c.done();
 }

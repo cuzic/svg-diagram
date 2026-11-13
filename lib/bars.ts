@@ -1,4 +1,5 @@
 import {insetOrNeed} from './charts-base.ts';
+import {axisPart, partStep, PLANE_AXES} from './parts.ts';
 import {textWidth} from './atoms.ts';
 import {fmt, ticksOf} from './plane.ts';
 import type {BarDatum, BarsBand, BarsInk, BarsLine, LaidOutBars} from './types/bars.ts';
@@ -156,15 +157,16 @@ const LINE_TONE: Record<NonNullable<BarsLine['tone']>, ColorKey> = {accent: 'acc
 
 function putText(
   out: LaidOutBars, S: number, text: string, x: number, y: number, anchor: 'start' | 'middle' | 'end', fill: ColorKey,
-  widthOf: WidthOf, bold = false, background?: ColorKey, bar?: number,
+  widthOf: WidthOf, bold = false, background?: ColorKey, bar?: number, part?: string,
 ): void {
-  out.texts.push({text, x, y, anchor, fill, size: S, bold, reveal: bar === undefined ? undefined : must(out.bars[bar]).reveal, ...(bar === undefined || must(out.bars[bar]).until === undefined ? {} : {until: must(out.bars[bar]).until}), bar});
+  out.texts.push({text, x, y, anchor, fill, size: S, bold, reveal: bar === undefined ? undefined : must(out.bars[bar]).reveal, ...(bar === undefined || must(out.bars[bar]).until === undefined ? {} : {until: must(out.bars[bar]).until}), bar, ...(part ? {part} : {})});
   const w = textWidth(widthOf, text, S, bold ? 700 : 400);
   out.labelBoxes.push({label: text, x: anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x, y: y - S, w, h: S + 4, background, bar});
 }
 
 function addBar(out: LaidOutBars, d: BarDatum, r: Omit<LaidOutBars['bars'][number], 'fill' | 'id'>): LaidOutBars['bars'][number] {
-  const bar = {...r, fill: series(d), id: d.id, reveal: d.reveal, ...(d.until === undefined ? {} : {until: d.until})};
+  // ADR 0054: a bar, its value and its category name are one part
+  const bar = {...r, fill: series(d), id: d.id, reveal: d.reveal, ...(d.until === undefined ? {} : {until: d.until}), part: partStep('bar', d.id ?? out.bars.length, d.label)};
   out.bars.push(bar);
   if (d.id) out.anchors.push({...bar, id: d.id});
   return bar;
@@ -215,7 +217,7 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
     // one line (tick + grid) as before; without grid only the short tick; the zero line is the baseline
     if (f.grid && (f.baseline || t.at !== 0)) out.ticks.push({x1: tx, y1: y, x2: tx, y2: axisY + TICK});
     else out.ticks.push({x1: tx, y1: axisY, x2: tx, y2: axisY + TICK});
-    putText(out, S, t.label, tx, axisY + outsideH + TICK + S + 2, 'middle', 'muted', widthOf);
+    putText(out, S, t.label, tx, axisY + outsideH + TICK + S + 2, 'middle', 'muted', widthOf, false, undefined, undefined, PLANE_AXES);
   }
   if (f.baseline && !(f.axis && f.grid)) out.ticks.push({x1: plotL, y1: y, x2: plotL, y2: axisY});
   if (band.stack) {
@@ -279,7 +281,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
     const ty = yOf(t.at);
     if (f.grid && (f.baseline || t.at !== 0)) out.ticks.push({x1: plotL - TICK, y1: ty, x2: plotR, y2: ty});
     else out.ticks.push({x1: plotL - TICK, y1: ty, x2: plotL, y2: ty});
-    putText(out, S, t.label, plotL - TICK - 4, ty + (band.labelRole ? S * 5 / 14 : 5), 'end', 'muted', widthOf);
+    putText(out, S, t.label, plotL - TICK - 4, ty + (band.labelRole ? S * 5 / 14 : 5), 'end', 'muted', widthOf, false, undefined, undefined, PLANE_AXES);
   }
   if (band.stack) {
     const bw = Math.min(72, (plotR - plotL) * .35), bx = (plotL + plotR - bw) / 2;
@@ -323,45 +325,46 @@ function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: nu
   const count = slotsOf(band.data).count, slot = (plotR - plotL) / count, xOf = (at: number) => plotL + at * slot;
   const hy: number[] = []; // where the labels of the horizontal lines already are
   for (const l of (band.lines ?? []).toSorted((a, b) => b.at - a.at)) {
-    const ly = yOf(l.at), fill = LINE_TONE[l.tone ?? 'danger'];
-    ink.lines.push({x1: plotL, y1: ly, x2: plotR, y2: ly, fill, dashed: l.dashed !== false});
+    const ly = yOf(l.at), fill = LINE_TONE[l.tone ?? 'danger'], part = partStep('line', {index: `h${l.at}`}, l.label ?? ''); // ADR 0054: a line and its label
+    ink.lines.push({x1: plotL, y1: ly, x2: plotR, y2: ly, fill, dashed: l.dashed !== false, part});
     if (!l.label) continue;
     // a label closer than its height to the one before goes to the other end of its line (right, then left)
     const near = hy.filter(y => Math.abs(y - ly) < S + 6).length;
     hy.push(ly);
-    if (near % 2 === 0) putText(out, S, l.label, plotR - 4, ly - 5, 'end', fill, widthOf, true);
-    else putText(out, S, l.label, plotL + 4, ly - 5, 'start', fill, widthOf, true);
+    if (near % 2 === 0) putText(out, S, l.label, plotR - 4, ly - 5, 'end', fill, widthOf, true, undefined, undefined, part);
+    else putText(out, S, l.label, plotL + 4, ly - 5, 'start', fill, widthOf, true, undefined, undefined, part);
   }
   for (const [i, l] of (band.vlines ?? []).entries()) {
-    const lx = xOf(l.at), fill = LINE_TONE[l.tone ?? 'danger'], at = vrows.at[i];
-    ink.lines.push({x1: lx, y1: plotT - 4, x2: lx, y2: plotB, fill, dashed: l.dashed !== false});
+    const lx = xOf(l.at), fill = LINE_TONE[l.tone ?? 'danger'], at = vrows.at[i], part = partStep('line', {index: `v${i}`}, l.label ?? '');
+    ink.lines.push({x1: lx, y1: plotT - 4, x2: lx, y2: plotB, fill, dashed: l.dashed !== false, part});
     // a label on a higher row is reached by a leader (it may pass the labels of the rows below)
-    if (at && at.row > 0) ink.lines.push({x1: lx, y1: plotT - 4 - at.row * (S + 4), x2: lx, y2: plotT - 4, fill, dashed: l.dashed !== false, soft: true});
-    if (l.label && at) putText(out, S, l.label, at.x, plotT - 8 - at.row * (S + 4), at.anchor, fill, widthOf, true);
+    if (at && at.row > 0) ink.lines.push({x1: lx, y1: plotT - 4 - at.row * (S + 4), x2: lx, y2: plotT - 4, fill, dashed: l.dashed !== false, soft: true, part});
+    if (l.label && at) putText(out, S, l.label, at.x, plotT - 8 - at.row * (S + 4), at.anchor, fill, widthOf, true, undefined, undefined, part);
   }
-  if (band.edges) band.edges.forEach((e, i) => { if (e) putText(out, S, e, xOf(i), plotB + S + 10, 'middle', 'text', widthOf); });
+  if (band.edges) band.edges.forEach((e, i) => { if (e) putText(out, S, e, xOf(i), plotB + S + 10, 'middle', 'text', widthOf, false, undefined, undefined, PLANE_AXES); });
   if (band.curve) ink.polylines.push({pts: band.curve.through.map(([sx, v]) => ({x: xOf(sx), y: yOf(v)})), fill: LINE_TONE[band.curve.tone ?? 'text'], dashed: band.curve.dashed === true, soft: true});
   if (band.cumulative) {
-    const cum = cumulativeOf(band.data), yPct = (p: number) => plotB - p / 100 * (plotB - plotT);
-    ink.lines.push({x1: plotR, y1: plotT, x2: plotR, y2: plotB, fill: 'border', dashed: false});
+    // ADR 0054: the percent axis on the right, and the cumulative line (its line, dots and percents), are parts
+    const cum = cumulativeOf(band.data), yPct = (p: number) => plotB - p / 100 * (plotB - plotT), right = axisPart('y2'), line = partStep('cumulative', 0, '');
+    ink.lines.push({x1: plotR, y1: plotT, x2: plotR, y2: plotB, fill: 'border', dashed: false, part: right});
     for (const p of CUM_TICKS) {
-      ink.lines.push({x1: plotR, y1: yPct(p), x2: plotR + TICK, y2: yPct(p), fill: 'border', dashed: false});
-      putText(out, S, `${p}%`, plotR + TICK + 4, yPct(p) + (band.labelRole ? S * 5 / 14 : 5), 'start', 'muted', widthOf);
+      ink.lines.push({x1: plotR, y1: yPct(p), x2: plotR + TICK, y2: yPct(p), fill: 'border', dashed: false, part: right});
+      putText(out, S, `${p}%`, plotR + TICK + 4, yPct(p) + (band.labelRole ? S * 5 / 14 : 5), 'start', 'muted', widthOf, false, undefined, undefined, right);
     }
     if (band.cumulative.guide !== undefined) ink.lines.push({x1: plotL, y1: yPct(band.cumulative.guide), x2: plotR, y2: yPct(band.cumulative.guide), fill: 'muted', dashed: true});
     // the textbook line: from the origin, through the upper right corner of each bar
     const pts = [{x: plotL, y: plotB}, ...cum.map((p, i) => ({x: xOf(i + 1), y: yPct(p)}))];
-    ink.polylines.push({pts, fill: 'danger', dashed: false});
+    ink.polylines.push({pts, fill: 'danger', dashed: false, part: line});
     // each percent sits at the first of four places that touches neither another label nor a line (the line, the guide, the bars' own values)
     const segs = [...ink.lines.filter(l => !l.soft), ...ink.polylines.filter(l => !l.soft).flatMap(l => l.pts.slice(1).map((q, k) => ({x1: must(l.pts[k]).x, y1: must(l.pts[k]).y, x2: q.x, y2: q.y})))];
     for (const [i, p] of pts.slice(1).entries()) {
-      ink.dots.push({x: p.x, y: p.y, fill: 'danger'});
+      ink.dots.push({x: p.x, y: p.y, fill: 'danger', part: line});
       const text = cumText(must(cum[i])), tw = textWidth(widthOf, text, S, 700);
       const places: ['start' | 'middle' | 'end', number, number][] = [['end', p.x - 6, p.y - 7], ['middle', p.x, p.y - 12], ['start', p.x + 6, p.y - 7], ['end', p.x - 6, p.y + S + 4], ['start', p.x + 6, p.y + S + 4]];
       const boxOf = (a: 'start' | 'middle' | 'end', lx: number, ly: number) => ({x: a === 'middle' ? lx - tw / 2 : a === 'end' ? lx - tw : lx, y: ly - S, w: tw, h: S + 4});
       const clear = (b: {x: number; y: number; w: number; h: number}): boolean => b.x >= out.x && b.x + b.w <= out.x + out.w && b.y >= out.y && !out.labelBoxes.some(o => hitRect(b, o)) && !segs.some(sg => segHitsRect(sg, b));
       const at = places.find(([a, lx, ly]) => clear(boxOf(a, lx, ly))) ?? must(places[0]);
-      putText(out, S, text, at[1], at[2], at[0], 'danger', widthOf, true);
+      putText(out, S, text, at[1], at[2], at[0], 'danger', widthOf, true, undefined, undefined, line);
     }
   }
   if (ink.lines.length || ink.polylines.length || ink.dots.length) out.ink = ink;
