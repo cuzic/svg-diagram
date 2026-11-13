@@ -145,15 +145,18 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
     if (tx + tw / 2 <= x + w) text(t.label, Math.max(tx, plotL), y + S + 2, 'middle', false, true, undefined, GANTT_AXIS);
   }
 
+  // ADR 0054 D9.2: a section is its name and the tasks under it (its pale strip lies under the grid lines, so it stays out)
+  let section: string | undefined;
   band.rows.forEach((r, i) => {
     const ry = top + i * ROW_H, cy = ry + ROW_H / 2;
     if (isSection(r)) {
-      const part = partStep('section', i, r.section);
-      out.sections.push({x, y: ry, w, h: ROW_H, part});
-      text(r.section, x + PAD, cy + S / 2 - 1, 'start', true, false, undefined, part);
+      section = partStep('section', i, r.section);
+      out.sections.push({x, y: ry, w, h: ROW_H, part: section});
+      text(r.section, x + PAD, cy + S / 2 - 1, 'start', true, false, undefined, section);
       return;
     }
-    const [s, e] = must(spans.get(r)), part = partStep('task', r.id ?? i, r.label);
+    const task = partStep('task', r.id ?? i, r.label), part = section ? `${section}/${task}` : task;
+    const [s, e] = must(spans.get(r));
     text(r.label, x + PAD, cy + S / 2 - 1, 'start', false, false, undefined, part);
     if (r.milestone) {
       const mx = px(s) + perDay / 2, hh = BAR_H / 2 + 2;
