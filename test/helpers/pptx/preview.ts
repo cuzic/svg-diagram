@@ -3,7 +3,7 @@
 // shapes (rect / roundRect / ellipse / custGeom), connectors (from their xfrm and preset, curved ones drawn as their bent twin), text by
 // the body's insets and exact line spacing (first baseline at 0.8 of the pitch, the assumption shapes.ts makes), tables as their grid,
 // pictures as a hatched box. Not a renderer to trust for small differences: it shares the connector maths with the writer (geom.ts).
-//   node test/helpers/pptx/preview.ts out.png file.pptx
+//   node test/helpers/pptx/preview.ts out.png file.pptx [slide number, default 1]
 import fs from 'node:fs';
 import {parseXmlFragment, type El} from '../../../lib/svg-dom.ts';
 import {evalConnector, type ConnXfrm} from '../../../lib/pptx/geom.ts';
@@ -175,11 +175,11 @@ function shapes(tree: El): string {
   return out.join('\n');
 }
 
-export function previewSvg(pptx: Buffer): string {
+export function previewSvg(pptx: Buffer, slideNo = 1): string {
   const pres = parseXmlFragment(unzipEntry(pptx, 'ppt/presentation.xml').toString());
   const size = find(pres, 'p:sldSz');
   const w = px(size?.attrs['cx']), h = px(size?.attrs['cy']);
-  const slide = unzipEntry(pptx, 'ppt/slides/slide1.xml').toString();
+  const slide = unzipEntry(pptx, `ppt/slides/slide${slideNo}.xml`).toString();
   const tree = find(parseXmlFragment(slide), 'p:spTree') as El;
   const bg = /<p:bg><p:bgPr><a:solidFill><a:srgbClr val="([0-9A-F]{6})"/.exec(slide)?.[1] ?? 'FFFFFF';
   const drawn = shapes(tree); // first: it registers the arrowheads it uses
@@ -187,8 +187,8 @@ export function previewSvg(pptx: Buffer): string {
 }
 
 if (import.meta.main) {
-  const [out, file] = process.argv.slice(2);
+  const [out, file, no] = process.argv.slice(2);
   if (!out || !file) { console.error('usage: node test/helpers/pptx/preview.ts out.png file.pptx'); process.exit(2); }
-  const svg = previewSvg(fs.readFileSync(file));
+  const svg = previewSvg(fs.readFileSync(file), no ? Number(no) : 1);
   fs.writeFileSync(out, (await rasterizeWithResvg(svg, {png: true})).png as Buffer);
 }
