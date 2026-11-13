@@ -6,9 +6,9 @@ import {harfbuzz, resolveFontFile} from '../../lib/font-metrics.ts';
 import type {FontSpecs} from '../../lib/types/project.ts';
 import type {TextEngine} from '../../lib/spec-edge.ts';
 
-// The Japanese font a Worker bundles is Noto Sans JP. A machine without it (CI has only fonts-noto-cjk, whose family is
-// "Noto Sans CJK JP") would measure with the stack's sans-serif, a Latin font with no Japanese glyphs: so the engine and
-// the Node path it is compared with both take the font fontconfig picks for Japanese.
+// The Japanese font a Worker bundles is Noto Sans JP, and the tests of what it lacks (Hangul, U+2212) are written for it. A machine
+// without it would measure with the stack's sans-serif, a Latin font with no Japanese glyphs: so the engine and the Node path it is
+// compared with both take Noto Sans JP (from SVG_DIAGRAM_JA_FONTS, or fontconfig), else the font fontconfig picks for Japanese.
 const jaFile = (weight: number): string | undefined => {
   for (const pattern of [`Noto Sans JP:weight=${weight === 700 ? 200 : 80}`, `sans-serif:lang=ja:weight=${weight === 700 ? 200 : 80}`]) {
     const [file, index, family] = execFileSync('fc-match', ['-f', '%{file}\t%{index}\t%{family}', pattern], {encoding: 'utf8'}).split('\t');
@@ -16,7 +16,9 @@ const jaFile = (weight: number): string | undefined => {
   }
   return undefined;
 };
-const regular = jaFile(400), bold = jaFile(700);
+// CI keeps the files out of fontconfig (the browser comparisons need its fonts as they are) and names their directory here
+const dir = process.env.SVG_DIAGRAM_JA_FONTS;
+const regular = dir ? `${dir}/NotoSansJP-Regular.otf` : jaFile(400), bold = dir ? `${dir}/NotoSansJP-Bold.otf` : jaFile(700);
 /** The font files `realEngine` draws with, for `renderSpec(..., {config: {measure: 'font', fonts: JA_FONTS}})`. */
 export const JA_FONTS: FontSpecs = regular && bold ? {sans: {regular, bold}} : {};
 
