@@ -7,6 +7,10 @@
 //     is too crowded the rows grow (a `height` is a minimum), and when growing does not help the layout throws and says which item.
 // The rating of a cell is always written (its title / note), the groups are told apart by shape AND colour, and the size of a bubble
 // has a legend: colour is never the only carrier of meaning.
+import {LEGEND, partStep} from './parts.ts';
+
+/** ADR 0054: a quadrant's axes (its crosshair and the axis texts) are one part. */
+export const AXES = partStep('axes', 0, '');
 import {assertScope} from './scope-name.ts';
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
@@ -126,7 +130,7 @@ export interface QuadrantBand {
 
 export type QuadrantShape = 'circle' | 'square' | 'diamond' | 'triangle';
 export type QuadrantInk = 'text' | 'muted' | 'accent' | 'danger';
-export interface QuadrantText {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; size: number; bold: boolean; fill: QuadrantInk; /** index into bubbles: dims with its bubble */ item?: number; /** ADR 0034: written as `data-node` (set by withNodeIds) */ dataNode?: string}
+export interface QuadrantText {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; size: number; bold: boolean; fill: QuadrantInk; /** index into bubbles: dims with its bubble */ item?: number; /** ADR 0054: the part it is grouped in (a cell's caption, the axes, a legend entry) */ part?: string; /** ADR 0034: written as `data-node` (set by withNodeIds) */ dataNode?: string}
 export interface QuadrantBubble {
   x: number; y: number; /** area radius */ r: number; /** the radius of the circle that holds the shape */ cr: number; shape: QuadrantShape; tone: QuadrantInk;
   /** drawn as an outline (groups 5 to 8) */ hollow: boolean;
@@ -141,7 +145,7 @@ export interface LaidOutQuadrant extends Rect, Dimmed {
   until?: number;
   plot: Rect;
   crosshair: boolean;
-  cells: (Rect & {tone: QuadrantTone})[];
+  cells: (Rect & {tone: QuadrantTone; /** ADR 0054 */ part?: string})[];
   /** The free-shaped regions as pixel polygons, in drawing order (their captions are in `texts`). */
   regions: {points: [number, number][]; tone: QuadrantTone}[];
   /** The lines of a crosshair (the inner cell borders). */
@@ -152,7 +156,7 @@ export interface LaidOutQuadrant extends Rect, Dimmed {
   /** The backing of an arrow's label. */
   chips: Rect[];
   /** Markers of the legend (a group's shape, a reference bubble). */
-  marks: {x: number; y: number; r: number; shape: QuadrantShape; tone: QuadrantInk; ring: boolean; hollow?: boolean}[];
+  marks: {x: number; y: number; r: number; shape: QuadrantShape; tone: QuadrantInk; ring: boolean; hollow?: boolean; /** ADR 0054: its legend entry */ part?: string}[];
   anchors: Anchor[];
   /** Every text, as a rect: verify.ts reports two that overlap or one that leaves the figure. */
   labelBoxes: (Rect & {label: string; kind: QuadrantBoxKind; /** an item label: index into bubbles */ item?: number})[];
@@ -514,11 +518,11 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
 
     // ---- captions
     band.cells.forEach((rowCells, r) => rowCells.forEach((cell, k) => {
-      const cap = must(must(caps[r])[k]), cr0 = cellRect(k, r);
+      const cap = must(must(caps[r])[k]), cr0 = cellRect(k, r), part = band.regions.length ? undefined : partStep('cell', r * cols + k, [...cap.t].join('')); // ADR 0054
       const ink: QuadrantInk = cell.tone === 'accent' ? 'accent' : cell.tone === 'danger' ? 'danger' : 'text';
       let top = cr0.y + 8;
-      for (const line of cap.t) { texts.push({text: line, x: cr0.x + 10, y: top + tSize, anchor: 'start', size: tSize, bold: true, fill: ink}); top += lineT; }
-      for (const line of cap.n) { texts.push({text: line, x: cr0.x + 10, y: top + size, anchor: 'start', size, bold: false, fill: 'muted'}); top += lineN; }
+      for (const line of cap.t) { texts.push({text: line, x: cr0.x + 10, y: top + tSize, anchor: 'start', size: tSize, bold: true, fill: ink, ...(part ? {part} : {})}); top += lineT; }
+      for (const line of cap.n) { texts.push({text: line, x: cr0.x + 10, y: top + size, anchor: 'start', size, bold: false, fill: 'muted', ...(part ? {part} : {})}); top += lineN; }
       if (cap.t.length + cap.n.length) {
         const wd = Math.max(widest(cap.t, tSize, 700), widest(cap.n, size, 400)), box = {x: cr0.x + 10, y: cr0.y + 8, w: wd, h: top - cr0.y - 8};
         headers.push(box);
@@ -693,7 +697,8 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   }
 
   // ---- cells, axis names
-  const cells = band.cells.flatMap((rowCells, r) => rowCells.map((cell, k) => ({...cellRect(k, r), tone: cell.tone ?? 'plain'})));
+  // ADR 0054: a cell's part (its caption's, see the captions above); none where regions are drawn over the cells
+  const cells = band.cells.flatMap((rowCells, r) => rowCells.map((cell, k) => ({...cellRect(k, r), tone: cell.tone ?? 'plain', ...(band.regions.length ? {} : {part: partStep('cell', r * cols + k, [...must(must(caps[r])[k]).t].join(''))})})));
   const lines: LaidOutQuadrant['lines'] = [];
   if (band.crosshair) {
     for (let k = 1; k < cols; k++) lines.push({x1: plotL + must(colGrid.x[k]), y1: plotT, x2: plotL + must(colGrid.x[k]), y2: plotB});
@@ -706,21 +711,21 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   };
   const yx = plotL - 10;
   const topEnd = band.y.reversed ? band.y.low : band.y.high, bottomEnd = band.y.reversed ? band.y.high : band.y.low;
-  if (topEnd) { texts.push({text: topEnd, x: yx, y: plotT + size + 4, anchor: 'end', size, bold: false, fill: 'muted'}); axisBox(topEnd, size, 400, 'end', yx, plotT + size + 4); }
-  if (bottomEnd) { texts.push({text: bottomEnd, x: yx, y: plotB - 6, anchor: 'end', size, bold: false, fill: 'muted'}); axisBox(bottomEnd, size, 400, 'end', yx, plotB - 6); }
+  if (topEnd) { texts.push({text: topEnd, x: yx, y: plotT + size + 4, anchor: 'end', size, bold: false, fill: 'muted', part: AXES}); axisBox(topEnd, size, 400, 'end', yx, plotT + size + 4); }
+  if (bottomEnd) { texts.push({text: bottomEnd, x: yx, y: plotB - 6, anchor: 'end', size, bold: false, fill: 'muted', part: AXES}); axisBox(bottomEnd, size, 400, 'end', yx, plotB - 6); }
   const ty = (plotT + plotB) / 2 - (yTitle.length * lineT) / 2;
-  yTitle.forEach((line, k) => { const base = ty + k * lineT + tSize; texts.push({text: line, x: yx, y: base, anchor: 'end', size: tSize, bold: true, fill: 'text'}); axisBox(line, tSize, 700, 'end', yx, base); });
+  yTitle.forEach((line, k) => { const base = ty + k * lineT + tSize; texts.push({text: line, x: yx, y: base, anchor: 'end', size: tSize, bold: true, fill: 'text', part: AXES}); axisBox(line, tSize, 700, 'end', yx, base); });
   const xBase = plotB + 10 + size;
-  if (xLeft) { texts.push({text: xLeft, x: plotL, y: xBase, anchor: 'start', size, bold: false, fill: 'muted'}); axisBox(xLeft, size, 400, 'start', plotL, xBase); }
-  if (xRight) { texts.push({text: xRight, x: plotR, y: xBase, anchor: 'end', size, bold: false, fill: 'muted'}); axisBox(xRight, size, 400, 'end', plotR, xBase); }
-  texts.push({text: band.x.title, x: (plotL + plotR) / 2, y: xBase, anchor: 'middle', size: tSize, bold: true, fill: 'text'});
+  if (xLeft) { texts.push({text: xLeft, x: plotL, y: xBase, anchor: 'start', size, bold: false, fill: 'muted', part: AXES}); axisBox(xLeft, size, 400, 'start', plotL, xBase); }
+  if (xRight) { texts.push({text: xRight, x: plotR, y: xBase, anchor: 'end', size, bold: false, fill: 'muted', part: AXES}); axisBox(xRight, size, 400, 'end', plotR, xBase); }
+  texts.push({text: band.x.title, x: (plotL + plotR) / 2, y: xBase, anchor: 'middle', size: tSize, bold: true, fill: 'text', part: AXES});
   axisBox(band.x.title, tSize, 700, 'middle', (plotL + plotR) / 2, xBase);
 
   // ---- legends: the groups (shape + colour + name), then what the bubble area means
   const marks: LaidOutQuadrant['marks'] = [];
   let cursorY = g4(xBase + 14);
-  const legendText = (text: string, lx: number, ly: number, anchor: 'start' | 'middle' | 'end' = 'start') => {
-    texts.push({text, x: lx, y: ly + size - 2, anchor, size, bold: false, fill: 'text'});
+  const legendText = (text: string, lx: number, ly: number, anchor: 'start' | 'middle' | 'end' = 'start', part?: string) => {
+    texts.push({text, x: lx, y: ly + size - 2, anchor, size, bold: false, fill: 'text', ...(part ? {part} : {})});
     const wd = tw(text, size, 400);
     labelBoxes.push({x: anchor === 'end' ? lx - wd : lx, y: ly - 1, w: wd, h: size + 3, label: text, kind: 'legend'});
   };
@@ -729,8 +734,9 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     for (const [gi, g] of band.groups.entries()) {
       const need = 24 + tw(g, size, 400) + 20;
       if (lx > plotL && lx + need > plotR) { lx = plotL; ly += 26; }
-      marks.push({x: g4(lx + 9), y: ly + 8, r: 7, ...groupStyle(gi), ring: false});
-      legendText(g, lx + 22, ly);
+      const part = `${LEGEND}/${partStep('entry', gi, g)}`;
+      marks.push({x: g4(lx + 9), y: ly + 8, r: 7, ...groupStyle(gi), ring: false, part});
+      legendText(g, lx + 22, ly, 'start', part);
       lx += need;
     }
     cursorY = ly + 28;
@@ -740,13 +746,15 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     const title = sizeLegendTitle(band);
     let lx = plotL;
     const rowMid = g4(rowTopY + Math.max(rMax, size) + 2);
-    legendText(title, lx, rowMid - size / 2 - 1);
+    const sizes = partStep('size legend', 0, title);
+    legendText(title, lx, rowMid - size / 2 - 1, 'start', sizes);
     lx += tw(title, size, 400) + 22;
     for (const rf of refs) {
       const label = sizeRefLabel(band, rf.v), need = 2 * rf.r + 8 + tw(label, size, 400) + 22;
       if (lx + need - 22 > plotR) break;
-      marks.push({x: g4(lx + rf.r), y: g4(rowMid), r: rf.r, shape: 'circle', tone: 'muted', ring: true});
-      legendText(label, lx + 2 * rf.r + 8, rowMid - size / 2 - 1);
+      const part = `${sizes}/${partStep('entry', {index: label}, label)}`;
+      marks.push({x: g4(lx + rf.r), y: g4(rowMid), r: rf.r, shape: 'circle', tone: 'muted', ring: true, part});
+      legendText(label, lx + 2 * rf.r + 8, rowMid - size / 2 - 1, 'start', part);
       lx += need;
     }
     cursorY = rowMid + Math.max(rMax, size) + 8;

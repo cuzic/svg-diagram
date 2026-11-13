@@ -94,9 +94,10 @@ export const textGeo = (p: Placed): Geo => {
   return {kind: 'rect', r: {x, y: t.y - t.size * 0.8, w, h: t.size}};
 };
 
-/** drawAll, with the shapes and texts of one part gathered into a group (parts-group.ts). */
-export function drawParts(drawn: readonly PartDrawn[], texts: readonly Placed[], fonts: Fonts, next: () => number): string {
-  const left = new Set(fillHolders(drawn.flatMap(d => typeof d.d === 'string' ? [] : [d.d]), texts));
+/** drawAll, with the shapes and texts of one part gathered into a group (parts-group.ts). `holds`: whether a text may go into a shape (default: all may). */
+export function drawParts(drawn: readonly PartDrawn[], texts: readonly Placed[], fonts: Fonts, next: () => number, o: {holds?: (p: Placed) => boolean} = {}): string {
+  const may = o.holds ?? (() => true);
+  const left = new Set([...fillHolders(drawn.flatMap(d => typeof d.d === 'string' ? [] : [d.d]), texts.filter(may)), ...texts.filter(p => !may(p)).map(p => p.t)]);
   const pieces: Piece[] = [];
   const add = (xml: string, geo: Geo, part?: string, text = false) => pieces.push({order: pieces.length, xml, geo, part: part ? part.split('/') : [], ...(text ? {text} : {})});
   for (const {d, geo, part} of drawn) add(typeof d === 'string' ? d : d.draw(d.texts.length ? boxTextXml(d.rect, d.texts, fonts) : undefined), geo, part, typeof d !== 'string' && d.texts.length > 0);

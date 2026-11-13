@@ -254,7 +254,7 @@ test('the plain pieces: a text line sits on its baseline at its anchor, presets 
   const c = quadrantXml(caption as never, {day: 'blue'} as never, (await import('../lib/tokens.ts')).NO_TONES, fonts, () => ++n).xml;
   assert.match(c, /name="cell: 強み"(?:(?!<\/p:sp>)[\s\S])*<a:t>強み<\/a:t>/);
   // the item's marker and label are one group, so they move together
-  assert.match(c, /<p:grpSp><p:nvGrpSpPr><p:cNvPr id="\d+" name="item: A"\/>(?:(?!<\/p:grpSp>)[\s\S])*prst="ellipse"(?:(?!<\/p:grpSp>)[\s\S])*name="text: A"/);
+  assert.match(c, /<p:grpSp><p:nvGrpSpPr><p:cNvPr id="\d+" name="item: A \[a\]"\/>(?:(?!<\/p:grpSp>)[\s\S])*prst="ellipse"(?:(?!<\/p:grpSp>)[\s\S])*name="text: A"/);
 });
 
 test('fillHolders: a text goes into the smallest shape holding it, unless that shape is not inside the others holding it or the text is too wide', async () => {
