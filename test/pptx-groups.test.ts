@@ -96,3 +96,59 @@ test('a class diagram: each class is a group of its box, dividers and lines; eac
   assert.ok(gs.some(n => /^relation: .+ → .+$/.test(n)), gs.join(', '));
   for (const g of groups(treeOf(slide)).filter(g => g.name.startsWith('class: '))) assert.ok((g.kids?.length ?? 0) >= 2, g.name);
 });
+
+test('with or without the parts, the converter puts the same texts in the same boxes and glues the same lines: only the groups differ (every catalog example)', async () => {
+  const {specToDiagram} = await import('../lib/spec.ts');
+  const {renderInBrowser} = await import('../lib/web.ts');
+  const {guardedEngine} = await import('../lib/spec-edge.ts');
+  const {bandPicture} = await import('../lib/pptx/image-band.ts');
+  const {svgShapesXml} = await import('../lib/pptx/svg-shapes.ts');
+  const {BAND_HANDLERS} = await import('../lib/pptx/bands.ts');
+  const engine = guardedEngine(realEngine());
+  /** The shapes without their groups and names, sorted: what was drawn, glued and filled, whatever the grouping. */
+  const shapes = (xml: string): string[] => xml.replace(/<p:grpSp><p:nvGrpSpPr>[\s\S]*?<\/p:grpSpPr>|<\/p:grpSp>/g, '').replace(/ name="[^"]*"/g, '')
+    .split(/(?=<p:(?:sp|cxnSp)>)/).filter(Boolean).toSorted();
+  let compared = 0;
+  for (const p of partCatalog()) {
+    const ld = (await renderInBrowser(specToDiagram(spec(p.example)), {measure: engine.measure})).laidOut;
+    for (const [i, band] of ld.laidOut.entries()) {
+      if (BAND_HANDLERS[band.type] !== 'image' || !('h' in band)) continue;
+      const {svg} = bandPicture(ld, band as never, i).picture;
+      let n = 1000;
+      const withParts = svgShapesXml(svg, {sans: 'S', mono: 'M'}, () => ++n);
+      n = 1000;
+      const without = svgShapesXml(svg.replace(/ data-part="[^"]*"/g, ''), {sans: 'S', mono: 'M'}, () => ++n);
+      assert.ok(withParts !== null && without !== null, p.type);
+      assert.deepEqual(shapes(withParts), shapes(without), `${p.type}: band ${i}`);
+      compared++;
+    }
+  }
+  assert.ok(compared > 20, `${compared} bands compared`);
+});
+
+test('the parts of ADR 0054 D6: each figure has groups of the kinds the table lists', async () => {
+  const kinds: [type: string, prefixes: string[], extra?: Record<string, unknown>][] = [
+    ['classDiagram', ['class: ', 'relation: ']],
+    ['lines', ['series: ', 'axes']],
+    ['radar', ['series: ', 'axes', 'legend', 'entry: ']],
+    ['gantt', ['task: ', 'axis']],
+    ['bpmn', ['lane: ', 'gateway: ', 'event: ']],
+    ['swimlane', ['lane: ']],
+    ['sequence', ['participant: ', 'message: ']],
+    ['faultTree', ['event: ']],
+    ['bowtie', ['knot']],
+    ['sankey', ['node: ']],
+    ['harvey', ['ball: ', 'legend', 'entry: ']],
+    ['timeline', ['event: ', 'axis']],
+    ['pert', ['task: ']],
+    ['affinity', ['group: ']],
+    ['versus', ['group: ']],
+    ['stackedBars', ['legend', 'entry: ']],
+    ['causeTree', ['node: '], {tree: 'crt', nodes: [{id: 'u', label: '遅れる', role: 'ude'}, {id: 'r', label: '評価', role: 'root'}], links: [{from: 'r', to: 'u'}]}],
+  ];
+  for (const [type, prefixes, extra] of kinds) {
+    const part = extra ? {type, ...extra} : example(type);
+    const names = groups(treeOf(await slideOf(part))).map(g => g.name);
+    for (const p of prefixes) assert.ok(names.some(n => n.startsWith(p)), `${type}: no group "${p}…" in ${names.join(', ')}`);
+  }
+});
