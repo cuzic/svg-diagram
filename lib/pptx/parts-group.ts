@@ -67,9 +67,13 @@ const kindOf = (step: string): string => step.slice(0, step.indexOf(':'));
 /** Kinds whose parts never change places with one another (D3's exception is for parts of data: series, rows, classes). */
 const ORDERED_KINDS: ReadonlySet<string> = new Set(['axis', 'axes']);
 
+/** A hidden scope on a part's next step (from the outer step it was left out of): kept in the key, never in the name. */
+const SCOPE = '\u001f';
+const scoped = (rest: readonly string[], outer: string): string[] => rest.length ? [`${rest[0]}${SCOPE}${outer}`, ...rest.slice(1)] : [];
+
 /** The name of a part's group: its kind and label, and its DSL id when it has one (`class: 注文 [u1]`). */
 export function partName(step: string): string {
-  const s = parsePart(step)[0];
+  const s = parsePart(step.split(SCOPE)[0] as string)[0];
   if (!s) return step;
   const label = [...s.label].slice(0, 40).join('');
   return `${s.kind}${label ? `: ${label}` : ''}${s.key && !s.index ? ` [${s.key}]` : ''}`;
@@ -111,7 +115,8 @@ export function assembleParts(pieces: readonly Piece[], next: () => number, dept
   }
   // the pieces left out of a part are gathered again by their inner parts: a part that cannot be one group keeps the groups inside it
   // (ADR 0054 D9.1); the step left out is dropped from their path, and the level is assembled again (each round drops a step, so it ends)
-  if (out.size) return assembleParts(pieces.map(p => out.has(p) ? {...p, part: [...p.part.slice(0, depth), ...p.part.slice(depth + 1)]} : p), next, depth, left);
+  // (the inner step keeps the dropped step as a hidden scope, so the pieces of two outer parts never merge under one inner key)
+  if (out.size) return assembleParts(pieces.map(p => out.has(p) ? {...p, part: [...p.part.slice(0, depth), ...scoped(p.part.slice(depth + 1), p.part[depth] as string)]} : p), next, depth, left);
   const xml: string[] = [];
   for (const p of pieces) {
     const k = p.part[depth];

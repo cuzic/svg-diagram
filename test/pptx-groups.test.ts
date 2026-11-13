@@ -231,3 +231,19 @@ test('a tree branch nests in its parent branch, and a fishbone\'s bones are bran
   assert.ok(a?.kids?.some(k => k.name === 'branch: A1'), JSON.stringify(nodes.map(g => g.name)));
   assert.ok(!nodes.some(g => g.name === 'branch: B' || g.name === 'branch: 根'), 'a leaf and the root are no branches of their own');
 });
+
+test('assembleParts: pieces left out of two outer parts do not merge under one inner key (ADR 0054 D9.1)', () => {
+  let id = 100;
+  const A = partStep('cell', 'a', 'A'), B = partStep('cell', 'b', 'B'), row = partStep('row', 0, 'r');
+  const r = (order: number, x: number, part: string[]): Piece => ({order, xml: `<p:sp><p:nvSpPr><p:cNvPr id="${order}" name="s${order}"/></p:nvSpPr></p:sp>`, part, geo: {kind: 'rect', r: {x, y: 0, w: 10, h: 10}}});
+  // each cell's row piece is crossed by a shape drawn after it, so both cells give their pieces up; the two rows stay apart
+  const xml = assembleParts([r(0, 0, [A, row]), r(1, 5, []), r(2, 0, [A]), r(3, 100, [B, row]), r(4, 105, []), r(5, 100, [B])], () => id++);
+  assert.doesNotMatch(xml, /<p:grpSp>(?:(?!<\/p:grpSp>)[\s\S])*name="s0"(?:(?!<\/p:grpSp>)[\s\S])*name="s3"/);
+});
+
+test('inItem: a part is an item\'s by the kind of a step, not because a caption reads "item:"', async () => {
+  const {inItem} = await import('../lib/pptx/quadrant.ts');
+  assert.equal(inItem(partStep('cell', 0, 'line item: A')), false);
+  assert.equal(inItem(`${partStep('cell', 0, 'A')}/${partStep('item', 'x', 'X')}`), true);
+  assert.equal(inItem(undefined), false);
+});

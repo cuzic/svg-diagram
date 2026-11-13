@@ -60,9 +60,11 @@ function bandsXml(ld: LaidOutDiagram, ctx: Ctx, from: number, to: number): strin
       i += 1 + span;
     } else if (band.type === 'swimlane' && (band.span ?? 0) > 0 && i + (band.span ?? 0) < to) {
       // a swimlane and its steps (separate box bands after it): one group, the lanes a group inside it (ADR 0054 D9.2)
-      const span = band.span ?? 0, lanes = bandXml(band, ctx, i).replace(/ name="swimlane[^"]*"/, ' name="lanes"');
+      // the outer group takes the band's own name (`swimlane`, `swimlane 2`, with its id), the lanes' group is renamed `lanes`
+      const span = band.span ?? 0, drawn = bandXml(band, ctx, i), own = (/ name="(swimlane[^"]*)"/.exec(drawn)?.[1] ?? 'swimlane').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&amp;/g, '&');
+      const lanes = drawn.replace(/ name="swimlane[^"]*"/, ' name="lanes"');
       const steps = ld.laidOut.slice(i + 1, i + 1 + span).map((b, k) => bandXml(b, ctx, i + 1 + k)).join('');
-      out.push(groupXml(ctx.next(), partName(partStep('swimlane', band.id ?? i, '')), band, lanes + steps));
+      out.push(groupXml(ctx.next(), own, band, lanes + steps));
       i += 1 + span;
     } else { out.push(bandXml(band, ctx, i)); i++; }
   }

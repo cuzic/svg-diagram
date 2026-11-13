@@ -53,7 +53,8 @@ export function flowShapeXml(b: LaidOutFlowShape, ld: LaidOutDiagram, tones: Ton
   const texts = b.texts.map((t): Placed => ({t: {text: t.text, x: t.tx, y: t.ty, anchor: t.anchor, size: t.size, bold: t.weight === 700, color: t.tone === 'bg' ? PALETTE.bg : colorOf(t.tone, day)}, w: t.w, ...(t.part ? {part: t.part} : {})}));
   // the anchors last (over everything, as before), each in its item's part: a connector glued to it follows the item's group (ADR 0054)
   const anchors = anchorsXml(b.anchors, next);
-  anchors.glue.forEach((g, i) => { const a = b.anchors[i]; drawn.push({d: anchorXml(g.id, `anchor-${g.dslId}`, g.rect), geo: {kind: 'rect', r: g.rect}, ...(a?.part ? {part: a.part} : {})}); });
+  anchors.glue.forEach((g, i) => { const a = b.anchors[i]; // (an anchor is invisible: its geometry is a point at its centre, so it never crosses a shape and never moves a group)
+    drawn.push({d: anchorXml(g.id, `anchor-${g.dslId}`, g.rect), geo: {kind: 'rect', r: {x: g.rect.x + g.rect.w / 2, y: g.rect.y + g.rect.h / 2, w: 0, h: 0}}, ...(a?.part ? {part: a.part} : {})}); });
   return {xml: groupXml(next(), namedAs(b.type, '', b.id), b, drawParts(drawn, texts, fonts, next)), glue: anchors.glue};
 }
 

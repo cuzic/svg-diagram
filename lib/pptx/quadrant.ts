@@ -29,6 +29,9 @@ export function markerShape(shape: QuadrantShape, x: number, y: number, r: numbe
   return {prst: 'triangle', rect: {x: x - a / 2, y: y - hh * 2 / 3, w: a, h: hh}};
 }
 
+/** Whether a part path is (inside) an item's part: by its steps' kinds, not by a search of the text (a caption may hold "item:"). */
+export const inItem = (part: string | undefined): boolean => !!part?.split('/').some(step => step.startsWith('item:'));
+
 export interface QuadrantShapes {xml: string; glue: {dslId: string; id: number; rect: Rect}[]}
 
 export function quadrantXml(b: LaidOutQuadrant, ld: LaidOutDiagram, tones: ToneEnv, fonts: Fonts, next: () => number): QuadrantShapes {
@@ -72,5 +75,5 @@ export function quadrantXml(b: LaidOutQuadrant, ld: LaidOutDiagram, tones: ToneE
   const line = (t: LaidOutQuadrant['texts'][number]): TextLine => ({text: t.text, x: t.x, y: t.y, anchor: t.anchor, size: t.size, bold: t.bold, color: ink(t.fill, t.item !== undefined && b.bubbles[t.item]?.dim)});
   const items = b.texts.filter(t => t.item !== undefined).map((t): Placed => ({t: line(t), part: itemPart[t.item as number]}));
   const others = b.texts.filter(t => t.item === undefined).map((t): Placed => ({t: line(t), ...(t.part ? {part: t.part} : {})}));
-  return {xml: groupXml(next(), namedAs('quadrant', '', b.id), b, drawParts(out, [...others, ...items], fonts, next, {holds: p => !p.part?.includes('item:')})), glue};
+  return {xml: groupXml(next(), namedAs('quadrant', '', b.id), b, drawParts(out, [...others, ...items], fonts, next, {holds: p => !inItem(p.part)})), glue};
 }
