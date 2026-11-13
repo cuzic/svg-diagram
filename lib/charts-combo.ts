@@ -1,6 +1,7 @@
 // combo(): bars and lines on one figure (revenue as bars, margin as a line). Bars always read on the left axis; a line reads on the right
 // axis by default (its own unit, drawn at its own scale) or on the left. Every value is written; one that finds no room stays in the
 // description. The bars are light so a line and its numbers can run over them.
+import {axisPart, partStep} from './parts.ts';
 import {Canvas, checkIds, checkText, fail, finiteNum, niceScale, numText, thinTicks} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 import {must} from './must.ts';
@@ -149,13 +150,17 @@ export function layoutCombo(s: ComboSpec, g: ChartGeom): LaidOutChartPart {
   c.marks.length = 0;
   // axes: the grid from the left ticks; the right ticks are written beside it
   const tk = sl.ticks.map(v => ({v})), shown = thinTicks(tk, yL, () => S + 2, 2);
-  for (const t of tk) { const y = r1(yL(t.v)); c.line(plotL - 6, y, plotR + (hasRight ? 6 : 0), y, {stroke: t.v === 0 ? 'text' : 'border'}); if (shown.has(t)) c.text(numText(t.v), plotL - 10, c.mid(y), 'end', 'muted'); }
-  if (sr) {
+  // ADR 0054: the left axis (with the grid), the right axis, the category axis; a bar series (`bars`) and a line series (`series`)
+  // are parts of different kinds, so a bar series is never drawn over a line
+  c.withPart(axisPart('y'), () => {
+    for (const t of tk) { const y = r1(yL(t.v)); c.line(plotL - 6, y, plotR + (hasRight ? 6 : 0), y, {stroke: t.v === 0 ? 'text' : 'border'}); if (shown.has(t)) c.text(numText(t.v), plotL - 10, c.mid(y), 'end', 'muted'); }
+    if (axTitle(s.y)) c.text(axTitle(s.y), g.x, plotT - 6, 'start', 'text', {bold: true});
+  });
+  if (sr) c.withPart(axisPart('y2'), () => {
     const rt = sr.ticks.map(v => ({v})), rShown = thinTicks(rt, yR, () => S + 2, 2);
     for (const t of rt) { const y = r1(yR(t.v)); if (!aligned) c.line(plotR, y, plotR + 6, y, {stroke: 'border'}); if (rShown.has(t)) c.text(numText(t.v), plotR + 10, c.mid(y), 'start', 'muted'); }
-  }
-  if (axTitle(s.y)) c.text(axTitle(s.y), g.x, plotT - 6, 'start', 'text', {bold: true});
-  if (hasRight && axTitle(s.y2)) c.text(axTitle(s.y2), g.x + g.w, plotT - 6, 'end', 'text', {bold: true});
+    if (hasRight && axTitle(s.y2)) c.text(axTitle(s.y2), g.x + g.w, plotT - 6, 'end', 'text', {bold: true});
+  });
   // bars: side by side in each category; light, so a line may cross them
   const stackedBelow = s.categories.map(() => 0);
   const barGeo = bars.map((x, bi) => x.values.map((v, i) => {
@@ -215,6 +220,7 @@ export function layoutCombo(s: ComboSpec, g: ChartGeom): LaidOutChartPart {
       if (!c.place(t, cands.filter(k => inPlot(c.boxOf(t, k.x, k.y, k.anchor, true))), L.x.tone === 'muted' ? 'text' : L.x.tone, {bold: true, of: L.key})) c.omitted.push(`${L.x.label} ${s.categories[p.i]} ${t}`);
     }
   }
-  for (const [i, ls] of cats.entries()) c.lines(ls, plotL + (i + 0.5) * slot, plotB + Math.ceil(S * 0.36) + S + 8, 'middle', 'text');
+  c.withPart(axisPart('x'), () => { for (const [i, ls] of cats.entries()) c.lines(ls, plotL + (i + 0.5) * slot, plotB + Math.ceil(S * 0.36) + S + 8, 'middle', 'text'); });
+  c.partsByOf(new Map([...bars.map(x => [x.id ?? x.label, partStep('bars', x.id ?? {index: x.label}, x.label)] as const), ...lines.map(x => [x.id ?? x.label, partStep('series', x.id ?? {index: x.label}, x.label)] as const)]));
   return c.done();
 }
