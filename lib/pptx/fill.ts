@@ -98,8 +98,8 @@ export const textGeo = (p: Placed): Geo => {
 export function drawParts(drawn: readonly PartDrawn[], texts: readonly Placed[], fonts: Fonts, next: () => number): string {
   const left = new Set(fillHolders(drawn.flatMap(d => typeof d.d === 'string' ? [] : [d.d]), texts));
   const pieces: Piece[] = [];
-  const add = (xml: string, geo: Geo, part?: string) => pieces.push({order: pieces.length, xml, geo, part: part ? part.split('/') : []});
-  for (const {d, geo, part} of drawn) add(typeof d === 'string' ? d : d.draw(d.texts.length ? boxTextXml(d.rect, d.texts, fonts) : undefined), geo, part);
-  for (const p of texts) if (left.has(p.t)) { const id = next(); add(textLineXml(id, nameOf('text', id, p.t.text), p.t, fonts), textGeo(p), p.part); }
+  const add = (xml: string, geo: Geo, part?: string, text = false) => pieces.push({order: pieces.length, xml, geo, part: part ? part.split('/') : [], ...(text ? {text} : {})});
+  for (const {d, geo, part} of drawn) add(typeof d === 'string' ? d : d.draw(d.texts.length ? boxTextXml(d.rect, d.texts, fonts) : undefined), geo, part, typeof d !== 'string' && d.texts.length > 0);
+  for (const p of texts) if (left.has(p.t)) { const id = next(); add(textLineXml(id, nameOf('text', id, p.t.text), p.t, fonts), textGeo(p), p.part, true); }
   return assembleParts(pieces, next);
 }

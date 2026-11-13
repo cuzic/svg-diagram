@@ -189,3 +189,14 @@ test('linesText joins wrapped lines, with a space only between two Latin words o
   assert.equal(linesText(['DNS', 'example.com']), 'DNS example.com');
   assert.equal(linesText(['注文', 'ID']), '注文ID');
 });
+
+test('assembleParts: a part that cannot be one group keeps the groups inside it (ADR 0054 D9.1)', () => {
+  let id = 100;
+  const cell = partStep('cell', 0, 'A'), item = partStep('item', 0, 'x');
+  const r = (order: number, x: number, part: string[]): Piece => ({order, xml: `<p:sp><p:nvSpPr><p:cNvPr id="${order}" name="s${order}"/></p:nvSpPr></p:sp>`, part, geo: {kind: 'rect', r: {x, y: 0, w: 10, h: 10}}});
+  // the cell's frame (0) is covered by a line drawn after it (1) that its item's shapes (2, 3) do not touch: the cell is left out, the item is still a group
+  const left: Piece[] = [];
+  const xml = assembleParts([r(0, 0, [cell]), r(1, 5, []), r(2, 50, [cell, item]), r(3, 60, [cell, item]), r(4, 3, [cell])], () => id++, 0, left);
+  assert.match(xml, /name="item: x"/);
+  assert.ok(left.length > 0);
+});

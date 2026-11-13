@@ -228,17 +228,17 @@ export function svgShapesXml(svg: string, fonts: Fonts, next: () => number): str
   };
   // the shapes in drawing order, each with its part and where it draws; the shapes of one part become a group (ADR 0054)
   const pieces: Piece[] = [];
-  const piece = (it: Item, xml: string, geo: Geo) => pieces.push({order: pieces.length, xml, part: it.part ?? [], geo});
+  const piece = (it: Item, xml: string, geo: Geo, text = false) => pieces.push({order: pieces.length, xml, part: it.part ?? [], geo, ...(text ? {text} : {})});
   const textGeo = (t: TextLine): Geo => { const w = estimatedWidth(t), x = t.anchor === 'middle' ? t.x - w / 2 : t.anchor === 'end' ? t.x - w : t.x; return {kind: 'rect', r: {x, y: t.y - t.size * 0.8, w, h: t.size}}; };
   for (const it of items) {
     if (it.kind === 'box') {
       const name = it.texts.length ? nameOf('box', it.id, it.texts.toSorted((a, b) => a.y - b.y).map(t => t.text).join('')) : 'shape';
-      piece(it, geomShapeXml(it.id, name, it.rect, it.geom, it.paint, it.texts.length ? boxTextXml(it.rect, it.texts, fonts) : undefined), {kind: 'rect', r: it.rect});
+      piece(it, geomShapeXml(it.id, name, it.rect, it.geom, it.paint, it.texts.length ? boxTextXml(it.rect, it.texts, fonts) : undefined), {kind: 'rect', r: it.rect}, it.texts.length > 0);
     } else if (it.kind === 'line') piece(it, lineXmlOf(it), {kind: 'poly', pts: it.pts, w: it.paint.widthPx ?? 1});
     else if (it.kind === 'head') {
       if (!it.used) piece(it, it.xml(), {kind: 'poly', pts: it.pts, w: 1, closed: it.type !== 'arrow'});
     } else if (it.kind === 'text') {
-      if (!it.inBox) piece(it, textLineXml(it.id, nameOf('text', it.id, it.t.text), it.t, fonts), textGeo(it.t));
+      if (!it.inBox) piece(it, textLineXml(it.id, nameOf('text', it.id, it.t.text), it.t, fonts), textGeo(it.t), true);
     } else piece(it, it.xml, it.geo);
   }
   out.push(assembleParts(pieces, next));

@@ -19,7 +19,7 @@ import type {Rect} from './xml.ts';
 export type Geo = {kind: 'rect'; r: Rect} | {kind: 'poly'; pts: Pt[]; w: number; closed?: boolean};
 
 /** A shape as written: its place in drawing order, its xml, its part's steps and where it draws. */
-export interface Piece {order: number; xml: string; part: readonly string[]; geo: Geo}
+export interface Piece {order: number; xml: string; part: readonly string[]; geo: Geo; /** A text, or a shape holding one (a label on its plate): it keeps its order against every other part (ADR 0054 D9.1). */ text?: boolean}
 
 /** Contact this small (px) is not crossing: shapes that touch at a corner or share an edge's antialiasing. */
 const SLACK = 0.5;
@@ -92,9 +92,11 @@ export function assembleParts(pieces: readonly Piece[], next: () => number, dept
     if (members.length < 2) continue;
     // a part of the same kind (another series, another class) may change places with this one: one series drawn over another where they
     // cross is how a chart draws its series (one after another), so only the shapes of no such part keep their order against this one
-    const kind = kindOf(k), mine = new Set(members), others = pieces.filter(p => !mine.has(p) && (p.part[depth] === undefined || kindOf(p.part[depth]) !== kind));
+    // (a text, or a shape holding one, keeps its order against every part: a label's plate is meant to cover the other series' lines)
+    const kind = kindOf(k), mine = new Set(members), others = pieces.filter(p => !mine.has(p));
+    const keeps = (p: Piece, q: Piece): boolean => q.part[depth] === undefined || kindOf(q.part[depth]) !== kind || !!p.text || !!q.text;
     const clash = (anchor: number): Piece[] => members.filter(p => p.order !== anchor && others.some(q =>
-      q.order > Math.min(p.order, anchor) && q.order < Math.max(p.order, anchor) && crosses(p.geo, q.geo)));
+      q.order > Math.min(p.order, anchor) && q.order < Math.max(p.order, anchor) && keeps(p, q) && crosses(p.geo, q.geo)));
     const orders = members.map(p => p.order), candidates = [orders[orders.length - 1] as number, orders[0] as number, ...orders.slice(1, -1)];
     const best = candidates.map(a => ({a, c: clash(a)})).reduce((u, v) => v.c.length < u.c.length ? v : u);
     // a shape left out stays where it was: a shape of its own part that moves past it must not cross it either, or there is no group
@@ -104,6 +106,9 @@ export function assembleParts(pieces: readonly Piece[], next: () => number, dept
     at.set(k, best.a);
     for (const p of lost) { out.add(p); left.push(p); }
   }
+  // the pieces left out of a part are gathered again by their inner parts: a part that cannot be one group keeps the groups inside it
+  // (ADR 0054 D9.1); the step left out is dropped from their path, and the level is assembled again (each round drops a step, so it ends)
+  if (out.size) return assembleParts(pieces.map(p => out.has(p) ? {...p, part: [...p.part.slice(0, depth), ...p.part.slice(depth + 1)]} : p), next, depth, left);
   const xml: string[] = [];
   for (const p of pieces) {
     const k = p.part[depth];
