@@ -144,6 +144,13 @@ export class Canvas {
       this.part = outer;
     }
   }
+  /**
+   * Puts every item that has no part yet and belongs to one item of the chart (`of`, the id spotlight dims it by) into that item's part
+   * (ADR 0054: a row, a group, a column). Items of several (`of` a list, a ribbon) or of none stay as they are.
+   */
+  partsByOf(byOf: ReadonlyMap<string, string>): void {
+    for (const it of this.items) if (it.part === undefined && typeof it.of === 'string') { const p = byOf.get(it.of); if (p) it.part = p; }
+  }
   /** Draws one entry of the chart's legend: its sample and name are a part inside the legend's (ADR 0054). */
   legendEntry<T>(i: number, label: string, draw: () => T): T { return this.withPart(LEGEND, () => this.withPart(partStep('entry', i, label), draw)); }
   tw(s: string, bold = false): number { return textWidth(this.widthOf, s, this.size, bold ? 700 : 400); }

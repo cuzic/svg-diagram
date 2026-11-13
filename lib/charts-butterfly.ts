@@ -1,5 +1,6 @@
 // butterfly(): a two-sided bar chart. Each row is one item; its two bars grow outwards from a column of names in the middle, one to the
 // left and one to the right, on the same scale — so the eye compares the two groups item by item (us vs a rival, before vs after).
+import {axisPart, partStep} from './parts.ts';
 import {must} from './must.ts';
 import {Canvas,checkIds, checkText, fail, finiteNum, numText} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
@@ -66,18 +67,21 @@ export function layoutButterfly(s: ButterflySpec, g: ChartGeom): LaidOutChartPar
   const bodyB = y0 + rowH.reduce((a, b) => a + b, 0);
   // the names of the two groups over their halves, with a swatch so the colour is tied to the name
   const sw = 14;
-  ([[s.leftLabel, s.leftTone, outerL, innerL], [s.rightLabel, s.rightTone, innerR, outerR]] as const).forEach(([name, tone, a, b]) => {
+  // ADR 0054: the two group names are the legend's entries, the spines an axis, a row (its name, bars and values) a part
+  ([[s.leftLabel, s.leftTone, outerL, innerL], [s.rightLabel, s.rightTone, innerR, outerR]] as const).forEach(([name, tone, a, b], i) => c.legendEntry(i, name, () => {
     const need = sw + 6 + c.tw(name, true);
     if (need > b - a + valW) fail('butterfly', `the group name "${name}" is wider than its half (shorten it, or raise width)`);
     const x = r1((a + b) / 2 - need / 2), cy = g.y + Math.max(4 + sw / 2, Math.ceil(S * 0.64));
     c.rect(x, cy - sw / 2, sw, sw, {fill: tone});
     c.text(name, x + sw + 6, c.mid(cy), 'start', 'text', {bold: true});
-  });
+  }));
   // the two spines the bars grow from
-  c.line(r1(innerL), y0, r1(innerL), bodyB, {stroke: 'border'});
-  c.line(r1(innerR), y0, r1(innerR), bodyB, {stroke: 'border'});
+  c.withPart(axisPart('x'), () => {
+    c.line(r1(innerL), y0, r1(innerL), bodyB, {stroke: 'border'});
+    c.line(r1(innerR), y0, r1(innerR), bodyB, {stroke: 'border'});
+  });
   let y = y0;
-  s.rows.forEach((row, k) => {
+  s.rows.forEach((row, k) => c.withPart(partStep('row', row.id ?? k, row.label), () => {
     const lns = must(wrapped[k]), rh = must(rowH[k]); // both are maps of s.rows
     const cy = y + rh / 2, top = cy - barH / 2, key = row.id ?? `#${k}`;
     c.lines(lns, (innerL + innerR) / 2, cy - (lns.length - 1) * lineH / 2 + S * 0.36, 'middle', 'text', {of: key});
@@ -94,6 +98,6 @@ export function layoutButterfly(s: ButterflySpec, g: ChartGeom): LaidOutChartPar
     const [sl, sr] = sides;
     if (row.id && sl && sr) c.anchors.push({id: row.id, x: r1(sl.x1), y: r1(top), w: r1(sr.x2 - sl.x1), h: barH});
     y += rh;
-  });
+  }));
   return c.done();
 }
