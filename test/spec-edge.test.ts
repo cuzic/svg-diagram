@@ -6,7 +6,7 @@ import {build as bundle} from 'esbuild';
 import {closeMeasurer} from '../lib/dsl.ts';
 import {partCatalog} from '../lib/spec.ts';
 import {TextEngineError, guardedEngine, renderSpecEdge, type OutlineFont} from '../lib/spec-edge.ts';
-import {realEngine} from './helpers/text-engine.ts';
+import {JA_FONTS, realEngine} from './helpers/text-engine.ts';
 import {renderSpec, svgToPng} from '../lib/spec-render.ts';
 import {rasterizeWithResvg} from '../lib/raster.ts';
 import {outlineText} from '../lib/svg-outline.ts';
@@ -105,7 +105,7 @@ test('every example of the catalog draws with no text element left, and at the s
     assert.deepEqual(xmlProblems(r.svg), [], type);
     const tags = new Set([...r.svg.matchAll(/<([a-zA-Z][\w:-]*)/g)].map(m => m[1]));
     assert.deepEqual([...tags].filter(t => !WIDGET_ELEMENTS.has(t as string)), [], `${type}: the plugin widget drops these elements`);
-    const node = await renderSpec(spec(example), {config: {measure: 'font'}});
+    const node = await renderSpec(spec(example), {config: {measure: 'font', fonts: JA_FONTS}});
     assert.deepEqual([r.width, r.height], [node.width, node.height], type);
   }
 });
@@ -156,7 +156,7 @@ test('the TOC trees, the cloud and the value chain outline with no feature lost'
 test('the outlines land where the text was, in its colour: the pictures match in every channel', async () => {
   const engine = realEngine();
   for (const s of richSpecs()) {
-    const edge = await renderSpecEdge(s, engine), node = await renderSpec(s, {config: {measure: 'font'}});
+    const edge = await renderSpecEdge(s, engine), node = await renderSpec(s, {config: {measure: 'font', fonts: JA_FONTS}});
     assert.deepEqual(edge.issues, [], JSON.stringify(s).slice(0, 80));
     const a = await rasterizeWithResvg(edge.svg as string), b = await rasterizeWithResvg(node.svg as string);
     assert.deepEqual([a.width, a.height], [b.width, b.height]);

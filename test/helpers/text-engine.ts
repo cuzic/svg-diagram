@@ -1,13 +1,29 @@
 // A text engine as a Worker builds one (HarfBuzz over the installed Japanese font), for the tests of the edge entries.
 import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import {harfbuzz, resolveFontFile} from '../../lib/font-metrics.ts';
+import type {FontSpecs} from '../../lib/types/project.ts';
 import type {TextEngine} from '../../lib/spec-edge.ts';
+
+// The Japanese font a Worker bundles is Noto Sans JP. A machine without it (CI has only fonts-noto-cjk, whose family is
+// "Noto Sans CJK JP") would measure with the stack's sans-serif, a Latin font with no Japanese glyphs: so the engine and
+// the Node path it is compared with both take the font fontconfig picks for Japanese.
+const jaFile = (weight: number): string | undefined => {
+  for (const pattern of [`Noto Sans JP:weight=${weight === 700 ? 200 : 80}`, `sans-serif:lang=ja:weight=${weight === 700 ? 200 : 80}`]) {
+    const [file, index, family] = execFileSync('fc-match', ['-f', '%{file}\t%{index}\t%{family}', pattern], {encoding: 'utf8'}).split('\t');
+    if (file && (pattern.startsWith('sans-serif') || family?.split(',').some(f => f.trim() === 'Noto Sans JP'))) return `${file}#${Number(index) & 0xffff}`;
+  }
+  return undefined;
+};
+const regular = jaFile(400), bold = jaFile(700);
+/** The font files `realEngine` draws with, for `renderSpec(..., {config: {measure: 'font', fonts: JA_FONTS}})`. */
+export const JA_FONTS: FontSpecs = regular && bold ? {sans: {regular, bold}} : {};
 
 export function realEngine(): TextEngine {
   const hb = harfbuzz();
   const open = (weight: number) => {
-    const r = resolveFontFile('sans', weight);
+    const r = resolveFontFile('sans', weight, JA_FONTS);
     assert.ok(r, 'a Japanese font must be installed for this test');
     const b = fs.readFileSync(r.file);
     const face = new hb.Face(new hb.Blob(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)), r.index), font = new hb.Font(face), ext = font.hExtents();
