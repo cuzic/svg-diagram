@@ -98,11 +98,12 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
     out.anchors.push({id: c.id, ...r});
     out.labelBoxes.push({label: c.name ?? c.id, ...r});
     let ty = r.y + PAD_Y;
-    for (const l of m.head) { out.texts.push({text: l.text, x: r.x + r.w / 2, y: ty + l.size, size: l.size, bold: l.bold, muted: !l.bold, anchor: 'middle'}); ty += lineH(l.size); }
+    const owner = out.nodes.length - 1;
+    for (const l of m.head) { out.texts.push({text: l.text, x: r.x + r.w / 2, y: ty + l.size, size: l.size, bold: l.bold, muted: !l.bold, anchor: 'middle', owner}); ty += lineH(l.size); }
     ty = r.y + m.headH + PAD_Y;
     for (const l of [...m.attrs, ...m.methods]) {
       if (l === m.methods[0] && m.attrs.length) ty = r.y + m.headH + m.attrsH + PAD_Y;
-      out.texts.push({text: l, x: r.x + PAD_X, y: ty + B, size: B, bold: false, muted: false, anchor: 'start'});
+      out.texts.push({text: l, x: r.x + PAD_X, y: ty + B, size: B, bold: false, muted: false, anchor: 'start', owner});
       ty += lineH(B);
     }
   }

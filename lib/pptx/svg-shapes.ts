@@ -12,6 +12,7 @@ import {fitConnector, inOutline, siteIndex, type Pt} from './geom.ts';
 import {connectorShapeXml, freeformPathXml, type EndType, type Glue, type PathStep} from './connectors.ts';
 import {boxTextFits, boxTextXml, dashOfSvg, geomShapeXml, nameOf, outlineGeomXml, pathShapeXml, polygonXml, prstGeomXml, roundGeomXml, textLineXml, type Paint, type TextLine} from './prims.ts';
 import {svgPathSteps} from './svg-path.ts';
+import {assembleParts, type Geo, type Piece} from './parts-group.ts';
 import type {Fonts, Rect} from './xml.ts';
 
 /** What may appear, and what is skipped (it draws nothing a slide needs). */
@@ -19,7 +20,7 @@ const SKIP: ReadonlySet<string> = new Set(['title', 'desc', 'style', 'defs', 'me
 const DRAWN: ReadonlySet<string> = new Set(['rect', 'circle', 'ellipse', 'polygon', 'polyline', 'line', 'path', 'text']);
 /** The attributes read; any other on a drawn element sends the band back to a picture. */
 const KNOWN: ReadonlySet<string> = new Set(['x', 'y', 'width', 'height', 'rx', 'ry', 'cx', 'cy', 'r', 'points', 'x1', 'y1', 'x2', 'y2', 'd', 'fill', 'fill-opacity', 'stroke', 'stroke-width',
-  'stroke-dasharray', 'stroke-linejoin', 'stroke-linecap', 'marker-end', 'font-size', 'font-weight', 'text-anchor', 'id', 'role', 'aria-label', 'aria-hidden', 'data-node', 'data-assumed-bg', 'class']);
+  'stroke-dasharray', 'stroke-linejoin', 'stroke-linecap', 'marker-end', 'font-size', 'font-weight', 'text-anchor', 'id', 'role', 'aria-label', 'aria-hidden', 'data-node', 'data-assumed-bg', 'class', 'data-part']);
 
 const COLOR = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/;
 /** A paint the slide can carry (a hex colour or none); anything else (a gradient, currentColor) is unknown. */
@@ -35,8 +36,10 @@ interface Line {kind: 'line'; id: number; pts: Pt[]; paint: Paint; start?: EndTy
 /** A small mark at a line's end: a filled triangle, an open V (`arrow`, drawn as a 3-point line) or a filled diamond. `xml` draws it when no line takes it. */
 interface Head {kind: 'head'; id: number; type: EndType; pts: Pt[]; xml: () => string; used: boolean}
 interface Text {kind: 'text'; id: number; t: TextLine; inBox: boolean}
-interface Other {kind: 'other'; xml: string}
-type Item = Box | Line | Head | Text | Other;
+/** Anything else, drawn as itself: `geo` is where it draws, for grouping (ADR 0054). */
+interface Other {kind: 'other'; xml: string; geo: Geo}
+/** Each item also carries the steps of the part it belongs to (the element's `data-part`, ADR 0054), outside in. */
+type Item = (Box | Line | Head | Text | Other) & {part?: string[]};
 
 /** How far (px) a line's end may lie from a box's outline and still be glued to it. */
 const TOUCH = 2.5;
@@ -82,7 +85,7 @@ export function svgShapesXml(svg: string, fonts: Fonts, next: () => number): str
     // a diamond, or a kite (a UML composition mark: its waist off the middle)
     const diamond = pts.length === 4 && t && r && b && l && Math.abs(t.x - b.x) < 1 && Math.abs(r.y - l.y) < 1 && r.y > t.y && r.y < b.y && r.x > t.x && l.x < t.x;
     if (!steps && diamond && small) return {kind: 'head', id, type: 'diamond', pts, xml: fallback, used: false};
-    if (!paint.fill) return {kind: 'other', xml: fallback()};
+    if (!paint.fill) return {kind: 'other', xml: fallback(), geo: {kind: 'poly', pts, w: paint.widthPx ?? 1, closed: true}};
     const rect = bboxOf(pts);
     if (!steps && diamond) return {kind: 'box', id, rect, geom: roundGeomXml('diamond', rect.w, rect.h), paint, texts: []};
     const axisRect = !steps && pts.length === 4 && pts.every(p => (Math.abs(p.x - rect.x) < 0.5 || Math.abs(p.x - rect.x - rect.w) < 0.5) && (Math.abs(p.y - rect.y) < 0.5 || Math.abs(p.y - rect.y - rect.h) < 0.5));
@@ -117,12 +120,12 @@ export function svgShapesXml(svg: string, fonts: Fonts, next: () => number): str
     const straight = steps.every((s, i) => (i === 0 ? s.op === 'M' : s.op === 'L' || (s.op === 'Z' && i === steps.length - 1)));
     const corners = steps.filter(s => s.op !== 'Z').map(s => s.pts[s.pts.length - 1]).filter((p): p is Pt => !!p);
     if (closed && steps.filter(s => s.op === 'M').length === 1) return closedShape(corners, straight ? undefined : steps, paint, () => pathShapeXml(next(), 'shape', steps, paint));
-    if (paint.fill) return {kind: 'other', xml: pathShapeXml(next(), 'shape', steps, paint)};
+    if (paint.fill) return {kind: 'other', xml: pathShapeXml(next(), 'shape', steps, paint), geo: {kind: 'rect', r: bboxOf(steps.flatMap(x => x.pts))}};
     if (!paint.stroke) return undefined;
     // one run of straight segments: a line that can become a connector; anything else stays a freeform
     if (straight && !closed) return openLine(corners, paint, end);
     const id = next();
-    return {kind: 'other', xml: freeformPathXml(id, `line-${id}`, steps, paint.stroke, paint.widthPx ?? 1, {dashed: paint.dashed, dotted: paint.dotted, arrow: !!end})};
+    return {kind: 'other', xml: freeformPathXml(id, `line-${id}`, steps, paint.stroke, paint.widthPx ?? 1, {dashed: paint.dashed, dotted: paint.dotted, arrow: !!end}), geo: {kind: 'poly', pts: steps.flatMap(x => x.pts), w: paint.widthPx ?? 1}};
   };
   /** An open line; a short V of 3 points (both arms under 20px) is an open arrowhead a line may end in. */
   const openLine = (pts: Pt[], paint: Paint, end: EndType | undefined): Item => {
@@ -154,12 +157,20 @@ export function svgShapesXml(svg: string, fonts: Fonts, next: () => number): str
     if (typeof c === 'string') { if (c.trim()) return null; continue; }
     if (SKIP.has(c.tag)) continue;
     if (!DRAWN.has(c.tag) || Object.keys(c.attrs).some(k => !KNOWN.has(k))) return null;
-    const it = c.tag === 'text' ? readText(c) : read(c);
+    const it: Item | null | undefined = c.tag === 'text' ? readText(c) : read(c);
     if (it === null) return null;
-    if (it) items.push(it);
+    if (!it) continue;
+    const part = c.attrs['data-part'];
+    if (part) it.part = part.split('/');
+    items.push(it);
   }
   const boxes = items.filter((i): i is Box => i.kind === 'box');
   const heads = items.filter((i): i is Head => i.kind === 'head');
+  /** Whether a text may go into a box by their parts: either has none, or one's part holds the other's. */
+  const fellow = (t: Item, b: Item): boolean => {
+    const p = t.part ?? [], q = b.part ?? [];
+    return !p.length || !q.length || (p.length <= q.length ? p.every((x, i) => q[i] === x) : q.every((x, i) => p[i] === x));
+  };
 
   // text into boxes: each text goes to the smallest box holding it; a box keeps them only if they share one anchor and x (within the
   // layout's rounding) and the box is tight around them (a lane or a chart's plot holds texts it is not the frame of)
@@ -168,7 +179,8 @@ export function svgShapesXml(svg: string, fonts: Fonts, next: () => number): str
     if (it.kind !== 'text') continue;
     const {t} = it, w = [...t.text].length * t.size * 0.55;
     const left = t.anchor === 'middle' ? t.x - w / 2 : t.anchor === 'end' ? t.x - w : t.x;
-    const holding = boxes.filter(b => left >= b.rect.x - 1 && left + w <= b.rect.x + b.rect.w + 1 && t.y - t.size * 0.8 >= b.rect.y - 1 && t.y <= b.rect.y + b.rect.h + 1);
+    // a text of a part does not go into a box of another part (one neither outside nor inside its own: ADR 0054 D3)
+    const holding = boxes.filter(b => fellow(it, b) && left >= b.rect.x - 1 && left + w <= b.rect.x + b.rect.w + 1 && t.y - t.size * 0.8 >= b.rect.y - 1 && t.y <= b.rect.y + b.rect.h + 1);
     const smallest = holding.toSorted((p, q) => p.rect.w * p.rect.h - q.rect.w * q.rect.h)[0];
     if (smallest) byBox.set(smallest, [...(byBox.get(smallest) ?? []), it]);
   }
@@ -213,16 +225,21 @@ export function svgShapesXml(svg: string, fonts: Fonts, next: () => number): str
     const b = boxes.filter(x => touches(x, p) && clear(x.rect)).toSorted((u, v) => u.rect.w * u.rect.h - v.rect.w * v.rect.h)[0];
     return b && {id: b.id, idx: siteIndex(b.rect, p, '')};
   };
+  // the shapes in drawing order, each with its part and where it draws; the shapes of one part become a group (ADR 0054)
+  const pieces: Piece[] = [];
+  const piece = (it: Item, xml: string, geo: Geo) => pieces.push({order: pieces.length, xml, part: it.part ?? [], geo});
+  const textGeo = (t: TextLine): Geo => { const w = [...t.text].length * t.size * 0.55, x = t.anchor === 'middle' ? t.x - w / 2 : t.anchor === 'end' ? t.x - w : t.x; return {kind: 'rect', r: {x, y: t.y - t.size * 0.8, w, h: t.size}}; };
   for (const it of items) {
     if (it.kind === 'box') {
       const name = it.texts.length ? nameOf('box', it.id, it.texts.toSorted((a, b) => a.y - b.y).map(t => t.text).join('')) : `shape-${it.id}`;
-      out.push(geomShapeXml(it.id, name, it.rect, it.geom, it.paint, it.texts.length ? boxTextXml(it.rect, it.texts, fonts) : undefined));
-    } else if (it.kind === 'line') out.push(lineXmlOf(it));
+      piece(it, geomShapeXml(it.id, name, it.rect, it.geom, it.paint, it.texts.length ? boxTextXml(it.rect, it.texts, fonts) : undefined), {kind: 'rect', r: it.rect});
+    } else if (it.kind === 'line') piece(it, lineXmlOf(it), {kind: 'poly', pts: it.pts, w: it.paint.widthPx ?? 1});
     else if (it.kind === 'head') {
-      if (!it.used) out.push(it.xml());
+      if (!it.used) piece(it, it.xml(), {kind: 'poly', pts: it.pts, w: 1, closed: it.type !== 'arrow'});
     } else if (it.kind === 'text') {
-      if (!it.inBox) out.push(textLineXml(it.id, nameOf('text', it.id, it.t.text), it.t, fonts));
-    } else out.push(it.xml);
+      if (!it.inBox) piece(it, textLineXml(it.id, nameOf('text', it.id, it.t.text), it.t, fonts), textGeo(it.t));
+    } else piece(it, it.xml, it.geo);
   }
+  out.push(assembleParts(pieces, next));
   return out.join('');
 }

@@ -116,7 +116,7 @@ export interface LaidOutTimeline extends Rect, Dimmed {
   texts: TimelineText[];
   labelBoxes: (Rect & {label: string})[];
 }
-export interface GanttText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean; anchor: 'start' | 'middle' | 'end'; tone?: 'danger'}
+export interface GanttText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean; anchor: 'start' | 'middle' | 'end'; tone?: 'danger'; /** The index of the node (a class, a task) the text belongs to, when it belongs to one (ADR 0054). */ owner?: number}
 export interface LaidOutGantt extends Rect, Dimmed {
   type: 'gantt';
   id?: string;
