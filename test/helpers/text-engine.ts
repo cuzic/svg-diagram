@@ -17,7 +17,7 @@ const jaFile = (weight: number): string | undefined => {
   return undefined;
 };
 // CI keeps the files out of fontconfig (the browser comparisons need its fonts as they are) and names their directory here
-const dir = process.env.SVG_DIAGRAM_JA_FONTS;
+const dir = process.env['SVG_DIAGRAM_JA_FONTS'];
 const regular = dir ? `${dir}/NotoSansJP-Regular.otf` : jaFile(400), bold = dir ? `${dir}/NotoSansJP-Bold.otf` : jaFile(700);
 /** The font files `realEngine` draws with, for `renderSpec(..., {config: {measure: 'font', fonts: JA_FONTS}})`. */
 export const JA_FONTS: FontSpecs = regular && bold ? {sans: {regular, bold}} : {};

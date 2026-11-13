@@ -158,7 +158,7 @@ test('the outlines land where the text was, in its colour: the pictures match in
   for (const s of richSpecs()) {
     const edge = await renderSpecEdge(s, engine), node = await renderSpec(s, {config: {measure: 'font', fonts: JA_FONTS}});
     assert.deepEqual(edge.issues, [], JSON.stringify(s).slice(0, 80));
-    const a = await rasterizeWithResvg(edge.svg as string), b = await rasterizeWithResvg(node.svg as string);
+    const a = await rasterizeWithResvg(edge.svg as string), b = await rasterizeWithResvg(node.svg as string, {fonts: JA_FONTS});
     assert.deepEqual([a.width, a.height], [b.width, b.height]);
     let diff = 0;
     for (let i = 0; i < a.rgba.length; i += 4) if ([0, 1, 2].some(c => Math.abs((a.rgba[i + c] as number) - (b.rgba[i + c] as number)) > 64)) diff++;
