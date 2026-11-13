@@ -22,7 +22,7 @@ export const fontFilesOf = (specs: FontSpecs | undefined): string[] =>
   [...new Set(Object.values(specs ?? {}).flatMap(f => [f?.regular, f?.bold]).filter((f): f is string => !!f).map(f => f.replace(/#\d+$/, '')))];
 
 // resvg is loaded when a PNG is first drawn, so that the rest of svg-diagram loads on a machine without it (a browser-only one); the .pptx writer itself needs it.
-function rasterize(svg: string, fontFiles: readonly string[], scale: number): Buffer {
+export function rasterize(svg: string, fontFiles: readonly string[], scale: number): Buffer {
   let Resvg: typeof ResvgClass;
   try { ({Resvg} = createRequire(import.meta.url)('@resvg/resvg-js') as {Resvg: typeof ResvgClass}); }
   catch { throw new Error('pptx: @resvg/resvg-js could not be loaded on this machine (the PNG fallbacks of the slide are drawn with it).'); }

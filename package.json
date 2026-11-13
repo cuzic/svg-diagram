@@ -110,6 +110,10 @@
     "./pptx/edge": {
       "types": "./dist/lib/pptx-edge.d.ts",
       "default": "./dist/lib/pptx-edge.js"
+    },
+    "./pptx/deck/edge": {
+      "types": "./dist/lib/pptx-deck-edge.d.ts",
+      "default": "./dist/lib/pptx-deck-edge.js"
     }
   },
   "files": [

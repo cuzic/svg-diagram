@@ -604,7 +604,7 @@ export function partCatalog(): {type: string; description: string; schema: JsonS
 const UNDRAWABLE = /[\p{Cc}\p{Cs}\ufffe\uffff]/u;
 /** A value from the input, at a length a message can carry: a bad spec must not make the answer huge. */
 const clip = (s: string): string => s.length <= MAX_QUOTED ? s : `${s.slice(0, MAX_QUOTED)}…`;
-const describe = (v: unknown): string => v === null ? 'null' : Array.isArray(v) ? 'an array' : typeof v === 'object' ? 'an object' : clip(JSON.stringify(v));
+const describe = (v: unknown): string => v === undefined ? 'nothing' : v === null ? 'null' : Array.isArray(v) ? 'an array' : typeof v === 'object' ? 'an object' : clip(JSON.stringify(v));
 const join = (at: string, key: string): string => at ? `${at}.${clip(key)}` : clip(key);
 
 function validate(s: JsonSchema, v: unknown, at: string, out: SpecIssue[]): void {
@@ -880,3 +880,10 @@ export interface RenderSpecResult {
   findings: LocatedMessage[];
 }
 
+
+/** The schema check alone (no part rules), for inputs that hold specs, such as a deck (lib/deck-spec.ts). */
+export function validateAgainst(schema: JsonSchema, value: unknown, at = ''): SpecIssue[] {
+  const out: SpecIssue[] = [];
+  validate(schema, value, at, out);
+  return out;
+}

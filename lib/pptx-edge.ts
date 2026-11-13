@@ -8,7 +8,7 @@ import {outlineText} from './svg-outline.ts';
 import {SpecError, layoutIssue, specToDiagram, type SpecIssue} from './spec.ts';
 import {MAX_EDGE_HEIGHT, TextEngineError, guardedEngine, missingIssues, type TextEngine} from './spec-edge.ts';
 import {planSlide, fontsOf} from './pptx/slide.ts';
-import {packageEntries} from './pptx/package.ts';
+import {packageEntries, type SlidePlan} from './pptx/package.ts';
 import {zipEntries, type ZipEntry} from './pptx/zip.ts';
 import type {Diagram} from './types/core.ts';
 
@@ -45,6 +45,41 @@ async function deflateRaw(data: Uint8Array): Promise<Uint8Array | undefined> {
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
+/** A spec laid out and planned as one slide, its pictures' text outlined: what renderPptxEdge packs, and what a deck places (./pptx-deck-edge.ts). */
+export interface FigurePlan {plan: SlidePlan; width: number; height: number; native: number}
+
+/** The spec as a slide plan, or the issues that stop it (with their places in the spec). Throws TextEngineError as renderPptxEdge does. */
+export async function planFigureEdge(spec: unknown, engine: TextEngine, opts: {font?: string; maxHeight?: number} = {}): Promise<FigurePlan | {issues: SpecIssue[]}> {
+  let d: Diagram;
+  try { d = specToDiagram(spec); }
+  catch (e) {
+    if (e instanceof SpecError) return {issues: [...e.issues]};
+    throw e;
+  }
+  let r: WebRender;
+  try { r = await renderInBrowser(d, {measure: engine.measure}); }
+  catch (e) {
+    if (e instanceof TextEngineError) throw e;
+    return {issues: [layoutIssue(spec, messageOf(e))]};
+  }
+  const maxHeight = opts.maxHeight ?? MAX_EDGE_HEIGHT;
+  if (r.height > maxHeight) return {issues: [{path: '', message: `the figure is ${r.height}px tall; the limit is ${maxHeight}px`}]};
+  const plan = planSlide(r.laidOut, fontsOf(opts.font));
+  // a picture's text as outlines, an emoji as text the viewer's emoji font draws; a character the font lacks is the spec's to fix, as in drawing
+  const missing: {text: string; char: string}[] = [];
+  const outline = (svg: string): string => { const o = outlineText(svg, engine.font, engine.textBox, {liveEmoji: true}); missing.push(...o.missing); return o.svg; };
+  plan.pictures = plan.pictures.map(p => ({svg: outline(p.svg), pngSvg: outline(p.pngSvg)}));
+  if (missing.length) return {issues: missingIssues(spec, missing)};
+  return {plan, width: Math.max(96, r.laidOut.width), height: Math.max(96, r.laidOut.canvasHeight), native: r.laidOut.laidOut.length - plan.pictures.length};
+}
+
+/** The entries zipped, the XML deflated where the runtime can (PNGs are stored: they are compressed already). */
+export async function zipPackage(files: readonly {name: string; data: Uint8Array}[]): Promise<Uint8Array> {
+  const entries: ZipEntry[] = [];
+  for (const e of files) entries.push({...e, deflated: e.name.endsWith('.png') ? undefined : await deflateRaw(e.data)});
+  return zipEntries(entries);
+}
+
 /**
  * The spec as a .pptx. A bad spec or a figure that cannot be laid out comes back as issues; a failure of the engine that was handed in
  * throws TextEngineError, and one of `rasterize` throws as it is. The drawing's own checks are renderSpecEdge's: run that first.
@@ -53,29 +88,9 @@ export async function renderPptxEdge(spec: unknown, givenEngine: TextEngine, opt
   const engine = guardedEngine(givenEngine);
   const pngScale = opts.pngScale ?? 2;
   if (!(Number.isFinite(pngScale) && pngScale > 0)) throw new Error(`pngScale must be a positive number (got ${String(pngScale)})`);
-  let d: Diagram;
-  try { d = specToDiagram(spec); }
-  catch (e) {
-    if (e instanceof SpecError) return none([...e.issues]);
-    throw e;
-  }
-  let r: WebRender;
-  try { r = await renderInBrowser(d, {measure: engine.measure}); }
-  catch (e) {
-    if (e instanceof TextEngineError) throw e;
-    return none([layoutIssue(spec, messageOf(e))]);
-  }
-  const maxHeight = opts.maxHeight ?? MAX_EDGE_HEIGHT;
-  if (r.height > maxHeight) return none([{path: '', message: `the figure is ${r.height}px tall; the limit is ${maxHeight}px`}]);
-  const plan = planSlide(r.laidOut, fontsOf(opts.font));
-  // a picture's text as outlines, an emoji as text the viewer's emoji font draws; a character the font lacks is the spec's to fix, as in drawing
-  const missing: {text: string; char: string}[] = [];
-  const outline = (svg: string): string => { const o = outlineText(svg, engine.font, engine.textBox, {liveEmoji: true}); missing.push(...o.missing); return o.svg; };
-  plan.pictures = plan.pictures.map(p => ({svg: outline(p.svg), pngSvg: outline(p.pngSvg)}));
-  if (missing.length) return none(missingIssues(spec, missing));
+  const f = await planFigureEdge(spec, engine, opts);
+  if ('issues' in f) return none(f.issues);
   const pngs: Uint8Array[] = [];
-  for (const p of plan.pictures) pngs.push(await opts.rasterize(p.pngSvg, pngScale));
-  const entries: ZipEntry[] = [];
-  for (const e of packageEntries(plan, pngs)) entries.push({...e, deflated: e.name.endsWith('.png') ? undefined : await deflateRaw(e.data)});
-  return {pptx: zipEntries(entries), issues: [], native: r.laidOut.laidOut.length - plan.pictures.length, pictures: plan.pictures.length};
+  for (const p of f.plan.pictures) pngs.push(await opts.rasterize(p.pngSvg, pngScale));
+  return {pptx: await zipPackage(packageEntries(f.plan, pngs)), issues: [], native: f.native, pictures: f.plan.pictures.length};
 }
