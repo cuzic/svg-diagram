@@ -12,7 +12,7 @@ export type Dir = 'down' | 'right';
 export interface TreeNode {id: string; size: Size; children?: TreeNode[]}
 export interface TreeOpts {dir?: Dir; /** space between siblings */ gap?: number; /** space between a level and the next */ levelGap?: number}
 /** A `{` brace gathering the children of one parent (map-layouts.ts): its spine at x from y1 to y2, the tip at (tipX, ymid) pointing at the parent. */
-export interface Brace {x: number; y1: number; y2: number; ymid: number; tipX: number; side: 'right' | 'left'}
+export interface Brace {x: number; y1: number; y2: number; ymid: number; tipX: number; side: 'right' | 'left'; /** The id of the parent whose children it gathers (ADR 0054: it is in that parent's branch). */ of?: string}
 export interface TreeLayout {
   nodes: Map<string, Placed>;
   /** parent -> child polylines (centre to centre, elbow at the half-way level); `curve`: drawn as a smooth S along that axis; `bold`: a spine */

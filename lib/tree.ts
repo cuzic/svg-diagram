@@ -148,10 +148,11 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     nodes: [], edges: [], texts: [], anchors: [], labelBoxes: [],
     ...(fitApplied.length ? {fitApplied} : {}),
   };
+  const parentOf = new Map<TreeItem, number>(items.flatMap((n, i) => (n.children ?? []).map(c => [c, i] as const)));
   for (const n of items) {
-    const p = must(tree.nodes.get(must(key.get(n)))), l = must(lines.get(n));
+    const p = must(tree.nodes.get(must(key.get(n)))), l = must(lines.get(n)), up = parentOf.get(n);
     const r = {x: p.x + dx, y: p.y + dy, w: p.w, h: p.h};
-    out.nodes.push({...r, tone: n.tone ?? 'plain', ...(n.band ? {band: true as const} : {}), ...(n.id ? {id: n.id} : {})});
+    out.nodes.push({...r, tone: n.tone ?? 'plain', ...(n.band ? {band: true as const} : {}), ...(n.id ? {id: n.id} : {}), ...(up === undefined ? {} : {parent: up})});
     if (n.id) out.anchors.push({id: n.id, ...r});
     if (n.band) continue; // the band draws its own text, and is checked as a band
     out.texts.push(...nodeRuns(r, l, roles));
@@ -159,7 +160,8 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
   }
   const indexOf = new Map(items.map((n, i) => [must(key.get(n)), i]));
   const funnels = items.some(n => n.from !== undefined);
-  for (const e of tree.edges) out.edges.push({points: e.points.map(p => ({x: p.x + dx, y: p.y + dy})), ...(e.curve ? {curve: e.curve} : {}), ...(e.bold ? {bold: true} : {}), ...(band.focused && indexOf.has(e.to) && items[must(indexOf.get(e.to))]?.focusLit ? {lit: true as const} : {}), ...(funnels && indexOf.has(e.to) ? {child: must(indexOf.get(e.to))} : {})});
-  if (tree.braces?.length) out.braces = tree.braces.map(b => ({...b, x: b.x + dx, tipX: b.tipX + dx, y1: b.y1 + dy, y2: b.y2 + dy, ymid: b.ymid + dy}));
+  const ends = (e: {from: string; to: string}) => ({...(indexOf.has(e.from) ? {from: must(indexOf.get(e.from))} : {}), ...(indexOf.has(e.to) ? {to: must(indexOf.get(e.to))} : {})});
+  for (const e of tree.edges) out.edges.push({points: e.points.map(p => ({x: p.x + dx, y: p.y + dy})), ...ends(e), ...(e.curve ? {curve: e.curve} : {}), ...(e.bold ? {bold: true} : {}), ...(band.focused && indexOf.has(e.to) && items[must(indexOf.get(e.to))]?.focusLit ? {lit: true as const} : {}), ...(funnels && indexOf.has(e.to) ? {child: must(indexOf.get(e.to))} : {})});
+  if (tree.braces?.length) out.braces = tree.braces.map(({of, ...b}) => ({...b, x: b.x + dx, tipX: b.tipX + dx, y1: b.y1 + dy, y2: b.y2 + dy, ymid: b.ymid + dy, ...(of !== undefined && indexOf.has(of) ? {of: must(indexOf.get(of))} : {})}));
   return out;
 }
