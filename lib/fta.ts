@@ -2,6 +2,7 @@
 // that cause it, down to basic events (circle), undeveloped events (diamond) and house events (house). Each event's text is always in a
 // rectangle; its kind's symbol hangs under it (a circle inside which the text sits would grow with the text and widen the tree).
 // An event and the gate under it are one "compound node" laid out by layoutTree (a pure tree: a repeated event is drawn again, never joined).
+import {partStep} from './parts.ts';
 import {layoutTree} from './graph-layout.ts';
 import type {TreeNode} from './graph-layout.ts';
 import {fitLayout} from './fit-width.ts';
@@ -270,35 +271,37 @@ export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthO
     x, y, w, h: tree.h, nodes: [], marks: [], badges: [], gates: [], edges: [], texts: [], anchors: [], labelBoxes: [],
     ...(fitted.applied.length ? {fitApplied: fitted.applied} : {}),
   } as LaidOutFta;
-  const place = (n: FtaNode, px: number, py: number, pw: number, cl: NodeLines, rw: number, rh: number): {x: number; y: number; w: number; h: number} => {
+  // ADR 0054: an event (its box, text, stem and the symbol under it: a gate, or a mark with its badge) is one part
+  const partOf = (n: FtaNode, key: string): string => partStep('event', n.id ?? {index: key}, n.label);
+  const place = (n: FtaNode, px: number, py: number, pw: number, cl: NodeLines, rw: number, rh: number, part: string): {x: number; y: number; w: number; h: number} => {
     const r = {x: px + (pw - rw) / 2, y: py, w: rw, h: rh};
-    out.nodes.push({...r, kind: n.kind, ...(n.id === undefined ? {} : {id: n.id})});
+    out.nodes.push({...r, kind: n.kind, ...(n.id === undefined ? {} : {id: n.id}), part});
     if (n.id !== undefined) out.anchors.push({id: n.id, ...r});
     out.labelBoxes.push({label: n.label, ...r});
-    out.texts.push(...nodeRuns(r, cl, roles));
+    out.texts.push(...nodeRuns(r, cl, roles).map(t => ({...t, part})));
     return r;
   };
   const cx = (p: {x: number; w: number}): number => p.x + p.w / 2;
-  const seg = (a: {x: number; y: number}, b: {x: number; y: number}) => out.edges.push({points: [a, b]});
+  const seg = (a: {x: number; y: number}, b: {x: number; y: number}, part?: string) => out.edges.push({points: [a, b], ...(part ? {part} : {})});
   for (const [key, p] of tree.nodes) {
-    const c = must(comps.get(key)), n = c.node, px = p.x + dx, py = p.y + dy, mid = px + p.w / 2;
-    const r = place(n, px, py, p.w, c.lines, c.rect.w, c.rect.h);
+    const c = must(comps.get(key)), n = c.node, px = p.x + dx, py = p.y + dy, mid = px + p.w / 2, part = partOf(n, String(key));
+    const r = place(n, px, py, p.w, c.lines, c.rect.w, c.rect.h, part);
     if (n.gate === undefined) {
       const m = {x: mid - MARK_W / 2, y: r.y + r.h + STEM, w: MARK_W, h: MARK_H};
-      out.marks.push({...m, kind: n.kind, ...(c.badge ? {single: true as const} : {})});
-      seg({x: mid, y: r.y + r.h}, {x: mid, y: m.y});
-      if (c.badge) out.badges.push({x: mid - c.badge.w / 2, y: m.y + m.h + BADGE_GAP, w: c.badge.w, h: BADGE_H, text: c.badge.text, size: roles.note});
+      out.marks.push({...m, kind: n.kind, ...(c.badge ? {single: true as const} : {}), part});
+      seg({x: mid, y: r.y + r.h}, {x: mid, y: m.y}, part);
+      if (c.badge) out.badges.push({x: mid - c.badge.w / 2, y: m.y + m.h + BADGE_GAP, w: c.badge.w, h: BADGE_H, text: c.badge.text, size: roles.note, part});
       continue;
     }
     const g = {x: mid - GATE_W / 2, y: r.y + r.h + STEM, w: GATE_W, h: GATE_H};
-    out.gates.push({...g, gate: n.gate, ...(n.gate === 'vote' ? {label: {text: `${n.k}/${n.children.length}`, size: roles.note}} : {})});
-    seg({x: mid, y: r.y + r.h}, {x: mid, y: g.y});
+    out.gates.push({...g, gate: n.gate, ...(n.gate === 'vote' ? {label: {text: `${n.k}/${n.children.length}`, size: roles.note}} : {}), part});
+    seg({x: mid, y: r.y + r.h}, {x: mid, y: g.y}, part);
     if (c.cond) {
-      const cr = {x: g.x + g.w + COND_GAP, y: g.y};
-      const cr2 = place(c.cond.node, cr.x, cr.y, c.cond.w, c.cond.lines, c.cond.w, c.cond.h);
+      const cr = {x: g.x + g.w + COND_GAP, y: g.y}, cpart = partOf(c.cond.node, `${key}.cond`);
+      const cr2 = place(c.cond.node, cr.x, cr.y, c.cond.w, c.cond.lines, c.cond.w, c.cond.h, cpart);
       const m = {x: cx(cr2) - COND_MARK_W / 2, y: cr2.y + cr2.h + STEM, w: COND_MARK_W, h: COND_MARK_H};
-      out.marks.push({...m, kind: 'condition'});
-      seg({x: cx(cr2), y: cr2.y + cr2.h}, {x: cx(cr2), y: m.y});
+      out.marks.push({...m, kind: 'condition', part: cpart});
+      seg({x: cx(cr2), y: cr2.y + cr2.h}, {x: cx(cr2), y: m.y}, cpart);
       const ly = Math.min(Math.max(g.y + GATE_H / 2, cr2.y + 8), cr2.y + cr2.h - 8); // the gate's output height, kept on the condition's box
       seg({x: g.x + g.w, y: ly}, {x: cr2.x, y: ly});
     }

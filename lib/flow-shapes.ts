@@ -6,6 +6,7 @@
 //   * venn labels sit in their own region (a pair's label in the part only that pair shares, not in the middle),
 //   * a side key of concentric() is tied to its ring by a leader line, so the key does not depend on colour.
 // verify.ts checks that every label stays inside the figure and that no two labels overlap.
+import {partStep} from './parts.ts';
 import {resolveLoopBacks} from './loop-back.ts';
 import type {LoopBack} from './types/containers.ts';
 import {assertScope} from './scope-name.ts';
@@ -46,12 +47,12 @@ export type FlowShapeBand = ChevronBand | FunnelBand | CycleBand | VennBand | Co
 
 /** A flow-shape text's colour: a text tone, or 'bg' (white) on a filled (solid) item. */
 export type FlowTextTone = TextTone | 'bg';
-export interface FlowText extends Rect {text: string; tx: number; ty: number; size: number; weight: 400 | 700; anchor: 'start' | 'middle' | 'end'; tone: FlowTextTone}
+export interface FlowText extends Rect {text: string; tx: number; ty: number; size: number; weight: 400 | 700; anchor: 'start' | 'middle' | 'end'; tone: FlowTextTone; /** ADR 0054: the part it is grouped in (a concentric ring's key). */ part?: string}
 export type FlowPrimitive =
-  | ({k: 'polygon'; points: [number, number][]; tone: EmphasisTone; strong?: boolean; /** the id of the item this is the frame of (ADR 0034: withNodeIds turns it into `dataNode`) */ node?: string; dataNode?: string} & Dimmed)
-  | ({k: 'circle'; cx: number; cy: number; r: number; tone: TextTone; opacity?: number; dash?: string; /** Drawn as a box of this tone (filled, outlined) instead of a tinted ring. */ fill?: EmphasisTone; node?: string; dataNode?: string} & Dimmed)
+  | ({k: 'polygon'; points: [number, number][]; tone: EmphasisTone; strong?: boolean; /** the id of the item this is the frame of (ADR 0034: withNodeIds turns it into `dataNode`) */ node?: string; dataNode?: string; /** ADR 0054 */ part?: string} & Dimmed)
+  | ({k: 'circle'; cx: number; cy: number; r: number; tone: TextTone; opacity?: number; dash?: string; /** Drawn as a box of this tone (filled, outlined) instead of a tinted ring. */ fill?: EmphasisTone; node?: string; dataNode?: string; /** ADR 0054 */ part?: string} & Dimmed)
   | ({k: 'rect'; x: number; y: number; w: number; h: number; tone: TextTone} & Dimmed)
-  | ({k: 'path'; d: string; tone: TextTone; arrow?: boolean; thin?: boolean; /** Drawn as a box of this tone (filled, outlined) instead of a line; `box` is the extent of what is drawn. */ fill?: EmphasisTone; box?: Rect; node?: string; dataNode?: string} & Dimmed);
+  | ({k: 'path'; d: string; tone: TextTone; arrow?: boolean; thin?: boolean; /** Drawn as a box of this tone (filled, outlined) instead of a line; `box` is the extent of what is drawn. */ fill?: EmphasisTone; box?: Rect; node?: string; dataNode?: string; /** ADR 0054 */ part?: string} & Dimmed);
 export interface LaidOutFlowShape extends Rect, Dimmed {type: FlowShapeBand['type']; id?: string; reveal?: number; until?: number; primitives: FlowPrimitive[]; texts: FlowText[]; anchors: Anchor[]; labelBoxes: (Rect & {label: string})[]; /** emblem: the bounding box of each shape that has an id (the checks' obstacle, which may be larger than its anchor). */ bounds?: Anchor[]}
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -214,7 +215,7 @@ export function layoutFlowShape(b: FlowShapeBand, x: number, y: number, cw: numb
   const w = Math.min(cw, b.width ?? cw), ox = x + (cw - w) / 2;
   const out: LaidOutFlowShape = {type: b.type, id: b.id, reveal: b.reveal, until: b.until, x: ox, y, w, h: 0, primitives: [], texts: [], anchors: [], labelBoxes: []};
   const t = new Texts(out, widthOf, roles, mode);
-  const anchor = (id: string | undefined, r: Rect) => { if (id) out.anchors.push({id, ...r}); };
+  const anchor = (id: string | undefined, r: Rect, part?: string) => { if (id) out.anchors.push({id, ...r, ...(part ? {part} : {})}); };
   switch (b.type) {
     case 'chevron': layoutChevron(b, out, t, anchor); break;
     case 'funnel': layoutFunnel(b, out, t, anchor, roles); break;
@@ -226,7 +227,8 @@ export function layoutFlowShape(b: FlowShapeBand, x: number, y: number, cw: numb
   }
   return out;
 }
-type AnchorFn = (id: string | undefined, r: Rect) => void;
+/** `part`: the part the anchor is grouped in (ADR 0054), so a connector glued to it follows the item's group. */
+type AnchorFn = (id: string | undefined, r: Rect, part?: string) => void;
 
 /** A wrapped text block: measure it first (lines, height), then place it. */
 class Texts {
@@ -239,13 +241,13 @@ class Texts {
   }
   width(text: string, weight: 400 | 700 = 700, size = this.roles.note): number { return textWidth(this.widthOf, text, size, weight); }
   /** Places a wrapped block with its top at `top`; `x` is its centre (middle), left edge (start) or right edge (end). */
-  place(block: ReturnType<Texts['wrap']>, x: number, top: number, tone: FlowTextTone = 'text', anchor: FlowText['anchor'] = 'middle'): void {
+  place(block: ReturnType<Texts['wrap']>, x: number, top: number, tone: FlowTextTone = 'text', anchor: FlowText['anchor'] = 'middle', part?: string): void {
     const {size, weight} = block;
     block.lines.forEach((line, i) => {
       const tw = textWidth(this.widthOf, line, size, weight), ty = top + i * size * LINE + size * ((LINE - 1.2) / 2 + 1); // the glyph box (1.2 sizes) centred in its line
       const left = anchor === 'middle' ? x - tw / 2 : anchor === 'start' ? x : x - tw;
       const box = {x: left, y: ty - size, w: tw, h: size * 1.2};
-      this.out.texts.push({text: line, tx: x, ty, size, weight, anchor, tone, ...box});
+      this.out.texts.push({text: line, tx: x, ty, size, weight, anchor, tone, ...box, ...(part ? {part} : {})});
       this.out.labelBoxes.push({label: block.text, ...box});
     });
   }
@@ -279,29 +281,31 @@ function layoutValueChain(b: ValueChainBand, out: LaidOutFlowShape, t: Texts, an
   const marginW = b.margin ? Math.min(140, Math.max(76, t.width(b.margin) + tipM + 16)) : 0;
   const mainW = out.w - (b.margin ? marginW + 8 : 0);
   let y = out.y;
-  const title = (text: string | undefined) => {
+  const title = (text: string | undefined, part?: string) => {
     if (!text) return;
     const k = t.wrap(text, mainW);
-    t.place(k, out.x, y, 'muted', 'start');
+    t.place(k, out.x, y, 'muted', 'start', part);
     y += k.h + 6;
   };
   const top = y;
+  // ADR 0054 D9.2: the support activities, the primary activities and the margin are parts
+  const titles = b.titles || undefined, support = partStep('support', 0, titles?.[0] ?? ''), primary = partStep('primary', 0, titles?.[1] ?? ''), margin = partStep('margin', 0, b.margin || '');
   // support activities: one bar each, full width
   if (b.support.length) {
-    title(b.titles ? b.titles[0] : undefined);
+    title(b.titles ? b.titles[0] : undefined, support);
     for (const s of b.support) {
       const label = t.wrap(s.label, mainW - 24), sub = s.sub ? t.wrap(s.sub, mainW - 24, 400) : undefined;
       const h = Math.max(36, label.h + (sub?.h ?? 0) + 16), textTop = y + (h - label.h - (sub?.h ?? 0)) / 2;
-      out.primitives.push({k: 'polygon', points: [[out.x, y], [out.x + mainW, y], [out.x + mainW, y + h], [out.x, y + h]], tone: s.tone ?? 'muted', ...nodeOf(s)});
-      anchor(s.id, {x: out.x, y, w: mainW, h});
-      t.place(label, out.x + mainW / 2, textTop, onItem(s.tone, 'text'));
-      if (sub) t.place(sub, out.x + mainW / 2, textTop + label.h, onItem(s.tone, 'muted'));
+      out.primitives.push({k: 'polygon', points: [[out.x, y], [out.x + mainW, y], [out.x + mainW, y + h], [out.x, y + h]], tone: s.tone ?? 'muted', ...nodeOf(s), part: support});
+      anchor(s.id, {x: out.x, y, w: mainW, h}, support);
+      t.place(label, out.x + mainW / 2, textTop, onItem(s.tone, 'text'), 'middle', support);
+      if (sub) t.place(sub, out.x + mainW / 2, textTop + label.h, onItem(s.tone, 'muted'), 'middle', support);
       y += h + gap;
     }
     y += 8 - gap;
   }
   // primary activities: chevrons, the first one a pentagon
-  title(b.titles ? b.titles[1] : undefined);
+  title(b.titles ? b.titles[1] : undefined, primary);
   const n = b.primary.length, cellW = (mainW - gap * (n - 1)) / n, tip = Math.min(18, cellW / 4), textW = cellW - 2 * tip - 4;
   const blocks = b.primary.map(s => ({label: t.wrap(s.label, textW), sub: s.sub ? t.wrap(s.sub, textW, 400) : undefined}));
   const textH = (k: typeof blocks[number]) => k.label.h + (k.sub?.h ?? 0);
@@ -309,19 +313,19 @@ function layoutValueChain(b: ValueChainBand, out: LaidOutFlowShape, t: Texts, an
   b.primary.forEach((s, i) => {
     const xx = out.x + i * (cellW + gap), yy = y;
     const notch: Pt[] = i ? [[xx + tip, yy + cellH / 2]] : [];
-    out.primitives.push({k: 'polygon', points: [[xx, yy], [xx + cellW - tip, yy], [xx + cellW, yy + cellH / 2], [xx + cellW - tip, yy + cellH], [xx, yy + cellH], ...notch], tone: s.tone ?? 'plain', ...nodeOf(s)});
-    anchor(s.id, {x: xx, y: yy, w: cellW, h: cellH});
+    out.primitives.push({k: 'polygon', points: [[xx, yy], [xx + cellW - tip, yy], [xx + cellW, yy + cellH / 2], [xx + cellW - tip, yy + cellH], [xx, yy + cellH], ...notch], tone: s.tone ?? 'plain', ...nodeOf(s), part: primary});
+    anchor(s.id, {x: xx, y: yy, w: cellW, h: cellH}, primary);
     const k = must(blocks[i]), textTop = yy + (cellH - textH(k)) / 2;
-    t.place(k.label, xx + cellW / 2, textTop, onItem(s.tone, 'text'));
-    if (k.sub) t.place(k.sub, xx + cellW / 2, textTop + k.label.h, onItem(s.tone, 'muted'));
+    t.place(k.label, xx + cellW / 2, textTop, onItem(s.tone, 'text'), 'middle', primary);
+    if (k.sub) t.place(k.sub, xx + cellW / 2, textTop + k.label.h, onItem(s.tone, 'muted'), 'middle', primary);
   });
   const bottom = y + cellH;
   // the margin: a tall arrow over the whole height, pointing right
   if (b.margin) {
     const mx = out.x + out.w - marginW, mid = (top + bottom) / 2;
-    out.primitives.push({k: 'polygon', points: [[mx, top], [mx + marginW - tipM, top], [mx + marginW, mid], [mx + marginW - tipM, bottom], [mx, bottom]], tone: 'accent', strong: true});
+    out.primitives.push({k: 'polygon', points: [[mx, top], [mx + marginW - tipM, top], [mx + marginW, mid], [mx + marginW - tipM, bottom], [mx, bottom]], tone: 'accent', strong: true, part: margin});
     const label = t.wrap(b.margin, marginW - tipM - 4);
-    t.place(label, mx + (marginW - tipM) / 2, mid - label.h / 2);
+    t.place(label, mx + (marginW - tipM) / 2, mid - label.h / 2, 'text', 'middle', margin);
   }
   out.h = bottom - out.y;
 }
@@ -345,14 +349,15 @@ function layoutFunnel(b: FunnelBand, out: LaidOutFlowShape, t: Texts, anchor: An
   out.h = n * rowH;
   b.stages.forEach((s, i) => {
     const yy = out.y + i * rowH, a = must(tops[i]), z = must(bottoms[i]), p = must(plans[i]);
-    out.primitives.push({k: 'polygon', points: [[cx - a / 2, yy], [cx + a / 2, yy], [cx + z / 2, yy + rowH - 4], [cx - z / 2, yy + rowH - 4]], tone: s.tone ?? (i % 2 ? 'muted' : 'accent'), ...nodeOf(s)});
-    anchor(s.id, {x: cx - Math.max(a, z) / 2, y: yy, w: Math.max(a, z), h: rowH - 4});
+    const part = partStep('stage', s.id ?? i, s.label); // ADR 0054: a stage, its label and the rate into it
+    out.primitives.push({k: 'polygon', points: [[cx - a / 2, yy], [cx + a / 2, yy], [cx + z / 2, yy + rowH - 4], [cx - z / 2, yy + rowH - 4]], tone: s.tone ?? (i % 2 ? 'muted' : 'accent'), ...nodeOf(s), part});
+    anchor(s.id, {x: cx - Math.max(a, z) / 2, y: yy, w: Math.max(a, z), h: rowH - 4}, part);
     const blockH = p.label.h + (p.rate && !p.rateLeft ? p.rate.h : 0), top = yy + (rowH - 4 - blockH) / 2;
     const lx = p.beside ? p.sideLeft : cx, la = p.beside ? 'start' : 'middle';
-    t.place(p.label, lx, top, p.beside ? 'text' : onItem(s.tone, 'text'), la);
+    t.place(p.label, lx, top, p.beside ? 'text' : onItem(s.tone, 'text'), la, part);
     if (p.rate) {
-      if (p.rateLeft) t.place(p.rate, cx - Math.max(a, z) / 2 - 14, yy + (rowH - 4 - lh) / 2, 'muted', 'end');
-      else t.place(p.rate, lx, top + p.label.h, p.beside ? 'muted' : onItem(s.tone, 'muted'), la);
+      if (p.rateLeft) t.place(p.rate, cx - Math.max(a, z) / 2 - 14, yy + (rowH - 4 - lh) / 2, 'muted', 'end', part);
+      else t.place(p.rate, lx, top + p.label.h, p.beside ? 'muted' : onItem(s.tone, 'muted'), la, part);
     }
   });
 }
@@ -378,19 +383,21 @@ function layoutCycle(b: CycleBand, out: LaidOutFlowShape, t: Texts, anchor: Anch
   const at = (a: number, r = R): Pt => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
   const skip = 2 * Math.asin(Math.min(1, (nr + 8) / (2 * R))); // the angle a node (plus a gap) covers on the ring
   const r1 = (v: number) => Math.round(v * 10) / 10;
+  // ADR 0054: a step is its circle, its label and the arrow that leaves it
+  const stepPart = (i: number): string => partStep('step', b.steps[i]?.id ?? i, b.steps[i]?.label ?? '');
   b.steps.forEach((_s, i) => {
     const [p, q] = [at(angle(i) + sign * skip), at(angle(i + 1) - sign * skip)];
-    out.primitives.push({k: 'path', d: `M${r1(p[0])},${r1(p[1])} A${r1(R)},${r1(R)} 0 0 ${sign > 0 ? 1 : 0} ${r1(q[0])},${r1(q[1])}`, tone: 'text', arrow: true});
+    out.primitives.push({k: 'path', d: `M${r1(p[0])},${r1(p[1])} A${r1(R)},${r1(R)} 0 0 ${sign > 0 ? 1 : 0} ${r1(q[0])},${r1(q[1])}`, tone: 'text', arrow: true, part: stepPart(i)});
   });
   b.steps.forEach((s, i) => {
     const [ax, ay] = at(angle(i)), nx = g4(ax), ny = g4(ay);
     const tone: TextTone = s.tone === 'danger' || s.tone === 'removed' ? 'danger' : s.tone === 'muted' ? 'muted' : 'accent';
     // a solid step is a filled circle (white text); the others keep the tinted ring
-    out.primitives.push({k: 'circle', cx: nx, cy: ny, r: nr, tone, ...(isSolidTone(s.tone) ? {fill: s.tone} : {}), ...nodeOf(s)});
-    anchor(s.id, {x: nx - nr, y: ny - nr, w: 2 * nr, h: 2 * nr});
+    out.primitives.push({k: 'circle', cx: nx, cy: ny, r: nr, tone, ...(isSolidTone(s.tone) ? {fill: s.tone} : {}), ...nodeOf(s), part: stepPart(i)});
+    anchor(s.id, {x: nx - nr, y: ny - nr, w: 2 * nr, h: 2 * nr}, stepPart(i));
     const label = t.wrap(s.label, nr * 1.5), sub = s.sub ? t.wrap(s.sub, nr * 1.5, 400) : undefined, top = ny - (label.h + (sub?.h ?? 0)) / 2;
-    t.place(label, nx, top, onItem(s.tone, 'text'));
-    if (sub) t.place(sub, nx, top + label.h, onItem(s.tone, 'muted'));
+    t.place(label, nx, top, onItem(s.tone, 'text'), 'middle', stepPart(i));
+    if (sub) t.place(sub, nx, top + label.h, onItem(s.tone, 'muted'), 'middle', stepPart(i));
   });
   if (b.centre) { const c = t.wrap(b.centre, 1.5 * (R - nr), 700, roles.label); t.place(c, cx, cy - c.h / 2); }
 }
@@ -452,9 +459,10 @@ function layoutConcentric(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, an
     ordered.forEach((ring, i) => {
       const k = must(keys[i]), top = out.y + 8 + i * slot + (slot - k.h) / 2, ly = top + Math.min(k.h, lh) / 2;
       const rm = (radius(i) + (i < n - 1 ? radius(i + 1) : 0)) / 2, a = -Math.PI / 6, dot: Pt = [g4(cx + rm * Math.cos(a)), g4(cy + rm * Math.sin(a))];
-      out.primitives.push({k: 'path', d: `M${dot[0].toFixed(1)},${dot[1].toFixed(1)} L${(keyLeft - 8).toFixed(1)},${ly.toFixed(1)}`, tone: 'muted', thin: true});
-      out.primitives.push({k: 'circle', cx: dot[0], cy: dot[1], r: 3.5, tone: 'text', opacity: 1});
-      t.place(k, keyLeft, top, ring.tone ?? 'text', 'start');
+      const part = partStep('callout', ring.id ?? i, ringLabel(ring)); // ADR 0054: the leader, its dot and the key
+      out.primitives.push({k: 'path', d: `M${dot[0].toFixed(1)},${dot[1].toFixed(1)} L${(keyLeft - 8).toFixed(1)},${ly.toFixed(1)}`, tone: 'muted', thin: true, part});
+      out.primitives.push({k: 'circle', cx: dot[0], cy: dot[1], r: 3.5, tone: 'text', opacity: 1, part});
+      t.place(k, keyLeft, top, ring.tone ?? 'text', 'start', part);
     });
   }
   let innerBottom = -Infinity; // the bottom of the innermost ring's label: the centre text goes below it

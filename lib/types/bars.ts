@@ -69,14 +69,14 @@ export interface BarsBand extends BarsOpts {
   reveal?: number;
   until?: number;
 }
-export interface BarRect extends Rect, Dimmed {fill: ColorKey; id?: string; reveal?: number; until?: number}
+export interface BarRect extends Rect, Dimmed {fill: ColorKey; id?: string; reveal?: number; until?: number; /** ADR 0054: its part (the bar, its value and its category) */ part?: string}
 /** `bar`: index into `bars` of the bar the label belongs to (none for tick labels), so spotlight can dim it with its bar. */
-export interface BarText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number; until?: number; bar?: number}
+export interface BarText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; reveal?: number; until?: number; bar?: number; /** ADR 0054: the part of a text that is no bar's (an axis, the cumulative line) */ part?: string}
 export interface BarsInk {
   /** `soft`: it may cross labels (the curve laid over a histogram); every other line is kept clear of them. */
-  lines: {x1: number; y1: number; x2: number; y2: number; fill: ColorKey; dashed: boolean; soft?: boolean}[];
-  polylines: {pts: {x: number; y: number}[]; fill: ColorKey; dashed: boolean; soft?: boolean}[];
-  dots: {x: number; y: number; fill: ColorKey}[];
+  lines: {x1: number; y1: number; x2: number; y2: number; fill: ColorKey; dashed: boolean; soft?: boolean; part?: string}[];
+  polylines: {pts: {x: number; y: number}[]; fill: ColorKey; dashed: boolean; soft?: boolean; part?: string}[];
+  dots: {x: number; y: number; fill: ColorKey; part?: string}[];
 }
 export interface LaidOutBars extends Rect, Dimmed {
   type: 'bars';

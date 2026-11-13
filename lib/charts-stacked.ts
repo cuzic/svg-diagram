@@ -2,6 +2,7 @@
 // as 100% columns; mekko() (マリメッコ) makes the width of a column proportional to its total and the height of a segment its share of
 // the column, so the area of a segment is its share of the whole. Every segment prints its number; one too small for it is left out of
 // the drawing and stays in the description.
+import {axisPart, partStep} from './parts.ts';
 import {Canvas, checkDomain, checkIds, checkText, fail, finiteNum, inkOnShade, numText, shadeOps, valueScale} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, LaidOutChartPart} from './charts-base.ts';
 
@@ -134,14 +135,16 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
   const plotT = g.y + legendH + 8 + (s.mode === 'stacked' ? S + 8 : 4), plotB = g.y + c.h - catH - 6;
   if (plotB - plotT < 120) fail(s.mode === 'mekko' ? 'mekko' : 'stackedBars', 'the figure is too short; raise height');
   const yOf = (f: number) => plotB - f * (plotB - plotT), r1 = (v: number) => Math.round(v * 10) / 10;
-  legend.forEach(l => {
+  legend.forEach(l => c.legendEntry(l.i, must(s.series[l.i]), () => {
     // the row's centre low enough for the text's top to stay in the figure at a large label size (a canvas)
     const cy = g.y + l.y + Math.max(9, Math.ceil(S * 0.64));
     c.rect(l.x, cy - 7, 14, 14, {fill: 'accent', op: opOf(l.i), stroke: 'accent', sw: 2});
     c.text(must(s.series[l.i]), l.x + 20, c.mid(cy), 'start', 'text');
+  }));
+  c.withPart(axisPart('y'), () => {
+    for (const t of ticks) { c.line(plotL - 6, yOf(t.f), plotR, yOf(t.f), {stroke: t.v === 0 ? 'text' : 'border'}); c.text(t.s, plotL - 10, c.mid(yOf(t.f)), 'end', 'muted'); }
+    c.line(plotL, r1(yOf(1)), plotL, r1(yOf(0)), {stroke: 'border'});
   });
-  for (const t of ticks) { c.line(plotL - 6, yOf(t.f), plotR, yOf(t.f), {stroke: t.v === 0 ? 'text' : 'border'}); c.text(t.s, plotL - 10, c.mid(yOf(t.f)), 'end', 'muted'); }
-  c.line(plotL, r1(yOf(1)), plotL, r1(yOf(0)), {stroke: 'border'});
   const omitted = c.omitted, beside: {text: string; x: number; y: number; key: string; left: string}[] = [];
   s.columns.forEach((k, ci) => {
     let acc = 0;
@@ -173,6 +176,8 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
     c.lines(m.main, cx, top, 'middle', 'text', {bold: true, of: k.id ?? `#${ci}`});
     c.lines(m.second, cx, top + m.main.length * lh, 'middle', 'muted', {of: k.id ?? `#${ci}`});
   });
+  // ADR 0054: a column (its segments, their values, its total and its name) is a part
+  c.partsByOf(new Map(s.columns.map((k, ci) => [k.id ?? `#${ci}`, partStep('column', k.id ?? ci, k.label)])));
   void Canvas;
   return c.done();
 }

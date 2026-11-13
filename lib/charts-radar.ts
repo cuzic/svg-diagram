@@ -1,5 +1,6 @@
 // radar(): several measures of one thing on spokes (3-12 axes), the value of each as a distance from the centre, joined into a polygon.
 // A concentric grid carries the tick values. Series differ by line style AND marker shape (and the legend names them), never by colour alone.
+import {LEGEND, partStep} from './parts.ts';
 import {niceNear} from './qc.ts';
 import {Canvas, overlaps, checkIds, checkText, fail, finiteNum, niceScale, numText} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
@@ -109,21 +110,25 @@ export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
   const {labels, R, cy} = must(plan), areaH = c.h - legendH;
   const at = (i: number, f: number) => ({x: cx + Math.cos(ang(i)) * R * f, y: cy + Math.sin(ang(i)) * R * f});
   const poly = (f: number) => `M${Array.from({length: n}, (_, i) => { const p = at(i, f); return `${r1(p.x)},${r1(p.y)}`; }).join(' L')} Z`;
+  // ADR 0054: the grid, axis names and tick values are one part; a series (its polygon, markers, values) another; the legend a third
+  const axes = partStep('axes', 0, ''), ser = (k: number): string => partStep('series', s.series[k]?.id ?? k, s.series[k]?.label ?? '');
   // grid: rings, then spokes
-  for (let k = 1; k <= s.rings; k++) c.path(poly(k / s.rings), {fill: 'none', stroke: 'border', sw: 2});
-  for (let i = 0; i < n; i++) { const p = at(i, 1); c.line(cx, cy, p.x, p.y, {stroke: 'border'}); }
+  c.withPart(axes, () => {
+    for (let k = 1; k <= s.rings; k++) c.path(poly(k / s.rings), {fill: 'none', stroke: 'border', sw: 2});
+    for (let i = 0; i < n; i++) { const p = at(i, 1); c.line(cx, cy, p.x, p.y, {stroke: 'border'}); }
+  });
   // series: the polygon (shaded for one series), its line in its own style, a marker at each vertex
   const polys = s.series.map(x => x.values.map((v, i) => at(i, (v - s.min) / (s.max - s.min))));
-  s.series.forEach((x, k) => {
+  s.series.forEach((x, k) => c.withPart(ser(k), () => {
     const st = must(SERIES_STYLES[k]), pts = must(polys[k]), d = `M${pts.map(p => `${r1(p.x)},${r1(p.y)}`).join(' L')} Z`;
     if (s.fill) c.path(d, {fill: st.tone, op: 0.14, of: x.id ?? `#${k}`});
     c.path(d, {fill: 'none', stroke: st.tone, sw: 3, dash: st.dash, of: x.id ?? `#${k}`});
     pts.forEach((p, i) => { const q = must(pts[(i + 1) % n]); c.segs.push({x1: p.x, y1: p.y, x2: q.x, y2: q.y}); });
     if (x.id) { const xs = pts.map(p => p.x), ys = pts.map(p => p.y); c.anchors.push({id: x.id, x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)}); }
-  });
-  s.series.forEach((x, k) => { const st = must(SERIES_STYLES[k]); for (const p of must(polys[k])) { c.path(markerPath(st.marker, p.x, p.y), {fill: 'bg', stroke: st.tone, sw: 2.5, of: x.id ?? `#${k}`}); c.marks.push({x: p.x - 7, y: p.y - 7, w: 14, h: 14}); } });
+  }));
+  s.series.forEach((x, k) => c.withPart(ser(k), () => { const st = must(SERIES_STYLES[k]); for (const p of must(polys[k])) { c.path(markerPath(st.marker, p.x, p.y), {fill: 'bg', stroke: st.tone, sw: 2.5, of: x.id ?? `#${k}`}); c.marks.push({x: p.x - 7, y: p.y - 7, w: 14, h: 14}); } }));
   // axis names beyond the outer ring
-  for (let i = 0; i < n; i++) { const q = nameAt(i, R, cy, must(labels[i])); c.lines(must(labels[i]), q.x, q.base, q.anchor, 'text', {bold: true}); }
+  c.withPart(axes, () => { for (let i = 0; i < n; i++) { const q = nameAt(i, R, cy, must(labels[i])); c.lines(must(labels[i]), q.x, q.base, q.anchor, 'text', {bold: true}); } });
   // tick values: beside one spoke (right of it, or left on the left half), each beside its ring, or just above / below that when the
   // ring's own spot is taken. The spoke that has room for the most of them (the first such) takes them; where the rings are closer than a
   // line of text (a large label size) every 2nd / 3rd ... ring is labelled, counting down from the outer one. A ring with no room anywhere
@@ -144,10 +149,10 @@ export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
     if (put.length > bestTicks.length) bestTicks = put;
     if (put.length === tickTexts.length) break;
   }
-  for (const t of bestTicks) c.text(t.s, t.x, t.y, t.anchor, 'muted');
+  c.withPart(axes, () => { for (const t of bestTicks) c.text(t.s, t.x, t.y, t.anchor, 'muted'); });
   // centre value
   // value labels at the vertices (optional): outward first, then to the sides; one with no free place stays out of the drawing and in the description
-  if (s.values) s.series.forEach((x, k) => {
+  if (s.values) s.series.forEach((x, k) => c.withPart(ser(k), () => {
     x.values.forEach((v, i) => {
       const p = must(must(polys[k])[i]), text = `${numText(v)}${s.unit}`, cs = Math.cos(ang(i)), sn = Math.sin(ang(i));
       const cands = [14, 22, 32].flatMap(d => [
@@ -156,16 +161,18 @@ export function layoutRadar(s: RadarSpec, g: ChartGeom): LaidOutChartPart {
       ]);
       if (!c.place(text, cands, must(SERIES_STYLES[k]).tone === 'muted' ? 'text' : must(SERIES_STYLES[k]).tone, {bold: true, of: x.id ?? `#${k}`})) c.omitted.push(`${x.label} ${s.axes[i]} ${text}`);
     });
-  });
+  }));
   // legend
   let ly = g.y + areaH + 6;
   for (const row of rows) {
     let lx = g.x + (g.w - row.reduce((a, b) => a + b.w, 0) + 24) / 2;
     for (const it of row) {
       const st = must(SERIES_STYLES[it.i]), my = ly + lh / 2 - 1;
-      c.line(lx, my, lx + 30, my, {stroke: st.tone, sw: 3, dash: st.dash, of: it.x.id ?? `#${it.i}`});
-      c.path(markerPath(st.marker, lx + 15, my), {fill: 'bg', stroke: st.tone, sw: 2.5, of: it.x.id ?? `#${it.i}`});
-      c.text(it.x.label, lx + 38, c.mid(my), 'start', 'text', {of: it.x.id ?? `#${it.i}`});
+      c.withPart(LEGEND, () => c.withPart(partStep('entry', it.i, it.x.label), () => {
+        c.line(lx, my, lx + 30, my, {stroke: st.tone, sw: 3, dash: st.dash, of: it.x.id ?? `#${it.i}`});
+        c.path(markerPath(st.marker, lx + 15, my), {fill: 'bg', stroke: st.tone, sw: 2.5, of: it.x.id ?? `#${it.i}`});
+        c.text(it.x.label, lx + 38, c.mid(my), 'start', 'text', {of: it.x.id ?? `#${it.i}`});
+      }));
       lx += it.w;
     }
     ly += lh + 6;

@@ -1,5 +1,6 @@
 // scatter() and controlChart(): the QC tools that are points and lines on a coordinate plane. Both only work out a plane() — axes that
 // fit the data, the points, the lines, the labels — so layout, verify and every other check treat them as any plane.
+import {partStep} from './parts.ts';
 import {niceUp, num} from './qc.ts';
 import type {PlaneAxis, PlaneLabel, PlaneLine, PlaneOpts, PlanePath, PlanePoint, PlanePos, PlaneTone} from './types/figures.ts';
 
@@ -96,7 +97,9 @@ export function scatterOpts(points: readonly ScatterPoint[], opts: ScatterOpts):
   const {labelRole, id, reveal, until, width} = opts as PlaneOpts;
   const pts: PlanePoint[] = points.map(p => {
     const s = must(p.group === undefined ? STRATA[0] : STRATA[groups.indexOf(p.group)]);
-    return {at: [p.x, p.y] as PlanePos, ...(p.id ? {id: p.id} : {}), ...(p.label ? {label: p.label} : {}), tone: s.tone, shape: s.shape};
+    // ADR 0054: the points of a stratum are a series (when the data has strata)
+    const part = groups.length > 1 && p.group !== undefined ? partStep('series', {index: p.group}, p.group) : undefined;
+    return {at: [p.x, p.y] as PlanePos, ...(p.id ? {id: p.id} : {}), ...(p.label ? {label: p.label} : {}), tone: s.tone, shape: s.shape, ...(part ? {part} : {})};
   });
   const lines: PlaneLine[] = [], labels: PlaneLabel[] = [];
   if (groups.length > 1) labels.push(...legendRow(groups.map((g, i) => ({text: g, ...must(STRATA[i])})), xMin + (x.max - xMin) * 0.01, x.max - xMin, rowY(0), opts.crossMark));
@@ -111,8 +114,9 @@ export function scatterOpts(points: readonly ScatterPoint[], opts: ScatterOpts):
       const lo = Math.min(at(y.min ?? 0), at(yTop)), hi = Math.max(at(y.min ?? 0), at(yTop));
       x1 = Math.max(x1, lo); x2 = Math.min(x2, hi);
     }
-    if (x1 < x2) lines.push({from: [x1, intercept + slope * x1], to: [x2, intercept + slope * x2], tone: 'muted', dashed: true});
-    labels.push({at: [x.max - (x.max - xMin) * 0.01, rowY(rows - 1)], anchor: 'end', tone: 'text', bold: true, text: rText});
+    const fit = partStep('fit', 0, rText); // ADR 0054: the regression line and its statistics
+    if (x1 < x2) lines.push({from: [x1, intercept + slope * x1], to: [x2, intercept + slope * x2], tone: 'muted', dashed: true, part: fit});
+    labels.push({at: [x.max - (x.max - xMin) * 0.01, rowY(rows - 1)], anchor: 'end', tone: 'text', bold: true, text: rText, part: fit});
   }
   return {...(labelRole ? {labelRole} : {}), ...(id ? {id} : {}), ...(reveal === undefined ? {} : {reveal}), ...(until === undefined ? {} : {until}), ...(width === undefined ? {} : {width}), x, y, points: pts, lines, labels, height, grid: opts.grid ?? true};
 }
@@ -297,19 +301,21 @@ export function controlChartOpts(type: ControlType, data: readonly (number | num
     return out;
   };
   const paths: PlanePath[] = [{through: points.map(p => p.at as PlanePos)}];
-  const lines: PlaneLine[] = [{from: [0.5 + offset, s.cl], to: [N + 0.5, s.cl], tone: 'accent', dashed: false}];
+  // ADR 0054: the centre line and each limit (its line and its label) are parts
+  const limit = (name: string): string => partStep('limit', {index: name}, name.toUpperCase());
+  const lines: PlaneLine[] = [{from: [0.5 + offset, s.cl], to: [N + 0.5, s.cl], tone: 'accent', dashed: false, part: limit('cl')}];
   const labels: PlaneLabel[] = [];
   const labelX = N + 0.8, gapY = unitsFor(22, y.max - (y.min ?? 0), PLOT_H(height)); // a label is about 21px tall
   // the lower limit is drawn unless it is 0 all along (a line on the axis); its number is left out where it is 0 or changes with n
   const hasLcl = s.lcl.some(v => v > 1e-12 || type === 'x' || type === 'xbar');
   const lclLabeled = hasLcl && (type === 'x' || type === 'xbar' || must(s.lcl[n - 1]) > 1e-12);
-  const rows: {text: string; at: number}[] = [{text: stepped ? `UCL${w.byN}` : `UCL ${fmt(must(s.ucl[n - 1]))}`, at: must(s.ucl[n - 1])}, {text: `CL ${fmt(s.cl)}`, at: s.cl}];
-  if (lclLabeled) rows.push({text: stepped ? `LCL${w.byN}` : `LCL ${fmt(must(s.lcl[n - 1]))}`, at: must(s.lcl[n - 1])});
+  const rows: {text: string; at: number; part: string}[] = [{text: stepped ? `UCL${w.byN}` : `UCL ${fmt(must(s.ucl[n - 1]))}`, at: must(s.ucl[n - 1]), part: limit('ucl')}, {text: `CL ${fmt(s.cl)}`, at: s.cl, part: limit('cl')}];
+  if (lclLabeled) rows.push({text: stepped ? `LCL${w.byN}` : `LCL ${fmt(must(s.lcl[n - 1]))}`, at: must(s.lcl[n - 1]), part: limit('lcl')});
   for (const [name, arr] of [['ucl', s.ucl], ['lcl', s.lcl]] as const) {
     if (name === 'lcl' && !hasLcl) continue;
     const e = edge(arr);
-    if (e.length === 2) lines.push({from: must(e[0]), to: must(e[1]), tone: 'danger', dashed: true});
-    else paths.push({through: e, tone: 'danger', dashed: true});
+    if (e.length === 2) lines.push({from: must(e[0]), to: must(e[1]), tone: 'danger', dashed: true, part: limit(name)});
+    else paths.push({through: e, tone: 'danger', dashed: true, part: limit(name)});
   }
   // labels of lines that sit closer than a text's height are pushed apart, so none of them touches another
   const placed = rows.sort((a, b) => b.at - a.at);
@@ -317,7 +323,7 @@ export function controlChartOpts(type: ControlType, data: readonly (number | num
   // a label that went down to the axis is lifted off it, and the ones above it make room (the labels sit a little above their lines then)
   const floor = (y.min ?? 0) + gapY * 1.15;
   for (let i = placed.length - 1, lowest = floor; i >= 0; i--) { if (must(placed[i]).at < lowest) placed[i] = {...must(placed[i]), at: lowest}; lowest = must(placed[i]).at + gapY; }
-  for (const r of placed) labels.push({at: [labelX, r.at], text: r.text, anchor: 'start', tone: r.text.startsWith('CL') ? 'accent' : 'danger', bold: true});
+  for (const r of placed) labels.push({at: [labelX, r.at], text: r.text, anchor: 'start', tone: r.text.startsWith('CL') ? 'accent' : 'danger', bold: true, part: r.part});
   const flagLabels = legend.length ? legendRow(legend, 0.5, x.max, y.max - head * 0.45, opts.crossMark) : [];
   const {labelRole, id, reveal, until, width} = opts as PlaneOpts;
   return {...(labelRole ? {labelRole} : {}), ...(id ? {id} : {}), ...(reveal === undefined ? {} : {reveal}), ...(until === undefined ? {} : {until}), ...(width === undefined ? {} : {width}), x, y, points, paths, lines, labels: [...labels, ...flagLabels], height};

@@ -89,7 +89,8 @@ export function boxTextWidth(r: Rect, lines: readonly TextLine[]): number | null
   return ins && r.w - ins.l - ins.r;
 }
 
-export function boxTextXml(r: Rect, lines: readonly TextLine[], fonts: Fonts): string {
+/** `noWrap`: the text never wraps (a chip or badge sized to its word: PowerPoint's font may run a little wider than the measure). */
+export function boxTextXml(r: Rect, lines: readonly TextLine[], fonts: Fonts, o: {noWrap?: boolean} = {}): string {
   const rows = rowsOf(lines), first = rows[0]?.[0], ins = boxInsets(r, lines);
   if (!first || !ins || !rows.every(rowFits)) return EMPTY_TEXT;
   const l = ins.l, rr = ins.r;
@@ -108,7 +109,7 @@ export function boxTextXml(r: Rect, lines: readonly TextLine[], fonts: Fonts): s
     }
     return `<a:p><a:pPr algn="${algnOf(t)}">${spacing}</a:pPr>${run(t)}</a:p>`;
   }).join('');
-  return `<a:bodyPr wrap="square" lIns="${emu(Math.max(0, l))}" tIns="${emu(Math.max(0, top(first) - r.y))}" rIns="${emu(Math.max(0, rr))}" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paras}`;
+  return `<a:bodyPr wrap="${o.noWrap ? 'none' : 'square'}" lIns="${emu(Math.max(0, l))}" tIns="${emu(Math.max(0, top(first) - r.y))}" rIns="${emu(Math.max(0, rr))}" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paras}`;
 }
 
 /** A closed polygon as a freeform shape (it keeps its points when moved, and its fill). */
@@ -128,7 +129,12 @@ export function lineXml(id: number, name: string, a: Pt, b: Pt, color: string, w
 }
 
 /** The name of a shape: its text when it has some (what PowerPoint's selection pane shows), else the kind and id. */
-export const nameOf = (kind: string, id: number, text?: string): string => text ? `${kind}: ${[...text].slice(0, 40).join('')}` : `${kind}-${id}`;
+/** A shape's name: its kind and text, or its kind alone (ADR 0054 D7: no running numbers; `id` is kept for the callers' sake). */
+export const nameOf = (kind: string, _id: number, text?: string): string => text ? `${kind}: ${[...text].slice(0, 40).join('')}` : kind;
+/** Lines of text as one: joined as they are, with a space where a line break fell between two Latin words or numbers. */
+export const linesText = (lines: readonly string[]): string => lines.reduce((a, l) => a && /[A-Za-z0-9]$/.test(a) && /^[A-Za-z0-9]/.test(l) ? `${a} ${l}` : a + l, '');
+/** A shape's or group's name (ADR 0054 D7): its kind and text (40 characters at most), and its DSL id after it when it has one. */
+export const namedAs = (kind: string, text: string, dslId?: string): string => `${kind}${text ? `: ${[...text].slice(0, 40).join('')}` : ''}${dslId ? ` [${dslId}]` : ''}`;
 
 /**
  * A diamond, ellipse, pill or hexagon (pointed left and right, as an obstacle) as a custGeom of w x h px whose text area is the whole box (a preset's is inset, which would move the text

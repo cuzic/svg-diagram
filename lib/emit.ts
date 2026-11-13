@@ -13,6 +13,7 @@ import {escapeXml, resolveLineColor, tonedHead} from './emit-common.ts';
 import {renderConnect} from './emit-boxes.ts';
 import {renderBand} from './emit-handlers.ts';
 import {withNodeIds} from './emit-node-ids.ts';
+import {withParts} from './parts.ts';
 import {autoBlock} from './appearance-auto.ts';
 
 export {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
@@ -36,8 +37,10 @@ function bandRuns(b: LaidOutBand): (WrappedRun | LaidOutBox)[] {
 }
 
 
-export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noRecolor?: boolean; nodeIds?: boolean} = {}): string {
-  return emitSvgWith(opts.nodeIds ? withNodeIds(laidOutDiagram) : laidOutDiagram, toneEnv(laidOutDiagram.tones), opts);
+/** `parts`: mark each part's elements with `data-part` (ADR 0054), for the PowerPoint export; nothing else changes. */
+export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noRecolor?: boolean; nodeIds?: boolean; parts?: boolean} = {}): string {
+  const named = opts.nodeIds ? withNodeIds(laidOutDiagram) : laidOutDiagram;
+  return emitSvgWith(opts.parts ? withParts(named) : named, toneEnv(laidOutDiagram.tones), opts);
 }
 
 function emitSvgWith(laidOutDiagram: LaidOutDiagram, tones: ToneEnv, opts: {reveal?: number; noRecolor?: boolean}): string {

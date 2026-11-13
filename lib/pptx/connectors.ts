@@ -1,4 +1,5 @@
 import {PALETTE, textColorOf} from '../tokens.ts';
+import {namedAs} from './prims.ts';
 import type {ToneEnv} from '../tokens.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutConnect} from '../types/containers.ts';
@@ -27,7 +28,7 @@ export function connectorXml(id: number, c: LaidOutConnect, x: ConnXfrm, day: La
   const dash = c.line === 'dashed' ? '<a:prstDash val="dash"/>' : c.line === 'dotted' ? '<a:prstDash val="sysDot"/>' : '';
   const cmpd = c.line === 'double' ? ' cmpd="dbl"' : '';
   const av = x.adj.map((v, i) => `<a:gd name="adj${i + 1}" fmla="val ${v}"/>`).join('');
-  return cxnSp(id, `connect-${c.fromId}-${c.toId}`, glueXml(start, end), `${cxnXfrm(x, true)}<a:prstGeom prst="${x.prst}"><a:avLst>${av}</a:avLst></a:prstGeom><a:ln w="${lineWidth(c)}"${cmpd}>${solidFill(textColorOf(tones, c.tone, day))}${dash}${arrowEnds(c.arrow, widthPx(c))}</a:ln>`);
+  return cxnSp(id, namedAs('arrow', c.label ?? '', `${c.fromId} → ${c.toId}`), glueXml(start, end), `${cxnXfrm(x, true)}<a:prstGeom prst="${x.prst}"><a:avLst>${av}</a:avLst></a:prstGeom><a:ln w="${lineWidth(c)}"${cmpd}>${solidFill(textColorOf(tones, c.tone, day))}${dash}${arrowEnds(c.arrow, widthPx(c))}</a:ln>`);
 }
 
 /** The fallback for a route no connector preset fits (and for annotations): a polyline, not glued. */

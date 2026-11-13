@@ -71,7 +71,7 @@ export interface Point {x: number; y: number}
 export interface Rect {x: number; y: number; w: number; h: number}
 export interface Dimmed {/** Set on laid-out elements outside diagram({spotlight}). */ dim?: boolean}
 /** A named rect connect() can attach to: any band/child with an `id` (boxes, groups, screens, ...). */
-export interface Anchor extends Rect {id: string}
+export interface Anchor extends Rect {id: string; /** ADR 0054: the part its item is grouped in (flow shapes) */ part?: string}
 /** Result of parsing a connect() ref 'id', 'id:side' or 'id:side@t'. */
 export interface ConnectRef {id: string; side: string; at: number}
 /** diagram({canvas}): the fixed slide canvas the diagram is drawn on. `minText` is the smallest text size (px, in the canvas's own units) the lint accepts. Below 14 (down to 10) only for a dense figure read 1:1, not projected, and only when the project's `fontFloor` allows it. */

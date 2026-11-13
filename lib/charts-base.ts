@@ -1,6 +1,7 @@
 // The shared ground of the consulting-style charts (waterfall, radar, heatmap, stacked bars / mekko, treemap, sankey, tornado):
 // a small canvas that collects what a chart draws (rects, paths, texts), remembers where every label is, and finds a free spot for
 // a label — so that each chart only says WHAT goes WHERE and verify.ts can check the result the same way for all of them.
+import {LEGEND, partStep} from './parts.ts';
 import {must} from './must.ts';
 import {segHitsRect} from './bars.ts';
 import {splitAtoms, textWidth} from './atoms.ts';
@@ -25,11 +26,13 @@ export interface ChartOpts extends RevealOpts, ScopeOpts {
 
 /** The colour a label sits on, for the contrast check: a token colour at an opacity over the page. */
 export interface ChartBg {fill: ColorKey; op?: number; /** The colour of the text (default: the page colour, as white on a dark bar). */ ink?: ColorKey}
-export type ChartItem =
+/** Every item may carry `part`: the part (lib/parts.ts) the PowerPoint export groups it in (ADR 0054), set by Canvas.withPart. */
+export type ChartItem = (
   | {k: 'rect'; x: number; y: number; w: number; h: number; fill: ColorKey | 'none'; op?: number; stroke?: ColorKey; sw?: number; dash?: string; of?: string | string[]}
   | {k: 'path'; d: string; fill: ColorKey | 'none'; op?: number; stroke?: ColorKey; sw?: number; dash?: string; of?: string | string[]; soft?: boolean}
   | {k: 'icon'; name: string; glyph: IconGlyph; x: number; y: number; size: number; fill: ColorKey; of?: string}
-  | {k: 'text'; s: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; of?: string};
+  | {k: 'text'; s: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; of?: string}
+) & {part?: string};
 export interface ChartBox extends Rect {label: string; on?: ChartBg; host?: number; of?: string; /** Drawn on a plate of the page colour: lines behind it are covered, not crossed. */ plate?: boolean}
 export interface ChartSolid extends Rect {label: string; id?: string}
 export interface ChartSeg {x1: number; y1: number; x2: number; y2: number}
@@ -113,6 +116,8 @@ export interface Cand {x: number; y: number; anchor: 'start' | 'middle' | 'end'}
 
 export class Canvas {
   readonly items: ChartItem[] = [];
+  /** The part the items drawn now belong to (withPart), outside in, joined by `/`. */
+  private part: string | undefined;
   readonly boxes: ChartBox[] = [];
   readonly solids: ChartSolid[] = [];
   readonly segs: ChartSeg[] = [];
@@ -126,6 +131,28 @@ export class Canvas {
   /** `mode`: the diagram's wrap mode, for wrap(). */
   constructor(x: number, y: number, w: number, h: number, size: number, widthOf: WidthOf, mode: WrapMode) { this.x = x; this.y = y; this.w = w; this.h = h; this.size = size; this.widthOf = widthOf; this.mode = mode; }
 
+  /**
+   * Draws `draw` with every item it adds in a part (ADR 0054: a series, a legend entry, an axis): `step` from lib/parts.ts partStep,
+   * inside the part being drawn now if there is one. Returns what `draw` returns.
+   */
+  withPart<T>(step: string, draw: () => T): T {
+    const outer = this.part;
+    this.part = outer ? `${outer}/${step}` : step;
+    const n = this.items.length;
+    try { return draw(); } finally {
+      for (let i = n; i < this.items.length; i++) { const it = this.items[i] as ChartItem; if (it.part === undefined) it.part = this.part; }
+      this.part = outer;
+    }
+  }
+  /**
+   * Puts every item that has no part yet and belongs to one item of the chart (`of`, the id spotlight dims it by) into that item's part
+   * (ADR 0054: a row, a group, a column). Items of several (`of` a list, a ribbon) or of none stay as they are.
+   */
+  partsByOf(byOf: ReadonlyMap<string, string>): void {
+    for (const it of this.items) if (it.part === undefined && typeof it.of === 'string') { const p = byOf.get(it.of); if (p) it.part = p; }
+  }
+  /** Draws one entry of the chart's legend: its sample and name are a part inside the legend's (ADR 0054). */
+  legendEntry<T>(i: number, label: string, draw: () => T): T { return this.withPart(LEGEND, () => this.withPart(partStep('entry', i, label), draw)); }
   tw(s: string, bold = false): number { return textWidth(this.widthOf, s, this.size, bold ? 700 : 400); }
   /** The box a label of this text occupies (the same box verify and the lint see). */
   boxOf(s: string, x: number, base: number, anchor: 'start' | 'middle' | 'end', bold = false): Rect {

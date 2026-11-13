@@ -2,6 +2,7 @@
 // inclusive), joined by sequence flows (solid) and message flows (dashed). Lanes are given; the columns come from the flow
 // (graph-layout.ts layoutLayered, used for the layer of each node), the rows from the lane. Only the shapes and flow rules
 // that most flow diagrams use are here — not the whole standard.
+import {partStep} from './parts.ts';
 import {splitAtoms, textWidth} from './atoms.ts';
 import {layoutLayered} from './graph-layout.ts';
 import {routeClear} from './orthogonal-route.ts';
@@ -19,6 +20,9 @@ const lineH = (s: number): number => Math.round(s * 1.4);
 const isEvent = (k: BpmnNodeKind): boolean => k === 'start' || k === 'end';
 const isGate = (k: BpmnNodeKind): boolean => k === 'xor' || k === 'and' || k === 'or';
 export const BPMN_KINDS = ['task', 'start', 'end', 'xor', 'and', 'or'] as const;
+
+/** ADR 0054: a node's part, named by what it is (a task, an event, a gateway). */
+const nodePart = (id: string, kind: BpmnNodeKind, label: string): string => partStep(kind === 'task' ? 'task' : kind === 'start' || kind === 'end' ? 'event' : 'gateway', id, label);
 
 export function bpmnTexts(band: BpmnBand, roles: Roles): [string, number, number, FontFamily][] {
   const out: [string, number, number, FontFamily][] = [];
@@ -127,10 +131,11 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
     ...(band.focused ? {focused: band.focused} : {}),
   };
   band.lanes.forEach((l, i) => {
-    out.lanes.push({x, y: must(laneTop[i]), w: width, h: must(laneH[i]), labelW: LABEL_COL, tone: l.tone ?? 'plain'});
+    const part = partStep('lane', l.id ?? i, must(laneLines[i]).join(''));
+    out.lanes.push({x, y: must(laneTop[i]), w: width, h: must(laneH[i]), labelW: LABEL_COL, tone: l.tone ?? 'plain', part});
     const lines = must(laneLines[i]);
     const top = must(laneTop[i]) + must(laneH[i]) / 2 - (lines.length * lineH(B)) / 2;
-    lines.forEach((ln, k) => out.texts.push({text: ln, x: x + LABEL_COL / 2, y: top + k * lineH(B) + B, size: B, bold: true, muted: false, anchor: 'middle'}));
+    lines.forEach((ln, k) => out.texts.push({text: ln, x: x + LABEL_COL / 2, y: top + k * lineH(B) + B, size: B, bold: true, muted: false, anchor: 'middle', part}));
   });
 
   // place nodes: column centre, stacked and centred in the lane
@@ -151,17 +156,18 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   const labelOfNode = new Set<object>(); // the nodes' own boxes in labelBoxes (they are checked as rects, not as labels)
   for (const n of band.nodes) {
     const r = must(rect.get(n.id)), m = must(meas.get(n.id)), k = must(kindOf.get(n.id));
-    out.nodes.push({...r, kind: k, tone: n.tone ?? 'plain'});
+    const part = nodePart(n.id, k, n.label ?? n.id);
+    out.nodes.push({...r, kind: k, tone: n.tone ?? 'plain', part});
     out.anchors.push({id: n.id, ...r});
     const nb = {label: n.label ?? n.id, x: r.x, y: r.y, w: r.w, h: r.h};
     out.labelBoxes.push(nb);
     labelOfNode.add(nb);
     const iconH = n.icon ? ICON_H : 0;
     if (n.icon) out.icons.push({node: out.nodes.length - 1, name: n.icon, glyph: must(n.iconGlyph), x: r.x + (r.w - TASK_ICON) / 2, y: r.y + 8, size: TASK_ICON, ...(n.iconTone ? {tone: n.iconTone} : {})});
-    if (m.lines) out.texts.push(...nodeRuns({...r, y: r.y + iconH}, m.lines, roles).map(t => ({...t, anchor: 'middle' as const})));
+    if (m.lines) out.texts.push(...nodeRuns({...r, y: r.y + iconH}, m.lines, roles).map(t => ({...t, anchor: 'middle' as const, part})));
     else if (!isGate(k)) m.label.forEach((ln, i) => { // an event's label hangs below it (a gateway's is placed after the flows are known)
       const tw = Math.ceil(textWidth(widthOf, ln, B, 400)), ty = r.y + r.h + 4 + i * lineH(B) + B;
-      out.texts.push({text: ln, x: r.x + r.w / 2, y: ty, size: B, bold: false, muted: false, anchor: 'middle'});
+      out.texts.push({text: ln, x: r.x + r.w / 2, y: ty, size: B, bold: false, muted: false, anchor: 'middle', part});
       out.labelBoxes.push({label: ln, x: r.x + r.w / 2 - tw / 2, y: ty - B, w: tw, h: B + 4});
       eventLabels.push({x: r.x + r.w / 2 - tw / 2, y: ty - B, w: tw, h: B + 4});
     });
@@ -308,7 +314,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
     const s = spots.find(free) ?? clear.find(free) ?? far.find(free) ?? more.reduce((a, q) => (crowd(q) < crowd(a) ? q : a), must(more[0]));
     m.label.forEach((ln, i) => {
       const tw = Math.ceil(textWidth(widthOf, ln, B, 400)), ty = s.y + i * lh + B;
-      out.texts.push({text: ln, x: s.a === 'end' ? s.x + bw : s.x, y: ty, size: B, bold: false, muted: false, anchor: s.a});
+      out.texts.push({text: ln, x: s.a === 'end' ? s.x + bw : s.x, y: ty, size: B, bold: false, muted: false, anchor: s.a, part: nodePart(n.id, must(kindOf.get(n.id)), n.label ?? n.id)});
       out.labelBoxes.push({label: ln, x: s.a === 'end' ? s.x + bw - tw : s.x, y: ty - B, w: tw, h: B + 4});
     });
   }

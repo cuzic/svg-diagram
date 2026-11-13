@@ -93,7 +93,7 @@ export interface GanttBand extends GanttOpts {
   type: 'gantt';
   rows: GanttRow[];
 }
-export interface TimelineText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: 'text' | 'muted' | 'accent' | 'danger'; bold: boolean; size: number}
+export interface TimelineText extends Dimmed {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: 'text' | 'muted' | 'accent' | 'danger'; bold: boolean; size: number; /** ADR 0054: the part it is grouped in (an event, the axis, the remaining span). */ part?: string}
 export interface LaidOutTimeline extends Rect, Dimmed {
   type: 'timeline';
   id?: string;
@@ -105,18 +105,18 @@ export interface LaidOutTimeline extends Rect, Dimmed {
   /** deadline.line 'full': the vertical line through the figure. */
   fullLine?: {x: number; y1: number; y2: number};
   /** The bracket under the ticks that carries the remaining-span label. */
-  bracket?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'};
+  bracket?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger'; part?: string};
   ticks: {x: number; y1: number; y2: number}[];
   /** Numeric timeline: thin lines (lane baselines and separators), bars and dimension lines. */
   guides?: {x1: number; x2: number; y: number}[];
   bars?: (Rect & {tone: 'accent' | 'danger' | 'muted'})[];
   dims?: {x1: number; x2: number; y: number; tone: 'accent' | 'danger' | 'muted'}[];
-  stems: {x: number; y1: number; y2: number; tone: 'accent' | 'danger' | 'muted'}[];
-  dots: {x: number; y: number; r: number; tone: 'accent' | 'danger' | 'muted'}[];
+  stems: {x: number; y1: number; y2: number; tone: 'accent' | 'danger' | 'muted'; part?: string}[];
+  dots: {x: number; y: number; r: number; tone: 'accent' | 'danger' | 'muted'; part?: string}[];
   texts: TimelineText[];
   labelBoxes: (Rect & {label: string})[];
 }
-export interface GanttText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean; anchor: 'start' | 'middle' | 'end'; tone?: 'danger'}
+export interface GanttText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean; anchor: 'start' | 'middle' | 'end'; tone?: 'danger'; /** The index of the node (a class) the text belongs to, when it belongs to one (ADR 0054). */ owner?: number; /** ADR 0054: the part it is grouped in (a Gantt task, section, the axis, today). */ part?: string}
 export interface LaidOutGantt extends Rect, Dimmed {
   type: 'gantt';
   id?: string;
@@ -125,12 +125,12 @@ export interface LaidOutGantt extends Rect, Dimmed {
   plot: {x1: number; x2: number; y1: number; y2: number};
   ticks: {x: number}[];
   /** Section heading rows (a pale band across the figure). */
-  sections: Rect[];
+  sections: (Rect & {/** ADR 0054 */ part?: string})[];
   /** One per task, in order (a milestone is a diamond; `progress` is the done part of a bar). */
-  bars: (Rect & {label: string; tone: 'accent' | 'danger' | 'muted'; progress?: number; milestone?: boolean})[];
+  bars: (Rect & {label: string; tone: 'accent' | 'danger' | 'muted'; progress?: number; milestone?: boolean; /** ADR 0054: its task's part (with the row's name) */ part?: string})[];
   /** `from` / `to`: indexes into `bars` (the task it comes after, and the task). */
   deps: {from: number; to: number; points: {x: number; y: number}[]}[];
-  today?: {x: number; y1: number; y2: number};
+  today?: {x: number; y1: number; y2: number; /** ADR 0054 */ part?: string};
   texts: GanttText[];
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];

@@ -2,6 +2,7 @@
 // ergonomic layer on it: categories or numbers on x, a marker shape and a line style of its own per series (colour comes second), the
 // series named at the end of its line instead of in a legend, an optional target / ideal line, annotated points. Presets for the
 // usual consulting charts follow (strategyCanvas, burndown, burnup).
+import {partStep} from './parts.ts';
 import {niceScale, fail, finiteNum, checkText, numText} from './charts-base.ts';
 import type {PlaneBand, PlaneOpts, PlanePoint, PlanePath, PlaneTone, PlaneLine, PlaneLabel} from './types/figures.ts';
 import type {ChartOpts} from './charts-base.ts';
@@ -96,18 +97,19 @@ export function linesOpts(series: readonly LineSeries[], opts: LinesOpts = {}): 
   const named = opts.endLabels !== false, mark = opts.markers !== false;
   series.forEach((s, k) => {
     const st = STYLE[series.slice(0, k).filter(o => !o.ideal).length], tone: PlaneTone = s.ideal ? 'muted' : must(st).tone, dashed = s.ideal ? true : must(st).dashed;
+    const part = partStep('series', k, s.label); // ADR 0054: its line, markers and name are one group in the PowerPoint export
     // runs of consecutive points (a gap breaks the line)
     const runs: [number, number][][] = [];
     let run: [number, number][] = [];
     for (const q of must(pts[k])) { if (q) run.push(q); else { if (run.length) runs.push(run); run = []; } }
     if (run.length) runs.push(run);
-    for (const r of runs) if (r.length >= 2) paths.push({through: r, tone, dashed, ...(s.smooth ? {smooth: true} : {})});
+    for (const r of runs) if (r.length >= 2) paths.push({through: r, tone, dashed, ...(s.smooth ? {smooth: true} : {}), part});
     const lastRun = must(runs[runs.length - 1]), end = lastRun[lastRun.length - 1];
     for (const r of runs) for (const q of r) {
       const isEnd = q === end;
       if (s.ideal && !isEnd) continue;
       if (!mark && !isEnd) continue;
-      points.push({at: q, tone, shape: s.ideal ? 'ring' : must(st).shape, ...(isEnd && named && !s.ideal ? {label: s.label, labelAt: cats && q[0] !== cats.length - 1 ? 'auto' as const : 'right' as const, ...(cats && q[0] !== cats.length - 1 ? {labelLeader: true} : {})} : {})});
+      points.push({at: q, tone, shape: s.ideal ? 'ring' : must(st).shape, ...(isEnd && named && !s.ideal ? {label: s.label, labelAt: cats && q[0] !== cats.length - 1 ? 'auto' as const : 'right' as const, ...(cats && q[0] !== cats.length - 1 ? {labelLeader: true} : {})} : {}), part});
     }
   });
   // an ideal / plan line is named beside the middle of its run (above it when it falls, below it when it climbs), where nothing else is
@@ -115,7 +117,7 @@ export function linesOpts(series: readonly LineSeries[], opts: LinesOpts = {}): 
   if (named) series.forEach((s, k) => {
     if (!s.ideal) return;
     const q = must(pts[k]).filter((v): v is [number, number] => v !== null), a = must(q[0]), b = must(q[q.length - 1]);
-    midLabels.push({at: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], text: s.label, anchor: 'start', tone: 'muted', bold: true, offset: b[1] >= a[1] ? [10, 24] : [10, -12]});
+    midLabels.push({at: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], text: s.label, anchor: 'start', tone: 'muted', bold: true, offset: b[1] >= a[1] ? [10, 24] : [10, -12], part: partStep('series', k, s.label)});
   });
   const find = (name: string, index: number): [number, number] => {
     const k = labels.indexOf(name);
@@ -132,10 +134,11 @@ export function linesOpts(series: readonly LineSeries[], opts: LinesOpts = {}): 
   const lines: PlaneLine[] = [], extra: PlaneLabel[] = [...midLabels];
   if (opts.target) {
     finiteNum(who, 'target.at', opts.target.at);
-    lines.push({from: [x.min ?? 0, opts.target.at], to: [x.max, opts.target.at], tone: 'danger', dashed: true});
+    const part = partStep('target', 0, opts.target.label ?? '');
+    lines.push({from: [x.min ?? 0, opts.target.at], to: [x.max, opts.target.at], tone: 'danger', dashed: true, part});
     // above the line, clear of it: a plane label's box reaches 6px under its baseline and the line's ink 2px over it
     const size = ROLES[opts.labelRole ?? 'note'], lift = Math.round(size * 5 / 14) + 9;
-    if (opts.target.label) extra.push({at: [x.max, opts.target.at], text: opts.target.label, anchor: 'end', tone: 'danger', bold: true, offset: [-6, -lift]});
+    if (opts.target.label) extra.push({at: [x.max, opts.target.at], text: opts.target.label, anchor: 'end', tone: 'danger', bold: true, offset: [-6, -lift], part});
   }
   return {x, y, points, paths, ...(lines.length ? {lines} : {}), ...(extra.length ? {labels: extra} : {}), grid: opts.grid !== false, height: opts.height ?? 340, endLabels: named,
     ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.width === undefined ? {} : {width: opts.width}), ...(opts.labelRole === undefined ? {} : {labelRole: opts.labelRole}),

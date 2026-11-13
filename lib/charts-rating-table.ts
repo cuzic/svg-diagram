@@ -1,5 +1,6 @@
 // The table harvey() and compare() both draw: criteria as rows, options as columns, a rating in every cell and, when the table is `ruled`,
 // a note beside it behind a dashed line. A band says what a rating looks like (`RatingLook`); everything else is here.
+import {partStep} from './parts.ts';
 import {must} from './must.ts';
 import {Canvas, fail} from './charts-base.ts';
 import type {ChartGeom, LaidOutChartPart} from './charts-base.ts';
@@ -52,11 +53,14 @@ export function layoutRatingTable<T>(t: RatingTable<T>, look: RatingLook<T>, g: 
   if (t.ruled) c.rect(g.x, g.y, g.w, headH, {fill: 'accent', op: 0.1});
   // highlighted columns are boxed under everything else
   t.cols.forEach((k, j) => { if (highlight.includes(k)) c.rect(r1(left + j * colW + 2), g.y, r1(colW - 4), r1(bodyB - g.y), {fill: 'accent', op: 0.08, stroke: 'accent', sw: 2}); });
-  if (corner.length) c.lines(corner, g.x + inset, headBase(corner.length), 'start', 'muted');
-  t.cols.forEach((k, j) => { const hd = must(heads[j]); c.lines(hd, left + (j + 0.5) * colW, headBase(hd.length), 'middle', 'text', {bold: boldHead(k)}); });
-  c.line(g.x, bodyT, g.x + g.w, bodyT, {stroke: 'text'});
+  // ADR 0054: the column heads are a part, a row (its name, its ratings, notes and the rule under it) another
+  c.withPart(partStep('columns', 0, ''), () => {
+    if (corner.length) c.lines(corner, g.x + inset, headBase(corner.length), 'start', 'muted');
+    t.cols.forEach((k, j) => { const hd = must(heads[j]); c.lines(hd, left + (j + 0.5) * colW, headBase(hd.length), 'middle', 'text', {bold: boldHead(k)}); });
+    c.line(g.x, bodyT, g.x + g.w, bodyT, {stroke: 'text'});
+  });
   let y = bodyT;
-  t.rows.forEach((_r, i) => {
+  t.rows.forEach((r, i) => c.withPart(partStep('row', t.rowIds?.[i] ?? i, r), () => {
     const rh = must(rowH[i]), name = must(names[i]), rid = t.rowIds?.[i], cy = y + rh / 2, key = rid ?? `#${i}`;
     c.lines(name, g.x + inset, centred(cy, name.length), 'start', 'text', {bold: true, of: key});
     if (rid) c.anchors.push({id: rid, x: g.x, y: r1(y), w: g.w, h: rh});
@@ -71,7 +75,7 @@ export function layoutRatingTable<T>(t: RatingTable<T>, look: RatingLook<T>, g: 
     });
     y += rh;
     c.line(g.x, y, g.x + g.w, y, {stroke: i === t.rows.length - 1 ? 'text' : 'border'});
-  });
+  }));
   if (t.ruled) t.cols.forEach((_k, j) => c.line(left + j * colW, g.y, left + j * colW, bodyB, {stroke: 'border'}));
   look.foot?.draw(c, bodyB);
   return c.done();

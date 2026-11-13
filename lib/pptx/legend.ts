@@ -7,16 +7,18 @@ import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutLegend} from '../types/containers.ts';
 import {freeformPathXml} from './connectors.ts';
 import {groupXml} from './shapes.ts';
-import {lineXml, nameOf, polygonXml, presetXml, textLineXml, type Paint} from './prims.ts';
+import {lineXml, namedAs, nameOf, polygonXml, presetXml, textLineXml, type Paint} from './prims.ts';
 import type {Fonts} from './xml.ts';
 
 /** Whether every item has a native sample (fault-tree symbols and the double line do not yet). */
 export const legendNative = (b: LaidOutLegend): boolean => b.items.every(it => !it.ftaEvent && !it.ftaGate && it.line !== 'double');
 
 export function legendXml(b: LaidOutLegend, ld: LaidOutDiagram, tones: ToneEnv, fonts: Fonts, next: () => number): string {
-  const out: string[] = [];
+  const all: string[] = [];
   const text = PALETTE.text;
   for (const it of b.items) {
+    // an entry: its sample and its label are one part, in the legend's group (ADR 0054)
+    const out: string[] = [];
     const cy = it.y + 12, x0 = it.x, x1 = it.x + LEGEND_SWATCH_W;
     const box = (tone: string | undefined, dashed: boolean | undefined, strokePx: number): Paint => {
       const st = resolveBoxStyle(tones, (tone ?? 'plain') as never, ld.day, dashed);
@@ -44,7 +46,8 @@ export function legendXml(b: LaidOutLegend, ld: LaidOutDiagram, tones: ToneEnv, 
       out.push(presetXml(next(), 'legend-box', 'roundRect', {x: it.x + 4, y: cy - 8, w: 28, h: 16}, box(it.tone, it.dashed, 2.5), 4 / 16 * 100000));
     }
     const id = next();
-    out.push(textLineXml(id, nameOf('legend', id, it.label), {text: it.label, x: x1 + 8, y: cy + 5, anchor: 'start', size: ld.roles.note, bold: false, color: text}, fonts));
+    out.push(textLineXml(id, nameOf('text', id, it.label), {text: it.label, x: x1 + 8, y: cy + 5, anchor: 'start', size: ld.roles.note, bold: false, color: text}, fonts));
+    all.push(groupXml(next(), namedAs('entry', it.label), {x: it.x, y: it.y, w: it.w, h: 24}, out.join('')));
   }
-  return groupXml(next(), 'legend', b, out.join(''));
+  return groupXml(next(), 'legend', b, all.join(''));
 }

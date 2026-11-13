@@ -1,11 +1,14 @@
 // LaidOutDiagram -> the one slide, as a pure function (ADR 0027). I/O stays in emit.ts: the template, resvg and zip.
+import {namedAs} from './prims.ts';
 import {must} from '../must.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutConnect} from '../types/containers.ts';
 import {fitConnector, siteIndex} from './geom.ts';
 import {attr, emu, hex, type Fonts} from './xml.ts';
 import {diagramDesc, diagramTitle} from '../rules.ts';
-import {boxXml, plainBox} from './shapes.ts';
+import {boxXml, groupXml, plainBox} from './shapes.ts';
+import {partName} from './parts-group.ts';
+import {partStep} from '../parts.ts';
 import {connectorXml, freeformXml, type Glue} from './connectors.ts';
 import {bandXml, type Ctx} from './bands.ts';
 import type {SlidePlan} from './package.ts';
@@ -37,14 +40,42 @@ function labelXml(c: LaidOutConnect, ctx: Ctx): string {
   const r = c.labelBox ?? (c.labelX !== undefined && c.labelY !== undefined ? {x: c.labelX - 60, y: c.labelY - 12, w: 120, h: 24} : undefined);
   if (!c.label || !r) return '';
   const size = ctx.ld.roles.label;
-  return boxXml(ctx.next(), `label-${c.fromId}-${c.toId}`, plainBox(r, c.label, {size, weight: 400, tone: undefined, frame: false, padX: 0, padY: 0}), ctx.ld.day, ctx.tones, ctx.fonts);
+  return boxXml(ctx.next(), namedAs('label', c.label), plainBox(r, c.label, {size, weight: 400, tone: undefined, frame: false, padX: 0, padY: 0}), ctx.ld.day, ctx.tones, ctx.fonts);
+}
+
+/**
+ * The bands from..to as shapes. A group frame and the bands it holds (its title and contents: `span`, ADR 0054 D5) are one group, named after
+ * the title; nested groups nest. A span whose bands do not lie inside the frame (the bands were filtered or moved after layout) is not grouped.
+ */
+function bandsXml(ld: LaidOutDiagram, ctx: Ctx, from: number, to: number): string[] {
+  const out: string[] = [];
+  for (let i = from; i < to;) {
+    const band = must(ld.laidOut[i]), span = band.type === 'group' ? Math.min(band.span ?? 0, to - i - 1) : 0;
+    const held = ld.laidOut.slice(i + 1, i + 1 + span);
+    // (8px of slack: a title or child may sit a few px past the frame's grid-snapped top or its padding)
+    if (band.type === 'group' && span > 0 && held.every(b => !('y' in b) || !('h' in b) || (b.y >= band.y - 8 && b.y + b.h <= band.y + band.h + 8))) {
+      const inner = [bandXml(band, ctx, i), ...bandsXml(ld, ctx, i + 1, i + 1 + span)].join('');
+      const title = band.title ?? '';
+      out.push(groupXml(ctx.next(), partName(partStep('group', band.id ?? i, title)), band, inner));
+      i += 1 + span;
+    } else if (band.type === 'swimlane' && (band.span ?? 0) > 0 && i + (band.span ?? 0) < to) {
+      // a swimlane and its steps (separate box bands after it): one group, the lanes a group inside it (ADR 0054 D9.2)
+      // the outer group takes the band's own name (`swimlane`, `swimlane 2`, with its id), the lanes' group is renamed `lanes`
+      const span = band.span ?? 0, drawn = bandXml(band, ctx, i), own = (/ name="(swimlane[^"]*)"/.exec(drawn)?.[1] ?? 'swimlane').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&amp;/g, '&');
+      const lanes = drawn.replace(/ name="swimlane[^"]*"/, ' name="lanes"');
+      const steps = ld.laidOut.slice(i + 1, i + 1 + span).map((b, k) => bandXml(b, ctx, i + 1 + k)).join('');
+      out.push(groupXml(ctx.next(), own, band, lanes + steps));
+      i += 1 + span;
+    } else { out.push(bandXml(band, ctx, i)); i++; }
+  }
+  return out;
 }
 
 export function planSlide(ld: LaidOutDiagram, fonts: Fonts): SlidePlan {
   let last = 1;
   // the tone overrides are resolved here, from the diagram itself: the native shapes draw them as the svg does (ADR 0031 §2)
-  const ctx: Ctx = {ld, tones: toneEnv(ld.tones), fonts, next: () => ++last, glue: new Map(), pictures: []};
-  const shapes = ld.laidOut.map((band, i) => bandXml(band, ctx, i));
+  const ctx: Ctx = {ld, tones: toneEnv(ld.tones), fonts, next: () => ++last, glue: new Map(), pictures: [], count: new Map()};
+  const shapes = bandsXml(ld, ctx, 0, ld.laidOut.length);
   const lines = ld.connects.map(c => connectXml(c, ctx)); // after the shapes, so they sit on top as in the svg
   const labels = ld.connects.map(c => labelXml(c, ctx));
   // a document figure's accessible name and description (the svg's <title> and <desc>): the slide's name, the file's title and description

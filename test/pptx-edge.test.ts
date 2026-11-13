@@ -35,7 +35,7 @@ test('a table becomes a native table and a sequence diagram shapes drawn from it
   assert.match(slide, /<a:tbl>/);
   assert.match(slide, /typeface="BIZ UDPGothic"/);
   assert.doesNotMatch(slide, /<p:pic>/);
-  assert.match(slide, /name="sequence-1"/);
+  assert.match(slide, /name="sequence"/); // a band's group is named by its type (ADR 0054 D7)
   assert.match(entry(r.pptx, '[Content_Types].xml'), /Extension="svg"/);
 });
 
@@ -244,7 +244,7 @@ test('the plain pieces: a text line sits on its baseline at its anchor, presets 
   assert.match(polygonXml(4, 'g', [{x: 0, y: 0}, {x: 10, y: 0}, {x: 5, y: 8}], {fill: '#ff0000'}), /<a:close\/><\/a:path>[\s\S]*FF0000[\s\S]*<a:ln><a:noFill\/><\/a:ln>/);
   assert.match(lineXml(5, 'l', {x: 0, y: 0}, {x: 30, y: 40}, '#000000', 2, {arrow: true, dashed: true}), /straightConnector1[\s\S]*<a:prstDash val="dash"\/><a:tailEnd type="triangle"/);
   assert.equal(nameOf('item', 7, 'クラウド'), 'item: クラウド');
-  assert.equal(nameOf('cell', 7), 'cell-7');
+  assert.equal(nameOf('cell', 7), 'cell'); // no running number (ADR 0054 D7)
   const band = {type: 'quadrant', x: 0, y: 0, w: 100, h: 100, plot: {x: 0, y: 0, w: 100, h: 100}, crosshair: true, cells: [], regions: [], lines: [], texts: [], bubbles: [{x: 50, y: 50, r: 5, cr: 5, shape: 'circle', tone: 'accent', hollow: false, cell: 0, id: 'a', label: 'A'}], arrows: [], chips: [], marks: [], anchors: [], labelBoxes: [], moved: [], floored: [], emptyCells: []};
   let n = 0;
   const q = quadrantXml(band as never, {day: 'blue'} as never, (await import('../lib/tokens.ts')).NO_TONES, fonts, () => ++n);
@@ -254,7 +254,7 @@ test('the plain pieces: a text line sits on its baseline at its anchor, presets 
   const c = quadrantXml(caption as never, {day: 'blue'} as never, (await import('../lib/tokens.ts')).NO_TONES, fonts, () => ++n).xml;
   assert.match(c, /name="cell: 強み"(?:(?!<\/p:sp>)[\s\S])*<a:t>強み<\/a:t>/);
   // the item's marker and label are one group, so they move together
-  assert.match(c, /<p:grpSp><p:nvGrpSpPr><p:cNvPr id="\d+" name="item: A"\/>(?:(?!<\/p:grpSp>)[\s\S])*prst="ellipse"(?:(?!<\/p:grpSp>)[\s\S])*name="text: A"/);
+  assert.match(c, /<p:grpSp><p:nvGrpSpPr><p:cNvPr id="\d+" name="item: A \[a\]"\/>(?:(?!<\/p:grpSp>)[\s\S])*prst="ellipse"(?:(?!<\/p:grpSp>)[\s\S])*name="text: A"/);
 });
 
 test('fillHolders: a text goes into the smallest shape holding it, unless that shape is not inside the others holding it or the text is too wide', async () => {
@@ -310,7 +310,8 @@ test('a state diagram glues its start dot, draws an end state\'s inner frame, an
   assert.equal(r.pictures, 0);
   const slide = entry(r.pptx!, 'ppt/slides/slide1.xml');
   assert.equal(slide.match(/<a:stCxn /g)?.length, 2);
-  assert.match(slide, /name="end-b"/);
+  // the end state's box and inner frame are one group, named by its text and id (ADR 0054)
+  assert.match(slide, /name="state: 完了 \[b\]"[\s\S]*?name="inner frame"/);
   assert.ok([...slide].every(c => (c.codePointAt(0) ?? 0) >= 9));
   assert.match(slide, /<a:t>完了<\/a:t>/);
   assert.deepEqual(xmlProblems(slide), []);
@@ -344,7 +345,7 @@ test('a cause tree is native shapes: every arrow glued to cause and effect', asy
   const r = await renderPptxEdge(spec(example('causeTree')), realEngine(), {rasterize: () => PNG});
   assert.equal(r.pictures, 0);
   const slide = entry(r.pptx!, 'ppt/slides/slide1.xml');
-  const arrows = slide.split('<p:cxnSp>').slice(1).filter(c => /name="arrow-/.test(c));
+  const arrows = slide.split('<p:cxnSp>').slice(1).filter(c => /name="arrow: /.test(c));
   assert.ok(arrows.length > 0);
   for (const a of arrows) { assert.match(a, /<a:stCxn /); assert.match(a, /<a:endCxn /); }
   assert.deepEqual(xmlProblems(slide), []);
@@ -353,9 +354,12 @@ test('a cause tree is native shapes: every arrow glued to cause and effect', asy
 test('a cutting arrow has no head and is not glued to what it cuts: it ends in a bar', async () => {
   const tree = {type: 'causeTree', tree: 'crt', coreDriver: true, nodes: [{id: 'u', label: '遅れる', role: 'ude'}, {id: 'r', label: '評価の仕組み', role: 'root'}, {id: 't', label: '枠を見直す', role: 'trim'}], links: [{from: 'r', to: 'u'}, {from: 't', to: 'u', kind: 'blocks'}]};
   const slide = entry((await renderPptxEdge(spec(tree), realEngine(), {rasterize: () => PNG})).pptx!, 'ppt/slides/slide1.xml');
-  const cut = slide.split('<p:cxnSp>').find(c => /name="arrow-t-u"/.test(c)) ?? '';
+  // the line and its bar are one group (ADR 0054)
+  const group = /name="cut: 枠を見直す → 遅れる"[\s\S]*?<\/p:grpSp>/.exec(slide)?.[0] ?? '';
+  const cut = group.split('<p:cxnSp>').find(c => /name="line"/.test(c)) ?? '';
+  assert.ok(cut);
   assert.doesNotMatch(cut, /tailEnd|<a:endCxn/);
-  assert.match(slide, /name="bar-t-u"/);
+  assert.match(group, /name="bar"/);
   assert.deepEqual(xmlProblems(slide), []);
 });
 
@@ -383,9 +387,10 @@ test('a legend with fault-tree symbols stays a picture; causeXml and legendXml r
   const c = causeXml(band as never, ld, NO_TONES, {sans: 'S', mono: 'M'}, () => ++n);
   assert.deepEqual(c.glue.map(g => g.dslId), ['a', 'h']);
   // the core driver: a 3.5px frame and its badge; the obstacle: a hexagon (six sides) with a 2px frame
-  assert.match(c.xml, /name="a"[\s\S]*?<a:ln w="33338">/);
-  assert.match(c.xml, /name="core-badge-a"[\s\S]*<a:t>中核<\/a:t>/);
-  assert.match(c.xml, /name="h"[\s\S]*?(<a:lnTo>[\s\S]*?){5}<a:close\/>[\s\S]*?<a:ln w="19050">/);
+  // (ADR 0054: the box and its badge are one group; the badge holds its word)
+  assert.match(c.xml, /name="node \[a\]"[\s\S]*?name="box \[a\]"[\s\S]*?<a:ln w="33338">/);
+  assert.match(c.xml, /name="badge: 中核"[\s\S]*<a:t>中核<\/a:t>/);
+  assert.match(c.xml, /name="box \[h\]"[\s\S]*?(<a:lnTo>[\s\S]*?){5}<a:close\/>[\s\S]*?<a:ln w="19050">/);
 });
 
 test('chevrons, a cycle, a funnel, a pyramid, a Venn diagram and a value chain are native shapes', async () => {
@@ -526,7 +531,7 @@ test('a step badge is the svg\'s: an accent circle (stepBadgeAt) with its number
   assert.deepEqual([ringed({tone: 'solid'} as never), ringed({tone: 'accent'} as never)], [true, false]);
   const r = await renderPptxEdge(spec(example('steps')), realEngine(), {rasterize: () => PNG});
   const slide = entry(r.pptx!, 'ppt/slides/slide1.xml');
-  assert.match(slide, /name="step-\d+"\/>(?:(?!<\/p:sp>)[\s\S])*<a:arcTo (?:(?!<\/p:sp>)[\s\S])*<a:srgbClr val="1D5FA8"\/>(?:(?!<\/p:sp>)[\s\S])*val="FFFFFF"\/>(?:(?!<\/p:sp>)[\s\S])*<a:t>1<\/a:t>/);
+  assert.match(slide, /name="step: \d+"\/>(?:(?!<\/p:sp>)[\s\S])*<a:arcTo (?:(?!<\/p:sp>)[\s\S])*<a:srgbClr val="1D5FA8"\/>(?:(?!<\/p:sp>)[\s\S])*val="FFFFFF"\/>(?:(?!<\/p:sp>)[\s\S])*<a:t>1<\/a:t>/);
   const box = {x: 0, y: 0, w: 200, h: 48, wrappedRuns: [{lineYs: [20]}]} as never;
   const g = stepBadgeAt(box);
   assert.ok(g.cx > 0 && g.r > 0 && g.baseline > g.cy);

@@ -1,4 +1,5 @@
 import {must} from './must.ts';
+import {partStep} from './parts.ts';
 import type {LaidOutChartPart, ChartGeom} from './charts-base.ts';
 import {checkIds, checkText, fail, finiteNum, numText} from './charts-base.ts';
 import {textWidth} from './atoms.ts';
@@ -57,7 +58,8 @@ export function layoutPert(s: PertSpec, g: ChartGeom): LaidOutChartPart {
   const w = s.compact ? 126 : 154, h = s.compact ? 64 : 104, ns = s.analysis.tasks.map(t => ({id: t.id, label: t.label, w: Math.max(w, textWidth(g.widthOf, t.label, g.size, 700) + 24), h}));
   const es = s.analysis.tasks.flatMap(t => t.predecessors.map(p => ({from: p, to: t.id}))), {c, positions, paths} = networkCanvas(g, ns, es, s.direction, 0, s.straighten);
   es.forEach((e, i) => { const critical = s.analysis.criticalEdges.some(x => x.from === e.from && x.to === e.to); arrow(c, pathOf(paths, i, e, positions), {stroke: critical ? 'danger' : 'muted', sw: critical ? 4 : 2, edge: e}); });
-  for (const t of s.analysis.tasks) {
+  // ADR 0054: a task (its box, the critical path's frame and its lines of text) is one part
+  for (const t of s.analysis.tasks) c.withPart(partStep('task', t.id, t.label), () => {
     const p = must(positions.get(t.id)), host = nodeBox(c, p, t.id, t.label, t.critical ? 'danger' : 'text', t.critical), cx = p.x + p.w / 2;
     c.text(t.label, cx, p.y + g.size + 8, 'middle', 'text', {bold: true, host, of: t.id});
     if (s.compact) c.text(`${numText(t.duration)}${s.unit} / ${s.slackLabel} ${numText(t.slack)}`, cx, p.y + p.h - 10, 'middle', t.critical ? 'danger' : 'muted', {host, of: t.id});
@@ -67,7 +69,7 @@ export function layoutPert(s: PertSpec, g: ChartGeom): LaidOutChartPart {
       c.text(`LS ${numText(t.ls)}`, left, y + c.lineH(), 'start', 'muted', {host, of: t.id}); c.text(`LF ${numText(t.lf)}`, right, y + c.lineH(), 'end', 'muted', {host, of: t.id});
       c.text(`${s.durationLabel} ${numText(t.duration)}${s.unit} ・ ${s.slackLabel} ${numText(t.slack)}`, cx, p.y + p.h - 8, 'middle', t.critical ? 'danger' : 'text', {bold: t.critical, host, of: t.id});
     }
-  }
+  });
   return c.done();
 }
 
@@ -101,10 +103,10 @@ export function layoutDependency(s: DependencySpec, g: ChartGeom): LaidOutChartP
   rows.forEach((row, r) => {
     let x = c.x + 4;
     const base = c.y + c.h - 5 - (rows.length - 1 - r) * rowH;
-    for (const it of row) {
+    for (const [k, it] of row.entries()) c.legendEntry(r * 100 + k, it.label, () => {
       if (it.kind) { c.rect(x, base - g.size + 2, 14, 10, {fill: 'bg', stroke: kindTone(it.i), sw: 2}); x += 20; } else { c.line(x, base - 4, x + 22, base - 4, edgeStyle(it.key, it.i)); x += 28; }
       c.text(it.label, x, base, 'start', 'text'); x += c.tw(it.label) + 18;
-    }
+    });
   });
   return c.done();
 }

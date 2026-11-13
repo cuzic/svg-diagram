@@ -1,4 +1,5 @@
 import {textWidth} from './atoms.ts';
+import {partStep, TIMELINE_AXIS} from './parts.ts';
 import type {FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {LaidOutTimeline, NumericTimelineBand, TimelineBand, TimelineTone} from './types/timeline.ts';
 
@@ -119,17 +120,18 @@ export function layoutTimeline(band: TimelineBand | NumericTimelineBand, x: numb
     type: 'timeline', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: 0,
     axis: {x1: plotL, x2: plotR, y: axisY}, ticks: [], stems: [], dots: [], texts: [], labelBoxes: [],
   };
-  const text = (s: string, tx: number, ty: number, anchor: 'start' | 'middle' | 'end', fill: 'text' | 'muted' | 'accent' | 'danger', bold: boolean, w2?: number) => {
-    out.texts.push({text: s, x: tx, y: ty, anchor, fill, bold, size: S});
+  const text = (s: string, tx: number, ty: number, anchor: 'start' | 'middle' | 'end', fill: 'text' | 'muted' | 'accent' | 'danger', bold: boolean, w2?: number, part?: string) => {
+    out.texts.push({text: s, x: tx, y: ty, anchor, fill, bold, size: S, ...(part ? {part} : {})});
     const tw = w2 ?? textWidth(widthOf, s, S, bold ? 700 : 400);
     out.labelBoxes.push({label: s, x: anchor === 'middle' ? tx - tw / 2 : anchor === 'end' ? tx - tw : tx, y: ty - S, w: tw, h: S + 4});
   };
-  for (const f of flags) {
+  for (const [i, f] of flags.entries()) {
     const boxBottom = axisY - STEM_MIN - f.level * (FLAG_H + FLAG_GAP), boxTop = boxBottom - FLAG_H, cx = f.left + f.w / 2;
-    out.stems.push({x: f.x, y1: boxBottom, y2: axisY, tone: TONE_COLOR[f.tone]});
-    out.dots.push({x: f.x, y: axisY, r: f.big ? DOT + 4 : DOT, tone: TONE_COLOR[f.tone]});
-    text(f.label, cx, boxTop + S + 1, 'middle', f.tone === 'muted' ? 'text' : f.tone, true);
-    text(f.at, cx, boxTop + LH + S + 1, 'middle', 'muted', false);
+    const part = partStep('event', i, f.label); // ADR 0054: its stem, dot, name and date
+    out.stems.push({x: f.x, y1: boxBottom, y2: axisY, tone: TONE_COLOR[f.tone], part});
+    out.dots.push({x: f.x, y: axisY, r: f.big ? DOT + 4 : DOT, tone: TONE_COLOR[f.tone], part});
+    text(f.label, cx, boxTop + S + 1, 'middle', f.tone === 'muted' ? 'text' : f.tone, true, undefined, part);
+    text(f.at, cx, boxTop + LH + S + 1, 'middle', 'muted', false, undefined, part);
   }
   const nowX = px(band.now.at, 'now.at'), dlX = px(band.deadline.at, 'deadline.at');
   out.span = {x1: Math.min(nowX, dlX), x2: Math.max(nowX, dlX), y: axisY, tone: nowX <= dlX ? 'accent' : 'danger', ...(fillSpan ? {fill: true} : {})};
@@ -149,17 +151,18 @@ export function layoutTimeline(band: TimelineBand | NumericTimelineBand, x: numb
   const clash = (a: {left: number; tw: number}, b: {left: number; tw: number}): boolean => a.left < b.left + b.tw + 6 && b.left < a.left + a.tw + 6;
   for (const p of placed) {
     if (p.moved && (p.left < x || p.left + p.tw > x + w || placed.some(o => o !== p && clash(p, o)))) continue;
-    text(p.label, p.left, ty, 'start', 'muted', false, p.tw);
+    text(p.label, p.left, ty, 'start', 'muted', false, p.tw, TIMELINE_AXIS);
   }
   let bottom = axisY + TICK + S + 2 + 4 + tickDrop;
   const rem = remainingLabel(band);
   if (rem) {
     const by = bottom + 8;
-    if (out.span.x2 > out.span.x1) out.bracket = {x1: out.span.x1, x2: out.span.x2, y: by, tone: out.span.tone};
+    const part = partStep('remaining', 0, rem);
+    if (out.span.x2 > out.span.x1) out.bracket = {x1: out.span.x1, x2: out.span.x2, y: by, tone: out.span.tone, part};
     const rw = textWidth(widthOf, rem, S, 700);
     let rl = Math.min(Math.max((out.span.x1 + out.span.x2) / 2 - rw / 2, x), x + w - rw);
     if (crosses(rl, rw)) rl = out.span.x2 === dlX ? dlX - 6 - rw : dlX + 6; // wider than its span: it keeps to the span's side of the line
-    text(rem, rl, by + 6 + S, 'start', out.span.tone, true, rw);
+    text(rem, rl, by + 6 + S, 'start', out.span.tone, true, rw, part);
     bottom = by + 6 + S + 4;
   }
   out.h = bottom - y;
@@ -204,8 +207,8 @@ function layoutNumeric(band: NumericTimelineBand, x: number, y: number, w: numbe
     type: 'timeline', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: 0,
     axis: {x1: plotL, x2: plotR, y: 0}, ticks: [], stems: [], dots: [], texts: [], labelBoxes: [], guides: [], bars: [], dims: [],
   };
-  const text = (s: string, tx: number, ty: number, anchor: 'start' | 'middle' | 'end', fill: 'text' | 'muted' | 'accent' | 'danger', bold: boolean): void => {
-    out.texts.push({text: s, x: tx, y: ty, anchor, fill, bold, size: S});
+  const text = (s: string, tx: number, ty: number, anchor: 'start' | 'middle' | 'end', fill: 'text' | 'muted' | 'accent' | 'danger', bold: boolean, part?: string): void => {
+    out.texts.push({text: s, x: tx, y: ty, anchor, fill, bold, size: S, ...(part ? {part} : {})});
     const t = tw(s, bold);
     out.labelBoxes.push({label: s, x: anchor === 'middle' ? tx - t / 2 : anchor === 'end' ? tx - t : tx, y: ty - S, w: t, h: S + 4});
   };
@@ -237,10 +240,11 @@ function layoutNumeric(band: NumericTimelineBand, x: number, y: number, w: numbe
     if (flags.length) must(out.guides).push({x1: plotL, x2: plotR, y: dotY});
     for (const f of flags) {
       const boxBottom = dotY - STEM_MIN - f.level * (FLAG_H + FLAG_GAP), boxTop = boxBottom - FLAG_H, cx = f.left + f.fw / 2, tone = f.e.tone ?? 'muted';
-      out.stems.push({x: f.fx, y1: boxBottom, y2: dotY, tone: TONE_COLOR[tone]});
-      out.dots.push({x: f.fx, y: dotY, r: DOT, tone: TONE_COLOR[tone]});
-      text(f.e.label, cx, boxTop + S + 1, 'middle', tone === 'muted' ? 'text' : tone, true);
-      text(f.v, cx, boxTop + LH + S + 1, 'middle', 'muted', false);
+      const part = partStep('event', {index: `${li}.${flags.indexOf(f)}`}, f.e.label);
+      out.stems.push({x: f.fx, y1: boxBottom, y2: dotY, tone: TONE_COLOR[tone], part});
+      out.dots.push({x: f.fx, y: dotY, r: DOT, tone: TONE_COLOR[tone], part});
+      text(f.e.label, cx, boxTop + S + 1, 'middle', tone === 'muted' ? 'text' : tone, true, part);
+      text(f.v, cx, boxTop + LH + S + 1, 'middle', 'muted', false, part);
     }
     // spans: rows under the dot line; a span's row holds its bar and its label (inside the bar when it fits, else beside it)
     type Item = {sp: NonNullable<NumericTimelineBand['spans']>[number]; x1: number; x2: number; label?: string; lx: number; lw: number; inBar: boolean; lo: number; hi: number};

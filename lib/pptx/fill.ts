@@ -6,12 +6,13 @@ import type {PathStep} from './connectors.ts';
 import type {Pt} from './geom.ts';
 import {boxTextWidth, boxTextXml, geomShapeXml, nameOf, outlineGeomXml, textLineXml, type Paint, type TextLine} from './prims.ts';
 import type {Fonts, Rect} from './xml.ts';
+import {assembleParts, type Geo, type Piece} from './parts-group.ts';
 
 /** A shape that may take texts: its box, and whether a point is inside its outline. */
 export interface Holder {rect: Rect; hit: (p: Pt) => boolean; texts: TextLine[]}
 
-/** A line of text, and its width (px) when the layout measured it. */
-export interface Placed {t: TextLine; w?: number}
+/** A line of text, and its width (px) when the layout measured it; `part`: the part it is grouped in (ADR 0054). */
+export interface Placed {t: TextLine; w?: number; part?: string}
 
 /** The width a line takes, estimated: a full-width character one size, any other a little over half. */
 export const estimatedWidth = (t: TextLine): number => [...t.text].reduce((s, c) => s + ((c.codePointAt(0) ?? 0) >= 0x2e80 ? 1 : 0.55), 0) * t.size;
@@ -82,4 +83,24 @@ export function drawAll(drawn: readonly Drawn[], texts: readonly Placed[], fonts
   const left = fillHolders(drawn.filter((d): d is Shape => typeof d !== 'string'), texts);
   return drawn.map(d => typeof d === 'string' ? d : d.draw(d.texts.length ? boxTextXml(d.rect, d.texts, fonts) : undefined)).join('')
     + left.map(t => { const id = next(); return textLineXml(id, nameOf('text', id, t.text), t, fonts); }).join('');
+}
+
+/** A shape drawn with drawParts: where it draws, and the part it is grouped in (ADR 0054). */
+export interface PartDrawn {d: Drawn; geo: Geo; part?: string}
+
+/** The text's area, estimated: what a part's group is sized by and what is checked for crossing. */
+export const textGeo = (p: Placed): Geo => {
+  const {t} = p, w = p.w ?? estimatedWidth(t), x = t.anchor === 'middle' ? t.x - w / 2 : t.anchor === 'end' ? t.x - w : t.x;
+  return {kind: 'rect', r: {x, y: t.y - t.size * 0.8, w, h: t.size}};
+};
+
+/** drawAll, with the shapes and texts of one part gathered into a group (parts-group.ts). `holds`: whether a text may go into a shape (default: all may). */
+export function drawParts(drawn: readonly PartDrawn[], texts: readonly Placed[], fonts: Fonts, next: () => number, o: {holds?: (p: Placed) => boolean} = {}): string {
+  const may = o.holds ?? (() => true);
+  const left = new Set([...fillHolders(drawn.flatMap(d => typeof d.d === 'string' ? [] : [d.d]), texts.filter(may)), ...texts.filter(p => !may(p)).map(p => p.t)]);
+  const pieces: Piece[] = [];
+  const add = (xml: string, geo: Geo, part?: string, text = false) => pieces.push({order: pieces.length, xml, geo, part: part ? part.split('/') : [], ...(text ? {text} : {})});
+  for (const {d, geo, part} of drawn) add(typeof d === 'string' ? d : d.draw(d.texts.length ? boxTextXml(d.rect, d.texts, fonts) : undefined), geo, part, typeof d !== 'string' && d.texts.length > 0);
+  for (const p of texts) if (left.has(p.t)) { const id = next(); add(textLineXml(id, nameOf('text', id, p.t.text), p.t, fonts), textGeo(p), p.part, true); }
+  return assembleParts(pieces, next);
 }

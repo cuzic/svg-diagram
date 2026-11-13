@@ -237,7 +237,7 @@ export interface ConnectBand {
 /** branch() target: connect() options plus the target ref. */
 export interface BranchTarget extends ConnectOpts {to: string}
 /** The frame of a group; its children are laid out as separate bands after it. */
-export interface LaidOutGroup extends Rect, Dimmed {type: 'group'; tone: BoxTone; dashed?: boolean; frame?: false; stamp?: string; stampW?: number; id?: string; reveal?: number}
+export interface LaidOutGroup extends Rect, Dimmed {type: 'group'; tone: BoxTone; dashed?: boolean; frame?: false; stamp?: string; stampW?: number; id?: string; reveal?: number; /** How many of the bands after it are its title and contents (ADR 0054 D5: the PowerPoint export groups them with the frame). */ span?: number; /** Its title's plain text, when it has one (the group's name in the PowerPoint export). */ title?: string}
 export interface LaidOutLegendItem extends LegendItem {textW: number; w: number; x: number; y: number; /** a `role` item's box, resolved by layout */ swatch?: {tone: EmphasisTone; double?: boolean; hex?: boolean; dashed?: boolean}}
 export interface LaidOutLegend extends Rect {type: 'legend'; items: LaidOutLegendItem[]}
 export interface RowArrow {x1: number; y1: number; x2: number; y2: number}

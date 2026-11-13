@@ -275,11 +275,11 @@ export interface LaidOutBowtie extends Rect, Dimmed {
   reveal?: number;
   until?: number;
   fitApplied?: FitApplied[];
-  nodes: (Rect & {role: BowtieRole})[];
+  nodes: (Rect & {role: BowtieRole; /** ADR 0054: the knot's part (the hazard's box) */ part?: string})[];
   /** The flow, left to right: a line, with an arrowhead where `arrow` says. */
-  edges: {points: {x: number; y: number}[]; arrow: boolean}[];
+  edges: {points: {x: number; y: number}[]; arrow: boolean; /** ADR 0054: the knot's part (its stems) */ part?: string}[];
   /** The knot above the top event's box. */
-  knot: {cx: number; cy: number; r: number};
+  knot: {cx: number; cy: number; r: number; /** ADR 0054 */ part?: string};
   texts: TreeNodeText[];
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];
@@ -400,7 +400,7 @@ export interface FitApplied {
   /** How the author asked for it: `dir` left out (a warning) or `dir: 'auto'` (a note), or the change was asked for (`fold: true`). */
   mode: 'omitted' | 'auto' | 'written';
 }
-export interface TreeNodeText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean}
+export interface TreeNodeText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean; /** ADR 0054: the part it is grouped in */ part?: string}
 export interface LaidOutTree extends Rect, Dimmed {
   type: 'tree';
   /** What the layout changed on its own to fit the width (none: the figure is as written). */
@@ -408,11 +408,11 @@ export interface LaidOutTree extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: EmphasisTone; id?: string; /** ADR 0034 */ dataNode?: string; /** A band node: the tree draws no box or text for it; the band is laid out in its rectangle. */ band?: true})[];
+  nodes: (Rect & {tone: EmphasisTone; id?: string; /** ADR 0034 */ dataNode?: string; /** A band node: the tree draws no box or text for it; the band is laid out in its rectangle. */ band?: true; /** ADR 0054: the index of its parent (none for the root) */ parent?: number})[];
   /** Parent to child, each a polyline (centre line of the box edge to the child's box edge); `curve` draws it as a smooth S, `bold` as a spine. */
-  edges: {points: {x: number; y: number}[]; curve?: 'x' | 'y'; bold?: boolean; /** A line to a lit node of a `focus` tree: drawn in the accent colour. */ lit?: true; /** The index (in treeItems order) of the child this line leads to; only in a tree that has a `from`. */ child?: number; /** A funnel line comes with the later of its child band and its parent band. */ reveal?: number; until?: number}[];
+  edges: {points: {x: number; y: number}[]; curve?: 'x' | 'y'; bold?: boolean; /** ADR 0054: the indexes (into `nodes`) of its parent and child; the same for a node's own line (a bone, a brace's stub) */ from?: number; to?: number; /** A line to a lit node of a `focus` tree: drawn in the accent colour. */ lit?: true; /** The index (in treeItems order) of the child this line leads to; only in a tree that has a `from`. */ child?: number; /** A funnel line comes with the later of its child band and its parent band. */ reveal?: number; until?: number}[];
   /** brace maps: a `{` over the children of one parent. */
-  braces?: {x: number; y1: number; y2: number; ymid: number; tipX: number; side: 'right' | 'left'}[];
+  braces?: {x: number; y1: number; y2: number; ymid: number; tipX: number; side: 'right' | 'left'; /** ADR 0054: the index of the parent it gathers the children of */ of?: number}[];
   texts: TreeNodeText[];
   /** Nodes with an id: what connect() can reach. */
   anchors: Anchor[];
@@ -514,9 +514,9 @@ export interface LaidOutBpmn extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  lanes: (Rect & {labelW: number; tone: BoxTone})[];
+  lanes: (Rect & {labelW: number; tone: BoxTone; /** ADR 0054: the lane's part (its band, header and name) */ part?: string})[];
   /** The shape of each node (a circle, a diamond or a rounded rectangle). */
-  nodes: (Rect & {kind: BpmnNodeKind; tone: EmphasisTone; /** ADR 0034 */ dataNode?: string})[];
+  nodes: (Rect & {kind: BpmnNodeKind; tone: EmphasisTone; /** ADR 0034 */ dataNode?: string; /** ADR 0054: the node's part (a gateway's diamond, mark and question; an event's circle and name) */ part?: string})[];
   /** The icons of the tasks that have one (20px, above the label); `node` indexes `nodes`. */
   icons: {node: number; name: string; glyph: IconGlyph; x: number; y: number; size: number; tone?: TextTone}[];
   edges: {from: string; to: string; line: 'solid' | 'dashed'; points: {x: number; y: number}[]}[];
@@ -593,16 +593,16 @@ export interface LaidOutFta extends Rect, Dimmed {
   until?: number;
   fitApplied?: FitApplied[];
   /** The box of each event drawn (a `ref` draws its event again; only the first has `id`). */
-  nodes: (Rect & {kind: FtaKind; id?: string})[];
+  nodes: (Rect & {kind: FtaKind; id?: string; /** ADR 0054: the event it belongs to */ part?: string})[];
   /** The symbol under a basic / undeveloped / house / condition event. */
-  marks: (Rect & {kind: FtaKind; single?: true})[];
+  marks: (Rect & {kind: FtaKind; single?: true; /** ADR 0054: the event it belongs to */ part?: string})[];
   /** The note under the tree (opts `quant`): the probability of the top event and what it assumes. */
   note?: string;
   /** The label under a single point of failure (opts `cutSets`). */
-  badges: (Rect & {text: string; size: number})[];
-  gates: (Rect & {gate: FtaGate; label?: {text: string; size: number}})[];
+  badges: (Rect & {text: string; size: number; /** ADR 0054: the event it belongs to */ part?: string})[];
+  gates: (Rect & {gate: FtaGate; label?: {text: string; size: number}; /** ADR 0054: the event it belongs to */ part?: string})[];
   /** Gate output to event, gate input to its children, inhibit gate to its condition. */
-  edges: {points: {x: number; y: number}[]}[];
+  edges: {points: {x: number; y: number}[]; /** ADR 0054: the event it belongs to */ part?: string}[];
   texts: TreeNodeText[];
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];

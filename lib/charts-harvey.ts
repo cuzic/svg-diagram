@@ -1,6 +1,7 @@
 // harvey(): a table of Harvey balls (ハーベイボール): each cell is a circle filled by a quarter, a half, three quarters or fully, the
 // usual way a consulting slide rates options against criteria. The fill is a shape (a wedge), never just a colour, and the scale is
 // written under the table; the values are listed in the description.
+import {partStep} from './parts.ts';
 import {must} from './must.ts';
 import {checkIds, checkText, fail, finiteNum} from './charts-base.ts';
 import type {Canvas, ChartGeom, ChartOpts, LaidOutChartPart} from './charts-base.ts';
@@ -80,13 +81,14 @@ export function layoutHarvey(s: HarveySpec, g: ChartGeom): LaidOutChartPart {
   const cells = s.values.map((r, i) => r.map((v, j) => v === null ? null : {rating: v, note: must(s.notes[i])[j]}));
   return layoutRatingTable({rows: s.rows, rowIds: s.rowIds, cols: s.cols, cells, corner: s.corner, highlight: s.highlight, ruled: s.notes.flat().some(Boolean)}, {
     who: 'harvey', ratingW: 2 * R + 12, ratingH: 2 * R + 16,
-    draw: (c, cx, cy, q, of) => ball(c, cx, cy, R, q, of),
+    // ADR 0054: a ball (its circle and wedge) is one part, named by its level
+    draw: (c, cx, cy, q, of) => c.withPart(partStep('ball', {index: `${Math.round(cx)},${Math.round(cy)}`}, s.levels[q] ?? ''), () => ball(c, cx, cy, R, q, of)),
     // legend: the five balls with their names, in a row (it fails when the width is short)
     foot: {h: 2 * R + 18, draw: (c, tableBottom) => {
       const lr = Math.round(R * 0.62), item = (t: string) => 2 * lr + 6 + c.tw(t), gap = 20, ly = tableBottom + 8 + lr + 4;
       let lx = g.x + 4;
       if (s.levels.reduce((a, t) => a + item(t) + gap, -gap) > g.w) fail('harvey', 'the legend does not fit (shorten the level names, or raise width)');
-      s.levels.forEach((t, q) => { ball(c, lx + lr, ly, lr, q); c.text(t, lx + 2 * lr + 6, c.mid(ly), 'start', 'text'); lx += item(t) + gap; });
+      s.levels.forEach((t, q) => { c.legendEntry(q, t, () => { ball(c, lx + lr, ly, lr, q); c.text(t, lx + 2 * lr + 6, c.mid(ly), 'start', 'text'); }); lx += item(t) + gap; });
     }},
   }, g);
 }
