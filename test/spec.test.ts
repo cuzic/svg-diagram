@@ -12,6 +12,7 @@ import {installResolveHook} from '../lib/resolve-hook.ts';
 import {MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, SpecError, capped, cappedMessages, fieldsHolding, layoutIssue, locateMessage, locateVerdict, partCatalog, specSchema, specToDiagram, validateSpec} from '../lib/spec.ts';
 import {MAX_PNG_PIXELS, lintMessages, lintRendering, renderSpec, svgToPng} from '../lib/spec-render.ts';
 import type {Diagram} from '../lib/types/index.ts';
+import {JA_FONTS} from './helpers/text-engine.ts';
 
 test.after(() => closeMeasurer());
 
@@ -436,7 +437,8 @@ test('the width memo stops growing at its limit', async () => {
 
 test('a finding names the place of the text it is about', async () => {
   // the arrow labels of this figure sit a few pixels past the diamond: an advisory that does not fail it
-  const r = await renderSpec(spec(partCatalog().find(p => p.type === 'flowchart')?.example));
+  // measured with the Japanese font file, not this machine's browser: where the label lands depends on the font
+  const r = await renderSpec(spec(partCatalog().find(p => p.type === 'flowchart')?.example), {config: {measure: 'font', fonts: JA_FONTS}});
   assert.equal(r.ok, true);
   const yes = r.findings.find(f => f.message.includes('"Yes"'));
   assert.equal(yes?.path, 'parts[0].edges[1].label');
