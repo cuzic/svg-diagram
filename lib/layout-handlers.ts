@@ -330,6 +330,7 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
     if (st.tagBox) st.tagBox.y = st.y - st.tagBox.h / 2;
     ctx.laidOut.push(st);
   }
+  frame.span = stepsPlaced.length;
   ctx.y = top0 + (y - startY) + d.gap;
 }
 

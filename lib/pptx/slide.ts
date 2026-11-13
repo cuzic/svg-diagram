@@ -58,6 +58,12 @@ function bandsXml(ld: LaidOutDiagram, ctx: Ctx, from: number, to: number): strin
       const title = band.title ?? '';
       out.push(groupXml(ctx.next(), partName(partStep('group', band.id ?? i, title)), band, inner));
       i += 1 + span;
+    } else if (band.type === 'swimlane' && (band.span ?? 0) > 0 && i + (band.span ?? 0) < to) {
+      // a swimlane and its steps (separate box bands after it): one group, the lanes a group inside it (ADR 0054 D9.2)
+      const span = band.span ?? 0, lanes = bandXml(band, ctx, i).replace(/ name="swimlane[^"]*"/, ' name="lanes"');
+      const steps = ld.laidOut.slice(i + 1, i + 1 + span).map((b, k) => bandXml(b, ctx, i + 1 + k)).join('');
+      out.push(groupXml(ctx.next(), partName(partStep('swimlane', band.id ?? i, '')), band, lanes + steps));
+      i += 1 + span;
     } else { out.push(bandXml(band, ctx, i)); i++; }
   }
   return out;

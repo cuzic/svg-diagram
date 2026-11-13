@@ -214,6 +214,8 @@ export interface LaidOutLane {
 }
 export interface LaidOutPhase {x: number; w: number; lines: string[]}
 export interface LaidOutSwimlane extends Rect {
+  /** How many of the bands after it are its steps (ADR 0054 D9.2: the PowerPoint export groups them with the lanes). */
+  span?: number;
   type: 'swimlane';
   labelW: number;
   bodyX: number;
