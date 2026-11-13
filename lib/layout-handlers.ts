@@ -186,6 +186,7 @@ function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number
   const gp = band.pad ?? 16;
   const top0 = ctx.y, startY = snapGrid(top0); // the frame sits on the grid; the cursor moves on from where it was (no drift)
   const frame: LaidOutGroup = {type: 'group', x: padX, y: startY, w: cw, h: 0, tone: band.tone, dashed: band.dashed, frame: band.frame, id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
+  const at = ctx.laidOut.length;
   ctx.laidOut.push(frame); // pushed first so the frame is drawn under its children
   ctx.y += gp;
   if (band.title) {
@@ -217,6 +218,7 @@ function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number
     ctx.y += STAMP_H + STAMP_GAP;
   }
   frame.h = ctx.y - top0;
+  frame.span = ctx.laidOut.length - at - 1; // its title and contents, nested groups and their contents included (ADR 0054 D5)
   if (fill) frame.h += fill.slack - (stretchOnly ? fill.slack : plan.top + plan.gap * (band.children.length - 1)); // what is left goes under the content
   ctx.y = top0 + frame.h; // (the contents were laid out from the cursor itself, not from the snapped top: only the frame is placed on the grid)
   if (band.id) {

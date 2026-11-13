@@ -5,7 +5,9 @@ import type {LaidOutConnect} from '../types/containers.ts';
 import {fitConnector, siteIndex} from './geom.ts';
 import {attr, emu, hex, type Fonts} from './xml.ts';
 import {diagramDesc, diagramTitle} from '../rules.ts';
-import {boxXml, plainBox} from './shapes.ts';
+import {boxXml, groupXml, plainBox} from './shapes.ts';
+import {partName} from './parts-group.ts';
+import {partStep} from '../parts.ts';
 import {connectorXml, freeformXml, type Glue} from './connectors.ts';
 import {bandXml, type Ctx} from './bands.ts';
 import type {SlidePlan} from './package.ts';
@@ -40,11 +42,30 @@ function labelXml(c: LaidOutConnect, ctx: Ctx): string {
   return boxXml(ctx.next(), `label-${c.fromId}-${c.toId}`, plainBox(r, c.label, {size, weight: 400, tone: undefined, frame: false, padX: 0, padY: 0}), ctx.ld.day, ctx.tones, ctx.fonts);
 }
 
+/**
+ * The bands from..to as shapes. A group frame and the bands it holds (its title and contents: `span`, ADR 0054 D5) are one group, named after
+ * the title; nested groups nest. A span whose bands do not lie inside the frame (the bands were filtered or moved after layout) is not grouped.
+ */
+function bandsXml(ld: LaidOutDiagram, ctx: Ctx, from: number, to: number): string[] {
+  const out: string[] = [];
+  for (let i = from; i < to;) {
+    const band = must(ld.laidOut[i]), span = band.type === 'group' ? Math.min(band.span ?? 0, to - i - 1) : 0;
+    const held = ld.laidOut.slice(i + 1, i + 1 + span);
+    if (band.type === 'group' && span > 0 && held.every(b => !('y' in b) || !('h' in b) || (b.y >= band.y - 1 && b.y + b.h <= band.y + band.h + 1))) {
+      const inner = [bandXml(band, ctx, i), ...bandsXml(ld, ctx, i + 1, i + 1 + span)].join('');
+      const title = held[0]?.type === 'caption' ? held[0].text : '';
+      out.push(groupXml(ctx.next(), partName(partStep('group', band.id ?? i, title)), band, inner));
+      i += 1 + span;
+    } else { out.push(bandXml(band, ctx, i)); i++; }
+  }
+  return out;
+}
+
 export function planSlide(ld: LaidOutDiagram, fonts: Fonts): SlidePlan {
   let last = 1;
   // the tone overrides are resolved here, from the diagram itself: the native shapes draw them as the svg does (ADR 0031 §2)
   const ctx: Ctx = {ld, tones: toneEnv(ld.tones), fonts, next: () => ++last, glue: new Map(), pictures: []};
-  const shapes = ld.laidOut.map((band, i) => bandXml(band, ctx, i));
+  const shapes = bandsXml(ld, ctx, 0, ld.laidOut.length);
   const lines = ld.connects.map(c => connectXml(c, ctx)); // after the shapes, so they sit on top as in the svg
   const labels = ld.connects.map(c => labelXml(c, ctx));
   // a document figure's accessible name and description (the svg's <title> and <desc>): the slide's name, the file's title and description
