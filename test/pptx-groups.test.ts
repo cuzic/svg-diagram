@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {closeMeasurer} from '../lib/dsl.ts';
 import {partCatalog} from '../lib/spec.ts';
 import {renderPptxEdge} from '../lib/pptx-edge.ts';
-import {marked, parsePart, partAttr, partStep, partsOn, withParts} from '../lib/parts.ts';
+import {axisPart, marked, parsePart, partAttr, partStep, partsOn, withParts} from '../lib/parts.ts';
 import {assembleParts, crosses, partName, type Piece} from '../lib/pptx/parts-group.ts';
 import {xmlProblems} from '../lib/xml-check.ts';
 import {realEngine} from './helpers/text-engine.ts';
@@ -59,6 +59,8 @@ test('partName: kind and label, and the DSL id when the part has one (not an ind
   assert.equal(partName(partStep('class', 'Order', '注文')), 'class: 注文 [Order]');
   assert.equal(partName(partStep('series', 0, '渋谷店')), 'series: 渋谷店');
   assert.equal(partName(partStep('axis', 'x', '')), 'axis [x]');
+  // a chart's axis: named by which it is, never as a DSL id
+  assert.equal(partName(axisPart('y2')), 'axis: y2');
 });
 
 test('crosses: areas overlap, a line near an area, two lines within their widths; touching is not crossing', () => {
