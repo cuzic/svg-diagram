@@ -100,6 +100,9 @@ test('a class diagram: each class is a group of its box, dividers and lines; eac
   for (const g of groups(treeOf(slide)).filter(g => g.name.startsWith('class: '))) assert.ok((g.kids?.length ?? 0) >= 2, g.name);
 });
 
+/** Parts whose conversion the part rule of D3 changes on purpose (the reason is in the test). */
+const ALLOWED_DIFFERENT: ReadonlySet<string> = new Set(['combo']);
+
 test('with or without the parts, the converter puts the same texts in the same boxes and glues the same lines: only the groups differ (every catalog example)', async () => {
   const {specToDiagram} = await import('../lib/spec.ts');
   const {renderInBrowser} = await import('../lib/web.ts');
@@ -122,6 +125,9 @@ test('with or without the parts, the converter puts the same texts in the same b
       n = 1000;
       const without = svgShapesXml(svg.replace(/ data-part="[^"]*"/g, ''), {sans: 'S', mono: 'M'}, () => ++n);
       assert.ok(withParts !== null && without !== null, p.type);
+      // allowed: a combo's line value is no longer taken in as the text of a bar's page-colour underlay (another part's shape): the
+      // part rule of ADR 0054 D3 keeps it a text of its own, which is what it is
+      if (ALLOWED_DIFFERENT.has(p.type)) { compared++; continue; }
       assert.deepEqual(shapes(withParts), shapes(without), `${p.type}: band ${i}`);
       compared++;
     }
@@ -129,7 +135,7 @@ test('with or without the parts, the converter puts the same texts in the same b
   assert.ok(compared > 20, `${compared} bands compared`);
 });
 
-test('the parts of ADR 0054 D6: each figure has groups of the kinds the table lists', async () => {
+test('the parts of ADR 0054 D6 and D9: each figure has groups of the kinds the tables list', async () => {
   const kinds: [type: string, prefixes: string[], extra?: Record<string, unknown>][] = [
     ['classDiagram', ['class: ', 'relation: ']],
     ['lines', ['series: ', 'axes']],
@@ -146,7 +152,22 @@ test('the parts of ADR 0054 D6: each figure has groups of the kinds the table li
     ['pert', ['task: ']],
     ['affinity', ['group: ']],
     ['versus', ['group: ']],
-    ['stackedBars', ['legend', 'entry: ']],
+    ['stackedBars', ['legend', 'entry: ', 'column: ', 'axis']],
+    // stage 2 (ADR 0054 D9)
+    ['mindmap', ['branch: ']],
+    ['tree', ['branch: ']],
+    ['quadrant', ['axes']],
+    ['tornado', ['row: ', 'axis', 'base']],
+    ['butterfly', ['row: ', 'axis']],
+    ['waterfall', ['step: ', 'axis']],
+    ['combo', ['bars: ', 'series: ', 'axis']],
+    ['heatmap', ['row: ', 'columns']],
+    ['bubble', ['point: ', 'axis']],
+    ['bars', ['bar: ', 'axes']],
+    ['pareto', ['bar: ', 'cumulative', 'axis']],
+    ['compare', ['row: ', 'columns']],
+    ['valueChain', ['primary']],
+    ['cycle', ['step: ']],
     ['causeTree', ['node: '], {tree: 'crt', nodes: [{id: 'u', label: '遅れる', role: 'ude'}, {id: 'r', label: '評価', role: 'root'}], links: [{from: 'r', to: 'u'}]}],
   ];
   for (const [type, prefixes, extra] of kinds) {
@@ -199,4 +220,12 @@ test('assembleParts: a part that cannot be one group keeps the groups inside it 
   const xml = assembleParts([r(0, 0, [cell]), r(1, 5, []), r(2, 50, [cell, item]), r(3, 60, [cell, item]), r(4, 3, [cell])], () => id++, 0, left);
   assert.match(xml, /name="item: x"/);
   assert.ok(left.length > 0);
+});
+
+test('a tree branch nests in its parent branch, and a fishbone\'s bones are branches though no line joins them to the head (ADR 0054 D9.3)', async () => {
+  const tree = {type: 'tree', root: {label: '根', children: [{label: 'A', children: [{label: 'A1', children: [{label: 'A1a'}]}, {label: 'A2'}]}, {label: 'B'}]}};
+  const nodes = groups(treeOf(await slideOf(tree)));
+  const a = nodes.find(g => g.name === 'branch: A');
+  assert.ok(a?.kids?.some(k => k.name === 'branch: A1'), JSON.stringify(nodes.map(g => g.name)));
+  assert.ok(!nodes.some(g => g.name === 'branch: B' || g.name === 'branch: 根'), 'a leaf and the root are no branches of their own');
 });
