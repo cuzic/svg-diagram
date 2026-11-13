@@ -128,7 +128,8 @@ export function lineXml(id: number, name: string, a: Pt, b: Pt, color: string, w
 }
 
 /** The name of a shape: its text when it has some (what PowerPoint's selection pane shows), else the kind and id. */
-export const nameOf = (kind: string, id: number, text?: string): string => text ? `${kind}: ${[...text].slice(0, 40).join('')}` : `${kind}-${id}`;
+/** A shape's name: its kind and text, or its kind alone (ADR 0054 D7: no running numbers; `id` is kept for the callers' sake). */
+export const nameOf = (kind: string, _id: number, text?: string): string => text ? `${kind}: ${[...text].slice(0, 40).join('')}` : kind;
 /** A shape's or group's name (ADR 0054 D7): its kind and text (40 characters at most), and its DSL id after it when it has one. */
 export const namedAs = (kind: string, text: string, dslId?: string): string => `${kind}${text ? `: ${[...text].slice(0, 40).join('')}` : ''}${dslId ? ` [${dslId}]` : ''}`;
 

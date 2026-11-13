@@ -275,11 +275,11 @@ export interface LaidOutBowtie extends Rect, Dimmed {
   reveal?: number;
   until?: number;
   fitApplied?: FitApplied[];
-  nodes: (Rect & {role: BowtieRole})[];
+  nodes: (Rect & {role: BowtieRole; /** ADR 0054: the knot's part (the hazard's box) */ part?: string})[];
   /** The flow, left to right: a line, with an arrowhead where `arrow` says. */
-  edges: {points: {x: number; y: number}[]; arrow: boolean}[];
+  edges: {points: {x: number; y: number}[]; arrow: boolean; /** ADR 0054: the knot's part (its stems) */ part?: string}[];
   /** The knot above the top event's box. */
-  knot: {cx: number; cy: number; r: number};
+  knot: {cx: number; cy: number; r: number; /** ADR 0054 */ part?: string};
   texts: TreeNodeText[];
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];
@@ -400,7 +400,7 @@ export interface FitApplied {
   /** How the author asked for it: `dir` left out (a warning) or `dir: 'auto'` (a note), or the change was asked for (`fold: true`). */
   mode: 'omitted' | 'auto' | 'written';
 }
-export interface TreeNodeText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean}
+export interface TreeNodeText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean; /** ADR 0054: the part it is grouped in */ part?: string}
 export interface LaidOutTree extends Rect, Dimmed {
   type: 'tree';
   /** What the layout changed on its own to fit the width (none: the figure is as written). */
@@ -593,16 +593,16 @@ export interface LaidOutFta extends Rect, Dimmed {
   until?: number;
   fitApplied?: FitApplied[];
   /** The box of each event drawn (a `ref` draws its event again; only the first has `id`). */
-  nodes: (Rect & {kind: FtaKind; id?: string})[];
+  nodes: (Rect & {kind: FtaKind; id?: string; /** ADR 0054: the event it belongs to */ part?: string})[];
   /** The symbol under a basic / undeveloped / house / condition event. */
-  marks: (Rect & {kind: FtaKind; single?: true})[];
+  marks: (Rect & {kind: FtaKind; single?: true; /** ADR 0054: the event it belongs to */ part?: string})[];
   /** The note under the tree (opts `quant`): the probability of the top event and what it assumes. */
   note?: string;
   /** The label under a single point of failure (opts `cutSets`). */
-  badges: (Rect & {text: string; size: number})[];
-  gates: (Rect & {gate: FtaGate; label?: {text: string; size: number}})[];
+  badges: (Rect & {text: string; size: number; /** ADR 0054: the event it belongs to */ part?: string})[];
+  gates: (Rect & {gate: FtaGate; label?: {text: string; size: number}; /** ADR 0054: the event it belongs to */ part?: string})[];
   /** Gate output to event, gate input to its children, inhibit gate to its condition. */
-  edges: {points: {x: number; y: number}[]}[];
+  edges: {points: {x: number; y: number}[]; /** ADR 0054: the event it belongs to */ part?: string}[];
   texts: TreeNodeText[];
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];

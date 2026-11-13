@@ -125,7 +125,7 @@ export function svgShapesXml(svg: string, fonts: Fonts, next: () => number): str
     // one run of straight segments: a line that can become a connector; anything else stays a freeform
     if (straight && !closed) return openLine(corners, paint, end);
     const id = next();
-    return {kind: 'other', xml: freeformPathXml(id, `line-${id}`, steps, paint.stroke, paint.widthPx ?? 1, {dashed: paint.dashed, dotted: paint.dotted, arrow: !!end}), geo: {kind: 'poly', pts: steps.flatMap(x => x.pts), w: paint.widthPx ?? 1}};
+    return {kind: 'other', xml: freeformPathXml(id, 'line', steps, paint.stroke, paint.widthPx ?? 1, {dashed: paint.dashed, dotted: paint.dotted, arrow: !!end}), geo: {kind: 'poly', pts: steps.flatMap(x => x.pts), w: paint.widthPx ?? 1}};
   };
   /** An open line; a short V of 3 points (both arms under 20px) is an open arrowhead a line may end in. */
   const openLine = (pts: Pt[], paint: Paint, end: EndType | undefined): Item => {
@@ -137,8 +137,8 @@ export function svgShapesXml(svg: string, fonts: Fonts, next: () => number): str
   };
   const lineXmlOf = (it: Line): string => {
     const fit = fitConnector(it.pts), color = it.paint.stroke ?? '#000000', w = it.paint.widthPx ?? 1;
-    if (fit.ok) return connectorShapeXml(it.id, `line-${it.id}`, fit.x, color, w, glueAt(it.pts[0], it.pts[1]), glueAt(it.pts[it.pts.length - 1], it.pts[it.pts.length - 2]), lineOpts(it));
-    return freeformPathXml(it.id, `line-${it.id}`, it.pts.map((p, i) => ({op: i ? 'L' as const : 'M' as const, pts: [p]})), color, w, lineOpts(it));
+    if (fit.ok) return connectorShapeXml(it.id, 'line', fit.x, color, w, glueAt(it.pts[0], it.pts[1]), glueAt(it.pts[it.pts.length - 1], it.pts[it.pts.length - 2]), lineOpts(it));
+    return freeformPathXml(it.id, 'line', it.pts.map((p, i) => ({op: i ? 'L' as const : 'M' as const, pts: [p]})), color, w, lineOpts(it));
   };
   const readText = (e: El): Item | null | undefined => {
     // an emoji's <tspan class="emoji"> only picks its font: its text is the line's (PowerPoint draws it in the system's emoji font); any other
@@ -231,7 +231,7 @@ export function svgShapesXml(svg: string, fonts: Fonts, next: () => number): str
   const textGeo = (t: TextLine): Geo => { const w = [...t.text].length * t.size * 0.55, x = t.anchor === 'middle' ? t.x - w / 2 : t.anchor === 'end' ? t.x - w : t.x; return {kind: 'rect', r: {x, y: t.y - t.size * 0.8, w, h: t.size}}; };
   for (const it of items) {
     if (it.kind === 'box') {
-      const name = it.texts.length ? nameOf('box', it.id, it.texts.toSorted((a, b) => a.y - b.y).map(t => t.text).join('')) : `shape-${it.id}`;
+      const name = it.texts.length ? nameOf('box', it.id, it.texts.toSorted((a, b) => a.y - b.y).map(t => t.text).join('')) : 'shape';
       piece(it, geomShapeXml(it.id, name, it.rect, it.geom, it.paint, it.texts.length ? boxTextXml(it.rect, it.texts, fonts) : undefined), {kind: 'rect', r: it.rect});
     } else if (it.kind === 'line') piece(it, lineXmlOf(it), {kind: 'poly', pts: it.pts, w: it.paint.widthPx ?? 1});
     else if (it.kind === 'head') {

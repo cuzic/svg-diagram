@@ -1,6 +1,9 @@
 // bowtie(): a bow-tie diagram (ADR 0026 D4). Threats on the left, each through its preventive barriers, into the top event in the middle (the
 // loss of control, under its hazard); out of it through the mitigating barriers to the consequences on the right. The flow runs left to right
 // everywhere. A fixed layout: rows are the threats / consequences, columns are the barriers' places in a row; no layered or tree layout.
+import {partStep} from './parts.ts';
+
+const KNOT = partStep('knot', 0, '');
 import {must} from './must.ts';
 import {fitLayout} from './fit-width.ts';
 import type {FitResult} from './fit-width.ts';
@@ -60,9 +63,10 @@ export function layoutBowtie(band: BowtieBand, x: number, y: number, w: number, 
   const out: LaidOutBowtie = {
     type: 'bowtie', ...(band.id === undefined ? {} : {id: band.id}), ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until}),
     x, y, w, h: g.h,
-    nodes: g.nodes.map(n => ({x: n.x + dx, y: n.y + dy, w: n.w, h: n.h, role: n.role})),
-    edges: g.edges.map(e => ({arrow: e.arrow, points: e.points.map(p => ({x: p.x + dx, y: p.y + dy}))})),
-    knot: {cx: g.knot.cx + dx, cy: g.knot.cy + dy, r: KNOT_R},
+    // ADR 0054: the knot (the hazard's box, the circle and the stems through it) is one part
+    nodes: g.nodes.map(n => ({x: n.x + dx, y: n.y + dy, w: n.w, h: n.h, role: n.role, ...(n.role === 'hazard' ? {part: KNOT} : {})})),
+    edges: g.edges.map(e => ({arrow: e.arrow, points: e.points.map(p => ({x: p.x + dx, y: p.y + dy})), ...(e.knot ? {part: KNOT} : {})})),
+    knot: {cx: g.knot.cx + dx, cy: g.knot.cy + dy, r: KNOT_R, part: KNOT},
     texts: [], anchors: [], labelBoxes: [],
     ...(fitted.applied.length ? {fitApplied: fitted.applied} : {}),
   } as LaidOutBowtie;
@@ -70,7 +74,7 @@ export function layoutBowtie(band: BowtieBand, x: number, y: number, w: number, 
     const r = out.nodes[i];
     if (!r) return;
     out.labelBoxes.push({label: n.label, x: r.x, y: r.y, w: r.w, h: r.h});
-    out.texts.push(...nodeRuns(r, n.lines, roles));
+    out.texts.push(...nodeRuns(r, n.lines, roles).map(t => r.part ? {...t, part: r.part} : t));
   });
   return out;
 }
@@ -99,7 +103,7 @@ function place(band: BowtieBand, maxW: number, widthOf: WidthOf, roles: Roles, m
   const H = Math.max(sideH(left.length, rowHL), sideH(right.length, rowHR), stackH);
   // the centre of row i of n: the side with the most rows keeps ROW_GAP between its rows; a side with fewer is spread over the same height
   const centre = (i: number, n: number, h: number): number => n > 1 ? h / 2 + i * (H - h) / (n - 1) : H / 2;
-  const nodes: Placed[] = [], edges: {points: {x: number; y: number}[]; arrow: boolean}[] = [];
+  const nodes: Placed[] = [], edges: {points: {x: number; y: number}[]; arrow: boolean; knot?: true}[] = [];
   const topX = leftW + BUS_GAP;
   let cy0 = (H - stackH) / 2;
   if (hazard) { nodes.push({x: topX + (topW - hazard.lines.w) / 2, y: cy0, w: hazard.lines.w, h: hazard.lines.h, role: 'hazard', label: hazard.label, lines: hazard.lines}); cy0 += hazard.lines.h + STEM; }
@@ -109,8 +113,8 @@ function place(band: BowtieBand, maxW: number, widthOf: WidthOf, roles: Roles, m
   nodes.push(topRect);
   // a row enters the top event's box at its own height, held onto the box (a row beside it runs straight in; one above or below jogs at the bus)
   const entry = (cy: number): number => Math.min(Math.max(cy, topRect.y + 10), topRect.y + topRect.h - 10);
-  if (hazard) edges.push({points: [{x: knot.cx, y: must(nodes[0]).y + must(nodes[0]).h}, {x: knot.cx, y: knot.cy - KNOT_R}], arrow: false});
-  edges.push({points: [{x: knot.cx, y: knot.cy + KNOT_R}, {x: knot.cx, y: topRect.y}], arrow: false});
+  if (hazard) edges.push({points: [{x: knot.cx, y: must(nodes[0]).y + must(nodes[0]).h}, {x: knot.cx, y: knot.cy - KNOT_R}], arrow: false, knot: true});
+  edges.push({points: [{x: knot.cx, y: knot.cy + KNOT_R}, {x: knot.cx, y: topRect.y}], arrow: false, knot: true});
   const dedupe = (pts: {x: number; y: number}[]) => pts.filter((q, j, a) => j === 0 || q.x !== a[j - 1]?.x || q.y !== a[j - 1]?.y);
   const busL = leftW + BUS_GAP / 2, busR = topX + topW + BUS_GAP / 2;
   left.forEach((row, i) => {

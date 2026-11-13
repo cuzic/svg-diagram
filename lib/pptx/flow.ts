@@ -42,12 +42,12 @@ export function flowShapeXml(b: LaidOutFlowShape, ld: LaidOutDiagram, tones: Ton
       const rect = {x: p.cx - p.r, y: p.cy - p.r, w: 2 * p.r, h: 2 * p.r}, c = colorOf(p.tone, day);
       const paint: Paint = p.fill ? boxPaint(p.fill, 2) : {fill: c, fillOpacity: p.opacity ?? .16, stroke: c, widthPx: 2, ...dashOfSvg(p.dash)};
       drawn.push({d: geomHolder(id, name('circle'), rect, roundGeomXml('ellipse', rect.w, rect.h), paint, q => Math.hypot(q.x - p.cx, q.y - p.cy) <= p.r), geo: box(rect), ...part});
-    } else if (p.k === 'rect') drawn.push({d: presetXml(id, `frame-${id}`, 'roundRect', p, {stroke: colorOf(p.tone, day), widthPx: 2}, Math.min(p.w, p.h) > 0 ? 8 / Math.min(p.w, p.h) * 100000 : 0), geo: box(p), ...part});
+    } else if (p.k === 'rect') drawn.push({d: presetXml(id, 'frame', 'roundRect', p, {stroke: colorOf(p.tone, day), widthPx: 2}, Math.min(p.w, p.h) > 0 ? 8 / Math.min(p.w, p.h) * 100000 : 0), geo: box(p), ...part});
     else {
       const {steps} = svgPathSteps(p.d);
       const pts = steps.flatMap(s => s.pts);
       if (p.fill) drawn.push({d: outlineHolder(id, name('shape'), steps, steps.flatMap(s => s.pts.slice(-1)), boxPaint(p.fill, 2)), geo: box(bboxOf(pts)), ...part});
-      else drawn.push({d: freeformPathXml(id, `line-${id}`, steps, colorOf(p.tone, day), p.thin ? 1.5 : 2, {arrow: p.arrow}), geo: {kind: 'poly', pts, w: p.thin ? 1.5 : 2}, ...part});
+      else drawn.push({d: freeformPathXml(id, 'line', steps, colorOf(p.tone, day), p.thin ? 1.5 : 2, {arrow: p.arrow}), geo: {kind: 'poly', pts, w: p.thin ? 1.5 : 2}, ...part});
     }
   }
   const texts = b.texts.map((t): Placed => ({t: {text: t.text, x: t.tx, y: t.ty, anchor: t.anchor, size: t.size, bold: t.weight === 700, color: t.tone === 'bg' ? PALETTE.bg : colorOf(t.tone, day)}, w: t.w, ...(t.part ? {part: t.part} : {})}));
