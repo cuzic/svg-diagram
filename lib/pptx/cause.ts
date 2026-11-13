@@ -9,7 +9,7 @@ import type {LaidOutCause} from '../types/diagrams.ts';
 import {fitConnector, siteIndex, type Pt} from './geom.ts';
 import {boxXml, groupXml, type TextBox} from './shapes.ts';
 import {connectorShapeXml, freeformPathXml, type Glue} from './connectors.ts';
-import {boxTextXml, geomShapeXml, lineXml, namedAs, presetXml, prstGeomXml, roundGeomXml} from './prims.ts';
+import {boxTextFits, boxTextXml, geomShapeXml, lineXml, linesText, namedAs, presetXml, prstGeomXml, roundGeomXml, textLineXml} from './prims.ts';
 import {nodeRunsOf} from './tree.ts';
 import type {Fonts, Rect} from './xml.ts';
 
@@ -50,7 +50,7 @@ export function causeXml(b: LaidOutCause, ld: LaidOutDiagram, tones: ToneEnv, fo
   const nodes = b.nodes.map((n, i) => ({n, id: next(), rect: {x: n.x, y: n.y, w: n.w, h: n.h}, dslId: b.anchors[i]?.id, runs: nodeRunsOf(n, b.texts, tones)}));
   const byId = new Map(nodes.flatMap(x => x.dslId ? [[x.dslId, x] as const] : []));
   // ADR 0054 D7: shapes are named by their text, with the DSL id after it
-  const textOf = (dslId: string): string => byId.get(dslId)?.runs.flatMap(r => r.lines).join('') ?? dslId;
+  const textOf = (dslId: string): string => { const x = byId.get(dslId); return x ? linesText(x.runs.flatMap(r => r.lines)) : dslId; };
   const named = namedAs;
   const ink = focusColor(b.focused, day, PALETTE.text);
   const out: string[] = [];
@@ -92,14 +92,17 @@ export function causeXml(b: LaidOutCause, ld: LaidOutDiagram, tones: ToneEnv, fo
   }
   for (const {n, id, rect, dslId, runs} of nodes) {
     const box: TextBox = {...rect, tone: n.tone, ...(n.dashed ? {dashed: true} : {}), padX: PAD_X, padY: PAD_Y, align: 'center', wrappedRuns: runs};
-    const text = runs.flatMap(r => r.lines).join('');
+    const text = linesText(runs.flatMap(r => r.lines));
     const parts = [boxXml(id, named('box', text, dslId), box, day, tones, fonts, n.hex ? roundGeomXml('hex', n.w, n.h) : undefined, n.core ? CORE_STROKE : n.hex ? 2 : 2.5)];
     let extent: Rect = rect;
     if (n.double && !n.hex) parts.push(innerFrame(n, tones, day, next));
     if (n.core) {
       // the badge holds its word (one shape, as a state's label chip)
       const r = coreBadgeRect(n, b.edges.find(e => e.from === dslId)?.points[0]), word = b.coreBadge ?? '中核';
-      parts.push(geomShapeXml(next(), named('badge', word), r, prstGeomXml('roundRect', 8 / Math.min(r.w, r.h) * 100000), {fill: colorOf('accent', day)}, boxTextXml(r, [{text: word, x: r.x + r.w / 2, y: r.y + 16, anchor: 'middle', size: 14, bold: true, color: PALETTE.bg}], fonts)));
+      const line = {text: word, x: r.x + r.w / 2, y: r.y + 16, anchor: 'middle' as const, size: 14, bold: true, color: PALETTE.bg}, geom = prstGeomXml('roundRect', 8 / Math.min(r.w, r.h) * 100000);
+      // a word the measure says does not fit the badge stays a text box over it, as before, so it is never lost
+      if (boxTextFits(r, [line])) parts.push(geomShapeXml(next(), named('badge', word), r, geom, {fill: colorOf('accent', day)}, boxTextXml(r, [line], fonts, {noWrap: true})));
+      else parts.push(geomShapeXml(next(), 'badge', r, geom, {fill: colorOf('accent', day)}), textLineXml(next(), named('text', word), line, fonts));
       extent = around([{x: rect.x, y: rect.y}, {x: rect.x + rect.w, y: rect.y + rect.h}, {x: r.x, y: r.y}, {x: r.x + r.w, y: r.y + r.h}]);
     }
     // a double frame or a core driver: the box and what it carries are one part

@@ -8,14 +8,14 @@
 import {escapeAttr} from './emit-common.ts';
 import type {LaidOutDiagram} from './types/index.ts';
 
-export interface PartStep {kind: string; key: string; label: string}
+export interface PartStep {kind: string; key: string; label: string; /** The key is an index (the part has no DSL id). */ index: boolean}
 
-const enc = (s: string): string => s.replace(/%/g, '%25').replace(/\//g, '%2F').replace(/\|/g, '%7C');
-const dec = (s: string): string => s.replace(/%2F/g, '/').replace(/%7C/g, '|').replace(/%25/g, '%');
+const enc = (s: string): string => s.replace(/%/g, '%25').replace(/\//g, '%2F').replace(/\|/g, '%7C').replace(/#/g, '%23');
+const dec = (s: string): string => s.replace(/%2F/g, '/').replace(/%7C/g, '|').replace(/%23/g, '#').replace(/%25/g, '%');
 
-/** One step of a part's path. `key` is a DSL id, or an index (written `#3`) when the part has no id. */
-export const partStep = (kind: string, key: string | number, label: string): string =>
-  `${enc(kind)}:${typeof key === 'number' ? `#${key}` : enc(key)}|${enc(label)}`;
+/** One step of a part's path. `key` is a DSL id, or an index (written `#3`) when the part has no id; a `#` in an id is escaped, so only an index starts with one. */
+export const partStep = (kind: string, key: string | number | {index: string}, label: string): string =>
+  `${enc(kind)}:${typeof key === 'number' ? `#${key}` : typeof key === 'object' ? `#${enc(key.index)}` : enc(key)}|${enc(label)}`;
 
 /** A chart's legend (its entries are parts inside it: partStep('entry', …)). */
 export const LEGEND = partStep('legend', 0, '');
@@ -38,8 +38,8 @@ export const partsOn = (band: object): boolean => (band as {parts?: boolean}).pa
 /** A `data-part` value as its steps. */
 export function parsePart(value: string): PartStep[] {
   return value.split('/').map(s => {
-    const colon = s.indexOf(':'), bar = s.indexOf('|', colon + 1);
-    return {kind: dec(s.slice(0, colon)), key: dec(s.slice(colon + 1, bar < 0 ? undefined : bar)), label: bar < 0 ? '' : dec(s.slice(bar + 1))};
+    const colon = s.indexOf(':'), bar = s.indexOf('|', colon + 1), raw = s.slice(colon + 1, bar < 0 ? undefined : bar);
+    return {kind: dec(s.slice(0, colon)), key: dec(raw), label: bar < 0 ? '' : dec(s.slice(bar + 1)), index: raw.startsWith('#')};
   });
 }
 

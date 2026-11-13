@@ -1,6 +1,7 @@
 // A tree band (tree, mind map, org chart, KPI tree, roadmap, fishbone) as native shapes: each node a rounded rectangle holding its own
 // text, each line a connector glued to the parent and the child (a curved line is a curvedConnector3, an elbow a bentConnector), and a
 // brace a freeform. Moving a node in PowerPoint drags its lines along. A dimmed tree (spotlight) stays a picture.
+import {linesText} from './prims.ts';
 import {namedAs} from './prims.ts';
 import {PALETTE, colorOf, isSolidTone, toneStyle} from '../tokens.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
@@ -87,7 +88,7 @@ export function treeXml(b: LaidOutTree, ld: LaidOutDiagram, tones: ToneEnv, font
   }
   for (const {n, id, rect} of nodes) {
     const runs = nodeRunsOf(n, b.texts, tones), box: TextBox = {...rect, tone: n.tone, padX: PAD_X, padY: PAD_Y, align: 'center', wrappedRuns: runs};
-    out.push(boxXml(id, namedAs('box', runs.flatMap(r => r.lines).join(''), n.id), box, ld.day, tones, fonts));
+    out.push(boxXml(id, namedAs('box', linesText(runs.flatMap(r => r.lines)), n.id), box, ld.day, tones, fonts));
   }
   return {xml: groupXml(next(), namedAs('tree', '', b.id), b, out.join('')), glue};
 }

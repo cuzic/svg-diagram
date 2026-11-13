@@ -194,6 +194,7 @@ function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number
     const inkW = Math.max(0, ...t.wrappedRuns.flatMap(r => r.lines.map((_, i) => lineWidth(widthOf, r, i))));
     const inkX = t.align === 'center' ? t.x + (t.w - inkW) / 2 : t.align === 'right' ? t.x + t.w - inkW : t.x;
     t.inkBox = {x: inkX, y: t.y, w: inkW, h: t.h};
+    frame.title = t.text;
     ctx.laidOut.push(t);
     ctx.y += t.h + d.gap / 2;
   }

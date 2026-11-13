@@ -240,7 +240,7 @@ function layoutNumeric(band: NumericTimelineBand, x: number, y: number, w: numbe
     if (flags.length) must(out.guides).push({x1: plotL, x2: plotR, y: dotY});
     for (const f of flags) {
       const boxBottom = dotY - STEM_MIN - f.level * (FLAG_H + FLAG_GAP), boxTop = boxBottom - FLAG_H, cx = f.left + f.fw / 2, tone = f.e.tone ?? 'muted';
-      const part = partStep('event', `#${li}.${flags.indexOf(f)}`, f.e.label);
+      const part = partStep('event', {index: `${li}.${flags.indexOf(f)}`}, f.e.label);
       out.stems.push({x: f.fx, y1: boxBottom, y2: dotY, tone: TONE_COLOR[tone], part});
       out.dots.push({x: f.fx, y: dotY, r: DOT, tone: TONE_COLOR[tone], part});
       text(f.e.label, cx, boxTop + S + 1, 'middle', tone === 'muted' ? 'text' : tone, true, part);

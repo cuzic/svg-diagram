@@ -7,6 +7,7 @@
 // Everything else is a shape of its own: a path that closes or is filled a freeform, an open one a line, a text a text box at its baseline.
 // Anything outside the small set of elements and attributes read here (a transform, a <use>, a <tspan> other than an emoji's, a gradient, ...) returns null, and
 // the band is placed as a picture instead: a piece is never dropped or drawn wrong.
+import {estimatedWidth} from './fill.ts';
 import {parseXml, type El} from '../svg-dom.ts';
 import {fitConnector, inOutline, siteIndex, type Pt} from './geom.ts';
 import {connectorShapeXml, freeformPathXml, type EndType, type Glue, type PathStep} from './connectors.ts';
@@ -228,7 +229,7 @@ export function svgShapesXml(svg: string, fonts: Fonts, next: () => number): str
   // the shapes in drawing order, each with its part and where it draws; the shapes of one part become a group (ADR 0054)
   const pieces: Piece[] = [];
   const piece = (it: Item, xml: string, geo: Geo) => pieces.push({order: pieces.length, xml, part: it.part ?? [], geo});
-  const textGeo = (t: TextLine): Geo => { const w = [...t.text].length * t.size * 0.55, x = t.anchor === 'middle' ? t.x - w / 2 : t.anchor === 'end' ? t.x - w : t.x; return {kind: 'rect', r: {x, y: t.y - t.size * 0.8, w, h: t.size}}; };
+  const textGeo = (t: TextLine): Geo => { const w = estimatedWidth(t), x = t.anchor === 'middle' ? t.x - w / 2 : t.anchor === 'end' ? t.x - w : t.x; return {kind: 'rect', r: {x, y: t.y - t.size * 0.8, w, h: t.size}}; };
   for (const it of items) {
     if (it.kind === 'box') {
       const name = it.texts.length ? nameOf('box', it.id, it.texts.toSorted((a, b) => a.y - b.y).map(t => t.text).join('')) : 'shape';

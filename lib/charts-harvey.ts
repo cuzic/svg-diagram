@@ -82,7 +82,7 @@ export function layoutHarvey(s: HarveySpec, g: ChartGeom): LaidOutChartPart {
   return layoutRatingTable({rows: s.rows, rowIds: s.rowIds, cols: s.cols, cells, corner: s.corner, highlight: s.highlight, ruled: s.notes.flat().some(Boolean)}, {
     who: 'harvey', ratingW: 2 * R + 12, ratingH: 2 * R + 16,
     // ADR 0054: a ball (its circle and wedge) is one part, named by its level
-    draw: (c, cx, cy, q, of) => c.withPart(partStep('ball', `#${Math.round(cx)},${Math.round(cy)}`, s.levels[q] ?? ''), () => ball(c, cx, cy, R, q, of)),
+    draw: (c, cx, cy, q, of) => c.withPart(partStep('ball', {index: `${Math.round(cx)},${Math.round(cy)}`}, s.levels[q] ?? ''), () => ball(c, cx, cy, R, q, of)),
     // legend: the five balls with their names, in a row (it fails when the width is short)
     foot: {h: 2 * R + 18, draw: (c, tableBottom) => {
       const lr = Math.round(R * 0.62), item = (t: string) => 2 * lr + 6 + c.tw(t), gap = 20, ly = tableBottom + 8 + lr + 4;

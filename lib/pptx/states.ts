@@ -8,7 +8,7 @@ import type {LaidOutStates} from '../types/diagrams.ts';
 import {fitConnector, siteIndex, type Pt} from './geom.ts';
 import {boxXml, groupXml, type TextBox} from './shapes.ts';
 import {connectorShapeXml, freeformPathXml, type Glue} from './connectors.ts';
-import {boxTextXml, geomShapeXml, namedAs, presetXml, prstGeomXml, roundGeomXml} from './prims.ts';
+import {boxTextFits, boxTextXml, geomShapeXml, linesText, namedAs, presetXml, prstGeomXml, roundGeomXml, textLineXml} from './prims.ts';
 import {nodeRunsOf} from './tree.ts';
 import type {Fonts, Rect} from './xml.ts';
 
@@ -30,7 +30,7 @@ export interface StatesShapes {xml: string; glue: {dslId: string; id: number; re
 export function statesXml(b: LaidOutStates, ld: LaidOutDiagram, tones: ToneEnv, fonts: Fonts, next: () => number): StatesShapes {
   const day = ld.day;
   const nodes = b.nodes.map((n, i) => ({n, id: next(), rect: {x: n.x, y: n.y, w: n.w, h: n.h}, dslId: b.anchors[i]?.id}));
-  const textOf = (dslId: string): string => { const x = nodes.find(m => m.dslId === dslId); return x ? nodeRunsOf(x.n, b.texts, tones).flatMap(r => r.lines).join('') : dslId; };
+  const textOf = (dslId: string): string => { const x = nodes.find(m => m.dslId === dslId); return x ? linesText(nodeRunsOf(x.n, b.texts, tones).flatMap(r => r.lines)) : dslId; };
   const out: string[] = [];
   // the start dot, glueable like a node (a custGeom ellipse with the four sites)
   const dot = b.initial && {id: next(), rect: {x: b.initial.x - b.initial.r, y: b.initial.y - b.initial.r, w: 2 * b.initial.r, h: 2 * b.initial.r}};
@@ -51,7 +51,7 @@ export function statesXml(b: LaidOutStates, ld: LaidOutDiagram, tones: ToneEnv, 
   }
   if (dot) out.push(geomShapeXml(dot.id, 'start', dot.rect, roundGeomXml('ellipse', dot.rect.w, dot.rect.h), {fill: PALETTE.text}));
   for (const {n, id, rect, dslId} of nodes) {
-    const runs = nodeRunsOf(n, b.texts, tones), text = runs.flatMap(r => r.lines).join('');
+    const runs = nodeRunsOf(n, b.texts, tones), text = linesText(runs.flatMap(r => r.lines));
     const box: TextBox = {...rect, tone: n.tone, padX: PAD_X, padY: PAD_Y, align: 'center', wrappedRuns: runs};
     const shape = boxXml(id, namedAs('box', text, dslId), box, day, tones, fonts, geomOf(n));
     if (!n.final) out.push(shape);
@@ -66,7 +66,12 @@ export function statesXml(b: LaidOutStates, ld: LaidOutDiagram, tones: ToneEnv, 
     }
   }
   // a label: its white chip holds its text, one shape (ADR 0054)
-  for (const l of b.labels) out.push(geomShapeXml(next(), namedAs('label', l.text), l, prstGeomXml('rect'), {fill: PALETTE.bg}, boxTextXml(l, [{text: l.text, x: l.tx, y: l.ty, anchor: 'middle', size: l.size, bold: false, color: PALETTE.text}], fonts)));
+  // (a word the measure says does not fit the chip stays a text box over it, as before, so it is never lost)
+  for (const l of b.labels) {
+    const line = {text: l.text, x: l.tx, y: l.ty, anchor: 'middle' as const, size: l.size, bold: false, color: PALETTE.text};
+    if (boxTextFits(l, [line])) out.push(geomShapeXml(next(), namedAs('label', l.text), l, prstGeomXml('rect'), {fill: PALETTE.bg}, boxTextXml(l, [line], fonts, {noWrap: true})));
+    else out.push(presetXml(next(), 'chip', 'rect', l, {fill: PALETTE.bg}), textLineXml(next(), namedAs('label', l.text), line, fonts));
+  }
   const glue = nodes.flatMap(({dslId, id, rect}) => dslId ? [{dslId, id, rect}] : []);
   return {xml: groupXml(next(), namedAs(b.flavor === 'flowchart' ? 'flowchart' : 'states', '', b.id), b, out.join('')), glue};
 }

@@ -5,7 +5,7 @@ import type {LaidOutDiagram, LaidOutBand} from '../types/index.ts';
 import {fitConnector, siteIndex} from './geom.ts';
 import type {Rect, Fonts} from './xml.ts';
 import {PALETTE, recolor, type ToneEnv} from '../tokens.ts';
-import {boxTextXml, geomShapeXml, lineXml, namedAs, presetXml, roundGeomXml} from './prims.ts';
+import {boxTextXml, geomShapeXml, lineXml, linesText, namedAs, presetXml, roundGeomXml} from './prims.ts';
 import {ringed, stepBadgeAt} from '../emit-boxes.ts';
 import {badgeTextKey} from '../badge.ts';
 import {boxXml, plainBox, groupFrameXml, groupXml, anchorXml, picXml, type TextBox} from './shapes.ts';
@@ -41,7 +41,7 @@ type BandXml<B> = (band: B, ctx: Ctx, index: number) => string;
 type BoxLike = TextBox & Pick<LaidOutOf<'box'>, 'id' | 'tag' | 'tagBox' | 'stamp' | 'stampW' | 'step' | 'icon'>;
 
 /** A box's text, its lines joined: what it is named by (ADR 0054 D7). */
-const textOf = (b: TextBox): string => (b.wrappedRuns ?? []).flatMap(r => r.lines).join('');
+const textOf = (b: TextBox): string => linesText((b.wrappedRuns ?? []).flatMap(r => r.lines));
 
 /** A band's group: its type, numbered from the second of that type on the slide (`chart`, `chart 2`), and its DSL id (ADR 0054 D7). */
 function bandName(ctx: Ctx, type: string, dslId?: string): string {

@@ -41,7 +41,10 @@ async function slideOf(...parts: unknown[]): Promise<string> {
 
 test('partStep, partAttr, parsePart: a part path survives / | % and quotes in its labels; nothing is written unless asked', () => {
   const step = partStep('class', 'u/1', 'A|B "%"'), inner = partStep('entry', 2, '凡例');
-  assert.deepEqual(parsePart(`${step}/${inner}`), [{kind: 'class', key: 'u/1', label: 'A|B "%"'}, {kind: 'entry', key: '#2', label: '凡例'}]);
+  assert.deepEqual(parsePart(`${step}/${inner}`), [{kind: 'class', key: 'u/1', label: 'A|B "%"', index: false}, {kind: 'entry', key: '#2', label: '凡例', index: true}]);
+  // a DSL id that starts with # is an id, not an index
+  assert.equal(partName(partStep('class', '#c', 'C')), 'class: C [#c]');
+  assert.equal(partName(partStep('ball', {index: '3,4'}, '十分')), 'ball: 十分');
   assert.equal(partAttr(false, step), '');
   assert.equal(partAttr(true), '');
   assert.match(partAttr(true, step), /^ data-part="class:u%2F1\|A%7CB &quot;%25&quot;"$/);
@@ -165,4 +168,24 @@ test('namedAs and drawParts: a name is kind, text and DSL id; drawParts groups a
   const xml = drawParts([{d: dot, geo: {kind: 'rect', r: {x: 0, y: 20, w: 8, h: 8}}, part: ev}],
     [{t: {text: '開始', x: 0, y: 14, anchor: 'start', size: 12, bold: false, color: '#000000'}, part: ev}], {sans: 'S', mono: 'M'}, () => ++n);
   assert.match(xml, /^<p:grpSp><p:nvGrpSpPr><p:cNvPr id="\d+" name="event: 開始"\/>[\s\S]*name="dot"[\s\S]*<a:t>開始<\/a:t>[\s\S]*<\/p:grpSp>$/);
+});
+
+test('assembleParts: when a shape left out of a part would be passed by a moving shape of its own part that it crosses, the part is not grouped', () => {
+  let id = 100;
+  const A = partStep('class', 'a', 'A');
+  const r = (order: number, x: number, y: number, w: number, h: number, part: string[]): Piece => ({order, xml: `<p:sp><p:nvSpPr><p:cNvPr id="${order}" name="s${order}"/></p:nvSpPr></p:sp>`, part, geo: {kind: 'rect', r: {x, y, w, h}}});
+  // the text (2) sticks out of the box (0) under Y (3); C (4) is on Y: every place clashes once, and moving the box past the text would cover it
+  const left: Piece[] = [];
+  const xml = assembleParts([r(0, 0, 0, 100, 100, [A]), r(1, 500, 0, 10, 10, []), r(2, 90, 10, 30, 10, [A]), r(3, 110, 0, 20, 30, []), r(4, 112, 5, 5, 5, [A])], () => id++, 0, left);
+  assert.doesNotMatch(xml, /<p:grpSp>/);
+  assert.deepEqual([...xml.matchAll(/id="(\d+)"/g)].map(m => Number(m[1])), [0, 1, 2, 3, 4]);
+  assert.equal(left.length, 3);
+});
+
+test('linesText joins wrapped lines, with a space only between two Latin words or numbers', async () => {
+  const {linesText} = await import('../lib/pptx/prims.ts');
+  assert.equal(linesText(['Customer', 'account']), 'Customer account');
+  assert.equal(linesText(['原因の特定に時間がかか', 'った']), '原因の特定に時間がかかった');
+  assert.equal(linesText(['DNS', 'example.com']), 'DNS example.com');
+  assert.equal(linesText(['注文', 'ID']), '注文ID');
 });

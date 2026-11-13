@@ -52,9 +52,10 @@ function bandsXml(ld: LaidOutDiagram, ctx: Ctx, from: number, to: number): strin
   for (let i = from; i < to;) {
     const band = must(ld.laidOut[i]), span = band.type === 'group' ? Math.min(band.span ?? 0, to - i - 1) : 0;
     const held = ld.laidOut.slice(i + 1, i + 1 + span);
-    if (band.type === 'group' && span > 0 && held.every(b => !('y' in b) || !('h' in b) || (b.y >= band.y - 1 && b.y + b.h <= band.y + band.h + 1))) {
+    // (8px of slack: a title or child may sit a few px past the frame's grid-snapped top or its padding)
+    if (band.type === 'group' && span > 0 && held.every(b => !('y' in b) || !('h' in b) || (b.y >= band.y - 8 && b.y + b.h <= band.y + band.h + 8))) {
       const inner = [bandXml(band, ctx, i), ...bandsXml(ld, ctx, i + 1, i + 1 + span)].join('');
-      const title = held[0]?.type === 'caption' ? held[0].text : '';
+      const title = band.title ?? '';
       out.push(groupXml(ctx.next(), partName(partStep('group', band.id ?? i, title)), band, inner));
       i += 1 + span;
     } else { out.push(bandXml(band, ctx, i)); i++; }

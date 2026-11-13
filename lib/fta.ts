@@ -272,7 +272,7 @@ export function layoutFta(band: FtaBand, x: number, y: number, w: number, widthO
     ...(fitted.applied.length ? {fitApplied: fitted.applied} : {}),
   } as LaidOutFta;
   // ADR 0054: an event (its box, text, stem and the symbol under it: a gate, or a mark with its badge) is one part
-  const partOf = (n: FtaNode, key: string): string => partStep('event', n.id ?? `#${key}`, n.label);
+  const partOf = (n: FtaNode, key: string): string => partStep('event', n.id ?? {index: key}, n.label);
   const place = (n: FtaNode, px: number, py: number, pw: number, cl: NodeLines, rw: number, rh: number, part: string): {x: number; y: number; w: number; h: number} => {
     const r = {x: px + (pw - rw) / 2, y: py, w: rw, h: rh};
     out.nodes.push({...r, kind: n.kind, ...(n.id === undefined ? {} : {id: n.id}), part});

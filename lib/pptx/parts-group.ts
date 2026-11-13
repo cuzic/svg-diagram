@@ -4,8 +4,12 @@
 // The shapes of a part need not be drawn one after another (most figures draw all lines, then all boxes, then all texts). A group is written
 // in one place, so gathering its shapes changes what is drawn over what. The place is chosen so that this never shows: at the part's last
 // shape, else its first, else one between, wherever no moved shape crosses a shape outside the part that is drawn between its own place and
-// the group's. When there is no such place, the shapes that cross are left out of the group, drawn where they were. Parts of one kind
-// (two series, two classes) may change places with each other: that is how a chart draws its series, one after another.
+// the group's. When there is no such place, the shapes that cross are left out of the group, drawn where they were (and when a shape of
+// the part would then move past one left out that it crosses, the part is not grouped at all).
+//
+// One exception is visible: parts of one kind (two series, two classes) may change places with each other. Where two series cross, or a
+// line passes another series' marker, which is on top can differ from the svg; that is how PowerPoint's own charts draw their series, one
+// after another, line and markers together (ADR 0054 D3).
 import type {Pt} from './geom.ts';
 import {groupXml} from './shapes.ts';
 import {parsePart} from '../parts.ts';
@@ -66,7 +70,7 @@ export function partName(step: string): string {
   const s = parsePart(step)[0];
   if (!s) return step;
   const label = [...s.label].slice(0, 40).join('');
-  return `${s.kind}${label ? `: ${label}` : ''}${s.key && !s.key.startsWith('#') ? ` [${s.key}]` : ''}`;
+  return `${s.kind}${label ? `: ${label}` : ''}${s.key && !s.index ? ` [${s.key}]` : ''}`;
 }
 
 /** The shape's xml with another name (a part of one shape is that shape, named as the part). */
@@ -93,8 +97,12 @@ export function assembleParts(pieces: readonly Piece[], next: () => number, dept
       q.order > Math.min(p.order, anchor) && q.order < Math.max(p.order, anchor) && crosses(p.geo, q.geo)));
     const orders = members.map(p => p.order), candidates = [orders[orders.length - 1] as number, orders[0] as number, ...orders.slice(1, -1)];
     const best = candidates.map(a => ({a, c: clash(a)})).reduce((u, v) => v.c.length < u.c.length ? v : u);
+    // a shape left out stays where it was: a shape of its own part that moves past it must not cross it either, or there is no group
+    const kept = members.filter(p => !best.c.includes(p));
+    const passes = (l: Piece, m: Piece): boolean => m.order !== best.a && (m.order < l.order) !== (best.a < l.order) && crosses(l.geo, m.geo);
+    const lost = best.c.length && best.c.some(l => kept.some(m => passes(l, m))) ? members : best.c;
     at.set(k, best.a);
-    for (const p of best.c) { out.add(p); left.push(p); }
+    for (const p of lost) { out.add(p); left.push(p); }
   }
   const xml: string[] = [];
   for (const p of pieces) {
