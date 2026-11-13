@@ -152,3 +152,17 @@ test('the parts of ADR 0054 D6: each figure has groups of the kinds the table li
     for (const p of prefixes) assert.ok(names.some(n => n.startsWith(p)), `${type}: no group "${p}…" in ${names.join(', ')}`);
   }
 });
+
+test('namedAs and drawParts: a name is kind, text and DSL id; drawParts groups a native shape with its texts by part', async () => {
+  const {namedAs} = await import('../lib/pptx/prims.ts');
+  const {drawParts} = await import('../lib/pptx/fill.ts');
+  assert.equal(namedAs('box', '注文', 'o1'), 'box: 注文 [o1]');
+  assert.equal(namedAs('arrow', '', 'a → b'), 'arrow [a → b]');
+  assert.equal(namedAs('legend', ''), 'legend');
+  let n = 0;
+  const ev = partStep('event', 0, '開始');
+  const dot = '<p:sp><p:nvSpPr><p:cNvPr id="1" name="dot"/></p:nvSpPr></p:sp>';
+  const xml = drawParts([{d: dot, geo: {kind: 'rect', r: {x: 0, y: 20, w: 8, h: 8}}, part: ev}],
+    [{t: {text: '開始', x: 0, y: 14, anchor: 'start', size: 12, bold: false, color: '#000000'}, part: ev}], {sans: 'S', mono: 'M'}, () => ++n);
+  assert.match(xml, /^<p:grpSp><p:nvGrpSpPr><p:cNvPr id="\d+" name="event: 開始"\/>[\s\S]*name="dot"[\s\S]*<a:t>開始<\/a:t>[\s\S]*<\/p:grpSp>$/);
+});

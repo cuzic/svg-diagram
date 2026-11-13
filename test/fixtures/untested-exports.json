@@ -262,7 +262,6 @@
   "pptx/connectors:freeformXml",
   "pptx/connectors:rowArrowXml",
   "pptx/geom:siteIndex",
-  "pptx/image-band:bandPicture",
   "pptx/package:imageRids",
   "pptx/shapes:anchorXml",
   "pptx/shapes:boxXml",
