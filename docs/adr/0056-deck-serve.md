@@ -1,6 +1,6 @@
 # ADR 0056: デッキをサーバーで表示し、全端末を発表者のスライドに合わせる(`svg-diagram serve` と、自分でデプロイする Worker)
 
-- 状態: 提案(実装は未着手。Opus のレビューを 2 回反映)
+- 状態: 実装中(Opus のレビューを 2 回反映。手元の `serve`・Worker・`--publish` を実装し、手元で確かめた。下の「実装で決めたこと」)
 - 日付: 2026-11-14
 - 基点: `main`(837df96、PR #364 まで)
 - 関連: ADR 0018(deck viewer)、ADR 0055(デッキの JSON と PowerPoint 書き出し)、ADR 0007(結果が入力だけで決まること)、ADR 0012(id の衝突)、ADR 0013(失敗したビルドの古い出力)
@@ -83,7 +83,7 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
   - 図だけの並び(`deck a.ts b.ts`)は対象にしない。
 - D2. **スライドは 1 枚の SVG**(手元と Worker で同じもの)。1280 × 720 の SVG に、見出し・リード・図・強調の枠・出典を描き、**文字はすべて輪郭(path)にする**。
   - 配置は `planDeckSlide` と同じ計算: 見出しなどは実測した幅で折り返し、残った領域に図を収まる倍率(上限 1.25)で置く。寸法・色・行の高さ・折り返しの計算は `lib/pptx/deck.ts` から `lib/deck-layout.ts` に移し、PowerPoint と SVG の両方が使う(`planDeckLayout` が行と矩形の位置を返し、XML と SVG はその後で作る)。小さい文字の警告(9pt 未満)と、領域が残らない誤りも同じ条件で出る。
-  - 輪郭にするフォントは、**測ったときと同じ選び方**をする。今 Node で輪郭にできるのはテスト用の `test/helpers/text-engine.ts` だけ(sans の 400/700 だけ、family を見ない、`wght` を当てない)なので、`lib/` に輪郭用のフォントを新しく作る: `measureText` と同じく、family(sans / serif / mono)と太さごとにフォントのファイルを `resolveFontFile` で決め(`.svg-diagram.json` の `fonts`、なければ fontconfig)、可変フォントには同じ `wght` を当て、グリフがなければ測るときと同じ順(絵文字のフォント、次に sans)で借りる。`measureWithFonts` と同じ幅になることをテストで確かめる。
+  - 輪郭にするフォントは、**測ったときと同じ選び方**をする。今 Node で輪郭にできるのはテスト用の `test/helpers/text-engine.ts` だけ(sans の 400/700 だけ、family を見ない、`wght` を当てない)なので、`lib/` に輪郭用のフォントを新しく作る: `measureText` と同じく、family(sans / mono。測る側に serif はない)と太さごとにフォントのファイルを `resolveFontFile` で決め(`.svg-diagram.json` の `fonts`、なければ fontconfig)、可変フォントには同じ `wght` を当て、グリフがなければ測るときと同じ順(絵文字のフォント、次に sans)で借りる。`measureWithFonts` と同じ幅になることをテストで確かめる。
   - `serve` は起動時に、使う family と太さのフォントのファイルがすべて見つかり、harfbuzzjs が読めることを確かめ、足りなければ何が足りないかを出して止まる(測るほうは黙って Chromium に切り替わりうるが、輪郭はファイルがないと描けない)。`measure: 'chromium'` のプロジェクトでも、ファイルが見つかれば描き、測ったフォントと違いうることを 1 度警告する。
   - どのフォントにもないグリフだけを、そのスライドの誤り(場所付き)にする。絵文字は、手元のカラー絵文字のフォント(`lib/emoji-color.ts`)があれば輪郭(画像)にし、なければ `liveEmoji` で文字のまま残して警告する(測った幅と、端末で描かれる幅が違いうるため)。
   - 輪郭にできない文字の飾り(`outlineText` の `unsupported`。WordArt の縁取りの `paint-order` など)は、黙って落とさずスライドの誤り(場所付き)にする(`lib/spec-edge.ts` と同じ扱い)。
@@ -174,7 +174,7 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
   - 聴き手の接続数を IP ごとには数えない(会場の Wi-Fi では全員が同じ IP になる)。1 つの発表の同時接続数の上限(D16)で守り、超えたら「満員」を返す。
   - ハイバネーションの WebSocket は通常のデプロイでは切れず、即時や期限付きの強制の更新では切れる(Cloudflare の文書)。切れても端末は D6 のつなぎ直しで戻るが、発表中は強制の更新をしないよう README に書く。
 - D15. **期限と消し方**: 発表は、最後に使った日時(差し替えか、発表者の接続)から設定 `RETENTION_DAYS` 日で、Durable Object の alarm が `deleteAll()` で消す。`svg-diagram serve deck.json --publish --delete` でいつでも消せる(送り先ごとの記録も消す)。消した発表の URL は 404。Durable Object の中身は、Cloudflare の point-in-time recovery の期間(30 日)は戻せる形で残ることを README に書く。
-- D16. **設定値**(`wrangler.jsonc` の `vars`。既定値はここに書いたもの): `MAX_CONNECTIONS`(500)、`RETENTION_DAYS`(30)、`MAX_SLIDES`(30。core の `MAX_SLIDES` より大きい値は設定の誤り)、`MAX_SLIDE_BYTES`(4 MiB。写真の帯は base64 で 1 MiB を超えやすい)、`MAX_DECK_BYTES`(16 MiB、今の版の合計)、`PRESENTER_LOGIN`(`none`)、`PRESENTER_EMAILS`、`ACCESS_TEAM_DOMAIN`(`<チーム>.cloudflareaccess.com` の形か確かめる)、`ACCESS_AUD`、`GOOGLE_HD`、`LOCATION_HINT`(Durable Object の置き場所の希望。未設定なら Cloudflare に任せる)。secret は `PUBLISH_TOKEN`、`SESSION_SECRET`(Cookie の署名と暗号化)、`google` のときの `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`。
+- D16. **設定値**(`wrangler.jsonc` の `vars`。既定値はここに書いたもの): `MAX_CONNECTIONS`(500)、`RETENTION_DAYS`(30)、`MAX_SLIDES`(300。core の `MAX_SLIDES` より大きい値は設定の誤り。2026-11-15 に 30 から上げた、ADR 0055。多くのデッキは先に `MAX_DECK_BYTES` に当たる)、`MAX_SLIDE_BYTES`(4 MiB。写真の帯は base64 で 1 MiB を超えやすい)、`MAX_DECK_BYTES`(16 MiB、今の版の合計)、`PRESENTER_LOGIN`(`none`)、`PRESENTER_EMAILS`、`ACCESS_TEAM_DOMAIN`(`<チーム>.cloudflareaccess.com` の形か確かめる)、`ACCESS_AUD`、`GOOGLE_HD`、`LOCATION_HINT`(Durable Object の置き場所の希望。未設定なら Cloudflare に任せる)。secret は `PUBLISH_TOKEN`、`SESSION_SECRET`(Cookie の署名と暗号化)、`google` のときの `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`。
   - 値が足りない・矛盾するとき(`google` なのに client がない、`access` なのに AUD がない)は、Worker は要求に答えない。聴き手には中身のない 503 だけを返し、何が足りないかはログ(`wrangler tail`)と、`PUBLISH_TOKEN` を持つ `--publish` への応答にだけ出す(知らない人にデプロイした人の設定を見せない)。
   - 聴き手のページには `X-Robots-Tag: noindex` を付ける。発表の中身(スライド・ノート・メールアドレス)とトークンと `id` はログに出さない。
   - 運営するのはデプロイした人で、その発表の中身と聴き手への責任もデプロイした人にある、と README に書く。
@@ -292,6 +292,32 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
 - `http://localhost` で、`Secure` 付きの Cookie と `__Host-` の名前が使えた。
 
 **確かめられなかったこと**: 本番のデプロイで WebSocket が切れないか(Cloudflare の文書では、通常のデプロイでは切れず、強制の更新で切れる)。Access のパスを限ったアプリや Google の戻り先の登録など、管理画面の設定そのもの。Firefox と Safari での Cookie の扱い。
+
+## 実装で決めたこと(2026-11-15)
+
+実装して確かめる中で、次のとおり決めた(または ADR から変えた)。
+
+- **手元の発表者のトークンは、デッキごとに覚える**(D9 を変更)。立ち上げるたびに作り直すと、立ち上げ直した後に発表者の Cookie が使えなくなり、D6 の「発表者の画面が前の番号を送る」が働かなかった(実際に 1 枚目に戻った)。`~/.config/svg-diagram/serve/<デッキの絶対パスのハッシュ>.json`(権限 0600)に置き、次に立ち上げたときも同じトークンを使う。あわせて、最初の描画では `seq` を増やさない(`seq` が 0 のままなら、まだ誰も動かしていない)。
+- **描き直しは、変わったスライドだけ**(D5)。描いたスライドを、その入力(ノートを除く)・プロジェクトの設定・フォントのファイル(大きさと時刻)を鍵に、描画のスレッドの中で覚える。`.ts` の図のスライドは鍵に import したファイルが入らないので、毎回描く。ノートだけが変わったときは、版を変えずに発表者へ知らせ、発表者の画面がノートを読み直す(以前は「変わっていない」として発表者に届かなかった)。300 枚の 1 枚を直したときの描き直しが 1.6 秒から 0.14 秒になった。
+- **9pt 未満の警告は、手元では PowerPoint と同じ計算そのもので出す**(D2)。`serve` は `pptx-deck` と同じ所で動くので、図の `planSlide` と `minTextPt` をそのまま使う。同じ値になることは、作りの上で保たれる。
+- **カラー絵文字は、まだ輪郭(画像)にしていない**(D2 の一部が未実装)。今は、輪郭にできない絵文字は文字のまま残し、警告を出す。輪郭にするフォントからは、色のフォント(CBDT・sbix・COLR)を外している(色のフォントのグリフは輪郭を持たないため)。
+- **配置の共有**: `lib/deck-layout.ts` の `planDeckLayout` が、見出し・リード・枠・出典のブロックと図の場所を返し、`lib/pptx/deck.ts` はそれを XML に、`lib/present/slide-svg.ts` は SVG にする。nov18 のデッキで、共有の前と後の .pptx がバイト単位で同じことを確かめた。
+- **輪郭のフォント**: `outlineFontFromFiles`(`lib/font-metrics.ts`)。測る側と同じファイル・同じ `wght`・同じ借り先の順。借りたグリフは、主のフォントの単位に拡大縮小し、どのフォントのグリフかを `id` に持たせる(`outlineText` はグリフを family・太さ・`id` で覚えるため)。測った幅と輪郭の送り幅が一致すること(借りたフォントを含む)をテストで確かめる。
+- **Worker の SQLite は 1 つの値が 2 MB まで**なので、SVG は 60 万文字ずつに分けて置く(1 枚 4 MiB の既定を守るため)。
+- **Worker の表は、発表を作るとき(`POST /api/p`)にだけ作る**。`deleteAll()` は表ごと消すので、消した発表の URL に来た要求で表を作り直さない(作り直すと、消した発表が空の形で残る)。
+- **Worker の Cookie は AES-GCM で暗号化する**(`SESSION_SECRET` から鍵を作り、Cookie の名前を追加データにする。中身を読めず、書き換えられず、ほかの Cookie に移せない)。
+- **`/p/<id>/t`** は発表者の画面と同じページで、ハッシュのトークンを Cookie に替えたら `/p/<id>/presenter` に移る。
+- **つないだ直後に `{type: 'hello', role}`** を送る。発表者の画面を開いたのに Cookie がなければ、「発表者として認められていません」と出す。
+- **手元の `go` の上限**: `POST` には接続がないので、発表者の `go` をまとめて 1 秒 10 回まで数える。
+- **`worker/` は独立したパッケージ**(`pnpm install --ignore-workspace`)。wrangler と workers-types を core の依存に入れない。Worker の中の core のコードは相対パスで読み、wrangler が束ねる。`lib/deck-spec.ts` は全部の部品を引き込むので Worker では読まず、`MAX_SLIDES` は Worker 側に書き、テストで core と同じことを確かめる。
+- **wrangler dev では、サーバーから閉じた WebSocket の閉じる手続きが、wrangler を止めるまで終わらない**。端末は閉じる知らせを受け取って `CLOSING` になり、そのソケットはもう使えない(取り消し・削除のテストは `CLOSING` 以降を確かめる)。本番の Cloudflare で同じかは確かめていない。どちらにしても、発表者の `go` は毎回確かめ直すので、取り消した後に動かせることはない。
+
+確かめたこと:
+- 自動テスト: `test/present-sync.test.ts`(同期の決まりと手元の守り)、`test/present-slide.test.ts`(輪郭の幅、配置、`auto` と暗い図、許可リスト)、`test/present-qr.test.ts`(`jsqr` での往復、既知の値、上限)、`test/present-svg-allow.test.ts`(181 の例すべてが通る、禁じたものを断る)、`test/serve-cli.test.ts`(手元のサーバーを実際に立ち上げて、ページ、トークン、追従、聴き手の `go` を断る、描き直し、壊れたデッキ)、`worker/test/worker.test.ts`(workerd で 15 件: 送る、許可リストと上限、ページ、追従、取り消し、満員、削除、設定の誤り、偽の Google と Access、15 秒のハイバネーション)。
+- Chromium で手元: nov18 のデッキ(16 枚、0.9 秒で描く)で、聴き手の追従、聴き手のキーが効かない、発表者の画面(次・ノート・時間・聴き手の数・一覧)、保存して描き直す、壊れたデッキで前のスライドが残る、`.ts` が import したファイルの監視、立ち上げ直して前の番号に戻る、Host と Origin の守り。
+- Chromium で Worker(`wrangler dev`): `--publish` で送り、`/p/<id>/t#token=` から発表者の画面に移り、パソコンとスマートフォン(縦、案内が出る)の聴き手が追従し、保存して送り直すと聴き手が新しい版を見る。
+
+まだのこと: カラー絵文字の輪郭、`--publish` の自動テスト(手で確かめた)、Firefox と Safari、本番の Cloudflare へのデプロイ。
 
 ## 実装計画(承認後)
 

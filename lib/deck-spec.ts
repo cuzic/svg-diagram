@@ -4,8 +4,8 @@
 import {capped, specSchema, validateAgainst, validateSpec} from './spec.ts';
 import {list, object, text, type Json, type JsonSchema, type SpecIssue} from './spec-kit.ts';
 
-/** Slides in one deck. */
-export const MAX_SLIDES = 30;
+/** Slides in one deck (ADR 0055 D1, raised from 30 to 300 on 2026-11-15: see the ADR for what the number rests on). */
+export const MAX_SLIDES = 300;
 export const MAX_CALLOUTS = 3;
 
 export interface DeckCallout {label?: string; text: string}

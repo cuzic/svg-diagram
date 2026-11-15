@@ -4,31 +4,16 @@
 // is not one scaled group). Around it go the heading, the lead, the callouts and the source line; the notes go to the notes page.
 // Measuring the text and drawing the PNGs are the shell's (../pptx-deck-edge.ts, ../../pptx-deck.ts).
 import {escapeXml} from '../emit-common.ts';
-import {wrapText} from '../wrap.ts';
 import {must} from '../must.ts';
+import {planDeckLayout, SLIDE_H, SLIDE_W, type Block, type Run, type TextWidth} from '../deck-layout.ts';
 import type {Picture} from './image-band.ts';
 import {imageRids, type Entry, type SlidePlan} from './package.ts';
 import {TEMPLATE} from './template.ts';
 import {attr, emu, sp, type Fonts} from './xml.ts';
 
-/** The slide, in px at 96 dpi: 13.333 × 7.5 in, PowerPoint's 16:9. */
-export const SLIDE_W = 1280, SLIDE_H = 720;
-const MARGIN_X = 56, TOP = 32, BOTTOM = 28, GAP = 16, FIG_PAD = 6;
-/** A figure is never drawn larger than this many times its own size: past it the text looks shouted. */
-export const MAX_FIGURE_SCALE = 1.25;
-/** The smallest text (pt) a scaled figure may have before the slide is reported as hard to read. */
-export const MIN_TEXT_PT = 9;
-const LINE = 1.3;
+// the layout is shared with the slide SVG of `serve` (ADR 0056 D2); these stay importable from here
+export {deckTexts, MAX_FIGURE_SCALE, MIN_TEXT_PT, roomMessage, SLIDE_H, SLIDE_W, smallTextWarning, type TextWidth} from '../deck-layout.ts';
 
-const STYLE = {
-  title: {size: 37, bold: true, color: '1F2328'},
-  lead: {size: 19, bold: false, color: '5B6370'},
-  callout: {size: 16, bold: false, color: '3A4A5A', strong: '1A2A3A', fill: 'EEF4FB', bar: '1F5FA8', padX: 16, padY: 8},
-  source: {size: 13, bold: false, color: '6B7280'},
-} as const;
-
-/** The width of `text` in px at `size` px, bold or not, in the font the slide is measured with. */
-export type TextWidth = (text: string, size: number, bold: boolean) => number;
 export interface DeckFigure {plan: SlidePlan; /** Its laid-out size, px. */ w: number; h: number}
 export interface DeckSlideIn {title?: string; lead?: string; callouts?: {label?: string; text: string}[]; source?: string; notes?: string; figure?: DeckFigure}
 export interface PlannedSlide {
@@ -71,97 +56,46 @@ export function minTextPt(xml: string): number | null {
   return sizes.length ? Math.min(...sizes) : null;
 }
 
-interface Line {text: string; bold: boolean; color: string}
-
-/** `text` wrapped to `width` px; each line a run (or, for a callout, the label's part plain and the rest bold). */
-function wrapped(text: string, size: number, width: number, w: TextWidth, bold: boolean): string[] {
-  return wrapText(text, {maxWidth: width, atomWidth: a => w(a, size, bold), mode: 'phrase'});
-}
-
-function textShape(id: number, name: string, x: number, y: number, width: number, size: number, lines: Line[][], fonts: Fonts, inset = {x: 0, y: 0}): string {
-  const pitch = Math.round(size * LINE);
-  const rpr = (l: Line) => `<a:rPr lang="ja-JP" sz="${Math.round(size * 75)}" b="${l.bold ? 1 : 0}" kern="0" dirty="0"><a:solidFill><a:srgbClr val="${l.color}"/></a:solidFill><a:latin typeface="${attr(fonts.sans)}"/><a:ea typeface="${attr(fonts.sans)}"/></a:rPr>`;
-  const body = lines.map((runs, i) => (i ? `<a:br>${rpr(must(runs[0]))}</a:br>` : '') + runs.map(r => `<a:r>${rpr(r)}<a:t>${escapeXml(r.text)}</a:t></a:r>`).join('')).join('');
-  const h = lines.length * pitch + inset.y * 2;
-  const spPr = `<a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(width)}" cy="${emu(h)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln>`;
-  const txBody = `<a:bodyPr wrap="square" lIns="${emu(inset.x)}" tIns="${emu(inset.y)}" rIns="${emu(inset.x)}" bIns="${emu(inset.y)}" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr><a:lnSpc><a:spcPts val="${Math.round(pitch * 75)}"/></a:lnSpc></a:pPr>${body}</a:p>`;
-  return sp(id, name, spPr, txBody);
+/** A text block as a PowerPoint text box: exact line spacing of the block's pitch, no autofit. */
+function textShape(id: number, b: Extract<Block, {kind: 'text'}>, fonts: Fonts): string {
+  const rpr = (l: Run) => `<a:rPr lang="ja-JP" sz="${Math.round(b.size * 75)}" b="${l.bold ? 1 : 0}" kern="0" dirty="0"><a:solidFill><a:srgbClr val="${l.color}"/></a:solidFill><a:latin typeface="${attr(fonts.sans)}"/><a:ea typeface="${attr(fonts.sans)}"/></a:rPr>`;
+  const body = b.lines.map((runs, i) => (i ? `<a:br>${rpr(must(runs[0]))}</a:br>` : '') + runs.map(r => `<a:r>${rpr(r)}<a:t>${escapeXml(r.text)}</a:t></a:r>`).join('')).join('');
+  const h = b.lines.length * b.pitch + b.inset.y * 2;
+  const spPr = `<a:xfrm><a:off x="${emu(b.x)}" y="${emu(b.y)}"/><a:ext cx="${emu(b.width)}" cy="${emu(h)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln>`;
+  const txBody = `<a:bodyPr wrap="square" lIns="${emu(b.inset.x)}" tIns="${emu(b.inset.y)}" rIns="${emu(b.inset.x)}" bIns="${emu(b.inset.y)}" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr><a:lnSpc><a:spcPts val="${Math.round(b.pitch * 75)}"/></a:lnSpc></a:pPr>${body}</a:p>`;
+  return sp(id, b.name, spPr, txBody);
 }
 
 const rectShape = (id: number, name: string, x: number, y: number, w: number, h: number, fill: string): string =>
   sp(id, name, `<a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="${fill}"/></a:solidFill><a:ln><a:noFill/></a:ln>`,
     '<a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang="ja-JP" dirty="0"/></a:p>');
 
-/** A callout's text split into lines, each line's runs: the label's characters plain, the rest bold. */
-function calloutLines(c: {label?: string; text: string}, width: number, w: TextWidth): Line[][] {
-  const st = STYLE.callout, label = c.label ?? '', all = label + c.text;
-  let at = 0;
-  return wrapped(all, st.size, width, w, true).map(line => {
-    const start = Math.max(at, all.indexOf(line, at));
-    at = start + line.length;
-    const cut = Math.min(line.length, Math.max(0, label.length - start));
-    return [
-      ...(cut > 0 ? [{text: line.slice(0, cut), bold: false, color: st.color}] : []),
-      ...(cut < line.length ? [{text: line.slice(cut), bold: true, color: st.strong}] : []),
-    ];
-  });
-}
+const blockShape = (id: number, b: Block, fonts: Fonts): string => b.kind === 'text' ? textShape(id, b, fonts) : rectShape(id, b.name, b.x, b.y, b.w, b.h, b.fill);
 
-/** One slide: the heading and lead from the top, the source and callouts from the bottom, the figure scaled into what is left. */
+/** One slide: the heading and lead from the top, the source and callouts from the bottom, the figure scaled into what is left (lib/deck-layout.ts). */
 export function planDeckSlide(s: DeckSlideIn, fonts: Fonts, w: TextWidth): PlannedSlide {
-  const width = SLIDE_W - 2 * MARGIN_X;
   const fig = s.figure;
+  const layout = planDeckLayout(s, fig, w);
   // the figure keeps its own shape ids (the connectors' glue names them); the slide's own shapes come after the largest
   let next = fig ? Math.max(1, ...[...fig.plan.xml.matchAll(/<p:cNvPr id="(\d+)"/g)].map(m => Number(m[1]))) : 1;
   const id = () => ++next;
-  const top: string[] = [], bottom: string[] = [];
-  let y = TOP;
-  if (s.title) {
-    const st = STYLE.title, lines = wrapped(s.title, st.size, width, w, st.bold);
-    top.push(textShape(id(), 'title', MARGIN_X, y, width, st.size, lines.map(t => [{text: t, bold: st.bold, color: st.color}]), fonts));
-    y += lines.length * Math.round(st.size * LINE) + 6;
+  const top = layout.top.map(b => blockShape(id(), b, fonts));
+  const bottom = layout.bottom.map(group => group.map(b => blockShape(id(), b, fonts)).join(''));
+  let figureXml = '', scale: number | null = null, small: number | null = null;
+  if (fig && layout.figure) {
+    const {x: x0, y: y0, w: fw, h: fh, k} = layout.figure;
+    const inner = must(/<\/p:grpSpPr>([\s\S]*)<\/p:spTree>/.exec(fig.plan.xml))[1] ?? '';
+    // a dark figure keeps its background as a panel behind it (the slide itself stays light)
+    const bg = /<p:bg>[\s\S]*?<a:srgbClr val="([0-9A-F]{6})"/.exec(fig.plan.xml)?.[1];
+    figureXml = (bg ? rectShape(id(), 'figure background', x0, y0, fw, fh, bg) : '') + placeShapes(inner, k, emu(x0), emu(y0));
+    scale = k;
+    small = minTextPt(placeShapes(inner, k, 0, 0));
   }
-  if (s.lead) {
-    const st = STYLE.lead, lines = wrapped(s.lead, st.size, width, w, st.bold);
-    top.push(textShape(id(), 'lead', MARGIN_X, y, width, st.size, lines.map(t => [{text: t, bold: false, color: st.color}]), fonts));
-    y += lines.length * Math.round(st.size * LINE);
-  }
-  let low = SLIDE_H - BOTTOM;
-  if (s.source) {
-    const st = STYLE.source, lines = wrapped(s.source, st.size, width, w, false), h = lines.length * Math.round(st.size * LINE);
-    low -= h;
-    bottom.push(textShape(id(), 'source', MARGIN_X, low, width, st.size, lines.map(t => [{text: t, bold: false, color: st.color}]), fonts));
-    low -= 10;
-  }
-  for (const c of [...(s.callouts ?? [])].reverse()) {
-    const st = STYLE.callout, lines = calloutLines(c, width - 4 - 2 * st.padX, w);
-    const h = lines.length * Math.round(st.size * LINE) + 2 * st.padY;
-    low -= h;
-    bottom.push(rectShape(id(), 'callout box', MARGIN_X, low, width, h, st.fill) + rectShape(id(), 'callout bar', MARGIN_X, low, 4, h, st.bar)
-      + textShape(id(), c.label ? `callout: ${c.label}` : 'callout', MARGIN_X + 4, low, width - 4, st.size, lines, fonts, {x: st.padX, y: st.padY}));
-    low -= 10;
-  }
-  let figureXml = '', scale: number | null = null, small: number | null = null, noRoom = false;
-  if (fig) {
-    // FIG_PAD on each side: a figure's ink may reach a few px past its laid-out size (a shadow, a label's overhang)
-    const roomTop = y + (s.title || s.lead ? GAP : 0) + FIG_PAD, roomH = low - (bottom.length ? GAP - 10 : 0) - roomTop - FIG_PAD;
-    const k = Math.min(width / fig.w, roomH / fig.h, MAX_FIGURE_SCALE);
-    if (!(k > 0) || roomH < 48) noRoom = true;
-    else {
-      const fw = fig.w * k, fh = fig.h * k, x0 = MARGIN_X + (width - fw) / 2, y0 = roomTop + (roomH - fh) / 2;
-      const inner = must(/<\/p:grpSpPr>([\s\S]*)<\/p:spTree>/.exec(fig.plan.xml))[1] ?? '';
-      // a dark figure keeps its background as a panel behind it (the slide itself stays light)
-      const bg = /<p:bg>[\s\S]*?<a:srgbClr val="([0-9A-F]{6})"/.exec(fig.plan.xml)?.[1];
-      figureXml = (bg ? rectShape(id(), 'figure background', x0, y0, fw, fh, bg) : '') + placeShapes(inner, k, emu(x0), emu(y0));
-      scale = k;
-      small = minTextPt(placeShapes(inner, k, 0, 0));
-    }
-  } else if (y > low + 10) noRoom = true;
   const name = s.title ?? fig?.plan.title ?? '';
   // drawn in this order: the heading and lead, the figure (its dark panel first), then the callouts and source on top
   const tree = top.join('') + figureXml + bottom.reverse().join('');
   const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sld ${NS}><p:cSld${name ? ` name="${attr(name)}"` : ''}><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${tree}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
-  return {xml, notes: s.notes ?? '', pictures: fig && !noRoom ? fig.plan.pictures : [], scale, minTextPt: small, noRoom, name};
+  return {xml, notes: s.notes ?? '', pictures: fig && !layout.noRoom ? fig.plan.pictures : [], scale, minTextPt: small, noRoom: layout.noRoom, name};
 }
 
 const SLIDE_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide';
@@ -184,18 +118,6 @@ function once(text: string, pattern: RegExp | string, to: string | ((...m: strin
   const re = typeof pattern === 'string' ? new RegExp(pattern.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')) : pattern;
   if (!re.test(text)) throw new Error(`deck: the pptx template no longer has ${what}`);
   return text.replace(re, to as never);
-}
-
-/** Why a slide could not be made, for a slide with or without a figure. */
-export const roomMessage = (hasFigure: boolean): string => hasFigure
-  ? 'the heading, lead, callouts and source leave no room for the figure: shorten them, or put the figure on a slide of its own'
-  : 'the heading and lead run into the callouts and source: shorten them, or split the slide';
-
-/** A warning for a slide whose figure's smallest text is under MIN_TEXT_PT, or null. */
-export function smallTextWarning(p: PlannedSlide): string | null {
-  if (p.minTextPt === null || p.scale === null || p.minTextPt >= MIN_TEXT_PT) return null;
-  const how = p.scale < 1 ? `scaled to ${Math.round(p.scale * 100)}% to fit the slide, its` : 'its';
-  return `${how} smallest text is ${p.minTextPt.toFixed(1)}pt (under ${MIN_TEXT_PT}pt): split the figure, or move text off the slide`;
 }
 
 /**
@@ -247,14 +169,4 @@ export function deckEntries(slides: readonly PlannedSlide[], pngs: readonly (rea
     );
   });
   return out.sort((a, b) => (a.name === '[Content_Types].xml' ? -1 : b.name === '[Content_Types].xml' ? 1 : a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-}
-
-/** Every text of the slide that is measured, at its size and weight: for a shell that measures in a batch first (../../pptx-deck-diagram.ts). */
-export function deckTexts(s: Omit<DeckSlideIn, 'figure'>): {text: string; size: number; bold: boolean}[] {
-  return [
-    ...(s.title ? [{text: s.title, size: STYLE.title.size, bold: STYLE.title.bold}] : []),
-    ...(s.lead ? [{text: s.lead, size: STYLE.lead.size, bold: false}] : []),
-    ...(s.source ? [{text: s.source, size: STYLE.source.size, bold: false}] : []),
-    ...(s.callouts ?? []).map(c => ({text: (c.label ?? '') + c.text, size: STYLE.callout.size, bold: true})),
-  ];
 }

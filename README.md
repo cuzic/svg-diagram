@@ -55,6 +55,14 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 - **1 つでも入力が失敗**（検証、`define` / レイアウトの例外、壊れた XML、ファイルなし）したら、失敗を全部表示して**何も書かず**終了コード 1。既存の `deck.html` は削除も書き換えもせず、前回の deck なら「the previous deck.html is still there, untouched」と知らせる。使い方の誤り（入力なし、未知の旗、`--cols` が整数でない、`.ts` / `.svg` 以外）は終了コード 2。
 - まだない（第 2 段）: `--lazy`（大きい図の遅延描画）、全画面（`f`）、図ごとの名前付き `@page`、`--render html`、reveal の段階表示（最終の段階だけを見せる）。
 
+**デッキを発表する（`svg-diagram serve`）**: `svg-diagram serve deck.json` は、`pptx-deck` と同じデッキ（ADR 0055）をブラウザで見せるサーバーを立ち上げる（ADR 0056）。
+
+- スライドは 1 枚の SVG で、文字はすべて輪郭にする（どの端末でも同じ見た目。配置は .pptx と同じ）。輪郭はフォントのファイルから作るので、`.svg-diagram.json` の `fonts` か fontconfig でフォントが見つからなければ、何が足りないかを出して止まる。
+- 端末に出る URL は 2 つ。`/`（聴き手）と、`/presenter#token=…`（発表者。人に渡さない）。発表者の画面で → / ← などを押すと、**つないでいる全端末が同じスライドに移る**。聴き手の画面は自分では動かない。発表者の画面には、次のスライド、ノート、経過時間、時計、聴き手の数、聴き手の URL の QR、描き直しの誤りが出る。
+- デッキ、パスで書いた図、`.ts` が import したファイル、`image()` の画像、`.svg-diagram.json`、フォントを監視し、保存すると描き直す。誤りがあれば前のスライドを残し、誤りは発表者の画面と端末にだけ出す。
+- 既定は `127.0.0.1` だけで待ち受ける。同じ LAN の端末に見せるには `--host 0.0.0.0`（QR が出る。LAN は暗号化されないので、会場の Wi-Fi では `--publish` を勧める）。
+- `--publish https://<自分の Worker>`（または `SVG_DIAGRAM_PUBLISH_ORIGIN`）と `SVG_DIAGRAM_PUBLISH_TOKEN` で、自分の Cloudflare にデプロイした Worker に送る。手元のサーバーは立ち上げず、保存するたびに送る。Worker のデプロイと設定は `worker/README.md`。
+
 **Markdown から使う**: 図のソースを画像として書く（`![流れ図](./diagrams/flow.diagram.ts)`。パスは Markdown ファイルからの相対）。
 
 - **対象は `.diagram.ts` で終わるファイルだけ**で、ほかの `.ts` や外部 URL の画像には触らない。対象はソースとして `import` されて実行されるので、**信頼できない Markdown（ユーザー投稿など）には使わない**。絶対パス（`/…`、`//host/…`、`C:/…`）は拒否し、ソースは `root`（既定は作業フォルダ。`md` は `--root`）の中にあるものだけ読む。
@@ -139,6 +147,8 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
     svg-diagram lint  [file.svg / file.ts / "glob" ...] [--svg-dir DIR] [--strict] [--fix] [--engine geometry|browser] [--config .svg-diagram.json]   # 描画後の検査も、既定は SVG の幾何から（ブラウザなし）。設定は SVG のあるディレクトリから探す（--config で明示）
     svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium] [--gray] [--no-stale-banner] [--require-fresh]   # 既定の倍率 2。--gray: 白黒で描く。ソースより古い SVG は警告と赤い帯（--require-fresh: exit 1）。out を省くと一時ディレクトリに重ならない名前で書き、パスを表示
     svg-diagram deck <a.ts|a.svg>... [--out deck.html] [--title TEXT] [--cols N] [--csp]   # 複数の図を、前へ・次へで見られる 1 つの自己完結 HTML に（一覧・拡大・印刷つき）
+    svg-diagram serve <deck.json> [--port N] [--host ADDR] [--allow-host NAME]... [--open]   # デッキをブラウザで発表する。保存すると描き直し、つないだ全端末が発表者のスライドに合わせる（ADR 0056）
+    svg-diagram serve <deck.json> --publish [ORIGIN] [--new-presenter-token | --revoke-presenter-tokens | --delete]   # 自分でデプロイした Worker（worker/）に送り、会場の外の端末にも見せる
     svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--engine resvg|chromium]   # ターミナルに sixel で直接表示（.ts は SVG を書かずに作って描く）
 
 型もすべて同じ所から取れる: `import type {WfNode, TableCell, TextTone, RawColorTone} from 'svg-diagram'`。変数に切り出した表のセルは `cell('通る', {tone: 'accent'})` で作ると、tone が文字列に広がらない（`as const` でも可）。`row()` に入れられるのは `box()` と `group()`、`grid()` は `box()` だけ（違うものを入れると実行時エラー）。

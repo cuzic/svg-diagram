@@ -1,0 +1,25 @@
+// Copy to wrangler.jsonc and set the values for your own deployment (ADR 0056 D16). See README.md.
+{
+  "name": "svg-diagram-present",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "durable_objects": {"bindings": [{"name": "PRESENTATION", "class_name": "Presentation"}]},
+  "migrations": [{"tag": "v1", "new_sqlite_classes": ["Presentation"]}],
+  // Your own domain (needed for PRESENTER_LOGIN "access"; also the Google redirect URL is https://<this domain>/auth/google/callback):
+  // "routes": [{"pattern": "slides.example.com", "custom_domain": true}],
+  "vars": {
+    "MAX_CONNECTIONS": "500",
+    "RETENTION_DAYS": "30",
+    "MAX_SLIDES": "300",
+    "MAX_SLIDE_BYTES": "4194304",
+    "MAX_DECK_BYTES": "16777216",
+    // "none" (presenter's token only), "access" (Cloudflare Access on /p/*/login) or "google"
+    "PRESENTER_LOGIN": "none",
+    "PRESENTER_EMAILS": "",
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": "",
+    "GOOGLE_HD": "",
+    "LOCATION_HINT": ""
+  }
+  // Secrets (wrangler secret put NAME): PUBLISH_TOKEN, SESSION_SECRET, and for "google" GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.
+}
