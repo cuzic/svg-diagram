@@ -159,6 +159,11 @@ describe('presenter by token (PRESENTER_LOGIN none)', () => {
     const open = [];
     for (let i = 0; i < 6; i++) open.push(await socket(w.origin, id));
     await assert.rejects(socket(w.origin, id));
+    // the presenter still gets in: viewers cannot lock them out
+    const fresh = ((await (await fetch(`${w.origin}/api/p/${id}/tokens`, {method: 'POST', headers: auth})).json()) as {presenterToken: string}).presenterToken;
+    const presenter = await socket(w.origin, id, {origin: w.origin, cookie: await claim(w.origin, id, fresh)});
+    assert.deepEqual(await presenter.next(m => m['type'] === 'hello'), {type: 'hello', role: 'presenter'});
+    presenter.ws.close();
     for (const s of open) s.ws.close();
   });
 

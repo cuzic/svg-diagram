@@ -43,7 +43,8 @@ export function readSettings(env: Env): {ok: true; settings: Settings} | {ok: fa
   const retentionDays = int('RETENTION_DAYS', 30, 1, 3650);
   const maxSlides = int('MAX_SLIDES', 300, 1, CORE_MAX_SLIDES);
   const maxSlideBytes = int('MAX_SLIDE_BYTES', 4 * MiB, 1024, 32 * MiB);
-  const maxDeckBytes = int('MAX_DECK_BYTES', 16 * MiB, 1024, 100 * MiB);
+  // the whole deck goes to the Durable Object in one call (about 32 MiB at most) and sits in the Worker's 128 MB twice: 24 MiB keeps clear of both
+  const maxDeckBytes = int('MAX_DECK_BYTES', 16 * MiB, 1024, 24 * MiB);
   if (maxDeckBytes < maxSlideBytes) problems.push('MAX_DECK_BYTES must be at least MAX_SLIDE_BYTES');
   const login = (env.PRESENTER_LOGIN || 'none') as Settings['login'];
   if (!['none', 'access', 'google'].includes(login)) problems.push(`PRESENTER_LOGIN must be none, access or google (got ${env.PRESENTER_LOGIN})`);

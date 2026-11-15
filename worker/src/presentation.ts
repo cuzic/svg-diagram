@@ -16,6 +16,8 @@ interface Attachment {presenter: boolean; tid?: string; email?: string; gos: num
 const CHUNK = 600_000;
 /** At most this many presenter tokens per presentation (ADR 0056 D13). */
 const MAX_TOKENS = 20;
+/** Presenter connections at once (windows and devices of the presenters), apart from MAX_CONNECTIONS. */
+const MAX_PRESENTER_SOCKETS = 20;
 const enc = new TextEncoder();
 
 export class Presentation extends DurableObject<Env> {
@@ -49,7 +51,7 @@ export class Presentation extends DurableObject<Env> {
   private base(): string { return `/p/${this.ctx.id.toString()}`; }
   private stateMessage(): StateMessage {
     const st = this.state(), slides = this.slides(), cur = slides[st.index];
-    return {type: 'state', ...st, slide: cur ? `${this.base()}/s/${cur.hash}.svg` : '', alt: cur?.text ?? '', total: slides.length};
+    return {type: 'state', ...st, slide: cur ? `${this.base()}/s/${cur.hash}.svg` : '', alt: cur?.text ?? '', total: slides.length, moved: this.get('moved') === '1'};
   }
   private deckMessage() {
     return {type: 'deck', version: this.state().version, slides: this.slides().map(s => ({url: `${this.base()}/s/${s.hash}.svg`, title: s.title, text: s.text}))};
@@ -57,6 +59,14 @@ export class Presentation extends DurableObject<Env> {
   private broadcast(m: unknown, tag?: string): void {
     const text = JSON.stringify(m);
     for (const ws of this.ctx.getWebSockets(tag)) { try { ws.send(text); } catch { /* closing */ } }
+  }
+  /** `m` to the presenters who still are: one taken off PRESENTER_EMAILS or whose token was revoked is disconnected instead (ADR 0056 D13). */
+  private async toPresenters(m: unknown): Promise<void> {
+    const text = JSON.stringify(m);
+    for (const ws of this.ctx.getWebSockets('role:presenter')) {
+      const a = ws.deserializeAttachment() as Attachment | null;
+      try { if (a && await this.stillPresenter(a)) ws.send(text); else ws.close(4003, 'no longer the presenter'); } catch { /* closing */ }
+    }
   }
   private countToPresenters(): void { this.broadcast({type: 'count', viewers: this.ctx.getWebSockets('role:viewer').length}, 'role:presenter'); }
   /** Last used now: the presentation is deleted RETENTION_DAYS after (ADR 0056 D15). */
@@ -105,7 +115,13 @@ export class Presentation extends DurableObject<Env> {
     this.ctx.storage.transactionSync(() => {
       for (const [hash, svg] of Object.entries(input.svgs)) {
         if (held.has(hash) || !sizes.has(hash)) continue;
-        for (let i = 0, n = 0; i < svg.length; i += CHUNK, n++) this.sql.exec('INSERT OR REPLACE INTO svgs (hash, n, part) VALUES (?, ?, ?)', hash, n, svg.slice(i, i + CHUNK));
+        for (let i = 0, n = 0; i < svg.length; n++) {
+          // a piece never ends between the two halves of a surrogate pair (an emoji left as text): a lone half would not survive as text
+          let end = Math.min(svg.length, i + CHUNK);
+          if (end < svg.length && /[\uD800-\uDBFF]/.test(svg[end - 1] ?? '')) end--;
+          this.sql.exec('INSERT OR REPLACE INTO svgs (hash, n, part) VALUES (?, ?, ?)', hash, n, svg.slice(i, end));
+          i = end;
+        }
         held.add(hash);
       }
       this.sql.exec('DELETE FROM slides');
@@ -115,11 +131,11 @@ export class Presentation extends DurableObject<Env> {
       for (const h of held) if (!keep.has(h)) this.sql.exec('DELETE FROM svgs WHERE hash = ?', h);
       this.set('title', String(input.title ?? ''));
       const index = followIndex(before, input.slides, st.index);
-      this.saveState({...st, seq: st.version ? st.seq + 1 : st.seq, index, version: st.version + 1});
+      this.saveState({...st, seq: st.seq + 1, index, version: st.version + 1});
     });
     await this.touch();
     this.broadcast(this.stateMessage());
-    this.broadcast(this.deckMessage(), 'role:presenter');
+    await this.toPresenters(this.deckMessage());
     return {ok: true, version: this.state().version};
   }
 
@@ -172,11 +188,12 @@ export class Presentation extends DurableObject<Env> {
   override async fetch(req: Request): Promise<Response> {
     if (!this.exists()) return new Response('no such presentation', {status: 404});
     const s = this.settings();
-    if (this.ctx.getWebSockets().length >= s.maxConnections) return new Response('this presentation is full', {status: 503});
     const presenter = req.headers.get('x-sd-role') === 'presenter';
+    // viewers are counted against MAX_CONNECTIONS; presenters have their own few places, so a crowd (or a script) of viewers cannot lock them out
+    if (presenter ? this.ctx.getWebSockets('role:presenter').length >= MAX_PRESENTER_SOCKETS : this.ctx.getWebSockets('role:viewer').length >= s.maxConnections) return new Response('this presentation is full', {status: 503});
     const tid = req.headers.get('x-sd-tid') ?? undefined, email = req.headers.get('x-sd-email') ?? undefined;
     const pair = new WebSocketPair(), ws = pair[1];
-    const tags = [presenter ? 'role:presenter' : 'role:viewer', ...(tid ? [`tok:${tid}`] : [])];
+    const tags = [presenter ? 'role:presenter' : 'role:viewer', ...(tid ? [`tok:${tid}`] : []), ...(email ? [`email:${(await sha256Hex(email.toLowerCase())).slice(0, 32)}`] : [])];
     this.ctx.acceptWebSocket(ws, tags);
     ws.serializeAttachment({presenter, tid, email, gos: []} satisfies Attachment);
     ws.send(JSON.stringify({type: 'hello', role: presenter ? 'presenter' : 'viewer'}));
@@ -207,6 +224,7 @@ export class Presentation extends DurableObject<Env> {
     const next = applyGo(this.state(), go, this.slides().length);
     if (!next) return;
     this.saveState(next);
+    this.set('moved', 1);
     this.broadcast(this.stateMessage());
   }
 

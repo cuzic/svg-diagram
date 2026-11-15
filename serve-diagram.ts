@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {Worker} from 'node:worker_threads';
 import {loadConfig} from './lib/config.ts';
 import {outlineFontCheck} from './lib/font-metrics.ts';
@@ -83,7 +84,7 @@ configureMeasure(cfg);
 if (currentMeasure().backend === 'chromium') console.error('⚠ this project measures text with Chromium: the outlines come from the font files, which may not be the fonts it measured with');
 
 // --- the deck, drawn in a thread that is replaced every RENEW drawings (ADR 0056 D5) -----------------------------------------------
-const RENEW = 50;
+const RENEW = 50, DRAW_TIMEOUT_MS = 120_000;
 let thread: Worker | null = null, drawnInThread = 0;
 function draw(): Promise<RenderReply> {
   if (!thread || drawnInThread >= RENEW) {
@@ -95,10 +96,15 @@ function draw(): Promise<RenderReply> {
   const t = thread, req: RenderRequest = {deckFile, fresh: drawnInThread > 0};
   drawnInThread++;
   return new Promise((resolve, reject) => {
-    const done = (m: RenderReply) => { t.off('error', fail); resolve(m); };
-    const fail = (e: Error) => { t.off('message', done); thread = null; reject(e); };
-    t.once('message', done);
-    t.once('error', fail);
+    // a figure that exits the process or never returns must not stop the drawing for the rest of the session: the thread goes, a new one comes
+    const timer = setTimeout(() => fail(new Error(`drawing took over ${DRAW_TIMEOUT_MS / 1000} s: stopped (a figure that never returns?)`)), DRAW_TIMEOUT_MS);
+    const off = () => { clearTimeout(timer); t.off('message', done); t.off('error', fail); t.off('exit', exited); };
+    const done = (m: RenderReply) => { off(); resolve(m); };
+    const fail = (e: Error) => { off(); if (thread === t) thread = null; void t.terminate(); reject(e); };
+    const exited = (code: number) => fail(new Error(`the drawing stopped (exit code ${code}): does a figure call process.exit()?`));
+    t.on('message', done);
+    t.on('error', fail);
+    t.on('exit', exited);
     t.postMessage(req);
   });
 }
@@ -106,6 +112,7 @@ function draw(): Promise<RenderReply> {
 let deck: RenderedDeck | null = null, slides: RenderedSlide[] = [], byHash = new Map<string, RenderedSlide>();
 let problems: {errors: string[]; warnings: string[]} = {errors: [], warnings: []};
 const state: SyncState = {epoch: randomBytes(8).toString('hex'), seq: 0, index: 0, version: 0};
+let moved = false;
 
 // --- clients ---------------------------------------------------------------------------------------------------------------
 interface Client {res: http.ServerResponse; presenter: boolean}
@@ -114,7 +121,7 @@ const sendTo = (c: Client, m: unknown) => { c.res.write(`data: ${JSON.stringify(
 const slideUrl = (s: RenderedSlide) => `/s/${s.hash}.svg`;
 function stateMessage(): StateMessage {
   const s = slides[state.index];
-  return {type: 'state', ...state, slide: s ? slideUrl(s) : '', alt: s?.text ?? '', total: slides.length};
+  return {type: 'state', ...state, slide: s ? slideUrl(s) : '', alt: s?.text ?? '', total: slides.length, moved};
 }
 const deckMessage = () => ({type: 'deck', version: state.version, slides: slides.map(s => ({url: slideUrl(s), title: s.title, text: s.text}))});
 const viewers = () => [...clients].filter(c => !c.presenter).length;
@@ -160,8 +167,8 @@ async function redraw(): Promise<void> {
       if (changed) {
         state.index = followIndex(slides, next, state.index);
         slides = next; byHash = new Map(next.map(s => [s.hash, s]));
-        // the first drawing is not a move: seq stays 0 until someone moves, which is how a presenter's page knows it may put back its slide
-        state.version++; if (state.version > 1) state.seq++;
+        // every change of the deck is a new state (a page holding the empty one before must take it); whether anyone has moved is `moved`
+        state.version++; state.seq++;
         broadcastState();
         toPresenters(deckMessage());
       }
@@ -281,7 +288,7 @@ const server = http.createServer(async (req, res) => {
       const go = parseGo(await readBody(req, 200));
       if (!go) return send(res, 400, {'content-type': 'text/plain'}, 'a go is {"type":"go","delta":±n} or {"type":"go","index":n}');
       const next = applyGo(state, go, slides.length);
-      if (next) { Object.assign(state, next); broadcastState(); }
+      if (next) { Object.assign(state, next); moved = true; broadcastState(); }
       return send(res, 204, {'cache-control': 'no-store'}, '');
     }
     return notFound(res);
@@ -316,12 +323,19 @@ const server = http.createServer(async (req, res) => {
     if (!isPresenter(req)) return forbidden(res, 'only the presenter: open the presenter\'s URL first');
     if (p === '/api/notes') return send(res, 200, {'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, no-store'}, JSON.stringify({version: state.version, notes: slides.map(s => s.notes)}));
     if (p === '/print') return send(res, 200, PAGE_HEADERS, printPage(title, slides.map(s => ({url: slideUrl(s), text: s.text}))));
-    const out = path.join(os.tmpdir(), `svg-diagram-serve-${process.pid}-${Date.now()}.pptx`);
-    const bin = new URL(import.meta.url.endsWith('.ts') ? './pptx-deck-diagram.ts' : './pptx-deck-diagram.js', import.meta.url);
-    execFile(process.execPath, [bin.pathname, deckFile, '--out', out], (err, _o, stderr) => {
-      if (err) return send(res, 500, {'content-type': 'text/plain; charset=utf-8'}, stderr || err.message);
-      const data = fs.readFileSync(out); fs.rmSync(out, {force: true});
-      send(res, 200, {'content-type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'content-disposition': `attachment; filename="${path.basename(deckFile, '.json')}.pptx"`, 'cache-control': 'no-store'}, data);
+    const out = path.join(os.tmpdir(), `svg-diagram-serve-${process.pid}-${randomBytes(6).toString('hex')}.pptx`);
+    const bin = fileURLToPath(new URL(import.meta.url.endsWith('.ts') ? './pptx-deck-diagram.ts' : './pptx-deck-diagram.js', import.meta.url));
+    // the file name may be Japanese: an HTTP header holds only Latin-1, so the name goes as filename* (RFC 6266) beside an ASCII one
+    const name = `${path.basename(deckFile, '.json')}.pptx`;
+    const disposition = `attachment; filename="deck.pptx"; filename*=UTF-8''${encodeURIComponent(name)}`;
+    execFile(process.execPath, [bin, deckFile, '--out', out], (err, _o, stderr) => {
+      try {
+        if (err) return send(res, 500, {'content-type': 'text/plain; charset=utf-8'}, stderr || err.message);
+        const data = fs.readFileSync(out);
+        send(res, 200, {'content-type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'content-disposition': disposition, 'cache-control': 'no-store'}, data);
+      } catch (e) {
+        if (!res.headersSent) send(res, 500, {'content-type': 'text/plain; charset=utf-8'}, e instanceof Error ? e.message : String(e)); else res.destroy();
+      } finally { fs.rmSync(out, {force: true}); }
     });
     return;
   }

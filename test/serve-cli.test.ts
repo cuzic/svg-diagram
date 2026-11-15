@@ -121,6 +121,10 @@ test('a presenter\'s go reaches every client; a viewer\'s is refused; the presen
   assert.deepEqual(((await notes.json()) as {notes: string[]}).notes, ['はじめのメモ\n  字下げ', '', '']);
   assert.equal((await fetch(B + '/print')).status, 403);
   assert.equal((await fetch(B + '/print', {headers: {cookie}})).status, 200);
+  const pptx = await fetch(B + '/deck.pptx', {headers: {cookie}});
+  assert.equal(pptx.status, 200);
+  assert.equal(pptx.headers.get('content-disposition'), `attachment; filename="deck.pptx"; filename*=UTF-8''deck.pptx`);
+  assert.ok((await pptx.arrayBuffer()).byteLength > 1000);
   viewer.close(); presenter.close();
 });
 
@@ -134,6 +138,7 @@ test('saving the deck draws it again: the current slide follows its content, an 
   fs.writeFileSync(deckFile, JSON.stringify(d));
   const after = await viewer.next(m => m['type'] === 'state' && Number(m['version']) > Number(now['version']));
   assert.equal(after['index'], 3);
+  assert.ok(Number(after['seq']) > Number(now['seq']), 'a new deck is a new state: a page holding the old one takes it');
   assert.equal(after['slide'], now['slide']);
   assert.equal(after['total'], 4);
   assert.equal((await fetch(B + oldFirst)).status, 404, 'the slide before the edit');

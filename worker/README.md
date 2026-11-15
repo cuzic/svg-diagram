@@ -36,11 +36,11 @@
 
 | 名前 | 既定 | 意味 |
 |---|---|---|
-| `MAX_CONNECTIONS` | 500 | 1 つの発表に同時につなげる端末の数。超えると「満員」 |
+| `MAX_CONNECTIONS` | 500 | 1 つの発表に同時につなげる聴き手の端末の数。超えると「満員」（発表者の接続はこれとは別に 20 まで） |
 | `RETENTION_DAYS` | 30 | 最後に使ってから（送ったか、発表者がつないでから）この日数で消す |
 | `MAX_SLIDES` | 300 | 1 つの発表のスライドの数（300 を超える値は設定の誤り。多くのデッキでは、先に `MAX_DECK_BYTES` に当たる） |
 | `MAX_SLIDE_BYTES` | 4194304 | 1 枚の SVG の大きさ（写真の帯は大きくなりやすい） |
-| `MAX_DECK_BYTES` | 16777216 | 1 つの発表の SVG の合計 |
+| `MAX_DECK_BYTES` | 16777216 | 1 つの発表の SVG の合計（24 MiB まで。1 回の送信が Durable Object に 1 度で渡る大きさの上限） |
 | `PRESENTER_LOGIN` | `none` | 発表者の見分け方。`none`（トークンだけ）、`access`、`google` |
 | `PRESENTER_EMAILS` | | 発表者のメールアドレス（カンマ区切り、大文字小文字は区別しない） |
 | `ACCESS_TEAM_DOMAIN` | | `access` のとき。`<チーム>.cloudflareaccess.com` |

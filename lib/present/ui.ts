@@ -131,7 +131,7 @@ function onMessage(m) {
     var fresh = !held || held.epoch !== m.epoch, last = Number(store.get(LAST));
     held = m; show(m);
     // a local server started again: nobody has moved yet, so the presenter's page puts back the slide it was on (ADR 0056 D6)
-    if (presenter && fresh && m.seq === 0 && last > 0 && last !== m.index) send({type: 'go', index: last});
+    if (presenter && fresh && !m.moved && last > 0 && last !== m.index) send({type: 'go', index: last});
   } else if (m.type === 'deck' && presenter) { deck = m; loadNotes(); drawPresenter(); if (!$('overview').hidden) drawOverview(); }
   else if (m.type === 'count' && presenter) { $('viewers').textContent = '聴き手 ' + m.viewers; }
   else if (m.type === 'problems' && presenter) { var p = $('problems'); var lines = (m.errors || []).map(function (e) { return '✗ ' + e; }).concat((m.warnings || []).map(function (w) { return '⚠ ' + w; })); p.hidden = !(m.errors || []).length; p.textContent = lines.join('\n'); }

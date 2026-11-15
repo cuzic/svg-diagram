@@ -10,7 +10,7 @@ export interface SyncState {epoch: string; seq: number; index: number; version: 
 /** What a presenter sends: a step (next / previous, summed in order) or a slide to go to. */
 export type GoMessage = {type: 'go'; delta: number} | {type: 'go'; index: number};
 /** What every client is sent when the state changes: the state, the current slide's URL and what it says (for <img alt>). */
-export interface StateMessage extends SyncState {type: 'state'; slide: string; alt: string; total: number}
+export interface StateMessage extends SyncState {type: 'state'; slide: string; alt: string; total: number; /** Someone has moved since this server started: a presenter's page puts back its slide only while this is false. */ moved: boolean}
 
 /** A presenter's go, or null when `raw` is anything else (a viewer's or a malformed message is dropped, not answered). */
 export function parseGo(raw: unknown): GoMessage | null {

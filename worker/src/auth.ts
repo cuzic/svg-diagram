@@ -110,7 +110,9 @@ export async function googleCallback(req: Request, s: Settings): Promise<Respons
   let p: Record<string, unknown>;
   // straight from Google's token endpoint over TLS: OpenID Connect Core 3.1.3.7 lets the signature check go; the claims are checked
   try { p = jwtParts(((await r.json()) as {id_token?: string}).id_token ?? '').p; } catch { return deny('Google sent no id_token', 400); }
-  if (p['iss'] !== g.iss || p['aud'] !== g.clientId || p['nonce'] !== t.nonce || !(Number(p['exp']) > Date.now() / 1000)) return deny('the id_token does not match this sign-in', 400);
+  // Google documents both spellings of its issuer
+  const iss = g.iss === 'https://accounts.google.com' ? ['https://accounts.google.com', 'accounts.google.com'] : [g.iss];
+  if (!iss.includes(String(p['iss'])) || p['aud'] !== g.clientId || p['nonce'] !== t.nonce || !(Number(p['exp']) > Date.now() / 1000)) return deny('the id_token does not match this sign-in', 400);
   if (p['email_verified'] !== true || typeof p['email'] !== 'string') return deny('the Google account\'s address is not verified');
   if (g.hd && p['hd'] !== g.hd) return deny('this Google account is not of the organisation this Worker is set up for');
   const email = p['email'].toLowerCase();
