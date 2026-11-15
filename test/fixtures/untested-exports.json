@@ -146,7 +146,6 @@
   "emit-boxes:renderBoxRect",
   "emit-boxes:renderCaption",
   "emit-boxes:renderConnect",
-  "emit-boxes:renderCurve",
   "emit-boxes:renderDots",
   "emit-boxes:renderGrid",
   "emit-boxes:renderGroup",

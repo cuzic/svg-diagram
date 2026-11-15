@@ -5,6 +5,7 @@ import {LAYOUT_HANDLERS} from '../lib/layout-handlers.ts';
 import {CHILD_BANDS, STACK_WIDTH, childrenOf, nestedBandsOf, stackWidthOf} from '../lib/band-children.ts';
 import {MEASURE_HANDLERS, collectMeasures} from '../lib/layout-measure.ts';
 import {TEXT_RUNS} from '../lib/layout-text.ts';
+import {REGISTERED_BAND_SPECS, byType} from '../lib/band-registry.ts';
 import {ROLES} from '../lib/tokens.ts';
 import type {DiagramData} from '../lib/types/core.ts';
 import type {Band} from '../lib/types/index.ts';
@@ -47,4 +48,16 @@ test('collectMeasures registers the atoms of nested bands and of the stamp / tit
 
 test('layout-handlers.ts does not import layout.ts (no import cycle)', () => {
   assert.doesNotMatch(readFileSync(new URL('../lib/layout-handlers.ts', import.meta.url), 'utf8'), /from '\.\/layout\.ts'/);
+});
+
+test('byType rebuilds one {type -> handler} table from the registered specs, and every table holds those entries', () => {
+  const specs = [{type: 'a', f: 1}, {type: 'b', f: 2}] as const;
+  assert.deepEqual(byType(specs, 'f'), {a: 1, b: 2});
+  assert.deepEqual(byType([], 'type'), {});
+  for (const spec of REGISTERED_BAND_SPECS) {
+    for (const [name, table, key] of [['LAYOUT_HANDLERS', LAYOUT_HANDLERS, 'layout'], ['CHILD_BANDS', CHILD_BANDS, 'childBands'],
+      ['STACK_WIDTH', STACK_WIDTH, 'stackWidth'], ['MEASURE_HANDLERS', MEASURE_HANDLERS, 'measure']] as const) {
+      assert.equal((table as Record<string, unknown>)[spec.type], spec[key], `${name}.${spec.type}`);
+    }
+  }
 });
