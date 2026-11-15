@@ -2,11 +2,11 @@
 // Worker ("svg-diagram/pptx/deck/edge", ADR 0055). Each figure is drawn as renderPptxEdge draws one (native shapes, pictures with a PNG
 // fallback) and scaled onto its slide with the heading, lead, callouts, source and notes (lib/pptx/deck.ts).
 import {capped, type SpecIssue} from './spec.ts';
-import {columnFallbackWarning, columnFigurePath, columnSpec, figurePath, fitOf, validateDeck, type DeckSpec} from './deck-spec.ts';
-import {columnWidths, figureRooms, fillSearch, maxScale, ruleIds, type FigureFit} from './deck-layout.ts';
+import {autoColumns, columnFallbackWarning, columnFigurePath, columnSpec, figurePath, fitOf, sharedColumns, validateDeck, type DeckSpec} from './deck-spec.ts';
+import {chooseColumns, columnWidths, figureRooms, fillSearch, maxScale, ruleIds, type FigureFit} from './deck-layout.ts';
 import {guardedEngine, type TextEngine} from './spec-edge.ts';
 import {planFigureEdge, zipPackage, type PptxEdgeOptions} from './pptx-edge.ts';
-import {deckEntries, planDeckSlide, slideIssues, type DeckFigure, type PlannedSlide, type TextWidth} from './pptx/deck.ts';
+import {deckEntries, minTextPt, placeShapes, planDeckSlide, slideIssues, type DeckFigure, type PlannedSlide, type TextWidth} from './pptx/deck.ts';
 import {fontsOf} from './pptx/slide.ts';
 
 export type {TextEngine} from './spec-edge.ts';
@@ -79,19 +79,39 @@ export async function renderDeckPptxEdge(input: unknown, givenEngine: TextEngine
     if ('issues' in f) { issues.push(...f.issues.map(x => ({path: j === undefined ? figurePath(i, x.path) : columnFigurePath(i, j, x.path), message: x.message}))); return undefined; }
     return {plan: f.plan, w: f.width, h: f.height, native: f.native};
   };
-  const figures: (DeckFigure & {native: number} | undefined)[] = [], columnFigures: (DeckFigure & {native: number} | undefined)[][] = [];
+  const figures: (DeckFigure & {native: number} | undefined)[] = [], columnFigures: (DeckFigure & {native: number} | undefined)[][] = [], shares: (number[] | undefined)[] = [];
   for (const [i, s] of deck.slides.entries()) {
-    const fit = fitOf(deck, s), rooms = figureRooms(s, width);
+    const fit = fitOf(deck, s);
+    if (s.columns && autoColumns(deck, s)) {
+      // the columns' shares chosen from what they hold (ADR 0061)
+      const columns = s.columns;
+      const chosen = await chooseColumns({...s, columns}, width, maxScale(fit), async (j, w) => {
+        const spec = columns[j]?.figure;
+        const searchable = typeof spec === 'object' && spec !== null && !Array.isArray(spec) && (spec as {width?: unknown}).width === undefined;
+        if (w !== null && !searchable) return {ok: false, why: 'the figure has a width of its own'};
+        const f = await planFigureEdge(w === null ? spec : {...(spec as object), width: w}, engine, opts);
+        if ('issues' in f) { if (w === null) issues.push(...f.issues.map(x => ({path: columnFigurePath(i, j, x.path), message: x.message}))); return {ok: false, why: f.issues[0]?.message ?? ''}; }
+        const inner = /<\/p:grpSpPr>([\s\S]*)<\/p:spTree>/.exec(f.plan.xml)?.[1] ?? '';
+        return {ok: true, w: f.width, h: f.height, value: f, flags: ruleIds(f.findings), minPt: minTextPt(placeShapes(inner, 1, 0, 0))};
+      });
+      if (!chosen.ok) { if (!issues.length) issues.push({path: `slides[${i}].columns`, message: chosen.why}); figures.push(undefined); columnFigures.push([]); shares.push(undefined); continue; }
+      figures.push(undefined);
+      columnFigures.push(chosen.figures.map(f => f ? {plan: f.value.plan, w: f.value.width, h: f.value.height, native: f.value.native} : undefined));
+      shares.push(chosen.shares);
+      continue;
+    }
+    const cols0 = s.columns ? sharedColumns(s.columns) : undefined, rooms = figureRooms({...s, columns: cols0}, width);
     figures.push(await plan(i, s.figure, fit, rooms.figure));
     const cols: (DeckFigure & {native: number} | undefined)[] = [];
-    const px = columnWidths(s.columns ?? []);
+    const px = columnWidths(cols0 ?? []);
     for (const [j, c] of (s.columns ?? []).entries()) cols.push(await plan(i, c.figure, fit, rooms.columns[j] ?? null, j, px[j]));
     columnFigures.push(cols);
+    shares.push(undefined);
   }
   if (issues.length) return none(issues);
   const planned: PlannedSlide[] = deck.slides.map(({figure: _spec, columns, ...s}, i) => {
     const f = figures[i];
-    const cols = columns?.map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: columnFigures[i]?.[j]}));
+    const cols = columns && sharedColumns(columns, shares[i]).map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: columnFigures[i]?.[j]}));
     return planDeckSlide({...s, fit: fitOf(deck, deck.slides[i] ?? {}), ...(f ? {figure: f} : {}), ...(cols ? {columns: cols} : {})}, fonts, width);
   });
   const warnings: SpecIssue[] = [...fallbacks];

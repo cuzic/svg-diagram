@@ -1,9 +1,9 @@
 // A deck's slides as outlined SVGs, for `serve` (ADR 0056 D2, D5): the figures drawn as `pptx-deck` draws them, the slide's text wrapped
 // with the same measuring, everything placed by lib/deck-layout.ts and outlined with the project's font files (lib/font-metrics.ts).
 import {createHash} from 'node:crypto';
-import {columnWidths, deckTexts, figureRooms, maxScale, planDeckLayout, roomMessage, smallTextWarning, type FigureFit, type TextWidth} from '../deck-layout.ts';
-import {fitOf, type DeckSlide} from '../deck-spec.ts';
-import {figureKey, hasSource, renderDeckFigure, type LoadedDeck} from '../deck-load.ts';
+import {chooseColumns, columnWidths, deckTexts, figureRooms, maxScale, planDeckLayout, roomMessage, smallTextWarning, type FigureFit, type TextWidth} from '../deck-layout.ts';
+import {autoColumns, fitOf, sharedColumns} from '../deck-spec.ts';
+import {drawColumnFigure, figureKey, hasSource, renderDeckFigure, type LoadedDeck} from '../deck-load.ts';
 import {measureAll, splitAtoms, textWidth} from '../measure.ts';
 import {outlineFontFromFiles, textBox} from '../font-metrics.ts';
 import {minTextPt, placeShapes} from '../pptx/deck.ts';
@@ -72,9 +72,33 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
     const lo = r.result.laidOut;
     return {svg: r.result.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: [...(r.fallback ? [r.fallback] : []), ...r.result.verdict.warnings]};
   };
-  const rooms = deck.slides.map(s => figureRooms(s, width));
-  const figures = await Promise.all(deck.slides.map((s, i) => hit[i] ? undefined : draw(i, s.figure, fitOf(deck, s), rooms[i]?.figure ?? null)));
-  const columnFigures = await Promise.all(deck.slides.map((s, i) => hit[i] ? [] : Promise.all((s.columns ?? []).map((c, j, all) => c.text === undefined ? draw(i, c.figure, fitOf(deck, s), rooms[i]?.columns[j] ?? null, j, columnWidths(all)[j]) : undefined))));
+  // the columns' shares chosen from what they hold where they are left to choice (ADR 0061)
+  const shares: (number[] | undefined)[] = deck.slides.map(() => undefined);
+  const chosenFigures: ((DrawnFigure | undefined)[] | null | undefined)[] = await Promise.all(deck.slides.map(async (s, i) => {
+    if (hit[i] || !s.columns || !autoColumns(deck, s)) return undefined;
+    const columns = s.columns, failures: string[][] = [];
+    const chosen = await chooseColumns({...s, columns}, width, maxScale(fitOf(deck, s)), async (j, w) => {
+      const d = await drawColumnFigure(i, j, columns[j]?.figure, sources.get(figureKey(i, j)), cfg, w, opts.fresh);
+      if (!d.ok && w === null && d.errors) failures[j] = d.errors;
+      return d;
+    });
+    if (!chosen.ok) { errors.push(...failures.flat(), ...(failures.length ? [] : [`slides[${i}].columns: ${chosen.why}`])); return null; }
+    shares[i] = chosen.shares;
+    return chosen.figures.map(f => {
+      if (!f) return undefined;
+      const lo = f.value.laidOut;
+      return {svg: f.value.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: f.value.verdict.warnings};
+    });
+  }));
+  const shared = deck.slides.map((s, i) => ({...s, columns: s.columns && sharedColumns(s.columns, shares[i])}));
+  const rooms = shared.map(s => figureRooms(s, width));
+  const figures = await Promise.all(deck.slides.map((s, i) => hit[i] || chosenFigures[i] !== undefined ? undefined : draw(i, s.figure, fitOf(deck, s), rooms[i]?.figure ?? null)));
+  const columnFigures = await Promise.all(shared.map((s, i) => {
+    const chosen = chosenFigures[i];
+    if (chosen === null) return [null];
+    if (chosen) return chosen;
+    return hit[i] ? [] : Promise.all((s.columns ?? []).map((c, j, all) => c.text === undefined ? draw(i, c.figure, fitOf(deck, s), rooms[i]?.columns[j] ?? null, j, columnWidths(all)[j]) : undefined));
+  }));
   const font = outlineFontFromFiles(cfg.fonts);
   const box = (t: string, family: Parameters<typeof textBox>[1], size: number, weight: number) => textBox(t, family, size, weight, cfg.fonts);
   const pptxFonts = fontsOf(undefined);
@@ -83,7 +107,7 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
     const plan = planSlide(f.laidOut, pptxFonts), inner = /<\/p:grpSpPr>([\s\S]*)<\/p:spTree>/.exec(plan.xml)?.[1] ?? '';
     return smallTextWarning({scale: k, minTextPt: minTextPt(placeShapes(inner, k, 0, 0))});
   };
-  const slides = deck.slides.map((s: DeckSlide, i): RenderedSlide | null => {
+  const slides = shared.map((s, i): RenderedSlide | null => {
     const here = `slides[${i}]`;
     const cached = hit[i];
     if (cached) { for (const w of cached.warnings) warnings.push(`${here}${w.at}: ${w.text}`); return {...cached.slide, notes: s.notes ?? ''}; }

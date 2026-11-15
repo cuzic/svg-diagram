@@ -261,3 +261,78 @@ export function figureRooms(s: DeckTextIn & {columns?: readonly {caption?: strin
   const l = planDeckLayout(s, cols ? undefined : {w: 1, h: 1}, w, cols);
   return {figure: l.room, columns: l.columns.map((c, j) => s.columns?.[j]?.text === undefined ? c.box : null)};
 }
+
+/** The shares tried for columns left to choice (ADR 0061). */
+export const COLUMN_SHARES: Readonly<Record<number, readonly (readonly number[])[]>> = {
+  2: [[1, 3], [1, 2], [2, 3], [1, 1], [3, 2], [2, 1], [3, 1]],
+  3: [[1, 1, 1], [2, 1, 1], [1, 2, 1], [1, 1, 2], [2, 2, 1], [2, 1, 2], [1, 2, 2]],
+};
+/** The least a figure column's smallest text may come to for its shares to be chosen on the empty room (ADR 0055 D4). */
+export const CHOOSE_MIN_PT = 9;
+
+/** A figure laid out at one width, with its smallest text (pt, at scale 1; null without text): what choosing columns compares. */
+export type DrawnFigure<T> = Drawn<T> & {minPt?: number | null};
+export interface ChosenColumns<T> {
+  ok: true;
+  shares: number[];
+  /** Per column: the figure as fitted (null for a text column). */
+  figures: (FillResult<T> | null)[];
+  /** The empty room the chosen shares leave (px²), and their smallest text (pt; null without figures). */
+  empty: number;
+  minPt: number | null;
+  /** How many shares were tried, and whether none had every figure at CHOOSE_MIN_PT or more. */
+  tried: number;
+  small: boolean;
+}
+
+/**
+ * The shares for a slide's columns (ADR 0061): each candidate of COLUMN_SHARES is laid out (captions, texts), each figure column fitted by
+ * fillSearch, and the one that leaves the least empty room with every figure's smallest text at CHOOSE_MIN_PT or more is taken; when none
+ * reaches it, the one whose smallest text is largest. A candidate whose text does not fit its column, or whose figure cannot be laid out,
+ * is left out. `draw(j, width)` lays out column j's figure (memoised here: the same width is drawn once).
+ */
+export async function chooseColumns<T>(s: DeckTextIn & {columns: readonly {caption?: string; text?: string}[]}, w: TextWidth, cap: number,
+  draw: (j: number, width: number | null) => Promise<DrawnFigure<T>>): Promise<ChosenColumns<T> | {ok: false; why: string}> {
+  const n = s.columns.length, candidates = COLUMN_SHARES[n] ?? [Array.from({length: n}, () => 1)];
+  const memo = new Map<string, Promise<DrawnFigure<T>>>();
+  const drawn = (j: number, width: number | null) => { const key = `${j}:${width}`; let p = memo.get(key); if (!p) { p = draw(j, width); memo.set(key, p); } return p; };
+  let best: ChosenColumns<T> | null = null, lastWhy = '';
+  for (const shares of candidates) {
+    const cols = s.columns.map((c, j) => ({caption: c.caption, text: c.text, width: shares[j] ?? 1, figure: c.text === undefined ? {w: 1, h: 1} : undefined}));
+    const layout = planDeckLayout(s, undefined, w, cols);
+    if (layout.noRoom || layout.columns.some((c, j) => s.columns[j]?.text !== undefined && c.noRoom)) continue;
+    const figures: (FillResult<T> | null)[] = [];
+    let used = 0, minPt: number | null = null, failed = false;
+    for (const [j, c] of s.columns.entries()) {
+      const place = layout.columns[j];
+      if (!place) { failed = true; break; }
+      if (c.text !== undefined) {
+        figures.push(null);
+        const last = place.text[place.text.length - 1];
+        used += place.width * (last ? last.y + last.lines.length * last.pitch - (place.text[0]?.y ?? 0) : 0);
+        continue;
+      }
+      let pt: number | null | undefined;
+      const fit = await fillSearch(place.box, cap, async width => { const d = await drawn(j, width); if (d.ok) pt = d.minPt; return d; });
+      if (!fit.ok) { failed = true; lastWhy = fit.why; break; }
+      // the minPt of the width chosen: drawn again from the memo
+      const chosen = await drawn(j, fit.width);
+      pt = chosen.ok ? chosen.minPt : pt;
+      figures.push(fit);
+      const d = chosen.ok ? chosen : null;
+      if (d) used += d.w * fit.k * d.h * fit.k;
+      if (pt !== null && pt !== undefined) minPt = Math.min(minPt ?? Infinity, pt * fit.k);
+    }
+    if (failed) continue;
+    const empty = layout.room.w * layout.room.h - used;
+    const cand: ChosenColumns<T> = {ok: true, shares: [...shares], figures, empty, minPt, tried: 0, small: false};
+    const ok = (c: ChosenColumns<T>) => c.minPt === null || c.minPt >= CHOOSE_MIN_PT - 1e-9;
+    if (!best) best = cand;
+    else if (ok(cand) && !ok(best)) best = cand;
+    else if (ok(cand) === ok(best)) {
+      if (ok(cand) ? cand.empty < best.empty - 1 : (cand.minPt ?? 0) > (best.minPt ?? 0)) best = cand;
+    }
+  }
+  if (!best) return {ok: false, why: lastWhy || 'no shares of the columns fit their text and figures'};
+  return {...best, tried: candidates.length, small: !(best.minPt === null || best.minPt >= CHOOSE_MIN_PT - 1e-9)};
+}

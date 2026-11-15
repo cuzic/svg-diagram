@@ -7,15 +7,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {installResolveHook} from './lib/resolve-hook.ts';
 import {loadConfig} from './lib/config.ts';
-import {columnWidths, figureRooms, maxScale, type FigureFit} from './lib/deck-layout.ts';
+import {chooseColumns, columnWidths, figureRooms, maxScale, type FigureFit} from './lib/deck-layout.ts';
 import {closeMeasurer, configureMeasure, measureAll, splitAtoms, textWidth} from './lib/measure.ts';
-import {columnFigurePath, figurePath, fitOf} from './lib/deck-spec.ts';
-import {figureKey, loadDeck, renderDeckFigure} from './lib/deck-load.ts';
+import {autoColumns, columnFigurePath, figurePath, fitOf, sharedColumns} from './lib/deck-spec.ts';
+import {drawColumnFigure, figureKey, loadDeck, renderDeckFigure} from './lib/deck-load.ts';
 import {deckEntries, deckTexts, planDeckSlide, slideIssues, type DeckFigure, type TextWidth} from './lib/pptx/deck.ts';
 import {planSlide, fontsOf} from './lib/pptx/slide.ts';
 import {fontFilesOf, rasterize} from './lib/pptx/emit.ts';
 import {zipStore} from './lib/pptx/zip-node.ts';
 import type {MeasureRequest} from './lib/types/core.ts';
+import type {RenderResult} from './lib/types/verdicts.ts';
 
 installResolveHook();
 const USAGE = 'Usage: svg-diagram pptx-deck <deck.json> [--out FILE] [--png-scale N] [--font NAME]';
@@ -60,19 +61,38 @@ try {
     for (const warning of [...(r.fallback ? [r.fallback] : []), ...r.result.verdict.warnings]) console.error(`⚠ ${place}: ${warning}`);
     return {plan: planSlide(r.result.laidOut, fonts), w: Math.max(96, r.result.laidOut.width), h: Math.max(96, r.result.laidOut.canvasHeight)};
   };
-  const figures: (DeckFigure | undefined)[] = [], columnFigures: (DeckFigure | undefined)[][] = [];
+  const figures: (DeckFigure | undefined)[] = [], columnFigures: (DeckFigure | undefined)[][] = [], shares: (number[] | undefined)[] = [];
+  const asDeckFigure = (r: RenderResult): DeckFigure => ({plan: planSlide(r.laidOut, fonts), w: Math.max(96, r.laidOut.width), h: Math.max(96, r.laidOut.canvasHeight)});
   for (const [i, s] of deck.slides.entries()) {
-    const fit = fitOf(deck, s), rooms = figureRooms(s, width);
+    const fit = fitOf(deck, s);
+    if (s.columns && autoColumns(deck, s)) {
+      // the columns' shares chosen from what they hold (ADR 0061)
+      const columns = s.columns, failures: string[][] = [];
+      const chosen = await chooseColumns({...s, columns}, width, maxScale(fit), async (j, w) => {
+        const c = columns[j];
+        const d = await drawColumnFigure(i, j, c?.figure, sources.get(figureKey(i, j)), cfg, w);
+        if (!d.ok && w === null && d.errors) failures[j] = d.errors;
+        return d;
+      });
+      if (!chosen.ok) { errors.push(...failures.flat(), ...(failures.length ? [] : [`slides[${i}].columns: ${chosen.why}`])); figures.push(undefined); columnFigures.push([]); shares.push(undefined); continue; }
+      chosen.figures.forEach((f, j) => { if (f) for (const warning of f.value.verdict.warnings) console.error(`⚠ ${columnFigurePath(i, j, '')}: ${warning}`); });
+      figures.push(undefined);
+      columnFigures.push(chosen.figures.map(f => f ? asDeckFigure(f.value) : undefined));
+      shares.push(chosen.shares);
+      continue;
+    }
+    const cols0 = s.columns ? sharedColumns(s.columns) : undefined, rooms = figureRooms({...s, columns: cols0}, width);
     figures.push(await drawFigure(i, s.figure, fit, rooms.figure));
     const cols: (DeckFigure | undefined)[] = [];
-    const px = columnWidths(s.columns ?? []);
+    const px = columnWidths(cols0 ?? []);
     for (const [j, c] of (s.columns ?? []).entries()) cols.push(c.text === undefined ? await drawFigure(i, c.figure, fit, rooms.columns[j] ?? null, j, px[j]) : undefined);
     columnFigures.push(cols);
+    shares.push(undefined);
   }
   if (errors.length) fail(errors);
   const planned = deck.slides.map(({figure: _f, columns, ...s}, i) => {
     const f = figures[i];
-    const cols = columns?.map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: columnFigures[i]?.[j]}));
+    const cols = columns && sharedColumns(columns, shares[i]).map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: columnFigures[i]?.[j]}));
     return planDeckSlide({...s, fit: fitOf(deck, deck.slides[i] ?? {}), ...(f ? {figure: f} : {}), ...(cols ? {columns: cols} : {})}, fonts, width);
   });
   const reports = planned.map((p, i) => slideIssues(p, i, figures[i] !== undefined, (deck.slides[i]?.columns ?? []).map(c => c.text === undefined ? 'figure' : 'text')));

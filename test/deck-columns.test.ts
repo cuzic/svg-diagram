@@ -209,3 +209,45 @@ test('ADR 0060 helpers: the room each figure gets, the cap per fit, the rule ids
   assert.deepEqual(ruleIds(['[text-mid-word-break] 語の途中', '[legend-missing] x', '[legend-missing] y', 'plain']), ['text-mid-word-break', 'legend-missing', 'plain']);
   assert.deepEqual([fitOf({slides: []}, {}), fitOf({fit: 'width', slides: []}, {}), fitOf({fit: 'width', slides: []}, {fit: 'fill'})], ['fill', 'width', 'fill']);
 });
+
+test('ADR 0061: columns left to choice — which slides choose, the shares laid out by, and what width "auto" means in the input', async () => {
+  const {autoColumns, sharedColumns, writtenShares} = await import('../lib/deck-spec.ts');
+  const cols = [{text: 'a'}, {figure: spec('table'), width: 'auto' as const}];
+  assert.deepEqual(writtenShares(cols), [null, null]);
+  assert.equal(autoColumns({slides: []}, {columns: cols}), true);
+  assert.equal(autoColumns({fit: 'width', slides: []}, {columns: cols}), false, 'fit "width": equal shares, as before');
+  assert.equal(autoColumns({slides: []}, {columns: [{text: 'a', width: 1}, {text: 'b'}]}), false, 'a share written anywhere: no choosing');
+  assert.deepEqual(sharedColumns(cols).map(c => c.width), [1, 1]);
+  assert.deepEqual(sharedColumns(cols, [1, 3]).map(c => c.width), [1, 3]);
+  assert.deepEqual(validateDeck({slides: [{columns: [{text: 'a', width: 'auto'}, {text: 'b'}]}]}), []);
+  assert.deepEqual(validateDeck({slides: [{columns: [{text: 'a', width: 'wide'}, {text: 'b'}]}]}).map(i => i.path), ['slides[0].columns[0].width']);
+});
+
+test('ADR 0061 chooseColumns: the least empty room with every figure at 9pt or more; a text that does not fit rules a share out', async () => {
+  const {chooseColumns} = await import('../lib/deck-layout.ts');
+  // a wide, flat figure: 940 x 300 at any width; its smallest text 10.5pt at scale 1
+  const flat = async (_j: number, w: number | null) => w === null ? {ok: true as const, w: 940, h: 300, value: 'f', flags: [], minPt: 10.5} : {ok: false as const, why: 'fixed'};
+  const s = {title: '見出し', columns: [{text: '短い説明'}, {caption: '図'}]};
+  const r = await chooseColumns(s, width, 1.5, flat);
+  assert.ok(r.ok);
+  assert.deepEqual(r.shares, [1, 3], 'the figure takes the most of the row');
+  assert.ok(r.minPt !== null && r.minPt >= 9 && !r.small);
+  // the text column must hold its text: a long text keeps its column wide enough
+  const long = await chooseColumns({title: '見出し', columns: [{text: 'とても長い説明の文。'.repeat(50)}, {caption: '図'}]}, width, 1.5, flat);
+  assert.ok(long.ok && (long.shares[0] ?? 0) / (long.shares[1] ?? 1) > 1 / 3, JSON.stringify(long.ok && long.shares));
+  // a figure whose text is small at every share: the share with the largest smallest text, said to be small
+  const tiny = await chooseColumns(s, width, 1.5, async (_j, w) => w === null ? {ok: true, w: 940, h: 300, value: 't', flags: [], minPt: 6} : {ok: false, why: 'fixed'});
+  assert.ok(tiny.ok && tiny.small && tiny.shares[1] === 3);
+  assert.deepEqual(await chooseColumns(s, width, 1.5, async () => ({ok: false, why: 'cannot'})), {ok: false, why: 'cannot'});
+});
+
+test('ADR 0061: a value chain\'s chevron gives its text the whole room between its slanted sides, so a narrow one keeps its words whole', async () => {
+  const {renderSpec} = await import('../lib/spec-render.ts');
+  const vc = {version: 1, title: 'vc', width: 563, parts: [{type: 'valueChain', margin: '利益', support: [{label: 'レシピ開発'}, {label: '撮影・編集', sub: '週15時間'}], primary: [{label: '集客', sub: 'SNS・ブログ'}, {label: '体験レッスン', sub: '入会は5人に1人'}, {label: '入会・決済'}, {label: '動画レッスン', sub: '毎月8本の新作'}, {label: '継続フォロー', sub: 'ほぼできていない'}]}]};
+  const r = await renderSpec(vc, {config: {measure: 'font', fonts: JA_FONTS}});
+  assert.ok(r.ok, JSON.stringify(r.issues));
+  assert.ok(!r.findings.some(f => f.rule === 'text-mid-word-break'), JSON.stringify(r.findings.map(f => f.rule)));
+  // narrower still, the words are cut, and the check still sees it although each line sits at its own x
+  const narrow = await renderSpec({...vc, width: 436}, {config: {measure: 'font', fonts: JA_FONTS}});
+  assert.ok(narrow.findings.some(f => f.rule === 'text-mid-word-break'));
+});

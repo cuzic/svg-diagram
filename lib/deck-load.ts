@@ -8,7 +8,9 @@ import {loadDiagram} from './load-source.ts';
 import {renderDiagram} from './dsl/render.ts';
 import {specToDiagram, SpecError} from './spec.ts';
 import {columnFallbackWarning, columnFigurePath, columnSpec, figurePath, validateDeck, type DeckSlide, type DeckSpec} from './deck-spec.ts';
-import {fillSearch, ruleIds} from './deck-layout.ts';
+import {fillSearch, ruleIds, type DrawnFigure} from './deck-layout.ts';
+import {minTextPt, placeShapes} from './pptx/deck.ts';
+import {fontsOf, planSlide} from './pptx/slide.ts';
 import {formatBuildError} from './error-format.ts';
 import type {Diagram} from './types/core.ts';
 import type {Config} from './types/project.ts';
@@ -108,4 +110,23 @@ export async function renderDeckFigure(i: number, spec: unknown, source: string 
   if (first.ok || narrow.auto === null) return first.ok ? first : {ok: false, errors: first.errors};
   const wide = await draw(spec);
   return wide.ok ? {...wide, fallback: columnFallbackWarning(narrow.auto, first.why)} : {ok: false, errors: wide.errors};
+}
+
+/** A figure's smallest text in pt at scale 1, counted as the .pptx counts it (null without text). */
+export function figureMinPt(laidOut: RenderResult['laidOut']): number | null {
+  const plan = planSlide(laidOut, fontsOf(undefined)), inner = /<\/p:grpSpPr>([\s\S]*)<\/p:spTree>/.exec(plan.xml)?.[1] ?? '';
+  return minTextPt(placeShapes(inner, 1, 0, 0));
+}
+
+/**
+ * Column j's figure laid out at `width` for choosing the columns' shares (ADR 0061): a spec without a width of its own at that width; a spec
+ * with one, or a .ts figure, only as it is (a narrower width "fails", so the search does not draw the same figure again).
+ */
+export async function drawColumnFigure(i: number, j: number, spec: unknown, source: string | undefined, cfg: Config, width: number | null, fresh?: boolean): Promise<DrawnFigure<RenderResult> & {errors?: string[]}> {
+  const searchable = !source && typeof spec === 'object' && spec !== null && !Array.isArray(spec) && (spec as {width?: unknown}).width === undefined;
+  if (width !== null && !searchable) return {ok: false, why: 'the figure has a width of its own'};
+  const r = await renderDeckFigure(i, width === null ? spec : {...(spec as object), width}, source, cfg, {column: j, fresh});
+  if (!r.ok) return {ok: false, why: r.errors[0] ?? '', errors: r.errors};
+  const lo = r.result.laidOut;
+  return {ok: true, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), value: r.result, flags: ruleIds([...r.result.verdict.warnings, ...r.result.verdict.problems]), minPt: figureMinPt(lo)};
 }

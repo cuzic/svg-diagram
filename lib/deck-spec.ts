@@ -13,7 +13,7 @@ export const MIN_COLUMNS = 2, MAX_COLUMNS = 3;
 
 export interface DeckCallout {label?: string; text: string}
 /** One column of a slide (ADR 0058): a figure or short text, under an optional caption, `width` its share of the row. */
-export interface DeckColumn {caption?: string; figure?: unknown; text?: string; width?: number}
+export interface DeckColumn {caption?: string; figure?: unknown; text?: string; /** Its share of the row (1 to 3), or 'auto' (ADR 0061; leaving it out is 'auto' too). */ width?: number | 'auto'}
 export interface DeckSlide {title?: string; lead?: string; figure?: unknown; columns?: DeckColumn[]; columnScale?: 'each' | 'same'; fit?: 'fill' | 'width'; callouts?: DeckCallout[]; source?: string; notes?: string}
 export interface DeckSpec {title?: string; fit?: 'fill' | 'width'; slides: DeckSlide[]}
 
@@ -28,7 +28,7 @@ const slideShape = (figure: JsonSchema): JsonSchema => object({
     caption: text('A small bold heading over the column, one line.', 60),
     figure: {...figure, description: 'The column\'s figure (a JSON spec). Write either figure or text.'},
     text: text('Short text for the column: lines separated by "\\n"; a line starting with ・ or "- " is a bullet. Write either figure or text.', 600),
-    width: count('The column\'s share of the row (1 to 3, default 1).', 3),
+    width: {oneOf: [count('The column\'s share of the row (1 to 3).', 3), {type: 'string', const: 'auto'}], description: 'The column\'s share of the row: 1 to 3, or "auto" (the default): when every column is auto, the shares are chosen to leave the least empty room on the slide with every text at 9pt or more (fit "width": equal shares).'},
   }, [], 'One column: a figure or short text.'), MAX_COLUMNS, MIN_COLUMNS),
   columnScale: {...oneOf('each', 'same'), description: '"each" (default): each column\'s figure as large as it fits; "same": every figure at one scale (to compare a before and an after).'},
   fit: {...oneOf('fill', 'width'), description: 'How the figures take the room the slide leaves: "fill" (default) lays each out at the width that draws it largest (up to 1.5 times), so little room is left empty; "width" keeps each at its own width (or its column\'s) and scales it up to 1.25 times.'},
@@ -109,3 +109,11 @@ export function columnSpec(spec: unknown, columnPx: number): {spec: unknown; aut
 /** The warning when a column's figure did not fit its column's width and was drawn at the document's width and shrunk instead (ADR 0059). */
 export const columnFallbackWarning = (auto: number, why: string): string =>
   `does not fit the column's ${auto}px (${why.split('\n')[0]?.slice(0, 160)}); drawn at ${SPEC_WIDTH.max}px and shrunk instead: give the column a larger width, fewer words, or a layout that fits, or write the figure's own width`;
+
+/** The columns' shares as written: a number where one is given, null where it is left to choice ('auto' or left out). */
+export const writtenShares = (columns: readonly DeckColumn[]): (number | null)[] => columns.map(c => typeof c.width === 'number' ? c.width : null);
+/** Whether slide's columns are chosen (ADR 0061): every column 'auto' and the slide fills. Otherwise an 'auto' column takes 1. */
+export const autoColumns = (deck: DeckSpec, slide: DeckSlide): boolean => !!slide.columns?.length && fitOf(deck, slide) === 'fill' && writtenShares(slide.columns).every(w => w === null);
+/** The columns with the shares to lay them out by: chosen ones where given, else the written ones ('auto' as 1). */
+export const sharedColumns = <C extends DeckColumn>(columns: readonly C[], chosen?: readonly number[]): (Omit<C, 'width'> & {width: number})[] =>
+  columns.map((c, j) => ({...c, width: chosen?.[j] ?? (typeof c.width === 'number' ? c.width : 1)}));
