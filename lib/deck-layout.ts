@@ -118,7 +118,7 @@ export function planDeckLayout(s: DeckTextIn, figure: {w: number; h: number} | u
   let place: FigurePlace | null = null, noRoom = false;
   if (columns?.length) {
     const roomTop = y + (s.title || s.lead ? GAP : 0) + FIG_PAD, roomH = low - (bottom.length ? GAP - 10 : 0) - roomTop - FIG_PAD;
-    return {top, bottom, figure: null, noRoom: roomH < 48, columns: planColumns(columns, roomTop, roomH, width, w, scale)};
+    return {top, bottom, figure: null, noRoom: roomH < 48, columns: planColumns(columns, roomTop, roomH, w, scale)};
   }
   if (figure) {
     // FIG_PAD on each side: a figure's ink may reach a few px past its laid-out size (a shadow, a label's overhang)
@@ -133,13 +133,24 @@ export function planDeckLayout(s: DeckTextIn, figure: {w: number; h: number} | u
   return {top, bottom, figure: place, noRoom, columns: []};
 }
 
-/** The columns side by side in the room (top, height) the slide's text leaves, `rowWidth` wide. */
-function planColumns(columns: readonly ColumnIn[], top: number, height: number, rowWidth: number, w: TextWidth, scale: 'each' | 'same'): ColumnPlace[] {
+/** Each column's width in px: the row (the slide less its margins and the gaps) shared by the columns' `width`. */
+export function columnWidths(columns: readonly {width?: number}[]): number[] {
   const shares = columns.map(c => c.width ?? 1), total = shares.reduce((a, b) => a + b, 0);
-  const inner = rowWidth - COLUMN_GAP * (columns.length - 1);
+  const inner = SLIDE_W - 2 * MARGIN_X - COLUMN_GAP * (columns.length - 1);
+  return shares.map(share => inner * share / total);
+}
+
+/** The scale a column figure laid out at its column's width is drawn at: 14 px text comes out at 9 pt (ADR 0059). */
+export const COLUMN_FIGURE_SCALE = 0.86;
+/** The width a spec figure with no `width` of its own is laid out at in a column `px` wide (ADR 0059), within the spec's range. */
+export const columnLayoutWidth = (px: number, range: {min: number; max: number}): number => Math.max(range.min, Math.min(range.max, Math.round(px / COLUMN_FIGURE_SCALE)));
+
+/** The columns side by side in the room (top, height) the slide's text leaves. */
+function planColumns(columns: readonly ColumnIn[], top: number, height: number, w: TextWidth, scale: 'each' | 'same'): ColumnPlace[] {
+  const widths = columnWidths(columns);
   let x = MARGIN_X;
   const cols = columns.map((c, j) => {
-    const width = inner * (shares[j] ?? 1) / total, at = x;
+    const width = widths[j] ?? 0, at = x;
     x += width + COLUMN_GAP;
     const lines = c.caption ? wrapped(c.caption, CAPTION.size, width, w, CAPTION.bold) : [];
     return {c, x: at, width, caption: lines.length ? textBlock('column caption', at, top, width, CAPTION.size, lines.map(t => [{text: t, bold: true, color: CAPTION.color}])) : null};

@@ -2,7 +2,8 @@
 // Worker ("svg-diagram/pptx/deck/edge", ADR 0055). Each figure is drawn as renderPptxEdge draws one (native shapes, pictures with a PNG
 // fallback) and scaled onto its slide with the heading, lead, callouts, source and notes (lib/pptx/deck.ts).
 import {capped, type SpecIssue} from './spec.ts';
-import {columnFigurePath, figurePath, validateDeck, type DeckSpec} from './deck-spec.ts';
+import {columnFallbackWarning, columnFigurePath, columnSpec, figurePath, validateDeck, type DeckSpec} from './deck-spec.ts';
+import {columnWidths} from './deck-layout.ts';
 import {guardedEngine, type TextEngine} from './spec-edge.ts';
 import {planFigureEdge, zipPackage, type PptxEdgeOptions} from './pptx-edge.ts';
 import {deckEntries, planDeckSlide, slideIssues, type DeckFigure, type PlannedSlide, type TextWidth} from './pptx/deck.ts';
@@ -49,9 +50,17 @@ export async function renderDeckPptxEdge(input: unknown, givenEngine: TextEngine
   const deck = input as DeckSpec, engine = guardedEngine(givenEngine), fonts = fontsOf(opts.font);
   const issues: SpecIssue[] = [];
   /** A figure planned as PowerPoint shapes: slide i's own, or its column j's (ADR 0058). */
-  const plan = async (i: number, spec: unknown, j?: number): Promise<DeckFigure & {native: number} | undefined> => {
+  const fallbacks: SpecIssue[] = [];
+  const plan = async (i: number, spec: unknown, j?: number, columnPx?: number): Promise<DeckFigure & {native: number} | undefined> => {
     if (spec === undefined) return undefined;
-    const f = await planFigureEdge(spec, engine, opts);
+    // a column's figure is laid out at the column's width when it gives none; when it does not fit there, at the document's (ADR 0059)
+    const narrow = j !== undefined && columnPx !== undefined ? columnSpec(spec, columnPx) : {spec, auto: null};
+    let f = await planFigureEdge(narrow.spec, engine, opts);
+    if ('issues' in f && narrow.auto !== null) {
+      const why = f.issues[0]?.message ?? '', wide = await planFigureEdge(spec, engine, opts);
+      if (!('issues' in wide)) fallbacks.push({path: columnFigurePath(i, j as number, ''), message: columnFallbackWarning(narrow.auto, why)});
+      f = wide;
+    }
     if ('issues' in f) { issues.push(...f.issues.map(x => ({path: j === undefined ? figurePath(i, x.path) : columnFigurePath(i, j, x.path), message: x.message}))); return undefined; }
     return {plan: f.plan, w: f.width, h: f.height, native: f.native};
   };
@@ -59,7 +68,8 @@ export async function renderDeckPptxEdge(input: unknown, givenEngine: TextEngine
   for (const [i, s] of deck.slides.entries()) {
     figures.push(await plan(i, s.figure));
     const cols: (DeckFigure & {native: number} | undefined)[] = [];
-    for (const [j, c] of (s.columns ?? []).entries()) cols.push(await plan(i, c.figure, j));
+    const px = columnWidths(s.columns ?? []);
+    for (const [j, c] of (s.columns ?? []).entries()) cols.push(await plan(i, c.figure, j, px[j]));
     columnFigures.push(cols);
   }
   if (issues.length) return none(issues);
@@ -69,7 +79,7 @@ export async function renderDeckPptxEdge(input: unknown, givenEngine: TextEngine
     const cols = columns?.map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: columnFigures[i]?.[j]}));
     return planDeckSlide({...s, ...(f ? {figure: f} : {}), ...(cols ? {columns: cols} : {})}, fonts, width);
   });
-  const warnings: SpecIssue[] = [];
+  const warnings: SpecIssue[] = [...fallbacks];
   planned.forEach((p, i) => {
     const r = slideIssues(p, i, figures[i] !== undefined, (deck.slides[i]?.columns ?? []).map(c => c.text === undefined ? 'figure' : 'text'));
     issues.push(...r.errors);

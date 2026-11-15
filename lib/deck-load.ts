@@ -7,7 +7,7 @@ import {applyConfig} from './config.ts';
 import {loadDiagram} from './load-source.ts';
 import {renderDiagram} from './dsl/render.ts';
 import {specToDiagram, SpecError} from './spec.ts';
-import {columnFigurePath, figurePath, validateDeck, type DeckSlide, type DeckSpec} from './deck-spec.ts';
+import {columnFallbackWarning, columnFigurePath, columnSpec, figurePath, validateDeck, type DeckSlide, type DeckSpec} from './deck-spec.ts';
 import {formatBuildError} from './error-format.ts';
 import type {Diagram} from './types/core.ts';
 import type {Config} from './types/project.ts';
@@ -76,15 +76,23 @@ export function loadDeck(deckFile: string): {ok: true; loaded: LoadedDeck} | {ok
 
 /**
  * A figure drawn (a .ts source from `source`, else the spec `spec`), or the problems with it, each with its place: slide i's figure, or
- * with `j` the figure of its column j.
+ * with `column` the figure of its column j. With `columnPx` (the column's width), a spec that gives no width of its own is laid out at the
+ * column's width; when it does not fit there, it is drawn at the document's width and `fallback` says so (ADR 0059).
  */
-export async function renderDeckFigure(i: number, spec: unknown, source: string | undefined, cfg: Config, opts: {fresh?: boolean; column?: number} = {}): Promise<{ok: true; result: RenderResult} | {ok: false; errors: string[]}> {
+export async function renderDeckFigure(i: number, spec: unknown, source: string | undefined, cfg: Config, opts: {fresh?: boolean; column?: number; columnPx?: number} = {}): Promise<{ok: true; result: RenderResult; fallback?: string} | {ok: false; errors: string[]}> {
   const j = opts.column, at = (p: string | null) => j === undefined ? figurePath(i, p) : columnFigurePath(i, j, p);
-  try {
-    const d: Diagram = source ? await loadDiagram(source, cfg, opts) : applyConfig(specToDiagram(spec), cfg);
-    return {ok: true, result: await renderDiagram(d, {name: `slide${i + 1}${j === undefined ? '' : `-${j + 1}`}.svg`, budget: 'cacheOnly'})};
-  } catch (e) {
-    if (e instanceof SpecError) return {ok: false, errors: e.issues.map(x => `${at(x.path)}: ${x.message}`)};
-    return {ok: false, errors: [formatBuildError(source ?? at(''), e)]};
-  }
+  const draw = async (s: unknown): Promise<{ok: true; result: RenderResult} | {ok: false; errors: string[]; why: string}> => {
+    try {
+      const d: Diagram = source ? await loadDiagram(source, cfg, opts) : applyConfig(specToDiagram(s), cfg);
+      return {ok: true, result: await renderDiagram(d, {name: `slide${i + 1}${j === undefined ? '' : `-${j + 1}`}.svg`, budget: 'cacheOnly'})};
+    } catch (e) {
+      if (e instanceof SpecError) return {ok: false, errors: e.issues.map(x => `${at(x.path)}: ${x.message}`), why: e.issues[0]?.message ?? ''};
+      return {ok: false, errors: [formatBuildError(source ?? at(''), e)], why: e instanceof Error ? e.message : String(e)};
+    }
+  };
+  const narrow = j !== undefined && !source && opts.columnPx !== undefined ? columnSpec(spec, opts.columnPx) : {spec, auto: null};
+  const first = await draw(narrow.spec);
+  if (first.ok || narrow.auto === null) return first.ok ? first : {ok: false, errors: first.errors};
+  const wide = await draw(spec);
+  return wide.ok ? {...wide, fallback: columnFallbackWarning(narrow.auto, first.why)} : {ok: false, errors: wide.errors};
 }

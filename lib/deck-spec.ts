@@ -2,7 +2,8 @@
 // (ADR 0055). The input, its JSON Schema and its checks, with places such as `slides[2].figure.parts[0].nodes[1]`. Like lib/spec.ts, nothing
 // here touches the disk or a process.
 import {capped, specSchema, validateAgainst, validateSpec} from './spec.ts';
-import {count, list, object, oneOf, text, type Json, type JsonSchema, type SpecIssue} from './spec-kit.ts';
+import {count, list, object, oneOf, SPEC_WIDTH, text, type Json, type JsonSchema, type SpecIssue} from './spec-kit.ts';
+import {columnLayoutWidth} from './deck-layout.ts';
 
 /** Slides in one deck (ADR 0055 D1, raised from 30 to 300 on 2026-11-15: see the ADR for what the number rests on). */
 export const MAX_SLIDES = 300;
@@ -89,3 +90,17 @@ function withoutBreaks(input: unknown): unknown {
     return out;
   })};
 }
+
+/**
+ * The spec a column's figure is laid out from (ADR 0059): one that gives no `width` of its own is laid out at the column's width (so its
+ * boxes and tables wrap their text instead of the whole figure being shrunk); `auto` is that width, or null when the spec keeps its own.
+ */
+export function columnSpec(spec: unknown, columnPx: number): {spec: unknown; auto: number | null} {
+  if (typeof spec !== 'object' || spec === null || Array.isArray(spec) || (spec as Json)['width'] !== undefined) return {spec, auto: null};
+  const auto = columnLayoutWidth(columnPx, SPEC_WIDTH);
+  return auto >= SPEC_WIDTH.max ? {spec, auto: null} : {spec: {...(spec as Json), width: auto}, auto};
+}
+
+/** The warning when a column's figure did not fit its column's width and was drawn at the document's width and shrunk instead (ADR 0059). */
+export const columnFallbackWarning = (auto: number, why: string): string =>
+  `does not fit the column's ${auto}px (${why.split('\n')[0]?.slice(0, 160)}); drawn at ${SPEC_WIDTH.max}px and shrunk instead: give the column a larger width, fewer words, or a layout that fits, or write the figure's own width`;

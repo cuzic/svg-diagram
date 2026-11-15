@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {installResolveHook} from './lib/resolve-hook.ts';
 import {loadConfig} from './lib/config.ts';
+import {columnWidths} from './lib/deck-layout.ts';
 import {closeMeasurer, configureMeasure, measureAll, splitAtoms, textWidth} from './lib/measure.ts';
 import {columnFigurePath, figurePath} from './lib/deck-spec.ts';
 import {figureKey, loadDeck, renderDeckFigure} from './lib/deck-load.ts';
@@ -43,19 +44,21 @@ try {
   const fonts = fontsOf(font), rasterFonts = fontFilesOf(cfg.fonts);
   const errors: string[] = [];
   /** A figure drawn and planned as PowerPoint shapes: slide i's own, or its column j's (ADR 0058). */
-  const drawFigure = async (i: number, spec: unknown, j?: number): Promise<DeckFigure | undefined> => {
+  const drawFigure = async (i: number, spec: unknown, j?: number, columnPx?: number): Promise<DeckFigure | undefined> => {
     const source = sources.get(figureKey(i, j));
     if (spec === undefined && !source) return undefined;
-    const r = await renderDeckFigure(i, spec, source, cfg, {column: j});
+    const r = await renderDeckFigure(i, spec, source, cfg, {column: j, columnPx});
     if (!r.ok) { errors.push(...r.errors); return undefined; }
-    for (const warning of r.result.verdict.warnings) console.error(`⚠ ${j === undefined ? figurePath(i, '') : columnFigurePath(i, j, '')}: ${warning}`);
+    const place = j === undefined ? figurePath(i, '') : columnFigurePath(i, j, '');
+    for (const warning of [...(r.fallback ? [r.fallback] : []), ...r.result.verdict.warnings]) console.error(`⚠ ${place}: ${warning}`);
     return {plan: planSlide(r.result.laidOut, fonts), w: Math.max(96, r.result.laidOut.width), h: Math.max(96, r.result.laidOut.canvasHeight)};
   };
   const figures: (DeckFigure | undefined)[] = [], columnFigures: (DeckFigure | undefined)[][] = [];
   for (const [i, s] of deck.slides.entries()) {
     figures.push(await drawFigure(i, s.figure));
     const cols: (DeckFigure | undefined)[] = [];
-    for (const [j, c] of (s.columns ?? []).entries()) cols.push(c.text === undefined ? await drawFigure(i, c.figure, j) : undefined);
+    const px = columnWidths(s.columns ?? []);
+    for (const [j, c] of (s.columns ?? []).entries()) cols.push(c.text === undefined ? await drawFigure(i, c.figure, j, px[j]) : undefined);
     columnFigures.push(cols);
   }
   if (errors.length) fail(errors);

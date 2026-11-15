@@ -119,3 +119,49 @@ test('serve draws a column slide: each figure nested with ids of its own, a .ts 
     assert.deepEqual(checkSlideSvg(svg), {ok: true});
   } finally { fs.rmSync(dir, {recursive: true, force: true}); }
 });
+
+test('ADR 0059: a spec may give its own width (320 to 940); a column figure without one is laid out at the column\'s width', async () => {
+  const {validateSpec, specToDiagram} = await import('../lib/spec.ts');
+  const {columnSpec, columnFallbackWarning} = await import('../lib/deck-spec.ts');
+  const {columnWidths, columnLayoutWidth, COLUMN_FIGURE_SCALE} = await import('../lib/deck-layout.ts');
+  const f = spec('table');
+  assert.deepEqual(validateSpec({...f, width: 500}), []);
+  assert.equal(specToDiagram({...f, width: 500}).width, 500);
+  assert.deepEqual(validateSpec({...f, width: 1200}).map(i => i.path), ['width'], 'wider than the document is a canvas (ADR 0057), not a width');
+  assert.deepEqual(validateSpec({...f, width: 200}).map(i => i.path), ['width']);
+  const [a, b] = columnWidths([{}, {width: 2}]);
+  assert.ok(a && b && Math.abs(b - 2 * a) < 1e-9);
+  assert.equal(columnLayoutWidth(572, {min: 320, max: 940}), Math.round(572 / COLUMN_FIGURE_SCALE));
+  assert.equal(columnSpec(f, 572).auto, 665);
+  assert.equal((columnSpec(f, 572).spec as {width: number}).width, 665);
+  assert.deepEqual(columnSpec({...f, width: 800}, 572), {spec: {...f, width: 800}, auto: null}, 'the figure\'s own width is kept');
+  assert.equal(columnSpec(f, 900).auto, null, 'a column as wide as the document: as it is');
+  assert.match(columnFallbackWarning(665, 'mindmap(): the figure does not fit 625px.\ntried: …'), /^does not fit the column's 665px \(mindmap\(\): the figure does not fit 625px\.\); drawn at 940px and shrunk instead/);
+});
+
+test('ADR 0059: a column figure is drawn at its column\'s width (no shrinking past 9pt), and one that does not fit is drawn at 940 with a warning', async () => {
+  const wide = {version: 1, title: 'cloud', parts: [example('cloud')]};
+  const r = await renderDeckPptxEdge({slides: [
+    {title: '二段', columns: [{figure: spec('table')}, {figure: spec('steps')}]},
+    {title: '三段', columns: [{figure: wide}, {text: 'x'}, {text: 'y'}]},
+  ]}, realEngine(), {rasterize: () => PNG});
+  assert.deepEqual(r.issues, []);
+  assert.ok((r.slides[0]?.columns ?? []).every(c => c.minTextPt === null || c.minTextPt >= 9), JSON.stringify(r.slides[0]?.columns));
+  const fallback = r.warnings.find(w => w.path === 'slides[1].columns[0].figure' && w.message.startsWith('does not fit the column'));
+  assert.ok(fallback, JSON.stringify(r.warnings));
+});
+
+test('ADR 0059 in serve: the same fallback, said as a warning at the column figure\'s place', async () => {
+  installResolveHook();
+  configureMeasure({measure: 'font', fonts: JA_FONTS});
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'deck-columns-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'deck.json'), JSON.stringify({slides: [{title: '三段', columns: [{figure: {version: 1, title: 'cloud', parts: [example('cloud')]}}, {text: 'x'}, {figure: spec('table')}]}]}));
+    const got = loadDeck(path.join(dir, 'deck.json'));
+    assert.ok(got.ok);
+    const r = await renderDeck(got.loaded, {measure: 'font', fonts: JA_FONTS});
+    assert.deepEqual(r.errors, []);
+    assert.ok(r.warnings.some(w => w.startsWith('slides[0].columns[0].figure: does not fit the column\'s')), JSON.stringify(r.warnings));
+    assert.ok(!r.warnings.some(w => w.startsWith('slides[0].columns[2].figure: does not fit')), 'the table fits its column');
+  } finally { fs.rmSync(dir, {recursive: true, force: true}); }
+});
