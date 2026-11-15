@@ -7,9 +7,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {installResolveHook} from './lib/resolve-hook.ts';
 import {loadConfig} from './lib/config.ts';
-import {columnWidths} from './lib/deck-layout.ts';
+import {columnWidths, figureRooms, maxScale, type FigureFit} from './lib/deck-layout.ts';
 import {closeMeasurer, configureMeasure, measureAll, splitAtoms, textWidth} from './lib/measure.ts';
-import {columnFigurePath, figurePath} from './lib/deck-spec.ts';
+import {columnFigurePath, figurePath, fitOf} from './lib/deck-spec.ts';
 import {figureKey, loadDeck, renderDeckFigure} from './lib/deck-load.ts';
 import {deckEntries, deckTexts, planDeckSlide, slideIssues, type DeckFigure, type TextWidth} from './lib/pptx/deck.ts';
 import {planSlide, fontsOf} from './lib/pptx/slide.ts';
@@ -43,11 +43,18 @@ try {
   configureMeasure(cfg);
   const fonts = fontsOf(font), rasterFonts = fontFilesOf(cfg.fonts);
   const errors: string[] = [];
-  /** A figure drawn and planned as PowerPoint shapes: slide i's own, or its column j's (ADR 0058). */
-  const drawFigure = async (i: number, spec: unknown, j?: number, columnPx?: number): Promise<DeckFigure | undefined> => {
+  // the slide's own text is measured as the figures are: in one batch, by atoms (lib/atoms.ts); first, as it decides each figure's room
+  const requests = new Map<string, MeasureRequest>();
+  const key = (atom: string, size: number, weight: number) => `${size}|${weight}|${atom}`;
+  for (const s of deck.slides) for (const t of deckTexts(s)) for (const atom of splitAtoms(t.text)) requests.set(key(atom, t.size, t.bold ? 700 : 400), {text: atom, size: t.size, weight: t.bold ? 700 : 400});
+  const measured = await measureAll(requests);
+  const widthOf = (atom: string, size: number, weight: number): number => measured.get(key(atom, size, weight))?.w ?? atom.length * size;
+  const width: TextWidth = (text, size, bold) => textWidth(widthOf, text, size, bold ? 700 : 400);
+  /** A figure drawn and planned as PowerPoint shapes: slide i's own, or its column j's (ADR 0058), fitted to its room (ADR 0059, 0060). */
+  const drawFigure = async (i: number, spec: unknown, fit: FigureFit, room: {w: number; h: number} | null, j?: number, columnPx?: number): Promise<DeckFigure | undefined> => {
     const source = sources.get(figureKey(i, j));
     if (spec === undefined && !source) return undefined;
-    const r = await renderDeckFigure(i, spec, source, cfg, {column: j, columnPx});
+    const r = await renderDeckFigure(i, spec, source, cfg, fit === 'fill' && room ? {column: j, fill: {box: room, cap: maxScale(fit)}} : {column: j, columnPx});
     if (!r.ok) { errors.push(...r.errors); return undefined; }
     const place = j === undefined ? figurePath(i, '') : columnFigurePath(i, j, '');
     for (const warning of [...(r.fallback ? [r.fallback] : []), ...r.result.verdict.warnings]) console.error(`⚠ ${place}: ${warning}`);
@@ -55,24 +62,18 @@ try {
   };
   const figures: (DeckFigure | undefined)[] = [], columnFigures: (DeckFigure | undefined)[][] = [];
   for (const [i, s] of deck.slides.entries()) {
-    figures.push(await drawFigure(i, s.figure));
+    const fit = fitOf(deck, s), rooms = figureRooms(s, width);
+    figures.push(await drawFigure(i, s.figure, fit, rooms.figure));
     const cols: (DeckFigure | undefined)[] = [];
     const px = columnWidths(s.columns ?? []);
-    for (const [j, c] of (s.columns ?? []).entries()) cols.push(c.text === undefined ? await drawFigure(i, c.figure, j, px[j]) : undefined);
+    for (const [j, c] of (s.columns ?? []).entries()) cols.push(c.text === undefined ? await drawFigure(i, c.figure, fit, rooms.columns[j] ?? null, j, px[j]) : undefined);
     columnFigures.push(cols);
   }
   if (errors.length) fail(errors);
-  // the slide's own text is measured as the figures are: in one batch, by atoms (lib/atoms.ts)
-  const requests = new Map<string, MeasureRequest>();
-  const key = (atom: string, size: number, weight: number) => `${size}|${weight}|${atom}`;
-  for (const s of deck.slides) for (const t of deckTexts(s)) for (const atom of splitAtoms(t.text)) requests.set(key(atom, t.size, t.bold ? 700 : 400), {text: atom, size: t.size, weight: t.bold ? 700 : 400});
-  const measured = await measureAll(requests);
-  const widthOf = (atom: string, size: number, weight: number): number => measured.get(key(atom, size, weight))?.w ?? atom.length * size;
-  const width: TextWidth = (text, size, bold) => textWidth(widthOf, text, size, bold ? 700 : 400);
   const planned = deck.slides.map(({figure: _f, columns, ...s}, i) => {
     const f = figures[i];
     const cols = columns?.map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: columnFigures[i]?.[j]}));
-    return planDeckSlide({...s, ...(f ? {figure: f} : {}), ...(cols ? {columns: cols} : {})}, fonts, width);
+    return planDeckSlide({...s, fit: fitOf(deck, deck.slides[i] ?? {}), ...(f ? {figure: f} : {}), ...(cols ? {columns: cols} : {})}, fonts, width);
   });
   const reports = planned.map((p, i) => slideIssues(p, i, figures[i] !== undefined, (deck.slides[i]?.columns ?? []).map(c => c.text === undefined ? 'figure' : 'text')));
   const noRoom = reports.flatMap(r => r.errors.map(e => `${e.path}: ${e.message}`));

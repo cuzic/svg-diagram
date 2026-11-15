@@ -9,6 +9,12 @@ export const MARGIN_X = 56;
 const TOP = 32, BOTTOM = 28, GAP = 16, FIG_PAD = 6;
 /** A figure is never drawn larger than this many times its own size: past it the text looks shouted. */
 export const MAX_FIGURE_SCALE = 1.25;
+/** How a figure takes the room the slide leaves (ADR 0060): 'fill' (default) lays it out at the width that draws it largest, up to FILL_FIGURE_SCALE;
+ *  'width' keeps the layout of ADR 0055 / 0059 (the figure's own width, or its column's, scaled up to MAX_FIGURE_SCALE). */
+export type FigureFit = 'fill' | 'width';
+/** The largest a figure is drawn under 'fill': 14 px text comes out at 21 px (about 16 pt), still well under the heading's 37 px. */
+export const FILL_FIGURE_SCALE = 1.5;
+export const maxScale = (fit: FigureFit): number => fit === 'fill' ? FILL_FIGURE_SCALE : MAX_FIGURE_SCALE;
 /** The smallest text (pt) a scaled figure may have before the slide is reported as hard to read. */
 export const MIN_TEXT_PT = 9;
 /** Line pitch as a multiple of the text size. */
@@ -29,7 +35,7 @@ export interface DeckTextIn {title?: string; lead?: string; callouts?: readonly 
 /** A column to place (ADR 0058): a figure (its laid-out size) or text, under an optional caption; `width` its share of the row. */
 export interface ColumnIn {caption?: string; figure?: {w: number; h: number}; text?: string; width?: number}
 /** Where a column's parts go: its caption, and its figure or its text (one block per paragraph); `noRoom` when its content does not fit. */
-export interface ColumnPlace {x: number; width: number; caption: TextBlock | null; figure: FigurePlace | null; text: TextBlock[]; noRoom: boolean}
+export interface ColumnPlace {x: number; width: number; caption: TextBlock | null; figure: FigurePlace | null; text: TextBlock[]; noRoom: boolean; /** The room for the column's content (under the captions). */ box: {w: number; h: number}}
 
 export interface Run {text: string; bold: boolean; color: string}
 /** A text box: lines of runs, each line `pitch` px below the last, inside an inset. */
@@ -49,6 +55,8 @@ export interface DeckLayout {
   noRoom: boolean;
   /** The columns, when the slide has them (ADR 0058). */
   columns: ColumnPlace[];
+  /** The room the slide's text leaves for its figure (or its columns): what a figure is fitted into. */
+  room: {w: number; h: number};
 }
 
 /** Between two columns, px. */
@@ -83,7 +91,7 @@ const textBlock = (name: string, x: number, y: number, width: number, size: numb
  * The slide's blocks and the figure's place. `figure` is the figure's laid-out size in px, when the slide has one. `columns` (ADR 0058) share
  * the room the figure would have, side by side; `scale` 'same' puts every column figure at one scale.
  */
-export function planDeckLayout(s: DeckTextIn, figure: {w: number; h: number} | undefined, w: TextWidth, columns?: readonly ColumnIn[], scale: 'each' | 'same' = 'each'): DeckLayout {
+export function planDeckLayout(s: DeckTextIn, figure: {w: number; h: number} | undefined, w: TextWidth, columns?: readonly ColumnIn[], scale: 'each' | 'same' = 'each', fit: FigureFit = 'width'): DeckLayout {
   const width = SLIDE_W - 2 * MARGIN_X;
   const top: TextBlock[] = [], bottom: Block[][] = [];
   let y = TOP;
@@ -118,19 +126,20 @@ export function planDeckLayout(s: DeckTextIn, figure: {w: number; h: number} | u
   let place: FigurePlace | null = null, noRoom = false;
   if (columns?.length) {
     const roomTop = y + (s.title || s.lead ? GAP : 0) + FIG_PAD, roomH = low - (bottom.length ? GAP - 10 : 0) - roomTop - FIG_PAD;
-    return {top, bottom, figure: null, noRoom: roomH < 48, columns: planColumns(columns, roomTop, roomH, w, scale)};
+    return {top, bottom, figure: null, noRoom: roomH < 48, columns: planColumns(columns, roomTop, roomH, w, scale, maxScale(fit)), room: {w: width, h: roomH}};
   }
   if (figure) {
     // FIG_PAD on each side: a figure's ink may reach a few px past its laid-out size (a shadow, a label's overhang)
     const roomTop = y + (s.title || s.lead ? GAP : 0) + FIG_PAD, roomH = low - (bottom.length ? GAP - 10 : 0) - roomTop - FIG_PAD;
-    const k = Math.min(width / figure.w, roomH / figure.h, MAX_FIGURE_SCALE);
+    const k = Math.min(width / figure.w, roomH / figure.h, maxScale(fit));
     if (!(k > 0) || roomH < 48) noRoom = true;
     else {
       const fw = figure.w * k, fh = figure.h * k;
       place = {x: MARGIN_X + (width - fw) / 2, y: roomTop + (roomH - fh) / 2, w: fw, h: fh, k};
     }
   } else if (y > low + 10) noRoom = true;
-  return {top, bottom, figure: place, noRoom, columns: []};
+  const roomTop = y + (s.title || s.lead ? GAP : 0) + FIG_PAD, roomH = low - (bottom.length ? GAP - 10 : 0) - roomTop - FIG_PAD;
+  return {top, bottom, figure: place, noRoom, columns: [], room: {w: width, h: roomH}};
 }
 
 /** Each column's width in px: the row (the slide less its margins and the gaps) shared by the columns' `width`. */
@@ -146,7 +155,7 @@ export const COLUMN_FIGURE_SCALE = 0.86;
 export const columnLayoutWidth = (px: number, range: {min: number; max: number}): number => Math.max(range.min, Math.min(range.max, Math.round(px / COLUMN_FIGURE_SCALE)));
 
 /** The columns side by side in the room (top, height) the slide's text leaves. */
-function planColumns(columns: readonly ColumnIn[], top: number, height: number, w: TextWidth, scale: 'each' | 'same'): ColumnPlace[] {
+function planColumns(columns: readonly ColumnIn[], top: number, height: number, w: TextWidth, scale: 'each' | 'same', cap: number): ColumnPlace[] {
   const widths = columnWidths(columns);
   let x = MARGIN_X;
   const cols = columns.map((c, j) => {
@@ -158,14 +167,14 @@ function planColumns(columns: readonly ColumnIn[], top: number, height: number, 
   // the contents start on one line across the columns (under the tallest caption), so a figure is compared with its neighbour from the top
   const captionH = Math.max(0, ...cols.map(k => k.caption ? k.caption.lines.length * k.caption.pitch + 6 : 0));
   const contentTop = top + captionH, contentH = height - captionH;
-  const fits = cols.map(k => k.c.figure ? Math.min(k.width / k.c.figure.w, contentH / k.c.figure.h, MAX_FIGURE_SCALE) : 0);
+  const fits = cols.map(k => k.c.figure ? Math.min(k.width / k.c.figure.w, contentH / k.c.figure.h, cap) : 0);
   const common = Math.min(...fits.filter((_, j) => cols[j]?.c.figure));
   return cols.map((k, j): ColumnPlace => {
     if (k.c.figure) {
       const kk = scale === 'same' ? common : fits[j] ?? 0;
-      if (!(kk > 0) || contentH < 48) return {x: k.x, width: k.width, caption: k.caption, figure: null, text: [], noRoom: true};
+      if (!(kk > 0) || contentH < 48) return {x: k.x, width: k.width, caption: k.caption, figure: null, text: [], noRoom: true, box: {w: k.width, h: contentH}};
       const fw = k.c.figure.w * kk, fh = k.c.figure.h * kk;
-      return {x: k.x, width: k.width, caption: k.caption, figure: {x: k.x + (k.width - fw) / 2, y: contentTop, w: fw, h: fh, k: kk}, text: [], noRoom: false};
+      return {x: k.x, width: k.width, caption: k.caption, figure: {x: k.x + (k.width - fw) / 2, y: contentTop, w: fw, h: fh, k: kk}, text: [], noRoom: false, box: {w: k.width, h: contentH}};
     }
     // text: a paragraph a line of the input; a bullet's following lines hang under its text, not under the bullet
     const st = STYLE.lead, pitch = Math.round(st.size * LINE), blocks: TextBlock[] = [];
@@ -179,7 +188,7 @@ function planColumns(columns: readonly ColumnIn[], top: number, height: number, 
       blocks.push(textBlock('column text', k.x + indent, yy, k.width - indent, st.size, lines.map(t => [{text: t, bold: false, color: '1F2328'}])));
       yy += lines.length * pitch + 4;
     }
-    return {x: k.x, width: k.width, caption: k.caption, figure: null, text: blocks, noRoom: yy - 4 > contentTop + contentH};
+    return {x: k.x, width: k.width, caption: k.caption, figure: null, text: blocks, noRoom: yy - 4 > contentTop + contentH, box: {w: k.width, h: contentH}};
   });
 }
 
@@ -207,4 +216,48 @@ export function smallTextWarning(p: {scale: number | null; minTextPt: number | n
   if (p.minTextPt === null || p.scale === null || p.minTextPt >= MIN_TEXT_PT) return null;
   const how = p.scale < 1 ? `scaled to ${Math.round(p.scale * 100)}% to fit the slide, its` : 'its';
   return `${how} smallest text is ${p.minTextPt.toFixed(1)}pt (under ${MIN_TEXT_PT}pt): split the figure, or move text off the slide`;
+}
+
+/** The layout widths 'fill' tries (ADR 0060): the document's 940 and narrower, each about 12 % less, down to the spec's 320. */
+export const FILL_WIDTHS: readonly number[] = [827, 728, 640, 563, 496, 436, 384, 338];
+
+/** A figure laid out at one width: its size, and the checks it raised (rule ids such as text-mid-word-break), or why it could not be. */
+export type Drawn<T> = {ok: true; w: number; h: number; value: T; flags: readonly string[]} | {ok: false; why: string};
+
+/** The rule ids of a verdict's findings (`[rule-id] …`). */
+export const ruleIds = (findings: readonly string[]): string[] => [...new Set(findings.map(f => /\[([a-z0-9-]+)\]/.exec(f)?.[1] ?? f))];
+export interface FillResult<T> {ok: true; value: T; /** The layout width chosen, or null for the figure as it is (940). */ width: number | null; k: number; tried: number; /** Why the first narrower width that failed failed. */ narrower: {width: number; why: string} | null}
+
+/**
+ * The layout width that draws a figure largest in `box` (ADR 0060): the figure as it is first, then narrower widths while it is the width
+ * that holds it back (a narrower figure is taller, so once the height holds it back, narrower only makes it smaller). A width that cannot be
+ * laid out ends the search, and so does one that raises a check the figure as it is does not (a narrower box breaking a word in the middle,
+ * text crowding: a larger figure that reads worse is not wanted). The scale is min(box width / figure width, box height / figure height, cap);
+ * a narrower width is taken only when it draws the figure at least 1 % larger.
+ */
+export async function fillSearch<T>(box: {w: number; h: number}, cap: number, draw: (width: number | null) => Promise<Drawn<T>>): Promise<FillResult<T> | {ok: false; why: string}> {
+  const scale = (d: {w: number; h: number}) => Math.min(box.w / d.w, box.h / d.h, cap);
+  const heightBound = (d: {w: number; h: number}) => box.h / d.h <= box.w / d.w;
+  const first = await draw(null);
+  if (!first.ok) return first;
+  let best: FillResult<T> = {ok: true, value: first.value, width: null, k: scale(first), tried: 1, narrower: null};
+  if (heightBound(first) || best.k >= cap) return best;
+  for (const width of FILL_WIDTHS) {
+    if (width >= first.w) continue;
+    const d = await draw(width);
+    best.tried++;
+    if (!d.ok) { best.narrower = {width, why: d.why}; break; }
+    if (d.flags.some(f => !first.flags.includes(f))) break;
+    const k = scale(d);
+    if (k > best.k * 1.01) best = {...best, value: d.value, width, k};
+    if (heightBound(d) || k >= cap) break;
+  }
+  return best;
+}
+
+/** The room each figure of a slide is fitted into (ADR 0060): the slide's figure's, and each figure column's (null for a text column). */
+export function figureRooms(s: DeckTextIn & {columns?: readonly {caption?: string; text?: string; width?: number}[]}, w: TextWidth): {figure: {w: number; h: number}; columns: ({w: number; h: number} | null)[]} {
+  const cols = s.columns?.map(c => ({caption: c.caption, text: c.text === undefined ? undefined : '', width: c.width, figure: c.text === undefined ? {w: 1, h: 1} : undefined}));
+  const l = planDeckLayout(s, cols ? undefined : {w: 1, h: 1}, w, cols);
+  return {figure: l.room, columns: l.columns.map((c, j) => s.columns?.[j]?.text === undefined ? c.box : null)};
 }

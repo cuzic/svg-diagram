@@ -8,6 +8,7 @@ import {loadDiagram} from './load-source.ts';
 import {renderDiagram} from './dsl/render.ts';
 import {specToDiagram, SpecError} from './spec.ts';
 import {columnFallbackWarning, columnFigurePath, columnSpec, figurePath, validateDeck, type DeckSlide, type DeckSpec} from './deck-spec.ts';
+import {fillSearch, ruleIds} from './deck-layout.ts';
 import {formatBuildError} from './error-format.ts';
 import type {Diagram} from './types/core.ts';
 import type {Config} from './types/project.ts';
@@ -79,7 +80,7 @@ export function loadDeck(deckFile: string): {ok: true; loaded: LoadedDeck} | {ok
  * with `column` the figure of its column j. With `columnPx` (the column's width), a spec that gives no width of its own is laid out at the
  * column's width; when it does not fit there, it is drawn at the document's width and `fallback` says so (ADR 0059).
  */
-export async function renderDeckFigure(i: number, spec: unknown, source: string | undefined, cfg: Config, opts: {fresh?: boolean; column?: number; columnPx?: number} = {}): Promise<{ok: true; result: RenderResult; fallback?: string} | {ok: false; errors: string[]}> {
+export async function renderDeckFigure(i: number, spec: unknown, source: string | undefined, cfg: Config, opts: {fresh?: boolean; column?: number; columnPx?: number; fill?: {box: {w: number; h: number}; cap: number}} = {}): Promise<{ok: true; result: RenderResult; fallback?: string} | {ok: false; errors: string[]}> {
   const j = opts.column, at = (p: string | null) => j === undefined ? figurePath(i, p) : columnFigurePath(i, j, p);
   const draw = async (s: unknown): Promise<{ok: true; result: RenderResult} | {ok: false; errors: string[]; why: string}> => {
     try {
@@ -90,6 +91,18 @@ export async function renderDeckFigure(i: number, spec: unknown, source: string 
       return {ok: false, errors: [formatBuildError(source ?? at(''), e)], why: e instanceof Error ? e.message : String(e)};
     }
   };
+  // 'fill' (ADR 0060): a spec that gives no width of its own is laid out at the width that draws it largest in its room
+  if (opts.fill && !source && typeof spec === 'object' && spec !== null && !Array.isArray(spec) && (spec as {width?: unknown}).width === undefined) {
+    let errors: string[] = [];
+    const found = await fillSearch(opts.fill.box, opts.fill.cap, async width => {
+      const r = await draw(width === null ? spec : {...spec, width});
+      if (!r.ok) { if (width === null) errors = r.errors; return {ok: false, why: r.why}; }
+      return {ok: true, w: Math.max(96, r.result.laidOut.width), h: Math.max(96, r.result.laidOut.canvasHeight), value: r.result, flags: ruleIds([...r.result.verdict.warnings, ...r.result.verdict.problems])};
+    });
+    if (!found.ok) return {ok: false, errors};
+    const said = j !== undefined && found.width === null && found.narrower ? columnFallbackWarning(found.narrower.width, found.narrower.why) : undefined;
+    return {ok: true, result: found.value, ...(said ? {fallback: said} : {})};
+  }
   const narrow = j !== undefined && !source && opts.columnPx !== undefined ? columnSpec(spec, opts.columnPx) : {spec, auto: null};
   const first = await draw(narrow.spec);
   if (first.ok || narrow.auto === null) return first.ok ? first : {ok: false, errors: first.errors};

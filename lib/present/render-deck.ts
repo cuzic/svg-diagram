@@ -1,8 +1,8 @@
 // A deck's slides as outlined SVGs, for `serve` (ADR 0056 D2, D5): the figures drawn as `pptx-deck` draws them, the slide's text wrapped
 // with the same measuring, everything placed by lib/deck-layout.ts and outlined with the project's font files (lib/font-metrics.ts).
 import {createHash} from 'node:crypto';
-import {columnWidths, deckTexts, planDeckLayout, roomMessage, smallTextWarning, type TextWidth} from '../deck-layout.ts';
-import type {DeckSlide} from '../deck-spec.ts';
+import {columnWidths, deckTexts, figureRooms, maxScale, planDeckLayout, roomMessage, smallTextWarning, type FigureFit, type TextWidth} from '../deck-layout.ts';
+import {fitOf, type DeckSlide} from '../deck-spec.ts';
 import {figureKey, hasSource, renderDeckFigure, type LoadedDeck} from '../deck-load.ts';
 import {measureAll, splitAtoms, textWidth} from '../measure.ts';
 import {outlineFontFromFiles, textBox} from '../font-metrics.ts';
@@ -54,26 +54,27 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
   const keys = deck.slides.map((s, i) => {
     if (!cache || hasSource(sources, i)) return null;
     const {notes: _n, ...drawn} = s;
-    return sha256(JSON.stringify([drawn, settings]));
+    return sha256(JSON.stringify([drawn, fitOf(deck, s), settings]));
   });
   const hit = keys.map(k => (k && cache?.get(k)) || null);
-  /** A figure drawn: slide i's own, or its column j's (ADR 0058); undefined when there is none, null when it failed. */
-  const draw = async (i: number, spec: unknown, j?: number, columnPx?: number): Promise<DrawnFigure | undefined | null> => {
-    const source = sources.get(figureKey(i, j));
-    if (spec === undefined && !source) return undefined;
-    const r = await renderDeckFigure(i, spec, source, cfg, {fresh: opts.fresh, column: j, columnPx});
-    if (!r.ok) { errors.push(...r.errors); return null; }
-    const lo = r.result.laidOut;
-    return {svg: r.result.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: [...(r.fallback ? [r.fallback] : []), ...r.result.verdict.warnings]};
-  };
-  const figures = await Promise.all(deck.slides.map((s, i) => hit[i] ? undefined : draw(i, s.figure)));
-  const columnFigures = await Promise.all(deck.slides.map((s, i) => hit[i] ? [] : Promise.all((s.columns ?? []).map((c, j, all) => c.text === undefined ? draw(i, c.figure, j, columnWidths(all)[j]) : undefined))));
   // the slide's own text is measured as `pptx-deck` measures it: in one batch, by atoms (only the slides to draw)
   const requests = new Map<string, MeasureRequest>();
   deck.slides.forEach((s, i) => { if (!hit[i]) for (const t of deckTexts(s)) for (const atom of splitAtoms(t.text)) requests.set(key(atom, t.size, t.bold ? 700 : 400), {text: atom, size: t.size, weight: t.bold ? 700 : 400}); });
   const measured = await measureAll(requests);
   const widthOf = (atom: string, size: number, weight: number): number => measured.get(key(atom, size, weight))?.w ?? atom.length * size;
   const width: TextWidth = (text, size, bold) => textWidth(widthOf, text, size, bold ? 700 : 400);
+  /** A figure drawn: slide i's own, or its column j's (ADR 0058); undefined when there is none, null when it failed. */
+  const draw = async (i: number, spec: unknown, fit: FigureFit, room: {w: number; h: number} | null, j?: number, columnPx?: number): Promise<DrawnFigure | undefined | null> => {
+    const source = sources.get(figureKey(i, j));
+    if (spec === undefined && !source) return undefined;
+    const r = await renderDeckFigure(i, spec, source, cfg, fit === 'fill' && room ? {fresh: opts.fresh, column: j, fill: {box: room, cap: maxScale(fit)}} : {fresh: opts.fresh, column: j, columnPx});
+    if (!r.ok) { errors.push(...r.errors); return null; }
+    const lo = r.result.laidOut;
+    return {svg: r.result.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: [...(r.fallback ? [r.fallback] : []), ...r.result.verdict.warnings]};
+  };
+  const rooms = deck.slides.map(s => figureRooms(s, width));
+  const figures = await Promise.all(deck.slides.map((s, i) => hit[i] ? undefined : draw(i, s.figure, fitOf(deck, s), rooms[i]?.figure ?? null)));
+  const columnFigures = await Promise.all(deck.slides.map((s, i) => hit[i] ? [] : Promise.all((s.columns ?? []).map((c, j, all) => c.text === undefined ? draw(i, c.figure, fitOf(deck, s), rooms[i]?.columns[j] ?? null, j, columnWidths(all)[j]) : undefined))));
   const font = outlineFontFromFiles(cfg.fonts);
   const box = (t: string, family: Parameters<typeof textBox>[1], size: number, weight: number) => textBox(t, family, size, weight, cfg.fonts);
   const pptxFonts = fontsOf(undefined);
@@ -90,7 +91,7 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
     if (f === null || cols.some(c => c === null)) return null;
     const said: {at: string; text: string}[] = [...(f?.warnings ?? []).map(text => ({at: '.figure', text})),
       ...cols.flatMap((c, j) => (c?.warnings ?? []).map(text => ({at: `.columns[${j}].figure`, text})))];
-    const layout = planDeckLayout(s, f, width, s.columns?.map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: cols[j] ?? undefined})), s.columnScale);
+    const layout = planDeckLayout(s, f, width, s.columns?.map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: cols[j] ?? undefined})), s.columnScale, fitOf(deck, s));
     if (layout.noRoom) { errors.push(`${here}: ${roomMessage(f !== undefined || cols.some(Boolean))}`); return null; }
     const crowded = layout.columns.flatMap((c, j) => c.noRoom ? [s.columns?.[j]?.text !== undefined
       ? `${here}.columns[${j}].text: the text does not fit the column: shorten it, or give the column a larger width`

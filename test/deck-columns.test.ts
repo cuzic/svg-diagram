@@ -141,7 +141,7 @@ test('ADR 0059: a spec may give its own width (320 to 940); a column figure with
 
 test('ADR 0059: a column figure is drawn at its column\'s width (no shrinking past 9pt), and one that does not fit is drawn at 940 with a warning', async () => {
   const wide = {version: 1, title: 'cloud', parts: [example('cloud')]};
-  const r = await renderDeckPptxEdge({slides: [
+  const r = await renderDeckPptxEdge({fit: 'width', slides: [
     {title: '二段', columns: [{figure: spec('table')}, {figure: spec('steps')}]},
     {title: '三段', columns: [{figure: wide}, {text: 'x'}, {text: 'y'}]},
   ]}, realEngine(), {rasterize: () => PNG});
@@ -156,7 +156,7 @@ test('ADR 0059 in serve: the same fallback, said as a warning at the column figu
   configureMeasure({measure: 'font', fonts: JA_FONTS});
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'deck-columns-'));
   try {
-    fs.writeFileSync(path.join(dir, 'deck.json'), JSON.stringify({slides: [{title: '三段', columns: [{figure: {version: 1, title: 'cloud', parts: [example('cloud')]}}, {text: 'x'}, {figure: spec('table')}]}]}));
+    fs.writeFileSync(path.join(dir, 'deck.json'), JSON.stringify({fit: 'width', slides: [{title: '三段', columns: [{figure: {version: 1, title: 'cloud', parts: [example('cloud')]}}, {text: 'x'}, {figure: spec('table')}]}]}));
     const got = loadDeck(path.join(dir, 'deck.json'));
     assert.ok(got.ok);
     const r = await renderDeck(got.loaded, {measure: 'font', fonts: JA_FONTS});
@@ -164,4 +164,48 @@ test('ADR 0059 in serve: the same fallback, said as a warning at the column figu
     assert.ok(r.warnings.some(w => w.startsWith('slides[0].columns[0].figure: does not fit the column\'s')), JSON.stringify(r.warnings));
     assert.ok(!r.warnings.some(w => w.startsWith('slides[0].columns[2].figure: does not fit')), 'the table fits its column');
   } finally { fs.rmSync(dir, {recursive: true, force: true}); }
+});
+
+test('ADR 0060 fillSearch: narrower while the width holds the figure back; stops at the height, at a new check, or at a width that fails', async () => {
+  const {fillSearch, FILL_WIDTHS} = await import('../lib/deck-layout.ts');
+  // a figure whose height grows as it narrows: area constant
+  const area = (flags: (w: number) => string[] = () => []) => async (w: number | null) => { const ww = w ?? 940; return {ok: true as const, w: ww, h: 300 * 940 / ww, value: ww, flags: flags(ww)}; };
+  const tall = await fillSearch({w: 572, h: 450}, 1.5, area());
+  assert.ok(tall.ok && tall.width !== null && tall.width < 940 && tall.width >= 563, JSON.stringify(tall));
+  assert.ok(tall.ok && tall.k > 572 / 940);
+  const flat = await fillSearch({w: 1168, h: 200}, 1.5, area());
+  assert.ok(flat.ok && flat.width === null && flat.tried === 1, 'the height holds it back already: nothing narrower is tried');
+  const broken = await fillSearch({w: 572, h: 2000}, 1.5, area(w => w < 700 ? ['text-mid-word-break'] : []));
+  assert.ok(broken.ok && broken.width === 728, 'a narrower width that breaks words is not taken, and the search stops there');
+  const failing = await fillSearch({w: 572, h: 2000}, 1.5, async w => (w ?? 940) < 800 ? {ok: false, why: 'too narrow'} : {ok: true, w: w ?? 940, h: 300, value: 0, flags: []});
+  assert.ok(failing.ok && failing.width === 827 && failing.narrower?.width === 728 && failing.narrower.why === 'too narrow');
+  assert.deepEqual(await fillSearch({w: 572, h: 450}, 1.5, async () => ({ok: false, why: 'no'})), {ok: false, why: 'no'});
+  assert.ok(FILL_WIDTHS.every((w, i) => i === 0 || w < (FILL_WIDTHS[i - 1] ?? 0)));
+});
+
+test('ADR 0060: fill is the default and draws a figure larger than width does (up to 1.5); fit "width" keeps ADR 0055 / 0059', async () => {
+  const deck = (fit?: 'fill' | 'width') => ({...(fit ? {fit} : {}), slides: [{title: '表', figure: spec('table')}, {title: '二段', columns: [{text: '説明'}, {figure: spec('table')}]}]});
+  const fill = await renderDeckPptxEdge(deck(), realEngine(), {rasterize: () => PNG});
+  const width = await renderDeckPptxEdge(deck('width'), realEngine(), {rasterize: () => PNG});
+  assert.deepEqual([fill.issues, width.issues], [[], []]);
+  const k = (r: typeof fill, i: number) => r.slides[i]?.scale ?? r.slides[i]?.columns.find(c => c.scale !== null)?.scale ?? 0;
+  assert.ok(k(fill, 0) >= k(width, 0) && k(fill, 0) <= 1.5 + 1e-9, `${k(fill, 0)} vs ${k(width, 0)}`);
+  assert.ok(k(width, 0) <= 1.25 + 1e-9);
+  assert.ok(k(fill, 1) >= k(width, 1), `${k(fill, 1)} vs ${k(width, 1)}`);
+  const slideFit = await renderDeckPptxEdge({fit: 'width', slides: [{title: '表', figure: spec('table'), fit: 'fill'}]}, realEngine(), {rasterize: () => PNG});
+  assert.equal(k(slideFit, 0), k(fill, 0), 'a slide\'s fit wins over the deck\'s');
+});
+
+test('ADR 0060 helpers: the room each figure gets, the cap per fit, the rule ids of findings, and which fit a slide takes', async () => {
+  const {figureRooms, maxScale, ruleIds, SLIDE_W: W, MARGIN_X: M} = await import('../lib/deck-layout.ts');
+  const {fitOf} = await import('../lib/deck-spec.ts');
+  const one = figureRooms({title: '見出し'}, width);
+  assert.equal(one.figure.w, W - 2 * M);
+  assert.ok(one.figure.h > 400 && one.figure.h < 720);
+  const two = figureRooms({title: '見出し', columns: [{text: 'x'}, {caption: '図'}]}, width);
+  assert.equal(two.columns[0], null, 'a text column has no figure room');
+  assert.ok(two.columns[1] && two.columns[1].h < one.figure.h, 'under its caption');
+  assert.deepEqual([maxScale('fill'), maxScale('width')], [1.5, 1.25]);
+  assert.deepEqual(ruleIds(['[text-mid-word-break] 語の途中', '[legend-missing] x', '[legend-missing] y', 'plain']), ['text-mid-word-break', 'legend-missing', 'plain']);
+  assert.deepEqual([fitOf({slides: []}, {}), fitOf({fit: 'width', slides: []}, {}), fitOf({fit: 'width', slides: []}, {fit: 'fill'})], ['fill', 'width', 'fill']);
 });

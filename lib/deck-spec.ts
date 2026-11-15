@@ -14,8 +14,11 @@ export const MIN_COLUMNS = 2, MAX_COLUMNS = 3;
 export interface DeckCallout {label?: string; text: string}
 /** One column of a slide (ADR 0058): a figure or short text, under an optional caption, `width` its share of the row. */
 export interface DeckColumn {caption?: string; figure?: unknown; text?: string; width?: number}
-export interface DeckSlide {title?: string; lead?: string; figure?: unknown; columns?: DeckColumn[]; columnScale?: 'each' | 'same'; callouts?: DeckCallout[]; source?: string; notes?: string}
-export interface DeckSpec {title?: string; slides: DeckSlide[]}
+export interface DeckSlide {title?: string; lead?: string; figure?: unknown; columns?: DeckColumn[]; columnScale?: 'each' | 'same'; fit?: 'fill' | 'width'; callouts?: DeckCallout[]; source?: string; notes?: string}
+export interface DeckSpec {title?: string; fit?: 'fill' | 'width'; slides: DeckSlide[]}
+
+/** How slide i's figures take its room (ADR 0060): the slide's `fit`, else the deck's, else 'fill'. */
+export const fitOf = (deck: DeckSpec, slide: DeckSlide): 'fill' | 'width' => slide.fit ?? deck.fit ?? 'fill';
 
 const slideShape = (figure: JsonSchema): JsonSchema => object({
   title: text('The slide heading, drawn large at the top.', 120),
@@ -28,6 +31,7 @@ const slideShape = (figure: JsonSchema): JsonSchema => object({
     width: count('The column\'s share of the row (1 to 3, default 1).', 3),
   }, [], 'One column: a figure or short text.'), MAX_COLUMNS, MIN_COLUMNS),
   columnScale: {...oneOf('each', 'same'), description: '"each" (default): each column\'s figure as large as it fits; "same": every figure at one scale (to compare a before and an after).'},
+  fit: {...oneOf('fill', 'width'), description: 'How the figures take the room the slide leaves: "fill" (default) lays each out at the width that draws it largest (up to 1.5 times), so little room is left empty; "width" keeps each at its own width (or its column\'s) and scales it up to 1.25 times.'},
   callouts: list(object({
     label: text('Plain words before the emphasised text, such as 「足す一文：」.', 60),
     text: text('The emphasised text, drawn bold in a tinted box near the bottom of the slide.', 300),
@@ -41,11 +45,12 @@ const FIGURE: JsonSchema = {...specSchema, description: 'The figure: the same JS
 /** The deck's JSON Schema, figures included (each is a full spec). */
 export const deckSchema: JsonSchema = object({
   title: text('The file\'s title (the presentation\'s properties).', 200),
+  fit: {...oneOf('fill', 'width'), description: 'How the figures take the room the slide leaves: "fill" (default) lays each out at the width that draws it largest (up to 1.5 times), so little room is left empty; "width" keeps each at its own width (or its column\'s) and scales it up to 1.25 times.'},
   slides: list(slideShape(FIGURE), MAX_SLIDES, 1),
 }, ['slides'], 'A PowerPoint deck of 16:9 slides.');
 
 // the same shape with the figure left to validateSpec, so that a figure's mistakes come back once, with the part rules too
-const SHAPE: JsonSchema = object({title: deckSchema.properties?.['title'] as JsonSchema, slides: list(slideShape({description: 'figure'}), MAX_SLIDES, 1)}, ['slides']);
+const SHAPE: JsonSchema = object({title: deckSchema.properties?.['title'] as JsonSchema, fit: deckSchema.properties?.['fit'] as JsonSchema, slides: list(slideShape({description: 'figure'}), MAX_SLIDES, 1)}, ['slides']);
 // notes is the one field with line breaks (and tabs, for indented points): the schema's check forbids control characters, so it is checked with them taken out
 const NOTES_BREAKS = /\r\n|\r|\n/g;
 

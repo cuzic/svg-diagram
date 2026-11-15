@@ -5,7 +5,7 @@
 // Measuring the text and drawing the PNGs are the shell's (../pptx-deck-edge.ts, ../../pptx-deck.ts).
 import {escapeXml} from '../emit-common.ts';
 import {must} from '../must.ts';
-import {planDeckLayout, roomMessage, SLIDE_H, SLIDE_W, smallTextWarning, type Block, type Run, type TextWidth} from '../deck-layout.ts';
+import {planDeckLayout, roomMessage, SLIDE_H, SLIDE_W, smallTextWarning, type Block, type FigureFit, type Run, type TextWidth} from '../deck-layout.ts';
 import type {Picture} from './image-band.ts';
 import {imageRids, type Entry, type SlidePlan} from './package.ts';
 import {TEMPLATE} from './template.ts';
@@ -17,7 +17,7 @@ export {deckTexts, MAX_FIGURE_SCALE, MIN_TEXT_PT, roomMessage, SLIDE_H, SLIDE_W,
 export interface DeckFigure {plan: SlidePlan; /** Its laid-out size, px. */ w: number; h: number}
 /** A column of a slide (ADR 0058): its figure (laid out) or its text. */
 export interface DeckColumnIn {caption?: string; figure?: DeckFigure; text?: string; width?: number}
-export interface DeckSlideIn {title?: string; lead?: string; callouts?: {label?: string; text: string}[]; source?: string; notes?: string; figure?: DeckFigure; columns?: DeckColumnIn[]; columnScale?: 'each' | 'same'}
+export interface DeckSlideIn {title?: string; lead?: string; callouts?: {label?: string; text: string}[]; source?: string; notes?: string; figure?: DeckFigure; columns?: DeckColumnIn[]; columnScale?: 'each' | 'same'; /** ADR 0060; 'width' when not given. */ fit?: FigureFit}
 export interface PlannedSlide {
   xml: string;
   notes: string;
@@ -80,7 +80,7 @@ const blockShape = (id: number, b: Block, fonts: Fonts): string => b.kind === 't
 export function planDeckSlide(s: DeckSlideIn, fonts: Fonts, w: TextWidth): PlannedSlide {
   if (s.columns?.length) return planColumnSlide(s, s.columns, fonts, w);
   const fig = s.figure;
-  const layout = planDeckLayout(s, fig, w);
+  const layout = planDeckLayout(s, fig, w, undefined, 'each', s.fit ?? 'width');
   // the figure keeps its own shape ids (the connectors' glue names them); the slide's own shapes come after the largest
   let next = fig ? Math.max(1, ...[...fig.plan.xml.matchAll(/<p:cNvPr id="(\d+)"/g)].map(m => Number(m[1]))) : 1;
   const id = () => ++next;
@@ -119,7 +119,7 @@ export function renumberShapes(xml: string, ids: number, pictures: number): stri
 
 /** A slide of columns (ADR 0058): each column's figure placed as the one figure of a slide is, its ids and pictures renumbered after the ones before. */
 function planColumnSlide(s: DeckSlideIn, columns: DeckColumnIn[], fonts: Fonts, w: TextWidth): PlannedSlide {
-  const layout = planDeckLayout(s, undefined, w, columns.map(c => ({caption: c.caption, figure: c.figure ? {w: c.figure.w, h: c.figure.h} : undefined, text: c.text, width: c.width})), s.columnScale);
+  const layout = planDeckLayout(s, undefined, w, columns.map(c => ({caption: c.caption, figure: c.figure ? {w: c.figure.w, h: c.figure.h} : undefined, text: c.text, width: c.width})), s.columnScale, s.fit ?? 'width');
   let next = 1, pictureCount = 0;
   const pictures: Picture[] = [], stats: PlannedSlide['columns'] = [];
   const placed = columns.map((c, j) => {
