@@ -270,3 +270,12 @@ test('inItem: a part is an item\'s by the kind of a step, not because a caption 
   assert.equal(inItem(`${partStep('cell', 0, 'A')}/${partStep('item', 'x', 'X')}`), true);
   assert.equal(inItem(undefined), false);
 });
+
+test('a canvas figure becomes a slide of the canvas size, its boxes still native shapes', async () => {
+  const flow = {type: 'flowchart', nodes: [{id: 'a', label: '書く'}, {id: 'b', label: '読む'}], edges: [{from: 'a', to: 'b'}]};
+  const r = await renderPptxEdge({...spec(flow), canvas: {width: 1920, height: 1080, minText: 20, fit: 'content'}}, realEngine(), {rasterize: () => PNG});
+  assert.deepEqual(r.issues, []);
+  assert.ok(r.pptx);
+  assert.equal(r.pictures, 0);
+  assert.match(unzipEntry(Buffer.from(r.pptx), 'ppt/presentation.xml').toString(), /<p:sldSz cx="18288000"/, '1920px at 9525 EMU a px');
+});

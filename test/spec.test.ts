@@ -9,7 +9,7 @@ import {closeMeasurer, diagram, flowchart, mindmap, pyramid, quadrant, renderDia
 import {MEMO_LIMIT, currentMeasure, measureAtoms, measureMemoSize} from '../lib/measure.ts';
 import {xmlProblems} from '../lib/xml-check.ts';
 import {installResolveHook} from '../lib/resolve-hook.ts';
-import {MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, SpecError, capped, cappedMessages, fieldsHolding, layoutIssue, locateMessage, locateVerdict, partCatalog, specSchema, specToDiagram, validateSpec} from '../lib/spec.ts';
+import {CANVAS_LIMITS, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, SpecError, capped, cappedMessages, fieldsHolding, layoutIssue, locateMessage, locateVerdict, partCatalog, specSchema, specToDiagram, validateSpec} from '../lib/spec.ts';
 import {MAX_PNG_PIXELS, lintMessages, lintRendering, renderSpec, svgToPng} from '../lib/spec-render.ts';
 import type {Diagram} from '../lib/types/index.ts';
 import {JA_FONTS} from './helpers/text-engine.ts';
@@ -515,4 +515,24 @@ test('every builder is either in the spec or listed as not in it yet', () => {
 
 test('the schema is plain JSON', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(specSchema)), specSchema);
+});
+
+test('a canvas spec draws the same SVG as diagram({canvas}), and its limits are checked at their place', async () => {
+  const canvas = {width: 1920, height: 1080, minText: 20, fit: 'content'} as const;
+  const json = specToDiagram({...spec(flow), canvas});
+  const dsl = diagram({theme: 'blue', title: '例', canvas}).add(flowchart(flow.nodes, flow.edges));
+  const svg = await svgOf(json);
+  assert.equal(svg, await svgOf(dsl as unknown as Diagram));
+  assert.match(svg, /width="1920"/);
+  assert.deepEqual(validateSpec({...spec(flow), canvas: {}}), [], 'every field has a default');
+  assert.deepEqual(pathsOf({...spec(flow), canvas: {width: CANVAS_LIMITS.width[1] + 1, height: CANVAS_LIMITS.height[0] - 1, minText: CANVAS_LIMITS.minText[0] - 1, fit: 'page'}}), ['canvas.width', 'canvas.height', 'canvas.minText', 'canvas.fit']);
+  assert.deepEqual(pathsOf({...spec(flow), canvas: {width: 1920, scale: 2}}), ['canvas.scale']);
+  assert.deepEqual(pathsOf({...spec(flow), canvas: 'slide'}), ['canvas']);
+});
+
+test('renderSpec (Node) draws a canvas at the lowest minText the schema allows, and refuses lower at its place', async () => {
+  const r = await renderSpec({...spec(flow), canvas: {width: 1920, height: 1080, minText: CANVAS_LIMITS.minText[0], fit: 'content'}});
+  assert.deepEqual(r.issues, []);
+  assert.equal(r.width, 1920);
+  assert.deepEqual(pathsOf({...spec(flow), canvas: {minText: CANVAS_LIMITS.minText[0] - 1}}), ['canvas.minText']);
 });

@@ -1,6 +1,8 @@
 // The pieces every spec part is written with (lib/spec.ts and lib/spec-parts/*.ts): the JSON Schema subset, the issue type, the schema
 // helpers and the checks shared between parts. Like lib/spec.ts, nothing here touches the disk or a process.
 export const SPEC_VERSION = 1;
+/** The range of a spec's canvas: from a small screen up to 4K, and text from the default font floor (a spec cannot lower it: renderSpec keeps fontFloor 14) up to a size a slide title would use. */
+export const CANVAS_LIMITS = {width: [640, 3840], height: [360, 2160], minText: [14, 48]} as const;
 
 /** All the text of a spec together, in characters. The per-field limits alone would allow a figure that takes seconds to lay out. */
 export const MAX_TOTAL_TEXT = 6000;
