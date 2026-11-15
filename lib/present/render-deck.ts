@@ -2,13 +2,14 @@
 // with the same measuring, everything placed by lib/deck-layout.ts and outlined with the project's font files (lib/font-metrics.ts).
 import {createHash} from 'node:crypto';
 import {deckTexts, planDeckLayout, roomMessage, smallTextWarning, type TextWidth} from '../deck-layout.ts';
-import {figurePath, type DeckSlide} from '../deck-spec.ts';
-import {renderDeckFigure, type LoadedDeck} from '../deck-load.ts';
+import type {DeckSlide} from '../deck-spec.ts';
+import {figureKey, hasSource, renderDeckFigure, type LoadedDeck} from '../deck-load.ts';
 import {measureAll, splitAtoms, textWidth} from '../measure.ts';
 import {outlineFontFromFiles, textBox} from '../font-metrics.ts';
 import {minTextPt, placeShapes} from '../pptx/deck.ts';
 import {fontsOf, planSlide} from '../pptx/slide.ts';
 import type {MeasureRequest} from '../types/core.ts';
+import type {LaidOutDiagram} from '../types/index.ts';
 import type {Config} from '../types/project.ts';
 import {slideSvg, slideText} from './slide-svg.ts';
 import {checkSlideSvg} from './svg-allow.ts';
@@ -34,34 +35,39 @@ export interface RenderedDeck {
 const sha256 = (s: string): string => createHash('sha256').update(s).digest('hex');
 const key = (atom: string, size: number, weight: number) => `${size}|${weight}|${atom}`;
 
-/** A slide drawn before, and what it was warned about (each warning without its `slides[i]` place, which is added for where it is now). */
-export interface CachedSlide {slide: Omit<RenderedSlide, 'notes'>; warnings: {figure: boolean; text: string}[]}
+/** A slide drawn before, and what it was warned about (each warning's place after `slides[i]`, which is added for where the slide is now). */
+export interface CachedSlide {slide: Omit<RenderedSlide, 'notes'>; warnings: {at: string; text: string}[]}
 /** Drawn slides kept by what they were drawn from, so a save redraws only the slides it changed (ADR 0056 D5). */
 export type SlideCache = Map<string, CachedSlide>;
 
+interface DrawnFigure {svg: string; w: number; h: number; title: string; laidOut: LaidOutDiagram; warnings: string[]}
+
 /**
- * Every slide of `loaded` drawn. `fresh`: re-read the .ts figures (a watcher). `cache`: slides drawn before, by their input; a slide with a
- * spec figure or none is taken from it when its input (all but the notes), the project's settings and `fontStamp` are the same. A slide
- * whose figure is a .ts source is always drawn (what it imports is not in the key). The cache keeps only this deck's slides afterwards.
+ * Every slide of `loaded` drawn. `fresh`: re-read the .ts figures (a watcher). `cache`: slides drawn before, by their input; a slide without
+ * a .ts figure is taken from it when its input (all but the notes), the project's settings and `fontStamp` are the same. A slide with a .ts
+ * figure (its own or a column's) is always drawn (what it imports is not in the key). The cache keeps only this deck's slides afterwards.
  */
 export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?: boolean; cache?: SlideCache; fontStamp?: string} = {}): Promise<RenderedDeck> {
   const {deck, sources} = loaded;
   const errors: string[] = [], warnings: string[] = [];
   const cache = opts.cache, settings = JSON.stringify([cfg, opts.fontStamp ?? '']);
   const keys = deck.slides.map((s, i) => {
-    if (!cache || sources.has(i)) return null;
+    if (!cache || hasSource(sources, i)) return null;
     const {notes: _n, ...drawn} = s;
     return sha256(JSON.stringify([drawn, settings]));
   });
   const hit = keys.map(k => (k && cache?.get(k)) || null);
-  const figures = await Promise.all(deck.slides.map(async (s, i) => {
-    const source = sources.get(i);
-    if (hit[i] || (s.figure === undefined && !source)) return undefined;
-    const r = await renderDeckFigure(i, s, source, cfg, opts);
+  /** A figure drawn: slide i's own, or its column j's (ADR 0058); undefined when there is none, null when it failed. */
+  const draw = async (i: number, spec: unknown, j?: number): Promise<DrawnFigure | undefined | null> => {
+    const source = sources.get(figureKey(i, j));
+    if (spec === undefined && !source) return undefined;
+    const r = await renderDeckFigure(i, spec, source, cfg, {fresh: opts.fresh, column: j});
     if (!r.ok) { errors.push(...r.errors); return null; }
     const lo = r.result.laidOut;
     return {svg: r.result.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: r.result.verdict.warnings};
-  }));
+  };
+  const figures = await Promise.all(deck.slides.map((s, i) => hit[i] ? undefined : draw(i, s.figure)));
+  const columnFigures = await Promise.all(deck.slides.map((s, i) => hit[i] ? [] : Promise.all((s.columns ?? []).map((c, j) => c.text === undefined ? draw(i, c.figure, j) : undefined))));
   // the slide's own text is measured as `pptx-deck` measures it: in one batch, by atoms (only the slides to draw)
   const requests = new Map<string, MeasureRequest>();
   deck.slides.forEach((s, i) => { if (!hit[i]) for (const t of deckTexts(s)) for (const atom of splitAtoms(t.text)) requests.set(key(atom, t.size, t.bold ? 700 : 400), {text: atom, size: t.size, weight: t.bold ? 700 : 400}); });
@@ -71,31 +77,37 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
   const font = outlineFontFromFiles(cfg.fonts);
   const box = (t: string, family: Parameters<typeof textBox>[1], size: number, weight: number) => textBox(t, family, size, weight, cfg.fonts);
   const pptxFonts = fontsOf(undefined);
-  const placed = (i: number, w: {figure: boolean; text: string}) => `${w.figure ? figurePath(i, '') : `slides[${i}]`}: ${w.text}`;
+  /** The smallest text of a figure scaled by k, counted as the .pptx counts it (ADR 0056 D2: the same warning on both). */
+  const smallText = (f: DrawnFigure, k: number): string | null => {
+    const plan = planSlide(f.laidOut, pptxFonts), inner = /<\/p:grpSpPr>([\s\S]*)<\/p:spTree>/.exec(plan.xml)?.[1] ?? '';
+    return smallTextWarning({scale: k, minTextPt: minTextPt(placeShapes(inner, k, 0, 0))});
+  };
   const slides = deck.slides.map((s: DeckSlide, i): RenderedSlide | null => {
-    const cached = hit[i];
-    if (cached) { for (const w of cached.warnings) warnings.push(placed(i, w)); return {...cached.slide, notes: s.notes ?? ''}; }
-    const f = figures[i];
-    if (f === null) return null;
-    const said: {figure: boolean; text: string}[] = (f?.warnings ?? []).map(text => ({figure: true, text}));
-    const layout = planDeckLayout(s, f, width);
-    if (layout.noRoom) { errors.push(`slides[${i}]: ${roomMessage(f !== undefined)}`); return null; }
-    if (f && layout.figure) {
-      // the smallest text after scaling, counted as the .pptx counts it (ADR 0056 D2: the same warning on both)
-      const plan = planSlide(f.laidOut, pptxFonts), inner = /<\/p:grpSpPr>([\s\S]*)<\/p:spTree>/.exec(plan.xml)?.[1] ?? '';
-      const w = smallTextWarning({scale: layout.figure.k, minTextPt: minTextPt(placeShapes(inner, layout.figure.k, 0, 0))});
-      if (w) said.push({figure: true, text: w});
-    }
-    const out = slideSvg(layout, f ? {svg: f.svg} : undefined, font, box);
     const here = `slides[${i}]`;
+    const cached = hit[i];
+    if (cached) { for (const w of cached.warnings) warnings.push(`${here}${w.at}: ${w.text}`); return {...cached.slide, notes: s.notes ?? ''}; }
+    const f = figures[i], cols = columnFigures[i] ?? [];
+    if (f === null || cols.some(c => c === null)) return null;
+    const said: {at: string; text: string}[] = [...(f?.warnings ?? []).map(text => ({at: '.figure', text})),
+      ...cols.flatMap((c, j) => (c?.warnings ?? []).map(text => ({at: `.columns[${j}].figure`, text})))];
+    const layout = planDeckLayout(s, f, width, s.columns?.map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: cols[j] ?? undefined})), s.columnScale);
+    if (layout.noRoom) { errors.push(`${here}: ${roomMessage(f !== undefined || cols.some(Boolean))}`); return null; }
+    const crowded = layout.columns.flatMap((c, j) => c.noRoom ? [s.columns?.[j]?.text !== undefined
+      ? `${here}.columns[${j}].text: the text does not fit the column: shorten it, or give the column a larger width`
+      : `${here}.columns[${j}]: the heading, lead, callouts and source leave the column's figure no room: shorten them, or split the slide`] : []);
+    if (crowded.length) { errors.push(...crowded); return null; }
+    if (f && layout.figure) { const w = smallText(f, layout.figure.k); if (w) said.push({at: '.figure', text: w}); }
+    layout.columns.forEach((c, j) => { const cf = cols[j]; if (cf && c.figure) { const w = smallText(cf, c.figure.k); if (w) said.push({at: `.columns[${j}].figure`, text: w}); } });
+    const out = slideSvg(layout, f ? {svg: f.svg} : undefined, font, box, cols.map(c => c ? {svg: c.svg} : undefined));
     for (const m of out.missing) errors.push(`${here}: no font has a glyph for 「${m.char}」 (in 「${m.text}」): name a font that has it in .svg-diagram.json "fonts"`);
     for (const u of out.unsupported) errors.push(`${here}: text drawn with ${u} cannot be outlined, so the slide would lose it: take it out of the figure`);
-    if (out.liveEmoji.length) said.push({figure: false, text: `emoji ${[...new Set(out.liveEmoji)].join(' ')} are left to the viewer's emoji font (no outline for them), so their width may differ from the measured one`});
+    if (out.liveEmoji.length) said.push({at: '', text: `emoji ${[...new Set(out.liveEmoji)].join(' ')} are left to the viewer's emoji font (no outline for them), so their width may differ from the measured one`});
     const allowed = checkSlideSvg(out.svg);
     if (!allowed.ok) for (const p of allowed.problems) errors.push(`${here}: the slide SVG has ${p.what} (${p.where})`);
     if (out.missing.length || out.unsupported.length || !allowed.ok) return null;
-    for (const w of said) warnings.push(placed(i, w));
-    const slide = {svg: out.svg, hash: sha256(out.svg), text: slideText(s, f?.title), title: s.title ?? f?.title ?? ''};
+    for (const w of said) warnings.push(`${here}${w.at}: ${w.text}`);
+    const firstTitle = f?.title ?? cols.find(c => c)?.title;
+    const slide = {svg: out.svg, hash: sha256(out.svg), text: slideText(s, f?.title, cols.map(c => c?.title)), title: s.title ?? firstTitle ?? ''};
     const k = keys[i];
     if (k && cache) cache.set(k, {slide, warnings: said});
     return {...slide, notes: s.notes ?? ''};

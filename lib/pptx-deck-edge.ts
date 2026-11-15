@@ -2,10 +2,10 @@
 // Worker ("svg-diagram/pptx/deck/edge", ADR 0055). Each figure is drawn as renderPptxEdge draws one (native shapes, pictures with a PNG
 // fallback) and scaled onto its slide with the heading, lead, callouts, source and notes (lib/pptx/deck.ts).
 import {capped, type SpecIssue} from './spec.ts';
-import {figurePath, validateDeck, type DeckSpec} from './deck-spec.ts';
+import {columnFigurePath, figurePath, validateDeck, type DeckSpec} from './deck-spec.ts';
 import {guardedEngine, type TextEngine} from './spec-edge.ts';
 import {planFigureEdge, zipPackage, type PptxEdgeOptions} from './pptx-edge.ts';
-import {deckEntries, planDeckSlide, roomMessage, smallTextWarning, type DeckFigure, type PlannedSlide, type TextWidth} from './pptx/deck.ts';
+import {deckEntries, planDeckSlide, slideIssues, type DeckFigure, type PlannedSlide, type TextWidth} from './pptx/deck.ts';
 import {fontsOf} from './pptx/slide.ts';
 
 export type {TextEngine} from './spec-edge.ts';
@@ -21,6 +21,8 @@ export interface DeckSlideResult {
   /** Bands that became native shapes, and pictures. */
   native: number;
   pictures: number;
+  /** Per column (ADR 0058): its figure's scale and smallest text (null for a text column). */
+  columns: {scale: number | null; minTextPt: number | null}[];
 }
 
 export interface DeckEdgeResult {
@@ -45,22 +47,33 @@ export async function renderDeckPptxEdge(input: unknown, givenEngine: TextEngine
   const invalid = validateDeck(input);
   if (invalid.length) return none(invalid);
   const deck = input as DeckSpec, engine = guardedEngine(givenEngine), fonts = fontsOf(opts.font);
-  const figures: (DeckFigure & {native: number} | undefined)[] = [];
   const issues: SpecIssue[] = [];
+  /** A figure planned as PowerPoint shapes: slide i's own, or its column j's (ADR 0058). */
+  const plan = async (i: number, spec: unknown, j?: number): Promise<DeckFigure & {native: number} | undefined> => {
+    if (spec === undefined) return undefined;
+    const f = await planFigureEdge(spec, engine, opts);
+    if ('issues' in f) { issues.push(...f.issues.map(x => ({path: j === undefined ? figurePath(i, x.path) : columnFigurePath(i, j, x.path), message: x.message}))); return undefined; }
+    return {plan: f.plan, w: f.width, h: f.height, native: f.native};
+  };
+  const figures: (DeckFigure & {native: number} | undefined)[] = [], columnFigures: (DeckFigure & {native: number} | undefined)[][] = [];
   for (const [i, s] of deck.slides.entries()) {
-    if (s.figure === undefined) { figures.push(undefined); continue; }
-    const f = await planFigureEdge(s.figure, engine, opts);
-    if ('issues' in f) { issues.push(...f.issues.map(x => ({path: figurePath(i, x.path), message: x.message}))); figures.push(undefined); }
-    else figures.push({plan: f.plan, w: f.width, h: f.height, native: f.native});
+    figures.push(await plan(i, s.figure));
+    const cols: (DeckFigure & {native: number} | undefined)[] = [];
+    for (const [j, c] of (s.columns ?? []).entries()) cols.push(await plan(i, c.figure, j));
+    columnFigures.push(cols);
   }
   if (issues.length) return none(issues);
   const width: TextWidth = (text, size, bold) => engine.textBox(text, 'sans', size, bold ? 700 : 400).w;
-  const planned: PlannedSlide[] = deck.slides.map(({figure: _spec, ...s}, i) => { const f = figures[i]; return planDeckSlide(f ? {...s, figure: f} : s, fonts, width); });
+  const planned: PlannedSlide[] = deck.slides.map(({figure: _spec, columns, ...s}, i) => {
+    const f = figures[i];
+    const cols = columns?.map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: columnFigures[i]?.[j]}));
+    return planDeckSlide({...s, ...(f ? {figure: f} : {}), ...(cols ? {columns: cols} : {})}, fonts, width);
+  });
   const warnings: SpecIssue[] = [];
   planned.forEach((p, i) => {
-    const small = smallTextWarning(p);
-    if (p.noRoom) issues.push({path: `slides[${i}]`, message: roomMessage(figures[i] !== undefined)});
-    else if (small) warnings.push({path: figurePath(i, ''), message: small});
+    const r = slideIssues(p, i, figures[i] !== undefined, (deck.slides[i]?.columns ?? []).map(c => c.text === undefined ? 'figure' : 'text'));
+    issues.push(...r.errors);
+    warnings.push(...r.warnings);
   });
   if (issues.length) return none(issues);
   const pngs: Uint8Array[][] = [];
@@ -70,5 +83,5 @@ export async function renderDeckPptxEdge(input: unknown, givenEngine: TextEngine
     pngs.push(list);
   }
   const pptx = await zipPackage(deckEntries(planned, pngs, deck.title));
-  return {pptx, issues: [], warnings: capped(warnings), slides: planned.map((p, i) => ({scale: p.scale, minTextPt: p.minTextPt, native: figures[i]?.native ?? 0, pictures: p.pictures.length}))};
+  return {pptx, issues: [], warnings: capped(warnings), slides: planned.map((p, i) => ({scale: p.scale, minTextPt: p.minTextPt, native: (figures[i]?.native ?? 0) + (columnFigures[i] ?? []).reduce((n, f) => n + (f?.native ?? 0), 0), pictures: p.pictures.length, columns: (p.columns ?? []).map(c => ({scale: c.scale, minTextPt: c.minTextPt}))}))};
 }

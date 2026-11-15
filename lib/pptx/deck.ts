@@ -5,7 +5,7 @@
 // Measuring the text and drawing the PNGs are the shell's (../pptx-deck-edge.ts, ../../pptx-deck.ts).
 import {escapeXml} from '../emit-common.ts';
 import {must} from '../must.ts';
-import {planDeckLayout, SLIDE_H, SLIDE_W, type Block, type Run, type TextWidth} from '../deck-layout.ts';
+import {planDeckLayout, roomMessage, SLIDE_H, SLIDE_W, smallTextWarning, type Block, type Run, type TextWidth} from '../deck-layout.ts';
 import type {Picture} from './image-band.ts';
 import {imageRids, type Entry, type SlidePlan} from './package.ts';
 import {TEMPLATE} from './template.ts';
@@ -15,7 +15,9 @@ import {attr, emu, sp, type Fonts} from './xml.ts';
 export {deckTexts, MAX_FIGURE_SCALE, MIN_TEXT_PT, roomMessage, SLIDE_H, SLIDE_W, smallTextWarning, type TextWidth} from '../deck-layout.ts';
 
 export interface DeckFigure {plan: SlidePlan; /** Its laid-out size, px. */ w: number; h: number}
-export interface DeckSlideIn {title?: string; lead?: string; callouts?: {label?: string; text: string}[]; source?: string; notes?: string; figure?: DeckFigure}
+/** A column of a slide (ADR 0058): its figure (laid out) or its text. */
+export interface DeckColumnIn {caption?: string; figure?: DeckFigure; text?: string; width?: number}
+export interface DeckSlideIn {title?: string; lead?: string; callouts?: {label?: string; text: string}[]; source?: string; notes?: string; figure?: DeckFigure; columns?: DeckColumnIn[]; columnScale?: 'each' | 'same'}
 export interface PlannedSlide {
   xml: string;
   notes: string;
@@ -27,6 +29,8 @@ export interface PlannedSlide {
   /** The slide's text leaves the figure no room, or (without a figure) the text from the top runs into the text from the bottom. */
   noRoom: boolean;
   name: string;
+  /** Per column (ADR 0058): how much its figure was scaled and its smallest text after (null for a text column), and whether its content has no room. */
+  columns?: {scale: number | null; minTextPt: number | null; noRoom: boolean}[];
 }
 
 const NS = 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
@@ -74,6 +78,7 @@ const blockShape = (id: number, b: Block, fonts: Fonts): string => b.kind === 't
 
 /** One slide: the heading and lead from the top, the source and callouts from the bottom, the figure scaled into what is left (lib/deck-layout.ts). */
 export function planDeckSlide(s: DeckSlideIn, fonts: Fonts, w: TextWidth): PlannedSlide {
+  if (s.columns?.length) return planColumnSlide(s, s.columns, fonts, w);
   const fig = s.figure;
   const layout = planDeckLayout(s, fig, w);
   // the figure keeps its own shape ids (the connectors' glue names them); the slide's own shapes come after the largest
@@ -95,7 +100,49 @@ export function planDeckSlide(s: DeckSlideIn, fonts: Fonts, w: TextWidth): Plann
   // drawn in this order: the heading and lead, the figure (its dark panel first), then the callouts and source on top
   const tree = top.join('') + figureXml + bottom.reverse().join('');
   const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sld ${NS}><p:cSld${name ? ` name="${attr(name)}"` : ''}><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${tree}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
-  return {xml, notes: s.notes ?? '', pictures: fig && !layout.noRoom ? fig.plan.pictures : [], scale, minTextPt: small, noRoom: layout.noRoom, name};
+  return {xml, notes: s.notes ?? '', pictures: fig && !layout.noRoom ? fig.plan.pictures : [], scale, minTextPt: small, noRoom: layout.noRoom, name, columns: []};
+}
+
+const slideXml = (name: string, tree: string): string => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sld ${NS}><p:cSld${name ? ` name="${attr(name)}"` : ''}><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${tree}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
+
+/**
+ * A figure's shapes renumbered to sit beside other figures on one slide: shape ids (and the connectors' glue to them) moved up by `ids`,
+ * picture relationships moved on by `pictures` places (imageRids).
+ */
+export function renumberShapes(xml: string, ids: number, pictures: number): string {
+  if (!ids && !pictures) return xml;
+  return xml
+    .replace(/<p:cNvPr id="(\d+)"/g, (_m, n: string) => `<p:cNvPr id="${Number(n) + ids}"`)
+    .replace(/<a:(stCxn|endCxn) id="(\d+)"/g, (_m, t: string, n: string) => `<a:${t} id="${Number(n) + ids}"`)
+    .replace(/r:embed="rId(\d+)"/g, (m, n: string) => Number(n) >= 12 ? `r:embed="rId${Number(n) + 2 * pictures}"` : m);
+}
+
+/** A slide of columns (ADR 0058): each column's figure placed as the one figure of a slide is, its ids and pictures renumbered after the ones before. */
+function planColumnSlide(s: DeckSlideIn, columns: DeckColumnIn[], fonts: Fonts, w: TextWidth): PlannedSlide {
+  const layout = planDeckLayout(s, undefined, w, columns.map(c => ({caption: c.caption, figure: c.figure ? {w: c.figure.w, h: c.figure.h} : undefined, text: c.text, width: c.width})), s.columnScale);
+  let next = 1, pictureCount = 0;
+  const pictures: Picture[] = [], stats: PlannedSlide['columns'] = [];
+  const placed = columns.map((c, j) => {
+    const place = layout.columns[j], fig = c.figure;
+    if (!fig || !place?.figure) { stats.push({scale: null, minTextPt: null, noRoom: place?.noRoom ?? true}); return null; }
+    const own = renumberShapes(fig.plan.xml, next - 1, pictureCount);
+    next = Math.max(next, ...[...own.matchAll(/<p:cNvPr id="(\d+)"/g)].map(m => Number(m[1])));
+    pictureCount += fig.plan.pictures.length;
+    pictures.push(...fig.plan.pictures);
+    const inner = must(/<\/p:grpSpPr>([\s\S]*)<\/p:spTree>/.exec(own))[1] ?? '';
+    const {x, y, w: fw, h: fh, k} = place.figure;
+    const bg = /<p:bg>[\s\S]*?<a:srgbClr val="([0-9A-F]{6})"/.exec(fig.plan.xml)?.[1];
+    stats.push({scale: k, minTextPt: minTextPt(placeShapes(inner, k, 0, 0)), noRoom: place.noRoom});
+    return {bg, x, y, fw, fh, shapes: placeShapes(inner, k, emu(x), emu(y))};
+  });
+  const id = () => ++next;
+  const top = layout.top.map(b => blockShape(id(), b, fonts));
+  const figures = placed.map(p => p ? (p.bg ? rectShape(id(), 'figure background', p.x, p.y, p.fw, p.fh, p.bg) : '') + p.shapes : '');
+  const texts = layout.columns.flatMap(c => [...(c.caption ? [c.caption] : []), ...c.text]).map(b => blockShape(id(), b, fonts));
+  const bottom = layout.bottom.map(group => group.map(b => blockShape(id(), b, fonts)).join(''));
+  const name = s.title ?? columns.find(c => c.figure)?.figure?.plan.title ?? '';
+  const noRoom = layout.noRoom || stats.some(c => c.noRoom);
+  return {xml: slideXml(name, top.join('') + figures.join('') + texts.join('') + bottom.reverse().join('')), notes: s.notes ?? '', pictures: noRoom ? [] : pictures, scale: null, minTextPt: null, noRoom, name, columns: stats};
 }
 
 const SLIDE_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide';
@@ -169,4 +216,26 @@ export function deckEntries(slides: readonly PlannedSlide[], pngs: readonly (rea
     );
   });
   return out.sort((a, b) => (a.name === '[Content_Types].xml' ? -1 : b.name === '[Content_Types].xml' ? 1 : a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+}
+
+/**
+ * What stops a planned slide (no room), and what it is warned about (small text), each with its place: the slide's figure, or each column's
+ * (ADR 0058). `kinds`: what each column holds.
+ */
+export function slideIssues(p: PlannedSlide, i: number, hasFigure: boolean, kinds: readonly ('figure' | 'text')[] = []): {errors: {path: string; message: string}[]; warnings: {path: string; message: string}[]} {
+  const errors: {path: string; message: string}[] = [], warnings: {path: string; message: string}[] = [];
+  if (!kinds.length) {
+    if (p.noRoom) errors.push({path: `slides[${i}]`, message: roomMessage(hasFigure)});
+    else { const w = smallTextWarning(p); if (w) warnings.push({path: `slides[${i}].figure`, message: w}); }
+    return {errors, warnings};
+  }
+  (p.columns ?? []).forEach((c, j) => {
+    const at = `slides[${i}].columns[${j}]`;
+    if (c.noRoom) errors.push(kinds[j] === 'text'
+      ? {path: `${at}.text`, message: 'the text does not fit the column: shorten it, or give the column a larger width'}
+      : {path: at, message: 'the heading, lead, callouts and source leave the column\'s figure no room: shorten them, or split the slide'});
+    else { const w = smallTextWarning(c); if (w) warnings.push({path: `${at}.figure`, message: w}); }
+  });
+  if (p.noRoom && !errors.length) errors.push({path: `slides[${i}]`, message: roomMessage(true)});
+  return {errors, warnings};
 }

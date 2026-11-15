@@ -3,6 +3,7 @@
 // runs wherever a font can be handed in.
 import {SLIDE_H, SLIDE_W, type Block, type DeckLayout, type TextBlock} from '../deck-layout.ts';
 import {stripAutoBlock} from '../appearance-auto.ts';
+import {prefixSvgIds} from '../svg-ids.ts';
 import {outlineText, type OutlineFont} from '../svg-outline.ts';
 import type {TextBoxFn} from '../svg-geom.ts';
 
@@ -60,18 +61,27 @@ export function placedFigure(svg: string, place: {x: number; y: number; w: numbe
   return `${panel}<svg${kept} x="${n(place.x)}" y="${n(place.y)}" width="${n(place.w)}" height="${n(place.h)}">${body.slice(open[0].length)}`;
 }
 
-/** The slide: a white page, the heading and lead, the figure, then the callouts and source on top; all text outlined with `font`. */
-export function slideSvg(layout: DeckLayout, figure: SlideFigure | undefined, font: OutlineFont, box: TextBoxFn): SlideSvg {
+/**
+ * The slide: a white page, the heading and lead, the figure (or the columns' figures, captions and texts, ADR 0058), then the callouts and
+ * source on top; all text outlined with `font`. `columns[j]` is column j's figure, where it has one.
+ */
+export function slideSvg(layout: DeckLayout, figure: SlideFigure | undefined, font: OutlineFont, box: TextBoxFn, columns: readonly (SlideFigure | undefined)[] = []): SlideSvg {
   const top = layout.top.map(b => blockSvg(b, box)).join('');
   const bottom = [...layout.bottom].reverse().map(g => g.map(b => blockSvg(b, box)).join('')).join('');
   const fig = figure && layout.figure ? placedFigure(figure.svg, layout.figure) : '';
-  const raw = `<svg xmlns="http://www.w3.org/2000/svg" width="${SLIDE_W}" height="${SLIDE_H}" viewBox="0 0 ${SLIDE_W} ${SLIDE_H}"><rect width="${SLIDE_W}" height="${SLIDE_H}" fill="#ffffff"/>${top}${fig}${bottom}</svg>`;
+  // two figures on one page would share ids (their markers, their titles): each column's get a prefix of their own (ADR 0012)
+  const cols = layout.columns.map((c, j) => {
+    const f = columns[j];
+    return (f && c.figure ? placedFigure(prefixSvgIds(f.svg, `c${j + 1}`), c.figure) : '') + [...(c.caption ? [c.caption] : []), ...c.text].map(b => blockSvg(b, box)).join('');
+  }).join('');
+  const raw = `<svg xmlns="http://www.w3.org/2000/svg" width="${SLIDE_W}" height="${SLIDE_H}" viewBox="0 0 ${SLIDE_W} ${SLIDE_H}"><rect width="${SLIDE_W}" height="${SLIDE_H}" fill="#ffffff"/>${top}${fig}${cols}${bottom}</svg>`;
   const o = outlineText(raw, font, box, {liveEmoji: true});
   const liveEmoji = [...o.svg.matchAll(/<text\b[^>]*>([^<]*)<\/text>/g)].map(m => m[1] ?? '');
   return {svg: o.svg, missing: o.missing, unsupported: o.unsupported, liveEmoji};
 }
 
 /** What the slide says, for `<img alt>` (ADR 0056 D2: the SVG's own <title> is not read out from an <img>). */
-export function slideText(s: {title?: string; lead?: string; callouts?: readonly {label?: string; text: string}[]; source?: string}, figureTitle?: string): string {
-  return [s.title, s.lead, figureTitle, ...(s.callouts ?? []).map(c => (c.label ?? '') + c.text), s.source].filter((t): t is string => !!t).join('\n');
+export function slideText(s: {title?: string; lead?: string; callouts?: readonly {label?: string; text: string}[]; source?: string; columns?: readonly {caption?: string; text?: string}[]}, figureTitle?: string, columnTitles: readonly (string | undefined)[] = []): string {
+  const cols = (s.columns ?? []).flatMap((c, j) => [c.caption, columnTitles[j], c.text]);
+  return [s.title, s.lead, figureTitle, ...cols, ...(s.callouts ?? []).map(c => (c.label ?? '') + c.text), s.source].filter((t): t is string => !!t).join('\n');
 }

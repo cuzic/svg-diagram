@@ -8,9 +8,9 @@ import path from 'node:path';
 import {installResolveHook} from './lib/resolve-hook.ts';
 import {loadConfig} from './lib/config.ts';
 import {closeMeasurer, configureMeasure, measureAll, splitAtoms, textWidth} from './lib/measure.ts';
-import {figurePath} from './lib/deck-spec.ts';
-import {loadDeck, renderDeckFigure} from './lib/deck-load.ts';
-import {deckEntries, deckTexts, planDeckSlide, roomMessage, smallTextWarning, type DeckFigure, type TextWidth} from './lib/pptx/deck.ts';
+import {columnFigurePath, figurePath} from './lib/deck-spec.ts';
+import {figureKey, loadDeck, renderDeckFigure} from './lib/deck-load.ts';
+import {deckEntries, deckTexts, planDeckSlide, slideIssues, type DeckFigure, type TextWidth} from './lib/pptx/deck.ts';
 import {planSlide, fontsOf} from './lib/pptx/slide.ts';
 import {fontFilesOf, rasterize} from './lib/pptx/emit.ts';
 import {zipStore} from './lib/pptx/zip-node.ts';
@@ -41,14 +41,22 @@ try {
   const cfg = loadConfig(dir);
   configureMeasure(cfg);
   const fonts = fontsOf(font), rasterFonts = fontFilesOf(cfg.fonts);
-  const figures: (DeckFigure | undefined)[] = [], errors: string[] = [];
+  const errors: string[] = [];
+  /** A figure drawn and planned as PowerPoint shapes: slide i's own, or its column j's (ADR 0058). */
+  const drawFigure = async (i: number, spec: unknown, j?: number): Promise<DeckFigure | undefined> => {
+    const source = sources.get(figureKey(i, j));
+    if (spec === undefined && !source) return undefined;
+    const r = await renderDeckFigure(i, spec, source, cfg, {column: j});
+    if (!r.ok) { errors.push(...r.errors); return undefined; }
+    for (const warning of r.result.verdict.warnings) console.error(`⚠ ${j === undefined ? figurePath(i, '') : columnFigurePath(i, j, '')}: ${warning}`);
+    return {plan: planSlide(r.result.laidOut, fonts), w: Math.max(96, r.result.laidOut.width), h: Math.max(96, r.result.laidOut.canvasHeight)};
+  };
+  const figures: (DeckFigure | undefined)[] = [], columnFigures: (DeckFigure | undefined)[][] = [];
   for (const [i, s] of deck.slides.entries()) {
-    const source = sources.get(i);
-    if (s.figure === undefined && !source) { figures.push(undefined); continue; }
-    const r = await renderDeckFigure(i, s, source, cfg);
-    if (!r.ok) { errors.push(...r.errors); figures.push(undefined); continue; }
-    for (const warning of r.result.verdict.warnings) console.error(`⚠ ${figurePath(i, '')}: ${warning}`);
-    figures.push({plan: planSlide(r.result.laidOut, fonts), w: Math.max(96, r.result.laidOut.width), h: Math.max(96, r.result.laidOut.canvasHeight)});
+    figures.push(await drawFigure(i, s.figure));
+    const cols: (DeckFigure | undefined)[] = [];
+    for (const [j, c] of (s.columns ?? []).entries()) cols.push(c.text === undefined ? await drawFigure(i, c.figure, j) : undefined);
+    columnFigures.push(cols);
   }
   if (errors.length) fail(errors);
   // the slide's own text is measured as the figures are: in one batch, by atoms (lib/atoms.ts)
@@ -58,13 +66,15 @@ try {
   const measured = await measureAll(requests);
   const widthOf = (atom: string, size: number, weight: number): number => measured.get(key(atom, size, weight))?.w ?? atom.length * size;
   const width: TextWidth = (text, size, bold) => textWidth(widthOf, text, size, bold ? 700 : 400);
-  const planned = deck.slides.map(({figure: _f, ...s}, i) => { const f = figures[i]; return planDeckSlide(f ? {...s, figure: f} : s, fonts, width); });
-  const noRoom = planned.flatMap((p, i) => p.noRoom ? [`slides[${i}]: ${roomMessage(figures[i] !== undefined)}`] : []);
-  if (noRoom.length) fail(noRoom);
-  planned.forEach((p, i) => {
-    const w = smallTextWarning(p);
-    if (w) console.error(`⚠ ${figurePath(i, '')}: ${w}`);
+  const planned = deck.slides.map(({figure: _f, columns, ...s}, i) => {
+    const f = figures[i];
+    const cols = columns?.map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: columnFigures[i]?.[j]}));
+    return planDeckSlide({...s, ...(f ? {figure: f} : {}), ...(cols ? {columns: cols} : {})}, fonts, width);
   });
+  const reports = planned.map((p, i) => slideIssues(p, i, figures[i] !== undefined, (deck.slides[i]?.columns ?? []).map(c => c.text === undefined ? 'figure' : 'text')));
+  const noRoom = reports.flatMap(r => r.errors.map(e => `${e.path}: ${e.message}`));
+  if (noRoom.length) fail(noRoom);
+  for (const r of reports) for (const w of r.warnings) console.error(`⚠ ${w.path}: ${w.message}`);
   const pngs = planned.map(p => p.pictures.map(pic => rasterize(pic.pngSvg, rasterFonts, pngScale)));
   const out = value('--out') ?? path.join(dir, path.basename(deckFile, '.json') + '.pptx');
   fs.mkdirSync(path.dirname(path.resolve(out)), {recursive: true});
