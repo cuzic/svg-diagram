@@ -46,8 +46,8 @@ describe('presenter by token (PRESENTER_LOGIN none)', () => {
   after(() => w.stop());
 
   test('publishing needs PUBLISH_TOKEN; /api/version says the protocol, and the limits only to the publisher', async () => {
-    assert.deepEqual(await (await fetch(`${w.origin}/api/version`)).json(), {protocol: 1});
-    assert.deepEqual(await (await fetch(`${w.origin}/api/version`, {headers: auth})).json(), {protocol: 1, limits: {maxSlides: 5, maxSlideBytes: 20000, maxDeckBytes: 40000}, login: 'none'});
+    assert.deepEqual(await (await fetch(`${w.origin}/api/version`)).json(), {protocol: 2});
+    assert.deepEqual(await (await fetch(`${w.origin}/api/version`, {headers: auth})).json(), {protocol: 2, limits: {maxSlides: 5, maxSlideBytes: 20000, maxDeckBytes: 40000}, login: 'none'});
     assert.equal((await fetch(`${w.origin}/api/p`, {method: 'POST'})).status, 401);
     assert.equal((await fetch(`${w.origin}/api/p`, {method: 'POST', headers: {authorization: 'Bearer wrong'}})).status, 401);
   });
@@ -87,7 +87,8 @@ describe('presenter by token (PRESENTER_LOGIN none)', () => {
     // an id this namespace never made: 404 without waking anything
     assert.equal((await fetch(`${w.origin}/p/${'ab'.repeat(32)}`)).status, 404);
     for (const p of ['/', '/p', `/p/${id}/x`, '/api/p/zz', '/wrangler.jsonc']) assert.equal((await fetch(w.origin + p)).status, p.startsWith('/api') ? 401 : 404, p);
-    for (const p of ['/notes', '/print']) assert.equal((await fetch(`${w.origin}/p/${id}${p}`)).status, 403, p);
+    assert.equal((await fetch(`${w.origin}/p/${id}/notes`)).status, 403, 'the notes are the presenter\'s');
+    assert.equal((await fetch(`${w.origin}/p/${id}/print`)).status, 200, 'every slide is the viewers\' too (ADR 0062)');
     assert.equal((await fetch(`${w.origin}/p/${id}/login`)).status, 404, 'no email sign-in set up');
   });
 
@@ -112,13 +113,31 @@ describe('presenter by token (PRESENTER_LOGIN none)', () => {
     const moved = await viewer.next(m => m['type'] === 'state' && m['index'] === 2);
     assert.equal(moved['seq'], Number(s0['seq']) + 2);
     assert.match(String(moved['slide']), new RegExp(`^/p/${id}/s/[0-9a-f]{64}\\.svg$`));
-    assert.equal(viewer.got.some(m => m['type'] === 'deck'), false, 'a viewer is not told the other slides');
+    assert.ok(viewer.got.some(m => m['type'] === 'deck') || (await viewer.next(m => m['type'] === 'deck')), 'a viewer is told every slide (ADR 0062)');
     await assert.rejects(socket(w.origin, id, {origin: 'https://evil.example'}), 'another site');
     await assert.rejects(socket(w.origin, id, {}), 'no Origin: not a browser page');
     const notes = await fetch(`${w.origin}/p/${id}/notes`, {headers: {cookie}});
     assert.deepEqual(await notes.json(), {version: 1, notes: ['メモ 1', 'メモ 2', 'メモ 3']});
     assert.equal(notes.headers.get('cache-control'), 'private, no-store');
     viewer.ws.close(); presenter.ws.close(); forged.ws.close();
+  });
+
+  test('ADR 0062: the presenter links and unlinks, and the laser pointer reaches every viewer; a viewer\'s are dropped', async () => {
+    const {id, token} = await published(w.origin);
+    const cookie = await claim(w.origin, id, token);
+    const viewer = await socket(w.origin, id), presenter = await socket(w.origin, id, {origin: w.origin, cookie});
+    assert.equal((await viewer.next(m => m['type'] === 'state'))['linked'], true);
+    await viewer.next(m => m['type'] === 'deck');
+    viewer.send({type: 'link', on: false});
+    viewer.send({type: 'pointer', index: 0, x: 0.5, y: 0.5});
+    presenter.send({type: 'link', on: false});
+    assert.equal((await viewer.next(m => m['type'] === 'state'))['linked'], false);
+    presenter.send({type: 'pointer', index: 0, x: 0.25, y: 0.75});
+    assert.deepEqual(await viewer.next(m => m['type'] === 'pointer'), {type: 'pointer', index: 0, x: 0.25, y: 0.75});
+    assert.equal(viewer.got.filter(m => m['type'] === 'pointer').length, 0, 'the viewer\'s own pointer was dropped');
+    presenter.send({type: 'zoom', index: 0, z: 2, x: 0.5, y: 0.5});
+    assert.deepEqual(await viewer.next(m => m['type'] === 'zoom'), {type: 'zoom', index: 0, z: 2, x: 0.5, y: 0.5}, 'the presenter\'s zoom (ADR 0063)');
+    viewer.ws.close(); presenter.ws.close();
   });
 
   test('publishing again: the current slide follows its content, a slide no longer in the deck is gone, devices are told', async () => {

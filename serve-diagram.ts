@@ -16,7 +16,7 @@ import {Worker} from 'node:worker_threads';
 import {loadConfig} from './lib/config.ts';
 import {outlineFontCheck} from './lib/font-metrics.ts';
 import {currentMeasure, configureMeasure} from './lib/measure.ts';
-import {allowGo, applyGo, followIndex, parseGo, type StateMessage, type SyncState} from './lib/present/sync.ts';
+import {allowGo, applyGo, followIndex, parsePresenter, POINTER_PER_SECOND, type StateMessage, type SyncState} from './lib/present/sync.ts';
 import {allowedHosts, cookieValue, hostOk, PAGE_HEADERS, postOk, sameSecret, streamOk, SVG_HEADERS} from './lib/present/guard.ts';
 import {ASSET_CSS, ASSET_JS, PRESENT_CSS, PRESENT_JS, presenterPage, printPage, viewerPage, type PageConfig} from './lib/present/ui.ts';
 import {qrSvg, qrTerminal} from './lib/present/qr.ts';
@@ -112,7 +112,7 @@ function draw(): Promise<RenderReply> {
 let deck: RenderedDeck | null = null, slides: RenderedSlide[] = [], byHash = new Map<string, RenderedSlide>();
 let problems: {errors: string[]; warnings: string[]} = {errors: [], warnings: []};
 const state: SyncState = {epoch: randomBytes(8).toString('hex'), seq: 0, index: 0, version: 0};
-let moved = false;
+let moved = false, linked = true;
 
 // --- clients ---------------------------------------------------------------------------------------------------------------
 interface Client {res: http.ServerResponse; presenter: boolean}
@@ -121,12 +121,13 @@ const sendTo = (c: Client, m: unknown) => { c.res.write(`data: ${JSON.stringify(
 const slideUrl = (s: RenderedSlide) => `/s/${s.hash}.svg`;
 function stateMessage(): StateMessage {
   const s = slides[state.index];
-  return {type: 'state', ...state, slide: s ? slideUrl(s) : '', alt: s?.text ?? '', total: slides.length, moved};
+  return {type: 'state', ...state, slide: s ? slideUrl(s) : '', alt: s?.text ?? '', total: slides.length, moved, linked};
 }
 const deckMessage = () => ({type: 'deck', version: state.version, slides: slides.map(s => ({url: slideUrl(s), title: s.title, text: s.text}))});
 const viewers = () => [...clients].filter(c => !c.presenter).length;
 function broadcastState(): void { const m = stateMessage(); for (const c of clients) sendTo(c, m); }
 function toPresenters(m: unknown): void { for (const c of clients) if (c.presenter) sendTo(c, m); }
+function toAll(m: unknown): void { for (const c of clients) sendTo(c, m); }
 const countMessage = () => ({type: 'count', viewers: viewers()});
 
 // --- drawing again when a file changes ------------------------------------------------------------------------------------
@@ -163,14 +164,14 @@ async function redraw(): Promise<void> {
       deck = r.deck;
       // the notes are not in the picture: a change to them alone goes to the presenters (their page reads the notes again)
       const notesChanged = !changed && next.some((s, i) => s.notes !== slides[i]?.notes);
-      if (notesChanged) { slides = next; byHash = new Map(next.map(s => [s.hash, s])); toPresenters(deckMessage()); }
+      if (notesChanged) { slides = next; byHash = new Map(next.map(s => [s.hash, s])); toAll(deckMessage()); }
       if (changed) {
         state.index = followIndex(slides, next, state.index);
         slides = next; byHash = new Map(next.map(s => [s.hash, s]));
         // every change of the deck is a new state (a page holding the empty one before must take it); whether anyone has moved is `moved`
         state.version++; state.seq++;
         broadcastState();
-        toPresenters(deckMessage());
+        toAll(deckMessage());
       }
       console.log(`${changed ? '✓ drawn' : notesChanged ? '✓ notes changed' : '✓ unchanged'}: ${next.length} slides (${Date.now() - t0} ms)`);
       if (target) await publish(target, r.deck.title, next);
@@ -229,7 +230,7 @@ const token = target ? '' : presenterToken();
 let port = firstPort;
 const cookieName = () => `sd-presenter-${port}`;
 /** The presenter's recent gos (a POST has no connection to count them on: the presenter's cookie is one, so they are counted together). */
-const presenterGos: number[] = [];
+const presenterGos: number[] = [], presenterPointers: number[] = [];
 const isPresenter = (req: http.IncomingMessage) => { const v = cookieValue(req.headers.cookie, cookieName()); return v !== undefined && sameSecret(v, token); };
 
 // --- addresses --------------------------------------------------------------------------------------------------------------
@@ -253,8 +254,8 @@ const forbidden = (res: http.ServerResponse, why: string) => send(res, 403, {'co
 
 function pageConfig(role: 'viewer' | 'presenter'): PageConfig {
   const url = viewerUrl();
-  return role === 'viewer' ? {role, transport: 'sse', events: '/api/events'} : {
-    role, transport: 'sse', events: '/api/events', go: '/api/go', notes: '/api/notes', claim: '/claim', viewerPath: '/', sseLimit: true,
+  return role === 'viewer' ? {role, transport: 'sse', events: '/api/events', print: '/print'} : {
+    role, transport: 'sse', events: '/api/events', go: '/api/go', print: '/print', notes: '/api/notes', claim: '/claim', viewerPath: '/', sseLimit: true,
     viewerUrl: url, qrSvg: url ? qrSvg(url, {moduleSize: 4}) : null,
     qrNote: url ? '' : 'LAN の端末に見せるには --host 0.0.0.0 で起動してください',
   };
@@ -284,10 +285,16 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/go') {
       if (!isPresenter(req)) return forbidden(res, 'only the presenter moves the slides');
+      const m = parsePresenter(await readBody(req, 200));
+      if (!m) return send(res, 400, {'content-type': 'text/plain'}, 'a message is {"type":"go","delta":±n}, {"type":"go","index":n}, {"type":"link","on":bool} or {"type":"pointer",…}');
+      if (m.type === 'pointer' || m.type === 'zoom') {
+        if (!allowGo(presenterPointers, Date.now(), POINTER_PER_SECOND)) return send(res, 429, {'cache-control': 'no-store'}, '');
+        toAll(m);
+        return send(res, 204, {'cache-control': 'no-store'}, '');
+      }
       if (!allowGo(presenterGos, Date.now())) return send(res, 429, {'cache-control': 'no-store'}, '');
-      const go = parseGo(await readBody(req, 200));
-      if (!go) return send(res, 400, {'content-type': 'text/plain'}, 'a go is {"type":"go","delta":±n} or {"type":"go","index":n}');
-      const next = applyGo(state, go, slides.length);
+      if (m.type === 'link') { if (linked !== m.on) { linked = m.on; state.seq++; broadcastState(); } return send(res, 204, {'cache-control': 'no-store'}, ''); }
+      const next = applyGo(state, m, slides.length);
       if (next) { Object.assign(state, next); moved = true; broadcastState(); }
       return send(res, 204, {'cache-control': 'no-store'}, '');
     }
@@ -312,17 +319,19 @@ const server = http.createServer(async (req, res) => {
     clients.add(c);
     sendTo(c, {type: 'hello', role: c.presenter ? 'presenter' : 'viewer'});
     sendTo(c, stateMessage());
-    if (c.presenter) { sendTo(c, deckMessage()); sendTo(c, {type: 'problems', ...problems}); }
+    sendTo(c, deckMessage());
+    if (c.presenter) sendTo(c, {type: 'problems', ...problems});
     toPresenters(countMessage());
     const ping = setInterval(() => res.write(': ping\n\n'), 25_000);
     req.on('close', () => { clearInterval(ping); clients.delete(c); toPresenters(countMessage()); });
     return;
   }
-  // the presenter's own: the notes, the print page, the .pptx
-  if (p === '/api/notes' || p === '/print' || p === '/deck.pptx') {
+  // every slide is the viewers' too (ADR 0062): the print page is open to them
+  if (p === '/print') return send(res, 200, PAGE_HEADERS, printPage(title, slides.map(s => ({url: slideUrl(s), text: s.text}))));
+  // the presenter's own: the notes, the .pptx
+  if (p === '/api/notes' || p === '/deck.pptx') {
     if (!isPresenter(req)) return forbidden(res, 'only the presenter: open the presenter\'s URL first');
     if (p === '/api/notes') return send(res, 200, {'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, no-store'}, JSON.stringify({version: state.version, notes: slides.map(s => s.notes)}));
-    if (p === '/print') return send(res, 200, PAGE_HEADERS, printPage(title, slides.map(s => ({url: slideUrl(s), text: s.text}))));
     const out = path.join(os.tmpdir(), `svg-diagram-serve-${process.pid}-${randomBytes(6).toString('hex')}.pptx`);
     const bin = fileURLToPath(new URL(import.meta.url.endsWith('.ts') ? './pptx-deck-diagram.ts' : './pptx-deck-diagram.js', import.meta.url));
     // the file name may be Japanese: an HTTP header holds only Latin-1, so the name goes as filename* (RFC 6266) beside an ASCII one

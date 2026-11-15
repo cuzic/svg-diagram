@@ -98,7 +98,7 @@ test('a presenter\'s go reaches every client; a viewer\'s is refused; the presen
   assert.equal(first['total'], 3);
   const deckMsg = await presenter.next(m => m['type'] === 'deck');
   assert.equal((deckMsg['slides'] as unknown[]).length, 3);
-  assert.equal(viewer.got.some(m => m['type'] === 'deck'), false, 'a viewer is not told the other slides');
+  assert.equal(((await viewer.next(m => m['type'] === 'deck'))['slides'] as unknown[]).length, 3, 'a viewer is told every slide (ADR 0062)');
   // the slide itself, with the headers that keep anything in it from running
   const svg = await fetch(B + String(first['slide']));
   assert.equal(svg.status, 200);
@@ -119,7 +119,7 @@ test('a presenter\'s go reaches every client; a viewer\'s is refused; the presen
   const notes = await fetch(B + '/api/notes', {headers: {cookie}});
   assert.equal(notes.headers.get('cache-control'), 'private, no-store');
   assert.deepEqual(((await notes.json()) as {notes: string[]}).notes, ['はじめのメモ\n  字下げ', '', '']);
-  assert.equal((await fetch(B + '/print')).status, 403);
+  assert.equal((await fetch(B + '/print')).status, 200, 'every slide is the viewers\' too (ADR 0062)');
   assert.equal((await fetch(B + '/print', {headers: {cookie}})).status, 200);
   const pptx = await fetch(B + '/deck.pptx', {headers: {cookie}});
   assert.equal(pptx.status, 200);
@@ -165,4 +165,26 @@ test('a change to the notes alone reaches the presenter, and the slides stay as 
   const notes = await fetch(B + '/api/notes', {headers: {cookie}});
   assert.equal(((await notes.json()) as {notes: string[]}).notes[0], '直したメモ');
   presenter.close();
+});
+
+test('ADR 0062: the presenter links and unlinks the viewers, and the laser pointer reaches them; a viewer can do neither', async () => {
+  const viewer = await stream();
+  const first = await viewer.next(m => m['type'] === 'state');
+  assert.equal(first['linked'], true, 'linked by default');
+  assert.equal((await post('/api/go', {type: 'link', on: false})).status, 403, 'a viewer');
+  assert.equal((await post('/api/go', {type: 'link', on: false}, {cookie})).status, 204);
+  const off = await viewer.next(m => m['type'] === 'state' && m['linked'] === false);
+  assert.ok(Number(off['seq']) > Number(first['seq']));
+  assert.equal((await post('/api/go', {type: 'pointer', index: 1, x: 0.25, y: 0.5}, {cookie})).status, 204);
+  assert.deepEqual(await viewer.next(m => m['type'] === 'pointer'), {type: 'pointer', index: 1, x: 0.25, y: 0.5});
+  assert.equal((await post('/api/go', {type: 'pointer', index: 1, x: 2, y: 0.5}, {cookie})).status, 400, 'off the slide');
+  assert.equal((await post('/api/go', {type: 'pointer', index: 1, x: 0.5, y: 0.5, spot: true, r: 0.12}, {cookie})).status, 204);
+  assert.deepEqual(await viewer.next(m => m['type'] === 'pointer' && m['spot'] === true), {type: 'pointer', index: 1, x: 0.5, y: 0.5, spot: true, r: 0.12}, 'the spotlight (ADR 0064)');
+  assert.equal((await post('/api/go', {type: 'pointer', index: 1, x: 0.5, y: 0.5})).status, 403, 'a viewer');
+  assert.equal((await post('/api/go', {type: 'zoom', index: 1, z: 2, x: 0.3, y: 0.4}, {cookie})).status, 204);
+  assert.deepEqual(await viewer.next(m => m['type'] === 'zoom'), {type: 'zoom', index: 1, z: 2, x: 0.3, y: 0.4}, 'the presenter\'s zoom (ADR 0063)');
+  assert.equal((await post('/api/go', {type: 'zoom', index: 1, z: 2, x: 0.3, y: 0.4})).status, 403, 'a viewer');
+  assert.equal((await post('/api/go', {type: 'link', on: true}, {cookie})).status, 204);
+  await viewer.next(m => m['type'] === 'state' && m['linked'] === true);
+  viewer.close();
 });

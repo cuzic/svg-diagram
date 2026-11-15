@@ -3,14 +3,57 @@
 // the deck changes, how fast a presenter may press, and how long a client waits before it reconnects.
 
 /** The version of what `--publish` and the Worker send each other; they refuse each other when it differs (ADR 0056 D11). */
-export const PROTOCOL = 1;
+export const PROTOCOL = 2;
 
 /** The one state of a presentation: `epoch` is the server's (a local start, a Worker presentation), `seq` counts the moves, `version` the deck's. */
 export interface SyncState {epoch: string; seq: number; index: number; version: number}
 /** What a presenter sends: a step (next / previous, summed in order) or a slide to go to. */
 export type GoMessage = {type: 'go'; delta: number} | {type: 'go'; index: number};
 /** What every client is sent when the state changes: the state, the current slide's URL and what it says (for <img alt>). */
-export interface StateMessage extends SyncState {type: 'state'; slide: string; alt: string; total: number; /** Someone has moved since this server started: a presenter's page puts back its slide only while this is false. */ moved: boolean}
+export interface StateMessage extends SyncState {type: 'state'; slide: string; alt: string; total: number; /** Someone has moved since this server started: a presenter's page puts back its slide only while this is false. */ moved: boolean;
+  /** Linked (ADR 0062): a presenter's move brings every viewer to the presenter's slide; unlinked, viewers stay where they are. */ linked: boolean}
+/** What else a presenter sends (ADR 0062): linking on or off, and the laser pointer (x, y in 0..1 over the slide `index`; off: hidden). */
+export type LinkMessage = {type: 'link'; on: boolean};
+/** `spot` (ADR 0064): a spotlight of radius `r` (a share of the slide's width) instead of the laser's dot. */
+export type PointerMessage = {type: 'pointer'; index: number; x: number; y: number; spot?: true; r?: number} | {type: 'pointer'; off: true};
+/** The presenter's zoom (ADR 0063): `z` times (1 is the whole slide) around (x, y) in 0..1 of the slide `index`; passed on, not kept. */
+export type ZoomMessage = {type: 'zoom'; index: number; z: number; x: number; y: number};
+/** The largest zoom. */
+export const MAX_ZOOM = 6;
+export type PresenterMessage = GoMessage | LinkMessage | PointerMessage | ZoomMessage;
+
+/** A presenter's message of any kind, or null (anything else is dropped). */
+export function parsePresenter(raw: unknown): PresenterMessage | null {
+  const go = parseGo(raw);
+  if (go) return go;
+  let v: unknown = raw;
+  if (typeof raw === 'string') { if (raw.length > 200) return null; try { v = JSON.parse(raw); } catch { return null; } }
+  if (typeof v !== 'object' || v === null) return null;
+  const m = v as Record<string, unknown>;
+  if (m['type'] === 'link' && typeof m['on'] === 'boolean' && Object.keys(m).length === 2) return {type: 'link', on: m['on']};
+  if (m['type'] === 'zoom') {
+    const {index, z, x, y} = m, unit = (n: unknown): n is number => typeof n === 'number' && n >= 0 && n <= 1;
+    if (typeof index === 'number' && Number.isSafeInteger(index) && index >= 0 && typeof z === 'number' && z >= 1 && z <= MAX_ZOOM && unit(x) && unit(y) && Object.keys(m).length === 5) {
+      const r = (n: number) => Math.round(n * 1e4) / 1e4;
+      return {type: 'zoom', index, z: r(z), x: r(x), y: r(y)};
+    }
+    return null;
+  }
+  if (m['type'] === 'pointer') {
+    if (m['off'] === true && Object.keys(m).length === 2) return {type: 'pointer', off: true};
+    const {index, x, y, spot, r} = m, unit = (n: unknown): n is number => typeof n === 'number' && n >= 0 && n <= 1;
+    const known = Object.keys(m).every(k => ['type', 'index', 'x', 'y', 'spot', 'r'].includes(k));
+    if (!known || !(typeof index === 'number' && Number.isSafeInteger(index) && index >= 0 && unit(x) && unit(y))) return null;
+    const out: PointerMessage = {type: 'pointer', index, x: Math.round(x * 1e4) / 1e4, y: Math.round(y * 1e4) / 1e4};
+    if (spot === undefined && r === undefined) return out;
+    if (spot !== true || typeof r !== 'number' || !(r >= 0.03 && r <= 0.5)) return null;
+    return {...out, spot: true, r: Math.round(r * 1e4) / 1e4};
+  }
+  return null;
+}
+
+/** At most this many pointer messages per presenter connection per second; the rest are dropped (a pointer moves often, a slide does not). */
+export const POINTER_PER_SECOND = 30;
 
 /** A presenter's go, or null when `raw` is anything else (a viewer's or a malformed message is dropped, not answered). */
 export function parseGo(raw: unknown): GoMessage | null {
@@ -59,9 +102,9 @@ export function followIndex(before: readonly {hash: string; title: string}[], af
 /** At most this many gos per presenter connection per second; the rest are dropped (ADR 0056 D6). */
 export const GO_PER_SECOND = 10;
 /** Whether a go at `now` (ms) fits the presenter's recent gos `times` (kept in place: the times within the last second). */
-export function allowGo(times: number[], now: number): boolean {
+export function allowGo(times: number[], now: number, perSecond = GO_PER_SECOND): boolean {
   while (times.length && (times[0] as number) <= now - 1000) times.shift();
-  if (times.length >= GO_PER_SECOND) return false;
+  if (times.length >= perSecond) return false;
   times.push(now);
   return true;
 }

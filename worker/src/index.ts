@@ -138,8 +138,10 @@ async function handle(req: Request, env: Env): Promise<Response> {
   if (!info.exists) return notFound();
   const title = info.title || info.first;
   const viewerUrl = `${url.origin}${base}`;
-  const presenterConfig = {role: 'presenter' as const, transport: 'ws' as const, events: `${base}/ws`, notes: `${base}/notes`, viewerUrl, viewerPath: base, qrSvg: qrSvg(viewerUrl, {moduleSize: 4})};
-  if (rest === '') return new Response(viewerPage(title, {role: 'viewer', transport: 'ws', events: `${base}/ws`}), {headers: PAGE_HEADERS});
+  const presenterConfig = {role: 'presenter' as const, transport: 'ws' as const, events: `${base}/ws`, notes: `${base}/notes`, print: `${base}/print`, viewerUrl, viewerPath: base, qrSvg: qrSvg(viewerUrl, {moduleSize: 4})};
+  if (rest === '') return new Response(viewerPage(title, {role: 'viewer', transport: 'ws', events: `${base}/ws`, print: `${base}/print`}), {headers: PAGE_HEADERS});
+  // every slide is the viewers' too (ADR 0062): the print page is open to them
+  if (rest === '/print') { const p = await stub.printable(); return new Response(printPage(p.title || title, p.slides), {headers: PAGE_HEADERS}); }
   if (rest === '/presenter') return new Response(presenterPage(title, presenterConfig), {headers: PAGE_HEADERS});
   // the presenter's URL (`--publish` prints it with #token=…): the page trades the token for the cookie, then goes on to /presenter
   if (rest === '/t') return new Response(presenterPage(title, {...presenterConfig, claim: `${base}/t`, afterClaim: `${base}/presenter`}), {headers: PAGE_HEADERS});
@@ -151,7 +153,6 @@ async function handle(req: Request, env: Env): Promise<Response> {
   const session = await presenterOf(req, s, id, stub);
   if (!session) return text('only the presenter: open the presenter\'s URL, or sign in at ' + base + '/login', 403);
   if (rest === '/notes') return new Response(JSON.stringify(await stub.notes()), {headers: {'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, no-store'}});
-  if (rest === '/print') { const p = await stub.printable(); return new Response(printPage(p.title || title, p.slides), {headers: PAGE_HEADERS}); }
   return notFound();
 }
 

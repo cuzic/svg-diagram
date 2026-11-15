@@ -1,7 +1,7 @@
 // ADR 0056 D6, D9: the rules of following the presenter (lib/present/sync.ts) and who may ask the local server what (lib/present/guard.ts).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {allowGo, applyGo, followIndex, GO_PER_SECOND, parseGo, reconnectDelay, takes, type SyncState} from '../lib/present/sync.ts';
+import {allowGo, applyGo, followIndex, GO_PER_SECOND, parseGo, parsePresenter, POINTER_PER_SECOND, reconnectDelay, takes, type SyncState} from '../lib/present/sync.ts';
 import {allowedHosts, cookieValue, hostOk, postOk, sameSecret, streamOk} from '../lib/present/guard.ts';
 
 const s0: SyncState = {epoch: 'e1', seq: 0, index: 0, version: 1};
@@ -76,4 +76,31 @@ test('cookies and secrets', () => {
   assert.equal(cookieValue('sd-presenter-30300=xyz', 'sd-presenter-3030'), undefined);
   assert.equal(cookieValue(undefined, 'x'), undefined);
   assert.ok(sameSecret('abc', 'abc') && !sameSecret('abc', 'abd') && !sameSecret('abc', 'ab'));
+});
+
+test('ADR 0062: a presenter also links and unlinks, and points; a pointer is on the slide (0..1) or off', () => {
+  assert.deepEqual(parsePresenter('{"type":"go","delta":1}'), {type: 'go', delta: 1});
+  assert.deepEqual(parsePresenter({type: 'link', on: false}), {type: 'link', on: false});
+  assert.deepEqual(parsePresenter({type: 'pointer', index: 2, x: 0.123456, y: 1}), {type: 'pointer', index: 2, x: 0.1235, y: 1});
+  assert.deepEqual(parsePresenter({type: 'pointer', off: true}), {type: 'pointer', off: true});
+  for (const bad of [{type: 'link', on: 'yes'}, {type: 'link', on: true, x: 1}, {type: 'pointer', index: 0, x: 1.5, y: 0}, {type: 'pointer', index: -1, x: 0, y: 0}, {type: 'pointer', off: false}, {type: 'pointer', index: 0, x: 0, y: 0, extra: 1}]) {
+    assert.equal(parsePresenter(bad), null, JSON.stringify(bad));
+  }
+  const times: number[] = [];
+  assert.equal(Array.from({length: 40}, (_, i) => allowGo(times, 1000 + i, POINTER_PER_SECOND)).filter(Boolean).length, POINTER_PER_SECOND);
+});
+
+test('ADR 0063: the presenter\'s zoom is 1 to MAX_ZOOM times around a point of the slide', async () => {
+  const {MAX_ZOOM} = await import('../lib/present/sync.ts');
+  assert.deepEqual(parsePresenter({type: 'zoom', index: 3, z: 2.5, x: 0.25, y: 0.75}), {type: 'zoom', index: 3, z: 2.5, x: 0.25, y: 0.75});
+  for (const bad of [{type: 'zoom', index: 3, z: 0.5, x: 0.5, y: 0.5}, {type: 'zoom', index: 3, z: MAX_ZOOM + 1, x: 0.5, y: 0.5}, {type: 'zoom', index: 3, z: 2, x: 1.2, y: 0.5}, {type: 'zoom', index: 3, z: 2, x: 0.5}, {type: 'zoom', index: 3, z: 2, x: 0.5, y: 0.5, k: 1}]) {
+    assert.equal(parsePresenter(bad), null, JSON.stringify(bad));
+  }
+});
+
+test('ADR 0064: the presenter\'s spotlight is a pointer with spot and a radius (a share of the slide\'s width)', () => {
+  assert.deepEqual(parsePresenter({type: 'pointer', index: 1, x: 0.3, y: 0.4, spot: true, r: 0.12}), {type: 'pointer', index: 1, x: 0.3, y: 0.4, spot: true, r: 0.12});
+  for (const bad of [{type: 'pointer', index: 1, x: 0.3, y: 0.4, spot: true}, {type: 'pointer', index: 1, x: 0.3, y: 0.4, spot: true, r: 0.9}, {type: 'pointer', index: 1, x: 0.3, y: 0.4, r: 0.1}, {type: 'pointer', index: 1, x: 0.3, y: 0.4, spot: false, r: 0.1}, {type: 'pointer', index: 1, x: 0.3, y: 0.4, spot: true, r: 0.1, more: 1}]) {
+    assert.equal(parsePresenter(bad), null, JSON.stringify(bad));
+  }
 });
