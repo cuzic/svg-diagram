@@ -2,6 +2,7 @@
 // bar) — one figure, one or several layers (a box with its points laid over it), vertical or horizontal, with an optional `hue` (a second category
 // drawn side by side within each group). The statistics (quartiles, a kernel density, a confidence interval, a beeswarm) are worked out here
 // from the raw values (lib/stats.ts), deterministically: the same data draws the same figure.
+import {axisPart, partStep} from './parts.ts';
 import {must} from './must.ts';
 import {Canvas, checkIds, checkText, fail, finiteNum, niceScale, numText, shadeOps} from './charts-base.ts';
 import type {Cand, ChartGeom, ChartOpts, LaidOutChartPart} from './charts-base.ts';
@@ -159,21 +160,23 @@ export function layoutCat(s: CatSpec, g: ChartGeom): LaidOutChartPart {
 
   // legend, axis name
   const glyphs = !rectKind;
-  legend.forEach(l => {
+  legend.forEach(l => c.legendEntry(l.i, must(s.hues[l.i]), () => {
     const cy = g.y + l.row * (S + 12) + Math.max(9, Math.ceil(S * 0.64));
     if (glyphs) c.path(markerPath(SHAPES[l.i] ?? 'disc', l.x + 7, cy, 6), {fill: 'accent', op: 0.8});
     else c.rect(l.x, cy - 7, 14, 14, {fill: 'accent', op: fillOp(l.i, s.kinds[0] ?? 'box'), stroke: 'accent', sw: 2});
     c.text(must(s.hues[l.i]), l.x + 20, c.mid(cy), 'start', 'text');
-  });
+  }));
   const axisName = s.label;
-  if (v && axisName) c.text(axisName, plotL - 4, g.y + legendH + S + 2, 'start', 'muted', {bold: true});
-  // grid, ticks, baseline
-  for (const t of sc.ticks) {
-    if (v) { c.line(plotL - 6, yOf(t), plotR, yOf(t), {stroke: t === 0 && s.kinds.includes('bar') ? 'text' : 'border'}); c.text(tick(t), plotL - 10, c.mid(yOf(t)), 'end', 'muted'); }
-    else { c.line(xOf(t), plotT, xOf(t), plotB + 6, {stroke: t === 0 && s.kinds.includes('bar') ? 'text' : 'border'}); c.text(tick(t), xOf(t), plotB + S + 10, 'middle', 'muted'); }
-  }
-  c.line(plotL, plotT, plotL, plotB, {stroke: 'border'});
-  if (!v && axisName) c.text(axisName, (plotL + plotR) / 2, plotB + 2 * S + 22, 'middle', 'muted', {bold: true});
+  if (v && axisName) c.withPart(axisPart('y'), () => c.text(axisName, plotL - 4, g.y + legendH + S + 2, 'start', 'muted', {bold: true}));
+  // grid, ticks, baseline (ADR 0054: the value axis is a part; a group's shapes, values and name another, by their `of`)
+  c.withPart(axisPart(v ? 'y' : 'x'), () => {
+    for (const t of sc.ticks) {
+      if (v) { c.line(plotL - 6, yOf(t), plotR, yOf(t), {stroke: t === 0 && s.kinds.includes('bar') ? 'text' : 'border'}); c.text(tick(t), plotL - 10, c.mid(yOf(t)), 'end', 'muted'); }
+      else { c.line(xOf(t), plotT, xOf(t), plotB + 6, {stroke: t === 0 && s.kinds.includes('bar') ? 'text' : 'border'}); c.text(tick(t), xOf(t), plotB + S + 10, 'middle', 'muted'); }
+    }
+    c.line(plotL, plotT, plotL, plotB, {stroke: 'border'});
+    if (!v && axisName) c.text(axisName, (plotL + plotR) / 2, plotB + 2 * S + 22, 'middle', 'muted', {bold: true});
+  });
 
   // category labels
   s.groups.forEach((gr, gi) => {
@@ -261,5 +264,6 @@ export function layoutCat(s: CatSpec, g: ChartGeom): LaidOutChartPart {
     const above = s.kinds.includes('bar') || s.kinds.includes('point');
     if (!c.place(text, above ? [cands[2], cands[0], cands[1]] : cands, 'text', {bold: true, of: own})) c.omitted.push(`${grp(gi).label}${x.name ? ` ${x.name}` : ''} ${text}`);
   });
+  c.partsByOf(new Map(s.groups.map((gr, gi) => [of(gi), partStep('group', gr.id ?? gi, gr.label)])));
   return c.done();
 }

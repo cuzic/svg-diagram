@@ -189,7 +189,8 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
   for (const band of deferred) connects.push(resolveConnect(band, anchors, areaIds, widthOf, roles, nodeBottoms, scopes)); // throws "unknown anchor id" if it never appears
 
   const contentHeight = Math.round(ctx.y - d.gap + d.pad);
-  const canvasHeight = d.canvas ? Math.max(contentHeight, d.canvas.height) : contentHeight;
+  // canvas: at least its height, unless fit: 'content' (then as tall as the content; an overflow is still drawn and warned)
+  const canvasHeight = d.canvas && d.canvas.fit !== 'content' ? Math.max(contentHeight, d.canvas.height) : contentHeight;
 
   return {...data, laidOut, canvasHeight, ...(data.canvas ? {contentHeight} : {}), connects, roles};
 }

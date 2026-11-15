@@ -21,6 +21,8 @@ export interface CheckSheetOpts extends Pick<TableOpts, 'title' | 'width' | 'cel
   total?: boolean;
   /** A ☐ in every empty cell: a sheet of points to tick off by hand rather than to count on. */
   boxes?: boolean;
+  /** The heading of the column and the row of totals (default 計). */
+  totalLabel?: string;
 }
 
 export function checkSheetParts(items: readonly (string | CheckItem)[], columns: readonly string[], opts: CheckSheetOpts = {}): {columns: TableColumn[]; rows: TableRow[]; opts: TableOpts} {
@@ -38,7 +40,7 @@ export function checkSheetParts(items: readonly (string | CheckItem)[], columns:
   if (withTotal && !counted) throw new Error('checkSheet(): total needs counts');
   const text = (n: number): string => n === 0 ? '' : as === 'number' ? String(n) : as === 'both' ? `${tally(n)} ${n}` : tally(n);
   const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0);
-  const cols: TableColumn[] = [{label: opts.corner ?? '', flex: 2, bold: true}, ...columns.map(label => ({label, flex: 1, align: 'center' as const})), ...(withTotal ? [{label: '計', flex: 1, align: 'center' as const, bold: true}] : [])];
+  const cols: TableColumn[] = [{label: opts.corner ?? '', flex: 2, bold: true}, ...columns.map(label => ({label, flex: 1, align: 'center' as const})), ...(withTotal ? [{label: opts.totalLabel ?? '計', flex: 1, align: 'center' as const, bold: true}] : [])];
   const body: TableRow[] = rows.map(r => [
     r.label,
     ...columns.map((_, j): TableCellSpec | string => r.counts ? text(r.counts[j]) : opts.boxes ? '☐' : ''),
@@ -46,9 +48,9 @@ export function checkSheetParts(items: readonly (string | CheckItem)[], columns:
   ]);
   if (withTotal) {
     const per = columns.map((_, j) => sum(rows.map(r => r.counts?.[j] ?? 0)));
-    body.push({cells: ['計', ...per.map(n => ({text: String(n), bold: true})), {text: String(sum(per)), bold: true}], tone: 'muted'});
+    body.push({cells: [opts.totalLabel ?? '計', ...per.map(n => ({text: String(n), bold: true})), {text: String(sum(per)), bold: true}], tone: 'muted'});
   }
-  const {corner: _c, as: _a, total: _t, boxes: _b, ...rest} = opts;
+  const {corner: _c, as: _a, total: _t, boxes: _b, totalLabel: _l, ...rest} = opts;
   return {columns: cols, rows: body, opts: {...rest, rowHeader: true}};
 }
 

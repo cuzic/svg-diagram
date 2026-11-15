@@ -7,7 +7,7 @@
 | 描きたいもの | 部品 | 書くもの |
 |---|---|---|
 | 組織図・階層 | `tree(root, {dir})` | 節 `{label, sub?, id?, tone?, children?}` |
-| マインドマップ | `mindmap(root, {layout, edges})` | 節（`tree` と同じ）。`layout`: radial（既定。中央から左右へ）/ right・left / down・up / org / list / brace / fishbone（特性要因図。大骨=子、中骨=孫、小骨=その下）/ timeline。`edges`: elbow・curve・straight（ツリー系の形だけ） |
+| マインドマップ | `mindmap(root, {layout, edges, focus})` | 節（`tree` と同じ）。`focus: 節の id`（配列も可）で「今ここ」: その節を塗り、その下とルートまでの道を強調色、ほかを薄くする（`spotlight` は図全体が単位で、枝を選べない。`tree` も同じ。状態遷移図・原因の木・クラス図・BPMN・スイムレーン・並びの図も同じ `focus` を持つ: README「図の中の「今ここ」」）。`layout`: radial（既定。中央から左右へ）/ right・left / down・up / org / list / brace / fishbone（特性要因図。大骨=子、中骨=孫、小骨=その下）/ timeline。`edges`: elbow・curve・straight（ツリー系の形だけ） |
 | ms・秒などの数値の時間軸 | `timeline({unit: 'ms', from: 0, to: 700, lanes, events, spans})` | `events: [{at, label, lane?, tone?}]`、`spans: [{from, to, label?, lane?, dim?}]`（`dim` は寸法線で長さを自動表記）。日付の期限は従来の `timeline({from: '2026', now, deadline})` |
 | 日付のない順序だけの出来事 | `steps([{title, body?, icon?, tag?}], {numbered, highlight})` | 番号バッジ・矢印つきの `row()`。`highlight: n` で 1 つ強調。`id` を付けると `s.col(n)` が端点 |
 | 区間を示す括弧・箱を指す吹き出し | `bracket(a.left, b.right, {label, side})` / `callout(id, {text, side})` | `connect()` の 2 本引きの代わり。bracket は箱の下（`side: 'above'` で上）、callout は 1 行の吹き出し |

@@ -131,6 +131,8 @@ export interface LayoutPlan<D extends string, R extends FitResult> {
   fold?: boolean;
   /** A written maxNodeW is not narrowed. */
   maxNodeW?: number;
+  /** Try this node width only, and fold only if `folded`: a search laying out other orders of a figure keeps the figure's frame, so any other width or fold would be set aside (ADR 0053). */
+  sameFit?: {width: number; folded: boolean};
   /** `maxNodeW: 'auto'` (ADR 0019 D2): the widest node width that fits the width (and the height budget) is looked for, from AUTO_GRID, also when `dir` is written; folding is the last resort. */
   autoWidth?: boolean;
   /** false: the component has no node width to narrow (a class diagram). */
@@ -179,8 +181,11 @@ export function planFit<D extends string, R extends FitResult>(plan: LayoutPlan<
   const alt = plan.alt !== plan.start ? plan.alt : undefined;
   const free = !plan.explicitDir;
   const dirs: D[] = free && alt !== undefined ? [plan.start, alt] : [plan.start];
-  const widths = plan.autoWidth ? AUTO_GRID : narrow && free && plan.maxNodeW === undefined ? NARROWING : [plan.maxNodeW ?? WIDEST];
-  const widthMode = plan.autoWidth ? 'auto' as const : plan.mode, from0 = plan.autoWidth ? WIDEST : must(widths[0]); // what the figure would have had: the default node width
+  const allWidths = plan.autoWidth ? AUTO_GRID : narrow && free && plan.maxNodeW === undefined ? NARROWING : [plan.maxNodeW ?? WIDEST];
+  // a search that lays the same figure out again and again starts where the first layout fitted: the wider widths did not fit it (ADR 0053)
+  const same = plan.sameFit;
+  const widths = same && allWidths.includes(same.width) ? [same.width] : allWidths;
+  const widthMode = plan.autoWidth ? 'auto' as const : plan.mode, from0 = plan.autoWidth ? WIDEST : must(allWidths[0]); // what the figure would have had: the default node width
   // keepWords (ADR 0029 D3): every attempt is tried with the floor (no katakana word broken) first; only when none fits, without it. The order keeps what a figure
   // looked like without the option: narrower with the floor, narrower without, then folded with, folded without (a fold is the last resort in both).
   const floors = plan.keepWords ? [true, false] : [false];
@@ -197,7 +202,7 @@ export function planFit<D extends string, R extends FitResult>(plan: LayoutPlan<
     return list;
   };
   // Folding (ADR 0010 D7), the last attempt: a layer wider than the figure is cut into rows, at the narrowest node width, the axis kept. `fold: true` also when `dir` is written.
-  const canFold = plan.foldable === true && plan.fold !== false;
+  const canFold = plan.foldable === true && plan.fold !== false && (same === undefined || same.folded);
   const folding = (floor: boolean): FitAttempt<R>[] => {
     const list: FitAttempt<R>[] = [];
     if (canFold && (plan.fold === true || free || plan.autoWidth)) {

@@ -85,7 +85,7 @@ export function layoutBrace(root: TreeNode, opts: {gap?: number} = {}): TreeLayo
     }
     const left = Math.min(...kids.map(k => k.p.x)), spine = left - 26;
     const y1 = Math.min(...kids.map(k => k.p.y + k.p.h / 2)), y2 = Math.max(...kids.map(k => k.p.y + k.p.h / 2)), ymid = p.y + p.h / 2;
-    braces.push({x: spine, y1, y2, ymid, tipX: spine - 10, side: 'right'});
+    braces.push({x: spine, y1, y2, ymid, tipX: spine - 10, side: 'right', of: n.id});
     edges.push({from: n.id, to: n.id, points: [{x: p.x + p.w, y: ymid}, {x: spine - 10, y: ymid}]});
     for (const k of kids) { edges.push({from: n.id, to: k.c.id, points: [{x: spine + 8, y: k.p.y + k.p.h / 2}, {x: k.p.x, y: k.p.y + k.p.h / 2}]}); walk(k.c); }
   };

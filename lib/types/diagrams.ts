@@ -1,7 +1,7 @@
 // Types: tree, states, cause / cloud (TOC), classes and bpmn.
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
-import type {Anchor, Dimmed, EmphasisTone, RcaInfo, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
+import type {Anchor, Dimmed, EmphasisTone, FocusOpts, RcaInfo, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
 import type {BoxTone} from './text-bands.ts';
 import type {Band} from './index.ts';
 import type {GanttText} from './timeline.ts';
@@ -12,12 +12,15 @@ export interface TreeItem {
   sub?: string;
   /** Makes the node an anchor: connect() can start or end there. */
   id?: string;
-  tone?: BoxTone;
+  /** Default 'plain'. 'solid' / 'solid-danger' fill the node (white text): the one node the figure is about. */
+  tone?: EmphasisTone;
   children?: TreeItem[];
   /** The node is this band (a chevron, a swimlane, a table ...) instead of a box with text: laid out at the width `w`, with the tree's lines to its edges. `label` is then only its name (errors, check). No `sub` or `tone`. */
   band?: Band;
   /** The width of a band node (required with `band`). */
   w?: number;
+  /** Internal, set by `focus`: the node is on the lit part of the tree (focused, under one, or on the path to the root); the line to it is lit. */
+  focusLit?: true;
   /** On a child of a band node: the id of a part inside the parent's band (a chevron's step ...). The line to this child leaves from that part: its two ends on the near side to the two ends of this node's near side (a funnel), instead of the middle of the parent's edge to the middle of the child's. */
   from?: string;
 }
@@ -32,8 +35,12 @@ export interface TreeOpts extends RevealOpts, ScopeOpts {
   edges?: false;
   /** A spotlight target and a connect() endpoint (the whole figure). */
   id?: string;
+  /** "You are here" inside the figure (diagram({spotlight}) lights a whole figure, not its nodes): the node(s) with these ids
+   *  are filled ('solid'), the nodes under them and the path up to the root are 'accent', every other node is 'muted'.
+   *  It decides every node's tone: a tone written on a node is replaced. A band node keeps its own look. */
+  focus?: string | readonly string[];
 }
-export interface TreeBand extends Omit<TreeOpts, 'edges'> {
+export interface TreeBand extends Omit<TreeOpts, 'edges' | 'focus'> {
   type: 'tree';
   root: TreeItem;
   /** mindmap(): the root in the middle, children split to both sides (the same band, laid out by layoutBalanced). */
@@ -44,6 +51,8 @@ export interface TreeBand extends Omit<TreeOpts, 'edges'> {
   layout?: MindmapLayout;
   /** mindmap(): how a branch's line is drawn (tree-like layouts: radial / right / left / down / up). */
   edges?: 'elbow' | 'curve' | 'straight' | false;
+  /** Set by `focus`: the lines to the lit nodes (the focused ones, their branch, the path to the root) are drawn in the accent colour. */
+  focused?: true;
 }
 /**
  * radial: the root in the middle, branches to both sides | right / left: one side only (a logic chart) | down / up: a tree |
@@ -60,6 +69,8 @@ export interface MindmapOpts extends RevealOpts, ScopeOpts {
   sides?: Record<string, 'left' | 'right'>;
   maxNodeW?: number;
   id?: string;
+  /** "You are here": see TreeOpts.focus (the focused nodes filled, their branch and the path to the root accent, the rest muted). */
+  focus?: string | readonly string[];
 }
 export interface StateItem {
   /** Required: the state is an anchor, and transitions name it. */
@@ -105,7 +116,7 @@ export interface FlowNode {
 /** An arrow of a flowchart: the same as a state diagram's transition (`label` is Yes / No on an arrow that leaves a decision). */
 export type FlowEdge = Transition;
 export interface FlowchartOpts extends Omit<StatesOpts, 'initial'> {}
-export interface StatesOpts extends RevealOpts, ScopeOpts {
+export interface StatesOpts extends RevealOpts, ScopeOpts, FocusOpts {
   /** 'right' (default): the flow runs left to right. 'down': top to bottom.
    *  'auto' (and leaving it out) lets the layout narrow the states and turn to the other direction when the figure is wider than the diagram
    *  (a warning when left out, a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
@@ -119,7 +130,9 @@ export interface StatesOpts extends RevealOpts, ScopeOpts {
   straighten?: boolean;
   id?: string;
 }
-export interface StatesBand extends StatesOpts {
+export interface StatesBand extends Omit<StatesOpts, 'focus'> {
+  /** Set by `focus`: the tone of the arrow from the start dot (accent when it leads to a focused state, else muted). */
+  initialTone?: 'accent' | 'muted';
   type: 'states';
   /** Internal: made by flowchart() (names in messages, the direction it starts from). */
   flavor?: 'flowchart';
@@ -143,8 +156,8 @@ export interface CauseNode {
    *  need = the need a transition tree's action answers (a filled box).
    *  For a PDPC (pdpc()): start, step, risk (what could go wrong: a danger hexagon), measure (what to do then), goal. */
   role?: CauseRole;
-  /** Overrides the tone the role gives. */
-  tone?: BoxTone;
+  /** Overrides the tone the role gives. 'solid' / 'solid-danger' fill the box (white text). */
+  tone?: EmphasisTone;
   /** The core driver mark: a thick frame and a 中核 badge. causeTree({coreDriver: true}) sets it; it is not a role. */
   core?: boolean;
   /** For a `trim` entity of a negative branch tree: the injection it is folded into ("施策 1"). Drawn as a line under the label (→ 施策 1 に組み込む); the injection need not be in the figure. */
@@ -167,7 +180,7 @@ export interface CauseLink {
 }
 /** The roles `roleTags` writes in words: the ones drawn with the same double accent frame. */
 export type RoleTagged = 'root' | 'goal' | 'injection' | 'start';
-export interface CauseOpts extends RevealOpts, ScopeOpts {
+export interface CauseOpts extends RevealOpts, ScopeOpts, FocusOpts {
   /** Which way the arrows run: 'up' (default: causes at the bottom, effects at the top), 'down', 'right' or 'left'.
    *  'auto' (and leaving it out) lets the layout narrow the nodes when the figure is wider than the diagram (a warning when left out, a note for 'auto');
    *  a cause tree never changes its axis. Writing a direction fixes it: the figure that does not fit is an error that lists what was tried. */
@@ -197,6 +210,8 @@ export interface CauseOpts extends RevealOpts, ScopeOpts {
   counts?: boolean;
   /** The wording of that line: `{n}` is the number reached, `{total}` the number of `ude` entities (default `{n}/{total} 件に届く`). */
   coreDriverLabel?: string;
+  /** The word in the badge of a core driver (default 中核; 'Core' for English). Up to about 5 letters fit. */
+  coreBadge?: string;
   /** Where a return (an arrow back to an earlier layer) that skips two layers or more runs: 'inline' (through the figure, over dummies) or 'outer' (in a lane
    *  outside the figure, 14px apart, the longest outermost). Default: the arrows written `back: true` run outside, the others inline; `pdpc` runs all of them outside
    *  (falling back to inline when that does not fit the width). Written explicitly, 'outer' that does not fit is an error. */
@@ -208,7 +223,9 @@ export interface CauseOpts extends RevealOpts, ScopeOpts {
   fold?: boolean;
   id?: string;
 }
-export interface CauseBand extends CauseOpts {
+export interface CauseBand extends Omit<CauseOpts, 'focus'> {
+  /** Set by `focus`: the focused items' ids. The arrows that touch one are drawn in the accent colour, the others muted. */
+  focused?: string[];
   /** What a band's maker (`pdpc()`) wants when `returns` is not written; like an explicit 'outer', but it falls back to inline when the lanes do not fit. */
   returnsDefault?: 'outer';
   type: 'cause';
@@ -258,11 +275,11 @@ export interface LaidOutBowtie extends Rect, Dimmed {
   reveal?: number;
   until?: number;
   fitApplied?: FitApplied[];
-  nodes: (Rect & {role: BowtieRole})[];
+  nodes: (Rect & {role: BowtieRole; /** ADR 0054: the knot's part (the hazard's box) */ part?: string})[];
   /** The flow, left to right: a line, with an arrowhead where `arrow` says. */
-  edges: {points: {x: number; y: number}[]; arrow: boolean}[];
+  edges: {points: {x: number; y: number}[]; arrow: boolean; /** ADR 0054: the knot's part (its stems) */ part?: string}[];
   /** The knot above the top event's box. */
-  knot: {cx: number; cy: number; r: number};
+  knot: {cx: number; cy: number; r: number; /** ADR 0054 */ part?: string};
   texts: TreeNodeText[];
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];
@@ -280,6 +297,8 @@ export interface CloudOpts extends RevealOpts, ScopeOpts {
   assumptions?: CloudAssumption[];
   /** A word on the conflict arrow (default none). */
   conflictLabel?: string;
+  /** What joins a box's letter to its text (default '：', a full-width colon; ': ' for English). */
+  separator?: string;
   maxNodeW?: number;
   id?: string;
 }
@@ -298,7 +317,8 @@ export interface ClassItem {
   /** One line each: '- id: number'. */
   attrs?: string[];
   methods?: string[];
-  tone?: BoxTone;
+  /** 'solid' / 'solid-danger' fill the class (white text). */
+  tone?: EmphasisTone;
 }
 export type RelationKind = 'assoc' | 'arrow' | 'inherit' | 'implement' | 'compose' | 'aggregate' | 'depend';
 export interface ClassRelation {
@@ -312,7 +332,7 @@ export interface ClassRelation {
   fromMult?: string;
   toMult?: string;
 }
-export interface ClassesOpts extends RevealOpts, ScopeOpts {
+export interface ClassesOpts extends RevealOpts, ScopeOpts, FocusOpts {
   /** 'down' (default): parents on top. 'right': left to right.
    *  'auto' (and leaving it out) lets the layout turn to the other direction when the figure is wider than the diagram (a warning when left out,
    *  a note for 'auto'). Writing a direction fixes it: a figure that does not fit is an error that lists what was tried. */
@@ -321,7 +341,9 @@ export interface ClassesOpts extends RevealOpts, ScopeOpts {
   straighten?: boolean;
   id?: string;
 }
-export interface ClassesBand extends ClassesOpts {
+export interface ClassesBand extends Omit<ClassesOpts, 'focus'> {
+  /** Set by `focus`: the focused items' ids. The arrows that touch one are drawn in the accent colour, the others muted. */
+  focused?: string[];
   type: 'classes';
   classes: ClassItem[];
   relations: ClassRelation[];
@@ -337,7 +359,8 @@ export interface BpmnNode {
   sub?: string;
   /** 'task' (default) | 'start' / 'end' event | 'xor' exclusive, 'and' parallel, 'or' inclusive gateway. */
   kind?: BpmnNodeKind;
-  tone?: BoxTone;
+  /** 'solid' / 'solid-danger' fill the node (white text). */
+  tone?: EmphasisTone;
   /** A task only: an installed SVG icon (see `icon`) above the label, 20px, in the node's text tone (or `iconTone`). The label carries the meaning, so the icon is `aria-hidden`. */
   icon?: IconName;
   iconTone?: TextTone;
@@ -352,12 +375,14 @@ export interface BpmnFlow {
   /** 'dashed': a message flow between lanes (default: a sequence flow, solid). */
   line?: 'solid' | 'dashed';
 }
-export interface BpmnOpts extends RevealOpts, ScopeOpts {
+export interface BpmnOpts extends RevealOpts, ScopeOpts, FocusOpts {
   id?: string;
   /** 'shrink': when the figure is wider than the diagram, narrow the lane-name column, the column gaps and the task boxes step by step until it fits (default: throw). */
   fit?: 'shrink';
 }
-export interface BpmnBand extends BpmnOpts {
+export interface BpmnBand extends Omit<BpmnOpts, 'focus'> {
+  /** Set by `focus`: the focused items' ids. The arrows that touch one are drawn in the accent colour, the others muted. */
+  focused?: string[];
   type: 'bpmn';
   lanes: BpmnLane[];
   nodes: BpmnNode[];
@@ -375,7 +400,7 @@ export interface FitApplied {
   /** How the author asked for it: `dir` left out (a warning) or `dir: 'auto'` (a note), or the change was asked for (`fold: true`). */
   mode: 'omitted' | 'auto' | 'written';
 }
-export interface TreeNodeText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean}
+export interface TreeNodeText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean; /** ADR 0054: the part it is grouped in */ part?: string}
 export interface LaidOutTree extends Rect, Dimmed {
   type: 'tree';
   /** What the layout changed on its own to fit the width (none: the figure is as written). */
@@ -383,11 +408,11 @@ export interface LaidOutTree extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: BoxTone; id?: string; /** ADR 0034 */ dataNode?: string; /** A band node: the tree draws no box or text for it; the band is laid out in its rectangle. */ band?: true})[];
+  nodes: (Rect & {tone: EmphasisTone; id?: string; /** ADR 0034 */ dataNode?: string; /** A band node: the tree draws no box or text for it; the band is laid out in its rectangle. */ band?: true; /** ADR 0054: the index of its parent (none for the root) */ parent?: number})[];
   /** Parent to child, each a polyline (centre line of the box edge to the child's box edge); `curve` draws it as a smooth S, `bold` as a spine. */
-  edges: {points: {x: number; y: number}[]; curve?: 'x' | 'y'; bold?: boolean; /** The index (in treeItems order) of the child this line leads to; only in a tree that has a `from`. */ child?: number; /** A funnel line comes with the later of its child band and its parent band. */ reveal?: number; until?: number}[];
+  edges: {points: {x: number; y: number}[]; curve?: 'x' | 'y'; bold?: boolean; /** ADR 0054: the indexes (into `nodes`) of its parent and child; the same for a node's own line (a bone, a brace's stub) */ from?: number; to?: number; /** A line to a lit node of a `focus` tree: drawn in the accent colour. */ lit?: true; /** The index (in treeItems order) of the child this line leads to; only in a tree that has a `from`. */ child?: number; /** A funnel line comes with the later of its child band and its parent band. */ reveal?: number; until?: number}[];
   /** brace maps: a `{` over the children of one parent. */
-  braces?: {x: number; y1: number; y2: number; ymid: number; tipX: number; side: 'right' | 'left'}[];
+  braces?: {x: number; y1: number; y2: number; ymid: number; tipX: number; side: 'right' | 'left'; /** ADR 0054: the index of the parent it gathers the children of */ of?: number}[];
   texts: TreeNodeText[];
   /** Nodes with an id: what connect() can reach. */
   anchors: Anchor[];
@@ -417,6 +442,10 @@ export interface LaidOutStates extends Rect, Dimmed {
   labelBoxes: (Rect & {label: string})[];
 }
 export interface LaidOutCause extends Rect, Dimmed {
+  /** From the band's `coreBadge`. */
+  coreBadge?: string;
+  /** From the band's `focused`: the arrows that touch one of these items are lit (accent), the others muted. */
+  focused?: string[];
   type: 'cause';
   /** `density: 'compact'` was asked for, but the compact figure had more wrong in it, so this band is drawn at the normal gaps (ADR 0036 D6). */
   densityRestored?: boolean;
@@ -458,6 +487,8 @@ export interface LaidOutCloud extends Rect, Dimmed {
   labelBoxes: (Rect & {label: string})[];
 }
 export interface LaidOutClasses extends Rect, Dimmed {
+  /** From the band's `focused`: the arrows that touch one of these items are lit (accent), the others muted. */
+  focused?: string[];
   type: 'classes';
   /** What the layout changed on its own to fit the width (none: the figure is as written). */
   fitApplied?: FitApplied[];
@@ -465,7 +496,7 @@ export interface LaidOutClasses extends Rect, Dimmed {
   reveal?: number;
   until?: number;
   /** `dividers`: the y of the lines between name / attributes / methods. */
-  nodes: (Rect & {tone: BoxTone; dividers: number[]})[];
+  nodes: (Rect & {tone: EmphasisTone; dividers: number[]})[];
   /** Orthogonal polylines from `from`'s box to `to`'s (the end marks come from `kind`: at the end for inherit / implement / arrow / depend, at the start for compose / aggregate). */
   edges: {from: string; to: string; kind: RelationKind; line: 'solid' | 'dashed'; points: {x: number; y: number}[]}[];
   texts: GanttText[];
@@ -475,15 +506,17 @@ export interface LaidOutClasses extends Rect, Dimmed {
   labelBoxes: (Rect & {label: string})[];
 }
 export interface LaidOutBpmn extends Rect, Dimmed {
+  /** From the band's `focused`: the arrows that touch one of these items are lit (accent), the others muted. */
+  focused?: string[];
   type: 'bpmn';
   /** With `fit: 'shrink'`: the tasks whose label broke into lines of 2.5 characters or fewer on average (the shrink-narrow-text rule reads it). */
   narrow?: string[];
   id?: string;
   reveal?: number;
   until?: number;
-  lanes: (Rect & {labelW: number; tone: BoxTone})[];
+  lanes: (Rect & {labelW: number; tone: BoxTone; /** ADR 0054: the lane's part (its band, header and name) */ part?: string})[];
   /** The shape of each node (a circle, a diamond or a rounded rectangle). */
-  nodes: (Rect & {kind: BpmnNodeKind; tone: BoxTone; /** ADR 0034 */ dataNode?: string})[];
+  nodes: (Rect & {kind: BpmnNodeKind; tone: EmphasisTone; /** ADR 0034 */ dataNode?: string; /** ADR 0054: the node's part (a gateway's diamond, mark and question; an event's circle and name) */ part?: string})[];
   /** The icons of the tasks that have one (20px, above the label); `node` indexes `nodes`. */
   icons: {node: number; name: string; glyph: IconGlyph; x: number; y: number; size: number; tone?: TextTone}[];
   edges: {from: string; to: string; line: 'solid' | 'dashed'; points: {x: number; y: number}[]}[];
@@ -529,7 +562,24 @@ export interface FtaOpts extends RevealOpts, ScopeOpts {
   quant?: boolean;
   /** The period `p` is over, written in the note (`quant` only): '1 年間'. */
   quantPeriod?: string;
+  /** The words the tree writes by itself (default Japanese): see FtaWords. */
+  words?: FtaWords;
   id?: string;
+}
+/** The words a fault tree writes by itself. `{p}`, `{n}` and `{period}` are filled in. */
+export interface FtaWords {
+  /** The badge under a basic event that alone causes the top event (default 単一故障点). */
+  singlePoint?: string;
+  /** The same badge under an undeveloped event (default 未展開・単独で頂上へ). */
+  undevelopedAlone?: string;
+  /** What a house event with `state` assumes, when it has no sub (default 常に発生すると仮定 / 発生しないと仮定). */
+  houseTrue?: string;
+  houseFalse?: string;
+  /** The quant note: the period (default 期間: {period}。), the probability (default 頂上事象の確率 {p}), the upper bound used when too many basic events are shared, and what it assumes (default 。基本事象は互いに独立と仮定). */
+  period?: string;
+  topP?: string;
+  topBound?: string;
+  assumption?: string;
 }
 export interface FtaBand extends FtaOpts {
   type: 'fta';
@@ -543,16 +593,16 @@ export interface LaidOutFta extends Rect, Dimmed {
   until?: number;
   fitApplied?: FitApplied[];
   /** The box of each event drawn (a `ref` draws its event again; only the first has `id`). */
-  nodes: (Rect & {kind: FtaKind; id?: string})[];
+  nodes: (Rect & {kind: FtaKind; id?: string; /** ADR 0054: the event it belongs to */ part?: string})[];
   /** The symbol under a basic / undeveloped / house / condition event. */
-  marks: (Rect & {kind: FtaKind; single?: true})[];
+  marks: (Rect & {kind: FtaKind; single?: true; /** ADR 0054: the event it belongs to */ part?: string})[];
   /** The note under the tree (opts `quant`): the probability of the top event and what it assumes. */
   note?: string;
   /** The label under a single point of failure (opts `cutSets`). */
-  badges: (Rect & {text: string; size: number})[];
-  gates: (Rect & {gate: FtaGate; label?: {text: string; size: number}})[];
+  badges: (Rect & {text: string; size: number; /** ADR 0054: the event it belongs to */ part?: string})[];
+  gates: (Rect & {gate: FtaGate; label?: {text: string; size: number}; /** ADR 0054: the event it belongs to */ part?: string})[];
   /** Gate output to event, gate input to its children, inhibit gate to its condition. */
-  edges: {points: {x: number; y: number}[]}[];
+  edges: {points: {x: number; y: number}[]; /** ADR 0054: the event it belongs to */ part?: string}[];
   texts: TreeNodeText[];
   anchors: Anchor[];
   labelBoxes: (Rect & {label: string})[];

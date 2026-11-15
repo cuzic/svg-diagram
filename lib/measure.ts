@@ -99,6 +99,13 @@ export async function closeMeasurer(): Promise<void> {
 // returns Map<key, {w, h}>
 // Widths measured earlier in this process, so building many diagrams in one run measures each atom once.
 const memo = new Map<string, Measured>();
+/** How many widths are kept: a server draws text it has never seen, for as long as it runs. The oldest goes first. */
+export const MEMO_LIMIT = 20_000;
+function remember(key: string, m: Measured): void {
+  if (memo.size >= MEMO_LIMIT) memo.delete(memo.keys().next().value as string);
+  memo.set(key, m);
+}
+export const measureMemoSize = (): number => memo.size;
 const memoKey = (engine: 'chromium' | 'font', fonts: FontSpecs | undefined, r: MeasureRequest) => JSON.stringify([engine, engine === 'font' ? fonts ?? null : null, r.text, r.size, r.weight ?? 400, r.font ?? 'sans']);
 
 // Which engine measures: 'font' (the font files read directly, no browser; the default) or 'chromium' (a headless browser).
@@ -135,7 +142,7 @@ export async function measureAll(requests: Map<string, MeasureRequest>, settings
   if (engine === 'font') {
     const {measureWithFonts} = await import('./font-metrics.ts');
     try {
-      for (const [key, m] of measureWithFonts(todo, settings.fonts)) { memo.set(memoKey('font', settings.fonts, must(todo.get(key))), m); result.set(key, m); }
+      for (const [key, m] of measureWithFonts(todo, settings.fonts)) { remember(memoKey('font', settings.fonts, must(todo.get(key))), m); result.set(key, m); }
       return result;
     } catch (e) {
       if (settings.explicit) throw e;
@@ -168,7 +175,7 @@ export async function measureAll(requests: Map<string, MeasureRequest>, settings
     entries.forEach(([key, r], i) => {
       const d = must(dims[i]); // one [w, h] per entry
       const m = {w: d[0], h: d[1]};
-      memo.set(memoKey('chromium', settings.fonts, r), m);
+      remember(memoKey('chromium', settings.fonts, r), m);
       result.set(key, m);
     });
     return result;

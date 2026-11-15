@@ -40,7 +40,7 @@ export function assertNoReveal(opts: object | undefined, what: string): void {
 // group / table rows / sequence / swimlane lanes carry dark text (or white boxes) on their fill, which a solid fill would swallow:
 // the types leave 'solid' / 'solid-danger' out (BoxTone), and this is the same rule for JS callers.
 export function assertBoxTone(tone: string | undefined, what: string): void {
-  if (isSolidTone(tone)) throw new Error(`${what}: tone '${tone}' is for box() / banner() / stat() / a swimlane step / a legend item only — what sits on it would read dark on the fill; use 'accent' here`);
+  if (isSolidTone(tone)) throw new Error(`${what}: tone '${tone}' is for a box (box() / banner() / stat() / a swimlane step / a legend item) or an item of a figure (a tree / cause / class / bpmn node, a state, a chevron / funnel / cycle / emblem / valueChain item) only — what sits on it would read dark on the fill; use 'accent' here`);
 }
 // A JS caller (or a typo past the editor) can pass a value the types would refuse; a band built from it draws something other than what was
 // written without a word. Same message shape as assertTextRole.

@@ -19,6 +19,8 @@ export interface RaciOpts extends CommonOpts {
   allowNoA?: boolean;
   /** Add a final row spelling out the four letters. */
   legend?: boolean;
+  /** The words of that row, replacing the Japanese ones: its heading and what each letter means. */
+  legendLabels?: {title?: string; R?: string; A?: string; C?: string; I?: string};
 }
 
 const RACI_TONE: Record<RaciLetter, TextTone | undefined> = {R: 'danger', A: 'accent', C: 'muted', I: undefined};
@@ -53,10 +55,11 @@ export function raciParts(tasks: readonly string[], roles: readonly string[], as
   });
   if (opts.legend) {
     // all four letters always appear: with fewer than four role columns, several entries share a cell
-    const entries = ['R: 実行責任', 'A: 説明責任', 'C: 相談先', 'I: 報告先'], per = Math.ceil(entries.length / roles.length);
-    rows.push({cells: ['凡例', ...roles.map((_, j) => entries.slice(j * per, (j + 1) * per).join('\n'))], tone: 'muted'});
+    const words = {R: '実行責任', A: '説明責任', C: '相談先', I: '報告先', ...opts.legendLabels};
+    const entries = (['R', 'A', 'C', 'I'] as const).map(k => `${k}: ${words[k]}`), per = Math.ceil(entries.length / roles.length);
+    rows.push({cells: [opts.legendLabels?.title ?? '凡例', ...roles.map((_, j) => entries.slice(j * per, (j + 1) * per).join('\n'))], tone: 'muted'});
   }
-  const {corner, allowNoA: _a, legend: _l, ...rest} = opts;
+  const {corner, allowNoA: _a, legend: _l, legendLabels: _w, ...rest} = opts;
   return {columns: [{label: corner ?? 'タスク ＼ 役割', flex: 2, bold: true}, ...roles.map(label => ({label, align: 'center' as const}))], rows, opts: {...rest, rowHeader: true}, emptyRoles: roles.filter((_, i) => !used[i])};
 }
 
@@ -109,7 +112,8 @@ export function fmeaParts(input: readonly FmeaRow[], opts: FmeaOpts = {}): Seman
 
 // ---- QFD --------------------------------------------------------------------------------------------------------------------
 export interface QfdDemand {label: string; importance: number}
-export interface QfdOpts extends CommonOpts {corner?: string; highlight?: boolean}
+/** `labels`: the headings the table writes by itself (default 重要度, 得点, 相対 %). */
+export interface QfdOpts extends CommonOpts {corner?: string; highlight?: boolean; labels?: Partial<Record<'importance' | 'score' | 'relative', string>>}
 export interface QfdScores {raw: number[]; relative: number[]}
 const qfdMark = (m: MatrixMark, where: string) => {
   try { return markOf(m, where); } catch (e) { throw new Error(`qfd(): ${e instanceof Error ? e.message.replace(/^matrix\(\):\s*/, '') : String(e)}`); }
@@ -130,10 +134,11 @@ export function qfdParts(demands: readonly QfdDemand[], characteristics: readonl
   const scores = qfdScores(demands, relations, characteristics.length), top = Math.max(...scores.raw), unique = top > 0 && scores.raw.filter(x => x === top).length === 1;
   const rows: TableRow[] = demands.map((d, i) => [d.label, d.importance, ...must(marks[i]).map(m => m ? {text: '', mark: m, align: 'center' as const} : {text: '', align: 'center' as const})]);
   // the top score is bold + accent, not ◎: ◎ already means a strong (9) relation in this table
-  rows.push({cells: ['得点', '', ...scores.raw.map((n): TableCellSpec => unique && n === top && opts.highlight !== false ? {text: String(n), bold: true, tone: 'accent', align: 'center'} : {text: String(n), align: 'center'})], tone: 'muted'});
-  rows.push({cells: ['相対 %', '', ...scores.relative.map(n => ({text: n.toFixed(1), align: 'center' as const}))], tone: 'muted'});
-  const {corner, highlight: _h, ...rest} = opts;
-  return {columns: [{label: corner ?? '要求品質', flex: 2, bold: true}, {label: '重要度', align: 'center'}, ...characteristics.map(label => ({label, align: 'center' as const}))], rows, opts: {...rest, rowHeader: true}, scores};
+  const lab = {importance: '重要度', score: '得点', relative: '相対 %', ...opts.labels};
+  rows.push({cells: [lab.score, '', ...scores.raw.map((n): TableCellSpec => unique && n === top && opts.highlight !== false ? {text: String(n), bold: true, tone: 'accent', align: 'center'} : {text: String(n), align: 'center'})], tone: 'muted'});
+  rows.push({cells: [lab.relative, '', ...scores.relative.map(n => ({text: n.toFixed(1), align: 'center' as const}))], tone: 'muted'});
+  const {corner, highlight: _h, labels: _l, ...rest} = opts;
+  return {columns: [{label: corner ?? '要求品質', flex: 2, bold: true}, {label: lab.importance, align: 'center'}, ...characteristics.map(label => ({label, align: 'center' as const}))], rows, opts: {...rest, rowHeader: true}, scores};
 }
 
 // ---- customer journey -------------------------------------------------------------------------------------------------------

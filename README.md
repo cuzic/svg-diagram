@@ -72,6 +72,8 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
 ## npm パッケージ・tsc の無い環境で使う
 
+**JSON で図を渡す(`svg-diagram/spec`)**: `.ts` のソースはコードとして実行されるので、外部から図を受け取るサーバーには渡せない。`validateSpec()` / `specToDiagram()` は JSON を検査して、決まった部品(今は `flowchart` / `swimlane` / `sequence`)だけを DSL に変換する。`image()`・`math()`・`slide` / `fill`・`icon` は持たない。間違いは `parts[0].nodes[2].label` のように場所つきで返る。`partCatalog()` は部品ごとの説明・スキーマ・例を返す。Node では `svg-diagram/render` の `renderSpec(json)` が、ファイルを書かずに SVG と検査結果を返す(`lintRendering()`、`svgToPng()` も同じ入口にある)。
+
 Node と Chromium だけの環境(ChatGPT の Code Interpreter など)では、`.ts` をそのまま `node` で動かし、Chromium は playwright を介さず直接動かし、文字幅と PNG は Chromium で測って描く。手順と環境変数は [docs/chatgpt-code-interpreter.md](docs/chatgpt-code-interpreter.md)。
 
 ## Web ページで使う(`svg-diagram/browser`)
@@ -156,7 +158,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 | hero({banner, stat, flow, caption, note}) | 章の頭に置く 1 枚: 帯（任意）の下に、流れの箱（`flow: [box(...), ...]`、矢印でつなぐ）とその行き着く大きな数字（`stat: {value, label, tone}`）を 1 行に並べ、その下に一言（`caption`）と出典・注（`note`）。箱が 5 つ以上なら数字を上に置く（`layout: 'stack'`）。既存の部品を並べるだけ。下の「章の頭の 1 枚」 |
 | connect / branch | 矢印。route(straight/elbow/loop-under/loop-side)、arrow(end/both/start/none)、line(solid/dashed/dotted/double)、weight(strong)、chip、labelAt、アンカー `id:side@0.2` |
 | legend(items) | 線種・トーンの凡例 |
-| swimlane(lanes, steps, {flows, phases, boundaries, fit, laneOrder}) | スイムレーン図。レーン=担当（人・チーム・システム）、列=時間。引き継ぎの矢印を自動で向きづけ。`col` で並行作業を揃える。列が狭くなるときは `fit: 'shrink'` でレーン名の列と列の間隔を詰める `laneOrder: 'auto'` は、`flows` の引き継ぎが最も短くなるレーン順に並べ替える（`fixed: true` のレーンはそのまま。8 本まで。同じ長さなら渡した順）。。**サービスブループリント**: `boundaries: [{between: ['cust', 'front'], label: '相互作用線'}, {between: ['front', 'back'], label: '可視線'}, …]` で、2 つのレーンの境目に太い破線を全幅に引き、`label` をラベル列のチップに書く（隣り合っていなければ throw。`{after: id}` も書ける。チップの分だけ両側のレーンが高くなり、名前が入る幅（`labelW` を書かなければ自動で広がり、書いて足りなければ throw）が要る。`fit: 'shrink'` もその幅より狭めない。失敗点・待ちは手順の `tag`。`examples/service-blueprint.ts`） |
+| swimlane(lanes, steps, {flows, phases, boundaries, fit, laneOrder, labelW, focus}) | スイムレーン図。レーン=担当（人・チーム・システム）、列=時間。引き継ぎの矢印を自動で向きづけ。`col` で並行作業を揃える。列が狭くなるときは `fit: 'shrink'` でレーン名の列と列の間隔を詰める `laneOrder: 'auto'` は、`flows` の引き継ぎが最も短くなるレーン順に並べ替える（`fixed: true` のレーンはそのまま。8 本まで。同じ長さなら渡した順）。。**サービスブループリント**: `boundaries: [{between: ['cust', 'front'], label: '相互作用線'}, {between: ['front', 'back'], label: '可視線'}, …]` で、2 つのレーンの境目に太い破線を全幅に引き、`label` をラベル列のチップに書く（隣り合っていなければ throw。`{after: id}` も書ける。チップの分だけ両側のレーンが高くなり、名前が入る幅（`labelW` を書かなければ自動で広がり、書いて足りなければ throw）が要る。`fit: 'shrink'` もその幅より狭めない。失敗点・待ちは手順の `tag`。`examples/service-blueprint.ts`） `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
 | sequence(actors, steps) | シーケンス図。message / self / note / divider、自動番号 |
 | table(columns, rows, {title}) | 見出し付き表（ER の entity 兼用）。セルは {text, tone, bold, mono}、`cell('通る', {mark: 'ok'})` で ○△×◎ の記号つき（色だけに頼らない） |
 | wireframe(root, {title, tag, h, frame, notes, skeleton}) | 画面 1 枚のローファイ・ワイヤーフレーム + 番号つき注釈欄。部品は `wf.*`（下記）。`n:` で番号の丸、`mark:'new'/'changed'` で新規・改修の枠 |
@@ -164,16 +166,16 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 | stateMatrix(cols, rows, {required, cellH, cellFrame}) | 部品の**状態の一覧**。行=部品、列=状態（通常・読み込み中・空・エラー…）。欄は `wf.*` の図、`'na'` / `{na: '理由'}`（対象外）、未指定（**未設計**。`check` が警告）。`required` の列がなければ警告。行は `stateRow('在庫カード', stock, {通常: {}, 読み込み中: 'loading', ...})` で「部品 1 つ + 状態ごとの差分」としても書ける |
 | timeline({from, to, now, deadline, marks, remaining}) | 横軸が時間の部品。期限（danger 色の大きな点）、今日、途中の日付（`marks`）を旗で示し、今日から期限までを太い帯と「あと 1 年 5 か月」で見せる。詳細は下の「時間軸と期限」 |
 | timeline({unit, from, to, lanes, events, spans}) | **数値の軸**（`unit: 'ms'`、`from: 0`、`to: 700`）の時間軸。レーン・イベント（点と名前と値）・区間（棒、`dim: true` なら寸法線で長さを自動で書く）。下の「数値の時間軸」 |
-| steps(items, {numbered, highlight, highlightTone, arrows, id}) | 日付のない「順序だけの出来事」。番号バッジ・アイコン・タグ・本文つきの箱を矢印でつなぎ、1つだけ強調する。中身は普通の `row()`（`id#n` で `connect()`・`bracket()` の端点になる）。下の「順序だけの出来事」 |
+| steps(items, {numbered, highlight, highlightTone, arrows, id}) | 日付のない「順序だけの出来事」。番号バッジ・アイコン・タグ・本文つきの箱を矢印でつなぎ、1つだけ強調する。中身は普通の `row()`（`id#n` で `connect()`・`bracket()` の端点になる）。下の「順序だけの出来事」 `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
 | bracket(from, to, {label, side, tone}) / callout(target, {text, side}) | 注釈用のコネクタ。`bracket` は 2 つの箱にまたがる括弧、`callout` は箱を指す吹き出し。下の「注釈のコネクタ」 |
-| tree(root, {dir, maxNodeW, id}) | 組織図・階層図。配置は自動（親は子の中央、同じ階層は揃う）。節は `{label, sub?, id?, tone?, children?}`。`id` を付けた節は `connect()` の端点になる（`t.anchors.<id>` でも取れる）。詳細は下の「組織図（`tree`）」。**ノードに band を使う**: `{label, band: chevron([...]), w: 600, id?, children?}` で、そのノードが任意の band（矢羽根・swimlane の `[0]`・table・box など）になる。`w`（40 以上）は必須で、`sub` / `tone` は書けない。band の中の id も `connect()` の端点になる。木は band の矩形の辺をつなぐ（`examples/tree-band-nodes.ts`、ADR 0049。`mindmap()` も同じ）。子に `from: 親の band の中の id` を書くと、その部品の辺の両端から子の辺の両端へ、漏斗状に線を引く（tree の `down` と mindmap の `down` / `up` / `org` だけ。矢羽根は矢じりの手前の角から。`examples/tree-band-funnel.ts`）。`edges: false` は木の枝の線を引かない（`connect()` を自分で引くとき。fishbone / timeline の背骨は残る。`from` とは併用不可） |
-| mindmap(root, {layout, edges, sides, maxNodeW, id}) | マインドマップ。節は `tree()` と同じ。`layout` で形を選ぶ: `radial`（既定。中央から左右へ）/ `right`・`left`（片側。ロジックチャート）/ `down`・`up`（ツリー）/ `org`（組織図型）/ `list`（リスト・アウトライン型）/ `brace`（ブレース型）/ `fishbone`（特性要因図）/ `timeline`（タイムライン型）。`edges` で枝を `elbow`（既定）・`curve`・`straight` に。`sides: {枝の id: 'left'｜'right'}` は `radial` のとき、ルートの子を左右に固定する。下の「組織図（`tree`）」 |
-| stateDiagram(states, transitions, {initial, dir, maxNodeW, id}) | 状態遷移図。状態 `{id, label, sub?, tone?, final?}` と遷移 `{from, to, label?, line?}` を書くだけで、層に分けて自動配置する。戻る矢印・飛ばす矢印・自己ループも、ほかの状態を避けて引く。状態は `connect()` の端点になる。詳細は下の「状態遷移図（`stateDiagram`）」 |
-| causeTree(nodes, links, {dir, maxNodeW, id}) | TOC（制約理論）の因果の図: 現状ツリー・未来現実ツリー・前提条件ツリー・移行ツリー。実体 `{id, label, role?}` と `{from, to}`（`from` を配列にすると AND）を書くだけで、下が原因・上が結果に自動配置する。詳細は下の「TOC の思考プロセス」 |
+| tree(root, {dir, maxNodeW, id, focus}) | 組織図・階層図。配置は自動（親は子の中央、同じ階層は揃う）。節は `{label, sub?, id?, tone?, children?}`。`id` を付けた節は `connect()` の端点になる（`t.anchors.<id>` でも取れる）。詳細は下の「組織図（`tree`）」。**ノードに band を使う**: `{label, band: chevron([...]), w: 600, id?, children?}` で、そのノードが任意の band（矢羽根・swimlane の `[0]`・table・box など）になる。`w`（40 以上）は必須で、`sub` / `tone` は書けない。band の中の id も `connect()` の端点になる。木は band の矩形の辺をつなぐ（`examples/tree-band-nodes.ts`、ADR 0049。`mindmap()` も同じ）。子に `from: 親の band の中の id` を書くと、その部品の辺の両端から子の辺の両端へ、漏斗状に線を引く（tree の `down` と mindmap の `down` / `up` / `org` だけ。矢羽根は矢じりの手前の角から。`examples/tree-band-funnel.ts`）。`edges: false` は木の枝の線を引かない（`connect()` を自分で引くとき。fishbone / timeline の背骨は残る。`from` とは併用不可） |
+| mindmap(root, {layout, edges, sides, maxNodeW, id, focus}) | マインドマップ。節は `tree()` と同じ。`focus: 節の id`（配列も可）で「今ここ」を示す（下の「図の中の「今ここ」」）。`layout` で形を選ぶ: `radial`（既定。中央から左右へ）/ `right`・`left`（片側。ロジックチャート）/ `down`・`up`（ツリー）/ `org`（組織図型）/ `list`（リスト・アウトライン型）/ `brace`（ブレース型）/ `fishbone`（特性要因図）/ `timeline`（タイムライン型）。`edges` で枝を `elbow`（既定）・`curve`・`straight` に。`sides: {枝の id: 'left'｜'right'}` は `radial` のとき、ルートの子を左右に固定する。下の「組織図（`tree`）」 |
+| stateDiagram(states, transitions, {initial, dir, maxNodeW, id}) | 状態遷移図。状態 `{id, label, sub?, tone?, final?}` と遷移 `{from, to, label?, line?}` を書くだけで、層に分けて自動配置する。戻る矢印・飛ばす矢印・自己ループも、ほかの状態を避けて引く。状態は `connect()` の端点になる。詳細は下の「状態遷移図（`stateDiagram`）」 `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
+| causeTree(nodes, links, {dir, maxNodeW, id}) | TOC（制約理論）の因果の図: 現状ツリー・未来現実ツリー・前提条件ツリー・移行ツリー。実体 `{id, label, role?}` と `{from, to}`（`from` を配列にすると AND）を書くだけで、下が原因・上が結果に自動配置する。詳細は下の「TOC の思考プロセス」 `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
 | cloud({a, b, c, d, d2}, {assumptions, conflictLabel, id}) | TOC のクラウド（対立解消図）。共通目的 A・必要条件 B/C・対立する要望 D/D' の 5 つの箱と、前提の番号付き一覧。詳細は下の「TOC の思考プロセス」 |
 | gantt(rows, {from, to, today, id}) | ガントチャート。行は、タスク `{label, start, end｜days, id?, progress?, after?, tone?, milestone?}` と、見出し `{section}`。日付は `'YYYY-MM-DD'`（`end` はその日を含む。`'2026-10'` のような略記は止まる）。軸・目盛り・今日の線・依存の矢印・進捗は自動。詳細は下の「ガントチャート（`gantt`）」 |
-| classDiagram(classes, relations, {dir, id}) | UML クラス図。クラス `{id, name?, stereotype?, abstract?, attrs?, methods?, tone?}` と関係 `{from, to, kind?, label?, fromMult?, toMult?}`。親が上になる層に自動配置し、矢印の端の記号は `kind` で決まる。詳細は下の「クラス図（`classDiagram`）」 |
-| bpmn(lanes, nodes, flows, {id, fit}) | BPMN 風の業務フロー。レーン（担当）に、タスク・開始/終了イベント・ゲートウェイ（排他 `xor`・並行 `and`・包括 `or`）を置き、矢印で結ぶ。列は流れから、行はレーンから決まる。破線は、レーンをまたぐメッセージ。詳細は下の「業務フロー（`bpmn`）」 |
+| classDiagram(classes, relations, {dir, id}) | UML クラス図。クラス `{id, name?, stereotype?, abstract?, attrs?, methods?, tone?}` と関係 `{from, to, kind?, label?, fromMult?, toMult?}`。親が上になる層に自動配置し、矢印の端の記号は `kind` で決まる。詳細は下の「クラス図（`classDiagram`）」 `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
+| bpmn(lanes, nodes, flows, {id, fit}) | BPMN 風の業務フロー。レーン（担当）に、タスク・開始/終了イベント・ゲートウェイ（排他 `xor`・並行 `and`・包括 `or`）を置き、矢印で結ぶ。列は流れから、行はレーンから決まる。破線は、レーンをまたぐメッセージ。詳細は下の「業務フロー（`bpmn`）」 `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
 | faultTree(top, {id, maxNodeW, cutSets, quant, quantPeriod}) | 故障の木（FTA）。頂上事象から、ゲート（`and` / `or` / `vote`（`k`）/ `inhibit`（`condition`））で原因をたどり、基本事象（円）・未展開（ひし形）・家（`state`）で終わる。`inhibit` の `condition` は楕円（条件事象）。事象の文は矩形、記号はその下。同じ基本事象は `{ref: id}` で描き直す（線は飛ばさない）。線に矢じりは無い（下へ読む）。幅が足りないとき `maxNodeW` を省略すると縮めて警告、`'auto'` なら注、数値なら縮めず止まる。`ref` は葉の事象だけ。`cutSets: true` は単独で頂上を起こす事象（大きさ 1 の最小カットセット）に太枠とバッジ（基本事象は「単一故障点」、未展開は「未展開・単独で頂上へ」）。カットセットが多すぎる木（途中 5000 超）は止まる。`quant: true` は各葉の `p`（0〜1、ある期間の確率。家形以外の葉はすべて必須。ゲートのある事象と家形には書けない）から頂上の確率を求め、注に書く（`quantPeriod: '1 年間'` で期間も）。独立を仮定し、`ref` で共有した事象は場合分けで厳密に、共有が 12 個を超えると min-cut upper bound の上限（概算）。頻度（/年）は扱わない。`diagram({legend: 'auto'})` は使った事象と**ゲートの記号**の凡例を足す（`legend([{ftaEvent: 'basic', label}, {ftaGate: 'and', label}])` も可）。例は `examples/fta.ts` |
 | pareto(items, {top, other, guide, highlight, unit}) | パレート図（QC 七つ道具）。項目 `{label, value}` を大きい順の棒にし、右の 0〜100% の軸に累積比率の折れ線。80% に届くまでの項目だけ色が付く。詳細は下の「QC 七つ道具と新 QC 七つ道具」 |
 | histogram(values, {bins, width, lsl, usl, target, normal}) | ヒストグラム。測定値をそのまま渡す。区間の幅は切りのよい数、棒は接し、区間の境目が下に付く。規格の上下限・平均・正規分布の曲線 |
@@ -197,12 +199,13 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 | bubble(points, {x, y, sizeTitle, sizeUnit}) | バブルチャート。x・y が数値軸、円の**面積**が 3 つ目の指標（凡例の円つき）。`x.line` / `y.line` で境目の破線。名前は円の中か横、軸は円がはみ出さないよう自動で広がる |
 | butterfly(rows, {leftLabel, rightLabel, unit}) | バタフライチャート。中央の項目名をはさんで、左右の群の棒を同じ目盛りで比べる。`sort: 'left'｜'right'` |
 | combo(categories, series, {y, y2}) | コンボチャート（棒 + 折れ線）。棒は左軸、折れ線は右軸（`axis: 'left'` で左）。値は単位つきで全部書き、入らないものは `<desc>` に残る |
-| harvey(rows, cols, values, {levels, highlight}) | ハーベイボールの評価表。値は 0〜4（四分円の数）、`null` は未評価。形（扇）で段階を示し、凡例つき |
+| compare(rows, cols, cells, {corner}) | ○△× と理由を併記した比較表。セルは `[マーク, 理由]`、`null` は未評価。マークはセル左の中央に置き、理由との間を破線で区切る |
+| harvey(rows, cols, values, {levels, highlight}) | ハーベイボールの評価表。値は 0〜4（四分円の数）、`null` は未評価。形（扇）で段階を示し、凡例つき。`[3, '理由']` と書くと、ボールの横に破線で区切って理由を書く |
 | pyramid / curve | ピラミッド、曲線 |
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
 | math(tex, {role, inline, align, tone, alt}) | TeX の数式（MathJax で輪郭にして SVG へ。Web フォント・foreignObject 不要）。下の「数式」 |
 | quadrant({x, y, grid, cells, items, arrows, preset}) / quadrant.preset(name, opts) | 象限図・分類マトリクス（2×2・3×3・任意の N×M）。軸は名前と両端の言葉（`x: {title, low, high, reversed}`）、マスは文字の見出し（`cells[行][列]`: `{title, note, tone}`）、項目は `{label, cell: [列, 行]｜at: [x, y], size?, tone?, group?, id?}`。プリセット `bcg｜ge｜ansoff｜nineBox｜impactEffort｜risk｜stakeholder｜positioning｜eisenhower`。重なりは出ない。詳細は下の「象限図・分類マトリクス」 |
-| chevron / funnel / cycle / venn / concentric / emblem / valueChain | 流れ・絞り込み・循環・集合・階層・図形に入れた文字・価値連鎖を表す flowShapes。各項目の `id` は `connect()` / spotlight の対象。詳細は下の「flowShapes」 |
+| chevron / funnel / cycle / venn / concentric / emblem / valueChain | 流れ・絞り込み・循環・集合・階層・図形に入れた文字・価値連鎖を表す flowShapes。各項目の `id` は `connect()` / spotlight の対象。詳細は下の「flowShapes」 `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
 | wordart(text, {style, writing, size, tone, gradient, outline, shadow, glow, bevel, extrude, reflection, arc, rotate, flip, font, plate, limit}) | 太字・縁取り・影・光彩・立体・反射・グラデーション・弧・回転の飾り文字と**縦書き**を band 1 つで。下の「ワードアート・縦書き」 |
 | plane({x, y, points, lines, dims, labels}) | 座標平面。軸・目盛り・点・補助線・**寸法線**・ラベルを、座標の単位のまま宣言する（地図 ↔ 画像の座標変換、位置の誤差）。`yDown: true` で画像座標。ラベルが、他のラベル・軸と矢印・目盛り・点・補助線・寸法線に重なる、または図からはみ出すと検査で止まる（寸法線の文字は、その線の上に載るのが正） 。`paths: [{through: [点の id か座標…], smooth?, dashed?, tone?, arrow?, reveal?}]` で複数点を通る線を引く（実線が既定。`smooth: true` は点を必ず通る曲線で、x が増える道筋は単調な 3 次補間（値を行き過ぎない）、そうでない道筋は centripetal Catmull-Rom。`smooth` なしは折れ線。曲線が軸の外に出る・ラベルに重なると検査で止まる。`examples/plane-paths.ts`）。`grow: true` を付けた path は、段階（`reveal`）ごとに、出ている点までの曲線を同じ形のまま伸ばす（`examples/plane-grow.ts`）。点のラベルは `labelAt` を書かなければ右に置き、線や他のラベルと重なるときは空いている側（左・上・下・斜め）へ自動で移る。`labelAt` で側を書くとそのまま、`labelOffset: [dx, dy]` で位置をずらせる。自動の置き場は寸法線（延長線を含む）・補助線・軸・目盛りも避ける。軸に `categories: ['営業', '開発', …]` を書くと、レーン名・段階名が 1, 2, 3 … の位置の目盛りになる（`max` は個数 + 1）。**Wardley Map**: `stages: ['起源', 'カスタム', '製品', 'コモディティ']` で x 軸を名前つきの列に分け（既定は同じ幅。`{name, to}` で右端の x を書ける。列の名前が目盛りで、`x.ticks` / `step` / `categories` とは併用不可。`lines` の `dashed` の既定は実線になる）、境目に破線を引く。点に `evolves: {to: x}` を書くと、移動先に薄い輪と、そこへの破線の矢印を描く（近すぎる・他の点に重なると検査が止まる）。依存線は `lines` の `dashed: false`、y 軸の端ラベルは `ticks: [{at, label}]`（`examples/wardley-map.ts`） |
 
@@ -733,6 +736,7 @@ connect('plan.p0:right', 'sched.p0:left')
 | バタフライチャート | `butterfly(rows, {leftLabel, rightLabel, unit})` | `examples/chart-butterfly.ts` |
 | コンボチャート（棒 + 折れ線） | `combo(categories, series, {y, y2})` | `examples/chart-combo.ts` |
 | ハーベイボール | `harvey(rows, cols, values, {levels, highlight})` | `examples/chart-harvey.ts` |
+| 比較表（○△× と理由） | `compare(rows, cols, cells, {corner})` | `examples/chart-compare.ts` |
 
 ```ts
 waterfall([{label: '前期', value: 1000}, {label: '価格', value: 220}, {label: '数量', value: -130}, {label: '小計', kind: 'subtotal'}, {label: '今期', kind: 'total'}], {unit: '百万円'})
@@ -941,6 +945,31 @@ diagram({theme: 'blue', spotlight: {ids: ['main', 'choices#2'], edges: 'touching
 )
 ```
 
+### 図の中の「今ここ」（`focus`）と塗りつぶし
+
+`spotlight` は図全体を単位にするので、図の中の 1 つの項目（マインドマップの枝、状態、手順）だけを残すことはできない。図の中は `focus` を使う（ADR 0051）。項目を持つ図はどれも同じ書き方: `focus: 項目の id`（配列も可。並びの図では 1 始まりの番号も）。
+
+- **規則は 1 つ**: `focus` の項目は塗りつぶし（`solid`、白い文字）、関係する項目は `accent`、ほかは `muted`。項目に書いた `tone` は置き換わる。渡した配列や木は書き換えない（同じデータを使い回して、章ごとに `focus` だけ変えられる）。
+- **関係する項目は図の形で決まる**:
+
+| 形 | 図 | 関係する項目と線 |
+|---|---|---|
+| 木 | `tree` / `mindmap` | focus の下の節と、ルートまでの道の節。その線を強調色で描く |
+| 網の目 | `stateDiagram` / `flowchart` / `causeTree` / `pdpc` / `relationDiagram` / `classDiagram` / `bpmn` / `swimlane` | 矢印 1 本でつながる項目（向きは問わない）。focus に触れる矢印は強調色、ほかは灰色 |
+| 並び | `chevron` / `funnel` / `cycle` / `steps` / `emblem` / `valueChain` | なし（focus だけが浮く）。番号でも指せる（`valueChain` は支援活動から数える） |
+
+- 知らない id・範囲外の番号・空の配列は、指せる id の一覧を付けて止まる。`chevron` の `current` / `highlight`、`steps` の `highlight` は従来どおり使え（その項目を強調色にするだけの軽い強調）、`focus` と同時には書けない。
+- **塗りつぶしの色を直接書く**: 上の図の項目は `tone: 'solid' | 'solid-danger'` を受ける（白い文字。原因の木の二重枠・クラス図の区切り線・BPMN のゲートウェイの記号も白）。レーン・表・ベン図・同心円は対象外。
+- `connect` の線に `tone: 'accent' | 'muted' | 'danger'` を付けると、矢じりも同じ色になる（`swimlane` の focus もこれを使う。focus を使わない既存の図でも、色付きの線の矢じりはこの色になる）。
+- 例は `examples/mindmap-focus.ts`、`examples/focus.ts`。
+
+```ts
+const map = {label: '研修', children: [{label: '6つの条件', id: 'dq', children: [{label: '問い', id: 'q'}, {label: '選択肢', id: 'opt'}]}, /* ... */]};
+mindmap(map, {focus: 'opt'})                       // 章「選択肢」の頭（枝の道が強調色）
+stateDiagram(states, transitions, {focus: 'mgr'})  // 「課長待ち」と、その前後の状態・矢印
+chevron(steps, {focus: 2})                         // 2 番目の工程だけを塗る
+```
+
 ### 主役・次点・その他の 3 段階（`solid`）
 
 新しい色を足さず、**塗りの有無**で 3 段階を作る。主役 = `tone: 'solid'`（accent の塗り + 白文字）、次点 = `accent`（薄い塗り + accent の枠）、その他 = `plain` / `changed`。`'solid-danger'` は danger の塗り + 白文字（異常の強い方）。白文字は blue 6.45 / teal 5.94 / amber 4.68 で、どのテーマでも 4.5:1 以上になる。
@@ -1128,6 +1157,9 @@ versus(
 ### スライド 1 枚のキャンバス（`canvas`）
 
 `diagram({canvas: 'slide'})` は、スライド 1 枚ぶんの図を **16:9（1280×720）で、拡大縮小なしに** 描く。文字は、最小のもの（既定の 14px の role・矢印のラベル・タグ）が 24px になる倍率（1.72 倍）で全体を拡大し、余白・間隔も同じ倍率にする。高さは 720px に固定で、内容が足りなければ下を空ける。`{canvas: {width, height, minText}}` で寸法と最小文字を変えられる（`minText: 30` なら 30px 以上）。
+
+**高さを中身に合わせる（`fit: 'content'`）**: `diagram({canvas: {width: 1280, height: 720, minText: 30, fit: 'content'}})` は、描くキャンバスを中身の高さまで縮める（下に空白の帯を残さない）。`height` は上限として働き、自動配置の図の高さの目安と、超えたときの `slide-canvas-overflow` に使う。Slidev の本文の下に置く図のように、表示する枠に合わせて縮めて見せる図に向く（キャンバスごと縮めると、空白の帯の分だけ図が小さくなる）。書かない図は従来どおり `height` で描く。pptx に書き出すと、スライドの大きさも幅 × 中身の高さになる（16:9 にしたいときは `fit` を書かない）。
+**文字に合わせて広がるもの**: キャンバスの図（文字が大きい）では、手順の番号バッジ（`steps({numbered})` / `box({step})`）が見出しの文字に合わせて大きくなり（見出しの行に収まる大きさまで。本文の行には重ならない）、`swimlane` のレーン名の列は既定で `labelW: 'fit'`（いちばん長いレーン名が 1 行に入る幅。128px〜図の幅の 30%）、`quadrant` の項目名の折り返し幅も文字の大きさに比例して広がる。文書向けの図（キャンバスなし）の出力は変わらない。
 
 **文字の下限を 14px 未満に下げる（`minText` と `fontFloor`）**: 投影しない、手元・配布用の稠密な `canvas` の図（キャンバスを 1:1 で読む）に限り、`diagram({canvas: {width: 2304, height: 1296, minText: 10}})` のように `minText` を 14 未満（**最小 10**）にできる。10 未満・有限でない値・数でない値は throw する（`canvas.minText must be a number >= 10`）。これは `slide` / `fill` の「実効 12px」（縮小後の文字の下限）とは**別の層**で、`canvas` の図の、キャンバスの単位での下限である。下げるには、案件の `.svg-diagram.json` が許可する必要がある（「共通設定」の `fontFloor`）。許可がない案件では、図の `minText` が 14 未満だと throw する（`canvas: {minText: 10} is below the project's fontFloor (14). Lower "fontFloor" in .svg-diagram.json (10 at the lowest) or raise minText`）。下げた図は、出力の SVG のルートに `data-min-text="10"` が付く（`minText` が 14 以上の図、`canvas: 'slide'`、`canvas` なしの図は 1 バイトも変わらない）。`lint-svg` はこれを `font-size-too-small` の床として読む。`check` は `font-floor-lowered`（info）で知らせ、`build` は 1 行出す。縮めて見せるキャンバスの換算（2304 幅を 1280 に縮めて見せるなら、実効 10px は `minText` 約 18）は著者が行う。
 

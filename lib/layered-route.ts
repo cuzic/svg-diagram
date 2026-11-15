@@ -3,7 +3,7 @@
 // it for a 'down' diagram).
 import {layoutLayered} from './graph-layout.ts';
 import type {LayeredEdge, LayeredEdgeOut, LayeredLayout, LayeredNode, LayeredOpts, Placed, Pt} from './graph-layout.ts';
-import {bendsOf, crossingsOf, crossingsWith, runsTogether, scoreOf, simplify} from './polyline-metrics.ts';
+import {bendsOf, crossingsOf, crossingsWith, rescore, runsTogether, scoreOf, simplify} from './polyline-metrics.ts';
 import {headCrossings, searchRoute} from './route-search.ts';
 import {moveApart} from './route-apart.ts';
 import {must} from './must.ts';
@@ -309,7 +309,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   for (const i of direct) {
     const undo = align(i);
     if (!undo) continue;
-    const trial = build(), score = scoreOf([...trial.values()]);
+    const trial = build(), score = rescore(routes, best, trial);
     if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i)) { routes = trial; best = score; } else undo();
   }
   // the arrows that became straight lines no longer take a lane: the others take their lanes again, over the room that is left
@@ -319,7 +319,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     const pierced = (m: Map<number, Pt[]>): number => [...m].reduce((sum, [i, r]) => sum + [...lay.nodes].filter(([id, n]) => id !== edgeAt(i).from && id !== edgeAt(i).to && r.slice(1).some((q, k) => { const p = at(r, k); return Math.max(p.x, q.x) > n.x + 1 && Math.min(p.x, q.x) < n.x + n.w - 1 && Math.max(p.y, q.y) > n.y + 1 && Math.min(p.y, q.y) < n.y + n.h - 1; })).length, 0);
     const piercedBefore = pierced(routes);
     crowded = undefined; assignLanes(); turnOuter();
-    const trial = build(), score = scoreOf([...trial.values()]);
+    const trial = build(), score = rescore(routes, best, trial);
     if (score.crossings <= best.crossings && score.bends <= best.bends && pierced(trial) <= piercedBefore) { routes = trial; best = score; }
     else { crowded = before; laneOf.clear(); for (const [k, v] of lanes) laneOf.set(k, v); outerTurns.clear(); for (const [k, v] of turns) outerTurns.set(k, v); }
   }
@@ -396,7 +396,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       }
       for (const set of tries) {
         set();
-        const trial = build(), s = scoreOf([...trial.values()]), t = beside(trial, i);
+        const trial = build(), s = rescore(routes, best, trial), t = beside(trial, i);
         if (t.head < now.head && t.all <= now.all && s.crossings <= best.crossings && s.bends <= best.bends && inside(must(trial.get(i))) && !pierces(must(trial.get(i)), i)) { routes = trial; best = s; break; }
         shiftOf.delete(i); turnAt.delete(i);
       }
@@ -549,7 +549,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     return b;
   };
   const sharing = (a: Attempt): Attempt => {
-    if (!o.groupOf) return a;
+    if (!o.groupOf || !a.fits) return a;
     const before = parallels(a);
     if (!before) return a;
     const b = build(must(optsOf.get(a)).opts, true, false, must(optsOf.get(a)).near);
@@ -575,7 +575,8 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     if (o.groupOf !== undefined && andCrossings(b) < andCrossings(a)) b.asided = true;
     return b;
   };
-  const pick = (near: Side): Attempt => apartOf(pick0(near));
+  // an attempt that does not fit is set aside by the fitting (only its width and its layers are read, for the message): the work that only moves its routes is not done (ADR 0053)
+  const pick = (near: Side): Attempt => { const a = pick0(near); return a.fits ? apartOf(a) : a; };
   const pick0 = (near: Side): Attempt => {
   const plain = build(layoutOpts, false, false, near);
   if (o.straighten === false || !edges.some(e => e.from !== e.to)) return sharing(plain);

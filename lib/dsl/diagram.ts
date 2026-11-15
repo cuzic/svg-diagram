@@ -47,6 +47,7 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
   if (opts.width !== undefined && opts.width !== 'fit' && !(typeof opts.width === 'number' && Number.isFinite(opts.width) && opts.width > 0)) throw new Error(`diagram({width}) must be a positive number or 'fit' (got ${JSON.stringify(opts.width)})`);
   if (opts.width === 'fit' && (opts.canvas !== undefined || opts.fill || opts.slide)) throw new Error("diagram({width: 'fit'}) is for a document figure: a `canvas` is drawn 1:1, and `fill` / `slide` fit a measured slot");
   if (opts.canvas !== undefined && opts.canvas !== 'slide' && opts.canvas.minText !== undefined) checkMinText(opts.canvas.minText, 'diagram({canvas: {minText}})');
+  if (opts.canvas !== undefined && opts.canvas !== 'slide' && opts.canvas.fit !== undefined && opts.canvas.fit !== 'content') throw new Error(`diagram({canvas: {fit}}) must be 'content' (the canvas shrinks to its content, up to height) or left out (got ${JSON.stringify(opts.canvas.fit)})`);
   const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...(opts.canvas === 'slide' ? {} : opts.canvas)};
   const d: DiagramData = {
     day: theme as Theme,

@@ -208,7 +208,7 @@ export function placeRuns(text: El, styles: Map<El, Style>, measure: TextBoxFn):
   let atStart = true; // the last character kept was a space (or none yet): collapsing drops the next leading space
   const norm = (s: string) => {
     if (keep) return s.replace(/[\n\r\t]/g, ' ');
-    let o = s.replace(/\s+/g, ' ');
+    let o = s.replace(/[ \t\r\n]+/g, ' '); // what XML collapses; JS \s would also take U+3000 and U+00A0, which draw at their own width
     if (atStart && o.startsWith(' ')) o = o.slice(1);
     if (o) atStart = o.endsWith(' ');
     return o;

@@ -159,7 +159,9 @@ test('bpmn(): a flow from a node to itself keeps its label off the node; chips u
 
 test('bpmn(): a node tone is checked like a lane tone; node ids come with the figure (reveal); a node id cannot be spotlighted', async () => {
   assert.throws(() => bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x', tone: 'foo' as never}], []), /tone/);
-  assert.throws(() => bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x', tone: 'solid' as never}], []), /solid|tone/);
+  // a node may be filled (ADR 0051: 'solid' / 'solid-danger' draw white text); a lane may not
+  assert.doesNotThrow(() => bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x', tone: 'solid'}], []));
+  assert.throws(() => bpmn([{id: 'a', label: 'A', tone: 'solid' as never}], [{id: 'x', lane: 'a', label: 'x'}], []), /tone/);
   const b = bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x'}], [], {reveal: 2});
   const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(b, box({id: 'ext', title: '外部', reveal: 2}), connect('x', 'ext', {route: 'elbow'})));
   assert.equal(laidOut.connects[0]!.reveal, 2);

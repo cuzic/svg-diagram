@@ -187,6 +187,7 @@ function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number
   const gp = band.pad ?? 16;
   const top0 = ctx.y, startY = snapGrid(top0); // the frame sits on the grid; the cursor moves on from where it was (no drift)
   const frame: LaidOutGroup = {type: 'group', x: padX, y: startY, w: cw, h: 0, tone: band.tone, dashed: band.dashed, frame: band.frame, id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
+  const at = ctx.laidOut.length;
   ctx.laidOut.push(frame); // pushed first so the frame is drawn under its children
   ctx.y += gp;
   if (band.title) {
@@ -194,6 +195,7 @@ function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number
     const inkW = Math.max(0, ...t.wrappedRuns.flatMap(r => r.lines.map((_, i) => lineWidth(widthOf, r, i))));
     const inkX = t.align === 'center' ? t.x + (t.w - inkW) / 2 : t.align === 'right' ? t.x + t.w - inkW : t.x;
     t.inkBox = {x: inkX, y: t.y, w: inkW, h: t.h};
+    frame.title = t.text;
     ctx.laidOut.push(t);
     ctx.y += t.h + d.gap / 2;
   }
@@ -218,6 +220,7 @@ function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number
     ctx.y += STAMP_H + STAMP_GAP;
   }
   frame.h = ctx.y - top0;
+  frame.span = ctx.laidOut.length - at - 1; // its title and contents, nested groups and their contents included (ADR 0054 D5)
   if (fill) frame.h += fill.slack - (stretchOnly ? fill.slack : plan.top + plan.gap * (band.children.length - 1)); // what is left goes under the content
   ctx.y = top0 + frame.h; // (the contents were laid out from the cursor itself, not from the snapped top: only the frame is placed on the grid)
   if (band.id) {
@@ -253,7 +256,12 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
   // a boundary's name sits in a chip across the label column: the column is never narrower than the longest name + the chip's round ends, fit: 'shrink' included
   const chipText = Math.max(0, ...(band.boundaries ?? []).filter(b => b.label).map(b => textWidth(widthOf, b.label as string, roles.note, 700)));
   const minLabelW = chipText ? Math.ceil(chipText) + 36 : 0;
-  let labelW = band.labelW ?? Math.max(128, minLabelW), colGap = band.colGap ?? 28, padX2 = 14; // no labelW given: wide enough for the longest line name
+  // labelW 'fit' (the default on a canvas, whose text is scaled up): the longest lane name on one line (+ the column's 24px padding), 128..30% of the width
+  const fitLabel = band.labelW === 'fit' || (band.labelW === undefined && d.canvas !== undefined);
+  // the canvas default gives way to the columns: never so wide that a column falls under the comfortable width (an author's 'fit' is taken as written)
+  const roomForLabel = band.labelW === undefined ? cw - 2 * 14 - (band.cols - 1) * (band.colGap ?? 28) - band.cols * SWIMLANE_COMFY_COL : Infinity;
+  const fitW = fitLabel ? Math.min(Math.ceil(Math.max(0, ...band.lanes.map(l => textWidth(widthOf, l.label, roles.title, 700)))) + 24, Math.floor(cw * 0.3), roomForLabel) : 0;
+  let labelW = typeof band.labelW === 'number' ? band.labelW : Math.max(128, minLabelW, fitW), colGap = band.colGap ?? 28, padX2 = 14; // no labelW given: wide enough for the longest line name
   const padY = 14;
   const colWAt = (): number => (cw - labelW - 2 * padX2 - (band.cols - 1) * colGap) / band.cols;
   if (band.fit === 'shrink' && colWAt() < SWIMLANE_COMFY_COL) { // free room for the columns: lane labels and gaps give way first, a step at a time
@@ -323,6 +331,7 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
     if (st.tagBox) st.tagBox.y = st.y - st.tagBox.h / 2;
     ctx.laidOut.push(st);
   }
+  frame.span = stepsPlaced.length;
   ctx.y = top0 + (y - startY) + d.gap;
 }
 

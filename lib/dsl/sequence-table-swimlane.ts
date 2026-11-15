@@ -8,6 +8,7 @@ import type {ScreensBand, StateMatrixOpts, StateMatrixRow, PartRow, StateCellIn,
 import type {ActorIn, AnchorsOf, Declares, FlowCheck, FlowIn, LaneCheck, HandleOf, SeqStepIn, StateRowLoose, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn} from '../strict.ts';
 import {must} from '../must.ts';
 import {connectBand} from './defaults.ts';
+import {graphTones, litLink, resolveFocus} from '../focus.ts';
 import {assertBoxTone, assertFontSize, assertNoReveal, revealOf, scopeOpt, withAnchors, withHandle} from './shared.ts';
 
 // UML-style sequence diagram. actors: [{id, label, tone?}]. steps (in time order):
@@ -67,16 +68,43 @@ export function cell(text: string | number, opts: Omit<TableCellSpec, 'text'> = 
 //   opts.boundaries: [{after: laneId, label?} | {between: [laneId, laneId], label?}]  — a heavy dashed line across that lane boundary, named in a chip on the
 //                label column (a service blueprint's line of interaction / of visibility / of internal interaction). `between` throws when the two
 //                lanes are not next to each other, and is the form to use with laneOrder.
-//   opts.labelW: width of the lane-label column (default 128)
+//   opts.labelW: width of the lane-label column (default 128; 'fit' = the longest lane name on one line, the default on a canvas diagram)
 //   opts.laneOrder: 'auto' puts the lanes in the order that makes the hand-offs (opts.flows) shortest; `fixed: true` lanes stay put (lib/lane-order.ts)
 // Returns an array (the lane block followed by its flows); d.add() accepts it directly.
 //
 // Types: at most 6 lanes (rule swimlane-lanes); every step.lane is a declared lane id; step ids are unique; flows'
 // from / to are step ids (optionally ':side[@t]'); chip / labelAt need a label. The step ids are exposed to add().
+/** focus on a swimlane: the steps' tones (solid / accent / muted) and the flows' (lit: accent, the rest muted). A flow end may be 'id:side@t'. */
+function focusSwimlane(steps: SwimlaneStep[], opts: SwimlaneOpts): {steps: SwimlaneStep[]; opts: SwimlaneOpts} {
+  const ids = steps.map(s => s.id), hit = resolveFocus(must(opts.focus), ids, 'swimlane()');
+  const at = (end: string): number => ids.indexOf(must(end.split(':')[0]));
+  const flows = opts.flows ?? [];
+  const tones = graphTones(ids.length, flows.map(f => [at(f.from), at(f.to)] as const), hit);
+  return {
+    // a focused step is filled: its own text tones would not show on the fill (and would be refused), so they give way to the white text
+    steps: steps.map((s, i) => {
+      if (tones[i] !== 'solid') return {...s, tone: must(tones[i])};
+      const {titleTone: _t, bodyTone: _b, iconTone: _i, ...rest} = s as SwimlaneStep & {titleTone?: unknown; bodyTone?: unknown; iconTone?: unknown};
+      return {...rest, tone: 'solid' as const} as SwimlaneStep;
+    }),
+    opts: {...opts, flows: flows.map(f => ({...f, tone: litLink(at(f.from), at(f.to), hit) ? 'accent' as const : 'muted' as const}))},
+  };
+}
 export function swimlane<
   const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [], const Id extends string = never,
 >(lanes: L & LaneCheck<L>, steps: S & StepCheck<L, S>, opts?: Omit<SwimlaneOpts, 'flows' | 'id'> & {id?: Id; flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S> | Id> | ConnectBand)[] & AnchorsOf<StepIds<S> | Id>;
-export function swimlane(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
+export function swimlane(lanesIn: SwimlaneLane[], stepsIn: SwimlaneStep[], optsIn: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
+  const {steps, opts} = optsIn.focus === undefined ? {steps: stepsIn, opts: optsIn} : focusSwimlane(stepsIn, optsIn);
+  if (optsIn.focus !== undefined) {
+    try { return swimlaneOf(lanesIn, steps, opts); } catch (e) {
+      // what is left to refuse on a focused step is a coloured span of its text: say that focus made it solid
+      throw e instanceof Error && /tone 'solid'/.test(e.message) ? new Error(`swimlane(): focus fills the step (tone 'solid', white text): ${e.message}`) : e;
+    }
+  }
+  return swimlaneOf(lanesIn, steps, opts);
+}
+function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts): (SwimlaneBand | ConnectBand)[] {
+  if (opts.labelW !== undefined && opts.labelW !== 'fit' && !(typeof opts.labelW === 'number' && Number.isFinite(opts.labelW) && opts.labelW > 0)) throw new Error(`swimlane(): labelW must be a positive number or 'fit' (got ${JSON.stringify(opts.labelW)})`);
   const lanes = opts.laneOrder === undefined ? lanesIn : orderLanes(lanesIn, steps, opts);
   for (const l of lanes) assertBoxTone(l.tone, `swimlane() lane "${l.id}"`);
   let boundaries: {after: string; label?: string}[] | undefined;

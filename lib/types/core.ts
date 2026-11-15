@@ -42,6 +42,15 @@ export type TextTone = 'text' | 'accent' | 'muted' | 'danger';
  * carry dark text that would sit on the fill.
  */
 export type EmphasisTone = BoxTone | 'solid' | 'solid-danger';
+/** "You are here" inside one figure (ADR 0051): an item's id, or (in a sequence: chevron, funnel, cycle, steps, emblem, valueChain) its 1-based number; or a list of them. */
+export type Focus = string | number | readonly (string | number)[];
+/** The `focus` option of a figure that has items. */
+export interface FocusOpts {
+  /** "You are here": the focused items are filled ('solid'), the items related to them 'accent' and the rest 'muted'; the tones written on the items are replaced.
+   *  Related: in a tree / mindmap the nodes under a focused node and the path to the root; in a graph the items one arrow away (those arrows are lit);
+   *  in a sequence nothing. diagram({spotlight}) is the one for whole figures. */
+  focus?: Focus;
+}
 /** Tone of the little tag pill on a box ('accent' default). */
 export type TagTone = 'accent' | 'muted' | 'danger';
 export type LineStyle = 'solid' | 'dashed' | 'dotted' | 'double';
@@ -62,11 +71,18 @@ export interface Point {x: number; y: number}
 export interface Rect {x: number; y: number; w: number; h: number}
 export interface Dimmed {/** Set on laid-out elements outside diagram({spotlight}). */ dim?: boolean}
 /** A named rect connect() can attach to: any band/child with an `id` (boxes, groups, screens, ...). */
-export interface Anchor extends Rect {id: string}
+export interface Anchor extends Rect {id: string; /** ADR 0054: the part its item is grouped in (flow shapes) */ part?: string}
 /** Result of parsing a connect() ref 'id', 'id:side' or 'id:side@t'. */
 export interface ConnectRef {id: string; side: string; at: number}
 /** diagram({canvas}): the fixed slide canvas the diagram is drawn on. `minText` is the smallest text size (px, in the canvas's own units) the lint accepts. Below 14 (down to 10) only for a dense figure read 1:1, not projected, and only when the project's `fontFloor` allows it. */
-export interface SlideCanvas {width: number; height: number; minText: number}
+export interface SlideCanvas {
+  width: number;
+  /** The canvas height; with `fit: 'content'` it is the most the figure may take (the budget of the auto-laid-out figures and the overflow warning). */
+  height: number;
+  minText: number;
+  /** 'content': the drawn canvas is only as tall as its content (no empty band under it), up to `height`. Default: always `height`. */
+  fit?: 'content';
+}
 /** Slide the diagram will be shown on (slide-budget.ts measures its free area). */
 export interface SlideRef {page: string; heading: string}
 /** diagram({connectDefaults}): connect() options every connector of the diagram starts from (an option given on the connector wins). */

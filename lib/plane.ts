@@ -9,6 +9,7 @@ import type {FontFamily, Rect, WidthOf, Roles} from './types/core.ts';
 import type {LaidOutPlane, PlaneBand, PlanePos, PlaneRef, PlaneText, PlaneTone} from './types/figures.ts';
 
 import {must} from './must.ts';
+import {PLANE_AXES} from './parts.ts';
 // the same tolerance verify.ts's rectOverlap uses, so what layout avoids is what verification would report
 const overlapsRect = (a: Rect, b: Rect): boolean => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5;
 
@@ -149,8 +150,8 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     const n = Math.max(1, Math.ceil(Math.hypot(s.x2 - s.x1, s.y2 - s.y1) / 6));
     for (let i = 0; i <= n; i++) ink(what, {x: s.x1 + (s.x2 - s.x1) * i / n - 2, y: s.y1 + (s.y2 - s.y1) * i / n - 2, w: 4, h: 4}, dim);
   };
-  const addText = (s: string, tx: number, base: number, anchor: 'start' | 'middle' | 'end', tone: PlaneTone, bold = false, reveal?: number): void => {
-    texts.push({s, x: tx, y: base, anchor, tone, bold, ...(reveal ? {reveal} : {})});
+  const addText = (s: string, tx: number, base: number, anchor: 'start' | 'middle' | 'end', tone: PlaneTone, bold = false, reveal?: number, part?: string): void => {
+    texts.push({s, x: tx, y: base, anchor, tone, bold, ...(reveal ? {reveal} : {}), ...(part ? {part} : {})});
     const tww = tw(s, bold ? 700 : 400);
     boxes.push({label: s, x: anchor === 'middle' ? tx - tww / 2 : anchor === 'end' ? tx - tww : tx, y: base - size, w: tww, h: labelH});
   };
@@ -163,14 +164,14 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
       ticks.push(tick);
       inkSeg('a tick mark', tick);
     }
-    addText(t.label, tx, yDown ? axisY - TICK - 8 : axisY + TICK + g + 2, 'middle', 'muted');
+    addText(t.label, tx, yDown ? axisY - TICK - 8 : axisY + TICK + g + 2, 'middle', 'muted', false, undefined, PLANE_AXES);
   }
   for (const t of yTicks) {
     const ty = py(t.at);
     const tick = {x1: axisX, y1: ty, x2: axisX - TICK, y2: ty};
     ticks.push(tick);
     inkSeg('a tick mark', tick);
-    addText(t.label, axisX - TICK - 6, ty + half, 'end', 'muted');
+    addText(t.label, axisX - TICK - 6, ty + half, 'end', 'muted', false, undefined, PLANE_AXES);
   }
   // the axes (lines and arrowheads)
   ink('the x axis', {x: axisX, y: axisY - 2, w: plotR - axisX, h: 4});
@@ -181,8 +182,8 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     ...(stages.length ? [] : xTicks).map(t => ({x1: px(t.at), y1: plotT, x2: px(t.at), y2: plotB})),
     ...yTicks.map(t => ({x1: plotL, y1: py(t.at), x2: plotR, y2: py(t.at)})),
   ] : [];
-  if (band.x.label) addText(band.x.label, plotR + xLabelGap, axisY + half, 'start', 'muted', true);
-  if (band.y.label) addText(band.y.label, axisX - 4, yDown ? plotB + g + 14 : plotT - 14, 'start', 'muted', true);
+  if (band.x.label) addText(band.x.label, plotR + xLabelGap, axisY + half, 'start', 'muted', true, undefined, PLANE_AXES);
+  if (band.y.label) addText(band.y.label, axisX - 4, yDown ? plotB + g + 14 : plotT - 14, 'start', 'muted', true, undefined, PLANE_AXES);
 
   // A point label's spot for a side: the text anchor, its x, and its baseline.
   type Side = 'right' | 'left' | 'above' | 'below' | 'above-right' | 'above-left' | 'below-right' | 'below-left';
@@ -209,11 +210,11 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
       if (p.labelAt === undefined || p.labelAt === 'auto') {
         if (!p.labelOffset && !isEnd(p)) autoLabels.push({text: texts.length, box: boxes.length, q, label: p.label, bold: true, first: side, leader: isLeader(p)});
       }
-      addText(p.label, sp.x + ox, sp.base + oy, sp.anchor, tone, true, p.reveal);
+      addText(p.label, sp.x + ox, sp.base + oy, sp.anchor, tone, true, p.reveal, p.part);
     }
     if (isEnd(p)) endLabels.push({text: texts.length - 1, box: boxes.length - 1, y: q.y});
     ink('a point', {x: q.x - 7, y: q.y - 7, w: 14, h: 14});
-    return {x: q.x, y: q.y, tone, shape: p.shape ?? 'dot', ...(p.reveal ? {reveal: p.reveal} : {})};
+    return {x: q.x, y: q.y, tone, shape: p.shape ?? 'dot', ...(p.reveal ? {reveal: p.reveal} : {}), ...(p.part ? {part: p.part} : {})};
   });
 
   const lines: LaidOutPlane['lines'] = (band.lines ?? []).map(l => {
@@ -224,7 +225,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
       const xs = [b.x, b.x - ux * 10 - uy * 5, b.x - ux * 10 + uy * 5], ys = [b.y, b.y - uy * 10 + ux * 5, b.y - uy * 10 - ux * 5];
       ink('a guide line arrow', {x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)});
     }
-    return {x1: a.x, y1: a.y, x2: b.x, y2: b.y, tone: l.tone ?? 'muted', dashed: l.dashed ?? !stages.length, arrow: !!l.arrow, ...(l.reveal ? {reveal: l.reveal} : {})};
+    return {x1: a.x, y1: a.y, x2: b.x, y2: b.y, tone: l.tone ?? 'muted', dashed: l.dashed ?? !stages.length, arrow: !!l.arrow, ...(l.reveal ? {reveal: l.reveal} : {}), ...(l.part ? {part: l.part} : {})};
   });
 
   // stage dividers, then each evolving point's ring and arrow (the arrow stops at the ring's edge)
@@ -289,7 +290,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
       ink('a path arrow', {x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)});
     }
     const overshoot = Math.max(0, ...samples.map(q => Math.max(plotL - q.x, q.x - plotR, plotT - q.y, q.y - plotB)));
-    return {pts, curves, tone: pa.tone ?? 'accent', dashed: pa.dashed ?? false, arrow: !!pa.arrow, tip: {dx: ux, dy: uy}, reveal: pa.reveal, ...(segReveal ? {segReveal} : {}), overshoot};
+    return {pts, curves, tone: pa.tone ?? 'accent', dashed: pa.dashed ?? false, arrow: !!pa.arrow, tip: {dx: ux, dy: uy}, reveal: pa.reveal, ...(segReveal ? {segReveal} : {}), overshoot, ...(pa.part ? {part: pa.part} : {})};
   });
 
   const dims: LaidOutPlane['dims'] = (band.dims ?? []).map((dm, di) => {
@@ -314,7 +315,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
 
   for (const l of band.labels ?? []) {
     const q = pt(l.at);
-    addText(l.text, q.x + (l.offset?.[0] ?? 0), q.y + half + (l.offset?.[1] ?? 0), l.anchor ?? 'middle', l.tone ?? 'text', !!l.bold, l.reveal);
+    addText(l.text, q.x + (l.offset?.[0] ?? 0), q.y + half + (l.offset?.[1] ?? 0), l.anchor ?? 'middle', l.tone ?? 'text', !!l.bold, l.reveal, l.part);
   }
 
   // An automatic point label that sits on the plane's ink (a dimension line and its extension lines included) or on another label moves to the first side that is free (all taken: stays).

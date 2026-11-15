@@ -1,7 +1,7 @@
 // Types: sequence, table and swimlane.
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
-import type {Align, Arrow, Bend, Dimmed, LineStyle, Rect, RevealOpts, RcaInfo, ScopeOpts, TextTone} from './core.ts';
+import type {Align, Arrow, Bend, Dimmed, LineStyle, Rect, RevealOpts, RcaInfo, ScopeOpts, TextTone, FocusOpts} from './core.ts';
 import type {BoxBand, BoxOpts, BoxTone, LaidOutBox} from './text-bands.ts';
 
 export interface SequenceActor {
@@ -165,13 +165,13 @@ export interface SwimlaneFlow {
 export type SwimlaneBoundary = {label?: string} & ({after: string; between?: undefined} | {between: readonly [string, string]; after?: undefined});
 /** Column group named across the top (a stage, a sprint). */
 export interface SwimlanePhase {label: string; from: number; to: number}
-export interface SwimlaneOpts extends RevealOpts, ScopeOpts {
+export interface SwimlaneOpts extends RevealOpts, ScopeOpts, FocusOpts {
   flows?: SwimlaneFlow[];
   phases?: SwimlanePhase[];
   /** Lines across lane boundaries. With `laneOrder` only `between` can be used (the lanes move). */
   boundaries?: SwimlaneBoundary[];
-  /** Width of the lane-label column (default 128). */
-  labelW?: number;
+  /** Width of the lane-label column (default 128; on a `canvas` diagram 'fit'). 'fit': as wide as the longest lane name on one line, up to 30% of the width (never narrower than 128). */
+  labelW?: number | 'fit';
   colGap?: number;
   /** 'shrink': when the columns come out narrower than ~112px, narrow the lane-label column and the column gaps (down to 88 / 12px) to give them room. Default: the sizes above, as given. */
   fit?: 'shrink';
@@ -195,7 +195,7 @@ export interface SwimlaneBand {
   phases?: SwimlanePhase[];
   /** As placed by swimlane(): the lane each line sits below. */
   boundaries?: {after: string; label?: string}[];
-  labelW?: number;
+  labelW?: number | 'fit';
   colGap?: number;
   fit?: 'shrink';
   id?: string;
@@ -214,6 +214,8 @@ export interface LaidOutLane {
 }
 export interface LaidOutPhase {x: number; w: number; lines: string[]}
 export interface LaidOutSwimlane extends Rect {
+  /** How many of the bands after it are its steps (ADR 0054 D9.2: the PowerPoint export groups them with the lanes). */
+  span?: number;
   type: 'swimlane';
   labelW: number;
   bodyX: number;

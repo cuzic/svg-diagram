@@ -157,7 +157,7 @@ export function applySpotlight(d: LaidOutDiagram): void {
     // a node of a self-placing figure is an anchor for connect(), but the figure is dimmed or lit as a whole
     const figureOf = (id: string): LaidOutBand | undefined => d.laidOut.find(b => b.type !== 'bars' && b.type !== 'image' && 'anchors' in b && (b.anchors as {id: string}[]).some(a => qualify(scopeOf(b), a.id) === id));
     const inFigure = missing.find(id => figureOf(id));
-    if (inFigure) throw new Error(`diagram({spotlight}): "${inFigure}" is a node inside a figure; spotlight lights a whole figure, so give the figure an {id} and spotlight that`);
+    if (inFigure) throw new Error(`diagram({spotlight}): "${inFigure}" is a node inside a figure; spotlight lights a whole figure, so give the figure an {id} and spotlight that (to light one branch of a tree or mindmap, write its focus: '${inFigure}')`);
     throw new Error(`diagram({spotlight}): unknown anchor id${missing.length > 1 ? 's' : ''} "${missing.join('", "')}"`);
   }
   const focus = found.flat();

@@ -11,6 +11,7 @@
 # svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX] [--per-page N | --pages N]   (a whole set on one picture)
 # svg-diagram deck <a.ts|a.svg>... [--out deck.html] [--title TEXT] [--cols N] [--csp]   (several figures in one self-contained HTML to look through: arrows, overview, zoom, print)
 # svg-diagram pptx <source.ts>... [--out FILE | --out-dir DIR] [--png-scale N] [--font NAME]   (one editable PowerPoint file per source)
+# svg-diagram pptx-deck <deck.json> [--out FILE] [--png-scale N] [--font NAME]   (16:9 slides: heading, lead, figure, callouts, source, notes)
 # svg-diagram lint  [file.svg|file.ts|glob ...] [--svg-dir DIR] [--strict] [--fix] [--engine geometry|browser]   (default: ./svg/*.svg; geometry needs no browser)
 # svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--engine resvg|chromium] [--require-fresh]   (draw it in the terminal as sixel)
 # svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium] [--gray] [--no-stale-banner] [--require-fresh]   (warns when the SVG is older than its source)
@@ -39,8 +40,9 @@ case "$cmd" in
   contact) exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/contact-sheet.$X" "$@" ;;
   deck)    exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/deck-diagram.$X" "$@" ;;
   pptx)    exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/pptx-diagram.$X" "$@" ;;
+  pptx-deck) exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/pptx-deck-diagram.$X" "$@" ;;
   check)   exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/check-diagram.$X" "$@" ;;
   lint)    exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/lint-svg.$X" "$@" ;;
   preview) exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/preview-svg.$X" "$@" ;;
-  *) sed -n 2,16p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
+  *) sed -n 2,17p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
 esac
