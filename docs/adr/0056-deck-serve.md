@@ -96,7 +96,7 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
   - core の全部の example をスライドにしてこの一覧を通るテストを置く(描画が新しい要素を出すようになると落ちる)。
   - 画面では、スライドを `<img>` で読む。`<img>` の中の SVG はスクリプトを動かさない。スライドの URL を直接タブで開かれたときのために、SVG の応答には `Content-Security-Policy: sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'` と `X-Content-Type-Options: nosniff` を付ける(許可リストに漏れがあっても、そのオリジンでスクリプトが動かない)。
 - D4. **画面**(`svg-diagram/present` の出口から、手元と Worker で同じ JS・CSS を配る。Worker は `fs` を使えないので、画面の JS・CSS は文字列としてビルドに入れる。`lib/deck-viewer.ts` のようにファイルを読む形にしない):
-  - 聴き手の画面: 今のスライドを窓いっぱいに 1 枚。URL は 1 つ(`/` または `/p/<id>`)で、スライドの番号は URL に持たない(強制の追従なので意味がない)。隅に接続の状態(「再接続中」)。全画面のボタン。聴き手には**今のスライドの URL だけ**を渡す(先のスライドを読めない)。
+  - 聴き手の画面: 今のスライドを窓いっぱいに 1 枚。URL は 1 つ(`/` または `/p/<id>`)で、スライドの番号は URL に持たない(強制の追従なので意味がない)。隅に接続の状態(「再接続中」)。全画面のボタン。聴き手には**今のスライドの URL だけ**を渡す(先のスライドを読めない)。窓が縦長(スマートフォンを縦に持ったとき)はスライドが小さくなるので、「横にすると大きく見えます」と 1 度だけ出す(実験で、縦にしたスマートフォンの幅では文字が読みにくかった)。
   - 発表者の画面: 今のスライド、次のスライド、ノート(改行・空行・字下げを保つ)、経過時間(押すと 0 に)、時計、`n / 全体`、接続している聴き手の数、聴き手の URL の QR(D10)、描き直しの誤り(D5)。一覧(`o`)は発表者の画面の中だけ。
   - 印刷(`/print`、発表者だけ): 全スライドを 1280 × 720 のページに。ノートは入れない。
 
@@ -119,7 +119,9 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
   - 手元のサーバーを立ち上げ直したとき(`epoch` が新しく、まだ誰も `go` していない)は、最初につないだ発表者の画面が、前に見ていた番号を `go {index}` で送る。発表の途中で立ち上げ直しても、全員が 1 枚目に戻らない。
   - スライドの版が変わったときは、今のスライドを、同じ中身のスライド(ハッシュが同じもの)、なければ同じ見出しのスライドの位置に移し、どちらもなければ同じ番号(範囲に収める)にする。前にスライドを足したり消したりしても、違うスライドに飛ばない。
   - 聴き手の画面は、キー・クリック・スワイプでは動かない。聴き手から来た `go` は、サーバーが捨てる。
-  - つなぎ直すと、まず今の状態を受け取る。つなぎ直しは、待ち時間を倍にしていく(上限 30 秒)うえに乱数でずらす(会場の Wi-Fi が戻ったとき全員が同時につながらない)。
+  - つなぎ直すと、まず今の状態を受け取る。つなぎ直しは、最初は 0.5 秒待ち、失敗するたびに待ち時間を倍にし(上限 30 秒)、毎回 ±50% の乱数でずらす(会場の Wi-Fi が戻ったとき全員が同時につながらない)。つながった状態が 10 秒続いたら待ち時間を 0.5 秒に戻す。
+  - つながっていない間に発表者が押したキーは、溜めて後で送らない(しばらくして戻ったとき、まとめて何枚も飛ぶため)。発表者の画面は「切断中」をはっきり出し、押したキーが届かなかったことを示す(実験で、つなぎ直しの間の `go` は捨てられることを確かめた)。
+  - `epoch` が変わるのは手元のサーバーを立ち上げ直したときだけ。Worker では `epoch` を Durable Object の SQLite に持つので、Durable Object が退いても、Worker を立ち上げ直しても変わらない(実験で確かめた)。
   - 発表者の `go` は 1 接続あたり 1 秒に 10 回まで(超えたものは捨てる)。
   - スライドの SVG の URL は中身のハッシュ(`/s/<hash>.svg`)。版が変わってもブラウザのキャッシュで古いものが出ない。サーバーは**今の版にあるハッシュだけ**を返す(消したスライド・書き換える前のスライドは 404)。
   - ノートは発表者にだけ、別の要求(`Cache-Control: private, no-store`)で渡す。
@@ -163,10 +165,10 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
      - `access`: デプロイする人が、`/p/*/login` **だけ**を Cloudflare Access(Zero Trust)のセルフホストのアプリにする。Worker は `Cf-Access-Jwt-Assertion` の JWT を検証する: `https://<ACCESS_TEAM_DOMAIN>/cdn-cgi/access/certs` の `public_certs` から `kid` の合う鍵で RS256 の署名、`aud` が `ACCESS_AUD`、`iss` がチームのドメイン、`exp` / `nbf`。`email` がない JWT(サービストークン)は断る。ヘッダーのメールアドレスをそのまま信じない。
        - workers.dev のワンクリックの Access や、Worker 全体にかける Access は、聴き手のページと WebSocket まで閉じてしまう。`access` には**独自ドメイン**と、パスを `/p/*/login` に限ったアプリが要ることと、アカウント全体の「Worker を非公開にする」設定に注意することを README に書く。
      - `google`: Worker が Google の OpenID Connect(認可コードと PKCE、`state`、`nonce`)を持つ。デプロイする人が Google Cloud で作ったクライアントの `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` を secret に入れ、戻り先 `https://<自分のドメイン>/auth/google/callback`(1 つに決めた URL)を Google に登録する。`state`・`nonce`・PKCE の verifier と、どの発表から来たか(`id`)は、10 分の Cookie `__Host-oidc`(`HttpOnly; Secure; SameSite=Lax`、`SESSION_SECRET` で暗号化と署名)に持つ(KV も D1 も要らない)。`id_token` はトークンのエンドポイントから TLS で直接受け取るので、署名の検証は省ける(OpenID Connect Core 3.1.3.7)。`aud`・`iss`・`nonce`・`exp` は確かめる。`email_verified` が真のときだけ使う。Google は `email` を識別子に使わないよう勧めている(持ち主が変わりうる)ので、設定 `GOOGLE_HD` があれば `hd` の一致も求める。設定しないときの弱さ(Workspace でないドメインのアドレスは、そのメールを失った元の持ち主の Google アカウントに残りうる)を README に書く。
-  - 発表者の Cookie(`__Host-p-<id>`、`HttpOnly; Secure; SameSite=Lax`、8 時間)には `{id, 種類, トークンの id かメールアドレス, 期限}` を `SESSION_SECRET` で署名して入れる。`Strict` にしないのは、Google から戻った直後の移動で Cookie が送られないため。よそのサイトからの操作は、`POST` と WebSocket の `Origin` の確認で防ぐ。
+  - 発表者の Cookie(`__Host-p-<id>`、`HttpOnly; Secure; SameSite=Lax`、8 時間)には `{id, 種類, トークンの id かメールアドレス, 期限}` を `SESSION_SECRET` で署名して入れる。`Strict` にしないのは、Google や Access から戻った直後の移動(よそのサイトから始まった移動)で、ブラウザによっては Cookie が送られないおそれがあるため(実験では Chromium は `Strict` でも送ったが、Firefox と Safari は確かめていない)。よそのサイトからの操作は、`POST` と WebSocket の `Origin` の確認で防ぐ。
   - 発表者の要求と WebSocket の接続のたびに、トークンの id が取り消されていないか、メールアドレスがまだ `PRESENTER_EMAILS` にあるかを確かめる。つながったままの接続も、Durable Object が `go` を受けるたびに同じことを確かめる(接続のタグのトークンの id とメールアドレスのハッシュを、取り消しの一覧と今の `PRESENTER_EMAILS` に当てる)。ハイバネーションの WebSocket は通常のデプロイでは切れないので、`PRESENTER_EMAILS` から外して再デプロイしても、確かめ直さないと発表者のままになるため。
 - D14. **Worker での同期**:
-  - 発表 1 つに 1 つの Durable Object が、WebSocket(ハイバネーション API)で全端末とつながる。WebSocket の接続(`/p/<id>/ws`)は `Origin` が自分のオリジンのときだけ受ける。
+  - 発表 1 つに 1 つの Durable Object が、WebSocket(ハイバネーション API)で全端末とつながる。WebSocket の接続(`/p/<id>/ws`)は `Origin` が自分のオリジンのときだけ受ける。`Origin` がない接続も断る(ブラウザは WebSocket では必ず `Origin` を送るので、ないのはブラウザでない道具だけ。聴き手の役割でも、ブラウザの外からの接続は支えない)。
   - 役割は Worker が D13 で決め、Durable Object へは Worker が付けるヘッダーで渡す(端末から来た同じ名前のヘッダーは先に消す)。Durable Object は接続にタグ(`role:presenter`、`tok:<id>`、`email:<hash>`)と attachment を付け、ハイバネーションから戻っても役割を失わない。トークンを取り消すと、そのタグの接続を切る。
   - 今の状態(D6)は Durable Object の SQLite に書く(Durable Object が退いても戻る)。
   - 聴き手の接続数を IP ごとには数えない(会場の Wi-Fi では全員が同じ IP になる)。1 つの発表の同時接続数の上限(D16)で守り、超えたら「満員」を返す。
@@ -180,6 +182,13 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
 ### 確かめ方と、今回入れないもの
 
 - D17. **純粋な部分と外側**: 引数の解釈、URL の振り分け、レイアウトの数値、スライドの SVG、許可リスト、状態と同期の計算、QR の符号化は I/O を持たない関数にし、`node --test` で確かめる。手元のサーバーは空いているポートで実際に立ち上げてテストする(SSE、追従、聴き手が動けないこと、描き直し、誤りが発表者にだけ出ること、トークン、Host と Origin)。Worker は workerd(`wrangler dev` 相当)でテストする(聴き手の `go` が捨てられる、発表者の `go` が全端末に届く、ノートが聴き手に届かない、許可リストにない SVG を断る、取り消したトークンの接続が切れる、知らない `id` で Durable Object を起こさない、期限、設定の誤り)。Chromium(Playwright)で 2 つの窓の追従を見る。
+  - **Cloudflare のアカウントなしで、手元だけで確かめる**(実験で、この形で動くことを確かめた):
+    - Worker が外に出す先はすべて設定にする: `GOOGLE_AUTH_URL`・`GOOGLE_TOKEN_URL`・`GOOGLE_ISS`(既定は Google のもの)と、Access の鍵の URL と `iss`(既定は `ACCESS_TEAM_DOMAIN` から作る)。テストでは `wrangler dev` に `--var` で、手元の偽物を指す値を渡す。
+    - 偽の Google: `127.0.0.1` の別のポートで動く小さな HTTP サーバー。`/authorize` はすぐ戻り先に `code` を付けて戻し、`/token` は PKCE の verifier を確かめて、テストが決めた中身(`email`・`email_verified`・`hd`・`nonce`)の `id_token` を返す。Worker は `localhost` で動かすので、Google 役とは別のサイトになり、本物と同じく「よそのサイトから戻ってくる」移動になる。
+    - 偽の Access: テストの中で RSA の鍵を作り、`/cdn-cgi/access/certs` の形で公開鍵を返し、正しい JWT と崩した JWT(`aud`・`iss`・期限・`email`・署名・`kid` 違い)を作る。ブラウザでは、`/p/*/login` にだけ JWT のヘッダーを足して Worker に渡す中継を挟む。
+    - ハイバネーション: `wrangler dev`(workerd)でも、しばらく何もしないと Durable Object が退き、次のメッセージで作り直される。接続を開いたまま 15 秒以上待ち、Durable Object が作り直されたこと(テスト用に作った時刻を返す)、接続が切れず役割と状態が残ることを確かめる。
+    - `http://localhost` では、Chromium は `Secure` 付きの Cookie と `__Host-` の名前を受け付けるので、HTTPS を用意しなくてよい。
+    - 手元で確かめられないのは、本番のデプロイで WebSocket が切れないかと、Cloudflare と Google の管理画面の設定そのもの(Access のパスを限ったアプリ、戻り先の登録)だけ。これはデプロイの手順(README)で、デプロイした後に確かめる項目として書く。
 - D18. **今回入れないもの**: 段階表示(デッキの JSON に段階がない)、切り替え効果、描き込み、録画、カメラ、ノートの編集、テーマ、聴き手のサインイン、聴き手が一時的に離れて前のスライドを見る機能、ペース配分のタイマー、Worker からの .pptx(手元の `/deck.pptx` か `pptx-deck` を使う)、運営者が用意する共有のサーバー。
 
 ## 結果(見込み)
@@ -249,7 +258,40 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
 
 確かめたこと(Cloudflare の文書、2026-11-15、レビューで): Workers の無料プランでも SQLite の Durable Object は使える(1 日 10 万要求など。WebSocket を開くのは 1 要求、届くメッセージは 20 対 1 で数え、送るメッセージは数えない。ハイバネーションしている間は時間で課金されない)。ハイバネーションの WebSocket は通常のデプロイでは切れず、強制の更新で切れる。Access の JWT は `Cf-Access-Jwt-Assertion`、鍵は `https://<チーム>.cloudflareaccess.com/cdn-cgi/access/certs`。Access のパスにはワイルドカードを区切りごとに 1 つ書ける。`idFromString()` はほかの名前空間の `id` で例外になる。Workers の無料プランの CPU は 1 要求 10ms。
 
-確かめていないこと(実装の前に確かめる): Durable Object の中の CPU の上限が無料プランでいくつか(大きな差し替えの検査が収まるか)、Durable Object 1 つの保存量の上限が無料プランで 1 GB か 10 GB か(文書の中で食い違っている)、Google から戻った後の移動で `Lax` の Cookie が送られること、`locationHint` の効き方。
+確かめていないこと(実装の前に確かめる): Durable Object の中の CPU の上限が無料プランでいくつか(大きな差し替えの検査が収まるか)、Durable Object 1 つの保存量の上限が無料プランで 1 GB か 10 GB か(文書の中で食い違っている)、`locationHint` の効き方。(Google から戻った後の移動で `Lax` の Cookie が送られることは、下の実験で Chromium について確かめた。)
+
+## 実験の結果(2026-11-15)
+
+この ADR の決め方が想定どおり動くかを、使い捨ての試作(リポジトリには入れない)で、Cloudflare のアカウントを使わず手元だけで確かめた。
+
+**1. スライドを 1 枚の SVG にする(D2)**: 発表で使う予定の 13 枚のデッキを、`planDeckSlide` と同じ寸法で並べ、文字をすべて輪郭にした。
+- 1 枚 5〜40 ms、13 枚で 0.6 秒。1 枚 50〜150 KB。保存するたびに全部描き直しても困らない速さ。
+- 足りないグリフ 0、輪郭にできない飾り 0、余白からはみ出す行 0。
+- 測る側(`measureWithFonts`)と輪郭の側の幅は、43 行すべてで同じ(差 0 px)。Chromium で描いた輪郭の端と、測った幅の差は最大 24.5 px あったが、行の終わりの「。」などのグリフが、送り幅より左に寄っているためで、ずれではない。
+- パソコン、スマートフォン(横)、端末のダークモードで同じ見た目になった。スマートフォンを縦にするとスライドが小さく、文字が読みにくい → D4 に、横にする案内を足した。
+
+**2. 手元のサーバーの同期と安全(D6、D9)**: `node:http` で SSE と `POST` の小さなサーバーを書き、Chromium の 3 つの窓と、別のポートのページから試した。
+- 同じオリジンの `EventSource` は `Origin` を送らず、`Sec-Fetch-Site: same-origin` を送る。`POST` は `Origin` を送る。D9 の確かめ方のとおり。
+- 別のポートのページは `same-site` と扱われる(Cookie の `SameSite` では防げない)。`Origin` の確認で、よそのポートからの `POST` と SSE を断れた。
+- 発表者がキーを素早く 2 回押すと、3 つの聴き手の窓が 65 ms で 2 枚進んだ。聴き手の窓でキーを押しても動かなかった。
+
+**3. Worker の同期(D13、D14)**: Durable Object(SQLite)と WebSocket のハイバネーションで書き、`wrangler dev`(workerd)で試した。
+- キーを素早く何度押しても取りこぼさず、全端末に届くまでの中央値は 5 ms。
+- 聴き手からの `go`、端末が付けた役割のヘッダー、よそのオリジンからの接続、知らない `id`(`idFromString` で 404)は、すべて断れた。
+- 500 本の接続へ 43 ms で配れた。
+- `wrangler dev` を立ち上げ直すと、端末は 3〜4.6 秒でつなぎ直し、保存した番号のスライドに戻った。`epoch` は SQLite にあるので変わらない → D6 に、`epoch` が変わるのは手元だけと書いた。
+- つなぎ直しの間に発表者が押した `go` は捨てられた → D6 に、溜めずに「切断中」を出すと書き、つなぎ直しの待ち時間の数値を決めた。
+- `Origin` のない WebSocket をどうするか決めていなかった → D14 で断ると決めた。
+
+**4. ハイバネーション(D13、D14)**: 接続を開いたまま 15 秒、30 秒、75 秒何もせずに待つと、そのたびに Durable Object が作り直された(作った時刻が変わった)。その間、WebSocket は 1 本も切れず、保存した状態と、接続ごとの役割(attachment)は残り、発表者の `go` はそのまま聴き手に届いた。
+
+**5. 発表者のサインイン(D13)**: 偽の Google と偽の Access を手元で動かして試した(D17 の形)。
+- Google: 一覧にある人はサインインして発表者の画面に移り、聴き手を動かせた。大文字が混じったアドレスも一致した。メールが確認済みでない人、`hd` が違う人、一覧にない人、`__Host-oidc` の Cookie がない戻りは、すべて断れた。サインインした後で一覧から外すと、同じ Cookie でも発表者でなくなった。
+- Google から戻った直後の移動で、`Lax` の発表者の Cookie は送られた。2 回目のレビューの「`Strict` だと送られない」は、Chromium では当たらなかった(`Strict` でも送られた)。Firefox と Safari は確かめていないので、`Lax` のままにする(D13 の理由を書き直した)。
+- Access: 正しい JWT は通り、`aud`・`iss`・期限・`email` なし・署名・`kid` の違う JWT と、メールアドレスのヘッダーだけで JWT がない要求は、すべて断れた。`/login` にだけ JWT を足す中継を挟み、ブラウザで発表者の画面まで進めた。
+- `http://localhost` で、`Secure` 付きの Cookie と `__Host-` の名前が使えた。
+
+**確かめられなかったこと**: 本番のデプロイで WebSocket が切れないか(Cloudflare の文書では、通常のデプロイでは切れず、強制の更新で切れる)。Access のパスを限ったアプリや Google の戻り先の登録など、管理画面の設定そのもの。Firefox と Safari での Cookie の扱い。
 
 ## 実装計画(承認後)
 
