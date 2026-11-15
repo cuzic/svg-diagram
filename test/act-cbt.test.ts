@@ -157,6 +157,109 @@ test('concentric: ring, sector and mark ids are anchors that connect() reaches',
   assert.deepEqual(problems, []);
 });
 
+// ---- concentric with sectors, layout: 'stack' -----------------------------------------------------------------------------------
+
+/** The grid of a stack: the outline, its columns (one per sector) and rows (one per ring, the innermost at the top). */
+function grid(s: LaidOutFlowShape, cols: number, rows: number) {
+  const r = s.primitives.find(p => p.k === 'rect')!;
+  if (r.k !== 'rect') throw new Error('no grid');
+  const colW = r.w / cols, rowH = r.h / rows;
+  return {r, col: (x: number) => Math.floor((x - r.x) / colW), row: (y: number) => Math.floor((y - r.y) / rowH), rowH};
+}
+
+test("concentric layout: 'stack' needs sectors and is 'circle' or 'stack'; in a spec too", () => {
+  assert.throws(() => concentricBand(RADAR, {layout: 'stack'}), /give sectors too/);
+  assert.throws(() => concentricBand(4, {sectors: DOMAINS, layout: 'grid' as never}), /'circle' or 'stack'/);
+  assert.equal(concentricBand(4, {sectors: DOMAINS, layout: 'stack'}).layout, 'stack');
+  assert.deepEqual(validateSpec({version: 1, title: 't', parts: [{type: 'concentric', rings: RADAR, layout: 'stack'}]}).map(i => i.path), ['parts[0].layout']);
+  assert.deepEqual(validateSpec({version: 1, title: 't', parts: [{type: 'concentric', rings: 3, sectors: DOMAINS, layout: 'stack'}]}), []);
+});
+
+test("concentric layout: 'stack': a column per sector, a row per ring (the innermost on top); each mark in its own box, r as the height in its row", async () => {
+  const marks = [{label: 'TS', sector: 1, ring: 'Adopt'}, {label: 'Go', sector: 1, ring: 'Adopt'}, {label: 'Rust', sector: 1, ring: 'Adopt'}, {label: 'Bun', sector: 2, ring: 'Trial'}, {label: 'k8s', sector: 4, ring: 'Hold'}, {label: '近い', sector: 3, r: .05}, {label: '遠い', sector: 3, r: .95}];
+  const {shape, problems} = await laid(concentric(RADAR, {order: 'inner-first', layout: 'stack', sectors: DOMAINS, centre: '中心', marks}));
+  assert.deepEqual(problems, []);
+  const g = grid(shape, 4, 4), dots = circles(shape).filter(c => c.r === 6);
+  const rowOf: Record<string, number> = {Adopt: 0, Trial: 1, Assess: 2, Hold: 3};
+  marks.forEach((m, i) => {
+    const d = dots[i]!;
+    assert.equal(g.col(d.cx), m.sector - 1, `${m.label} in column ${m.sector}`);
+    if (m.ring) assert.equal(g.row(d.cy), rowOf[m.ring], `${m.label} in the row of ${m.ring}`);
+  });
+  assert.equal(g.row(dots[5]!.cy), 0, 'r .05: the top row');
+  // r is a height inside its ring's row: the further out, the lower (the rings cut r as the circle does: edges at ((i + 1) / n)^0.75)
+  const heights = await laid(concentric(3, {layout: 'stack', sectors: DOMAINS, marks: [.02, .2, .42, .46, .7, .76, .98].map((r, i) => ({label: `m${i}`, sector: i % 4 + 1, r}))}));
+  const hg = grid(heights.shape, 4, 3), hy = circles(heights.shape).filter(c => c.r === 6).map(c => c.cy);
+  assert.deepEqual(hy.map(y => hg.row(y)), [0, 0, 0, 1, 1, 2, 2]);
+  for (let i = 1; i < hy.length; i++) assert.ok(hy[i]! > hy[i - 1]!, `r rises down the rows (${hy.join(', ')})`);
+  assert.ok(hy[2]! - hg.r.y > hg.rowH * .6, 'r .42 sits low in the top row (its edge is at .44)');
+  assert.equal(g.row(dots[6]!.cy), 3, 'r .95: the bottom row');
+  // the centre word heads the columns; the sector names sit under them; the ring names left of the rows
+  const label = (t: string) => shape.labelBoxes.find(b => b.label === t)!;
+  assert.ok(label('中心').y + label('中心').h <= g.r.y);
+  for (const s of DOMAINS) assert.ok(label(s.label).y >= g.r.y + g.r.h);
+  for (const r of RADAR) assert.ok(label(r.label).x + label(r.label).w <= g.r.x);
+  // the same data drawn as a circle has no grid
+  assert.ok(!(await laid(concentric(RADAR, {order: 'inner-first', sectors: DOMAINS, marks}))).shape.primitives.some(p => p.k === 'rect'));
+});
+
+test("concentric layout: 'stack': however crowded a box, its labels stay inside it (inside the frame), off every line, text, dot and arrow — the row grows", async () => {
+  const names = ['TypeScript', 'Effect', 'Biome', 'pnpm', 'Bun', 'Fly.io', 'Kubernetes', 'ADR', 'モブプロ', 'Deno', 'Vite', 'Turborepo'];
+  const spread = names.map((label, i) => ({label, sector: i % 4 + 1, ring: (i * 7) % 4 + 1}));
+  const many = (k: number, at: {ring: number} | {r: number}) => Array.from({length: k}, (_v, i) => ({label: `${['Cloudflare Workers', 'Amazon Web Services', 'Google Cloud Platform', 'Microsoft Azure'][i % 4]} ${i + 1}`, sector: 1, ...at}));
+  // a move across three columns: the marks in between keep off its arrow
+  const across = [{label: '移った', sector: 4, ring: 1, from: {sector: 1, ring: 1}}, {label: 'Bx', sector: 2, ring: 1}, {label: 'Cx', sector: 3, ring: 1}];
+  for (const marks of [spread, many(20, {ring: 1}), many(8, {r: .44}), many(8, {r: 0}), many(8, {r: 1}), across]) {
+    const band = concentric(RADAR, {order: 'inner-first', layout: 'stack', sectors: DOMAINS, marks});
+    const {shape, problems} = await laid(band);
+    assert.deepEqual(problems, []);
+    assert.deepEqual(shape.crossings ?? [], [], 'the row is as tall as its box needs: nothing has to cross a line');
+    const g = grid(shape, 4, 4), pts = linePoints(shape), dots = circles(shape).filter(c => c.r === 6);
+    const arrows = paths(shape).filter(p => p.arrow).map(p => p.d.replace(/[ML]/g, '').split(/[ ,]+/).filter(Boolean).map(Number) as [number, number, number, number]);
+    for (const l of shape.labelBoxes.filter(b => marks.some(m => b.label === m.label))) {
+      const m = marks.find(x => x.label === l.label)!, d = dots[marks.indexOf(m)]!;
+      assert.ok(l.x >= g.r.x && l.x + l.w <= g.r.x + g.r.w && l.y >= g.r.y && l.y + l.h <= g.r.y + g.r.h, `${l.label} inside the frame`);
+      assert.equal(g.col(l.x + l.w / 2), m.sector - 1, `${l.label} in its column`);
+      assert.equal(g.row(l.y + l.h / 2), g.row(d.cy), `${l.label} in its dot's row`);
+      for (const o of dots) assert.ok(!meet(l, {x: o.cx - 6, y: o.cy - 6, w: 12, h: 12}), `${l.label} on a dot`);
+      for (const o of shape.labelBoxes) if (o.label !== l.label) assert.ok(!meet(l, o), `${l.label} on "${o.label}"`);
+      assert.ok(!crosses(l, pts), `${l.label} crosses a line`);
+    }
+    for (const [x1, y1, x2, y2] of arrows) for (const d of dots) {
+      const L = Math.hypot(x2 - x1, y2 - y1), u = ((d.cx - x1) * (x2 - x1) + (d.cy - y1) * (y2 - y1)) / L / L;
+      if (u > .02 && u < .98) assert.ok(Math.hypot(x1 + u * (x2 - x1) - d.cx, y1 + u * (y2 - y1) - d.cy) >= 7, `a dot at ${d.cx},${d.cy} on an arrow`);
+    }
+  }
+});
+
+test("concentric layout: 'stack': too narrow a band is an error that says how wide; long ring names make the rows taller", async () => {
+  const eight = Array.from({length: 8}, (_v, i) => ({label: `S${i + 1}`}));
+  await assert.rejects(checkDiagram(diagram({theme: 'blue', width: 360}).add(concentric(RADAR, {order: 'inner-first', layout: 'stack', sectors: eight}))), /layout 'stack' with 8 sectors needs a band at least \d+px wide/);
+  const long = [{label: 'とても長い輪の名前がここに入ります二十四字'}, {label: 'もうひとつとても長い輪の名前がここに入る'}, {label: 'さらに長い輪の名前がここにありますよ三'}];
+  const {shape, problems} = await laid(concentric(long, {layout: 'stack', sectors: DOMAINS, marks: [{label: 'x', sector: 1, ring: 1}]}));
+  assert.deepEqual(problems, []);
+  const g = grid(shape, 4, 3);
+  for (const r of long) { const b = shape.labelBoxes.find(x => x.label === r.label)!; assert.ok(b.h + 8 <= g.rowH, `${r.label}: its row holds it`); }
+});
+
+test("concentric layout: 'stack': from is an arrow up or down its column; from another column it starts mid-column, clear of the marks there", async () => {
+  const {shape, problems} = await laid(concentric(3, {layout: 'stack', sectors: DOMAINS, centre: '価値に沿った生き方', marks: [{label: '資格の勉強', sector: 1, r: .3, from: {r: .7}}, {label: '週 1 で運動', sector: 3, r: .65, from: {r: .45}}]}));
+  assert.deepEqual(problems, []);
+  const arrows = paths(shape).filter(p => p.arrow).map(p => p.d.replace(/[ML]/g, '').split(/[ ,]+/).filter(Boolean).map(Number) as [number, number, number, number]);
+  assert.equal(arrows.length, 3, 'two moves and the key');
+  const [up, down] = arrows as [[number, number, number, number], [number, number, number, number]];
+  assert.ok(Math.abs(up[0] - up[2]) < 1 && up[3] < up[1], 'closer to the values: up');
+  assert.ok(Math.abs(down[0] - down[2]) < 1 && down[3] > down[1], 'further: down');
+  assert.ok(shape.texts.some(t => t.text === '前回'));
+  for (const r of [.2, .5, .8]) {
+    const moved = await laid(concentric(3, {layout: 'stack', sectors: DOMAINS, marks: [{label: 'x', sector: 1, r}, {label: 'y', sector: 1, r}, {label: '移った', sector: 3, r, from: {sector: 1, r}}]}));
+    assert.deepEqual(moved.problems, []);
+    const was = circles(moved.shape).find(c => c.dash === '2,2')!, g = grid(moved.shape, 4, 3);
+    assert.ok(Math.abs(was.cx - (g.r.x + g.r.w / 8)) <= 2, 'it was in the middle of column 1');
+    for (const d of circles(moved.shape).filter(c => c.r === 6)) assert.ok(Math.hypot(was.cx - d.cx, was.cy - d.cy) >= 24, `r ${r}: a dot ${Math.hypot(was.cx - d.cx, was.cy - d.cy).toFixed(1)}px from where it was`);
+  }
+});
+
 // ---- cycle with links --------------------------------------------------------------------------------------------------------
 
 test('cycleBand with links: every pair, or the links given (by number, id or label); bad links are refused', () => {
@@ -290,6 +393,7 @@ test('the new figures and the ACT Matrix pass the strict SVG lint (build), in a 
     quadrant.preset('actMatrix', {items: [{label: '不安', cell: [0, 1]}, {label: '先延ばし', cell: [0, 0]}, {label: '家族', cell: [1, 1]}, {label: '電話する', cell: [1, 0]}]}),
     concentric(3, {sectors: DOMAINS, centre: '価値に沿った生き方', marks: [{label: '資格の勉強', sector: 1, r: .3, from: {r: .8}}, {label: '家族と夕食', sector: 2, r: .6}]}),
     cycle([{label: '思考'}, {label: '感情'}, {label: '身体'}, {label: '行動'}], {links: 'all', frame: '状況・環境', centre: '本人'}),
+    concentric(RADAR, {order: 'inner-first', layout: 'stack', sectors: DOMAINS, marks: [{label: 'Biome', sector: 2, ring: 'Adopt', from: {ring: 'Trial'}}, {label: 'Bun', sector: 2, ring: 'Trial'}]}),
   ];
   for (const [i, band] of bands.entries()) for (const dark of [false, true]) {
     const file = path.join(dir, `${i}-${dark}.svg`);

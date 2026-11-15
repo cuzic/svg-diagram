@@ -51,6 +51,8 @@ export interface ConcentricOpts extends RevealOpts, ScopeOpts {
   marks?: readonly ConcentricMark[];
   /** The two words of the key under the figure when a mark has `from` — where it was, where it is (default ['前回', '今回']); false leaves the key out. */
   fromLegend?: readonly [was: string, now: string] | false;
+  /** ADR 0065: with sectors, how the same rings, sectors and marks are drawn — 'circle' (default: rings cut into sectors) or 'stack' (a column of boxes per sector, the innermost ring the top row). */
+  layout?: 'circle' | 'stack';
 }
 /** A sector of a concentric (ADR 0065). */
 export interface ConcentricSector {label: string; id?: string}
@@ -195,6 +197,8 @@ export function concentricBand(rings: readonly ConcentricRing[] | number, opts: 
   const {sectors, marks, ...rest} = opts;
   if (marks !== undefined && !sectors) throw new Error('concentric(): marks sit in sectors — give sectors too');
   if (opts.fromLegend !== undefined && !sectors) throw new Error('concentric(): fromLegend is the key of the marks\' moves — give sectors and marks');
+  if (opts.layout !== undefined && opts.layout !== 'circle' && opts.layout !== 'stack') throw new Error(`concentric(): layout must be 'circle' or 'stack' (got ${JSON.stringify(opts.layout)})`);
+  if (opts.layout === 'stack' && !sectors) throw new Error("concentric(): layout: 'stack' draws the sectors as columns — give sectors too");
   if (!sectors) return {...rest, type: 'concentric', rings: list, order, labels};
   if (labels === 'side') throw new Error("concentric(): with sectors the ring names are written along the 12 o'clock cut — leave out labels: 'side'");
   if (list.some(r => r.description)) throw new Error("concentric(): a ring's description is written in the side key only (labels: 'side'), which sectors do not have");
@@ -326,7 +330,7 @@ export function layoutFlowShape(b: FlowShapeBand, x: number, y: number, cw: numb
     case 'funnel': layoutFunnel(b, out, t, anchor, roles); break;
     case 'cycle': framed(b.frame, out, t, () => b.links ? layoutLinked(b, out, t, anchor, roles) : layoutCycle(b, out, t, anchor, roles)); break;
     case 'venn': layoutVenn(b, out, t, anchor); break;
-    case 'concentric': if (b.sectors) layoutSectors(b, out, t, anchor); else layoutConcentric(b, out, t, anchor, roles); break;
+    case 'concentric': if (b.sectors) (b.layout === 'stack' ? layoutStack : layoutSectors)(b, out, t, anchor); else layoutConcentric(b, out, t, anchor, roles); break;
     case 'emblem': layoutEmblem(b, out, t, anchor); break;
     case 'valueChain': layoutValueChain(b, out, t, anchor); break;
   }
@@ -662,6 +666,25 @@ function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: An
 // the nearest spot where it only crosses a line, which is reported (`crossings`). A mark with `from` gets a dotted ring where it was and an
 // arrow to where it is now, and the key under the figure draws the two the same way.
 const rectsHit = (a: Rect, b: Rect, m = 2): boolean => a.x < b.x + b.w + m && b.x < a.x + a.w + m && a.y < b.y + b.h + m && b.y < a.y + a.h + m;
+type Block = ReturnType<Texts['wrap']>;
+type LabelSide = {x: number; top: number; anchor: FlowText['anchor']; box: Rect};
+/** The eight places for a mark's label beside its dot: right, left, above, below, then the corners — `right`: the right side first. */
+function labelSides(blk: Block, px: number, py: number, right: boolean): LabelSide[] {
+  const sides: {x: number; top: number; anchor: FlowText['anchor']; box: Rect}[] = [
+    {x: px + 10, top: py - blk.h / 2, anchor: 'start', box: {x: px + 10, y: py - blk.h / 2, w: blk.w, h: blk.h}},
+    {x: px - 10, top: py - blk.h / 2, anchor: 'end', box: {x: px - 10 - blk.w, y: py - blk.h / 2, w: blk.w, h: blk.h}},
+    {x: px, top: py - 9 - blk.h, anchor: 'middle', box: {x: px - blk.w / 2, y: py - 9 - blk.h, w: blk.w, h: blk.h}},
+    {x: px, top: py + 9, anchor: 'middle', box: {x: px - blk.w / 2, y: py + 9, w: blk.w, h: blk.h}},
+    {x: px + 7, top: py - 7 - blk.h, anchor: 'start', box: {x: px + 7, y: py - 7 - blk.h, w: blk.w, h: blk.h}},
+    {x: px - 7, top: py - 7 - blk.h, anchor: 'end', box: {x: px - 7 - blk.w, y: py - 7 - blk.h, w: blk.w, h: blk.h}},
+    {x: px + 7, top: py + 7, anchor: 'start', box: {x: px + 7, y: py + 7, w: blk.w, h: blk.h}},
+    {x: px - 7, top: py + 7, anchor: 'end', box: {x: px - 7 - blk.w, y: py + 7, w: blk.w, h: blk.h}},
+  ];
+  // right, left, above, below, then the corners — the side away from the centre first
+  return (right ? [0, 1, 2, 3, 4, 6, 5, 7] : [1, 0, 2, 3, 5, 7, 4, 6]).map(i => must(sides[i]));
+}
+/** A mark as placed: its dot, its label's place, and where it was. */
+type PlacedMark = {px: number; py: number; side: LabelSide; crossing: boolean; blk: Block; m: ConcentricPlaced; mi: number; from?: Pt};
 function layoutSectors(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
   const sectors = b.sectors ?? [], marks = b.marks ?? [];
   const w = out.w, n = b.rings.length, k = sectors.length;
@@ -712,64 +735,163 @@ function layoutSectors(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, ancho
   };
   const crossesCut = (r: Rect) => cuts.some(([p, q]) => { for (let u = 0; u <= 1; u += 1 / 64) { const x = p[0] + (q[0] - p[0]) * u, y = p[1] + (q[1] - p[1]) * u; if (x >= r.x - 2 && x <= r.x + r.w + 2 && y >= r.y - 2 && y <= r.y + r.h + 2) return true; } return false; });
   const inside = (r: Rect) => r.x >= out.x && r.x + r.w <= out.x + w && r.y >= out.y && r.y + r.h <= out.y + out.h - legendH;
-  const labelSides = (blk: ReturnType<Texts['wrap']>, px: number, py: number, right: boolean) => {
-    const sides: {x: number; top: number; anchor: FlowText['anchor']; box: Rect}[] = [
-      {x: px + 10, top: py - blk.h / 2, anchor: 'start', box: {x: px + 10, y: py - blk.h / 2, w: blk.w, h: blk.h}},
-      {x: px - 10, top: py - blk.h / 2, anchor: 'end', box: {x: px - 10 - blk.w, y: py - blk.h / 2, w: blk.w, h: blk.h}},
-      {x: px, top: py - 9 - blk.h, anchor: 'middle', box: {x: px - blk.w / 2, y: py - 9 - blk.h, w: blk.w, h: blk.h}},
-      {x: px, top: py + 9, anchor: 'middle', box: {x: px - blk.w / 2, y: py + 9, w: blk.w, h: blk.h}},
-      {x: px + 7, top: py - 7 - blk.h, anchor: 'start', box: {x: px + 7, y: py - 7 - blk.h, w: blk.w, h: blk.h}},
-      {x: px - 7, top: py - 7 - blk.h, anchor: 'end', box: {x: px - 7 - blk.w, y: py - 7 - blk.h, w: blk.w, h: blk.h}},
-      {x: px + 7, top: py + 7, anchor: 'start', box: {x: px + 7, y: py + 7, w: blk.w, h: blk.h}},
-      {x: px - 7, top: py + 7, anchor: 'end', box: {x: px - 7 - blk.w, y: py + 7, w: blk.w, h: blk.h}},
-    ];
-    // right, left, above, below, then the corners — the side away from the centre first
-    return (right ? [0, 1, 2, 3, 4, 6, 5, 7] : [1, 0, 2, 3, 5, 7, 4, 6]).map(i => must(sides[i]));
-  };
-  type Spot = {a: number; r: number; px: number; py: number; side: ReturnType<typeof labelSides>[number]; crossing: boolean};
-  const placed: (Spot & {m: ConcentricPlaced; mi: number; blk: ReturnType<Texts['wrap']>; from?: Pt})[] = [];
   // where a mark was in another sector is a fixed spot (the middle of that sector at its distance): no dot is put there
   const wasAt = (m: ConcentricPlaced, a: number): Pt | undefined => m.from ? at(m.from.sector === m.sector ? a : a0 + span * (m.from.sector + .5), radius(m.from.at)) : undefined;
   for (const m of marks) if (m.from && m.from.sector !== m.sector) { const [x, y] = must(wasAt(m, 0)); busy.push({x: x - 8, y: y - 8, w: 16, h: 16}); }
-  marks.forEach((m, mi) => {
-    const same = (x: ConcentricPlaced) => x.sector === m.sector && ('ring' in x.at ? 'ring' in m.at && x.at.ring === m.at.ring : 'r' in m.at && x.at.r === m.at.r);
-    const mine = marks.filter(same), j = mine.indexOf(m), lo = a0 + span * m.sector, hi = lo + span, home = radius(m.at);
-    const ideal = lo + span * (j + 1) / (mine.length + 1), ring = 'ring' in m.at ? m.at.ring : undefined;
-    // a mark on a ring may move within 30% of the ring's width; a mark at r, 8% of the radius (r is where it is about)
-    const band = ring === undefined ? R * .08 : (edge(ring) - edge(ring - 1)) * .3;
-    // the label on one line, or failing that (clear of every line) on two narrower ones
-    const wide = t.wrap(m.label, 130, 400), narrow = t.wrap(m.label, Math.max(56, wide.w * .55), 400), blocks = narrow.lines.length > wide.lines.length && narrow.lines.length <= 3 ? [wide, narrow] : [wide];
-    let best: (Spot & {blk: typeof wide}) | undefined;
-    // the nearest spot first: along the circle (both ways), then a little in and out within the ring
-    search: for (const [strict, blk] of [...blocks.map(x => [true, x] as const), [false, wide] as const]) for (const dr of [0, band / 2, -band / 2, band, -band]) {
-      const r = Math.max(0, home + dr), step = r > 0 ? Math.min(.2, 8 / r) : Math.PI;
-      for (let i = 0; i < 60; i++) {
-        const a = ideal + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * step;
-        if (k > 1 && (a < lo + .03 || a > hi - .03)) continue;
-        const [x, y] = at(a, r), px = g4(x), py = g4(y), dot = {x: px - 8, y: py - 8, w: 16, h: 16};
-        if (busy.some(o => rectsHit(o, dot, 0))) continue;
-        // its own move: the label keeps off the arrow from where it was (the line between the two dots); and, while it can, the dotted ring
-        // and the arrow keep off the other marks' dots and labels (a ring on another mark's dot would read as that mark's move)
-        const was = wasAt(m, a);
-        const trail: Rect[] = was ? Array.from({length: 9}, (_v, q) => ({x: was[0] + (px - was[0]) * q / 8 - 5, y: was[1] + (py - was[1]) * q / 8 - 5, w: 10, h: 10})) : [];
-        if (strict && was && m.from?.sector === m.sector && busy.some(o => rectsHit(o, {x: was[0] - 8, y: was[1] - 8, w: 16, h: 16}, 0))) continue;
-        if (strict && trail.slice(1, -1).some(tr => busy.some(o => rectsHit(o, tr, 0)))) continue;
-        for (const side of labelSides(blk, px, py, Math.cos(a) >= 0 || r === 0)) {
-          if (!inside(side.box) || busy.some(o => rectsHit(o, side.box)) || rectsHit(side.box, dot, 0) || trail.some(o => rectsHit(o, side.box, 0))) continue;
-          const crossing = crossesRing(side.box) || crossesCut(side.box);
-          if (strict && crossing) continue;
-          best = {a, r, px, py, side, crossing, blk};
-          break search;
+  const placed = placeMarks(marks, t, busy, {
+    width: 130, inside, crossing: r => crossesRing(r) || crossesCut(r),
+    // the nearest spot first: along the circle (both ways) from the mark's share of its sector, then a little in and out (a mark on a ring
+    // within 30% of the ring's width; a mark at r, 8% of the radius: r is where it is about)
+    *spots(m, j, count) {
+      const lo = a0 + span * m.sector, hi = lo + span, home = radius(m.at), ideal = lo + span * (j + 1) / (count + 1);
+      const band = 'ring' in m.at ? (edge(m.at.ring) - edge(m.at.ring - 1)) * .3 : R * .08;
+      for (const dr of [0, band / 2, -band / 2, band, -band]) {
+        const r = Math.max(0, home + dr), step = r > 0 ? Math.min(.2, 8 / r) : Math.PI;
+        for (let i = 0; i < 60; i++) {
+          const a = ideal + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * step;
+          if (k > 1 && (a < lo + .03 || a > hi - .03)) continue;
+          const [x, y] = at(a, r), was = wasAt(m, a);
+          yield {px: g4(x), py: g4(y), right: Math.cos(a) >= 0 || r === 0, ...(was ? {was} : {})};
         }
       }
-    }
-    const spot = best ?? (() => { const [x, y] = at(ideal, home), px = g4(x), py = g4(y); return {a: ideal, r: home, px, py, side: must(labelSides(wide, px, py, true)[0]), crossing: true, blk: wide}; })();
-    busy.push({x: spot.px - 8, y: spot.py - 8, w: 16, h: 16}, spot.side.box);
-    const from = wasAt(m, spot.a);
-    // where it was, and the arrow from there, are taken too: a later dot beside the arrow would read as the one that moved
-    if (from) for (let q = 0; q <= 1; q += .125) busy.push({x: from[0] + (spot.px - from[0]) * q - 8, y: from[1] + (spot.py - from[1]) * q - 8, w: 16, h: 16});
-    placed.push({...spot, m, mi, ...(from ? {from} : {})});
+    },
   });
+  drawMarks(placed, out, t, anchor, cx, legendWords);
+}
+
+/** Where a layout lets a mark's dot go, nearest first, and what its label must stay inside and should not cross. */
+interface MarkGeometry {
+  /** the width a label wraps to (on one line; failing that, on two narrower ones) */
+  width: number;
+  inside(r: Rect): boolean;
+  crossing(r: Rect): boolean;
+  /** how far (px) another dot keeps from where a mark was, beyond touching (default 0) */
+  wasRoom?: number;
+  /** `j` of `count`: the mark's share among the marks at the same place in its sector; `right`: try the label's right side first; `was`: where it was */
+  spots(m: ConcentricPlaced, j: number, count: number): Iterable<{px: number; py: number; right: boolean; was?: Pt}>;
+}
+/** ADR 0065: each mark in turn takes the first spot where its dot hits nothing in `busy` and its label (beside the dot) stays inside, crosses no
+ * line and touches no text, dot or its own move; failing that, on two lines; failing that, the first spot where the label only crosses a line
+ * (reported). Its dot, label and move are then added to `busy`. */
+function placeMarks(marks: readonly ConcentricPlaced[], t: Texts, busy: Rect[], g: MarkGeometry): PlacedMark[] {
+  const placed: PlacedMark[] = [];
+  marks.forEach((m, mi) => {
+    const same = (x: ConcentricPlaced) => x.sector === m.sector && ('ring' in x.at ? 'ring' in m.at && x.at.ring === m.at.ring : 'r' in m.at && x.at.r === m.at.r);
+    const mine = marks.filter(same), j = mine.indexOf(m);
+    const wide = t.wrap(m.label, g.width, 400), narrow = t.wrap(m.label, Math.max(56, wide.w * .55), 400), blocks = narrow.lines.length > wide.lines.length && narrow.lines.length <= 3 ? [wide, narrow] : [wide];
+    let best: {px: number; py: number; side: LabelSide; crossing: boolean; blk: Block; was?: Pt} | undefined;
+    search: for (const [strict, blk] of [...blocks.map(x => [true, x] as const), [false, wide] as const]) for (const {px, py, right, was} of g.spots(m, j, mine.length)) {
+      const dot = {x: px - 8, y: py - 8, w: 16, h: 16};
+      if (busy.some(o => rectsHit(o, dot, 0))) continue;
+      // its own move: the label keeps off the arrow from where it was (the line between the two dots); and, while it can, the dotted ring
+      // and the arrow keep off the other marks' dots and labels (a ring on another mark's dot would read as that mark's move)
+      const steps = was ? Math.max(8, Math.ceil(Math.hypot(px - was[0], py - was[1]) / 8)) : 0;
+      const trail: Rect[] = was ? Array.from({length: steps + 1}, (_v, q) => ({x: was[0] + (px - was[0]) * q / steps - 5, y: was[1] + (py - was[1]) * q / steps - 5, w: 10, h: 10})) : [];
+      if (strict && was && m.from?.sector === m.sector && busy.some(o => rectsHit(o, {x: was[0] - 8, y: was[1] - 8, w: 16, h: 16}, 0))) continue;
+      if (strict && trail.slice(1, -1).some(tr => busy.some(o => rectsHit(o, tr, 0)))) continue;
+      for (const side of labelSides(blk, px, py, right)) {
+        if (!g.inside(side.box) || busy.some(o => rectsHit(o, side.box)) || rectsHit(side.box, dot, 0) || trail.some(o => rectsHit(o, side.box, 0))) continue;
+        const crossing = g.crossing(side.box);
+        if (strict && crossing) continue;
+        best = {px, py, side, crossing, blk, ...(was ? {was} : {})};
+        break search;
+      }
+    }
+    const spot = best ?? (() => { const s0 = must([...g.spots(m, j, mine.length)][0]); return {px: s0.px, py: s0.py, side: must(labelSides(wide, s0.px, s0.py, true)[0]), crossing: true, blk: wide, ...(s0.was ? {was: s0.was} : {})}; })();
+    busy.push({x: spot.px - 8, y: spot.py - 8, w: 16, h: 16}, spot.side.box);
+    const from = spot.was;
+    // where it was, and the arrow from there, are taken too: a later dot beside the arrow would read as the one that moved
+    // (one box every 12px or closer, however long the move: a long arrow across columns has no gaps for a dot)
+    const steps = from ? Math.max(8, Math.ceil(Math.hypot(spot.px - from[0], spot.py - from[1]) / 12)) : 0;
+    if (from) for (let q = 0; q <= steps; q++) busy.push({x: from[0] + (spot.px - from[0]) * q / steps - 8, y: from[1] + (spot.py - from[1]) * q / steps - 8, w: 16, h: 16});
+    const room = g.wasRoom ?? 0;
+    if (from && room) busy.push({x: from[0] - 8 - room, y: from[1] - 8 - room, w: 16 + 2 * room, h: 16 + 2 * room});
+    placed.push({px: spot.px, py: spot.py, side: spot.side, crossing: spot.crossing, blk: spot.blk, m, mi, ...(from ? {from} : {})});
+  });
+  return placed;
+}
+
+// concentric with sectors, layout: 'stack' (ADR 0065): the same rings, sectors and marks as columns of boxes — a column per sector (left to
+// right), a row per ring with the innermost at the top. The centre's word heads the columns, the sector names sit under them and the ring names
+// (when they have names) left of the rows. A mark on a ring sits in its row's box; a mark at r sits at that height of its ring's row (r is cut
+// into rings as the circle cuts it: edges at ((i + 1) / n)^0.75). The marks are placed as on the circle (placeMarks): a label stays in its own
+// box, or is reported. A mark from another column was at the middle of that column, at its height.
+function layoutStack(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
+  const sectors = b.sectors ?? [], marks = b.marks ?? [], n = b.rings.length, k = sectors.length;
+  const inner1st = b.order === 'outer-first' ? b.rings.toReversed() : b.rings; // [0] is the innermost: the top row
+  const ringBlks = inner1st.map(r => r.label ? t.wrap(r.label, 96, 400) : undefined), gutter = ringBlks.some(Boolean) ? Math.max(...ringBlks.map(x => x?.w ?? 0)) + 16 : 0;
+  const left = g4(out.x + 8 + gutter), right = g4(out.x + out.w - 8), colW = (right - left) / k;
+  if (colW < 96) throw new Error(`concentric(): layout 'stack' with ${k} sectors needs a band at least ${Math.ceil(k * 96 + 16 + gutter)}px wide (got ${Math.round(out.w)}px) — widen it, use fewer sectors, or the circle`);
+  const secs = sectors.map(s => t.wrap(s.label, colW - 12)), secH = Math.max(...secs.map(x => x.h));
+  const centre = b.centre ? t.wrap(b.centre, right - left, 700) : undefined;
+  const e = (i: number): number => i < 0 ? 0 : ((i + 1) / n) ** .75; // the outer edge of ring i, as a share of the radius
+  const rowOf = (a: MarkAt): number => 'ring' in a ? a.ring : Math.max(0, Array.from({length: n}, (_v, i) => i).find(i => a.r <= e(i) + 1e-9) ?? n - 1);
+  // the rows are as tall as the fullest box needs: its marks one above another
+  const need = new Map<string, number>(), labelW = Math.max(56, colW - 38);
+  for (const m of marks) { const key = `${m.sector},${rowOf(m.at)}`; need.set(key, (need.get(key) ?? 16) + t.wrap(m.label, labelW, 400).h + 20); }
+  // (taller when a mark is at r: its height in the row says how far it is, and a move within a row needs room for its arrow)
+  // (and as tall as a ring's name; taller when a mark is at r or was at r: its height in the row says how far, and a move within a row needs
+  // room for its arrow)
+  const rowH = g4(Math.max(marks.some(m => 'r' in m.at || (m.from && 'r' in m.from.at)) ? 88 : 64, ...need.values(), ...ringBlks.map(x => (x?.h ?? 0) + 16)));
+  const top = g4(out.y + (centre ? centre.h + 12 : 0)), bottom = top + n * rowH, cx = g4((left + right) / 2);
+  const legendWords = marksLegend(b), legendH = legendWords ? 28 : 0;
+  out.h = bottom + 8 + secH + 8 + legendH - out.y;
+  const f1 = (v: number) => v.toFixed(1), colX = (i: number) => left + colW * i, rowY = (i: number) => top + rowH * i;
+  const yOf = (a: MarkAt): number => {
+    if ('ring' in a) return rowY(a.ring) + rowH / 2;
+    const i = rowOf(a), f = (a.r - e(i - 1)) / (e(i) - e(i - 1));
+    return rowY(i) + 12 + Math.min(1, Math.max(0, f)) * (rowH - 24);
+  };
+  out.primitives.push({k: 'rect', x: left, y: top, w: right - left, h: bottom - top, tone: 'muted'});
+  const lines: [Pt, Pt][] = [
+    ...Array.from({length: n - 1}, (_v, i): [Pt, Pt] => [[left, rowY(i + 1)], [right, rowY(i + 1)]]),
+    ...Array.from({length: k - 1}, (_v, i): [Pt, Pt] => [[colX(i + 1), top], [colX(i + 1), bottom]]),
+  ];
+  for (const [[x1, y1], [x2, y2]] of lines) out.primitives.push({k: 'path', d: `M${f1(x1)},${f1(y1)} L${f1(x2)},${f1(y2)}`, tone: 'muted', thin: true});
+  if (centre) t.place(centre, cx, out.y);
+  inner1st.forEach((ring, i) => {
+    const part = partStep('ring', ring.id ?? i, ring.label), blk = ringBlks[i];
+    anchor(ring.id, {x: left, y: rowY(i), w: right - left, h: rowH}, part);
+    if (blk) t.place(blk, left - 8, rowY(i) + (rowH - blk.h) / 2, ring.tone ?? 'muted', 'end', part);
+  });
+  sectors.forEach((s, i) => {
+    const part = partStep('sector', s.id ?? i, s.label);
+    t.place(must(secs[i]), colX(i) + colW / 2, bottom + 8, 'text', 'middle', part);
+    anchor(s.id, {x: colX(i), y: top, w: colW, h: bottom - top}, part);
+  });
+  const busy: Rect[] = out.labelBoxes.map(r => ({x: r.x - 4, y: r.y - 2, w: r.w + 8, h: r.h + 4}));
+  // where a mark was in another column is a fixed spot (the middle of that column at its height): no dot is put there
+  const wasAt = (m: ConcentricPlaced, px: number): Pt | undefined => m.from ? [m.from.sector === m.sector ? px : g4(colX(m.from.sector) + colW / 2), g4(yOf(m.from.at))] : undefined;
+  for (const m of marks) if (m.from && m.from.sector !== m.sector) { const [x, y] = must(wasAt(m, 0)); busy.push({x: x - 16, y: y - 16, w: 32, h: 32}); }
+  const placed = placeMarks(marks, t, busy, {
+    width: labelW, wasRoom: 24,
+    inside: r => r.x >= left + 2 && r.x + r.w <= right - 2 && r.y >= top + 2 && r.y + r.h <= bottom - 2,
+    crossing: r => lines.some(([p, q]) => p[0] === q[0] ? p[0] > r.x - 2 && p[0] < r.x + r.w + 2 : p[1] > r.y - 2 && p[1] < r.y + r.h + 2),
+    // the dot starts at the left of its box (the marks on one ring one above another; the marks at one r side by side) and moves along the
+    // row, then a little up and down (a mark on a ring within 30% of the row, a mark at r 15%: r is where it is about; then anywhere in the row)
+    *spots(m, j, count) {
+      const row = rowOf(m.at), lo = colX(m.sector) + 16, hi = colX(m.sector + 1) - 16, onRing = 'ring' in m.at;
+      const y0 = onRing ? rowY(row) + rowH * (j + 1) / (count + 1) : yOf(m.at), x0 = onRing ? lo : lo + (hi - lo) * j / count;
+      // (failing those, anywhere in its row, the nearest first: a mark on a ring says only its row; a mark at r stays in its ring, and the row
+      // is as tall as all the labels of its box, so the marks at one r stand one above another rather than overlap)
+      const band = rowH * (onRing ? .3 : .15), sweep = Array.from({length: Math.floor(rowH / 8)}, (_v, i) => rowY(row) + 8 + i * 8 - y0).sort((p, q) => Math.abs(p) - Math.abs(q));
+      for (const dy of [0, band / 2, -band / 2, band, -band, ...sweep]) {
+        const py = g4(Math.min(rowY(row + 1) - 8, Math.max(rowY(row) + 8, y0 + dy)));
+        for (let i = 0; i <= 2 * Math.ceil((hi - lo) / 8) + 1; i++) {
+          const px = g4(x0 + (i % 2 ? -1 : 1) * Math.ceil(i / 2) * 8);
+          if (px < lo || px > hi) continue;
+          const was = wasAt(m, px);
+          yield {px, py, right: px - colX(m.sector) < colW * .6, ...(was ? {was} : {})};
+        }
+      }
+    },
+  });
+  drawMarks(placed, out, t, anchor, cx, legendWords);
+}
+
+/** The marks (ADR 0065), drawn the same in both layouts: where it was (a dotted ring) and the arrow from there, the dot and its label; then the key under the figure. */
+function drawMarks(placed: readonly PlacedMark[], out: LaidOutFlowShape, t: Texts, anchor: AnchorFn, cx: number, legendWords: readonly [string, string] | undefined): void {
+  const f1 = (v: number) => v.toFixed(1);
   const moved = (fx: number, fy: number, px: number, py: number, part: string) => {
     out.primitives.push({k: 'circle', cx: fx, cy: fy, r: 5, tone: 'muted', opacity: .15, dash: '2,2', part});
     const d = Math.hypot(px - fx, py - fy);

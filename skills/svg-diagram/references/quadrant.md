@@ -30,7 +30,7 @@
 | ワーク | 書き方 |
 |---|---|
 | ACT Matrix | `quadrant.preset('actMatrix', {items})`。縦は「どこで起きるか」：五感で感じる（外、上）↔ 心の中（内、下）。横は離れる（away）↔ 向かう（toward）。左下＝内側の体験、左上＝離れる行動、右下＝大切な人や物事（価値）、右上＝向かう行動、中心に「気づいている自分」。`cell: [列, 行]` は見た目の順なので、左下は `[0, 1]` |
-| Values Bullseye・技術レーダー | `concentric(rings, {sectors, marks, centre?})`。`sectors` は 12 時から時計回り（1〜8）。`rings` は名前付きの輪か、扇形があるときは数（Bullseye は `concentric(3, {...})`）。技術レーダーは `[{label: 'Adopt'}, ...]` に `order: 'inner-first'`。印は `{label, sector, ring｜r, tone?, id?, from?}`：`sector` は番号（1 から）か見出しか id、`ring` は `rings` に書いた順の番号か名前、`r` は 0（中心）〜1（外周）。`from: {ring｜r, sector?}` は前回の位置で、点線の丸から矢印を引き、図の下に同じ描き方の凡例を付ける（`fromLegend: ['前回', '今回']`、`false` で消す） |
+| Values Bullseye・技術レーダー | `concentric(rings, {sectors, marks, centre?})`。`sectors` は 12 時から時計回り（1〜8）。`rings` は名前付きの輪か、扇形があるときは数（Bullseye は `concentric(3, {...})`）。技術レーダーは `[{label: 'Adopt'}, ...]` に `order: 'inner-first'`。印は `{label, sector, ring｜r, tone?, id?, from?}`：`sector` は番号（1 から）か見出しか id、`ring` は `rings` に書いた順の番号か名前、`r` は 0（中心）〜1（外周）。`from: {ring｜r, sector?}` は前回の位置で、点線の丸から矢印を引き、図の下に同じ描き方の凡例を付ける（`fromLegend: ['前回', '今回']`、`false` で消す）。`layout: 'stack'` で同じデータを扇形ごとの列・輪ごとの段（内側の輪が最上段）の箱で描く |
 | CBT 5 領域モデル | `cycle(steps, {links: 'all', frame})`。要素を正多角形（4 個は正方形）に置き、全部の組を両向き矢印で結ぶ。`frame` は外枠とその名前（「状況・環境：…」）。全部の組の代わりに `links: [{from, to, label?, direction: 'forward'}]`（番号・id・見出し）。`centre` は中心の円に書く |
 
 - Bullseye は「価値の領域 × 価値に沿えた度合い（中心ほど沿えている）」。印の見出しは「今週」ではなく行動（「週 1 で運動」）にする。週ごとの比較は `from` に先週の `r` を書く。

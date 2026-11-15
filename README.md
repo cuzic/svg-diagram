@@ -483,10 +483,11 @@ valueChain({support: ['全般管理', '人事・労務管理', '技術開発', '
 - `concentric` の `sectors`（ADR 0065）: 同心円を扇形に区切り、印を置く（ACT の Values Bullseye、技術レーダー）。`concentric(rings, {sectors, marks, centre, order, fromLegend})`。扇形は 12 時から時計回り（1〜8 個）。`rings` は名前付きの輪のほか、扇形があるときは数（1〜6、名前なしの輪）でもよい。印は `{label, sector, ring｜r, tone, id, from}`：`sector` は番号（1 から）・見出し・id、`ring` は `rings` に書いた順の番号（`order` に従う）か名前、`r` は 0（中心）〜1（外周）。輪の名前は 12 時の区切り線に沿って書く（`labels: 'side'` とは併用できない）。内側の輪ほど少し広く、`centre` の言葉があればいちばん内側の輪がそれに合わせて広がる。
   - 印の見出しは、輪の線・区切り線・ほかの文字・点・自分の移動の矢印に重ならない場所を探す（点を輪に沿って、輪の印は輪の幅の 3 割まで、`r` の印は半径の 8% まで内外にずらし、見出しは右・左・上・下・斜め、収まらなければ 2 行にする）。どうしても線をまたぐ印は警告 `concentric-label-crossing` が名前で知らせる。
   - `from: {ring｜r, sector?}` は前回の位置で、点線の丸から今の点へ矢印を引く。図の下の凡例も同じ点線の丸・矢印・点で描く（言葉は `fromLegend: [前回, 今回]` で変える、`false` で消す）。
+  - `layout: 'stack'`: 同じデータ（扇形・輪・印・`from`）を、扇形ごとの列に輪の箱を積み重ねた形で描く。いちばん内側の輪が最上段（技術レーダーなら Adopt が上）、`centre` の言葉は列の上の見出し、扇形の名前は列の下、輪の名前は段の左。`ring` の印はその段の箱に、`r` の印は段の中の高さに置く（`r` を輪に分ける境は円の既定と同じ。円で `centre` の言葉のために内側の輪が広がるときは、境の近くの `r` が別の段になりうる）。`from` は列の中の上下の矢印、別の列からはその列の真ん中から。1 つの箱に印が多いと段が高くなり（見出しは重ならない）、同じ高さの `r` の印は段の中で上下にずれる。列は 96px 以上要る（足りない帯はエラー）。
 - `cycle` の `links`（ADR 0065）: 循環の矢印の代わりに、要素を正多角形（3 個は上向きの三角、4 個は正方形、6 個は上下が平らな六角形）に置き、組ごとに結ぶ（CBT の 5 領域モデル、生物・心理・社会モデル）。`links: 'all'`（全部の組を両向き、6 個まで）か `[{from, to, label?, direction?: 'both' | 'forward'}]`（番号・id・見出し）。`direction`（cw / ccw）とは併用できない。`centre` は中心の円に書き、中心を通る矢印はその下をくぐる。円は文字が 1 行に入る大きさまで広がる。
 - `cycle` の `frame`（ADR 0065）: 図を囲む枠とその名前（「状況・環境：…」）。枠の幅は中身に合わせる。`links` がなくても使える。
 - ラベルが図からはみ出す・ラベル同士が重なると検査で止まる。
-- 例: `examples/value-chain.ts`、`examples/chevron-*.ts`、`funnel-*.ts`、`cycle-*.ts`、`venn-*.ts`、`concentric-*.ts`（`concentric-values-bullseye.ts`・`concentric-tech-radar.ts` は扇形と印）、`cycle-cbt-five-areas.ts`（`links` と `frame`）、`emblem-*.ts`（`emblem-flow-symbols.ts` は流れ図の記号を並べた例）。
+- 例: `examples/value-chain.ts`、`examples/chevron-*.ts`、`funnel-*.ts`、`cycle-*.ts`、`venn-*.ts`、`concentric-*.ts`（`concentric-values-bullseye.ts`・`concentric-tech-radar.ts` は扇形と印、`concentric-values-stack.ts`・`concentric-tech-radar-stack.ts` は同じデータの積み重ね版）、`cycle-cbt-five-areas.ts`（`links` と `frame`）、`emblem-*.ts`（`emblem-flow-symbols.ts` は流れ図の記号を並べた例）。
 
 ### ワードアート・縦書き（`wordart`）
 

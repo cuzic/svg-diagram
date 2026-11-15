@@ -79,7 +79,7 @@ export const PARTS_R5: readonly PartDef[] = [
   },
   {
     type: 'concentric',
-    description: 'Concentric circles: layers around a centre, such as stakeholders by distance, defence in depth or a core and its surroundings. labels: side writes each ring\'s name and description beside the circles. With sectors, the rings are cut into sectors and carry marks: the ACT Values Bullseye (life domains as sectors, how closely the week followed each value as the distance from the centre), a technology radar (Adopt / Trial / Assess / Hold as rings). A mark sits in a sector at a ring or at r (0 centre .. 1 edge); from (last time\'s ring or r) draws an arrow from where it was.',
+    description: 'Concentric circles: layers around a centre, such as stakeholders by distance, defence in depth or a core and its surroundings. labels: side writes each ring\'s name and description beside the circles. With sectors, the rings are cut into sectors and carry marks: the ACT Values Bullseye (life domains as sectors, how closely the week followed each value as the distance from the centre), a technology radar (Adopt / Trial / Assess / Hold as rings). A mark sits in a sector at a ring or at r (0 centre .. 1 edge); from (last time\'s ring or r) draws an arrow from where it was. layout: stack draws the same data as a column of boxes per sector, the innermost ring the top row.',
     schema: object({
       type: {const: 'concentric'},
       rings: {oneOf: [list(object({label: text('The ring.', 24), description: text('What it holds (with labels: side).', 60), tone: TEXT_TONE, id: text('An id to connect or spotlight it.', 40)}, ['label']), 6, 1), {type: 'integer', minimum: 1, maximum: 6}], description: 'The rings (2 or more without sectors), or with sectors how many plain rings.'},
@@ -96,6 +96,7 @@ export const PARTS_R5: readonly PartDef[] = [
         id: text('An id to connect or spotlight it.', 40),
         from: object({ring: STEP_REF('Last time\'s ring.'), r: {type: 'number', minimum: 0, maximum: 1, description: 'Last time\'s distance.'}, sector: STEP_REF('Last time\'s sector, when it changed.')}, [], 'Where it was last time: an arrow is drawn from there.'),
       }, ['label', 'sector']), 24),
+      layout: {...oneOf('circle', 'stack'), description: 'With sectors: circle (default) cuts the rings into sectors; stack draws a column of boxes per sector, a row per ring with the innermost at the top (the centre word heads the columns).'},
       fromLegend: {oneOf: [{type: 'array', items: text('A word of the key.', 16), minItems: 2, maxItems: 2}, {type: 'boolean', enum: [false]}], description: "The key under the figure when a mark has from: [where it was, where it is] (default ['前回', '今回']); false for none."},
     }, ['type', 'rings']),
     example: {type: 'concentric', order: 'inner-first', labels: 'side', centre: '利用者', rings: [{label: 'チーム'}, {label: '顧客と取引先'}, {label: '社会'}]},
@@ -106,7 +107,8 @@ export const PARTS_R5: readonly PartDef[] = [
       if (!sectors.length) {
         if (typeof rings === 'number') issues.push({path: `${at}.rings`, message: 'is a number only with sectors; otherwise name each ring'});
         else if (Array.isArray(rings) && rings.length < 2) issues.push({path: `${at}.rings`, message: 'needs 2 or more rings (or sectors)'});
-        if (part['marks'] !== undefined) issues.push({path: `${at}.marks`, message: 'needs sectors'}); // (fromLegend without sectors draws nothing: lang: 'en' gives it to every concentric)
+        if (part['marks'] !== undefined) issues.push({path: `${at}.marks`, message: 'needs sectors'});
+        if (part['layout'] === 'stack') issues.push({path: `${at}.layout`, message: 'stack draws the sectors as columns: give sectors too'}); // (fromLegend without sectors draws nothing: lang: 'en' gives it to every concentric)
         return;
       }
       if (part['labels'] === 'side') issues.push({path: `${at}.labels`, message: "with sectors the ring names go along the 12 o'clock cut: leave labels out"});
