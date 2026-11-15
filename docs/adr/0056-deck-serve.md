@@ -1,6 +1,6 @@
 # ADR 0056: デッキをサーバーで表示し、全端末を発表者のスライドに合わせる(`svg-diagram serve` と、自分でデプロイする Worker)
 
-- 状態: 提案(実装は未着手。Opus のレビューを 1 回反映)
+- 状態: 提案(実装は未着手。Opus のレビューを 2 回反映)
 - 日付: 2026-11-14
 - 基点: `main`(837df96、PR #364 まで)
 - 関連: ADR 0018(deck viewer)、ADR 0055(デッキの JSON と PowerPoint 書き出し)、ADR 0007(結果が入力だけで決まること)、ADR 0012(id の衝突)、ADR 0013(失敗したビルドの古い出力)
@@ -83,25 +83,29 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
   - 図だけの並び(`deck a.ts b.ts`)は対象にしない。
 - D2. **スライドは 1 枚の SVG**(手元と Worker で同じもの)。1280 × 720 の SVG に、見出し・リード・図・強調の枠・出典を描き、**文字はすべて輪郭(path)にする**。
   - 配置は `planDeckSlide` と同じ計算: 見出しなどは実測した幅で折り返し、残った領域に図を収まる倍率(上限 1.25)で置く。寸法・色・行の高さ・折り返しの計算は `lib/pptx/deck.ts` から `lib/deck-layout.ts` に移し、PowerPoint と SVG の両方が使う(`planDeckLayout` が行と矩形の位置を返し、XML と SVG はその後で作る)。小さい文字の警告(9pt 未満)と、領域が残らない誤りも同じ条件で出る。
-  - 輪郭にするフォントは、測ったのと**同じフォントのファイル**(`.svg-diagram.json` の `fonts`、なければ fontconfig で見つけたもの。`pptx` の PNG と同じ `fontFilesOf`)。端末にどのフォントがあっても、行の数も幅も変わらない。`measure: 'chromium'` のプロジェクトでは、輪郭のフォントと測ったフォントが違いうるので、起動時に 1 度警告する。
-  - フォントにないグリフは、そのスライドの誤り(場所付き)。絵文字は `liveEmoji` で文字のまま残す(端末の絵文字のフォントで描かれる)。
-  - スライドの文字は `<title>` と `aria-label` にも入れる(読み上げのため。輪郭だけだと読めない)。
+  - 輪郭にするフォントは、**測ったときと同じ選び方**をする。今 Node で輪郭にできるのはテスト用の `test/helpers/text-engine.ts` だけ(sans の 400/700 だけ、family を見ない、`wght` を当てない)なので、`lib/` に輪郭用のフォントを新しく作る: `measureText` と同じく、family(sans / serif / mono)と太さごとにフォントのファイルを `resolveFontFile` で決め(`.svg-diagram.json` の `fonts`、なければ fontconfig)、可変フォントには同じ `wght` を当て、グリフがなければ測るときと同じ順(絵文字のフォント、次に sans)で借りる。`measureWithFonts` と同じ幅になることをテストで確かめる。
+  - `serve` は起動時に、使う family と太さのフォントのファイルがすべて見つかり、harfbuzzjs が読めることを確かめ、足りなければ何が足りないかを出して止まる(測るほうは黙って Chromium に切り替わりうるが、輪郭はファイルがないと描けない)。`measure: 'chromium'` のプロジェクトでも、ファイルが見つかれば描き、測ったフォントと違いうることを 1 度警告する。
+  - どのフォントにもないグリフだけを、そのスライドの誤り(場所付き)にする。絵文字は、手元のカラー絵文字のフォント(`lib/emoji-color.ts`)があれば輪郭(画像)にし、なければ `liveEmoji` で文字のまま残して警告する(測った幅と、端末で描かれる幅が違いうるため)。
+  - 輪郭にできない文字の飾り(`outlineText` の `unsupported`。WordArt の縁取りの `paint-order` など)は、黙って落とさずスライドの誤り(場所付き)にする(`lib/spec-edge.ts` と同じ扱い)。
+  - 図の見た目は端末の設定に左右させない: `appearance: 'auto'` の図が持つ `@media (prefers-color-scheme: dark)` の塊は取り除いて明るい形で描き、`appearance: 'dark'` の図は PowerPoint と同じく背景の色の矩形を図の後ろに置く。
+  - 9pt 未満の警告は、PowerPoint の XML から数える `minTextPt` が使えないので、SVG の側でも同じ値を出す計算を持ち、両方が同じになることをテストする。
+  - 読み上げ: `<img>` の中の SVG の `<title>` は読まれないので、スライドの文字は `<img alt>` に入れ、スライドが変わったことは `aria-live` の領域で知らせる。
   - 図の `<metadata>` は取り除き、id はスライドごとに付け替える(ADR 0012。1 枚の SVG に図が 1 つなので衝突しない)。
 - D3. **SVG の許可リスト**: スライドの SVG に出てよい要素と属性の一覧を core に 1 つ置く(`lib/present/svg-allow.ts`)。輪郭にした後の SVG を、**手元で保存したとき**(D5)と、**Worker が受け取ったとき**(D12)の両方でこの一覧に当て、外れたものがあればそのスライドの誤りにする(直して通すのでなく、断って場所を返す)。
   - 一覧には、描画が出しうるもの(グラデーション、クリップ、画像の帯の `<image href="data:image/png|jpeg…">`、絵文字の `<text>`)を入れ、`<script>`・`<foreignObject>`・`on*` 属性・`#` と `data:image/(png|jpeg)` 以外の `href`・`<style>` の `@import` と外部の `url()` は入れない。
   - core の全部の example をスライドにしてこの一覧を通るテストを置く(描画が新しい要素を出すようになると落ちる)。
-  - 画面では、スライドを `<img>` で読む。`<img>` の中の SVG はスクリプトを動かさない。
-- D4. **画面**(`svg-diagram/present` の出口から、手元と Worker で同じ JS・CSS を配る):
-  - 聴き手の画面: 今のスライドを窓いっぱいに 1 枚。URL は 1 つ(`/` または `/p/<id>`)で、スライドの番号は URL に持たない(強制の追従なので意味がない)。隅に接続の状態(「再接続中」)。全画面のボタン。
+  - 画面では、スライドを `<img>` で読む。`<img>` の中の SVG はスクリプトを動かさない。スライドの URL を直接タブで開かれたときのために、SVG の応答には `Content-Security-Policy: sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'` と `X-Content-Type-Options: nosniff` を付ける(許可リストに漏れがあっても、そのオリジンでスクリプトが動かない)。
+- D4. **画面**(`svg-diagram/present` の出口から、手元と Worker で同じ JS・CSS を配る。Worker は `fs` を使えないので、画面の JS・CSS は文字列としてビルドに入れる。`lib/deck-viewer.ts` のようにファイルを読む形にしない):
+  - 聴き手の画面: 今のスライドを窓いっぱいに 1 枚。URL は 1 つ(`/` または `/p/<id>`)で、スライドの番号は URL に持たない(強制の追従なので意味がない)。隅に接続の状態(「再接続中」)。全画面のボタン。聴き手には**今のスライドの URL だけ**を渡す(先のスライドを読めない)。
   - 発表者の画面: 今のスライド、次のスライド、ノート(改行・空行・字下げを保つ)、経過時間(押すと 0 に)、時計、`n / 全体`、接続している聴き手の数、聴き手の URL の QR(D10)、描き直しの誤り(D5)。一覧(`o`)は発表者の画面の中だけ。
   - 印刷(`/print`、発表者だけ): 全スライドを 1280 × 720 のページに。ノートは入れない。
 
 ### 共通: 保存すると変わる
 
 - D5. **監視と描き直し**(手元の CLI):
-  - 監視するのは、デッキのファイル、パスで書いた図、`.ts` が import した手元のファイル、`.ts` がファイルとして読むもの(`image()` の画像)、`.svg-diagram.json`、フォントのファイル。import したファイルは、`lib/resolve-hook.ts` に**解決したファイルを記録する**働きを足して集める。ファイルではなく**入っているディレクトリ**を監視する(名前を付け替えて保存するエディタでも外れない)。
+  - 監視するのは、デッキのファイル、パスで書いた図、`.ts` が import した手元のファイル、`.ts` がファイルとして読むもの(`image()` の画像)、`.svg-diagram.json`、フォントのファイル。import したファイルは、`lib/resolve-hook.ts` に**解決したファイルを記録する**働きを足して集める。`image()` の画像は、描いた図(`Diagram`)の中の画像のパスを、画像を読む処理(`resolveImages`)が読んだときに記録する。ファイルではなく**入っているディレクトリ**を監視する(名前を付け替えて保存するエディタでも外れない)。
   - 変わったら 100ms 待ってまとめて描き直す。描き直しは 1 つずつで、描いている間に変わったら終わってからもう一度描く。スライドごとの結果は入力の中身のハッシュで覚え、変わったスライドだけ描き直す。
-  - `.ts` の読み直し(`fresh`)はモジュールを増やし続けるので、描き直しは `worker_threads` の中で行い、50 回ごとに作り直す。
+  - `.ts` の読み直し(`fresh`)はモジュールを増やし続けるので、描き直しは `worker_threads` の中で行い、50 回ごとに作り直す。読み込みのフック(`module.registerHooks`)はスレッドごとに入れ直す。作り直すと、測った幅のキャッシュと読み込んだフォントも消える(作り直した直後の 1 回だけ遅くなる)。
   - 描き直しで誤りが出たら、**前の正しいスライドを残し**、発表者の画面にだけ誤りを場所付き(`slides[2].figure.parts[0]` など)で重ねる。端末にも同じものを出す。聴き手には見せない。
   - スライドが減って、今の番号がなくなったら最後のスライドに移す。
 
@@ -110,14 +114,17 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
 - D6. **全端末の強制的な追従**:
   - 端末の役割は 2 つ: **発表者**(スライドを動かせる、ノートが見える)と**聴き手**(見るだけ)。
   - サーバーは今の状態 `{epoch, seq, index, version}` を 1 つ持つ。`epoch` はサーバー(手元の起動、Worker の発表)ごとの乱数、`seq` は番号を変えるたびに増える通し番号、`version` はスライドの写しの版。
-  - 発表者から `{type: 'go', index}`。サーバーは範囲に収めて `seq` を増やし、**接続しているすべての端末**(発表者のほかの窓も)へ `{type: 'state', epoch, seq, index, version, slides}` を送る(`slides` はスライドの SVG の URL の一覧。版が変わったときだけ付ける)。
+  - 発表者から `{type: 'go', delta}`(次・前は `+1` / `-1`)か `{type: 'go', index}`(番号へ移動、Home / End、一覧から選ぶ)。`delta` は届いた順にサーバーの今の番号に足すので、`state` が返る前にキーを 2 回押しても 2 枚進む。サーバーは範囲に収めて `seq` を増やし、**接続しているすべての端末**(発表者のほかの窓も)へ `{type: 'state', epoch, seq, index, version, slide}` を送る(`slide` は今のスライドの SVG の URL)。発表者には、別に全スライドの URL の一覧を渡す(次のスライドと一覧のため)。
   - 端末は、`epoch` が変わったら持っているものを捨てて受け取ったものにし、同じ `epoch` では `seq` が今より大きいものだけ採る(古い知らせで戻らない。サーバーを立ち上げ直しても止まらない)。
+  - 手元のサーバーを立ち上げ直したとき(`epoch` が新しく、まだ誰も `go` していない)は、最初につないだ発表者の画面が、前に見ていた番号を `go {index}` で送る。発表の途中で立ち上げ直しても、全員が 1 枚目に戻らない。
+  - スライドの版が変わったときは、今のスライドを、同じ中身のスライド(ハッシュが同じもの)、なければ同じ見出しのスライドの位置に移し、どちらもなければ同じ番号(範囲に収める)にする。前にスライドを足したり消したりしても、違うスライドに飛ばない。
   - 聴き手の画面は、キー・クリック・スワイプでは動かない。聴き手から来た `go` は、サーバーが捨てる。
   - つなぎ直すと、まず今の状態を受け取る。つなぎ直しは、待ち時間を倍にしていく(上限 30 秒)うえに乱数でずらす(会場の Wi-Fi が戻ったとき全員が同時につながらない)。
   - 発表者の `go` は 1 接続あたり 1 秒に 10 回まで(超えたものは捨てる)。
-  - スライドの SVG の URL は中身のハッシュ(`/s/<hash>.svg`)。版が変わってもブラウザのキャッシュで古いものが出ない。
+  - スライドの SVG の URL は中身のハッシュ(`/s/<hash>.svg`)。版が変わってもブラウザのキャッシュで古いものが出ない。サーバーは**今の版にあるハッシュだけ**を返す(消したスライド・書き換える前のスライドは 404)。
   - ノートは発表者にだけ、別の要求(`Cache-Control: private, no-store`)で渡す。
-  - この決まり(型と状態の計算)は `svg-diagram/present` に純粋な関数として置き、テストする。運ぶ手段は分ける: 手元は Server-Sent Events と `POST`(`node:http` だけで書ける)、Worker は WebSocket(D14)。ブラウザ側は小さなアダプタ 2 つで違いを吸収する。同じブラウザの複数の窓は、BroadcastChannel で 1 本の接続を分け合う(HTTP/1.1 の 1 オリジン 6 接続の上限で、手元の発表者の窓が詰まらないように)。
+  - この決まり(型と状態の計算)は `svg-diagram/present` に純粋な関数として置き、テストする。運ぶ手段は分ける: 手元は Server-Sent Events と `POST`(`node:http` だけで書ける)、Worker は WebSocket(D14)。ブラウザ側は小さなアダプタ 2 つで違いを吸収する。
+  - 手元は HTTP/1.1 なので、同じブラウザで 1 つのオリジンに 6 本までしか同時につながらない。SSE は窓ごとに 1 本使うので、同じブラウザで手元のサーバーの窓を 5 つ以上開かないよう、発表者の画面に出す(窓どうしで 1 本を分け合う仕組みは、窓を閉じたときの引き継ぎが要り、見合わないので持たない)。
 - D7. **発表者の画面の操作**(D4 の画面): → / space / PageDown / ↓(次)、← / PageUp / ↑(前)、Home / End、`o`(一覧)、`f`(全画面)、`g`(番号へ移動)、`p`(発表者の画面を別窓で)。スワイプでも動く。カーソルは 2 秒で隠す。
 
 ### 手元のサーバー(`svg-diagram serve deck.json`)
@@ -126,43 +133,53 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
 - D9. **発表者の見分けと安全**:
   - 立ち上げるたびに発表者のトークン(128 ビットの乱数)を作り、端末に**発表者の URL**(`/presenter#token=…`)を出す。ブラウザはハッシュのトークンを `POST /claim` で渡して Cookie に替え、すぐに `history.replaceState` でアドレス欄からハッシュを消す(映した画面に出ない)。
   - Cookie は `HttpOnly; SameSite=Strict; Path=/`、名前にポートを入れる(`sd-presenter-3030`。Cookie はポートで分かれないので、2 つの `serve` が上書きし合わない)。
-  - `Host` が `localhost`・`127.0.0.1`・待ち受けているアドレス(`--host 0.0.0.0` のときは全部のインターフェイスのアドレス)と `--allow-host` の名前(`.local` など)に、ポートを付けたもの以外なら断る(DNS の付け替えで別のサイトから読まれるのを防ぐ)。`POST` と SSE は `Origin` が自分のときだけ受ける。
+  - `Host` が `localhost`・`127.0.0.1`・待ち受けているアドレス(`--host 0.0.0.0` のときは全部のインターフェイスのアドレス)と `--allow-host` の名前(`.local` など)に、ポートを付けたもの以外なら断る(DNS の付け替えで別のサイトから読まれるのを防ぐ)。`POST` は `Origin` が自分のときだけ受ける。SSE(`EventSource` の GET は同じオリジンでは `Origin` を送らない)は、`Origin` がないか自分のもので、`Sec-Fetch-Site` があれば `same-origin` のときに受ける。
   - 同じ LAN の端末に見せるには `--host 0.0.0.0` で立ち上げる。LAN では HTTP なので Cookie とトークンは同じネットワークの人に盗み見られうる、と起動時に表示する(会場の Wi-Fi で発表するなら `--publish` を勧める)。
   - サーバーが実行するのは、デッキのファイルに書かれた `.ts` だけで、`build` と同じ信頼(書き手の手元のコード)。ブラウザから受け取るのはスライドの番号だけ。
-- D10. **QR コード**: 聴き手の URL(手元なら LAN のアドレスの `/`、`--publish` なら Worker の `/p/<id>`)を、起動時に端末へ(Unicode の半角ブロックで)、発表者の画面にも(SVG で)出す。**発表者の URL は QR にしない**。QR の符号化は依存を増やさず core に純粋な関数として持ち(バイトモード、誤り訂正 M、URL が入る版まで)、既知の値と読み取りの往復でテストする。
+- D10. **QR コード**: 聴き手の URL(手元なら LAN のアドレスの `/`、`--publish` なら Worker の `/p/<id>`)を、起動時に端末へ(Unicode の半角ブロックで)、発表者の画面にも(SVG で)出す。**発表者の URL は QR にしない**。
+  - 手元で `127.0.0.1` だけを待ち受けているとき(既定)は、ほかの端末からつながらないので QR を出さず、「LAN の端末に見せるには `--host 0.0.0.0`」と出す。
+  - QR の符号化は依存を増やさず core に純粋な関数として持つ: バイトモード、誤り訂正 M、版 1〜10(Worker の URL は 100〜130 バイトほどで版 7〜8 が要るので、版 7 からの版情報の領域も持つ)。版 10 に入らない長さの URL は誤りにする(テストで上限を確かめる)。既知の値との比較と、読み取りの往復(開発用の依存に QR の読み取り器 `jsqr` を足す)でテストする。
 
 ### 自分でデプロイする Worker(`worker/` と `svg-diagram serve --publish`)
 
 - D11. **配り方**: core のリポジトリの `worker/` に、Cloudflare Workers のプロジェクト一式(`src/`、`wrangler.jsonc.example`、README のデプロイ手順)を置く。発表者は自分の Cloudflare のアカウントで `wrangler deploy` する。運営者のサーバーは使わない。Worker のコードは core の `svg-diagram/present`(画面、同期の決まり、SVG の許可リスト)を使い、core の版と一緒に版を切る。
+  - npm のパッケージ(`files` は `bin`・`dist`・`skills` など)には `worker/` を入れない。デプロイする人は、使っている core と同じ版のタグでリポジトリを取ってくる(README に書く)。
+  - 版のずれは実行時に見つける: Worker は `GET /api/version` で送り受けの決まりの版(整数)を返し、`--publish` は自分と違えば送らずに、どちらを上げればよいかを出す。
   - Worker は描画しない(`.ts` も spec も受け取らない)。手元で描いた SVG を受け取って配るだけなので、フォントも harfbuzz も載せず、小さく保つ。
   - 1 つの Worker に発表をいくつも置ける。発表 1 つに Durable Object(SQLite を持つ型)を 1 つ使う。D1・KV・R2 は使わない(デプロイする人が用意するものを減らす)。
 - D12. **送る**(`svg-diagram serve deck.json --publish [ORIGIN]`):
   - `ORIGIN` は引数か環境変数 `SVG_DIAGRAM_PUBLISH_ORIGIN`(core のコードに送り先の名前を書かない)。送るための鍵は環境変数 `SVG_DIAGRAM_PUBLISH_TOKEN`(Worker の secret `PUBLISH_TOKEN` と同じ値。デプロイする人が決める)。
-  - 初めて送るとき `POST /api/p` で発表を作り、Worker が返す `id` と発表者のトークンを**デッキの隣の `<deck>.publish.json`** に書く(README で `.gitignore` に入れるよう書き、ファイルの権限は 0600)。2 回目からは同じ発表を `PUT /api/p/<id>` で差し替える(送るたびに URL が変わらない)。
-  - 差し替えは、まずスライドのハッシュの一覧(と文字・ノート)を送り、Worker がまだ持っていないハッシュの SVG だけを送る。版は Worker が決める。
+  - 初めて送るとき `POST /api/p` で発表を作り、Worker が返す `id` と発表者のトークンを、**デッキの隣でなく** `~/.config/svg-diagram/publish/<送り先とデッキの絶対パスのハッシュ>.json`(権限 0600)に書く(デッキのディレクトリは git の中のことが多く、トークンを誤ってコミットしないため。送り先ごとに分かれるので、2 つの Worker に送っても上書きし合わない)。2 回目からは同じ発表を `PUT /api/p/<id>` で差し替える(送るたびに URL が変わらない)。
+  - 差し替えは、まずスライドのハッシュの一覧(と文字・ノート)を送り、Worker がまだ持っていないハッシュの SVG だけを送る。版は Worker が決める。新しい版で使われなくなったハッシュの SVG は、その差し替えで消す(古いスライドが残らず、送るたびに保存が増えない)。大きさの上限(D16)は今の版の合計で数える。
+  - 送る前に、手元で同じ許可リスト(D3)と同じ上限(Worker の `GET /api/version` が返す設定値)に当て、外れたら送らずにスライドの場所と直し方(写真を小さくする、など)を出す。
   - `--publish` のときは手元のサーバーを立ち上げない。監視して送り、端末に聴き手の URL(と QR)と発表者の URL を出す(手元の発表者の画面で動かしても、Worker の聴き手には届かないため)。
-  - `id` は 128 ビットの乱数に、Worker の secret による署名を付けたもの。署名の合わない `id` への要求は、Durable Object を起こす前に 404 にする(知らない `id` で空の Durable Object が増えない)。
-  - Worker は受け取った SVG を D3 の一覧に当て、外れたら 422 と場所を返す。上限(D16)を超えたら 413 と場所。
+  - `id` は Durable Object の `newUniqueId()` で作り、要求のたびに `idFromString()` で読む(この名前空間で作った `id` でなければ例外になる)。知らない `id` への要求は Durable Object を起こす前に 404 にできる。secret の署名にしないので、secret を替えても配った URL と QR は使える。
+  - `PUBLISH_TOKEN` は定数時間で比べる。
+  - Worker は受け取った SVG を D3 の一覧に当て、外れたら 422 と場所を返す。上限(D16)を超えたら 413 と場所。検査は Durable Object の中で行う(大きな差し替えの検査が Workers の無料プランの 1 要求 10ms の CPU に収まらないことがあるため。Durable Object での上限は実装の前に確かめる)。
+  - Worker の URL: `/p/<id>`(聴き手)、`/p/<id>/presenter`(発表者の画面)、`/p/<id>/t`(トークンを Cookie に替える `POST`)、`/p/<id>/login`(メールアドレスでのサインインの入口、D13)、`/p/<id>/print`、`/p/<id>/ws`(WebSocket)、`/p/<id>/notes`(発表者)、`/p/<id>/s/<hash>.svg`、`/auth/google/callback`、`/api/version`、`/api/p`、`/api/p/<id>`。これら以外は 404。
 - D13. **Worker での発表者の見分け**: 次のどれか。それ以外は聴き手。
-  1. **発表者のトークン**(いつでも使える): `--publish` が作り、`<deck>.publish.json` に持つ。発表者の URL は `/p/<id>/presenter#token=…`。手元と同じく `POST /p/<id>/claim` で Cookie に替え、ハッシュを消す。トークンは 1 つの発表に 20 本まで、`svg-diagram serve deck.json --publish --new-presenter-token` で足し、`--revoke-presenter-tokens` で全部取り消す。Durable Object にはハッシュだけを置く。
-  2. **メールアドレス**(設定 `PRESENTER_LOGIN` で `access` か `google` を選ぶ。`none` ならトークンだけ): 確かめたメールアドレスが、設定 `PRESENTER_EMAILS`(カンマ区切り)にあれば発表者。
-     - `access`: 発表者の URL(`/p/*/presenter`、`/p/*/claim`、`/p/*/print`)を、デプロイする人が Cloudflare Access(Zero Trust)のアプリにする。Worker は要求の `Cf-Access-Jwt-Assertion` を、設定 `ACCESS_TEAM_DOMAIN` の公開鍵と `ACCESS_AUD` で検証し、その中のメールアドレスを使う(ヘッダーのメールアドレスをそのまま信じない)。
-     - `google`: Worker が Google の OpenID Connect(PKCE、`state`、`nonce`)を持つ。デプロイする人が Google Cloud で作ったクライアントの `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` を secret に入れる。`email_verified` が真のときだけ使う。Google は `email` を識別子に使わないよう勧めている(持ち主が変わりうる)ので、設定 `GOOGLE_HD` があれば `hd` の一致も求める。設定しないときの弱さ(Workspace でないドメインのアドレスは、そのメールを失った元の持ち主の Google アカウントに残りうる)を README に書く。サインインの後は、元の発表者の URL に戻る(戻り先は `/p/<id>/presenter` の形だけ許す)。
-  - Cookie(`__Host-p-<id>`、`HttpOnly; Secure; SameSite=Strict`、8 時間)には `{id, 種類, トークンの id かメールアドレス, 期限}` を Worker の secret `SESSION_SECRET` で署名して入れる。発表者の要求と WebSocket の接続のたびに、トークンの id が取り消されていないか、メールアドレスがまだ `PRESENTER_EMAILS` にあるかを確かめる(取り消してから期限まで使えてしまわない)。
+  1. **発表者のトークン**(いつでも使える): `--publish` が作り、送り先ごとの記録(D12)に持つ。発表者の URL は `/p/<id>/t#token=…`。このページがハッシュのトークンを `POST /p/<id>/t` で渡して Cookie に替え、ハッシュを消して `/p/<id>/presenter` に移る。`/p/<id>/t` は Access の対象にしない(`access` のときもトークンで入れる)。トークンは 1 つの発表に 20 本まで、`svg-diagram serve deck.json --publish --new-presenter-token` で足し、`--revoke-presenter-tokens` で全部取り消す。Durable Object にはハッシュだけを置く。
+  2. **メールアドレス**(設定 `PRESENTER_LOGIN` で `access` か `google` を選ぶ。`none` ならトークンだけ): 確かめたメールアドレスが、設定 `PRESENTER_EMAILS`(カンマ区切り、大文字小文字を区別しない)にあれば発表者。入口は `/p/<id>/login` で、確かめた後に Cookie を出して `/p/<id>/presenter` に移る。発表者の画面(`/presenter`・`/print`・`/notes`・`/ws`)は、どちらの方法でも **Cookie だけ**で役割を決める。
+     - `access`: デプロイする人が、`/p/*/login` **だけ**を Cloudflare Access(Zero Trust)のセルフホストのアプリにする。Worker は `Cf-Access-Jwt-Assertion` の JWT を検証する: `https://<ACCESS_TEAM_DOMAIN>/cdn-cgi/access/certs` の `public_certs` から `kid` の合う鍵で RS256 の署名、`aud` が `ACCESS_AUD`、`iss` がチームのドメイン、`exp` / `nbf`。`email` がない JWT(サービストークン)は断る。ヘッダーのメールアドレスをそのまま信じない。
+       - workers.dev のワンクリックの Access や、Worker 全体にかける Access は、聴き手のページと WebSocket まで閉じてしまう。`access` には**独自ドメイン**と、パスを `/p/*/login` に限ったアプリが要ることと、アカウント全体の「Worker を非公開にする」設定に注意することを README に書く。
+     - `google`: Worker が Google の OpenID Connect(認可コードと PKCE、`state`、`nonce`)を持つ。デプロイする人が Google Cloud で作ったクライアントの `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` を secret に入れ、戻り先 `https://<自分のドメイン>/auth/google/callback`(1 つに決めた URL)を Google に登録する。`state`・`nonce`・PKCE の verifier と、どの発表から来たか(`id`)は、10 分の Cookie `__Host-oidc`(`HttpOnly; Secure; SameSite=Lax`、`SESSION_SECRET` で暗号化と署名)に持つ(KV も D1 も要らない)。`id_token` はトークンのエンドポイントから TLS で直接受け取るので、署名の検証は省ける(OpenID Connect Core 3.1.3.7)。`aud`・`iss`・`nonce`・`exp` は確かめる。`email_verified` が真のときだけ使う。Google は `email` を識別子に使わないよう勧めている(持ち主が変わりうる)ので、設定 `GOOGLE_HD` があれば `hd` の一致も求める。設定しないときの弱さ(Workspace でないドメインのアドレスは、そのメールを失った元の持ち主の Google アカウントに残りうる)を README に書く。
+  - 発表者の Cookie(`__Host-p-<id>`、`HttpOnly; Secure; SameSite=Lax`、8 時間)には `{id, 種類, トークンの id かメールアドレス, 期限}` を `SESSION_SECRET` で署名して入れる。`Strict` にしないのは、Google から戻った直後の移動で Cookie が送られないため。よそのサイトからの操作は、`POST` と WebSocket の `Origin` の確認で防ぐ。
+  - 発表者の要求と WebSocket の接続のたびに、トークンの id が取り消されていないか、メールアドレスがまだ `PRESENTER_EMAILS` にあるかを確かめる。つながったままの接続も、Durable Object が `go` を受けるたびに同じことを確かめる(接続のタグのトークンの id とメールアドレスのハッシュを、取り消しの一覧と今の `PRESENTER_EMAILS` に当てる)。ハイバネーションの WebSocket は通常のデプロイでは切れないので、`PRESENTER_EMAILS` から外して再デプロイしても、確かめ直さないと発表者のままになるため。
 - D14. **Worker での同期**:
   - 発表 1 つに 1 つの Durable Object が、WebSocket(ハイバネーション API)で全端末とつながる。WebSocket の接続(`/p/<id>/ws`)は `Origin` が自分のオリジンのときだけ受ける。
   - 役割は Worker が D13 で決め、Durable Object へは Worker が付けるヘッダーで渡す(端末から来た同じ名前のヘッダーは先に消す)。Durable Object は接続にタグ(`role:presenter`、`tok:<id>`、`email:<hash>`)と attachment を付け、ハイバネーションから戻っても役割を失わない。トークンを取り消すと、そのタグの接続を切る。
   - 今の状態(D6)は Durable Object の SQLite に書く(Durable Object が退いても戻る)。
   - 聴き手の接続数を IP ごとには数えない(会場の Wi-Fi では全員が同じ IP になる)。1 つの発表の同時接続数の上限(D16)で守り、超えたら「満員」を返す。
-  - Worker を新しくデプロイすると、つながっている WebSocket は切れうる。端末は D6 のつなぎ直しで戻るが、発表中はデプロイしないよう README に書く。
-- D15. **期限と消し方**: 発表は、最後に使った日時(差し替えか、発表者の接続)から設定 `RETENTION_DAYS` 日で、Durable Object の alarm が `deleteAll()` で消す。`svg-diagram serve deck.json --publish --delete` でいつでも消せる(`<deck>.publish.json` も消す)。消した発表の URL は 404。Durable Object の中身は、Cloudflare の point-in-time recovery の期間(30 日)は戻せる形で残ることを README に書く。
-- D16. **設定値**(`wrangler.jsonc` の `vars`。既定値はここに書いたもの): `MAX_CONNECTIONS`(500)、`RETENTION_DAYS`(30)、`MAX_SLIDES`(30、core の `MAX_SLIDES` が上限)、`MAX_SLIDE_BYTES`(1 MiB)、`MAX_DECK_BYTES`(8 MiB)、`PRESENTER_LOGIN`(`none`)、`PRESENTER_EMAILS`、`ACCESS_TEAM_DOMAIN`、`ACCESS_AUD`、`GOOGLE_HD`、`LOCATION_HINT`(Durable Object の置き場所の希望。未設定なら Cloudflare に任せる)。secret は `PUBLISH_TOKEN`、`SESSION_SECRET`(`id` の署名と Cookie)、`google` のときの `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`。値が足りない・矛盾するとき(`google` なのに client がない、`access` なのに AUD がない)は、Worker は要求に答えず設定の誤りを返す。
+  - ハイバネーションの WebSocket は通常のデプロイでは切れず、即時や期限付きの強制の更新では切れる(Cloudflare の文書)。切れても端末は D6 のつなぎ直しで戻るが、発表中は強制の更新をしないよう README に書く。
+- D15. **期限と消し方**: 発表は、最後に使った日時(差し替えか、発表者の接続)から設定 `RETENTION_DAYS` 日で、Durable Object の alarm が `deleteAll()` で消す。`svg-diagram serve deck.json --publish --delete` でいつでも消せる(送り先ごとの記録も消す)。消した発表の URL は 404。Durable Object の中身は、Cloudflare の point-in-time recovery の期間(30 日)は戻せる形で残ることを README に書く。
+- D16. **設定値**(`wrangler.jsonc` の `vars`。既定値はここに書いたもの): `MAX_CONNECTIONS`(500)、`RETENTION_DAYS`(30)、`MAX_SLIDES`(30。core の `MAX_SLIDES` より大きい値は設定の誤り)、`MAX_SLIDE_BYTES`(4 MiB。写真の帯は base64 で 1 MiB を超えやすい)、`MAX_DECK_BYTES`(16 MiB、今の版の合計)、`PRESENTER_LOGIN`(`none`)、`PRESENTER_EMAILS`、`ACCESS_TEAM_DOMAIN`(`<チーム>.cloudflareaccess.com` の形か確かめる)、`ACCESS_AUD`、`GOOGLE_HD`、`LOCATION_HINT`(Durable Object の置き場所の希望。未設定なら Cloudflare に任せる)。secret は `PUBLISH_TOKEN`、`SESSION_SECRET`(Cookie の署名と暗号化)、`google` のときの `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`。
+  - 値が足りない・矛盾するとき(`google` なのに client がない、`access` なのに AUD がない)は、Worker は要求に答えない。聴き手には中身のない 503 だけを返し、何が足りないかはログ(`wrangler tail`)と、`PUBLISH_TOKEN` を持つ `--publish` への応答にだけ出す(知らない人にデプロイした人の設定を見せない)。
   - 聴き手のページには `X-Robots-Tag: noindex` を付ける。発表の中身(スライド・ノート・メールアドレス)とトークンと `id` はログに出さない。
   - 運営するのはデプロイした人で、その発表の中身と聴き手への責任もデプロイした人にある、と README に書く。
 
 ### 確かめ方と、今回入れないもの
 
-- D17. **純粋な部分と外側**: 引数の解釈、URL の振り分け、レイアウトの数値、スライドの SVG、許可リスト、状態と同期の計算、QR の符号化は I/O を持たない関数にし、`node --test` で確かめる。手元のサーバーは空いているポートで実際に立ち上げてテストする(SSE、追従、聴き手が動けないこと、描き直し、誤りが発表者にだけ出ること、トークン、Host と Origin)。Worker は workerd(`wrangler dev` 相当)でテストする(聴き手の `go` が捨てられる、発表者の `go` が全端末に届く、ノートが聴き手に届かない、許可リストにない SVG を断る、取り消したトークンの接続が切れる、署名の合わない `id` で Durable Object を起こさない、期限、設定の誤り)。Chromium(Playwright)で 2 つの窓の追従を見る。
+- D17. **純粋な部分と外側**: 引数の解釈、URL の振り分け、レイアウトの数値、スライドの SVG、許可リスト、状態と同期の計算、QR の符号化は I/O を持たない関数にし、`node --test` で確かめる。手元のサーバーは空いているポートで実際に立ち上げてテストする(SSE、追従、聴き手が動けないこと、描き直し、誤りが発表者にだけ出ること、トークン、Host と Origin)。Worker は workerd(`wrangler dev` 相当)でテストする(聴き手の `go` が捨てられる、発表者の `go` が全端末に届く、ノートが聴き手に届かない、許可リストにない SVG を断る、取り消したトークンの接続が切れる、知らない `id` で Durable Object を起こさない、期限、設定の誤り)。Chromium(Playwright)で 2 つの窓の追従を見る。
 - D18. **今回入れないもの**: 段階表示(デッキの JSON に段階がない)、切り替え効果、描き込み、録画、カメラ、ノートの編集、テーマ、聴き手のサインイン、聴き手が一時的に離れて前のスライドを見る機能、ペース配分のタイマー、Worker からの .pptx(手元の `/deck.pptx` か `pptx-deck` を使う)、運営者が用意する共有のサーバー。
 
 ## 結果(見込み)
@@ -208,7 +225,31 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
 
 確かめたこと(Cloudflare の文書、2026-11-14、レビューで): Durable Object の SQLite は 1 行・1 値 8 MB まで、1 つの SQL 文は 100 KB まで、point-in-time recovery は 30 日。WebSocket のハイバネーションは 1 つの Durable Object に 32,768 接続まで、接続ごとのタグは 10 個まで、attachment は 16 KiB まで、ハイバネーションでメモリの状態は消える。Rate Limiting のバインディングは場所ごとの概算で、IP を鍵にしないよう勧めている。Google は `email` を識別子に使わないよう勧め、組織に限るには `hd` を確かめるよう書いている。
 
-確かめていないこと(実装の前に確かめる): デプロイで WebSocket が切れるか、Durable Object(SQLite)が Workers の無料プランでどこまで使えるか、Access の JWT の検証に要る値の名前、`locationHint` の効き方。
+## 2 回目の Opus のレビュー(2026-11-15)で直したこと
+
+自分でデプロイする形に書き直した版への 18 件の指摘を、次のとおり直した。
+
+- 輪郭のフォントが測るときと違う選び方だった(グリフを借りる順、family、`wght`)。Node で使える輪郭のフォントはテスト用しかなく、`fontFilesOf` は fontconfig で探さない → 測るときと同じ選び方の輪郭用フォントを `lib/` に作り、`resolveFontFile` でファイルを決め、見つからなければ起動時に止まる。どのフォントにもないグリフだけを誤りにする(D2)。
+- `access` のとき、トークンの入口まで Access の後ろにあり、トークンで入れなかった → トークンは `/p/<id>/t`、メールは `/p/<id>/login` に分け、Access は `/login` だけ。発表者の画面は Cookie だけで決める(D13)。
+- SSE は同じオリジンでは `Origin` を送らないので、`Origin` を求めると全部断っていた → `Origin` がないか自分のもの、`Sec-Fetch-Site: same-origin`。`POST` と WebSocket は厳しいまま(D9)。
+- 聴き手が全スライドの URL を受け取り、先のスライドや消したスライドを読めた。SVG を直接開くとそのオリジンで動きうる → 聴き手には今のスライドだけ、今の版のハッシュだけを返し、使われなくなったものは消す。SVG の応答に `sandbox` の CSP と `nosniff`(D3、D4、D6、D12)。
+- `PRESENTER_EMAILS` から外して再デプロイしても、つながったままの接続が発表者のままだった(ハイバネーションの WebSocket は通常のデプロイで切れない) → `go` のたびに確かめ直す(D13、D14)。
+- `google` の `state` などの置き場所がなく、`SameSite=Strict` だと Google から戻ったときに Cookie が送られない → 10 分の暗号化した Cookie、戻り先は 1 つ、発表者の Cookie は `Lax` で `Origin` の確認と組み合わせる(D13)。
+- Access の JWT の確かめ方が足りず、workers.dev や Worker 全体の Access では聴き手まで閉じる → `kid`・RS256・`aud`・`iss`・`exp`・`email` を確かめ、独自ドメインとパスを限ったアプリを README に(D13)。
+- `id` の署名に `SESSION_SECRET` を使うと、secret を替えたら配った URL と QR が全部使えなくなる → `newUniqueId()` / `idFromString()` にした(D12)。
+- `appearance: 'auto'` の図が端末のダークモードで暗くなり、暗い図に背景がなかった → 明るい形に固定し、暗い図には背景の矩形(D2)。
+- WordArt の縁取りなど輪郭にできない飾りが黙って消えた → スライドの誤り(D2)。
+- 1 枚 1 MiB では写真の帯で断られ、送る前に分からなかった → 既定を 4 MiB / 16 MiB にし、送る前に手元で同じ上限と許可リストに当てる。検査は Durable Object の中で(D12、D16)。
+- `worker/` は npm のパッケージに入らず、版のずれを見つける手段がなかった。Worker では `fs` で画面のファイルを読めない → タグで取ってくる手順、`/api/version` で送り受けの版を比べる、画面はビルドに入れる(D4、D11)。
+- 既定の `127.0.0.1` で LAN のアドレスの QR を出していた。Worker の URL は版 7 以上が要る → `127.0.0.1` のときは QR を出さず案内、版 1〜10 と版情報、上限のテスト、読み取りの往復は `jsqr`(D10)。
+- `go {index}` ではキーを素早く 2 回押すと 1 枚しか進まない。手元を立ち上げ直すと全員 1 枚目に戻る。前にスライドを足すと違うスライドに飛ぶ。BroadcastChannel の共有は引き継ぎが要る → `go {delta}`、立ち上げ直しは発表者の画面が前の番号を送る、版が変わったら同じ中身のスライドを追う、窓の共有はやめて上限を表示(D6)。
+- 発表者のトークンをデッキの隣(git の中になりがち)に平文で置き、送り先ごとに分かれていなかった → `~/.config/svg-diagram/publish/` に送り先とデッキごと、権限 0600。`PUBLISH_TOKEN` は定数時間で比べる(D12)。
+- 設定の誤りを聴き手にも見せていた → 聴き手には 503 だけ。`MAX_SLIDES` と `ACCESS_TEAM_DOMAIN` も確かめる(D16)。
+- `<img>` の中の SVG の `<title>` は読み上げられない。絵文字の幅が測ったものと違いうる。9pt の警告は PowerPoint の XML からしか数えられない。Worker の URL の一覧がない。スレッドを作り直すとフックとキャッシュが消える。`image()` の監視の仕方がない → `alt` と `aria-live`、カラー絵文字のフォントで輪郭に、SVG 側の計算、URL の一覧、フックの入れ直しと遅くなることを明記、`resolveImages` で記録(D2、D5、D12)。
+
+確かめたこと(Cloudflare の文書、2026-11-15、レビューで): Workers の無料プランでも SQLite の Durable Object は使える(1 日 10 万要求など。WebSocket を開くのは 1 要求、届くメッセージは 20 対 1 で数え、送るメッセージは数えない。ハイバネーションしている間は時間で課金されない)。ハイバネーションの WebSocket は通常のデプロイでは切れず、強制の更新で切れる。Access の JWT は `Cf-Access-Jwt-Assertion`、鍵は `https://<チーム>.cloudflareaccess.com/cdn-cgi/access/certs`。Access のパスにはワイルドカードを区切りごとに 1 つ書ける。`idFromString()` はほかの名前空間の `id` で例外になる。Workers の無料プランの CPU は 1 要求 10ms。
+
+確かめていないこと(実装の前に確かめる): Durable Object の中の CPU の上限が無料プランでいくつか(大きな差し替えの検査が収まるか)、Durable Object 1 つの保存量の上限が無料プランで 1 GB か 10 GB か(文書の中で食い違っている)、Google から戻った後の移動で `Lax` の Cookie が送られること、`locationHint` の効き方。
 
 ## 実装計画(承認後)
 
@@ -217,9 +258,9 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
 3. 手元のサーバー: 配信、SSE と `go`、トークン、Host と Origin、`/deck.pptx`。
 4. 監視と描き直し(記録する働き、ディレクトリの監視、`worker_threads`)。
 5. `worker/`: Durable Object、受け口、トークン、Access と Google、同期、期限、設定の確かめ。README のデプロイ手順。
-6. `--publish` の送り手と `<deck>.publish.json`。
+6. `--publish` の送り手と 送り先ごとの記録(`~/.config/svg-diagram/publish/`)。
 7. Chromium での確認: 発表者と聴き手の 2 つの窓で、聴き手が追従し自分では動けないこと、保存して変わること、誤りが発表者にだけ出ること。
 
 ## 未決事項
 
-- 既定値(500 接続、30 日、8 MiB)は、デプロイする人が変えられる前提で、この値でよいか。
+- 既定値(500 接続、30 日、1 枚 4 MiB、全体 16 MiB)は、デプロイする人が変えられる前提で、この値でよいか。
