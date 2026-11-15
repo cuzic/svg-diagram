@@ -171,3 +171,11 @@ export function sameLength(part: Json, at: string, n: number, what: string, issu
     if (Array.isArray(v) && v.length !== n) issues.push({path: `${at}${p.map(k => typeof k === 'number' ? `[${k}]` : `.${k}`).join('')}`, message: `has ${v.length} entries; there are ${n} ${what}`});
   }
 }
+
+/** A step / ring / sector named by its 1-based number or its label (or id) (ADR 0065). */
+export const STEP_REF = (description: string): JsonSchema => ({oneOf: [{type: 'integer', minimum: 1, maximum: 8}, {type: 'string', minLength: 1, maxLength: 40}], description});
+/** An issue where `v` is neither a number within `n` nor one of `names` (ADR 0065). */
+export function refIssue(v: unknown, n: number, names: readonly unknown[], path: string, what: string, issues: SpecIssue[]): void {
+  if (v === undefined) return;
+  if (typeof v === 'number' ? v > n : !names.includes(v)) issues.push({path, message: `is not one of the ${n} ${what} (a number from 1, or a name: ${names.filter(x => typeof x === 'string').map(x => JSON.stringify(x)).join(', ') || 'none are named'})`});
+}

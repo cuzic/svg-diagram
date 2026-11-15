@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="626" viewBox="0 0 940 626" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">価値の的（今週と先週）</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/concentric-values-bullseye.ts","sourceSha256":"270c90e2fe17e3aa9e0c164658fd2c95c7b958dd76ce348e195bef1f9845c9eb"}</metadata>
+  <defs>
+    <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="626" fill="#ffffff"/>
+
+  <circle cx="472" cy="300" r="240" fill="#1f6e73" fill-opacity="0.07" stroke="#1f6e73" stroke-width="2"/>
+  <circle cx="472" cy="300" r="177.1" fill="#1f6e73" fill-opacity="0.07" stroke="#1f6e73" stroke-width="2"/>
+  <circle cx="472" cy="300" r="105.3" fill="#1f6e73" fill-opacity="0.07" stroke="#1f6e73" stroke-width="2"/>
+  <path d="M472.0,194.7 L472.0,60.0" fill="none" stroke="#6f6659" stroke-width="1.5"/>
+  <path d="M577.3,300.0 L712.0,300.0" fill="none" stroke="#6f6659" stroke-width="1.5"/>
+  <path d="M472.0,405.3 L472.0,540.0" fill="none" stroke="#6f6659" stroke-width="1.5"/>
+  <path d="M366.7,300.0 L232.0,300.0" fill="none" stroke="#6f6659" stroke-width="1.5"/>
+  <circle cx="590.8" cy="181.2" r="5" fill="#6f6659" fill-opacity="0.15" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,2"/>
+  <path d="M585.8,186.2 L530.4,241.6" fill="none" stroke="#6f6659" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <circle cx="446.6" cy="405" r="5" fill="#6f6659" fill-opacity="0.15" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,2"/>
+  <path d="M445.1,411.8 L433.9,463.2" fill="none" stroke="#6f6659" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <circle cx="524" cy="248" r="6" fill="#1f6e73" fill-opacity="1" stroke="#1f6e73" stroke-width="2"/>
+  <circle cx="516" cy="344" r="6" fill="#1f6e73" fill-opacity="1" stroke="#1f6e73" stroke-width="2"/>
+  <circle cx="432" cy="472" r="6" fill="#1f6e73" fill-opacity="1" stroke="#1f6e73" stroke-width="2"/>
+  <circle cx="348" cy="152" r="6" fill="#1f6e73" fill-opacity="1" stroke="#1f6e73" stroke-width="2"/>
+  <circle cx="408" cy="592" r="5" fill="#6f6659" fill-opacity="0.15" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,2"/>
+  <path d="M457.0,592 L485.0,592" fill="none" stroke="#6f6659" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <circle cx="501" cy="592" r="6" fill="#1f6e73" fill-opacity="1" stroke="#1f6e73" stroke-width="2"/>
+  <text x="650.2" y="118" font-size="14" font-weight="700" fill="#22201b">仕事・学び</text>
+  <text x="650.2" y="493.2" font-size="14" font-weight="700" fill="#22201b">人間関係</text>
+  <text x="293.8" y="493.2" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">成長・健康</text>
+  <text x="293.8" y="118" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">余暇</text>
+  <text x="472" y="305.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">価値に沿った生き方</text>
+  <text x="514" y="253.6" text-anchor="end" font-size="14" font-weight="400" fill="#22201b">資格の勉強</text>
+  <text x="506" y="349.6" text-anchor="end" font-size="14" font-weight="400" fill="#22201b">家族と夕食</text>
+  <text x="432" y="496.1" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">週 1 で運動</text>
+  <text x="348" y="139.2" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">読書の時間</text>
+  <text x="419" y="597.6" font-size="14" font-weight="400" fill="#6f6659">前回</text>
+  <text x="513" y="597.6" font-size="14" font-weight="400" fill="#6f6659">今回</text>
+</svg>

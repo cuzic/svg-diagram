@@ -137,6 +137,7 @@ export const RULE_DOCS = {
   'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・flowchart・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
   'density-compact-restored': "diagram({density: 'compact'}) の因果ツリー・状態遷移で、詰めた図のほうが検査の問題(箱を通る矢印・ラベルの重なり)が多いので、通常の間隔で描いた（情報）",
   'density': '文字量・箱の数が多い',
+  'concentric-label-crossing': 'concentric の扇形（sectors）の印の見出しが、輪の線か区切り線をまたぐ（重ならない場所が見つからなかった。ADR 0065）',
   'wf-callout-no-note': '図の番号に対応する注釈がない',
   'wf-note-no-callout': '注釈に対応する番号が図にない',
   'wf-callout-gap': '図の番号が 1 からの連番になっていない',
@@ -831,6 +832,11 @@ function boxSizeRules(d: LintTarget, out: Finding[]): void {
   const hit = walkBands(d.bands).filter(b => b.type === 'box' && b.size !== undefined);
   if (hit.length) out.push({rule: 'box-size-ignored', severity: 'warn', message: `box({size}) は効果がない(${hit.length} 個の箱)。大きい文字は役割を使う: stat() / stat({size: 'display'})・caption({role: 'display'})・banner({headlineRole})・bars / plane({labelRole})。次の版で throw する`});
 }
+/** ADR 0065: a mark of a concentric with sectors whose label found no spot clear of the ring and sector lines. */
+function crossingRules(d: LintTarget, out: Finding[]): void {
+  for (const b of d.laidOut ?? []) if (b.type === 'concentric') for (const label of b.crossings ?? [])
+    out.push({rule: 'concentric-label-crossing', severity: 'warn', message: `concentric: 印 "${label}" の見出しが輪の線か区切り線をまたぐ（近くに重ならない場所がない）。見出しを短くする、印を別の輪・扇形に移す、輪を減らす`});
+}
 function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   const out: Finding[] = [];
   if (d.wrapFellBack) out.push({rule: 'wrap-fell-back', severity: 'info', message: "wrap: 'bunsetsu-soft': 文節で折ると図が幅に収まらなかったので、従来の折り方（phrase）で配置した。漢字・ひらがなの途中で折れる行が残る。図を 2 枚に分ける、文言を短くする、図の幅を広げると、文節で折れる"});
@@ -844,6 +850,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   rcaRules(d, out);
   fitRules(d, out);
   densityRules(d, out);
+  crossingRules(d, out);
   flowRules(d, out);
   textContrast(d, tones, out);
   colourOnlyEmphasis(d, out);

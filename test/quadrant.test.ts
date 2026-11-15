@@ -22,7 +22,7 @@ const near = (a: number, b: number, eps = 1e-6) => assert.ok(Math.abs(a - b) <= 
 // ---- the model --------------------------------------------------------------------------------------------------------------
 
 test('presets: every one fills axes, grid, captions and tones, and the grid has the framework\'s shape', () => {
-  const shape: Record<QuadrantPreset, [number, number]> = {bcg: [2, 2], ge: [3, 3], ansoff: [2, 2], nineBox: [3, 3], impactEffort: [2, 2], risk: [3, 3], stakeholder: [2, 2], positioning: [2, 2], eisenhower: [2, 2]};
+  const shape: Record<QuadrantPreset, [number, number]> = {bcg: [2, 2], ge: [3, 3], ansoff: [2, 2], nineBox: [3, 3], impactEffort: [2, 2], risk: [3, 3], stakeholder: [2, 2], positioning: [2, 2], eisenhower: [2, 2], actMatrix: [2, 2]};
   assert.deepEqual([...QUADRANT_PRESETS].sort(), Object.keys(shape).sort());
   for (const name of QUADRANT_PRESETS) {
     const q = quadrant.preset(name);
@@ -36,6 +36,30 @@ test('presets: every one fills axes, grid, captions and tones, and the grid has 
   assert.equal(quadrant.preset('bcg').x.reversed, true); // share is drawn high -> low
   assert.deepEqual(quadrant.preset('ansoff').cells.flat().map(c => c.title), ['市場浸透', '新製品開発', '新市場開拓', '多角化']);
   assert.equal(quadrant.preset('positioning').crosshair, true);
+  // ACT Matrix: up = the five senses, right = toward; read from the bottom-left (inner experience) round to the toward moves
+  const act = quadrant.preset('actMatrix');
+  assert.deepEqual(act.cells.flat().map(c => c.title), ['離れる行動', '向かう行動', '内側の体験', '大切な人や物事']);
+  assert.deepEqual([act.y.title, act.y.high, act.y.low, act.crosshair, act.centre], ['どこで起きるか', '五感で感じる（外）', '心の中（内）', true, '気づいている自分']);
+});
+
+test('centre: a word where the crosshair lines meet, kept clear of the captions and items; only on a 2 x 2 crosshair', async () => {
+  const items: QuadrantItem[] = [{label: '不安', cell: [0, 1]}, {label: '先延ばし', cell: [0, 0]}, {label: '家族', cell: [1, 1]}, {label: '電話する', cell: [1, 0]}, {label: '真ん中', at: [0.5, 0.5]}];
+  const q = await figure(quadrant.preset('actMatrix', {items})), word = q.texts.find(t => t.text === '気づいている自分');
+  assert.ok(word && word.bold && word.anchor === 'middle');
+  const cross = {x: q.lines.find(l => l.x1 === l.x2)?.x1 ?? 0, y: q.lines.find(l => l.y1 === l.y2)?.y1 ?? 0};
+  assert.ok(Math.abs(word.x - cross.x) < 1, 'centred on the vertical line');
+  const chip = q.chips[0]!;
+  assert.ok(chip.x < cross.x && chip.x + chip.w > cross.x && chip.y < cross.y && chip.y + chip.h > cross.y, 'its chip covers the crossing');
+  const centreBox = q.labelBoxes.find(b => b.label === '気づいている自分')!;
+  for (const b of q.labelBoxes) if (b !== centreBox) assert.ok(!(b.x < centreBox.x + centreBox.w && centreBox.x < b.x + b.w && b.y < centreBox.y + centreBox.h && centreBox.y < b.y + b.h), `${b.label} overlaps the centre`);
+  for (const q2 of q.bubbles) assert.ok(Math.hypot(q2.x - cross.x, q2.y - cross.y) > 20, `${q2.label} keeps off the centre`);
+  assert.equal(quadrant.preset('actMatrix', {centre: ''}).centre, undefined, "'' leaves the preset's out");
+  assert.equal(quadrant({x: {title: 'x'}, y: {title: 'y'}, crosshair: true, centre: '私'}).centre, '私');
+  assert.throws(() => quadrant({x: {title: 'x'}, y: {title: 'y'}, centre: '私'}), /crosshair: true/);
+  assert.throws(() => quadrant({x: {title: 'x'}, y: {title: 'y'}, crosshair: true, grid: [3, 3], centre: '私'}), /2 x 2/);
+  assert.throws(() => quadrant.preset('actMatrix', {grid: [3, 3]}), /centre: ''/);
+  assert.equal(quadrant.preset('actMatrix', {grid: [3, 3], centre: ''}).centre, undefined);
+  assert.equal(quadrant({x: {title: 'x'}, y: {title: 'y'}, centre: '  '}).centre, undefined, 'a centre of spaces is none');
 });
 
 test('risk preset: the rating of every cell is written, and equals likelihood x impact', () => {
@@ -218,6 +242,7 @@ test('every preset passes verify, the rules without a single warning, and the st
     stakeholder: [{label: 'CFO', at: [0.9, 0.9], group: '社内'}, {label: '官庁', at: [0.2, 0.9], group: '社外'}],
     positioning: [{label: '自社', at: [0.6, 0.7], group: '自社'}, {label: '競合', at: [0.3, 0.2], group: '競合'}],
     eisenhower: [{label: '障害対応', cell: [0, 0]}, {label: '勉強', cell: [1, 0]}, {label: '雑務', cell: [0, 1]}],
+    actMatrix: [{label: '失敗したらどうしよう', cell: [0, 1]}, {label: '発言を控える', cell: [0, 0]}, {label: 'チームの役に立つ', cell: [1, 1]}, {label: '一つ質問する', cell: [1, 0]}],
   };
   for (const name of QUADRANT_PRESETS) {
     const d = diagram({theme: 'blue', title: name}).add(quadrant.preset(name, {items: items[name], allowEmpty: true, sizeTitle: items[name].some(i => i.size) ? '値' : undefined}));
