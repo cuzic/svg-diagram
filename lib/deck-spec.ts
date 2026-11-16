@@ -1,5 +1,5 @@
 // A deck: slides of 16:9, each with a heading, a lead, a figure (a JSON spec, lib/spec.ts), callouts, a source line and speaker notes
-// (ADR 0055). The input, its JSON Schema and its checks, with places such as `slides[2].figure.parts[0].nodes[1]`. Like lib/spec.ts, nothing
+// (ADR 0055), or a cover (ADR 0066). The input, its JSON Schema and its checks, with places such as `slides[2].figure.parts[0].nodes[1]`. Like lib/spec.ts, nothing
 // here touches the disk or a process.
 import {capped, specSchema, validateAgainst, validateSpec} from './spec.ts';
 import {count, list, object, oneOf, SPEC_WIDTH, text, type Json, type JsonSchema, type SpecIssue} from './spec-kit.ts';
@@ -14,41 +14,51 @@ export const MIN_COLUMNS = 2, MAX_COLUMNS = 3;
 export interface DeckCallout {label?: string; text: string}
 /** One column of a slide (ADR 0058): a figure or short text, under an optional caption, `width` its share of the row. */
 export interface DeckColumn {caption?: string; figure?: unknown; text?: string; /** Its share of the row (1 to 3), or 'auto' (ADR 0061; leaving it out is 'auto' too). */ width?: number | 'auto'}
-export interface DeckSlide {title?: string; lead?: string; figure?: unknown; columns?: DeckColumn[]; columnScale?: 'each' | 'same'; fit?: 'fill' | 'width'; callouts?: DeckCallout[]; source?: string; notes?: string}
+export interface DeckSlide {title?: string; lead?: string; figure?: unknown; columns?: DeckColumn[]; columnScale?: 'each' | 'same'; fit?: 'fill' | 'width'; callouts?: DeckCallout[]; source?: string; notes?: string; /** ADR 0066: a cover, and the fields only a cover has. */ layout?: 'cover'; event?: string; date?: string; presenter?: string}
+
+/** The fields a cover does not draw (ADR 0066 D2), and the ones only a cover draws. */
+export const NOT_ON_COVER = ['figure', 'columns', 'columnScale', 'fit', 'callouts'] as const;
+export const COVER_ONLY = ['event', 'date', 'presenter'] as const;
+/** The message for a field a cover does not draw. */
+export const notOnCover = (field: string): string => `is not drawn on a cover (layout "cover"): put the ${field} on a slide of its own, or take "layout" out`;
 export interface DeckSpec {title?: string; fit?: 'fill' | 'width'; slides: DeckSlide[]}
 
 /** How slide i's figures take its room (ADR 0060): the slide's `fit`, else the deck's, else 'fill'. */
 export const fitOf = (deck: DeckSpec, slide: DeckSlide): 'fill' | 'width' => slide.fit ?? deck.fit ?? 'fill';
 
 const slideShape = (figure: JsonSchema): JsonSchema => object({
-  title: text('The slide heading, drawn large at the top.', 120),
-  lead: text('One or two sentences under the heading: what the slide says.', 300),
+  layout: {...oneOf('cover'), description: '"cover": a cover (title slide): the event, title, lead (as the subtitle), date and presenter, large and centred. A cover needs a title and has no figure, columns, columnScale, fit or callouts. Leave it out for an ordinary slide.'},
+  title: text('The slide heading, drawn large at the top (on a cover: the title, large and centred).', 120),
+  lead: text('One or two sentences under the heading: what the slide says (on a cover: the subtitle).', 300),
+  event: text('Cover only: the event or series, such as 「第2回 AI開発の進め方 勉強会」, above the title.', 80),
+  date: text('Cover only: the date, drawn as written (any form, such as 「2026年11月27日」 or "2026-11-27").', 60),
+  presenter: text('Cover only: who presents, drawn as written (an affiliation or several names in this one text).', 120),
   figure,
-  columns: list(object({
+  columns: {...list(object({
     caption: text('A small bold heading over the column, one line.', 60),
     figure: {...figure, description: 'The column\'s figure (a JSON spec). Write either figure or text.'},
     text: text('Short text for the column: lines separated by "\\n"; a line starting with ・ or "- " is a bullet. Write either figure or text.', 600),
     width: {oneOf: [count('The column\'s share of the row (1 to 3).', 3), {type: 'string', const: 'auto'}], description: 'The column\'s share of the row: 1 to 3, or "auto" (the default): when every column is auto, the shares are chosen to leave the least empty room on the slide with every text at 9pt or more (fit "width": equal shares).'},
-  }, [], 'One column: a figure or short text.'), MAX_COLUMNS, MIN_COLUMNS),
-  columnScale: {...oneOf('each', 'same'), description: '"each" (default): each column\'s figure as large as it fits; "same": every figure at one scale (to compare a before and an after).'},
-  fit: {...oneOf('fill', 'width'), description: 'How the figures take the room the slide leaves: "fill" (default) lays each out at the width that draws it largest (up to 1.5 times), so little room is left empty; "width" keeps each at its own width (or its column\'s) and scales it up to 1.25 times.'},
-  callouts: list(object({
+  }, [], 'One column: a figure or short text.'), MAX_COLUMNS, MIN_COLUMNS), description: 'Two or three columns side by side, in place of the figure. Not on a cover.'},
+  columnScale: {...oneOf('each', 'same'), description: '"each" (default): each column\'s figure as large as it fits; "same": every figure at one scale (to compare a before and an after). Not on a cover.'},
+  fit: {...oneOf('fill', 'width'), description: 'How the figures take the room the slide leaves: "fill" (default) lays each out at the width that draws it largest (up to 1.5 times), so little room is left empty; "width" keeps each at its own width (or its column\'s) and scales it up to 1.25 times. Not on a cover.'},
+  callouts: {...list(object({
     label: text('Plain words before the emphasised text, such as 「足す一文：」.', 60),
     text: text('The emphasised text, drawn bold in a tinted box near the bottom of the slide.', 300),
-  }, ['text']), MAX_CALLOUTS),
+  }, ['text']), MAX_CALLOUTS), description: 'Up to three emphasised lines near the bottom of the slide. Not on a cover.'},
   source: text('Where the facts come from, drawn small at the bottom.', 300),
   notes: text('Speaker notes. Lines are separated by "\\n".', 5000),
-}, [], 'One 16:9 slide. Every field is optional, but a slide needs a title, a figure or columns. figure and columns do not go together.');
+}, [], 'One 16:9 slide. Every field is optional, but a slide needs a title, a figure or columns. figure and columns do not go together. With "layout": "cover" it is a cover: title (required), lead, event, date, presenter, source and notes only.');
 
 const {canvas: _canvas, ...FIGURE_FIELDS} = specSchema.properties ?? {}; // a deck slide sizes its figure itself (validateDeck refuses a canvas)
-const FIGURE: JsonSchema = {...specSchema, properties: FIGURE_FIELDS, description: 'The figure: the same JSON spec as a single diagram. It is laid out at its own size and then scaled to the room the slide leaves.'};
+const FIGURE: JsonSchema = {...specSchema, properties: FIGURE_FIELDS, description: 'The figure: the same JSON spec as a single diagram. It is laid out at its own size and then scaled to the room the slide leaves. Not on a cover.'};
 
 /** The deck's JSON Schema, figures included (each is a full spec). */
 export const deckSchema: JsonSchema = object({
   title: text('The file\'s title (the presentation\'s properties).', 200),
   fit: {...oneOf('fill', 'width'), description: 'How the figures take the room the slide leaves: "fill" (default) lays each out at the width that draws it largest (up to 1.5 times), so little room is left empty; "width" keeps each at its own width (or its column\'s) and scales it up to 1.25 times.'},
   slides: list(slideShape(FIGURE), MAX_SLIDES, 1),
-}, ['slides'], 'A PowerPoint deck of 16:9 slides.');
+}, ['slides'], 'A PowerPoint deck of 16:9 slides. A cover is a slide with "layout": "cover".');
 
 // the same shape with the figure left to validateSpec, so that a figure's mistakes come back once, with the part rules too
 const SHAPE: JsonSchema = object({title: deckSchema.properties?.['title'] as JsonSchema, fit: deckSchema.properties?.['fit'] as JsonSchema, slides: list(slideShape({description: 'figure'}), MAX_SLIDES, 1)}, ['slides']);
@@ -69,6 +79,13 @@ export function validateDeck(input: unknown): SpecIssue[] {
   if (Array.isArray(slides)) slides.forEach((s: unknown, i) => {
     if (typeof s !== 'object' || s === null) return;
     const slide = s as Json;
+    if (slide['layout'] === 'cover') {
+      // a cover (ADR 0066 D2): its title is required, and what it does not draw is a mistake where it is written
+      if (slide['title'] === undefined) issues.push({path: `slides[${i}].title`, message: 'a cover needs a title'});
+      for (const k of NOT_ON_COVER) if (slide[k] !== undefined) issues.push({path: `slides[${i}].${k}`, message: notOnCover(k)});
+      return;
+    }
+    if (slide['layout'] === undefined) for (const k of COVER_ONLY) if (slide[k] !== undefined) issues.push({path: `slides[${i}].${k}`, message: 'is drawn only on a cover: add "layout": "cover" to the slide, or take it out'});
     if (slide['title'] === undefined && slide['figure'] === undefined && slide['columns'] === undefined) issues.push({path: `slides[${i}]`, message: 'needs a title, a figure or columns'});
     if (slide['figure'] !== undefined && slide['columns'] !== undefined) issues.push({path: `slides[${i}]`, message: 'has both figure and columns: write one of them (put the figure in a column)'});
     if (slide['figure'] !== undefined) checkFigure(slide['figure'], path => figurePath(i, path), issues);

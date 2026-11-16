@@ -1,5 +1,5 @@
 // Where everything goes on a 16:9 deck slide (ADR 0055, ADR 0056 D2): the heading and lead from the top, the source and callouts from the
-// bottom, the figure scaled into what is left. One calculation for the PowerPoint writer (lib/pptx/deck.ts) and the slide SVG
+// bottom, the figure scaled into what is left; a cover centred (ADR 0066). One calculation for the PowerPoint writer (lib/pptx/deck.ts) and the slide SVG
 // (lib/present/slide-svg.ts), so a slide shown by `serve` and the same slide in the .pptx sit the same. Pure: the widths come in as a function.
 import {wrapText} from './wrap.ts';
 
@@ -31,22 +31,22 @@ export const STYLE = {
 /** The width of `text` in px at `size` px, bold or not, in the font the slide is measured with. */
 export type TextWidth = (text: string, size: number, bold: boolean) => number;
 export interface DeckCalloutIn {label?: string; text: string}
-export interface DeckTextIn {title?: string; lead?: string; callouts?: readonly DeckCalloutIn[]; source?: string}
+export interface DeckTextIn {title?: string; lead?: string; callouts?: readonly DeckCalloutIn[]; source?: string; /** ADR 0066: a cover, with its own fields. */ layout?: 'cover'; event?: string; date?: string; presenter?: string}
 /** A column to place (ADR 0058): a figure (its laid-out size) or text, under an optional caption; `width` its share of the row. */
 export interface ColumnIn {caption?: string; figure?: {w: number; h: number}; text?: string; width?: number}
 /** Where a column's parts go: its caption, and its figure or its text (one block per paragraph); `noRoom` when its content does not fit. */
 export interface ColumnPlace {x: number; width: number; caption: TextBlock | null; figure: FigurePlace | null; text: TextBlock[]; noRoom: boolean; /** The room for the column's content (under the captions). */ box: {w: number; h: number}}
 
 export interface Run {text: string; bold: boolean; color: string}
-/** A text box: lines of runs, each line `pitch` px below the last, inside an inset. */
-export interface TextBlock {kind: 'text'; name: string; x: number; y: number; width: number; size: number; pitch: number; lines: Run[][]; inset: {x: number; y: number}}
+/** A text box: lines of runs, each line `pitch` px below the last, inside an inset; `align` 'center' puts each line in the middle of the box (ADR 0066). */
+export interface TextBlock {kind: 'text'; name: string; x: number; y: number; width: number; size: number; pitch: number; lines: Run[][]; inset: {x: number; y: number}; align?: 'center'}
 export interface RectBlock {kind: 'rect'; name: string; x: number; y: number; w: number; h: number; fill: string}
 export type Block = TextBlock | RectBlock;
 export interface FigurePlace {x: number; y: number; w: number; h: number; k: number}
 
 export interface DeckLayout {
-  /** The heading and lead, in that order. */
-  top: TextBlock[];
+  /** The heading and lead, in that order; on a cover (ADR 0066), its texts and its rule from the top. */
+  top: Block[];
   /** The source and then each callout from the last up, each as the blocks it is made of (a callout: its box, its bar, its text). */
   bottom: Block[][];
   /** Where the figure goes, when there is one and it has room. */
@@ -92,6 +92,7 @@ const textBlock = (name: string, x: number, y: number, width: number, size: numb
  * the room the figure would have, side by side; `scale` 'same' puts every column figure at one scale.
  */
 export function planDeckLayout(s: DeckTextIn, figure: {w: number; h: number} | undefined, w: TextWidth, columns?: readonly ColumnIn[], scale: 'each' | 'same' = 'each', fit: FigureFit = 'width'): DeckLayout {
+  if (s.layout === 'cover') return planCover(s, w);
   const width = SLIDE_W - 2 * MARGIN_X;
   const top: TextBlock[] = [], bottom: Block[][] = [];
   let y = TOP;
@@ -105,13 +106,7 @@ export function planDeckLayout(s: DeckTextIn, figure: {w: number; h: number} | u
     top.push(textBlock('lead', MARGIN_X, y, width, st.size, lines.map(t => [{text: t, bold: false, color: st.color}])));
     y += lines.length * Math.round(st.size * LINE);
   }
-  let low = SLIDE_H - BOTTOM;
-  if (s.source) {
-    const st = STYLE.source, lines = wrapped(s.source, st.size, width, w, false), h = lines.length * Math.round(st.size * LINE);
-    low -= h;
-    bottom.push([textBlock('source', MARGIN_X, low, width, st.size, lines.map(t => [{text: t, bold: false, color: st.color}]))]);
-    low -= 10;
-  }
+  let low = sourceBlock(s, w, bottom);
   for (const c of [...(s.callouts ?? [])].reverse()) {
     const st = STYLE.callout, lines = calloutLines(c, width - 4 - 2 * st.padX, w);
     const h = lines.length * Math.round(st.size * LINE) + 2 * st.padY;
@@ -140,6 +135,71 @@ export function planDeckLayout(s: DeckTextIn, figure: {w: number; h: number} | u
   } else if (y > low + 10) noRoom = true;
   const roomTop = y + (s.title || s.lead ? GAP : 0) + FIG_PAD, roomH = low - (bottom.length ? GAP - 10 : 0) - roomTop - FIG_PAD;
   return {top, bottom, figure: place, noRoom, columns: [], room: {w: width, h: roomH}};
+}
+
+/** The source line at the bottom, pushed to `bottom`; the y above it that the rest of the slide may reach. */
+function sourceBlock(s: DeckTextIn, w: TextWidth, bottom: Block[][]): number {
+  const width = SLIDE_W - 2 * MARGIN_X;
+  let low = SLIDE_H - BOTTOM;
+  if (s.source) {
+    const st = STYLE.source, lines = wrapped(s.source, st.size, width, w, false), h = lines.length * Math.round(st.size * LINE);
+    low -= h;
+    bottom.push([textBlock('source', MARGIN_X, low, width, st.size, lines.map(t => [{text: t, bold: false, color: st.color}]))]);
+    low -= 10;
+  }
+  return low;
+}
+
+/**
+ * A cover (ADR 0066 D4): the event, the title, the lead (the subtitle), a short rule, the date and the presenter, each centred, stacked and
+ * set in the middle of the room above the source. `gap` is the room under each to the next one there is. The title is 56 px, else 48
+ * (each when it takes two lines at most and the whole fits), else 40 (D5).
+ */
+export const COVER = {
+  width: 1040,
+  event: {size: 22, bold: true, color: '1F5FA8', gap: 16},
+  title: {sizes: [56, 48, 40] as const, line: 1.2, bold: true, color: '1F2328', gap: 20},
+  lead: {size: 26, bold: false, color: '5B6370', gap: 36},
+  rule: {w: 80, h: 3, fill: '1F5FA8', gap: 28},
+  date: {size: 20, bold: false, color: '3A4A5A', gap: 8},
+  presenter: {size: 24, bold: true, color: '1F2328', gap: 0},
+} as const;
+
+function planCover(s: DeckTextIn, w: TextWidth): DeckLayout {
+  const bottom: Block[][] = [], low = sourceBlock(s, w, bottom), x = (SLIDE_W - COVER.width) / 2, room = low - TOP;
+  type Item = {name: string; h: number; gap: number; text?: {lines: string[]; size: number; pitch: number; bold: boolean; color: string}; rule?: true};
+  const text = (name: string, value: string | undefined, st: {size: number; bold: boolean; color: string; gap: number}, pitch = Math.round(st.size * LINE)): Item[] => {
+    if (!value) return [];
+    const lines = wrapped(value, st.size, COVER.width, w, st.bold);
+    return [{name, h: lines.length * pitch, gap: st.gap, text: {lines, size: st.size, pitch, bold: st.bold, color: st.color}}];
+  };
+  const stack = (size: number): Item[] => [
+    ...text('event', s.event, COVER.event),
+    ...text('title', s.title, {...COVER.title, size}, Math.round(size * COVER.title.line)),
+    ...text('lead', s.lead, COVER.lead),
+    ...(s.date || s.presenter ? [{name: 'rule', h: COVER.rule.h, gap: COVER.rule.gap, rule: true as const}] : []),
+    ...text('date', s.date, COVER.date),
+    ...text('presenter', s.presenter, COVER.presenter),
+  ];
+  const height = (items: Item[]) => items.reduce((n, it, k) => n + it.h + (k < items.length - 1 ? it.gap : 0), 0);
+  const sizes = COVER.title.sizes, last = sizes[sizes.length - 1] ?? 40;
+  let items = stack(last);
+  for (const size of sizes) {
+    const tried = stack(size), title = tried.find(it => it.name === 'title');
+    if (size === last || ((title?.text?.lines.length ?? 0) <= 2 && height(tried) <= room)) { items = tried; break; }
+  }
+  const h = height(items);
+  // a run with no place to break (a URL, a long name) stays one line: wider than the column, it would leave the slide (wrap="none" on the .pptx)
+  const tooWide = items.some(it => it.text?.lines.some(l => w(l, it.text?.size ?? 0, it.text?.bold ?? false) > COVER.width + 0.5));
+  let y = TOP + Math.max(0, (room - h) / 2);
+  const top: Block[] = items.map(it => {
+    const at = y;
+    y += it.h + it.gap;
+    if (it.rule || !it.text) return {kind: 'rect', name: 'cover rule', x: (SLIDE_W - COVER.rule.w) / 2, y: at, w: COVER.rule.w, h: COVER.rule.h, fill: COVER.rule.fill};
+    const t = it.text;
+    return {...textBlock(it.name, x, at, COVER.width, t.size, t.lines.map(l => [{text: l, bold: t.bold, color: t.color}])), pitch: t.pitch, align: 'center'};
+  });
+  return {top, bottom, figure: null, noRoom: h > room || tooWide, columns: [], room: {w: SLIDE_W - 2 * MARGIN_X, h: Math.max(0, room - h)}};
 }
 
 /** Each column's width in px: the row (the slide less its margins and the gaps) shared by the columns' `width`. */
@@ -194,6 +254,15 @@ function planColumns(columns: readonly ColumnIn[], top: number, height: number, 
 
 /** Every text of the slide that is measured, at its size and weight: for a shell that measures in a batch first. */
 export function deckTexts(s: DeckTextIn & {columns?: readonly {caption?: string; text?: string}[]}): {text: string; size: number; bold: boolean}[] {
+  if (s.layout === 'cover') {
+    const C = COVER, at = (t: string | undefined, st: {size: number; bold: boolean}) => t ? [{text: t, size: st.size, bold: st.bold}] : [];
+    return [
+      ...at(s.event, C.event),
+      ...(s.title ? C.title.sizes.map(size => ({text: s.title as string, size, bold: C.title.bold})) : []),
+      ...at(s.lead, C.lead), ...at(s.date, C.date), ...at(s.presenter, C.presenter),
+      ...(s.source ? [{text: s.source, size: STYLE.source.size, bold: false}] : []),
+    ];
+  }
   return [
     ...(s.columns ?? []).flatMap(c => [
       ...(c.caption ? [{text: c.caption, size: CAPTION.size, bold: CAPTION.bold}] : []),
@@ -206,8 +275,10 @@ export function deckTexts(s: DeckTextIn & {columns?: readonly {caption?: string;
   ];
 }
 
-/** Why a slide could not be made, for a slide with or without a figure. */
-export const roomMessage = (hasFigure: boolean): string => hasFigure
+/** Why a slide could not be made, for a slide with or without a figure, or a cover (ADR 0066). */
+export const roomMessage = (hasFigure: boolean, cover = false): string => cover
+  ? 'the cover\'s text does not fit the slide (too many lines, or a line too long to break): shorten the title, lead, event, presenter or source'
+  : hasFigure
   ? 'the heading, lead, callouts and source leave no room for the figure: shorten them, or put the figure on a slide of its own'
   : 'the heading and lead run into the callouts and source: shorten them, or split the slide';
 

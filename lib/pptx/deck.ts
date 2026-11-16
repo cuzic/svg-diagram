@@ -17,7 +17,7 @@ export {deckTexts, MAX_FIGURE_SCALE, MIN_TEXT_PT, roomMessage, SLIDE_H, SLIDE_W,
 export interface DeckFigure {plan: SlidePlan; /** Its laid-out size, px. */ w: number; h: number}
 /** A column of a slide (ADR 0058): its figure (laid out) or its text. */
 export interface DeckColumnIn {caption?: string; figure?: DeckFigure; text?: string; width?: number}
-export interface DeckSlideIn {title?: string; lead?: string; callouts?: {label?: string; text: string}[]; source?: string; notes?: string; figure?: DeckFigure; columns?: DeckColumnIn[]; columnScale?: 'each' | 'same'; /** ADR 0060; 'width' when not given. */ fit?: FigureFit}
+export interface DeckSlideIn {title?: string; lead?: string; callouts?: {label?: string; text: string}[]; source?: string; notes?: string; figure?: DeckFigure; columns?: DeckColumnIn[]; columnScale?: 'each' | 'same'; /** ADR 0060; 'width' when not given. */ fit?: FigureFit; /** A cover (ADR 0066): no figure, columns or callouts. */ layout?: 'cover'; event?: string; date?: string; presenter?: string}
 export interface PlannedSlide {
   xml: string;
   notes: string;
@@ -29,6 +29,8 @@ export interface PlannedSlide {
   /** The slide's text leaves the figure no room, or (without a figure) the text from the top runs into the text from the bottom. */
   noRoom: boolean;
   name: string;
+  /** A cover (ADR 0066): its no-room message is its own. */
+  cover?: boolean;
   /** Per column (ADR 0058): how much its figure was scaled and its smallest text after (null for a text column), and whether its content has no room. */
   columns?: {scale: number | null; minTextPt: number | null; noRoom: boolean}[];
 }
@@ -66,7 +68,9 @@ function textShape(id: number, b: Extract<Block, {kind: 'text'}>, fonts: Fonts):
   const body = b.lines.map((runs, i) => (i ? `<a:br>${rpr(must(runs[0]))}</a:br>` : '') + runs.map(r => `<a:r>${rpr(r)}<a:t>${escapeXml(r.text)}</a:t></a:r>`).join('')).join('');
   const h = b.lines.length * b.pitch + b.inset.y * 2;
   const spPr = `<a:xfrm><a:off x="${emu(b.x)}" y="${emu(b.y)}"/><a:ext cx="${emu(b.width)}" cy="${emu(h)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln>`;
-  const txBody = `<a:bodyPr wrap="square" lIns="${emu(b.inset.x)}" tIns="${emu(b.inset.y)}" rIns="${emu(b.inset.x)}" bIns="${emu(b.inset.y)}" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr><a:lnSpc><a:spcPts val="${Math.round(b.pitch * 75)}"/></a:lnSpc></a:pPr>${body}</a:p>`;
+  // a centred block (a cover, ADR 0066 D6) does not wrap again: a font a little wider than the measured one does not add a line
+  const centre = b.align === 'center';
+  const txBody = `<a:bodyPr wrap="${centre ? 'none' : 'square'}" lIns="${emu(b.inset.x)}" tIns="${emu(b.inset.y)}" rIns="${emu(b.inset.x)}" bIns="${emu(b.inset.y)}" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr${centre ? ' algn="ctr"' : ''}><a:lnSpc><a:spcPts val="${Math.round(b.pitch * 75)}"/></a:lnSpc></a:pPr>${body}</a:p>`;
   return sp(id, b.name, spPr, txBody);
 }
 
@@ -100,7 +104,7 @@ export function planDeckSlide(s: DeckSlideIn, fonts: Fonts, w: TextWidth): Plann
   // drawn in this order: the heading and lead, the figure (its dark panel first), then the callouts and source on top
   const tree = top.join('') + figureXml + bottom.reverse().join('');
   const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sld ${NS}><p:cSld${name ? ` name="${attr(name)}"` : ''}><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${tree}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
-  return {xml, notes: s.notes ?? '', pictures: fig && !layout.noRoom ? fig.plan.pictures : [], scale, minTextPt: small, noRoom: layout.noRoom, name, columns: []};
+  return {xml, notes: s.notes ?? '', pictures: fig && !layout.noRoom ? fig.plan.pictures : [], scale, minTextPt: small, noRoom: layout.noRoom, name, columns: [], ...(s.layout === 'cover' ? {cover: true} : {})};
 }
 
 const slideXml = (name: string, tree: string): string => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sld ${NS}><p:cSld${name ? ` name="${attr(name)}"` : ''}><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${tree}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
@@ -225,7 +229,7 @@ export function deckEntries(slides: readonly PlannedSlide[], pngs: readonly (rea
 export function slideIssues(p: PlannedSlide, i: number, hasFigure: boolean, kinds: readonly ('figure' | 'text')[] = []): {errors: {path: string; message: string}[]; warnings: {path: string; message: string}[]} {
   const errors: {path: string; message: string}[] = [], warnings: {path: string; message: string}[] = [];
   if (!kinds.length) {
-    if (p.noRoom) errors.push({path: `slides[${i}]`, message: roomMessage(hasFigure)});
+    if (p.noRoom) errors.push({path: `slides[${i}]`, message: roomMessage(hasFigure, p.cover)});
     else { const w = smallTextWarning(p); if (w) warnings.push({path: `slides[${i}].figure`, message: w}); }
     return {errors, warnings};
   }
