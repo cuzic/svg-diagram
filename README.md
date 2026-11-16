@@ -105,7 +105,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 | `tree` / `mindmap` | ノードの枠 |
 | `causeTree` / `whyWhyTree` | ノードの枠（六角形は付かない）。作り手が付けた名前（`unanchored`）は付かない |
 | `bpmn` | タスクの枠（イベントとゲートは付かない） |
-| `chevron` / `funnel` / `cycle` / `venn` / `concentric` / `emblem` / `valueChain` | 各項目の図形（矢羽根・段・丸・集合・輪・記号・活動の帯）。項目の文字は付かない |
+| `chevron` / `funnel` / `cycle` / `venn` / `concentric` / `emblem` / `valueChain` | 各項目の図形（矢羽根・段・丸・集合・輪・記号・活動の帯。concentric の印も）。項目の文字は付かない |
 | `quadrant` | 各項目の印（円・四角・菱形・三角）**と**名前の文字（折り返した行ごと） |
 
 `id` のない項目には付かない。**付かない部品**（`id` は `connect()` で使えるが、`data-node` は出ない）: `cloud`、`gantt`、`states`、`classes`、`fta` / `bowtie`、`chart` 系、`bars`、`image` の印、`causeTree` の六角形、`bpmn` のイベントとゲート。必要になったら `lib/emit-node-ids.ts` の `withNodeIdsBand` に足す。
@@ -204,8 +204,8 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 | pyramid / curve | ピラミッド、曲線 |
 | people(total, count, {cols, size, gap, align, tone, alt}) / dots(values, {zones, lowLabel, highLabel, min, max, r}) | 人数の絵（`people(100, 76)` = 100 人中 76 人）、レーン上の点の分布。下の「人数の絵とレーン上の点」 |
 | math(tex, {role, inline, align, tone, alt}) | TeX の数式（MathJax で輪郭にして SVG へ。Web フォント・foreignObject 不要）。下の「数式」 |
-| quadrant({x, y, grid, cells, items, arrows, preset}) / quadrant.preset(name, opts) | 象限図・分類マトリクス（2×2・3×3・任意の N×M）。軸は名前と両端の言葉（`x: {title, low, high, reversed}`）、マスは文字の見出し（`cells[行][列]`: `{title, note, tone}`）、項目は `{label, cell: [列, 行]｜at: [x, y], size?, tone?, group?, id?}`。プリセット `bcg｜ge｜ansoff｜nineBox｜impactEffort｜risk｜stakeholder｜positioning｜eisenhower`。重なりは出ない。詳細は下の「象限図・分類マトリクス」 |
-| chevron / funnel / cycle / venn / concentric / emblem / valueChain | 流れ・絞り込み・循環・集合・階層・図形に入れた文字・価値連鎖を表す flowShapes。各項目の `id` は `connect()` / spotlight の対象。詳細は下の「flowShapes」 `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
+| quadrant({x, y, grid, cells, items, arrows, preset}) / quadrant.preset(name, opts) | 象限図・分類マトリクス（2×2・3×3・任意の N×M）。軸は名前と両端の言葉（`x: {title, low, high, reversed}`）、マスは文字の見出し（`cells[行][列]`: `{title, note, tone}`）、項目は `{label, cell: [列, 行]｜at: [x, y], size?, tone?, group?, id?}`。プリセット `bcg｜ge｜ansoff｜nineBox｜impactEffort｜risk｜stakeholder｜positioning｜eisenhower｜actMatrix`。十字の交点の言葉は `centre`。重なりは出ない。詳細は下の「象限図・分類マトリクス」 |
+| chevron / funnel / cycle / venn / concentric / emblem / valueChain | 流れ・絞り込み・循環・集合・階層・図形に入れた文字・価値連鎖を表す flowShapes（`cycle` の `links` で多角形の相互作用、`concentric` の `sectors` で扇形に区切った的も）。各項目の `id` は `connect()` / spotlight の対象。詳細は下の「flowShapes」 `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
 | wordart(text, {style, writing, size, tone, gradient, outline, shadow, glow, bevel, extrude, reflection, arc, rotate, flip, font, plate, limit}) | 太字・縁取り・影・光彩・立体・反射・グラデーション・弧・回転の飾り文字と**縦書き**を band 1 つで。下の「ワードアート・縦書き」 |
 | plane({x, y, points, lines, dims, labels}) | 座標平面。軸・目盛り・点・補助線・**寸法線**・ラベルを、座標の単位のまま宣言する（地図 ↔ 画像の座標変換、位置の誤差）。`yDown: true` で画像座標。ラベルが、他のラベル・軸と矢印・目盛り・点・補助線・寸法線に重なる、または図からはみ出すと検査で止まる（寸法線の文字は、その線の上に載るのが正） 。`paths: [{through: [点の id か座標…], smooth?, dashed?, tone?, arrow?, reveal?}]` で複数点を通る線を引く（実線が既定。`smooth: true` は点を必ず通る曲線で、x が増える道筋は単調な 3 次補間（値を行き過ぎない）、そうでない道筋は centripetal Catmull-Rom。`smooth` なしは折れ線。曲線が軸の外に出る・ラベルに重なると検査で止まる。`examples/plane-paths.ts`）。`grow: true` を付けた path は、段階（`reveal`）ごとに、出ている点までの曲線を同じ形のまま伸ばす（`examples/plane-grow.ts`）。点のラベルは `labelAt` を書かなければ右に置き、線や他のラベルと重なるときは空いている側（左・上・下・斜め）へ自動で移る。`labelAt` で側を書くとそのまま、`labelOffset: [dx, dy]` で位置をずらせる。自動の置き場は寸法線（延長線を含む）・補助線・軸・目盛りも避ける。軸に `categories: ['営業', '開発', …]` を書くと、レーン名・段階名が 1, 2, 3 … の位置の目盛りになる（`max` は個数 + 1）。**Wardley Map**: `stages: ['起源', 'カスタム', '製品', 'コモディティ']` で x 軸を名前つきの列に分け（既定は同じ幅。`{name, to}` で右端の x を書ける。列の名前が目盛りで、`x.ticks` / `step` / `categories` とは併用不可。`lines` の `dashed` の既定は実線になる）、境目に破線を引く。点に `evolves: {to: x}` を書くと、移動先に薄い輪と、そこへの破線の矢印を描く（近すぎる・他の点に重なると検査が止まる）。依存線は `lines` の `dashed: false`、y 軸の端ラベルは `ticks: [{at, label}]`（`examples/wardley-map.ts`） |
 
@@ -480,8 +480,14 @@ valueChain({support: ['全般管理', '人事・労務管理', '技術開発', '
 - `concentric`: 同心円。`order: 'outer-first' | 'inner-first'`（`rings` を書く順）、`centre`。`labels: 'inside'`（既定）は各層の帯の上部に、`'side'` は右の凡例に出して引き出し線で層につなぐ（円とキーは 1 つの塊として帯の幅の中央に置く）。`description` は「ラベル — 説明」で続く。
 - `emblem`: 円・三角・四角・ひし形・六角形・台形・平行四辺形・五角形・端子・角丸四角・書類・円柱（`shape: 'circle' | 'square' | 'triangle' | 'diamond' | 'hexagon' | 'trapezoid' | 'inverted-trapezoid' | 'parallelogram' | 'pentagon-down' | 'pill' | 'rounded' | 'document' | 'cylinder'`）の中に、1 語〜数語の文字を入れる。他の作図ツールの「図形（Shape）」「ノード」にあたる、文字入りで単独で置く部品。`emblem('重要', {shape, sub, tone, id})` は 1 個（`id` は図形の id）、`emblem([{label, sub, shape, tone, id}, …], {shape})` は複数（`shape` は項目に書かなかったときの既定、既定は `circle`。`id` は帯の id、項目の id は各項目に書く）。形は文字が入る大きさまで 8px ずつ広がり、同じ帯の中は同じ幅（`minSize` は最小の幅、既定 96、64〜320。8px の刻みに切り上げる）。`pill`・`rounded`・`parallelogram`・`document`・`cylinder` は、幅を揃えたまま**高さを文字の行数で伸ばす**（端子に `sub` を 1 行足しても、同じ帯の他の形は大きくならない）。幅が足りなければ次の行へ折り返す（`gap` は 4px の格子に丸める）。文字は、形ごとに決めた「文字が入る長方形」（三角形は下寄り、ひし形は狭い）に折り返して入れるので、輪郭に触れない（実フォントで 975 通りを測って、文字の箱と輪郭の余白は最小 2.3px）。カタカナ・英数字の語は、240px まで広げて割らずに入れる（割らずに入るのは、全角 14px で円が約 13 字、六角形が約 11 字、ひし形・三角形が約 9 字まで。空白・改行・「・」での折り返しは語を割ったことにならない）。240px でも割れる語がある項目は割ってよく、他の項目の語は守る（割れた語は、320px まで広げて入れる）。320px（帯が狭ければ帯の幅）でも入らない文字、帯より広い `minSize` は throw する（短くする、`sub` に移す、`shape: 'square'`、帯を広げる）。`connect()` の anchor は、`:top` / `:bottom` / `:left` / `:right` が輪郭に乗るように決める（円・四角・ひし形・六角形・五角形・端子・角丸四角・円柱は外接矩形、三角形・台形・平行四辺形は斜辺の中点、書類は波の中央まで）。辺を書かない `connect('a', 'b')` は文字の上を通るので、`connect('a:bottom', 'b:top')` のように辺を書く。同じ帯の下の行を越える線は、経路が止まることがある（`minSize` を下げて 1 行に収める、`width` を広げる）。種類（`shape`）が混ざる行は、各図形の外接矩形を行の中で縦に中央寄せにするので、三角形の文字だけ少し下にある。`tone` は箱と同じ塗り・枠で、**ラベルの文字も tone の文字色**（`accent` は accent 色、`danger` は danger 色、`muted` / `removed` は muted 色、`plain` / `new` / `changed` は通常の色。`sub` はどの tone でも muted）。線種が変わるのは `danger` / `removed`（破線）だけ。`accent` と `new` は文字の色だけ、`plain` と `changed` は枠の色だけの違いなので、意味の違いは `sub` にも書く。`gray-tone-collision`（白黒にすると見分けにくい塗りの組）は `emblem` の tone も数える。`spotlight` は帯単位（`chevron` などと同じ。1 個だけ強調したいときは `emblem` を別の帯に分ける）。他のツールの「判断のひし形」を流れ図で使うなら `flowchart()`（矢印の出口・Yes/No の札・質問文に合わせた大きさ）、判断でない文字入りの図形を 1 個ずつ置くなら `emblem()`。ワイヤーフレームの番号の印 `badge` とは別で、`badge` は短い印、`emblem` は文字を折り返して入れる大きめの図形。流れ図の記号としては、`pill` が端子（開始・終了）、`rounded` が処理、`diamond` が判断、`parallelogram` がデータ（入出力）、`inverted-trapezoid` が手作業、`hexagon` が準備、`document` が書類、`cylinder` がデータベース（ストレージ）、`pentagon-down`（下が尖った家形。正五角形ではなく、`chevron({first: 'pentagon'})` の右向きの家形とも向きが違う）が他ページへの接続。`trapezoid`（上が狭い）はピラミッドの層などにも使える。層状に並べて矢印の出口や Yes/No の札まで付けたいときは `flowchart()`（判断・端子・処理だけ。上の他の記号はまだない）。星形やパス指定の図形はまだない。
 - `valueChain`: ポーターの価値連鎖（バリューチェーン）。`support`（支援活動。横長の帯を縦に積む）と `primary`（主活動。矢羽根を横に並べる）に、文字列か `{label, sub, id, tone}` を書く。右端に全体の高さの矢印で `margin`（既定 `'マージン'`、`false` で外す）、帯の上に `titles`（既定 `['支援活動', '主活動']`、`false` で外す）。`support` は省ける。コトラーなどが示す価値連鎖も、活動の名前を変えれば同じ形で描ける。`id` は `connect()` / spotlight の対象。主活動の語が割れるときは `keepWords: true`。
+- `concentric` の `sectors`（ADR 0065）: 同心円を扇形に区切り、印を置く（ACT の Values Bullseye、技術レーダー）。`concentric(rings, {sectors, marks, centre, order, fromLegend})`。扇形は 12 時から時計回り（1〜8 個）。`rings` は名前付きの輪のほか、扇形があるときは数（1〜6、名前なしの輪）でもよい。印は `{label, sector, ring｜r, tone, id, from}`：`sector` は番号（1 から）・見出し・id、`ring` は `rings` に書いた順の番号（`order` に従う）か名前、`r` は 0（中心）〜1（外周）。輪の名前は 12 時の区切り線に沿って書く（`labels: 'side'` とは併用できない）。内側の輪ほど少し広く、`centre` の言葉があればいちばん内側の輪がそれに合わせて広がる。
+  - 印の見出しは、輪の線・区切り線・ほかの文字・点・自分の移動の矢印に重ならない場所を探す（点を輪に沿って、輪の印は輪の幅の 3 割まで、`r` の印は半径の 8% まで内外にずらし、見出しは右・左・上・下・斜め、収まらなければ 2 行にする）。どうしても線をまたぐ印は警告 `concentric-label-crossing` が名前で知らせる。
+  - `from: {ring｜r, sector?}` は前回の位置で、点線の丸から今の点へ矢印を引く。図の下の凡例も同じ点線の丸・矢印・点で描く（言葉は `fromLegend: [前回, 今回]` で変える、`false` で消す）。
+  - `layout: 'stack'`: 同じデータ（扇形・輪・印・`from`）を、扇形ごとの列に輪の箱を積み重ねた形で描く。いちばん内側の輪が最上段（技術レーダーなら Adopt が上）、`centre` の言葉は列の上の見出し、扇形の名前は列の下、輪の名前は段の左。`ring` の印はその段の箱に、`r` の印は段の中の高さに置く（`r` を輪に分ける境は円の既定と同じ。円で `centre` の言葉のために内側の輪が広がるときは、境の近くの `r` が別の段になりうる）。`from` は列の中の上下の矢印、別の列からはその列の真ん中から。1 つの箱に印が多いと段が高くなり（見出しは重ならない）、同じ高さの `r` の印は段の中で上下にずれる。列は 96px 以上要る（足りない帯はエラー）。
+- `cycle` の `links`（ADR 0065）: 循環の矢印の代わりに、要素を正多角形（3 個は上向きの三角、4 個は正方形、6 個は上下が平らな六角形）に置き、組ごとに結ぶ（CBT の 5 領域モデル、生物・心理・社会モデル）。`links: 'all'`（全部の組を両向き、6 個まで）か `[{from, to, label?, direction?: 'both' | 'forward'}]`（番号・id・見出し）。`direction`（cw / ccw）とは併用できない。`centre` は中心の円に書き、中心を通る矢印はその下をくぐる。円は文字が 1 行に入る大きさまで広がる。
+- `cycle` の `frame`（ADR 0065）: 図を囲む枠とその名前（「状況・環境：…」）。枠の幅は中身に合わせる。`links` がなくても使える。
 - ラベルが図からはみ出す・ラベル同士が重なると検査で止まる。
-- 例: `examples/value-chain.ts`、`examples/chevron-*.ts`、`funnel-*.ts`、`cycle-*.ts`、`venn-*.ts`、`concentric-*.ts`、`emblem-*.ts`（`emblem-flow-symbols.ts` は流れ図の記号を並べた例）。
+- 例: `examples/value-chain.ts`、`examples/chevron-*.ts`、`funnel-*.ts`、`cycle-*.ts`、`venn-*.ts`、`concentric-*.ts`（`concentric-values-bullseye.ts`・`concentric-tech-radar.ts` は扇形と印、`concentric-values-stack.ts`・`concentric-tech-radar-stack.ts` は同じデータの積み重ね版）、`cycle-cbt-five-areas.ts`（`links` と `frame`）、`emblem-*.ts`（`emblem-flow-symbols.ts` は流れ図の記号を並べた例）。
 
 ### ワードアート・縦書き（`wordart`）
 
@@ -543,6 +549,7 @@ quadrant({x: {title: '価格', low: '安い', high: '高い'}, y: {title: '携�
 | `stakeholder` | 関心度 × 影響力 | 重点管理・満足させる・情報提供・監視 |
 | `positioning` | 自由（価格 × 機能の充実度が既定）。マスの名前なし、十字線 | |
 | `eisenhower` | 緊急度（高→低）× 重要度 | 今すぐやる・計画してやる・任せる・やめる |
+| `actMatrix` | 行動の向き（離れる away → 向かう toward）× どこで起きるか（心の中 → 五感で感じる）。十字線、交点に「気づいている自分」 | 離れる行動・向かう行動・内側の体験（考え・感情・衝動）・大切な人や物事（価値） |
 
 - **プリセットは上書きできる**: `x` / `y`（書いた項目だけ置き換わる）、`cells`（書いたマスだけ置き換わる）、`grid`。`grid` がプリセットと違うと、プリセットの見出しは使わない。`preset:` を `quadrant({preset})` の option として書いても同じ。
 - **項目の置き方**: `cell: [列, 行]` はマスの中に重ならず並べる（置ききれなければ行が伸びる）。`at: [x, y]` は座標（0〜1、**値の空間**で 1 が高い側。軸を逆向きに描いても数字は変わらない）で、マスの見出しを避けて、そのマスの中に置く。ちょうど境目の値は、高い側のマスに入る。
@@ -554,7 +561,8 @@ quadrant({x: {title: '価格', low: '安い', high: '高い'}, y: {title: '携�
 - **矢印**（ポートフォリオの移動）: `arrows: [{from: 項目の id｜[x, y], to: 同左, label?, dashed?}]`。円の縁から縁へ引き、ラベルは線上の白い札。矢印が項目やラベルを横切ると検査で止まる。
 - **id**: 項目の `id` は `connect()` と spotlight の対象（図全体の `id` も）。段階表示は図ごと（項目単位の reveal はない）。
 - **幅**: x 軸の名前（低・タイトル・高）が 1 行で入らない、1 マスが 90px 未満（列が多すぎる）、1 つのラベルがマスより広いときは throw。
-- 例: `examples/quadrant-bcg.ts` / `-ge` / `-ansoff` / `-nine-box` / `-impact-effort` / `-risk` / `-stakeholder` / `-positioning` / `-eisenhower`。
+- **交点の言葉（`centre`）**: 2 × 2 で `crosshair: true` のとき、十字の交点に白地の言葉を置く（ACT Matrix の「気づいている自分」。`actMatrix` は既定で置き、`centre: ''` で外す）。下の行の見出しは交点の下へずれ、項目は避ける。
+- 例: `examples/quadrant-bcg.ts` / `-ge` / `-ansoff` / `-nine-box` / `-impact-effort` / `-risk` / `-stakeholder` / `-positioning` / `-eisenhower` / `-act-matrix`。
 
 ### 枠が決まったキャンバス（`canvas`）
 
