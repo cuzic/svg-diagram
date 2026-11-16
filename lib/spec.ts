@@ -206,14 +206,15 @@ const PARTS: readonly PartDef[] = [
       direction: oneOf('horizontal', 'vertical'),
       current: {type: 'integer', minimum: 1, maximum: 8, description: 'The step in progress, from 1.'},
     }, ['type', 'steps']),
-    example: {type: 'chevron', steps: [{label: '計画', sub: '要件を確認'}, {label: '実装', sub: '小さく作る'}, {label: '検証', sub: '品質を確認'}, {label: '公開', sub: '利用を開始'}], current: 2},
+    example: {type: 'chevron', steps: [{label: '計画', sub: '要件を確認'}, {label: '実装', sub: '小さく作る'}, {label: '検証', sub: '品質を確認'}, {label: '公開', sub: '利用を開始'}], current: 3},
     check(part, at, issues) {
       const n = items(part, 'steps').length, c = part['current'];
       if (typeof c === 'number' && c > n) issues.push({path: `${at}.current`, message: `is ${c}, but there are ${n} steps`});
     },
     build(part) {
-      const {steps, ...opts} = withoutType(part);
-      return chevron(steps as never, opts as never);
+      // the spec counts steps from 1 (as `steps` and loopBack do); chevron() takes a zero-based index
+      const {steps, current, ...opts} = withoutType(part);
+      return chevron(steps as never, {...opts, ...(typeof current === 'number' ? {current: current - 1} : {})} as never);
     },
   },
   {
@@ -535,7 +536,9 @@ const PARTS: readonly PartDef[] = [
     },
     build(part, at) {
       const {lanes, steps, ...opts} = withoutType(part);
-      const bands = swimlane(lanes as never, steps as never, opts as never) as unknown as {type: string; cols?: number}[];
+      // the spec counts rows from 1 (as it does col); swimlane() stacks sub-rows from 0
+      const placed = (steps as Json[]).map(s => typeof s['row'] === 'number' ? {...s, row: s['row'] - 1} : s);
+      const bands = swimlane(lanes as never, placed as never, opts as never) as unknown as {type: string; cols?: number}[];
       const cols = bands.find(b => b.type === 'swimlane')?.cols ?? 0;
       if (cols > MAX_SWIMLANE_COLS) throw new SpecError([{path: `${at}.steps`, message: `uses ${cols} columns; the limit is ${MAX_SWIMLANE_COLS}. Give steps that happen together the same col`}]);
       const late = items(part, 'phases').flatMap((p, i) => (p['to'] as number) > cols ? [{path: `${at}.phases[${i}].to`, message: `is ${String(p['to'])}, but the steps use ${cols} column(s)`}] : []);
