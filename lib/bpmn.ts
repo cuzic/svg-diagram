@@ -22,7 +22,7 @@ export const isGate = (k: BpmnNodeKind): boolean => k === 'xor' || k === 'and' |
 export const BPMN_KINDS = ['task', 'start', 'end', 'xor', 'and', 'or'] as const;
 
 /** ADR 0054: a node's part, named by what it is (a task, an event, a gateway). */
-const nodePart = (id: string, kind: BpmnNodeKind, label: string): string => partStep(kind === 'task' ? 'task' : kind === 'start' || kind === 'end' ? 'event' : 'gateway', id, label);
+export const nodePart = (id: string, kind: BpmnNodeKind, label: string): string => partStep(kind === 'task' ? 'task' : kind === 'start' || kind === 'end' ? 'event' : 'gateway', id, label);
 
 export function bpmnTexts(band: BpmnBand, roles: Roles): [string, number, number, FontFamily][] {
   const out: [string, number, number, FontFamily][] = [];

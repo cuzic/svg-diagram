@@ -3,8 +3,9 @@ import './helpers/strict-width.ts'; // a label the layout did not register for m
 import assert from 'node:assert/strict';
 import {bpmn, box, checkDiagram, closeMeasurer, connect, diagram, renderDiagram} from '../lib/dsl.ts';
 import {layoutBpmnVertical} from '../lib/bpmn-vertical.ts';
-import {checkBpmnInput, isGate, lineH, measureBpmnNodes} from '../lib/bpmn.ts';
+import {checkBpmnInput, isEvent, isGate, lineH, measureBpmnNodes, nodePart} from '../lib/bpmn.ts';
 import {ROLES} from '../lib/tokens.ts';
+import {must} from '../lib/must.ts';
 import type {LaidOutBpmn} from '../lib/types/diagrams.ts';
 
 test.after(() => closeMeasurer());
@@ -148,7 +149,80 @@ test('checkBpmnInput / measureBpmnNodes: the checks and sizes both directions sh
   assert.deepEqual([m.get('s')!.w, m.get('g')!.w], [36, 44]);
   assert.ok(m.get('t')!.w <= 168 && m.get('t')!.lines);
   assert.ok(isGate('xor') && isGate('and') && isGate('or') && !isGate('task') && !isGate('end'));
+  assert.ok(isEvent('start') && isEvent('end') && !isEvent('task') && !isEvent('xor'));
+  assert.deepEqual(['t', 's', 'g'].map(id => nodePart(id, must(kindOf.get(id)), id).split(':')[0]), ['task', 'event', 'gateway']);
   assert.equal(lineH(14), 20);
+});
+
+test("bpmn({dir: 'v'}): focus and the parts of ADR 0054 reach the lanes, the nodes and every text", async () => {
+  const {t, verdict} = await laid(bpmn([{id: 'a', label: '受付'}, {id: 'b', label: '審査'}],
+    [{id: 's', lane: 'a', kind: 'start', label: '申込'}, {id: 'chk', lane: 'b', label: '書類を確認'}, {id: 'g', lane: 'b', kind: 'xor', label: '可否'}, {id: 'e', lane: 'a', kind: 'end', label: '通知'}],
+    [{from: 's', to: 'chk'}, {from: 'chk', to: 'g'}, {from: 'g', to: 'e', label: '可'}], {dir: 'v', focus: 'g'}));
+  assert.deepEqual(verdict.problems, []);
+  assert.deepEqual(t.focused, ['g']);
+  assert.ok(t.lanes.every(l => l.part?.startsWith('lane:')), 'every lane has its part');
+  assert.deepEqual(t.nodes.map(n => n.part?.split(':')[0]), ['event', 'task', 'gateway', 'event']);
+  assert.ok(t.texts.every(x => x.part), `every text has a part: ${t.texts.filter(x => !x.part).map(x => x.text).join(', ')}`);
+  for (const name of ['受付', '書類を確認', '申込', '可否', '通知']) assert.ok(t.texts.some(x => x.text === name && x.part), name);
+});
+
+const bottomOfHeader = (t: LaidOutBpmn): number => t.lanes[0]!.y + t.lanes[0]!.labelH!;
+/** The text of a node's name (labelBoxes also holds each node's own box under its name). */
+const nameBox = (t: LaidOutBpmn, label: string) => t.labelBoxes.find(b => b.label === label && !t.anchors.some(a => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h))!;
+
+test("bpmn({dir: 'v'}): a long gateway name in the first row stays under the lane header", async () => {
+  const {t, verdict} = await laid(bpmn([{id: 'a', label: '営業'}, {id: 'b', label: '事務'}],
+    [{id: 'g', lane: 'a', kind: 'xor', label: '見積の内容と金額が適切かどうか'}, {id: 'x', lane: 'a', label: '修正'}, {id: 'y', lane: 'b', label: '送付'}],
+    [{from: 'g', to: 'x'}, {from: 'g', to: 'y'}], {dir: 'v'}));
+  assert.deepEqual(verdict.problems, []);
+  const g = t.anchors.find(a => a.id === 'g')!;
+  assert.ok(t.labelBoxes.filter(b => b.y < g.y + g.h / 2 && b.x > g.x + g.w).length >= 3, 'the name runs to three or more lines');
+  for (const b of t.labelBoxes) assert.ok(b.y >= bottomOfHeader(t), `"${b.label}" is under the header`);
+});
+
+test("bpmn({dir: 'v'}): with many lanes, a name too wide for the room beside its shape goes under it, inside its column", async () => {
+  const lanes = Array.from({length: 8}, (_, i) => ({id: `l${i}`, label: `L${i}`}));
+  const {t, verdict} = await laid(bpmn(lanes,
+    [{id: 's', lane: 'l7', kind: 'start', label: 'Received'}, {id: 'g', lane: 'l7', kind: 'xor', label: 'Approved'}, {id: 'e', lane: 'l7', kind: 'end', label: 'Completed'}],
+    [{from: 's', to: 'g'}, {from: 'g', to: 'e', label: 'ok'}], {dir: 'v'}));
+  assert.deepEqual(verdict.problems, []);
+  const col = t.lanes[7]!;
+  assert.ok(col.w < 120, `the columns are narrow (${col.w}px)`);
+  for (const name of ['Received', 'Approved', 'Completed']) {
+    const b = nameBox(t, name);
+    assert.ok(b.x >= col.x && b.x + b.w <= col.x + col.w, `"${name}" stays in its column`);
+  }
+  const e = t.anchors.find(a => a.id === 'e')!, name = nameBox(t, 'Completed');
+  assert.ok(name.y >= e.y + e.h, 'the end event is named under its shape');
+});
+
+test("bpmn({dir: 'v'}): three flows into one event keep off its name", async () => {
+  const {t, verdict} = await laid(bpmn([{id: 'a', label: 'A'}, {id: 'b', label: 'B'}, {id: 'c', label: 'C'}],
+    [{id: 's', lane: 'b', kind: 'start'}, {id: 'g', lane: 'b', kind: 'and'}, {id: 'x', lane: 'a', label: '作業1'}, {id: 'y', lane: 'b', label: '作業2'}, {id: 'z', lane: 'c', label: '作業3'}, {id: 'e', lane: 'b', kind: 'end', label: '完了'}],
+    [{from: 's', to: 'g'}, {from: 'g', to: 'x'}, {from: 'g', to: 'y'}, {from: 'g', to: 'z'}, {from: 'x', to: 'e'}, {from: 'y', to: 'e'}, {from: 'z', to: 'e'}], {dir: 'v'}));
+  assert.deepEqual(verdict.problems, []);
+  const name = nameBox(t, '完了');
+  for (const ed of t.edges.filter(x => x.to === 'e')) for (const r of runsOf(ed.points)) {
+    const x1 = Math.min(r.a.x, r.b.x), x2 = Math.max(r.a.x, r.b.x), y1 = Math.min(r.a.y, r.b.y), y2 = Math.max(r.a.y, r.b.y);
+    assert.ok(!(x1 <= name.x + name.w && x2 >= name.x && y1 <= name.y + name.h && y2 >= name.y), `${ed.from} -> e crosses the name`);
+  }
+});
+
+test("bpmn({dir: 'v'}): a loop on a task in the rightmost lane turns to the left, inside the figure", async () => {
+  const {t, verdict} = await laid(bpmn(Array.from({length: 5}, (_, i) => ({id: `l${i}`, label: `担当${i}`})),
+    [{id: 't', lane: 'l4', label: '入力された内容をもう一度確かめる'}], [{from: 't', to: 't', label: '再確認'}], {dir: 'v'}));
+  assert.deepEqual(verdict.problems, []);
+  const loop = t.edges[0]!, task = t.anchors.find(a => a.id === 't')!;
+  assert.ok(loop.points.every(p => p.x >= t.x && p.x <= t.x + t.w), 'the loop is inside the figure');
+  assert.ok(loop.points.some(p => p.x < task.x), 'it turns on the left');
+  const chip = t.labels[0]!;
+  assert.ok(chip.x >= t.x && chip.x + chip.w <= t.x + t.w, 'its condition is inside the figure');
+});
+
+test("bpmn({dir: 'v'}): the lane header is on the 4px grid; the error for too many lanes says how many fit", async () => {
+  const {t} = await laid(quote());
+  assert.equal(t.lanes[0]!.labelH! % 4, 0);
+  await assert.rejects(laid(bpmn(Array.from({length: 9}, (_, i) => ({id: `l${i}`, label: `L${i}`})), [{id: 'n', lane: 'l0', label: 'N'}], [], {dir: 'v'})), /at most 8 lanes/);
 });
 
 test("bpmn({dir: 'v'}) SVG: the lane names are a header row; arrows keep their heads", async () => {

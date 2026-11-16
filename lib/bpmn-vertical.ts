@@ -4,9 +4,10 @@
 import {textWidth} from './atoms.ts';
 import {layoutLayered} from './graph-layout.ts';
 import type {Pt} from './graph-layout.ts';
-import {checkBpmnInput, isGate, lineH, measureBpmnNodes} from './bpmn.ts';
+import {checkBpmnInput, isEvent, isGate, lineH, measureBpmnNodes, nodePart} from './bpmn.ts';
 import type {BpmnMeasure} from './bpmn.ts';
 import {must} from './must.ts';
+import {partStep} from './parts.ts';
 import {nodeRuns} from './tree.ts';
 import {wrapText} from './wrap.ts';
 import type {Roles, WidthOf, WrapEnv} from './types/core.ts';
@@ -40,18 +41,25 @@ export function layoutBpmnVertical(band: BpmnBand, x: number, y: number, w: numb
   const B = roles.body, S = roles.note, space = env.space ?? 1;
   const {laneIdx, kindOf} = checkBpmnInput(band);
   const L = band.lanes.length, colW = Math.min(COL_MAX, Math.floor(w / L / 4) * 4), taskMax = Math.min(TASK_MAX, colW - 28); // colW: a multiple of 4, the lane borders are drawn on a 4px grid
-  if (taskMax < TASK_MIN) throw new Error(`bpmn({dir: 'v'}): ${L} lanes leave each column ${colW}px wide, too narrow for a task (use fewer lanes, or dir: 'h')`);
+  // no fixed number of lanes: the column width comes from the figure's width, so the most lanes is floor(w / (TASK_MIN + 28))
+  if (taskMax < TASK_MIN) throw new Error(`bpmn({dir: 'v'}): ${L} lanes leave each column ${colW}px wide (${Math.round(w)}px / ${L}), too narrow for a task (a column needs ${TASK_MIN + 28}px, so this width takes at most ${Math.floor(w / (TASK_MIN + 28))} lanes: use fewer lanes, a wider diagram, or dir: 'h')`);
   const meas = measureBpmnNodes(band, kindOf, taskMax, widthOf, roles, env);
-  // a start / end event or gateway names itself beside its shape; the room is what the column has to the right
-  const sideLabel = new Map<string, string[]>();
+  // a start / end event or gateway names itself beside its shape, in the room the column has to the right (6px from the shape, 2px
+  // from the lane border); a name that does not fit there goes under the shape, across the column
+  const widthIn = (ls: string[]): number => Math.max(0, ...ls.map(l => Math.ceil(textWidth(widthOf, l, B, 400))));
+  const named = new Map<string, {lines: string[]; below: boolean}>();
   for (const n of band.nodes) {
     const k = must(kindOf.get(n.id)), m = must(meas.get(n.id));
     if (k === 'task' || !n.label) continue;
-    const room = Math.max(48, Math.floor(colW / 2 - m.w / 2 - 10));
-    sideLabel.set(n.id, wrapText(n.label, {maxWidth: room, atomWidth: a => widthOf(a, B, 400, 'sans'), mode: env.wrap}));
+    const room = Math.floor(colW / 2 - m.w / 2 - 8), wrap = (maxWidth: number): string[] => wrapText(must(n.label), {maxWidth, atomWidth: a => widthOf(a, B, 400, 'sans'), mode: env.wrap});
+    const side = room > 0 ? wrap(room) : [];
+    if (side.length && widthIn(side) <= room) { named.set(n.id, {lines: side, below: false}); continue; }
+    const under = wrap(colW - 16);
+    if (widthIn(under) > colW - 16) throw new Error(`bpmn({dir: 'v'}): the name of "${n.id}" (${n.label}) is wider than its ${colW}px column (shorten it, use fewer lanes or a wider diagram, or dir: 'h')`);
+    named.set(n.id, {lines: under, below: true});
   }
   const laneLines = band.lanes.map(l => wrapText(l.label, {maxWidth: colW - 16, atomWidth: a => widthOf(a, B, 700, 'sans'), mode: env.wrap}));
-  const headH = Math.max(...laneLines.map(ls => ls.length)) * lineH(B) + 2 * HEAD_PAD;
+  const headH = Math.ceil((Math.max(...laneLines.map(ls => ls.length)) * lineH(B) + 2 * HEAD_PAD) / 4) * 4; // on the 4px grid, like the lane borders
 
   // rows: the layer of each node along the flow; a lane's nodes that share a row are stacked
   const lay = layoutLayered(
@@ -62,11 +70,22 @@ export function layoutBpmnVertical(band: BpmnBand, x: number, y: number, w: numb
   const nRows = Math.max(...lay.layers.values()) + 1;
   const stacks = new Map<string, string[]>();
   for (const n of band.nodes) { const k = `${laneIdx.get(n.lane)}:${lay.layers.get(n.id)}`; stacks.set(k, [...(stacks.get(k) ?? []), n.id]); }
-  const heightOf = (m: BpmnMeasure, id: string): number => Math.max(m.h, (sideLabel.get(id)?.length ?? 0) * lineH(B) + 4);
+  // the room a node takes above and below its centre: a gateway's name stacks up from just above the centre, an event's is centred
+  // beside it, a name under the shape hangs below
+  const extentOf = (id: string): {above: number; below: number} => {
+    const m: BpmnMeasure = must(meas.get(id)), nm = named.get(id), half = m.h / 2;
+    if (!nm) return {above: half, below: half};
+    const tH = nm.lines.length * lineH(B);
+    if (nm.below) return {above: half, below: half + 4 + tH};
+    if (isGate(must(kindOf.get(id)))) return {above: Math.max(half, tH + 8), below: half};
+    const h = Math.max(m.h, tH + 4) / 2;
+    return {above: h, below: h};
+  };
+  const heightOf = (id: string): number => { const e = extentOf(id); return e.above + e.below; };
   const gap = Math.round(ROW_GAP * space), rowH = Array.from({length: nRows}, () => 0);
   for (const [k, list] of stacks) {
     const r = Number(k.split(':')[1]);
-    rowH[r] = Math.max(must(rowH[r]), list.reduce((s, id, i) => s + heightOf(must(meas.get(id)), id) + (i ? 12 : 0), 0));
+    rowH[r] = Math.max(must(rowH[r]), list.reduce((s, id, i) => s + heightOf(id) + (i ? 12 : 0), 0));
   }
   const rowTop: number[] = [];
   rowH.reduce((a, h, i) => (rowTop[i] = a, a + h + gap), y + headH + TOP_PAD);
@@ -76,11 +95,12 @@ export function layoutBpmnVertical(band: BpmnBand, x: number, y: number, w: numb
   const out: LaidOutBpmn = {
     type: 'bpmn', dir: 'v', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x: x0, y, w: width, h: height,
     lanes: [], nodes: [], icons: [], edges: [], texts: [], labels: [], anchors: [], labelBoxes: [],
+    ...(band.focused ? {focused: band.focused} : {}),
   };
   band.lanes.forEach((l, i) => {
-    out.lanes.push({x: x0 + colW * i, y, w: colW, h: height, labelW: 0, labelH: headH, tone: l.tone ?? 'plain'});
-    const ls = must(laneLines[i]), top = y + headH / 2 - (ls.length * lineH(B)) / 2;
-    ls.forEach((ln, k) => out.texts.push({text: ln, x: x0 + colW * i + colW / 2, y: top + k * lineH(B) + B, size: B, bold: true, muted: false, anchor: 'middle'}));
+    const ls = must(laneLines[i]), top = y + headH / 2 - (ls.length * lineH(B)) / 2, part = partStep('lane', l.id ?? i, ls.join(''));
+    out.lanes.push({x: x0 + colW * i, y, w: colW, h: height, labelW: 0, labelH: headH, tone: l.tone ?? 'plain', part});
+    ls.forEach((ln, k) => out.texts.push({text: ln, x: x0 + colW * i + colW / 2, y: top + k * lineH(B) + B, size: B, bold: true, muted: false, anchor: 'middle', part}));
   });
 
   // place nodes: lane centre, row top (stacked in the row, centred on the row's tallest)
@@ -88,28 +108,42 @@ export function layoutBpmnVertical(band: BpmnBand, x: number, y: number, w: numb
   for (const [k, list] of stacks) {
     const li = Number(k.split(':')[0]), r = Number(k.split(':')[1]), cx = x0 + colW * li + colW / 2;
     let ty = must(rowTop[r]);
-    for (const id of list) { const m = must(meas.get(id)), hh = heightOf(m, id); rect.set(id, {x: cx - m.w / 2, y: ty + (hh - m.h) / 2, w: m.w, h: m.h}); ty += hh + 12; }
+    for (const id of list) { const m = must(meas.get(id)), e = extentOf(id); rect.set(id, {x: cx - m.w / 2, y: ty + e.above - m.h / 2, w: m.w, h: m.h}); ty += e.above + e.below + 12; }
   }
   const obstacles: Obstacle[] = [];
   const sideBox = new Map<string, Box>();
   for (const n of band.nodes) {
     const r = must(rect.get(n.id)), m = must(meas.get(n.id)), k = must(kindOf.get(n.id));
-    out.nodes.push({...r, kind: k, tone: n.tone ?? 'plain'});
+    const part = nodePart(n.id, k, n.label ?? n.id);
+    out.nodes.push({...r, kind: k, tone: n.tone ?? 'plain', part});
     out.anchors.push({id: n.id, ...r});
     const nb = {label: n.label ?? n.id, ...r};
     out.labelBoxes.push(nb);
     obstacles.push({...r, node: n.id, text: false});
     const iconH = n.icon ? ICON_H : 0;
     if (n.icon) out.icons.push({node: out.nodes.length - 1, name: n.icon, glyph: must(n.iconGlyph), x: r.x + (r.w - TASK_ICON) / 2, y: r.y + 8, size: TASK_ICON, ...(n.iconTone ? {tone: n.iconTone} : {})});
-    if (m.lines) { out.texts.push(...nodeRuns({...r, y: r.y + iconH}, m.lines, roles).map(t => ({...t, anchor: 'middle' as const}))); continue; }
-    const lines = sideLabel.get(n.id);
-    if (!lines) continue;
+    if (m.lines) { out.texts.push(...nodeRuns({...r, y: r.y + iconH}, m.lines, roles).map(t => ({...t, anchor: 'middle' as const, part}))); continue; }
+    const nm = named.get(n.id);
+    if (!nm) continue;
+    const lines = nm.lines;
+    if (nm.below) { // under the shape, centred
+      const cx = r.x + r.w / 2, tw = widthIn(lines);
+      lines.forEach((ln, i) => {
+        const ty = r.y + r.h + 4 + i * lineH(B) + B, w2 = Math.ceil(textWidth(widthOf, ln, B, 400));
+        out.texts.push({text: ln, x: cx, y: ty, size: B, bold: false, muted: false, anchor: 'middle', part});
+        out.labelBoxes.push({label: ln, x: cx - w2 / 2, y: ty - B, w: w2, h: B + 4});
+      });
+      const box = {x: cx - tw / 2 - 2, y: r.y + r.h + 2, w: tw + 4, h: (lines.length - 1) * lineH(B) + B + 8};
+      sideBox.set(n.id, box);
+      obstacles.push({...box, node: n.id, text: true});
+      continue;
+    }
     const gate = isGate(k), lx = r.x + r.w + 6, cy = r.y + r.h / 2, tw = Math.max(...lines.map(l => Math.ceil(textWidth(widthOf, l, B, 400))));
     // a gateway's name sits above the line through its side vertices (so a flow can leave sideways beneath it); an event's is centred on its shape
     const first = gate ? cy - 8 - (lines.length - 1) * lineH(B) : cy + B / 2 - 2 - ((lines.length - 1) * lineH(B)) / 2;
     lines.forEach((ln, i) => {
       const ty = first + i * lineH(B), w2 = Math.ceil(textWidth(widthOf, ln, B, 400));
-      out.texts.push({text: ln, x: lx, y: ty, size: B, bold: false, muted: false, anchor: 'start'});
+      out.texts.push({text: ln, x: lx, y: ty, size: B, bold: false, muted: false, anchor: 'start', part});
       out.labelBoxes.push({label: ln, x: lx, y: ty - B, w: w2, h: B + 4});
     });
     const box = {x: lx - 2, y: first - B - 2, w: tw + 4, h: (lines.length - 1) * lineH(B) + B + 6}; // from above the first line to just under the last baseline
@@ -148,7 +182,11 @@ export function layoutBpmnVertical(band: BpmnBand, x: number, y: number, w: numb
     for (let k = 1; k < 6; k++) gys.push(t.y - 17 - k * 7, s.y + s.h + 17 + k * 7);
     const dx = Math.sign(tcx - scx); // a side is the natural one when it faces the other end; entering from the top is the rule
     const exits = [{x: scx, y: s.y + s.h, d: 0, pen: 0}, ...[1, -1].map(d => ({x: scx + d * half(fid), y: scy, d, pen: dx === d ? 25 : dx === 0 ? 40 : 80}))];
-    const entries = [{x: tcx, y: t.y, d: 0, pen: 0}, ...[-1, 1].map(d => ({x: tcx + d * half(tid), y: tcy, d, pen: d === -dx ? 60 : 120}))];
+    // into the top: at the centre, or 8px to a side (the edge of the shape there) only when the centre and the sides are taken, as when
+    // three or more flows come into one event; into a side vertex, but not the right one of an event whose name sits there
+    const tk = must(kindOf.get(tid)), tn = named.get(tid), topAt = (d: number): number => tk === 'task' ? t.y : isGate(tk) ? t.y + Math.abs(d) : t.y + t.w / 2 - Math.sqrt((t.w / 2) ** 2 - d * d);
+    const entries = [...[0, -8, 8].map(d => ({x: tcx + d, y: topAt(d), d: 0, pen: d ? 130 : 0})),
+      ...[-1, 1].filter(d => !(d === 1 && isEvent(tk) && tn && !tn.below)).map(d => ({x: tcx + d * half(tid), y: tcy, d, pen: d === -dx ? 60 : 120}))];
     for (const ex of exits) for (const en of entries) for (const gy of gys) for (const m of [14, 22, 30]) {
       if (gy < ex.y + 6 || gy > (en.d ? en.y : en.y - 12)) continue;
       const colx = ex.d ? ex.x + ex.d * m : ex.x, pts: Pt[] = [{x: ex.x, y: ex.y}];
@@ -174,14 +212,17 @@ export function layoutBpmnVertical(band: BpmnBand, x: number, y: number, w: numb
       if (!best || score < best.score) best = {pts, segs, score, bad};
     }
     const f = must(rect.get(fid)), t = must(rect.get(tid));
-    return best ?? {pts: simplify([{x: colX(fid), y: f.y + f.h}, {x: colX(tid), y: t.y}]), segs: [], bad: 0};
+    if (best) return best;
+    const pts = simplify([{x: colX(fid), y: f.y + f.h}, {x: colX(tid), y: t.y}]);
+    return {pts, segs: segsOf(pts), bad: 0}; // the flows after it keep off it too
   };
   const order = band.flows.map((f, i) => ({f, i, back: must(rect.get(f.to)).y <= must(rect.get(f.from)).y, span: must(rect.get(f.to)).y - must(rect.get(f.from)).y}))
     .sort((p, q) => Number(p.back) - Number(q.back) || p.span - q.span || p.i - q.i); // the short forward flows take their places first, the loops round the outside last
   // flow conditions: a white chip beside the flow, clear of every flow, node and text. It is placed as soon as its flow is, so the flows after it route round it
-  const free = (b: Box): boolean => b.x >= x0 + 2 && b.x + b.w <= x0 + width - 2 && b.y >= y + headH
-    && !out.labels.some(o => overlap(b, o)) && ![...rect.values()].some(r => overlap(b, r, 2)) && ![...sideBox.values()].some(r => overlap(b, r))
-    && !placed.some(g => hits(g, b, 1));
+  // how many things a chip at `b` would run into (0: free): the figure's edges, the other chips, the nodes, their names, the flows
+  const clash = (b: Box): number => Number(b.x < x0 + 2) + Number(b.x + b.w > x0 + width - 2) + Number(b.y < y + headH) + Number(b.y + b.h > y + height - 2)
+    + out.labels.filter(o => overlap(b, o)).length + [...rect.values()].filter(r => overlap(b, r, 2)).length + [...sideBox.values()].filter(r => overlap(b, r)).length
+    + placed.filter(g => hits(g, b, 1)).length;
   const placeChip = (f: {label?: string}, i: number, pts: Pt[]): void => {
     if (!f.label) return;
     const lw = Math.ceil(textWidth(widthOf, f.label, S, 400)) + 2 * CHIP_PAD, lh = S + 8, spots: Pt[] = [];
@@ -194,7 +235,10 @@ export function layoutBpmnVertical(band: BpmnBand, x: number, y: number, w: numb
       }
     });
     const box = (p: Pt): Box => ({x: p.x - lw / 2, y: p.y - lh / 2, w: lw, h: lh});
-    const at = spots.find(p => free(box(p))) ?? must(spots[0]), b = box(at);
+    // the first free spot; when there is none, the one that runs into the fewest things (`check` then reports what it overlaps)
+    let at = must(spots[0]), least = Number.POSITIVE_INFINITY;
+    for (const p of spots) { const n = clash(box(p)); if (n < least) { at = p; least = n; } if (n === 0) break; }
+    const b = box(at);
     out.labels.push({text: f.label, ...b, tx: at.x, ty: b.y + S + 2, size: S, edge: i});
     out.labelBoxes.push({label: f.label, ...b});
     obstacles.push({...b, node: '', text: true});
@@ -202,7 +246,15 @@ export function layoutBpmnVertical(band: BpmnBand, x: number, y: number, w: numb
   const routed = new Map<number, Pt[]>();
   for (const {f, i} of order) {
     if (f.from === f.to) {
-      const A = must(rect.get(f.from)), cy = A.y + A.h / 2, r = A.x + A.w, loop = [{x: r, y: cy - 8}, {x: r + 22, y: cy - 8}, {x: r + 22, y: cy + 8}, {x: r, y: cy + 8}];
+      // a loop on the right side, or on the left when the right one would leave the figure or run into a name or another flow
+      const A = must(rect.get(f.from)), cy = A.y + A.h / 2, inset = isGate(must(kindOf.get(f.from))) ? 8 : 0; // a diamond's edge is 8px in at cy ± 8
+      const loopOn = (sd: 1 | -1): Pt[] => { const e = sd > 0 ? A.x + A.w - inset : A.x + inset, o = (sd > 0 ? A.x + A.w : A.x) + sd * 22; return [{x: e, y: cy - 8}, {x: o, y: cy - 8}, {x: o, y: cy + 8}, {x: e, y: cy + 8}]; };
+      const loopBad = (pts: Pt[]): number => {
+        const o = must(pts[1]).x, segs = segsOf(pts);
+        return (o < x0 + EDGE || o > x0 + width - EDGE ? 100 : 0) + (onEdge(o) ? 10 : 0)
+          + segs.reduce((n, g) => n + obstacles.filter(ob => (ob.node !== f.from || ob.text) && hits(g, ob, 2)).length + placed.filter(p => sameRun(g, p)).length, 0);
+      };
+      const right = loopOn(1), left = loopOn(-1), loop = loopBad(left) < loopBad(right) ? left : right;
       routed.set(i, loop); placed.push(...segsOf(loop)); placeChip(f, i, loop);
       continue;
     }
