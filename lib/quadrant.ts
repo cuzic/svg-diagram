@@ -256,12 +256,20 @@ const groupStyle = (gi: number): {shape: QuadrantShape; tone: QuadrantInk; hollo
 
 const defined = <T extends object>(o: T | undefined): Partial<T> => Object.fromEntries(Object.entries(o ?? {}).filter(([, v]) => v !== undefined)) as Partial<T>;
 
+/** What a quadrant draws by default (ADR 0065): its grid [cols, rows] and crosshair — from the options, else the preset, else the cells, else
+ * 2 x 2 — and the word a preset writes where the crosshair lines meet. The spec's checks use it, so they agree with quadrant(). */
+export function quadrantDefaults(opts: Pick<QuadrantOpts, 'preset' | 'grid' | 'cells' | 'crosshair'>): {grid: [number, number]; crosshair: boolean; presetCentre?: string} {
+  const p = opts.preset && QUADRANT_PRESETS.includes(opts.preset) ? PRESETS[opts.preset] : undefined;
+  const cells = Array.isArray(opts.cells) ? opts.cells : undefined;
+  const grid = opts.grid ?? p?.grid ?? (cells ? [Math.max(2, ...cells.map(r => Array.isArray(r) ? r.length : 0)), Math.max(1, cells.length)] as [number, number] : [2, 2]);
+  return {grid, crosshair: opts.crosshair ?? p?.crosshair ?? false, ...(p?.centre ? {presetCentre: p.centre} : {})};
+}
 /** Validates the options, applies the preset and returns the band. Every error names the item / option. */
 export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
   if (!opts || typeof opts !== 'object') throw new Error('quadrant({...}) takes an options object');
   if (opts.preset !== undefined && !QUADRANT_PRESETS.includes(opts.preset)) throw new Error(`quadrant(): unknown preset "${opts.preset}" (${QUADRANT_PRESETS.join(' / ')})`);
   const p = opts.preset ? PRESETS[opts.preset] : undefined;
-  const shape = opts.grid ?? p?.grid ?? (opts.cells ? [Math.max(2, ...opts.cells.map(r => r.length)), Math.max(1, opts.cells.length)] as [number, number] : [2, 2]);
+  const {grid: shape, crosshair} = quadrantDefaults(opts);
   const [cols, rows] = shape;
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1 || cols > MAX_GRID || rows > MAX_GRID) throw new Error(`quadrant(): grid must be whole numbers [cols, rows] from 1 to ${MAX_GRID} (got [${cols}, ${rows}])`);
   if (cols * rows < 2) throw new Error('quadrant(): a grid of one cell is not a matrix');
@@ -349,13 +357,13 @@ export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
   if (opts.centre !== undefined && typeof opts.centre !== 'string') throw new Error(`quadrant(): centre must be a string (got ${JSON.stringify(opts.centre)})`);
   const centre = (opts.centre ?? p?.centre)?.trim();
   if (centre) {
-    if (cols !== 2 || rows !== 2 || !(opts.crosshair ?? p?.crosshair ?? false)) throw new Error(`quadrant(): centre is written where the crosshair lines meet — it needs a 2 x 2 grid with crosshair: true${opts.centre === undefined && p?.centre ? ` (the preset "${opts.preset}" puts one there: write centre: '' to leave it out)` : ''}`);
+    if (cols !== 2 || rows !== 2 || !crosshair) throw new Error(`quadrant(): centre is written where the crosshair lines meet — it needs a 2 x 2 grid with crosshair: true${opts.centre === undefined && p?.centre ? ` (the preset "${opts.preset}" puts one there: write centre: '' to leave it out)` : ''}`);
     if (regions.length) throw new Error('quadrant(): centre and regions both write over the middle of the plot; keep one');
   }
   assertScope(opts.scope, 'quadrant()');
   return {
     type: 'quadrant', ...(opts.id ? {id: opts.id} : {}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until}),
-    x, y, cols, rows, cells, items, arrows, groups, crosshair: opts.crosshair ?? p?.crosshair ?? false, regions, ...(centre ? {centre} : {}),
+    x, y, cols, rows, cells, items, arrows, groups, crosshair, regions, ...(centre ? {centre} : {}),
     ...(opts.sizeTitle === undefined ? {} : {sizeTitle: opts.sizeTitle}), ...(opts.sizeLegend === undefined ? {} : {sizeLegend: opts.sizeLegend}), ...(opts.sizeUnit === undefined ? {} : {sizeUnit: opts.sizeUnit}),
     height: opts.height ?? p?.height, ...(opts.width === undefined ? {} : {width: opts.width}),
     ...(opts.allowEmpty === undefined ? {} : {allowEmpty: opts.allowEmpty === true ? true : opts.allowEmpty.map(([c, r]) => [c, r] as [number, number])}),

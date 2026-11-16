@@ -112,24 +112,24 @@ export const PARTS_R5: readonly PartDef[] = [
         return;
       }
       if (part['labels'] === 'side') issues.push({path: `${at}.labels`, message: "with sectors the ring names go along the 12 o'clock cut: leave labels out"});
-      const sectorNames = sectors.flatMap(s => [s['label'], s['id']]), ringNames = Array.isArray(rings) ? (rings as Json[]).flatMap(r => [r['label'], r['id']]) : [];
+      const ringList = Array.isArray(rings) ? rings as Json[] : [];
       // a mark names its sector / ring by label: two with one label could not be told apart
-      for (const [k, xs] of [['sectors', sectors], ['rings', Array.isArray(rings) ? rings as Json[] : []]] as const) {
+      for (const [k, xs] of [['sectors', sectors], ['rings', ringList]] as const) {
         const seen = new Set<unknown>();
         xs.forEach((x, i) => { if (seen.has(x['label'])) issues.push({path: `${at}.${k}[${i}].label`, message: `${JSON.stringify(x['label'])} is used twice (a mark names it by label)`}); seen.add(x['label']); });
       }
       items(part, 'marks').forEach((m, i) => {
         const p = `${at}.marks[${i}]`;
-        refIssue(m['sector'], sectors.length, sectorNames, `${p}.sector`, 'sectors', issues);
+        refIssue(m['sector'], sectors.length, sectors, `${p}.sector`, 'sectors', issues);
         if (m['ring'] === undefined && m['r'] === undefined) issues.push({path: p, message: 'needs a ring (a number from 1, or its name) or r (0..1)'});
         if (m['ring'] !== undefined && m['r'] !== undefined) issues.push({path: `${p}.r`, message: 'give a ring or r, not both'});
-        refIssue(m['ring'], n, ringNames, `${p}.ring`, 'rings', issues);
+        refIssue(m['ring'], n, ringList, `${p}.ring`, 'rings', issues);
         const f = m['from'] as Json | undefined;
         if (f) {
           if (f['ring'] === undefined && f['r'] === undefined) issues.push({path: `${p}.from`, message: 'needs a ring or r (where it was)'});
           if (f['ring'] !== undefined && f['r'] !== undefined) issues.push({path: `${p}.from.r`, message: 'give a ring or r, not both'});
-          refIssue(f['ring'], n, ringNames, `${p}.from.ring`, 'rings', issues);
-          refIssue(f['sector'], sectors.length, sectorNames, `${p}.from.sector`, 'sectors', issues);
+          refIssue(f['ring'], n, ringList, `${p}.from.ring`, 'rings', issues);
+          refIssue(f['sector'], sectors.length, sectors, `${p}.from.sector`, 'sectors', issues);
         }
       });
     },

@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {box, build, caption, checkDiagram, closeMeasurer, connect, diagram, quadrant, renderDiagram} from '../lib/dsl.ts';
-import {QUADRANT_PRESETS, sizeRefs} from '../lib/quadrant.ts';
+import {QUADRANT_PRESETS, quadrantBand, quadrantDefaults, sizeRefs} from '../lib/quadrant.ts';
 import {verifyDiagram} from '../lib/verify.ts';
 import type {LaidOutQuadrant, QuadrantItem, QuadrantPreset} from '../lib/quadrant.ts';
 
@@ -40,6 +40,20 @@ test('presets: every one fills axes, grid, captions and tones, and the grid has 
   const act = quadrant.preset('actMatrix');
   assert.deepEqual(act.cells.flat().map(c => c.title), ['離れる行動', '向かう行動', '内側の体験', '大切な人や物事']);
   assert.deepEqual([act.y.title, act.y.high, act.y.low, act.crosshair, act.centre], ['どこで起きるか', '五感で感じる（外）', '心の中（内）', true, '気づいている自分']);
+});
+
+test('quadrantDefaults: the grid and crosshair quadrant() draws (given, else the preset, else the cells, else 2 x 2), and a preset\'s centre', () => {
+  assert.deepEqual(quadrantDefaults({}), {grid: [2, 2], crosshair: false});
+  assert.deepEqual(quadrantDefaults({preset: 'positioning'}), {grid: [2, 2], crosshair: true});
+  assert.deepEqual(quadrantDefaults({preset: 'ge', crosshair: true}), {grid: [3, 3], crosshair: true});
+  assert.deepEqual(quadrantDefaults({preset: 'actMatrix'}), {grid: [2, 2], crosshair: true, presetCentre: '気づいている自分'});
+  assert.deepEqual(quadrantDefaults({preset: 'actMatrix', grid: [3, 2], crosshair: false}).grid, [3, 2]);
+  assert.deepEqual(quadrantDefaults({cells: [[{title: 'a'}], [{title: 'b'}], [{title: 'c'}]]}).grid, [2, 3]);
+  // and quadrant() agrees
+  for (const preset of QUADRANT_PRESETS) {
+    const b = quadrantBand({preset, items: []}), d = quadrantDefaults({preset});
+    assert.deepEqual([[b.cols, b.rows], b.crosshair, b.centre], [d.grid, d.crosshair, d.presetCentre], preset);
+  }
 });
 
 test('centre: a word where the crosshair lines meet, kept clear of the captions and items; only on a 2 x 2 crosshair', async () => {

@@ -137,7 +137,7 @@ export const RULE_DOCS = {
   'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・flowchart・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
   'density-compact-restored': "diagram({density: 'compact'}) の因果ツリー・状態遷移で、詰めた図のほうが検査の問題(箱を通る矢印・ラベルの重なり)が多いので、通常の間隔で描いた（情報）",
   'density': '文字量・箱の数が多い',
-  'concentric-label-crossing': 'concentric の扇形（sectors）の印の見出しが、輪の線か区切り線（layout: stack では段や列の線）をまたぐ（重ならない場所が見つからなかった。ADR 0065）',
+  'concentric-label-crossing': 'concentric の扇形（sectors）の印の見出しが、輪の線か区切り線（layout: stack では段や列の線）をまたぐ、または stack の外枠の外に出る（重ならない場所が見つからなかった。ADR 0065）',
   'wf-callout-no-note': '図の番号に対応する注釈がない',
   'wf-note-no-callout': '注釈に対応する番号が図にない',
   'wf-callout-gap': '図の番号が 1 からの連番になっていない',
@@ -835,7 +835,7 @@ function boxSizeRules(d: LintTarget, out: Finding[]): void {
 /** ADR 0065: a mark of a concentric with sectors whose label found no spot clear of the ring and sector lines. */
 function crossingRules(d: LintTarget, out: Finding[]): void {
   for (const b of d.laidOut ?? []) if (b.type === 'concentric') for (const label of b.crossings ?? [])
-    out.push({rule: 'concentric-label-crossing', severity: 'warn', message: `concentric: 印 "${label}" の見出しが輪の線か区切り線（stack では段・列の線）をまたぐ（近くに重ならない場所がない）。見出しを短くする、印を別の輪・扇形に移す、輪を減らす`});
+    out.push({rule: 'concentric-label-crossing', severity: 'warn', message: `concentric: 印 "${label}" の見出しが輪の線か区切り線（stack では段・列の線）をまたぐか、stack の外枠の外に出る（近くに重ならない場所がない）。見出しを短くする、印を別の輪・扇形に移す、輪を減らす`});
 }
 function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   const out: Finding[] = [];

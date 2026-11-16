@@ -97,8 +97,9 @@ test('concentric with sectors: a label crosses no ring, no cut, no other text an
 });
 
 test('concentric with sectors: a crowded ring reports what crosses, and verify says which mark', async () => {
-  const marks = ['Cloudflare Workers', 'Amazon Web Services', 'Google Cloud Platform', 'Microsoft Azure'].map(label => ({label, sector: 1, ring: 1}));
-  const {shape, warnings} = await laid(concentric(RADAR, {order: 'inner-first', sectors: DOMAINS, marks}));
+  const marks = ['Cloudflare Workers', 'Amazon Web Services'].map(label => ({label, sector: 1, ring: 1}));
+  const {shape, warnings, problems} = await laid(concentric(RADAR, {order: 'inner-first', sectors: DOMAINS, marks}));
+  assert.deepEqual(problems, [], 'crossing a line, but on nothing');
   assert.ok((shape.crossings ?? []).length > 0);
   for (const label of shape.crossings ?? []) assert.ok(warnings.some(w => w.startsWith('[concentric-label-crossing]') && w.includes(`"${label}"`)));
   // through a spec, the finding says where the mark is
@@ -107,6 +108,29 @@ test('concentric with sectors: a crowded ring reports what crosses, and verify s
   const r = await renderSpec(spec);
   const f = r.findings.filter(x => x.rule === 'concentric-label-crossing');
   assert.ok(f.length > 0 && f.every(x => /^parts\[0\]\.marks\[\d\]/.test(x.path ?? '')), JSON.stringify(f));
+});
+
+test('concentric with sectors: a label with no spot clear of the other labels and dots is an error that names the mark, not an overlap', async () => {
+  const clouds = ['Cloudflare Workers', 'Amazon Web Services', 'Google Cloud Platform', 'Microsoft Azure', 'Oracle Cloud', 'IBM Cloud', 'Alibaba Cloud'];
+  // four: the last ones are moved further in and out of their ring (crossing a line, reported), but on nothing
+  const four = await laid(concentric(RADAR, {order: 'inner-first', sectors: DOMAINS, marks: clouds.slice(0, 4).map(label => ({label, sector: 1, ring: 1}))}));
+  assert.deepEqual(four.problems, []);
+  assert.ok((four.shape.crossings ?? []).length > 0);
+  // seven: no room at all
+  const crowded = clouds.map(label => ({label, sector: 1, ring: 1}));
+  await assert.rejects(laid(concentric(RADAR, {order: 'inner-first', sectors: DOMAINS, marks: crowded})), /mark \d "[^"]+" has no room for its label clear of the other marks \(7 at its place in its sector\) — use fewer marks there/);
+  // 12 near the centre, 3 to a sector
+  const centre = Array.from({length: 12}, (_v, i) => ({label: `近い項目${i}`, sector: i % 4 + 1, r: .05}));
+  await assert.rejects(laid(concentric(3, {sectors: DOMAINS, marks: centre})), /has no room for its label/);
+  // through a spec: an issue at the mark
+  const {renderSpec} = await import('../lib/spec-render.ts');
+  const r = await renderSpec({version: 1, title: 't', parts: [{type: 'concentric', order: 'inner-first', rings: RADAR, sectors: DOMAINS, marks: crowded}]});
+  assert.equal(r.ok, false);
+  assert.equal(r.issues.length, 1);
+  assert.match(r.issues[0]!.path ?? '', /^parts\[0\]\.marks\[\d\]\.label$/);
+  // 2 to a box in every box of 4 sectors x 3 rings still draws, with nothing on anything
+  const full = Array.from({length: 24}, (_v, i) => ({label: `項目${i}`, sector: Math.floor(i / 6) + 1, ring: Math.floor(i / 2) % 3 + 1}));
+  assert.deepEqual((await laid(concentric(3, {sectors: DOMAINS, marks: full}))).problems, []);
 });
 
 test('concentric with sectors: from gets a dotted ring and an arrow; the key draws the same marks; labels keep off the arrow', async () => {
@@ -144,6 +168,12 @@ test('concentric: two sectors (or named rings) with one label, or one id twice, 
   assert.throws(() => concentricBand(2, {sectors: [{label: 'A'}, {label: 'A'}]}), /two sectors are labelled "A"/);
   assert.throws(() => concentricBand([{label: 'x'}, {label: 'x'}], {sectors: DOMAINS}), /two rings are labelled "x"/);
   assert.throws(() => concentricBand([{label: 'x', id: 'k'}, {label: 'y'}], {sectors: [{label: 'A', id: 'k'}]}), /duplicate id "k"/);
+  // a name two answer to (one sector's label, another's id) is refused, not taken as the first
+  assert.throws(() => concentricBand(2, {sectors: [{label: 'A'}, {label: 'B', id: 'A'}], marks: [{label: 'm', sector: 'A', r: .5}]}), /mark 1 "m" sector "A" names 2 of them \(1, 2/);
+  assert.equal(concentricBand(2, {sectors: [{label: 'A'}, {label: 'B', id: 'A'}], marks: [{label: 'm', sector: 2, r: .5}]}).marks?.[0]?.sector, 1, 'by number it is clear');
+  assert.throws(() => cycleBand([{label: 'a'}, {label: 'a'}, {label: 'c'}], {links: [{from: 'a', to: 'c'}]}), /link 1 from "a" names 2 of them/);
+  assert.throws(() => concentricBand(2, {sectors: [{label: 'A'}, {label: 'B', id: 'A'}], marks: [{label: 'm', sector: 2, r: .5, from: {sector: 'A', r: .2}}]}), /mark 1 "m" from.sector "A" names 2 of them/);
+  assert.throws(() => concentricBand([{label: 'x'}, {label: 'y', id: 'x'}], {sectors: DOMAINS, marks: [{label: 'm', sector: 1, ring: 'x'}]}), /mark 1 "m" ring "x" names 2 of them/);
 });
 
 test('concentric without sectors is drawn as before', async () => {
@@ -232,9 +262,28 @@ test("concentric layout: 'stack': however crowded a box, its labels stay inside 
   }
 });
 
+test("concentric layout: 'stack': a box crowded with long moves is placed in bounded time (24 marks, the most a spec takes)", async () => {
+  const {renderSpec} = await import('../lib/spec-render.ts');
+  for (const rings of [3, 6]) {
+    const marks = Array.from({length: 24}, (_v, i) => ({label: `mark ${i}`, sector: 1, r: .1, from: {r: .95}}));
+    const t0 = performance.now();
+    const r = await renderSpec({version: 1, title: 't', parts: [{type: 'concentric', rings, layout: 'stack', sectors: [{label: 'A'}], marks}]});
+    const ms = performance.now() - t0;
+    assert.ok(ms < 5000, `${rings} rings: ${Math.round(ms)}ms (it took 150 s)`);
+    assert.ok(r.ok, JSON.stringify(r.issues));
+    assert.deepEqual(r.problems, []);
+  }
+});
+
 test("concentric layout: 'stack': too narrow a band is an error that says how wide; long ring names make the rows taller", async () => {
   const eight = Array.from({length: 8}, (_v, i) => ({label: `S${i + 1}`}));
-  await assert.rejects(checkDiagram(diagram({theme: 'blue', width: 360}).add(concentric(RADAR, {order: 'inner-first', layout: 'stack', sectors: eight}))), /layout 'stack' with 8 sectors needs a band at least \d+px wide/);
+  await assert.rejects(checkDiagram(diagram({theme: 'blue', width: 360}).add(concentric(RADAR, {order: 'inner-first', layout: 'stack', sectors: eight}))), /layout 'stack' with 8 sectors needs \d+px across and has \d+px — widen the diagram \(diagram\(\{width: \d+\}\) or more\), use fewer sectors/);
+  // a spec has no width: the advice is only what it can change (a spec's own width cannot get this narrow; the message as it comes)
+  const {layoutIssue} = await import('../lib/spec.ts');
+  const tooNarrow = (await checkDiagram(diagram({theme: 'blue', width: 360}).add(concentric(3, {layout: 'stack', sectors: eight}))).catch((e: Error) => e)) as Error;
+  const spec = {version: 1, title: 't', parts: [{type: 'concentric', layout: 'stack', rings: 3, sectors: eight}]};
+  assert.match(layoutIssue(spec, tooNarrow.message).message, /^concentric\(\): layout 'stack' with 8 sectors needs \d+px across and has \d+px — use fewer sectors, or the circle \(layout: 'circle'\)$/);
+  assert.equal(layoutIssue(spec, tooNarrow.message).path, 'parts[0]');
   const long = [{label: 'とても長い輪の名前がここに入ります二十四字'}, {label: 'もうひとつとても長い輪の名前がここに入る'}, {label: 'さらに長い輪の名前がここにありますよ三'}];
   const {shape, problems} = await laid(concentric(long, {layout: 'stack', sectors: DOMAINS, marks: [{label: 'x', sector: 1, ring: 1}]}));
   assert.deepEqual(problems, []);
@@ -327,7 +376,7 @@ test('cycle with links: labels of links that cross in the middle sit off the oth
 
 test('cycle with links: too narrow a band is an error that says how wide, not overlapping circles', () => {
   const four = [{label: '思考'}, {label: '感情'}, {label: '身体'}, {label: '行動'}];
-  return assert.rejects(checkDiagram(diagram({theme: 'blue'}).add(cycle(four, {links: 'all', width: 240}))), /need a band at least \d+px wide/);
+  return assert.rejects(checkDiagram(diagram({theme: 'blue'}).add(cycle(four, {links: 'all', width: 240}))), /need \d+px across and have 240px — give it width: \d+ or more/);
 });
 
 test('a frame round an ordinary cycle', async () => {
@@ -342,14 +391,19 @@ test('a frame round an ordinary cycle', async () => {
 test('STEP_REF takes a number from 1 or a name; refIssue reports one that is neither, with the names it could be', () => {
   assert.deepEqual(STEP_REF('x').oneOf?.map(o => o.type), ['integer', 'string']);
   const issues: SpecIssue[] = [];
-  refIssue(2, 3, ['a'], 'p1', 'steps', issues);
-  refIssue('a', 3, ['a'], 'p2', 'steps', issues);
-  refIssue(undefined, 3, ['a'], 'p3', 'steps', issues);
-  refIssue(4, 3, ['a', 'b'], 'p4', 'steps', issues);
+  refIssue(2, 3, [{label: 'a'}], 'p1', 'steps', issues);
+  refIssue('a', 3, [{label: 'a'}], 'p2', 'steps', issues);
+  refIssue(undefined, 3, [{label: 'a'}], 'p3', 'steps', issues);
+  refIssue(4, 3, [{label: 'a'}, {label: 'b', id: 'k'}], 'p4', 'steps', issues);
   refIssue('z', 3, [], 'p5', 'steps', issues);
-  assert.deepEqual(issues.map(i => i.path), ['p4', 'p5']);
-  assert.match(issues[0]!.message, /3 steps .*"a", "b"/);
+  // a name two answer to: one's label and another's id, or one label twice
+  refIssue('k', 3, [{label: 'k'}, {label: 'b', id: 'k'}], 'p6', 'steps', issues);
+  refIssue('a', 3, [{label: 'a'}, {label: 'a'}], 'p7', 'steps', issues);
+  refIssue('a', 3, [{label: 'a', id: 'a'}], 'p8', 'steps', issues);
+  assert.deepEqual(issues.map(i => i.path), ['p4', 'p5', 'p6', 'p7']);
+  assert.match(issues[0]!.message, /3 steps .*"a", "b", "k"/);
   assert.match(issues[1]!.message, /none are named/);
+  assert.match(issues[2]!.message, /names 2 of the steps \(1, 2/);
 });
 
 test('the spec parts: sectors, marks and links validate, and a wrong ring, sector or link is reported where it is', async () => {
@@ -375,6 +429,23 @@ test('the spec parts: sectors, marks and links validate, and a wrong ring, secto
   assert.deepEqual(centre({centre: '私', crosshair: true, grid: [3, 3]}), ['parts[0].centre']);
   assert.deepEqual(validateSpec({version: 1, title: 't', parts: [{type: 'quadrant', preset: 'actMatrix', grid: [3, 3]}]}).map(i => i.path), ['parts[0].preset']);
   assert.deepEqual(validateSpec({version: 1, title: 't', parts: [{type: 'quadrant', preset: 'actMatrix', grid: [3, 3], centre: ''}]}), []);
+  // the preset's grid and crosshair count, as quadrant() takes them: positioning has a crosshair; ge, nineBox and risk are 3 x 3
+  const preset = (part: object) => validateSpec({version: 1, title: 't', parts: [{type: 'quadrant', ...part}]}).map(i => i.path);
+  assert.deepEqual(preset({preset: 'positioning', centre: '自社'}), []);
+  await checkDiagram(specToDiagram({version: 1, title: 't', parts: [{type: 'quadrant', preset: 'positioning', centre: '自社'}]}));
+  for (const p of ['ge', 'nineBox', 'risk']) assert.deepEqual(preset({preset: p, crosshair: true, centre: '自社'}), ['parts[0].centre'], p);
+  assert.deepEqual(preset({preset: 'bcg', centre: '自社'}), ['parts[0].centre'], 'bcg has no crosshair');
+  assert.deepEqual(preset({preset: 'bcg', crosshair: true, centre: '自社'}), []);
+  // a name two of them answer to is refused where it is written, not taken as the first
+  const twice = validateSpec({version: 1, title: 't', parts: [{type: 'concentric', rings: 2, sectors: [{label: 'A'}, {label: 'B', id: 'A'}], marks: [{label: 'm', sector: 'A', r: .5}]}]});
+  assert.deepEqual(twice.map(i => i.path), ['parts[0].marks[0].sector']);
+  const sameLabel = validateSpec({version: 1, title: 't', parts: [{type: 'cycle', steps: [{label: 'a'}, {label: 'a'}, {label: 'c'}], links: [{from: 'a', to: 'c'}]}]});
+  assert.deepEqual(sameLabel.map(i => i.path), ['parts[0].links[0].from']);
+  // only the name is reported, not also a self-link the first match would make
+  const sameAndSelf = validateSpec({version: 1, title: 't', parts: [{type: 'cycle', steps: [{label: 'a'}, {label: 'a'}, {label: 'c'}], links: [{from: 'a', to: 1}]}]});
+  assert.deepEqual(sameAndSelf.map(i => i.path), ['parts[0].links[0].from']);
+  const fromTwice = validateSpec({version: 1, title: 't', parts: [{type: 'concentric', rings: [{label: 'x'}, {label: 'y', id: 'x'}], sectors: [{label: 'A'}, {label: 'B', id: 'A'}], marks: [{label: 'm', sector: 2, ring: 'y', from: {sector: 'A', ring: 'x'}}]}]});
+  assert.deepEqual(fromTwice.map(i => i.path), ['parts[0].marks[0].from.ring', 'parts[0].marks[0].from.sector']);
   const links = validateSpec({version: 1, title: 't', parts: [{type: 'cycle', steps: [{label: 'a'}, {label: 'b'}, {label: 'c'}], links: [{from: 1, to: 'd'}], direction: 'ccw'}]});
   assert.deepEqual(links.map(i => i.path), ['parts[0].direction', 'parts[0].links[0].to']);
   // lang: 'en' gives every concentric the key's words: one without sectors still draws
@@ -383,7 +454,12 @@ test('the spec parts: sectors, marks and links validate, and a wrong ring, secto
   assert.deepEqual((await checkDiagram(specToDiagram(en))).verdict.problems, []);
   const enMarks = specToDiagram({version: 1, title: 't', lang: 'en', parts: [{type: 'concentric', rings: 2, sectors: [{label: 'Work'}], marks: [{label: 'now', sector: 1, r: .3, from: {r: .6}}]}]});
   const {laidOut} = await checkDiagram(enMarks);
-  assert.ok((laidOut.laidOut.find(b => b.type === 'concentric') as LaidOutFlowShape).texts.some(t => t.text === 'Last time'));
+  const enTexts = (laidOut.laidOut.find(b => b.type === 'concentric') as LaidOutFlowShape).texts.map(t => t.text);
+  assert.ok(enTexts.includes('Last time') && enTexts.includes('Now') && !enTexts.includes('前回'), enTexts.join(' '));
+  // the spec's own fromLegend wins over lang: 'en' (false: no key)
+  const noKey = specToDiagram({version: 1, title: 't', lang: 'en', parts: [{type: 'concentric', rings: 2, sectors: [{label: 'Work'}], fromLegend: false, marks: [{label: 'now', sector: 1, r: .3, from: {r: .6}}]}]});
+  const noKeyTexts = ((await checkDiagram(noKey)).laidOut.laidOut.find(b => b.type === 'concentric') as LaidOutFlowShape).texts.map(t => t.text);
+  assert.ok(!noKeyTexts.includes('Last time') && !noKeyTexts.includes('Now'), noKeyTexts.join(' '));
   assert.ok(partCatalog().find(p => p.type === 'concentric')!.description.includes('Bullseye'));
 });
 

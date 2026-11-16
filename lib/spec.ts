@@ -2,12 +2,13 @@
 // diagrams from a model. A source is code (lib/load-source.ts imports it); a spec is data, checked against a schema and turned into builder
 // calls from a fixed list. Each part below keeps its schema, its example and its builder together, so they change in one commit.
 //
-// Nothing here touches the disk or a process: this file imports only dsl-pure. Left out on purpose: image() and math() (files, MathJax),
+// Nothing here touches the disk or a process: this file imports only dsl-pure (and modules as pure as it, such as quadrant.ts). Left out on purpose: image() and math() (files, MathJax),
 // `slide` / `fill` (a measured slide), `today: 'auto'` (the build's date) and `icon` (a process-wide manifest).
 import {causeTree, chevron, cloud, cycle, diagram, flowchart, funnel, gantt, journeyMap, mindmap, pyramid, quadrant, raci, sequence, stateDiagram, swimlane, table, valueChain, venn, whyWhyTree} from './dsl-pure.ts';
 import type {RenderChecks} from './svg-lint.ts';
 import {EMOJI_RE} from './tokens.ts';
 import type {Diagram, Verdict} from './types/index.ts';
+import {quadrantDefaults} from './quadrant.ts';
 
 import {ARROW, BOX_TONE, CELL, DATE, EMPHASIS_TONE, LEGEND_EN, LINE, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_NODE_WIDTH, MAX_QUOTED, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, MAX_TREE_NODES, PART_EN, QUADRANT_GRID, SPEC_VERSION, STEP_REF, SpecError, TEXT_TONE, axis, checkFlowEnd, count, dayOf, flowSteps, id, isDay, items, list, mustExist, object, oneOf, pair, refIssue, text, treeItem, treeSize, uniqueIds, whyNode, whySize, withoutType} from './spec-kit.ts';
 import type {Json, JsonSchema, PartDef, SpecIssue} from './spec-kit.ts';
@@ -188,9 +189,12 @@ const PARTS: readonly PartDef[] = [
     check(part, at, issues) {
       if (part['preset'] === undefined) for (const k of ['x', 'y']) if (part[k] === undefined) issues.push({path: `${at}.${k}`, message: 'is required without a preset: {title, low, high}'});
       // centre: where the crosshair lines meet, so a 2 x 2 grid with crosshair (actMatrix has both, and a centre of its own)
-      const act = part['preset'] === 'actMatrix', centre = typeof part['centre'] === 'string' ? part['centre'].trim() : act && part['centre'] === undefined ? 'preset' : '';
-      const grid = part['grid'] as number[] | undefined, twoByTwo = grid === undefined ? !Array.isArray(part['cells']) || ((part['cells'] as unknown[]).length <= 2 && (part['cells'] as unknown[][]).every(r => !Array.isArray(r) || r.length <= 2)) : grid[0] === 2 && grid[1] === 2;
-      if (centre && (!twoByTwo || (part['crosshair'] ?? act) !== true)) issues.push({path: `${at}.${centre === 'preset' ? 'preset' : 'centre'}`, message: centre === 'preset' ? "actMatrix writes 気づいている自分 where the crosshair lines meet: keep a 2 x 2 grid with crosshair, or write centre: ''" : 'is written where the crosshair lines meet: it needs a 2 x 2 grid with crosshair: true'});
+      // (the grid and the crosshair as quadrant() takes them: given, else the preset's, else the cells')
+      const {grid, crosshair, presetCentre} = quadrantDefaults(part as never), fromPreset = part['centre'] === undefined && presetCentre !== undefined;
+      const centre = typeof part['centre'] === 'string' ? part['centre'].trim() : presetCentre ?? '';
+      if (centre && !(grid[0] === 2 && grid[1] === 2 && crosshair)) issues.push(fromPreset
+        ? {path: `${at}.preset`, message: `${String(part['preset'])} writes ${presetCentre} where the crosshair lines meet: keep a 2 x 2 grid with crosshair, or write centre: ''`}
+        : {path: `${at}.centre`, message: `is written where the crosshair lines meet: it needs a 2 x 2 grid with crosshair: true (this one is ${grid[0]} x ${grid[1]}${crosshair ? '' : ' without crosshair'})`});
       const sized = items(part, 'items').map(it => it['size'] !== undefined);
       if (sized.includes(true)) sized.forEach((has, i) => { if (!has) issues.push({path: `${at}.items[${i}].size`, message: 'is required: give every item a size, or none (a bubble without one would read as a small value)'}); });
       items(part, 'items').forEach((it, i) => {
@@ -239,14 +243,16 @@ const PARTS: readonly PartDef[] = [
     }, ['type', 'steps']),
     example: {type: 'cycle', steps: [{label: 'Plan'}, {label: 'Do'}, {label: 'Check'}, {label: 'Act'}], centre: '継続改善'},
     check(part, at, issues) {
-      const steps = items(part, 'steps'), names = steps.flatMap(x => [x['label'], x['id']]), links = part['links'];
+      const steps = items(part, 'steps'), links = part['links'];
       if (links !== undefined && part['direction'] !== undefined) issues.push({path: `${at}.direction`, message: "turns the arrows round the ring; with links each link says its own (direction: 'forward')"});
       if (links === 'all' && steps.length > 6) issues.push({path: `${at}.links`, message: `'all' joins every pair of up to 6 steps (there are ${steps.length}); list the links instead`});
       // a step as a 0-based index (a number from 1, or a label / id), for the checks below
       const index = (v: unknown) => typeof v === 'number' ? v - 1 : steps.findIndex(x => x['label'] === v || x['id'] === v);
       const pairs = new Set<string>();
       if (Array.isArray(links)) items(part, 'links').forEach((l, i) => {
-        for (const k of ['from', 'to']) refIssue(l[k], steps.length, names, `${at}.links[${i}].${k}`, 'steps', issues);
+        const before = issues.length;
+        for (const k of ['from', 'to']) refIssue(l[k], steps.length, steps, `${at}.links[${i}].${k}`, 'steps', issues);
+        if (issues.length > before) return; // (a name that is no step, or two: which pair it joins is not known)
         const a = index(l['from']), b = index(l['to']);
         if (a < 0 || b < 0 || a >= steps.length || b >= steps.length) return;
         if (a === b) { issues.push({path: `${at}.links[${i}]`, message: 'joins a step to itself'}); return; }
@@ -845,7 +851,10 @@ const LABEL_HAS_NO_ROOM = / \(widen the gap between the boxes, shorten the label
 const LABEL_ADVICE = 'Shorten or drop this label, raise colGap, or leave an empty column between the two steps.';
 const COLUMNS_TOO_NARROW = /^(swimlane\(\): \d+ columns leave only -?\d+px each)\b.*$/s;
 const COLUMNS_ADVICE = 'Lower colGap or use fewer columns.';
+/** A figure too narrow for its band (flow-shapes.ts): a spec has no width, so only the rest of the advice (fewer sectors or steps, the circle). */
+const WIDEN_DIAGRAM = /widen the diagram \(diagram\(\{width: \d+\}\) or more\), /;
 function inSpecTerms(message: string): {message: string; fix?: string} {
+  if (WIDEN_DIAGRAM.test(message)) return {message: message.replace(WIDEN_DIAGRAM, '')};
   if (LABEL_HAS_NO_ROOM.test(message)) return {message: message.replace(LABEL_HAS_NO_ROOM, ''), fix: LABEL_ADVICE};
   if (COLUMNS_TOO_NARROW.test(message)) return {message: message.replace(COLUMNS_TOO_NARROW, '$1'), fix: COLUMNS_ADVICE};
   return {message};
