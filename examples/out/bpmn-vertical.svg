@@ -23,7 +23,7 @@
   <path d="M356,332 L352,320 L360,320 z" fill="#22201b"/>
   <path d="M356,376 L356,412" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M356,420 L352,408 L360,408 z" fill="#22201b"/>
-  <path d="M380,356 L640,356 L640,184 L640,184" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M380,356 L644,356 L644,184 L640,184" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
   <path d="M628,184 L640,180 L640,188 z" fill="#22201b"/>
   <path d="M356,456 L356,496" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M356,508 L352,496 L360,496 z" fill="#22201b"/>
