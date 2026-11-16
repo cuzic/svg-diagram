@@ -14,8 +14,13 @@ const OWN = new URL('.', import.meta.url).href;
 export const FRESH_PARAM = 'svg-diagram-fresh';
 const FRESH = new RegExp(`[?&](${FRESH_PARAM}=\\d+)`);
 
+let onResolved: ((url: string) => void) | null = null;
+/** Have every local file a source imports reported to `fn` (null: stop), as a file: URL with no query: what `serve` watches (ADR 0056 D5). */
+export function recordResolved(fn: ((url: string) => void) | null): void { onResolved = fn; }
+
 /** The two hook flavours differ only in how `next` answers (a value, or a promise of one), so the tag rewrite is shared. */
 function tagged(resolved: ResolveResult, context: ResolveContext): ResolveResult {
+  if (onResolved && resolved.url.startsWith('file:') && !resolved.url.includes('/node_modules/') && !resolved.url.startsWith(OWN)) onResolved(resolved.url.replace(/[?#].*$/, ''));
   const tag = context.parentURL ? FRESH.exec(context.parentURL)?.[1] : undefined;
   if (tag && resolved.url.startsWith('file:') && !resolved.url.includes('/node_modules/') && !resolved.url.startsWith(OWN) && !FRESH.test(resolved.url)) {
     return {...resolved, url: `${resolved.url}${resolved.url.includes('?') ? '&' : '?'}${tag}`};

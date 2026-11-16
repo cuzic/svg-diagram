@@ -30,6 +30,9 @@ importers:
       esbuild:
         specifier: 0.21.5
         version: 0.21.5
+      jsqr:
+        specifier: 1.4.0
+        version: 1.4.0
       markdown-it:
         specifier: ^14.3.2
         version: 14.3.2
@@ -993,6 +996,9 @@ packages:
   is-plain-obj@4.1.0:
     resolution: {integrity: sha512-+Pgi+vMuUNkJyExiMBt5IlFoMyKnr5zhJ4Uspz58WOhBF5QoIZkFyNHIbBAtHwzVAgk5RtndVNsDRN61/mmDqg==}
     engines: {node: '>=12'}
+
+  jsqr@1.4.0:
+    resolution: {integrity: sha512-dxLob7q65Xg2DvstYkRpkYtmKm2sPJ9oFhrhmudT1dZvNFFTlroai3AWSpLey/w5vMcLBXRgOJsbXpdN9HzU/A==}
 
   linkify-it@5.0.2:
     resolution: {integrity: sha512-ONTm2jCMAVZjgQa/Fy1kScXsuOoF5NPTsoFBdE1KVIZ2vAh/r9+Bqo+0jINCBYnavTPQZz38QzFTme79ENoN3Q==}
@@ -2062,6 +2068,8 @@ snapshots:
   html-void-elements@3.0.0: {}
 
   is-plain-obj@4.1.0: {}
+
+  jsqr@1.4.0: {}
 
   linkify-it@5.0.2:
     dependencies:

@@ -543,6 +543,7 @@ test('a canvas spec draws the same SVG as diagram({canvas}), and its limits are 
   assert.deepEqual(pathsOf({...spec(flow), canvas: {width: CANVAS_LIMITS.width[1] + 1, height: CANVAS_LIMITS.height[0] - 1, minText: CANVAS_LIMITS.minText[0] - 1, fit: 'page'}}), ['canvas.width', 'canvas.height', 'canvas.minText', 'canvas.fit']);
   assert.deepEqual(pathsOf({...spec(flow), canvas: {width: 1920, scale: 2}}), ['canvas.scale']);
   assert.deepEqual(pathsOf({...spec(flow), canvas: 'slide'}), ['canvas']);
+  assert.deepEqual(pathsOf({...spec(flow), width: 600, canvas: {width: 1920}}), ['width'], 'a canvas has its own width (ADR 0059 width is for a document figure)');
 });
 
 test('renderSpec (Node) draws a canvas at the lowest minText the schema allows; validateSpec refuses one outside the limits at its place', async () => {

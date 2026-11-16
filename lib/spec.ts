@@ -10,7 +10,7 @@ import {EMOJI_RE, SLIDE_CANVAS} from './tokens.ts';
 import type {Diagram, Verdict} from './types/index.ts';
 import {quadrantDefaults} from './quadrant.ts';
 
-import {ARROW, BOX_TONE, CANVAS_LIMITS, CELL, DATE, EMPHASIS_TONE, LEGEND_EN, LINE, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_NODE_WIDTH, MAX_QUOTED, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, MAX_TREE_NODES, PART_EN, QUADRANT_GRID, SPEC_VERSION, STEP_REF, SpecError, TEXT_TONE, axis, checkFlowEnd, count, dayOf, flowSteps, id, isDay, items, list, mustExist, object, oneOf, pair, refIssue, text, treeItem, treeSize, uniqueIds, whyNode, whySize, withoutType} from './spec-kit.ts';
+import {ARROW, BOX_TONE, CANVAS_LIMITS, CELL, DATE, SPEC_WIDTH, EMPHASIS_TONE, LEGEND_EN, LINE, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_NODE_WIDTH, MAX_QUOTED, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, MAX_TREE_NODES, PART_EN, QUADRANT_GRID, SPEC_VERSION, STEP_REF, SpecError, TEXT_TONE, axis, checkFlowEnd, count, dayOf, flowSteps, id, isDay, items, list, mustExist, object, oneOf, pair, refIssue, text, treeItem, treeSize, uniqueIds, whyNode, whySize, withoutType} from './spec-kit.ts';
 import type {Json, JsonSchema, PartDef, SpecIssue} from './spec-kit.ts';
 export {SPEC_VERSION, CANVAS_LIMITS, MAX_TOTAL_TEXT, MAX_EMOJI, MAX_SWIMLANE_COLS, MAX_TREE_DEPTH, MAX_TREE_NODES, MAX_CAUSE_NODES, MAX_CAUSE_LINKS, MAX_ISSUES, SpecError} from './spec-kit.ts';
 export type {JsonSchema, SpecIssue} from './spec-kit.ts';
@@ -631,6 +631,7 @@ export const specSchema: JsonSchema = object({
   theme: {...oneOf('blue', 'teal', 'amber'), description: 'Default blue.'},
   appearance: oneOf('light', 'dark'),
   density: oneOf('normal', 'compact'),
+  width: {type: 'integer', minimum: SPEC_WIDTH.min, maximum: SPEC_WIDTH.max, description: `The width the figure is laid out at, in px (${SPEC_WIDTH.min} to ${SPEC_WIDTH.max}, default ${SPEC_WIDTH.max}): narrower makes boxes and tables wrap their text instead of the figure being shrunk later (a column of a slide). Text sizes do not change.`},
   legend: {enum: ['auto', false], description: "'auto' lists the notation used; false shows no legend."},
   canvas: object({
     width: {type: 'integer', minimum: CANVAS_LIMITS.width[0], maximum: CANVAS_LIMITS.width[1], description: `The width of the canvas in px (default ${SLIDE_CANVAS.width}).`},
@@ -759,6 +760,8 @@ function assemble(input: unknown): {diagram: Diagram | null; issues: SpecIssue[]
   const issues: SpecIssue[] = [];
   validate(specSchema, input, '', issues);
   if (issues.length) return {diagram: null, issues: capped(issues)}; // everything below assumes the shapes are right
+  // `width` narrows a document figure (ADR 0059); a canvas has its own width (ADR 0057), and the two would disagree on how wide it is
+  if ((input as Json)['width'] !== undefined && (input as Json)['canvas'] !== undefined) return {diagram: null, issues: [{path: 'width', message: 'does not go with canvas: give the canvas its width (canvas.width) and leave width out'}]};
   const chars = totalText(input);
   if (chars > MAX_TOTAL_TEXT) return {diagram: null, issues: [{path: '', message: `holds ${chars} characters of text; the limit is ${MAX_TOTAL_TEXT}`}]};
   const emoji = countEmoji(input);

@@ -1,0 +1,8 @@
+// For the tests (test/worker.test.ts): wrangler dev on this machine, with fake Google and Access (vars are given per run with --var).
+{
+  "name": "svg-diagram-present-test",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "durable_objects": {"bindings": [{"name": "PRESENTATION", "class_name": "Presentation"}]},
+  "migrations": [{"tag": "v1", "new_sqlite_classes": ["Presentation"]}]
+}

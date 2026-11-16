@@ -6,18 +6,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {installResolveHook} from './lib/resolve-hook.ts';
-import {applyConfig, loadConfig} from './lib/config.ts';
-import {loadDiagram} from './lib/load-source.ts';
-import {renderDiagram} from './lib/dsl/render.ts';
+import {loadConfig} from './lib/config.ts';
+import {chooseColumns, columnWidths, figureRooms, maxScale, type FigureFit} from './lib/deck-layout.ts';
 import {closeMeasurer, configureMeasure, measureAll, splitAtoms, textWidth} from './lib/measure.ts';
-import {specToDiagram, SpecError} from './lib/spec.ts';
-import {figurePath, validateDeck, type DeckSlide, type DeckSpec} from './lib/deck-spec.ts';
-import {deckEntries, deckTexts, planDeckSlide, roomMessage, smallTextWarning, type DeckFigure, type TextWidth} from './lib/pptx/deck.ts';
+import {autoColumns, columnFigurePath, figurePath, fitOf, sharedColumns} from './lib/deck-spec.ts';
+import {drawColumnFigure, figureKey, loadDeck, renderDeckFigure} from './lib/deck-load.ts';
+import {deckEntries, deckTexts, planDeckSlide, slideIssues, type DeckFigure, type TextWidth} from './lib/pptx/deck.ts';
 import {planSlide, fontsOf} from './lib/pptx/slide.ts';
 import {fontFilesOf, rasterize} from './lib/pptx/emit.ts';
 import {zipStore} from './lib/pptx/zip-node.ts';
-import {formatBuildError} from './lib/error-format.ts';
-import type {Diagram, MeasureRequest} from './lib/types/core.ts';
+import type {MeasureRequest} from './lib/types/core.ts';
+import type {RenderResult} from './lib/types/verdicts.ts';
 
 installResolveHook();
 const USAGE = 'Usage: svg-diagram pptx-deck <deck.json> [--out FILE] [--png-scale N] [--font NAME]';
@@ -38,63 +37,68 @@ const deckFile = path.resolve(files[0] as string), dir = path.dirname(deckFile);
 const fail = (lines: string[]): never => { for (const l of lines) console.error(`✗ ${l}`); process.exit(1); };
 
 try {
-  let raw: unknown;
-  try { raw = JSON.parse(fs.readFileSync(deckFile, 'utf8')); } catch (e) { fail([`${files[0]}: ${e instanceof Error ? e.message : String(e)}`]); }
-  const slides = ((raw as {slides?: unknown} | null)?.slides);
-  // a figure given as a path: a .json spec is read in place; a .ts source is drawn as it is. The deck is checked with a .ts figure left out
-  // (and a stand-in heading where the slide has none, as a figure is enough), and drawn from the slides as written
-  const sources = new Map<number, string>(), pathErrors: string[] = [];
-  const resolved = Array.isArray(slides) ? {...(raw as object), slides: slides.map((s: unknown, i) => {
-    const f = (s as DeckSlide | null)?.figure;
-    if (typeof f !== 'string') return s;
-    const abs = path.resolve(dir, f), {figure: _f, ...rest} = s as DeckSlide;
-    if (f.endsWith('.ts')) { if (fs.existsSync(abs)) sources.set(i, abs); else pathErrors.push(`slides[${i}].figure: ${f} does not exist`); return rest; }
-    if (f.endsWith('.json')) {
-      try { return {...rest, figure: JSON.parse(fs.readFileSync(abs, 'utf8')) as unknown}; }
-      catch (e) { pathErrors.push(`slides[${i}].figure: ${f}: ${e instanceof Error ? e.message : String(e)}`); return rest; }
-    }
-    pathErrors.push(`slides[${i}].figure: a path must name a diagram source (.ts) or a spec file (.json); otherwise write the spec itself`);
-    return rest;
-  })} : raw;
-  if (pathErrors.length) fail(pathErrors);
-  const checked = Array.isArray((resolved as {slides?: unknown}).slides)
-    ? {...(resolved as object), slides: (resolved as DeckSpec).slides.map((s, i) => sources.has(i) && s.title === undefined ? {...s, title: '-'} : s)} : resolved;
-  const issues = validateDeck(checked);
-  if (issues.length) fail(issues.map(x => `${x.path || '(deck)'}: ${x.message}`));
-  const deck = resolved as DeckSpec;
+  const got = loadDeck(deckFile);
+  if (!got.ok) fail(got.errors);
+  const {deck, sources} = (got as Extract<typeof got, {ok: true}>).loaded;
   const cfg = loadConfig(dir);
   configureMeasure(cfg);
   const fonts = fontsOf(font), rasterFonts = fontFilesOf(cfg.fonts);
-  const figures: (DeckFigure | undefined)[] = [], errors: string[] = [];
-  for (const [i, s] of deck.slides.entries()) {
-    const source = sources.get(i);
-    if (s.figure === undefined && !source) { figures.push(undefined); continue; }
-    try {
-      const d: Diagram = source ? await loadDiagram(source, cfg) : applyConfig(specToDiagram(s.figure), cfg);
-      const r = await renderDiagram(d, {name: `slide${i + 1}.svg`, budget: 'cacheOnly'});
-      for (const warning of r.verdict.warnings) console.error(`⚠ ${figurePath(i, '')}: ${warning}`);
-      figures.push({plan: planSlide(r.laidOut, fonts), w: Math.max(96, r.laidOut.width), h: Math.max(96, r.laidOut.canvasHeight)});
-    } catch (e) {
-      if (e instanceof SpecError) errors.push(...e.issues.map(x => `${figurePath(i, x.path)}: ${x.message}`));
-      else errors.push(formatBuildError(source ?? figurePath(i, ''), e));
-      figures.push(undefined);
-    }
-  }
-  if (errors.length) fail(errors);
-  // the slide's own text is measured as the figures are: in one batch, by atoms (lib/atoms.ts)
+  const errors: string[] = [];
+  // the slide's own text is measured as the figures are: in one batch, by atoms (lib/atoms.ts); first, as it decides each figure's room
   const requests = new Map<string, MeasureRequest>();
   const key = (atom: string, size: number, weight: number) => `${size}|${weight}|${atom}`;
   for (const s of deck.slides) for (const t of deckTexts(s)) for (const atom of splitAtoms(t.text)) requests.set(key(atom, t.size, t.bold ? 700 : 400), {text: atom, size: t.size, weight: t.bold ? 700 : 400});
   const measured = await measureAll(requests);
   const widthOf = (atom: string, size: number, weight: number): number => measured.get(key(atom, size, weight))?.w ?? atom.length * size;
   const width: TextWidth = (text, size, bold) => textWidth(widthOf, text, size, bold ? 700 : 400);
-  const planned = deck.slides.map(({figure: _f, ...s}, i) => { const f = figures[i]; return planDeckSlide(f ? {...s, figure: f} : s, fonts, width); });
-  const noRoom = planned.flatMap((p, i) => p.noRoom ? [`slides[${i}]: ${roomMessage(figures[i] !== undefined)}`] : []);
-  if (noRoom.length) fail(noRoom);
-  planned.forEach((p, i) => {
-    const w = smallTextWarning(p);
-    if (w) console.error(`⚠ ${figurePath(i, '')}: ${w}`);
+  /** A figure drawn and planned as PowerPoint shapes: slide i's own, or its column j's (ADR 0058), fitted to its room (ADR 0059, 0060). */
+  const drawFigure = async (i: number, spec: unknown, fit: FigureFit, room: {w: number; h: number} | null, j?: number, columnPx?: number): Promise<DeckFigure | undefined> => {
+    const source = sources.get(figureKey(i, j));
+    if (spec === undefined && !source) return undefined;
+    const r = await renderDeckFigure(i, spec, source, cfg, fit === 'fill' && room ? {column: j, fill: {box: room, cap: maxScale(fit)}} : {column: j, columnPx});
+    if (!r.ok) { errors.push(...r.errors); return undefined; }
+    const place = j === undefined ? figurePath(i, '') : columnFigurePath(i, j, '');
+    for (const warning of [...(r.fallback ? [r.fallback] : []), ...r.result.verdict.warnings]) console.error(`⚠ ${place}: ${warning}`);
+    return {plan: planSlide(r.result.laidOut, fonts), w: Math.max(96, r.result.laidOut.width), h: Math.max(96, r.result.laidOut.canvasHeight)};
+  };
+  const figures: (DeckFigure | undefined)[] = [], columnFigures: (DeckFigure | undefined)[][] = [], shares: (number[] | undefined)[] = [];
+  const asDeckFigure = (r: RenderResult): DeckFigure => ({plan: planSlide(r.laidOut, fonts), w: Math.max(96, r.laidOut.width), h: Math.max(96, r.laidOut.canvasHeight)});
+  for (const [i, s] of deck.slides.entries()) {
+    const fit = fitOf(deck, s);
+    if (s.columns && autoColumns(deck, s)) {
+      // the columns' shares chosen from what they hold (ADR 0061)
+      const columns = s.columns, failures: string[][] = [];
+      const chosen = await chooseColumns({...s, columns}, width, maxScale(fit), async (j, w) => {
+        const c = columns[j];
+        const d = await drawColumnFigure(i, j, c?.figure, sources.get(figureKey(i, j)), cfg, w);
+        if (!d.ok && w === null && d.errors) failures[j] = d.errors;
+        return d;
+      });
+      if (!chosen.ok) { errors.push(...failures.flat(), ...(failures.length ? [] : [`slides[${i}].columns: ${chosen.why}`])); figures.push(undefined); columnFigures.push([]); shares.push(undefined); continue; }
+      chosen.figures.forEach((f, j) => { if (f) for (const warning of f.value.verdict.warnings) console.error(`⚠ ${columnFigurePath(i, j, '')}: ${warning}`); });
+      figures.push(undefined);
+      columnFigures.push(chosen.figures.map(f => f ? asDeckFigure(f.value) : undefined));
+      shares.push(chosen.shares);
+      continue;
+    }
+    const cols0 = s.columns ? sharedColumns(s.columns) : undefined, rooms = figureRooms({...s, columns: cols0}, width);
+    figures.push(await drawFigure(i, s.figure, fit, rooms.figure));
+    const cols: (DeckFigure | undefined)[] = [];
+    const px = columnWidths(cols0 ?? []);
+    for (const [j, c] of (s.columns ?? []).entries()) cols.push(c.text === undefined ? await drawFigure(i, c.figure, fit, rooms.columns[j] ?? null, j, px[j]) : undefined);
+    columnFigures.push(cols);
+    shares.push(undefined);
+  }
+  if (errors.length) fail(errors);
+  const planned = deck.slides.map(({figure: _f, columns, ...s}, i) => {
+    const f = figures[i];
+    const cols = columns && sharedColumns(columns, shares[i]).map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: columnFigures[i]?.[j]}));
+    return planDeckSlide({...s, fit: fitOf(deck, deck.slides[i] ?? {}), ...(f ? {figure: f} : {}), ...(cols ? {columns: cols} : {})}, fonts, width);
   });
+  const reports = planned.map((p, i) => slideIssues(p, i, figures[i] !== undefined, (deck.slides[i]?.columns ?? []).map(c => c.text === undefined ? 'figure' : 'text')));
+  const noRoom = reports.flatMap(r => r.errors.map(e => `${e.path}: ${e.message}`));
+  if (noRoom.length) fail(noRoom);
+  for (const r of reports) for (const w of r.warnings) console.error(`⚠ ${w.path}: ${w.message}`);
   const pngs = planned.map(p => p.pictures.map(pic => rasterize(pic.pngSvg, rasterFonts, pngScale)));
   const out = value('--out') ?? path.join(dir, path.basename(deckFile, '.json') + '.pptx');
   fs.mkdirSync(path.dirname(path.resolve(out)), {recursive: true});

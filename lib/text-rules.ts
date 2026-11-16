@@ -56,7 +56,7 @@ const anchorOf = (p: Placed): {x: number; y: number} | undefined => {
 };
 const isPlaced = (o: unknown): o is Placed => typeof o === 'object' && o !== null && typeof (o as Placed).text === 'string' && typeof (o as Placed).size === 'number' && anchorOf(o as Placed) !== undefined;
 
-/** Many bands keep a wrapped label as separate positioned lines, one entry per line: two entries in a row at the same anchor x, one line apart, are the lines of one label. Only katakana is judged (no source text to tell a space from a break). */
+/** Many bands keep a wrapped label as separate positioned lines, one entry per line: two entries in a row at (about) the same anchor x, one line apart, are the lines of one label. Only katakana is judged (no source text to tell a space from a break). */
 function placedBreaks(items: readonly Placed[], inSource: (junction: string) => boolean): MidWordBreak[] {
   const out: MidWordBreak[] = [];
   for (let k = 0; k + 1 < items.length; k++) {
@@ -65,7 +65,8 @@ function placedBreaks(items: readonly Placed[], inSource: (junction: string) => 
     const pa = anchorOf(a), pb = anchorOf(b);
     if (!pa || !pb) continue;
     const gap = pb.y - pa.y;
-    if (Math.abs(pa.x - pb.x) > 0.5 || a.size !== b.size || gap <= 0 || gap > a.size * 2 || !a.text || !b.text) continue;
+    // the lines of a label in a slanted shape (a value chain's chevron, ADR 0061) are each centred in the room at their own height: a few px apart
+    if (Math.abs(pa.x - pb.x) > a.size * 0.75 || a.size !== b.size || gap <= 0 || gap > a.size * 2 || !a.text || !b.text) continue;
     if (KATAKANA.test(a.text.slice(-1)) && KATAKANA.test(b.text.slice(0, 1)) && inSource(a.text.slice(-2) + b.text.slice(0, 2))) out.push({before: a.text.slice(-4), after: b.text.slice(0, 4), word: wordAround(a.text, b.text)});
   }
   return out;

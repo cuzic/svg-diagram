@@ -360,10 +360,12 @@ class Texts {
   /** The height of one line of note text. */
   lineH(): number { return this.roles.note * LINE; }
   /** Places a wrapped block with its top at `top`; `x` is its centre (middle), left edge (start) or right edge (end). */
-  place(block: ReturnType<Texts['wrap']>, x: number, top: number, tone: FlowTextTone = 'text', anchor: FlowText['anchor'] = 'middle', part?: string): void {
+  /** `xAt`: a line's own x for the height its middle is at (a slanted shape whose room moves sideways with the height), else `x` for every line. */
+  place(block: ReturnType<Texts['wrap']>, x0: number, top: number, tone: FlowTextTone = 'text', anchor: FlowText['anchor'] = 'middle', part?: string, xAt?: (y: number) => number): void {
     const {size, weight} = block;
     block.lines.forEach((line, i) => {
       const tw = textWidth(this.widthOf, line, size, weight), ty = top + i * size * LINE + size * ((LINE - 1.2) / 2 + 1); // the glyph box (1.2 sizes) centred in its line
+      const x = xAt ? xAt(ty - size * 0.4) : x0;
       const left = anchor === 'middle' ? x - tw / 2 : anchor === 'start' ? x : x - tw;
       const box = {x: left, y: ty - size, w: tw, h: size * 1.2};
       this.out.texts.push({text: line, tx: x, ty, size, weight, anchor, tone, ...box, ...(part ? {part} : {})});
@@ -425,7 +427,9 @@ function layoutValueChain(b: ValueChainBand, out: LaidOutFlowShape, t: Texts, an
   }
   // primary activities: chevrons, the first one a pentagon
   title(b.titles ? b.titles[1] : undefined, primary);
-  const n = b.primary.length, cellW = (mainW - gap * (n - 1)) / n, tip = Math.min(18, cellW / 4), textW = cellW - 2 * tip - 4;
+  // a chevron's two slanted sides are parallel: at every height the room between them is cellW - tip wide, only moved sideways (left at the
+  // middle, where the notch reaches in; right at the top and bottom). Each line is centred in the room at its own height (ADR 0061)
+  const n = b.primary.length, cellW = (mainW - gap * (n - 1)) / n, tip = Math.min(18, cellW / 4), textW = cellW - tip - 8;
   const blocks = b.primary.map(s => ({label: t.wrap(s.label, textW), sub: s.sub ? t.wrap(s.sub, textW, 400) : undefined}));
   const textH = (k: typeof blocks[number]) => k.label.h + (k.sub?.h ?? 0);
   const cellH = Math.max(72, Math.max(...blocks.map(textH)) + 24);
@@ -434,9 +438,11 @@ function layoutValueChain(b: ValueChainBand, out: LaidOutFlowShape, t: Texts, an
     const notch: Pt[] = i ? [[xx + tip, yy + cellH / 2]] : [];
     out.primitives.push({k: 'polygon', points: [[xx, yy], [xx + cellW - tip, yy], [xx + cellW, yy + cellH / 2], [xx + cellW - tip, yy + cellH], [xx, yy + cellH], ...notch], tone: s.tone ?? 'plain', ...nodeOf(s), part: primary});
     anchor(s.id, {x: xx, y: yy, w: cellW, h: cellH}, primary);
-    const k = must(blocks[i]), textTop = yy + (cellH - textH(k)) / 2;
-    t.place(k.label, xx + cellW / 2, textTop, onItem(s.tone, 'text'), 'middle', primary);
-    if (k.sub) t.place(k.sub, xx + cellW / 2, textTop + k.label.h, onItem(s.tone, 'muted'), 'middle', primary);
+    const k = must(blocks[i]), textTop = yy + (cellH - textH(k)) / 2, mid = yy + cellH / 2;
+    // the room at height y: from the notch's side (none on the first, a pentagon) to the point's side, r = 0 at the middle, 1 at the top and bottom
+    const xAt = (ly: number) => { const r = Math.min(1, Math.abs(ly - mid) / (cellH / 2)), left = xx + (i ? tip * (1 - r) : 0), right = xx + cellW - tip * r; return (left + right) / 2; };
+    t.place(k.label, xx + cellW / 2, textTop, onItem(s.tone, 'text'), 'middle', primary, xAt);
+    if (k.sub) t.place(k.sub, xx + cellW / 2, textTop + k.label.h, onItem(s.tone, 'muted'), 'middle', primary, xAt);
   });
   const bottom = y + cellH;
   // the margin: a tall arrow over the whole height, pointing right

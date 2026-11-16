@@ -40,7 +40,7 @@ test('validateDeck: a bad deck comes back with places in the deck, a figure\'s m
   assert.equal(figurePath(0, 'parts[1].nodes'), 'slides[0].figure.parts[1].nodes');
   assert.deepEqual(validateAgainst({type: 'string', maxLength: 2}, 'abc', 'x').map(i => i.path), ['x']);
   assert.deepEqual(validateDeck({slides: []}).map(i => i.path), ['slides']);
-  assert.deepEqual(validateDeck({slides: [{lead: 'x'}]}), [{path: 'slides[0]', message: 'needs a title or a figure'}]);
+  assert.deepEqual(validateDeck({slides: [{lead: 'x'}]}), [{path: 'slides[0]', message: 'needs a title, a figure or columns'}]);
   const bad = validateDeck({slides: [{title: 'a'}, {figure: {version: 1, title: 't', parts: [{type: 'flowchart', nodes: 'x'}]}}]});
   assert.ok(bad.length > 0 && bad.every(i => i.path.startsWith('slides[1].figure.parts[0]')), JSON.stringify(bad));
   assert.deepEqual(validateDeck({slides: [{title: 'a', callouts: [{text: '1'}, {text: '2'}, {text: '3'}, {text: '4'}]}]}).map(i => i.path), ['slides[0].callouts']);

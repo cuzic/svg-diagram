@@ -20,6 +20,7 @@ import type * as HB from 'harfbuzzjs';
 import {FONT_STACKS} from './tokens.ts';
 import type {FontFamily, MeasureRequest, Measured} from './types/core.ts';
 import type {FontSpecs} from './types/project.ts';
+import type {OutlineFont, ShapedGlyph} from './svg-outline.ts';
 
 import {must} from './must.ts';
 interface Loaded {file: string; index: number; name: string; face: HB.Face; font: HB.Font; upem: number; covered: Set<number>; ascender: number; descender: number}
@@ -181,4 +182,71 @@ export function measureWithFonts(requests: Map<string, MeasureRequest>, specs?: 
     out.set(key, {w: m.w, h: Math.round(f.ascender / f.upem * r.size) + Math.round(-f.descender / f.upem * r.size)});
   }
   return out;
+}
+
+/**
+ * The font files as the outlines of `serve`'s slides (ADR 0056 D2): the same file per family and weight as the measuring above, the same
+ * `wght`, and a glyph the primary font lacks taken from the same fallbacks in the same order (a color font is left out: its glyphs are
+ * pictures, not outlines, so such a character stays live text). A fallback's glyph is scaled to the primary font's units, and its id
+ * carries which font it is from (outlineText keys glyphs by family, weight and id).
+ */
+export function outlineFontFromFiles(specs?: FontSpecs): OutlineFont {
+  const hb = harfbuzz();
+  const slots: Loaded[] = [];
+  const slotOf = (f: Loaded): number => { let i = slots.indexOf(f); if (i < 0) { slots.push(f); i = slots.length - 1; } return i; };
+  const outlined = (f: Loaded) => !(f.face.hasColorPng() || f.face.hasColorLayers());
+  const fontOf = (family: FontFamily, weight: number, cp: number): Loaded | null => {
+    const f = must(fontFor(family, weight, specs));
+    if (f.covered.has(cp)) return f;
+    return fallbackFonts(family, weight, specs).find(x => x.covered.has(cp) && outlined(x)) ?? null;
+  };
+  const shapeIn = (f: Loaded, text: string, weight: number) => {
+    f.font.setVariations([new hb.Variation('wght', weight)]);
+    const buf = new hb.Buffer();
+    buf.addText(text); buf.guessSegmentProperties(); hb.shape(f.font, buf);
+    const pos = buf.getGlyphPositions();
+    return buf.getGlyphInfos().map((g, i) => ({id: g.codepoint, xAdvance: pos[i]?.xAdvance ?? 0, xOffset: pos[i]?.xOffset ?? 0, yOffset: pos[i]?.yOffset ?? 0}));
+  };
+  return {
+    shape(text, family, weight) {
+      const primary = must(fontFor(family, weight, specs));
+      const glyphs: ShapedGlyph[] = [];
+      // runs of characters that one font draws, as measureText splits them
+      let run = '', runFont: Loaded = primary;
+      const flush = () => {
+        if (!run) return;
+        const k = primary.upem / runFont.upem, slot = slotOf(runFont);
+        for (const g of shapeIn(runFont, run, weight)) glyphs.push({id: slot * 0x10000 + g.id, xAdvance: g.xAdvance * k, xOffset: g.xOffset * k, yOffset: g.yOffset * k});
+        run = '';
+      };
+      for (const ch of text) {
+        const f = fontOf(family, weight, must(ch.codePointAt(0))) ?? primary;
+        if (f !== runFont) { flush(); runFont = f; }
+        run += ch;
+      }
+      flush();
+      return {upem: primary.upem, glyphs};
+    },
+    path(id, family, weight) {
+      const primary = must(fontFor(family, weight, specs)), f = must(slots[Math.floor(id / 0x10000)]);
+      f.font.setVariations([new hb.Variation('wght', weight)]);
+      const d = f.font.glyphToPath(id % 0x10000);
+      if (f === primary || f.upem === primary.upem) return d;
+      const k = primary.upem / f.upem;
+      return d.replace(/-?\d*\.?\d+(?:e-?\d+)?/gi, v => String(Math.round(Number(v) * k * 100) / 100));
+    },
+    covers: (cp, family, weight) => fontOf(family, weight, cp) !== null,
+  };
+}
+
+/** Every font file the slides of a project would be outlined with, or what is missing (ADR 0056 D2: `serve` stops at once rather than draw boxes). */
+export function outlineFontCheck(specs?: FontSpecs): {ok: true; files: string[]} | {ok: false; missing: string[]} {
+  if (!hasHarfbuzz) return {ok: false, missing: ['harfbuzzjs (npm install harfbuzzjs)']};
+  const files = new Set<string>(), missing: string[] = [];
+  for (const family of ['sans', 'mono'] as const) for (const w of [400, 700]) {
+    const f = fontFor(family, w, specs, false);
+    if (f) files.add(f.file); else missing.push(`${w === 700 ? 'bold ' : ''}${family}`);
+  }
+  for (const w of [400, 700]) { const e = fontFor('emoji', w, specs, false); if (e) files.add(e.file); }
+  return missing.length ? {ok: false, missing} : {ok: true, files: [...files]};
 }

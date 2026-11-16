@@ -23,6 +23,8 @@ export const MAX_CAUSE_NODES = 30;
 export const MAX_CAUSE_LINKS = 45;
 /** Issues reported at once: enough to work on, and a bad spec cannot make the answer huge. */
 export const MAX_ISSUES = 20;
+/** The figure's own width a spec may give (ADR 0059): narrower than the document's 940 only (a wider figure is a `canvas`, ADR 0057). */
+export const SPEC_WIDTH = {min: 320, max: 940} as const;
 export const MAX_QUOTED = 80;
 
 /** The subset of JSON Schema this file writes and validates. */

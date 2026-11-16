@@ -46,7 +46,7 @@ async function deflateRaw(data: Uint8Array): Promise<Uint8Array | undefined> {
 }
 
 /** A spec laid out and planned as one slide, its pictures' text outlined: what renderPptxEdge packs, and what a deck places (./pptx-deck-edge.ts). */
-export interface FigurePlan {plan: SlidePlan; width: number; height: number; native: number}
+export interface FigurePlan {plan: SlidePlan; width: number; height: number; native: number; /** The checks the figure raised: `[rule-id] …` (what a deck's 'fill' compares, ADR 0060). */ findings: string[]}
 
 /** The spec as a slide plan, or the issues that stop it (with their places in the spec). Throws TextEngineError as renderPptxEdge does. */
 export async function planFigureEdge(spec: unknown, engine: TextEngine, opts: {font?: string; maxHeight?: number} = {}): Promise<FigurePlan | {issues: SpecIssue[]}> {
@@ -70,7 +70,7 @@ export async function planFigureEdge(spec: unknown, engine: TextEngine, opts: {f
   const outline = (svg: string): string => { const o = outlineText(svg, engine.font, engine.textBox, {liveEmoji: true}); missing.push(...o.missing); return o.svg; };
   plan.pictures = plan.pictures.map(p => ({svg: outline(p.svg), pngSvg: outline(p.pngSvg)}));
   if (missing.length) return {issues: missingIssues(spec, missing)};
-  return {plan, width: Math.max(96, r.laidOut.width), height: Math.max(96, r.laidOut.canvasHeight), native: r.laidOut.laidOut.length - plan.pictures.length};
+  return {plan, width: Math.max(96, r.laidOut.width), height: Math.max(96, r.laidOut.canvasHeight), native: r.laidOut.laidOut.length - plan.pictures.length, findings: [...r.verdict.warnings, ...r.verdict.problems]};
 }
 
 /** The entries zipped, the XML deflated where the runtime can (PNGs are stored: they are compressed already). */
