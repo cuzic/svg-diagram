@@ -23,12 +23,13 @@ import {layoutGantt} from './gantt.ts';
 import {layoutStatus} from './status.ts';
 import {layoutClassesBand} from './classes.ts';
 import {layoutBpmn} from './bpmn.ts';
+import {layoutBpmnVertical} from './bpmn-vertical.ts';
 import {layoutFta} from './fta.ts';
 import {layoutBowtie} from './bowtie.ts';
 import {layoutChart} from './charts.ts';
 import {layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {GroupBand, LegendBand, ConnectBand, GroupRowBand, RowBand, GridBand, RawBand, SpacerBand, StatusBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow, RowArrow} from './types/containers.ts';
-import type {Rect} from './types/core.ts';
+import type {LabelRole, Rect} from './types/core.ts';
 import type {LaidOutTree, TreeItem} from './types/diagrams.ts';
 import type {PyramidBand, CurveBand, LaidOutPyramidLayer} from './types/figures.ts';
 import type {ImageBand} from './types/image.ts';
@@ -36,7 +37,7 @@ import type {Band, LaidOutBand} from './types/index.ts';
 import type {SwimlaneBand, LaidOutLane, LaidOutPhase, LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
 import type {BoxBand, CaptionBand, BannerBand} from './types/text-bands.ts';
 import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
-import {PALETTE, SHADES, blendLuminance, bestTextColor, paintOf} from './tokens.ts';
+import {PALETTE, SHADES, blendLuminance, bestTextColor, canvasFontScale, paintOf} from './tokens.ts';
 import {
   BOX_PAD_X, LINE_HEIGHT_EM, boundaryChipH, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, CANVAS_MIN_REGION_W, SWIMLANE_COMFY_COL, STAMP_GAP, STAMP_H, TAG_H,
   groupTitleBand, gridChildGeometry, gridColumns, rowChildGeometry, snapGrid, stampChipW,
@@ -588,11 +589,20 @@ function layoutCurve(band: CurveBand, ctx: LayoutCtx, padX: number, cw: number):
 }
 
 const layoutTimelineBand = placedBand((band: BandOf<'timeline'>, x, y, w, ctx) => layoutTimeline(band, x, y, w, ctx.widthOf, ctx.roles), 'a timeline takes an id that another anchor already has');
-const layoutBpmnBand = placedBand((band: BandOf<'bpmn'>, x, y, w, ctx) => layoutBpmn(band, x, y, w, ctx.widthOf, ctx.roles, ctx), 'a bpmn diagram takes an id that another anchor already has', 'a bpmn node takes an id that another anchor already has');
+const layoutBpmnBand = placedBand((band: BandOf<'bpmn'>, x, y, w, ctx) => (band.dir === 'v' ? layoutBpmnVertical : layoutBpmn)(band, x, y, w, ctx.widthOf, ctx.roles, ctx), 'a bpmn diagram takes an id that another anchor already has', 'a bpmn node takes an id that another anchor already has');
 const layoutBowtieBand = placedBand((band: BandOf<'bowtie'>, x, y, w, ctx) => layoutBowtie(band, x, y, w, ctx.widthOf, ctx.roles, ctx), 'a bow-tie takes an id that another anchor already has');
 const layoutFtaBand = placedBand((band: BandOf<'fta'>, x, y, w, ctx) => layoutFta(band, x, y, w, ctx.widthOf, ctx.roles, ctx), 'a fault tree takes an id that another anchor already has', 'a fault-tree event takes an id that another anchor already has');
 const layoutClasses = placedBand((band: BandOf<'classes'>, x, y, w, ctx) => layoutClassesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), 'a class diagram takes an id that another anchor already has', 'a class takes an id that another anchor already has');
-const layoutGanttBand = placedBand((band: BandOf<'gantt'>, x, y, w, ctx) => layoutGantt(band, x, y, w, ctx.widthOf, ctx.roles), 'a gantt takes an id that another anchor already has', 'a gantt task takes an id that another anchor already has');
+/**
+ * On a canvas every text is scaled to minText (lib/dsl/render.ts), but the fixed pixel sizes of a band (a gantt's rows, a PERT box, a
+ * plane's tick-label offsets) were drawn for 14px text, so the scaled labels ran into the ticks and into each other. These two scale
+ * them with the text on a canvas only: off a canvas (a document figure, fill mode) every band is laid out exactly as before.
+ * canvasGeom: the factor (the canvas's font scale, 1 off a canvas). scaledGeometry: a bars / plane band without a labelRole keeps its
+ * offsets at 14px (only an explicit labelRole scales them), so on a canvas it is laid out as with labelRole 'note' (the same text size).
+ */
+const canvasGeom = (ctx: LayoutCtx): number => ctx.d.canvas ? canvasFontScale(ctx.d.canvas.minText) : 1;
+const scaledGeometry = <B extends {labelRole?: LabelRole}>(band: B, ctx: LayoutCtx): B => ctx.d.canvas && band.labelRole === undefined ? {...band, labelRole: 'note'} : band;
+const layoutGanttBand = placedBand((band: BandOf<'gantt'>, x, y, w, ctx) => layoutGantt(band, x, y, w, ctx.widthOf, ctx.roles, canvasGeom(ctx)), 'a gantt takes an id that another anchor already has', 'a gantt task takes an id that another anchor already has');
 const layoutCauseOrCloud = placedBand((band: Band & {type: 'cause' | 'cloud'}, x, y, w, ctx) => band.type === 'cause' ? layoutCauseBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight, ctx.d.canvas?.height !== undefined) : layoutCloudBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx),
   band => `${band.type === 'cause' ? 'a cause tree' : 'a cloud'} takes an id that another anchor already has`,
   band => `${band.type === 'cause' ? 'a cause tree node' : 'a cloud box'} takes an id that another anchor already has`);
@@ -711,12 +721,12 @@ function funnelEdges(tree: BandOf<'tree'>, placed: LaidOutTree, items: TreeItem[
     placed.edges.push({points: [{x: pl.x, y: y0}, cl], ...own}, {points: [{x: pRight.x, y: y0}, cRight], ...own});
   });
 }
-const layoutBarsBand = placedBand((band: BandOf<'bars'>, x, y, w, ctx) => layoutBars(band, x, y, w, ctx.widthOf, ctx.roles), 'a bars band takes an id that another anchor already has', 'a bar takes an id that another anchor already has');
-const layoutChartBand = placedBand((band: BandOf<'chart'>, x, y, w, ctx) => layoutChart(band, x, y, w, ctx.widthOf, ctx.roles, ctx.wrap), 'a chart takes an id that another anchor already has', 'a chart element takes an id that another anchor already has');
+const layoutBarsBand = placedBand((band: BandOf<'bars'>, x, y, w, ctx) => layoutBars(scaledGeometry(band, ctx), x, y, w, ctx.widthOf, ctx.roles, canvasGeom(ctx)), 'a bars band takes an id that another anchor already has', 'a bar takes an id that another anchor already has');
+const layoutChartBand = placedBand((band: BandOf<'chart'>, x, y, w, ctx) => layoutChart(band, x, y, w, ctx.widthOf, ctx.roles, ctx.wrap, canvasGeom(ctx)), 'a chart takes an id that another anchor already has', 'a chart element takes an id that another anchor already has');
 const layoutPeopleOrDots = placedBand((band: Band & {type: 'people' | 'dots'}, x, y, w, ctx) => band.type === 'people' ? layoutPeople(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles) : layoutDots(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles),
   band => `a ${band.type} band takes an id that another anchor already has`);
 const layoutMathBand = placedBand((band: BandOf<'math'>, x, y, w, ctx) => layoutMath(band, x, y, w, ctx.roles[band.role], ctx.d.day, ctx.tones), 'a math band takes an id that another anchor already has');
-const layoutPlaneBand = placedBand((band: BandOf<'plane'>, x, y, w, ctx) => layoutPlane(band, x, y, w, ctx.widthOf, ctx.roles), 'a plane takes an id that another anchor already has');
+const layoutPlaneBand = placedBand((band: BandOf<'plane'>, x, y, w, ctx) => layoutPlane(scaledGeometry(band, ctx), x, y, w, ctx.widthOf, ctx.roles, canvasGeom(ctx)), 'a plane takes an id that another anchor already has');
 const layoutQuadrantBand = placedBand((band: BandOf<'quadrant'>, x, y, w, ctx) => layoutQuadrant(band, x, y, w, ctx.widthOf, ctx.roles, ctx.wrap), 'a quadrant takes an id that another anchor already has', 'a quadrant item takes an id that another anchor already has');
 
 function layoutGridBand(band: GridBand, ctx: LayoutCtx, padX: number, cw: number): void {

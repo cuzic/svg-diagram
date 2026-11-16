@@ -9,7 +9,7 @@ import {closeMeasurer, diagram, flowchart, mindmap, pyramid, quadrant, renderDia
 import {MEMO_LIMIT, currentMeasure, measureAtoms, measureMemoSize} from '../lib/measure.ts';
 import {xmlProblems} from '../lib/xml-check.ts';
 import {installResolveHook} from '../lib/resolve-hook.ts';
-import {MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, SpecError, capped, cappedMessages, fieldsHolding, layoutIssue, locateMessage, locateVerdict, partCatalog, specSchema, specToDiagram, validateSpec} from '../lib/spec.ts';
+import {CANVAS_LIMITS, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, SpecError, capped, cappedMessages, fieldsHolding, layoutIssue, locateMessage, locateVerdict, partCatalog, specSchema, specToDiagram, validateSpec} from '../lib/spec.ts';
 import {MAX_PNG_PIXELS, lintMessages, lintRendering, renderSpec, svgToPng} from '../lib/spec-render.ts';
 import type {Diagram} from '../lib/types/index.ts';
 import {JA_FONTS} from './helpers/text-engine.ts';
@@ -62,7 +62,7 @@ const SAME_AS_EXAMPLE: Record<string, unknown> = {
   'toc-crt': {version: 1, title: '納期遅れの現状ツリー', sourceLine: '出典: 説明用の例', parts: [{type: 'causeTree', maxNodeW: 170, nodes: [{id: 'late', label: '納期に遅れる', role: 'ude'}, {id: 'cost', label: '残業費が膨らむ', role: 'ude'}, {id: 'switch', label: '作業の切り替えが多い'}, {id: 'rush', label: '急ぎの割り込みが入る'}, {id: 'wip', label: '仕掛りが多い'}, {id: 'start', label: '受注したらすぐ着手する'}, {id: 'kpi', label: '稼働率で評価される', role: 'root'}], links: [{from: 'kpi', to: 'start'}, {from: 'start', to: 'wip'}, {from: 'wip', to: 'switch'}, {from: 'wip', to: 'rush'}, {from: 'switch', to: 'late'}, {from: ['switch', 'rush'], to: 'cost'}]}]},
   'toc-frt': {version: 1, title: '受注の着手を絞る未来現実ツリー', legend: 'auto', sourceLine: '出典: 説明用の例', parts: [{type: 'causeTree', tree: 'frt', nodes: [{id: 'de', label: '納期を守れる', role: 'de'}, {id: 'gain', label: '顧客の信頼が増える'}, {id: 'wip', label: '仕掛りが減る'}, {id: 'focus', label: '1 つずつ仕上げる'}, {id: 'cap', label: '着手の枠を決める', role: 'injection'}, {id: 'fact', label: '受注の量は変えられない', role: 'precondition'}, {id: 'sales', label: '営業が納期を相談できる', role: 'precondition'}], links: [{from: 'cap', to: 'wip'}, {from: 'wip', to: 'focus'}, {from: ['focus', 'sales'], to: 'de'}, {from: ['fact', 'cap'], to: 'focus'}, {from: 'de', to: 'gain'}, {from: 'gain', to: 'sales', back: true}]}]},
   'toc-cloud': {version: 1, title: '品質とスピードのクラウド', sourceLine: '出典: 説明用の例', parts: [{type: 'cloud', a: '製品を成功させる', b: '品質を確保する', c: '市場機会を逃さない', d: '検証に時間をかける', d2: '早くリリースする', assumptions: [{on: 'bd', text: '品質確保には長い検証期間が必須だ', injection: '自動テストで検証を短くする'}, {on: 'cd', text: '早いリリースとは全機能の一括公開だ', injection: '主要機能から段階的に公開する'}, {on: 'dd', text: '検証を終えてからでないと公開できない'}]}]},
-  'chevron-release': {version: 1, title: 'リリース工程', parts: [{type: 'chevron', steps: [{label: '計画', sub: '要件を確認'}, {label: '実装', sub: '小さく作る'}, {label: '検証', sub: '品質を確認'}, {label: '公開', sub: '利用を開始'}], current: 2}]},
+  'chevron-release': {version: 1, title: 'リリース工程', parts: [{type: 'chevron', steps: [{label: '計画', sub: '要件を確認'}, {label: '実装', sub: '小さく作る'}, {label: '検証', sub: '品質を確認'}, {label: '公開', sub: '利用を開始'}], current: 3}]}, // the example's current: 2 is zero-based: 検証, the 3rd step
   'cycle-pdca': {version: 1, title: 'PDCA', parts: [{type: 'cycle', steps: [{label: 'Plan'}, {label: 'Do'}, {label: 'Check'}, {label: 'Act'}], centre: '継続改善'}]},
   'state-diagram': {version: 1, title: '注文の状態', sourceLine: '出典: 注文サービスの設計メモ(例)', parts: [{type: 'stateDiagram', initial: 'new', states: [{id: 'new', label: '受付済み'}, {id: 'paid', label: '入金済み', tone: 'accent'}, {id: 'ship', label: '出荷中', sub: '追跡番号あり'}, {id: 'done', label: '完了', final: true}, {id: 'cancel', label: 'キャンセル', tone: 'muted', final: true}], transitions: [{from: 'new', to: 'paid', label: '入金'}, {from: 'paid', to: 'ship', label: '出荷'}, {from: 'ship', to: 'done', label: '到着'}, {from: 'ship', to: 'ship', label: '再配達'}, {from: 'new', to: 'cancel', label: '期限切れ', line: 'dashed'}, {from: 'paid', to: 'new', label: '入金取消'}]}]},
   'gantt': {version: 1, title: '在庫管理アプリ 開発計画', sourceLine: '出典: プロジェクト計画(例)', parts: [{type: 'gantt', today: '2026-10-26', rows: [{section: '設計'}, {id: 'req', label: '要件定義', start: '2026-10-05', end: '2026-10-16', progress: 1}, {id: 'ui', label: '画面設計', start: '2026-10-19', end: '2026-10-30', progress: 0.5, after: 'req'}, {section: '開発'}, {id: 'app', label: 'アプリ実装', start: '2026-11-02', end: '2026-11-27', after: 'ui'}, {id: 'api', label: 'API 実装', start: '2026-11-02', end: '2026-11-20', after: 'ui'}, {id: 'test', label: '結合テスト', start: '2026-11-30', end: '2026-12-11', after: ['api', 'app'], tone: 'danger'}, {section: 'リリース'}, {label: '本番リリース', start: '2026-12-14', milestone: true, after: 'test'}]}]},
@@ -135,6 +135,21 @@ test('quadrant items need one place; numbers are checked as numbers; a chevron s
   assert.deepEqual(validateSpec(q({at: [0.25, 1]})), []);
   assert.deepEqual(pathsOf(spec({type: 'chevron', steps: [{label: 'a'}, {label: 'b'}], current: 3})), ['parts[0].current']);
   assert.deepEqual(pathsOf(spec({type: 'pyramid', layers: ['一']})), ['parts[0].layers']);
+});
+
+test('a chevron current counts from 1, as its schema says: current k marks the k-th step, the last one included', async () => {
+  const steps = [{label: 'a'}, {label: 'b'}, {label: 'c'}, {label: 'd'}];
+  for (const k of [1, 3, 4]) {
+    const dsl = diagram({theme: 'blue', title: '例'}).add(pure.chevron(steps, {current: k - 1}));
+    assert.equal(await svgOf(specToDiagram(spec({type: 'chevron', steps, current: k}))), await svgOf(dsl as unknown as Diagram), `current: ${k}`);
+  }
+});
+
+test('a swimlane row counts from 1, as its schema says: row 1 is the top sub-row of the lane', async () => {
+  const lanes = [{id: 'a', label: '人'}, {id: 'b', label: '係'}];
+  const stepsOf = (base: number) => [{id: 's', lane: 'a', title: '申請する', col: 1, row: base}, {id: 't', lane: 'a', title: '並行の作業', col: 1, row: base + 1}, {id: 'u', lane: 'b', title: '確認する', col: 2, row: base}];
+  const dsl = diagram({theme: 'blue', title: '例'}).add(pure.swimlane(lanes, stepsOf(0) as never, {flows: [{from: 's', to: 'u'}]} as never) as never);
+  assert.equal(await svgOf(specToDiagram(spec({type: 'swimlane', lanes, steps: stepsOf(1), flows: [{from: 's', to: 'u'}]}))), await svgOf(dsl as unknown as Diagram));
 });
 
 test('gantt dates are real days, ends follow starts, waits name tasks; a funnel with values has them all', () => {
@@ -515,4 +530,60 @@ test('every builder is either in the spec or listed as not in it yet', () => {
 
 test('the schema is plain JSON', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(specSchema)), specSchema);
+});
+
+test('a canvas spec draws the same SVG as diagram({canvas}), and its limits are checked at their place', async () => {
+  const canvas = {width: 1920, height: 1080, minText: 20, fit: 'content'} as const;
+  const json = specToDiagram({...spec(flow), canvas});
+  const dsl = diagram({theme: 'blue', title: '例', canvas}).add(flowchart(flow.nodes, flow.edges));
+  const svg = await svgOf(json);
+  assert.equal(svg, await svgOf(dsl as unknown as Diagram));
+  assert.match(svg, /width="1920"/);
+  assert.deepEqual(validateSpec({...spec(flow), canvas: {}}), [], 'every field has a default');
+  assert.deepEqual(pathsOf({...spec(flow), canvas: {width: CANVAS_LIMITS.width[1] + 1, height: CANVAS_LIMITS.height[0] - 1, minText: CANVAS_LIMITS.minText[0] - 1, fit: 'page'}}), ['canvas.width', 'canvas.height', 'canvas.minText', 'canvas.fit']);
+  assert.deepEqual(pathsOf({...spec(flow), canvas: {width: 1920, scale: 2}}), ['canvas.scale']);
+  assert.deepEqual(pathsOf({...spec(flow), canvas: 'slide'}), ['canvas']);
+  assert.deepEqual(pathsOf({...spec(flow), width: 600, canvas: {width: 1920}}), ['width'], 'a canvas has its own width (ADR 0059 width is for a document figure)');
+});
+
+test('renderSpec (Node) draws a canvas at the lowest minText the schema allows; validateSpec refuses one outside the limits at its place', async () => {
+  const r = await renderSpec({...spec(flow), canvas: {width: 1920, height: 1080, minText: CANVAS_LIMITS.minText[0], fit: 'content'}});
+  assert.deepEqual(r.issues, []);
+  assert.equal(r.width, 1920);
+  assert.deepEqual(pathsOf({...spec(flow), canvas: {minText: CANVAS_LIMITS.minText[0] - 1}}), ['canvas.minText']);
+  assert.deepEqual(pathsOf({...spec(flow), canvas: {minText: CANVAS_LIMITS.minText[1] + 1}}), ['canvas.minText'], 'past it the text outgrows layouts that do not scale with it');
+  assert.deepEqual(pathsOf({...spec(flow), canvas: {width: CANVAS_LIMITS.width[0] - 1}}), ['canvas.width'], 'narrower than the default slide');
+});
+
+test('every example of the catalog draws without a problem on the canvases the README names and at the corners of the limits', async () => {
+  const canvases = [
+    {width: 1920, height: 1080, minText: 20, fit: 'content'}, // the README's full HD slide
+    {}, // every default: 1280x720, 24px, the height fixed
+    {width: CANVAS_LIMITS.width[0], height: CANVAS_LIMITS.height[1], minText: CANVAS_LIMITS.minText[1]}, // the narrowest, with the largest text
+    {width: CANVAS_LIMITS.width[1], height: CANVAS_LIMITS.height[1], minText: CANVAS_LIMITS.minText[1], fit: 'content'}, // 4K
+    {width: CANVAS_LIMITS.width[1], height: CANVAS_LIMITS.height[1], minText: CANVAS_LIMITS.minText[0], fit: 'content'},
+  ];
+  for (const canvas of canvases) for (const {type, example} of partCatalog()) {
+    const r = await renderSpec({...spec(example), canvas});
+    assert.deepEqual([...r.issues, ...r.problems].map(p => p.message), [], `${type} on ${JSON.stringify(canvas)}`);
+    assert.equal(r.width, canvas.width ?? 1280, type);
+  }
+});
+
+test('a canvas without fit is as tall as its height; with fit content it is never taller', async () => {
+  const fixed = await renderSpec({...spec(flow), canvas: {width: 1920, height: 1080, minText: 20}});
+  assert.equal(fixed.ok, true, JSON.stringify(fixed.problems));
+  assert.deepEqual([fixed.width, fixed.height], [1920, 1080]);
+  assert.match(fixed.svg ?? '', /height="1080"/);
+  const fitted = await renderSpec({...spec(flow), canvas: {width: 1920, height: 1080, minText: 20, fit: 'content'}});
+  assert.ok(fitted.height < 1080, `${fitted.height}`);
+});
+
+test('a canvas in English writes the words the figure adds in English, at the canvas size', async () => {
+  const gantt = partCatalog().find(p => p.type === 'gantt')?.example;
+  const r = await renderSpec({...spec(gantt), lang: 'en', canvas: {width: 1920, height: 1080, minText: 20, fit: 'content'}});
+  assert.deepEqual(r.problems, []);
+  assert.equal(r.width, 1920);
+  assert.match(r.svg ?? '', />Today</);
+  assert.doesNotMatch(r.svg ?? '', />今日</);
 });

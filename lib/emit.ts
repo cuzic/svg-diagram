@@ -20,11 +20,13 @@ export {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 export type {BoxStyle} from './emit-common.ts';
 export {renderFlowShape} from './emit-figures.ts';
 
+/** A cycle's arcs and links, and a concentric's moves (ADR 0065), are paths with a head (dsl-arrow). */
+const flowArrows = (b: LaidOutBand): boolean => b.type === 'cycle' || b.type === 'concentric' && b.primitives.some(p => p.k === 'path' && !!p.arrow);
 function usesArrows(laidOutDiagram: LaidOutDiagram): boolean {
   if (laidOutDiagram.connects.some(c => c.arrow !== 'none')) return true;
   if (laidOutDiagram.laidOut.some(b => b.type === 'legend' && b.items.some(i => i.line && (i.arrow ?? 'end') !== 'none'))) return true;
   if (laidOutDiagram.laidOut.some(b => b.type === 'sequence' && b.steps.some(x => (x.kind === 'msg' && x.arrow !== 'none') || x.kind === 'self'))) return true;
-  if (laidOutDiagram.laidOut.some(b => b.type === 'cycle')) return true;
+  if (laidOutDiagram.laidOut.some(flowArrows)) return true;
   return laidOutDiagram.laidOut.some(b => b.type === 'row' && b.arrows.length > 0);
 }
 
@@ -52,7 +54,7 @@ function emitSvgWith(laidOutDiagram: LaidOutDiagram, tones: ToneEnv, opts: {reve
     b.type === 'row' && b.arrows.length > 0
     || b.type === 'legend' && b.items.some(i => i.line && (i.arrow ?? 'end') !== 'none')
     || b.type === 'sequence' && b.steps.some(x => x.kind === 'self' || x.kind === 'msg' && x.arrow !== 'none')
-    || b.type === 'cycle'
+    || flowArrows(b)
   ));
 
   // a connector in a line tone of its own: a head of that colour (only the tones in use, so a figure without one is unchanged)

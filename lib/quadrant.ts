@@ -23,8 +23,8 @@ import {must} from './must.ts';
 // input types
 // ---------------------------------------------------------------------------------------------------------------------------
 
-export type QuadrantPreset = 'bcg' | 'ge' | 'ansoff' | 'nineBox' | 'impactEffort' | 'risk' | 'stakeholder' | 'positioning' | 'eisenhower';
-export const QUADRANT_PRESETS: readonly QuadrantPreset[] = ['bcg', 'ge', 'ansoff', 'nineBox', 'impactEffort', 'risk', 'stakeholder', 'positioning', 'eisenhower'];
+export type QuadrantPreset = 'bcg' | 'ge' | 'ansoff' | 'nineBox' | 'impactEffort' | 'risk' | 'stakeholder' | 'positioning' | 'eisenhower' | 'actMatrix';
+export const QUADRANT_PRESETS: readonly QuadrantPreset[] = ['bcg', 'ge', 'ansoff', 'nineBox', 'impactEffort', 'risk', 'stakeholder', 'positioning', 'eisenhower', 'actMatrix'];
 
 /** An axis: its name, the words at its low / high end, and whether high is drawn first (left / bottom for a reversed y). */
 export interface QuadrantAxis {
@@ -91,6 +91,8 @@ export interface QuadrantOpts extends RevealOpts, ScopeOpts {
   groups?: readonly string[];
   /** No gaps between the cells: the cells read as one plot cut by a crosshair. */
   crosshair?: boolean;
+  /** A word on the point where the crosshair lines meet (the ACT Matrix's 「気づいている自分」). Needs a 2 x 2 grid with `crosshair: true`; '' leaves out a preset's. */
+  centre?: string;
   /** Free-shaped regions (diagonal bands) drawn over the cells. They need `crosshair: true` and cells without captions: the regions carry the words. */
   regions?: readonly QuadrantRegion[];
   /** Least height of the plot (px); the rows grow when the items need more room. */
@@ -119,6 +121,7 @@ export interface QuadrantBand {
   groups: string[];
   crosshair: boolean;
   regions: QuadrantRegion[];
+  centre?: string;
   height?: number;
   width?: number;
   allowEmpty?: true | [number, number][];
@@ -172,7 +175,7 @@ export interface LaidOutQuadrant extends Rect, Dimmed {
 // presets
 // ---------------------------------------------------------------------------------------------------------------------------
 
-interface PresetDef {x: QuadrantAxis; y: QuadrantAxis; grid: [number, number]; cells: QuadrantCell[][]; crosshair?: boolean; height?: number}
+interface PresetDef {x: QuadrantAxis; y: QuadrantAxis; grid: [number, number]; cells: QuadrantCell[][]; crosshair?: boolean; height?: number; centre?: string}
 const c = (title: string, note: string | undefined, tone: QuadrantTone): QuadrantCell => ({title, ...(note ? {note} : {}), tone});
 
 const RISK_RATING = [['低', '低', '中'], ['低', '中', '高'], ['中', '高', '重大']]; // [likelihood-1][impact-1]
@@ -226,6 +229,13 @@ const PRESETS: Record<QuadrantPreset, PresetDef> = {
     x: {title: '緊急度', low: '低い', high: '高い', reversed: true}, y: {title: '重要度', low: '低い', high: '高い'}, grid: [2, 2],
     cells: [[c('今すぐやる', '重要で緊急。自分で片付ける', 'accent'), c('計画してやる', '重要だが急がない。日程に入れる', 'accent')], [c('任せる', '緊急だが重要でない。人に頼む', 'plain'), c('やめる', '重要でも緊急でもない。減らす', 'muted')]],
   },
+  // ACT Matrix (Polk & Schoendorff): up = what the five senses notice (outside), down = what happens inside; left = away from what matters, right = toward it.
+  // Read from the bottom-left: the inner experience, the away moves it drives, what matters, the toward moves. The noticing self sits at the centre.
+  actMatrix: {
+    x: {title: '行動の向き', low: '離れる（away）', high: '向かう（toward）'}, y: {title: 'どこで起きるか', low: '心の中（内）', high: '五感で感じる（外）'}, grid: [2, 2],
+    cells: [[c('離れる行動', 'つらさを避けるためにすること', 'muted'), c('向かう行動', '大切なものに近づくためにすること', 'accent')], [c('内側の体験', '考え・感情・衝動', 'plain'), c('大切な人や物事', '価値', 'accent')]],
+    crosshair: true, centre: '気づいている自分',
+  },
 };
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -246,12 +256,20 @@ const groupStyle = (gi: number): {shape: QuadrantShape; tone: QuadrantInk; hollo
 
 const defined = <T extends object>(o: T | undefined): Partial<T> => Object.fromEntries(Object.entries(o ?? {}).filter(([, v]) => v !== undefined)) as Partial<T>;
 
+/** What a quadrant draws by default (ADR 0065): its grid [cols, rows] and crosshair — from the options, else the preset, else the cells, else
+ * 2 x 2 — and the word a preset writes where the crosshair lines meet. The spec's checks use it, so they agree with quadrant(). */
+export function quadrantDefaults(opts: Pick<QuadrantOpts, 'preset' | 'grid' | 'cells' | 'crosshair'>): {grid: [number, number]; crosshair: boolean; presetCentre?: string} {
+  const p = opts.preset && QUADRANT_PRESETS.includes(opts.preset) ? PRESETS[opts.preset] : undefined;
+  const cells = Array.isArray(opts.cells) ? opts.cells : undefined;
+  const grid = opts.grid ?? p?.grid ?? (cells ? [Math.max(2, ...cells.map(r => Array.isArray(r) ? r.length : 0)), Math.max(1, cells.length)] as [number, number] : [2, 2]);
+  return {grid, crosshair: opts.crosshair ?? p?.crosshair ?? false, ...(p?.centre ? {presetCentre: p.centre} : {})};
+}
 /** Validates the options, applies the preset and returns the band. Every error names the item / option. */
 export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
   if (!opts || typeof opts !== 'object') throw new Error('quadrant({...}) takes an options object');
   if (opts.preset !== undefined && !QUADRANT_PRESETS.includes(opts.preset)) throw new Error(`quadrant(): unknown preset "${opts.preset}" (${QUADRANT_PRESETS.join(' / ')})`);
   const p = opts.preset ? PRESETS[opts.preset] : undefined;
-  const shape = opts.grid ?? p?.grid ?? (opts.cells ? [Math.max(2, ...opts.cells.map(r => r.length)), Math.max(1, opts.cells.length)] as [number, number] : [2, 2]);
+  const {grid: shape, crosshair} = quadrantDefaults(opts);
   const [cols, rows] = shape;
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1 || cols > MAX_GRID || rows > MAX_GRID) throw new Error(`quadrant(): grid must be whole numbers [cols, rows] from 1 to ${MAX_GRID} (got [${cols}, ${rows}])`);
   if (cols * rows < 2) throw new Error('quadrant(): a grid of one cell is not a matrix');
@@ -336,10 +354,16 @@ export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
     if (r.at !== undefined && !(Array.isArray(r.at) && r.at.length === 2 && r.at.every(unit))) throw new Error(`${what}: at must be [x, y] with both from 0 to 1 (got ${JSON.stringify(r.at)})`);
     if (r.tone !== undefined && !CELL_TONES.includes(r.tone)) throw new Error(`${what}: tone must be ${CELL_TONES.join(' / ')} (got ${JSON.stringify(r.tone)})`);
   });
+  if (opts.centre !== undefined && typeof opts.centre !== 'string') throw new Error(`quadrant(): centre must be a string (got ${JSON.stringify(opts.centre)})`);
+  const centre = (opts.centre ?? p?.centre)?.trim();
+  if (centre) {
+    if (cols !== 2 || rows !== 2 || !crosshair) throw new Error(`quadrant(): centre is written where the crosshair lines meet — it needs a 2 x 2 grid with crosshair: true${opts.centre === undefined && p?.centre ? ` (the preset "${opts.preset}" puts one there: write centre: '' to leave it out)` : ''}`);
+    if (regions.length) throw new Error('quadrant(): centre and regions both write over the middle of the plot; keep one');
+  }
   assertScope(opts.scope, 'quadrant()');
   return {
     type: 'quadrant', ...(opts.id ? {id: opts.id} : {}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until}),
-    x, y, cols, rows, cells, items, arrows, groups, crosshair: opts.crosshair ?? p?.crosshair ?? false, regions,
+    x, y, cols, rows, cells, items, arrows, groups, crosshair, regions, ...(centre ? {centre} : {}),
     ...(opts.sizeTitle === undefined ? {} : {sizeTitle: opts.sizeTitle}), ...(opts.sizeLegend === undefined ? {} : {sizeLegend: opts.sizeLegend}), ...(opts.sizeUnit === undefined ? {} : {sizeUnit: opts.sizeUnit}),
     height: opts.height ?? p?.height, ...(opts.width === undefined ? {} : {width: opts.width}),
     ...(opts.allowEmpty === undefined ? {} : {allowEmpty: opts.allowEmpty === true ? true : opts.allowEmpty.map(([c, r]) => [c, r] as [number, number])}),
@@ -373,6 +397,7 @@ export function quadrantTexts(b: QuadrantBand, roles: Roles): [string, number, n
   for (const r of b.regions) { add(r.title, roles.title, 700); add(r.note, roles.note); }
   for (const it of b.items) add(it.label, roles.note);
   for (const a of b.arrows) add(a.label, roles.note);
+  add(b.centre, roles.note, 700);
   for (const g of b.groups) add(g, roles.note);
   const mx = maxSize(b);
   if (mx > 0) { add(sizeLegendTitle(b), roles.note); for (const v of sizeRefs(mx)) add(sizeRefLabel(b, v), roles.note); }
@@ -455,7 +480,10 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   // ---- captions: a header strip per row
   const capW = cw - 20;
   const caps = band.cells.map(row => row.map(cell => ({t: cell.title ? wrap(cell.title, tSize, 700, capW) : [], n: cell.note ? wrap(cell.note, size, 400, capW) : []})));
-  const hdr = caps.map(row => Math.max(0, ...row.map(k => k.t.length + k.n.length ? 8 + k.t.length * lineT + k.n.length * lineN + 6 : 0)));
+  // the centre chip reaches half its height into the bottom row: that row's captions start below it
+  const centreLines = band.centre ? wrap(band.centre, size, 700, Math.min(160, cw * 0.6)) : [];
+  const centreDrop = centreLines.length ? Math.ceil((centreLines.length * lineN + 8) / 2 / 4) * 4 + 4 : 0;
+  const hdr = caps.map((row, r) => Math.max(0, ...row.map(k => k.t.length + k.n.length ? 8 + k.t.length * lineT + k.n.length * lineN + 6 : 0)) + (r === rows - 1 ? centreDrop : 0));
 
   // ---- the items: radius, label lines
   const mx = maxSize(band);
@@ -520,11 +548,12 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     band.cells.forEach((rowCells, r) => rowCells.forEach((cell, k) => {
       const cap = must(must(caps[r])[k]), cr0 = cellRect(k, r), part = band.regions.length ? undefined : partStep('cell', r * cols + k, [...cap.t].join('')); // ADR 0054
       const ink: QuadrantInk = cell.tone === 'accent' ? 'accent' : cell.tone === 'danger' ? 'danger' : 'text';
-      let top = cr0.y + 8;
+      let top = cr0.y + 8 + (r === rows - 1 ? centreDrop : 0);
+      const top0 = top;
       for (const line of cap.t) { texts.push({text: line, x: cr0.x + 10, y: top + tSize, anchor: 'start', size: tSize, bold: true, fill: ink, ...(part ? {part} : {})}); top += lineT; }
       for (const line of cap.n) { texts.push({text: line, x: cr0.x + 10, y: top + size, anchor: 'start', size, bold: false, fill: 'muted', ...(part ? {part} : {})}); top += lineN; }
       if (cap.t.length + cap.n.length) {
-        const wd = Math.max(widest(cap.t, tSize, 700), widest(cap.n, size, 400)), box = {x: cr0.x + 10, y: cr0.y + 8, w: wd, h: top - cr0.y - 8};
+        const wd = Math.max(widest(cap.t, tSize, 700), widest(cap.n, size, 400)), box = {x: cr0.x + 10, y: top0, w: wd, h: top - top0};
         headers.push(box);
         labelBoxes.push({...box, label: [...cap.t, ...cap.n].join(' '), kind: 'caption'});
       }
@@ -548,6 +577,18 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
       headers.push(box);
       labelBoxes.push({...box, label: [...t, ...n].join(' '), kind: 'caption'});
     });
+
+    // ---- the centre: a white chip where the crosshair lines meet (2 x 2 only); the items keep clear of it as of a caption
+    let centreChip: (Rect & {lines: string[]}) | undefined;
+    if (band.centre) {
+      const lines = centreLines, wd = widest(lines, size, 700), hh = lines.length * lineN;
+      const mx0 = plotL + must(colGrid.x[1]), my0 = plotT + must(rowH[0]);
+      const x0 = Math.floor((mx0 - wd / 2 - 8) / 4) * 4, y0 = Math.floor((my0 - hh / 2 - 4) / 4) * 4;
+      centreChip = {x: x0, y: y0, w: Math.ceil((mx0 + wd / 2 + 8) / 4) * 4 - x0, h: Math.ceil((my0 + hh / 2 + 4) / 4) * 4 - y0, lines};
+      lines.forEach((line, k) => texts.push({text: line, x: mx0, y: my0 - hh / 2 + k * lineN + size, anchor: 'middle', size, bold: true, fill: 'accent', part: AXES}));
+      headers.push(centreChip);
+      labelBoxes.push({x: mx0 - wd / 2, y: my0 - hh / 2, w: wd, h: hh, label: band.centre, kind: 'caption'});
+    }
 
     // ---- placing items: the bubble and its label are one unit, checked against everything placed before
     const placed: {u: Unit; spot: Spot}[] = [];
@@ -627,7 +668,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
         top += must(rowHs[fi]) + 10;
       }
     }
-    return {regionPolys, rowH, plotT, plotB, plot, placed, moved, texts, labelBoxes, headers, cellRect, toCell, inPlot, free, labelAt};
+    return {regionPolys, rowH, plotT, plotB, plot, placed, moved, texts, labelBoxes, headers, cellRect, toCell, inPlot, free, labelAt, centreChip};
   };
 
   let result: Exclude<ReturnType<typeof attempt>, Grow> | undefined, lastWhy = '';
@@ -639,7 +680,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     }
   }
   if (!result) throw new Error(`quadrant(): ${lastWhy}, even with the rows grown — fewer items, smaller sizes, a wider figure or a coarser grid`);
-  const {regionPolys, rowH, plotT, plotB, plot, placed, moved, texts, labelBoxes, cellRect, toCell} = result;
+  const {regionPolys, rowH, plotT, plotB, plot, placed, moved, texts, labelBoxes, cellRect, toCell, centreChip} = result;
   placed.sort((a, b) => a.u.i - b.u.i);
 
   // ---- bubbles, anchors
@@ -652,7 +693,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     const i = band.items.findIndex(it => it.id === e);
     return {x: must(bubbles[i]).x, y: must(bubbles[i]).y, cr: must(bubbles[i]).cr};
   };
-  const arrows: LaidOutQuadrant['arrows'] = [], chips: Rect[] = [];
+  const arrows: LaidOutQuadrant['arrows'] = [], chips: Rect[] = centreChip ? [{x: centreChip.x, y: centreChip.y, w: centreChip.w, h: centreChip.h}] : [];
   const arrowLabels: {text: string; seg: number}[] = [];
   for (const a of band.arrows) {
     const p = endOf(a.from), q = endOf(a.to);

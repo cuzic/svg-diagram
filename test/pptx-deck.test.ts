@@ -5,7 +5,7 @@ import path from 'node:path';
 import {build as bundle} from 'esbuild';
 import {closeMeasurer} from '../lib/dsl.ts';
 import {partCatalog, specToDiagram, validateAgainst} from '../lib/spec.ts';
-import {figurePath} from '../lib/deck-spec.ts';
+import {deckSchema, figurePath} from '../lib/deck-spec.ts';
 import {renderInBrowser} from '../lib/web.ts';
 import {guardedEngine} from '../lib/spec-edge.ts';
 import {renderDeckPptxEdge, validateDeck} from '../lib/pptx-deck-edge.ts';
@@ -48,6 +48,14 @@ test('validateDeck: a bad deck comes back with places in the deck, a figure\'s m
   assert.deepEqual(validateDeck({slides: [{title: 'a', colour: 'red'}]}).map(i => i.path), ['slides[0].colour']);
   assert.deepEqual(validateDeck({slides: [{title: 'a', callouts: undefined}]}).map(i => i.message), ['must be an array (got nothing)']);
   assert.deepEqual(validateDeck({slides: [{title: 'a', notes: '\t一\n\t二'}]}), [], 'notes may be indented with tabs');
+  const flow = {type: 'flowchart', nodes: [{id: 'a', label: 'a'}], edges: []};
+  assert.deepEqual(validateDeck({slides: [{figure: {version: 1, title: 't', canvas: {width: 1920}, parts: [flow]}}]}).map(i => i.path), ['slides[0].figure.canvas'], 'a deck sizes its figures itself');
+  assert.deepEqual(validateDeck({slides: [{figure: {version: 1, title: 't', canvas: {width: 99999}, parts: [flow]}}]}).map(i => i.path), ['slides[0].figure.canvas'], 'said once, not with the canvas\'s own mistakes');
+  const twice = {type: 'flowchart', nodes: [{id: 'a', label: 'a'}, {id: 'a', label: 'b'}], edges: [{from: 'a', to: 'z'}]};
+  const both = validateDeck({slides: [{figure: {version: 1, title: 't', canvas: {width: 99999}, parts: [twice]}}]}).map(i => i.path);
+  assert.equal(both[0], 'slides[0].figure.canvas');
+  assert.ok(both.length > 1 && both.slice(1).every(p => p.startsWith('slides[0].figure.parts[0].')), `the rest of the figure is still checked: ${both.join(', ')}`);
+  assert.equal(deckSchema.properties?.['slides']?.items?.properties?.['figure']?.properties?.['canvas'], undefined, 'and does not offer a canvas');
 });
 
 test('a deck is one file of 16:9 slides with notes, every shape on its slide and every connector glued to a shape of its own slide', async () => {

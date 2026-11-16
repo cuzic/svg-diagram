@@ -1,6 +1,13 @@
 // The pieces every spec part is written with (lib/spec.ts and lib/spec-parts/*.ts): the JSON Schema subset, the issue type, the schema
 // helpers and the checks shared between parts. Like lib/spec.ts, nothing here touches the disk or a process.
 export const SPEC_VERSION = 1;
+/**
+ * The range of a spec's canvas (ADR 0057 D2): from the default slide (1280 wide) up to 4K, and text from the default font floor (a spec
+ * cannot lower it: renderSpec keeps fontFloor 14) up to the default slide's 24px. Every example of partCatalog() draws without a problem
+ * anywhere in it (test/spec.test.ts). Past it the text outgrows layouts whose sizes do not scale with it yet (a loop-back's route, a
+ * causal loop's delay mark), and a canvas narrower than a document figure (940) leaves the wider parts no room.
+ */
+export const CANVAS_LIMITS = {width: [1280, 3840], height: [360, 2160], minText: [14, 24]} as const;
 
 /** All the text of a spec together, in characters. The per-field limits alone would allow a figure that takes seconds to lay out. */
 export const MAX_TOTAL_TEXT = 6000;
@@ -172,4 +179,15 @@ export function sameLength(part: Json, at: string, n: number, what: string, issu
     let v: unknown = part; for (const k of p) v = (v as Record<string | number, unknown> | undefined)?.[k];
     if (Array.isArray(v) && v.length !== n) issues.push({path: `${at}${p.map(k => typeof k === 'number' ? `[${k}]` : `.${k}`).join('')}`, message: `has ${v.length} entries; there are ${n} ${what}`});
   }
+}
+
+/** A step / ring / sector named by its 1-based number or its label (or id) (ADR 0065). */
+export const STEP_REF = (description: string): JsonSchema => ({oneOf: [{type: 'integer', minimum: 1, maximum: 8}, {type: 'string', minLength: 1, maxLength: 40}], description});
+/** An issue where `v` is neither a number within `n` nor the label or id of one of `xs`, or is the label or id of two of them (ADR 0065). */
+export function refIssue(v: unknown, n: number, xs: readonly Json[], path: string, what: string, issues: SpecIssue[]): void {
+  if (v === undefined) return;
+  const names = xs.flatMap(x => [x['label'], x['id']]).filter((x, i, all): x is string => typeof x === 'string' && all.indexOf(x) === i);
+  const named = typeof v === 'number' ? [] : xs.flatMap((x, k) => x['label'] === v || x['id'] === v ? [k + 1] : []);
+  if (named.length > 1) issues.push({path, message: `names ${named.length} of the ${what} (${named.join(', ')}: a label or id twice); give its number, or an id of its own`});
+  else if (typeof v === 'number' ? v > n : !named.length) issues.push({path, message: `is not one of the ${n} ${what} (a number from 1, or a name: ${names.map(x => JSON.stringify(x)).join(', ') || 'none are named'})`});
 }

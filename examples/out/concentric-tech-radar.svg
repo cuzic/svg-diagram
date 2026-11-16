@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="626" viewBox="0 0 940 626" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">技術レーダー 2026 秋</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/concentric-tech-radar.ts","sourceSha256":"96d7052997de2869d3dd9c70cdfdd56753e09ecf6ca9fd65abb26ef52662f436"}</metadata>
+  <defs>
+    <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="626" fill="#ffffff"/>
+
+  <circle cx="472" cy="300" r="240" fill="#1d5fa8" fill-opacity="0.07" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="472" cy="300" r="193.4" fill="#1d5fa8" fill-opacity="0.07" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="472" cy="300" r="142.7" fill="#1d5fa8" fill-opacity="0.07" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="472" cy="300" r="84.9" fill="#1d5fa8" fill-opacity="0.07" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M472.0,300.0 L472.0,60.0" fill="none" stroke="#6f6659" stroke-width="1.5"/>
+  <path d="M472.0,300.0 L712.0,300.0" fill="none" stroke="#6f6659" stroke-width="1.5"/>
+  <path d="M472.0,300.0 L472.0,540.0" fill="none" stroke="#6f6659" stroke-width="1.5"/>
+  <path d="M472.0,300.0 L232.0,300.0" fill="none" stroke="#6f6659" stroke-width="1.5"/>
+  <circle cx="681.3" cy="243.9" r="5" fill="#6f6659" fill-opacity="0.15" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,2"/>
+  <path d="M674.6,245.7 L644.7,253.7" fill="none" stroke="#6f6659" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <circle cx="552.5" cy="380.5" r="5" fill="#6f6659" fill-opacity="0.15" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,2"/>
+  <path d="M547.5,375.5 L510.4,338.4" fill="none" stroke="#6f6659" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <circle cx="476" cy="284" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="636" cy="256" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="504" cy="332" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="532" cy="396" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="412" cy="396" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="460" cy="508" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="448" cy="264" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="392" cy="144" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="408" cy="592" r="5" fill="#6f6659" fill-opacity="0.15" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,2"/>
+  <path d="M457.0,592 L485.0,592" fill="none" stroke="#6f6659" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <circle cx="501" cy="592" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
+  <text x="650.2" y="118" font-size="14" font-weight="700" fill="#22201b">言語・フレームワーク</text>
+  <text x="650.2" y="493.2" font-size="14" font-weight="700" fill="#22201b">ツール</text>
+  <text x="293.8" y="493.2" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">プラットフォーム</text>
+  <text x="293.8" y="118" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">手法</text>
+  <text x="478" y="263.2" font-size="14" font-weight="400" fill="#6f6659">Adopt</text>
+  <text x="478" y="191.8" font-size="14" font-weight="400" fill="#6f6659">Trial</text>
+  <text x="478" y="137.5" font-size="14" font-weight="400" fill="#6f6659">Assess</text>
+  <text x="478" y="88.9" font-size="14" font-weight="400" fill="#6f6659">Hold</text>
+  <text x="466" y="289.6" text-anchor="end" font-size="14" font-weight="400" fill="#22201b">TypeScript</text>
+  <text x="636" y="280.1" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">Effect</text>
+  <text x="504" y="319.2" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">Biome</text>
+  <text x="522" y="401.6" text-anchor="end" font-size="14" font-weight="400" fill="#22201b">Bun</text>
+  <text x="422" y="401.6" font-size="14" font-weight="400" fill="#22201b">Fly.io</text>
+  <text x="450" y="513.6" text-anchor="end" font-size="14" font-weight="400" fill="#22201b">Kubernetes</text>
+  <text x="448" y="251.2" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">ADR</text>
+  <text x="402" y="149.6" font-size="14" font-weight="400" fill="#22201b">モブプロ</text>
+  <text x="419" y="597.6" font-size="14" font-weight="400" fill="#6f6659">前回</text>
+  <text x="513" y="597.6" font-size="14" font-weight="400" fill="#6f6659">今回</text>
+</svg>

@@ -38,6 +38,8 @@ test('the input: 2 or 3 columns, each a figure or text; figure and columns do no
   assert.deepEqual(at({slides: [{columns: [{text: 'a'}, {text: 'b'}, {text: 'c'}, {text: 'd'}]}]}), ['slides[0].columns']);
   assert.deepEqual(at({slides: [{columns: [{text: 'a', width: 4}, {text: 'b'}]}]}), ['slides[0].columns[0].width']);
   assert.ok(at({slides: [{columns: [{figure: {version: 1, title: 't', parts: []}}, {text: 'x'}]}]}).every(p => p.startsWith('slides[0].columns[0].figure')));
+  // a column's figure is sized by its column (ADR 0059), so a canvas (ADR 0057) is refused there as on a slide's own figure, once
+  assert.deepEqual(at({slides: [{columns: [{figure: {...f, canvas: {width: 1920}}}, {text: 'x'}]}]}), ['slides[0].columns[0].figure.canvas']);
 });
 
 test('the columns share the row by their widths with a gap between; contents start on one line; "same" puts every figure at one scale', () => {

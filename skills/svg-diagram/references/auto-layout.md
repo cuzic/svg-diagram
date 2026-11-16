@@ -15,7 +15,7 @@
 | 判断のある流れ図 | `flowchart(nodes, edges, {dir})` | 節 `{id, label, kind?: 'process'｜'decision'（ひし形）｜'terminator'（開始・終了）, sub?, tone?, icon?}`、矢印は遷移と同じ。既定は上から下。判断から出る矢印に `label: 'Yes'` / `'No'`。戻る矢印は外側を回る（`returns: 'outer'` が既定）。`initial` / `final` は無い |
 | スケジュール | `gantt(rows, {today})` | タスク `{label, start, end｜days, after?, progress?, milestone?}`（日付は `YYYY-MM-DD`、`today` は必ず書く。軸の外なら `extendToToday: true`、日付をビルドが受け取るなら `today: 'auto'` + `--today` / `SVG_DIAGRAM_TODAY` / `.svg-diagram.json` の `today`。時計は読まない） |
 | UML クラス図 | `classDiagram(classes, relations, {dir})` | クラス `{id, attrs?, methods?, stereotype?}` と関係 `{from, to, kind, label?, fromMult?, toMult?}` |
-| 業務フロー（BPMN 風） | `bpmn(lanes, nodes, flows, {fit})` | レーン・ノード（task / start / end / xor / and / or）・フロー（`line: 'dashed'` はメッセージ）。940px に収まらず throw するときは `fit: 'shrink'`（スイムレーン `swimlane({fit: 'shrink'})` も同様） |
+| 業務フロー（BPMN 風） | `bpmn(lanes, nodes, flows, {fit, dir})` | レーン・ノード（task / start / end / xor / and / or）・フロー（`line: 'dashed'` はメッセージ）。940px に収まらず throw するときは `fit: 'shrink'`（スイムレーン `swimlane({fit: 'shrink'})` も同様） |
 | 章の頭の 1 枚 | `hero({banner, stat, flow, caption, note})` | 大きな数字 `stat` + 流れの `box()` の列 `flow` + 一言・出典。帯は任意 |
 
 - 節に `id` を付けると、`connect()` の端点（`t.anchors.<id>` でも取れる）。図に `id` を付けると、図全体が端点・spotlight の対象になる（節の id は spotlight できない）。

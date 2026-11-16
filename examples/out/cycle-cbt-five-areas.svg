@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="456" viewBox="0 0 940 456" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">5 領域モデルで見る、ある朝のできごと</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/cycle-cbt-five-areas.ts","sourceSha256":"eb37a293dc13211fec865eb1202532de2ac4a6abeaf3d849e4e78302c6300ccc"}</metadata>
+  <defs>
+    <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="456" fill="#ffffff"/>
+
+  <path d="M472.0,132.0 L510.0,132.0" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M472.0,132.0 L434.0,132.0" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M472.0,240.0 L530.5,298.5" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M472.0,240.0 L413.5,181.5" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M364.0,240.0 L364.0,278.0" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M364.0,240.0 L364.0,202.0" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M580.0,240.0 L580.0,278.0" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M580.0,240.0 L580.0,202.0" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M472.0,240.0 L413.5,298.5" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M472.0,240.0 L530.5,181.5" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M472.0,348.0 L434.0,348.0" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <path d="M472.0,348.0 L510.0,348.0" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+  <circle cx="364" cy="132" r="64" fill="#1d5fa8" fill-opacity="0.16" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="580" cy="132" r="64" fill="#1d5fa8" fill-opacity="0.16" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="580" cy="348" r="64" fill="#1d5fa8" fill-opacity="0.16" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="364" cy="348" r="64" fill="#1d5fa8" fill-opacity="0.16" stroke="#1d5fa8" stroke-width="2"/>
+  <rect x="264" y="24" width="412" height="408" rx="8" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <text x="364" y="128.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">思考</text>
+  <text x="364" y="147.1" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">また失敗した</text>
+  <text x="580" y="128.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">感情</text>
+  <text x="580" y="147.1" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">不安・恥ずかしさ</text>
+  <text x="580" y="344.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">行動</text>
+  <text x="580" y="363.1" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">返事を先延ばし</text>
+  <text x="364" y="344.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">身体</text>
+  <text x="364" y="363.1" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">肩がこわばる</text>
+  <text x="280" y="47.1" font-size="14" font-weight="700" fill="#6f6659">状況・環境：上司に資料の修正を頼まれた</text>
+</svg>

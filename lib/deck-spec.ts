@@ -40,7 +40,8 @@ const slideShape = (figure: JsonSchema): JsonSchema => object({
   notes: text('Speaker notes. Lines are separated by "\\n".', 5000),
 }, [], 'One 16:9 slide. Every field is optional, but a slide needs a title, a figure or columns. figure and columns do not go together.');
 
-const FIGURE: JsonSchema = {...specSchema, description: 'The figure: the same JSON spec as a single diagram. It is laid out at its own size and then scaled to the room the slide leaves.'};
+const {canvas: _canvas, ...FIGURE_FIELDS} = specSchema.properties ?? {}; // a deck slide sizes its figure itself (validateDeck refuses a canvas)
+const FIGURE: JsonSchema = {...specSchema, properties: FIGURE_FIELDS, description: 'The figure: the same JSON spec as a single diagram. It is laid out at its own size and then scaled to the room the slide leaves.'};
 
 /** The deck's JSON Schema, figures included (each is a full spec). */
 export const deckSchema: JsonSchema = object({
@@ -70,16 +71,28 @@ export function validateDeck(input: unknown): SpecIssue[] {
     const slide = s as Json;
     if (slide['title'] === undefined && slide['figure'] === undefined && slide['columns'] === undefined) issues.push({path: `slides[${i}]`, message: 'needs a title, a figure or columns'});
     if (slide['figure'] !== undefined && slide['columns'] !== undefined) issues.push({path: `slides[${i}]`, message: 'has both figure and columns: write one of them (put the figure in a column)'});
-    if (slide['figure'] !== undefined) for (const f of validateSpec(slide['figure'])) issues.push({path: figurePath(i, f.path), message: f.message});
+    if (slide['figure'] !== undefined) checkFigure(slide['figure'], path => figurePath(i, path), issues);
     const columns = slide['columns'];
     if (Array.isArray(columns)) columns.forEach((c: unknown, j) => {
       if (typeof c !== 'object' || c === null) return;
       const col = c as Json, has = (k: string) => col[k] !== undefined;
       if (has('figure') === has('text')) issues.push({path: `slides[${i}].columns[${j}]`, message: has('figure') ? 'has both figure and text: write one of them' : 'needs a figure or text'});
-      if (has('figure')) for (const f of validateSpec(col['figure'])) issues.push({path: columnFigurePath(i, j, f.path), message: f.message});
+      if (has('figure')) checkFigure(col['figure'], path => columnFigurePath(i, j, path), issues);
     });
   });
   return capped(issues);
+}
+
+/**
+ * A slide's or a column's figure, its issues placed by `at`. A deck slide sizes its figure to the room it leaves (a column's figure to its
+ * column, ADR 0059); a canvas is a whole slide of its own, so the two cannot both decide. Said once, not with the canvas's own mistakes,
+ * and the rest of the figure is checked without it, so a bad canvas does not hide its other mistakes.
+ */
+function checkFigure(figure: unknown, at: (path: string | null) => string, issues: SpecIssue[]): void {
+  const canvas = typeof figure === 'object' && figure !== null && !Array.isArray(figure) && Object.hasOwn(figure, 'canvas');
+  if (canvas) issues.push({path: at('canvas'), message: 'is for a figure drawn alone: a deck slide sizes its figure to the room left on the slide (leave canvas out)'});
+  const {canvas: _refused, ...rest} = canvas ? figure as Json : {};
+  for (const f of validateSpec(canvas ? rest : figure)) issues.push({path: at(f.path), message: f.message});
 }
 
 /** The input with the line breaks of every slide's notes and column texts replaced by spaces (only for checking). */
