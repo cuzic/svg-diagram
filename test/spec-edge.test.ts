@@ -276,3 +276,15 @@ test('guardedEngine turns a failure of any part of the engine, thrown or rejecte
   assert.throws(() => g.textBox('a', 'sans', 10, 400), TextEngineError);
   assert.throws(() => g.font.covers(65, 'sans', 400), /the text engine failed: boom/);
 });
+
+test('a canvas figure is drawn at the canvas width, with text grown to minText, and no doc-width note', async () => {
+  const engine = realEngine();
+  const part = {type: 'steps', items: [{title: '書く'}, {title: '描く'}, {title: '読む'}]};
+  const doc = await renderSpecEdge(spec(part), engine);
+  const wide = await renderSpecEdge({...spec(part), canvas: {width: 1920, height: 1080, minText: 24, fit: 'content'}}, engine);
+  assert.equal(wide.ok, true, JSON.stringify(wide.problems));
+  assert.equal(wide.width, 1920);
+  assert.ok(wide.height > doc.height, `text grows with minText: ${doc.height} -> ${wide.height}`);
+  assert.ok(wide.height <= 1080);
+  assert.deepEqual(wide.findings.filter(f => /doc-width|本文の表示幅/.test(f.message)), []);
+});

@@ -9,7 +9,7 @@ import {closeMeasurer, diagram, flowchart, mindmap, pyramid, quadrant, renderDia
 import {MEMO_LIMIT, currentMeasure, measureAtoms, measureMemoSize} from '../lib/measure.ts';
 import {xmlProblems} from '../lib/xml-check.ts';
 import {installResolveHook} from '../lib/resolve-hook.ts';
-import {MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, SpecError, capped, cappedMessages, fieldsHolding, layoutIssue, locateMessage, locateVerdict, partCatalog, specSchema, specToDiagram, validateSpec} from '../lib/spec.ts';
+import {CANVAS_LIMITS, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, SpecError, capped, cappedMessages, fieldsHolding, layoutIssue, locateMessage, locateVerdict, partCatalog, specSchema, specToDiagram, validateSpec} from '../lib/spec.ts';
 import {MAX_PNG_PIXELS, lintMessages, lintRendering, renderSpec, svgToPng} from '../lib/spec-render.ts';
 import type {Diagram} from '../lib/types/index.ts';
 import {JA_FONTS} from './helpers/text-engine.ts';
@@ -530,4 +530,59 @@ test('every builder is either in the spec or listed as not in it yet', () => {
 
 test('the schema is plain JSON', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(specSchema)), specSchema);
+});
+
+test('a canvas spec draws the same SVG as diagram({canvas}), and its limits are checked at their place', async () => {
+  const canvas = {width: 1920, height: 1080, minText: 20, fit: 'content'} as const;
+  const json = specToDiagram({...spec(flow), canvas});
+  const dsl = diagram({theme: 'blue', title: '例', canvas}).add(flowchart(flow.nodes, flow.edges));
+  const svg = await svgOf(json);
+  assert.equal(svg, await svgOf(dsl as unknown as Diagram));
+  assert.match(svg, /width="1920"/);
+  assert.deepEqual(validateSpec({...spec(flow), canvas: {}}), [], 'every field has a default');
+  assert.deepEqual(pathsOf({...spec(flow), canvas: {width: CANVAS_LIMITS.width[1] + 1, height: CANVAS_LIMITS.height[0] - 1, minText: CANVAS_LIMITS.minText[0] - 1, fit: 'page'}}), ['canvas.width', 'canvas.height', 'canvas.minText', 'canvas.fit']);
+  assert.deepEqual(pathsOf({...spec(flow), canvas: {width: 1920, scale: 2}}), ['canvas.scale']);
+  assert.deepEqual(pathsOf({...spec(flow), canvas: 'slide'}), ['canvas']);
+});
+
+test('renderSpec (Node) draws a canvas at the lowest minText the schema allows; validateSpec refuses one outside the limits at its place', async () => {
+  const r = await renderSpec({...spec(flow), canvas: {width: 1920, height: 1080, minText: CANVAS_LIMITS.minText[0], fit: 'content'}});
+  assert.deepEqual(r.issues, []);
+  assert.equal(r.width, 1920);
+  assert.deepEqual(pathsOf({...spec(flow), canvas: {minText: CANVAS_LIMITS.minText[0] - 1}}), ['canvas.minText']);
+  assert.deepEqual(pathsOf({...spec(flow), canvas: {minText: CANVAS_LIMITS.minText[1] + 1}}), ['canvas.minText'], 'past it the text outgrows layouts that do not scale with it');
+  assert.deepEqual(pathsOf({...spec(flow), canvas: {width: CANVAS_LIMITS.width[0] - 1}}), ['canvas.width'], 'narrower than the default slide');
+});
+
+test('every example of the catalog draws without a problem on the canvases the README names and at the corners of the limits', async () => {
+  const canvases = [
+    {width: 1920, height: 1080, minText: 20, fit: 'content'}, // the README's full HD slide
+    {}, // every default: 1280x720, 24px, the height fixed
+    {width: CANVAS_LIMITS.width[0], height: CANVAS_LIMITS.height[1], minText: CANVAS_LIMITS.minText[1]}, // the narrowest, with the largest text
+    {width: CANVAS_LIMITS.width[1], height: CANVAS_LIMITS.height[1], minText: CANVAS_LIMITS.minText[1], fit: 'content'}, // 4K
+    {width: CANVAS_LIMITS.width[1], height: CANVAS_LIMITS.height[1], minText: CANVAS_LIMITS.minText[0], fit: 'content'},
+  ];
+  for (const canvas of canvases) for (const {type, example} of partCatalog()) {
+    const r = await renderSpec({...spec(example), canvas});
+    assert.deepEqual([...r.issues, ...r.problems].map(p => p.message), [], `${type} on ${JSON.stringify(canvas)}`);
+    assert.equal(r.width, canvas.width ?? 1280, type);
+  }
+});
+
+test('a canvas without fit is as tall as its height; with fit content it is never taller', async () => {
+  const fixed = await renderSpec({...spec(flow), canvas: {width: 1920, height: 1080, minText: 20}});
+  assert.equal(fixed.ok, true, JSON.stringify(fixed.problems));
+  assert.deepEqual([fixed.width, fixed.height], [1920, 1080]);
+  assert.match(fixed.svg ?? '', /height="1080"/);
+  const fitted = await renderSpec({...spec(flow), canvas: {width: 1920, height: 1080, minText: 20, fit: 'content'}});
+  assert.ok(fitted.height < 1080, `${fitted.height}`);
+});
+
+test('a canvas in English writes the words the figure adds in English, at the canvas size', async () => {
+  const gantt = partCatalog().find(p => p.type === 'gantt')?.example;
+  const r = await renderSpec({...spec(gantt), lang: 'en', canvas: {width: 1920, height: 1080, minText: 20, fit: 'content'}});
+  assert.deepEqual(r.problems, []);
+  assert.equal(r.width, 1920);
+  assert.match(r.svg ?? '', />Today</);
+  assert.doesNotMatch(r.svg ?? '', />今日</);
 });

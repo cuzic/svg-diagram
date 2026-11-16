@@ -97,10 +97,11 @@ const bez = (a: XY, c1: XY, c2: XY, b: XY, t: number): XY => {
   return {x: u * u * u * a.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * b.x, y: u * u * u * a.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * b.y};
 };
 
-export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutPlane {
+/** `geom`: a canvas's font scale (1 off a canvas), which the height and the offsets of the labels (written in px for 14px text) are multiplied by. */
+export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, geom = 1): LaidOutPlane {
   const size = sizeOf(band, roles), g = geomOf(band, roles), half = g * 5 / 14, labelH = size + 6;
   const tw = (s: string, weight = 400) => textWidth(widthOf, s, size, weight);
-  const width = Math.min(w, band.width ?? w), left = x + (w - width) / 2, h = band.height;
+  const width = Math.min(w, band.width ?? w), left = x + (w - width) / 2, h = band.height * geom;
   const xMin = band.x.min ?? 0, yMin = band.y.min ?? 0, xSpan = band.x.max - xMin;
   const stages = band.stages ?? [];
   // stages: column edges (equal widths unless the columns say where they end); the names are the x ticks, each at the middle of its column
@@ -315,7 +316,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
 
   for (const l of band.labels ?? []) {
     const q = pt(l.at);
-    addText(l.text, q.x + (l.offset?.[0] ?? 0), q.y + half + (l.offset?.[1] ?? 0), l.anchor ?? 'middle', l.tone ?? 'text', !!l.bold, l.reveal, l.part);
+    addText(l.text, q.x + (l.offset?.[0] ?? 0) * geom, q.y + half + (l.offset?.[1] ?? 0) * geom, l.anchor ?? 'middle', l.tone ?? 'text', !!l.bold, l.reveal, l.part);
   }
 
   // An automatic point label that sits on the plane's ink (a dimension line and its extension lines included) or on another label moves to the first side that is free (all taken: stays).
