@@ -275,7 +275,7 @@ test('a canvas figure is drawn at the canvas width, with text grown to minText, 
   const engine = realEngine();
   const part = {type: 'steps', items: [{title: '書く'}, {title: '描く'}, {title: '読む'}]};
   const doc = await renderSpecEdge(spec(part), engine);
-  const wide = await renderSpecEdge({...spec(part), canvas: {width: 1920, height: 1080, minText: 28, fit: 'content'}}, engine);
+  const wide = await renderSpecEdge({...spec(part), canvas: {width: 1920, height: 1080, minText: 24, fit: 'content'}}, engine);
   assert.equal(wide.ok, true, JSON.stringify(wide.problems));
   assert.equal(wide.width, 1920);
   assert.ok(wide.height > doc.height, `text grows with minText: ${doc.height} -> ${wide.height}`);

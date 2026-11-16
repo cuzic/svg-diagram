@@ -9,7 +9,7 @@ import type {RenderChecks} from './svg-lint.ts';
 import {EMOJI_RE, SLIDE_CANVAS} from './tokens.ts';
 import type {Diagram, Verdict} from './types/index.ts';
 
-import {ARROW, BOX_TONE, CELL, DATE, EMPHASIS_TONE, LEGEND_EN, LINE, MAX_CAUSE_LINKS, CANVAS_LIMITS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_NODE_WIDTH, MAX_QUOTED, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, MAX_TREE_NODES, PART_EN, QUADRANT_GRID, SPEC_VERSION, SpecError, TEXT_TONE, axis, checkFlowEnd, count, dayOf, flowSteps, id, isDay, items, list, mustExist, object, oneOf, pair, text, treeItem, treeSize, uniqueIds, whyNode, whySize, withoutType} from './spec-kit.ts';
+import {ARROW, BOX_TONE, CANVAS_LIMITS, CELL, DATE, EMPHASIS_TONE, LEGEND_EN, LINE, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_NODE_WIDTH, MAX_QUOTED, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, MAX_TREE_NODES, PART_EN, QUADRANT_GRID, SPEC_VERSION, SpecError, TEXT_TONE, axis, checkFlowEnd, count, dayOf, flowSteps, id, isDay, items, list, mustExist, object, oneOf, pair, text, treeItem, treeSize, uniqueIds, whyNode, whySize, withoutType} from './spec-kit.ts';
 import type {Json, JsonSchema, PartDef, SpecIssue} from './spec-kit.ts';
 export {SPEC_VERSION, CANVAS_LIMITS, MAX_TOTAL_TEXT, MAX_EMOJI, MAX_SWIMLANE_COLS, MAX_TREE_DEPTH, MAX_TREE_NODES, MAX_CAUSE_NODES, MAX_CAUSE_LINKS, MAX_ISSUES, SpecError} from './spec-kit.ts';
 export type {JsonSchema, SpecIssue} from './spec-kit.ts';

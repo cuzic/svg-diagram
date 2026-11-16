@@ -51,6 +51,10 @@ test('validateDeck: a bad deck comes back with places in the deck, a figure\'s m
   const flow = {type: 'flowchart', nodes: [{id: 'a', label: 'a'}], edges: []};
   assert.deepEqual(validateDeck({slides: [{figure: {version: 1, title: 't', canvas: {width: 1920}, parts: [flow]}}]}).map(i => i.path), ['slides[0].figure.canvas'], 'a deck sizes its figures itself');
   assert.deepEqual(validateDeck({slides: [{figure: {version: 1, title: 't', canvas: {width: 99999}, parts: [flow]}}]}).map(i => i.path), ['slides[0].figure.canvas'], 'said once, not with the canvas\'s own mistakes');
+  const twice = {type: 'flowchart', nodes: [{id: 'a', label: 'a'}, {id: 'a', label: 'b'}], edges: [{from: 'a', to: 'z'}]};
+  const both = validateDeck({slides: [{figure: {version: 1, title: 't', canvas: {width: 99999}, parts: [twice]}}]}).map(i => i.path);
+  assert.equal(both[0], 'slides[0].figure.canvas');
+  assert.ok(both.length > 1 && both.slice(1).every(p => p.startsWith('slides[0].figure.parts[0].')), `the rest of the figure is still checked: ${both.join(', ')}`);
   assert.equal(deckSchema.properties?.['slides']?.items?.properties?.['figure']?.properties?.['canvas'], undefined, 'and does not offer a canvas');
 });
 

@@ -50,11 +50,13 @@ export function validateDeck(input: unknown): SpecIssue[] {
     if (typeof s !== 'object' || s === null) return;
     const slide = s as Json;
     if (slide['title'] === undefined && slide['figure'] === undefined) issues.push({path: `slides[${i}]`, message: 'needs a title or a figure'});
-    // a deck slide sizes its figure to the room it leaves; a canvas is a whole slide of its own, so the two cannot both decide (said once, not with the canvas's own mistakes)
+    // a deck slide sizes its figure to the room it leaves; a canvas is a whole slide of its own, so the two cannot both decide. Said once,
+    // not with the canvas's own mistakes, and the rest of the figure is checked without it, so a bad canvas does not hide its other mistakes
     const figure = slide['figure'];
-    const canvas = typeof figure === 'object' && figure !== null && Object.hasOwn(figure, 'canvas');
+    const canvas = typeof figure === 'object' && figure !== null && !Array.isArray(figure) && Object.hasOwn(figure, 'canvas');
     if (canvas) issues.push({path: figurePath(i, 'canvas'), message: 'is for a figure drawn alone: a deck slide sizes its figure to the room left on the slide (leave canvas out)'});
-    if (figure !== undefined) for (const f of validateSpec(figure)) if (!(canvas && /^canvas(\.|$)/.test(f.path))) issues.push({path: figurePath(i, f.path), message: f.message});
+    const {canvas: _refused, ...rest} = canvas ? figure as Json : {};
+    if (figure !== undefined) for (const f of validateSpec(canvas ? rest : figure)) issues.push({path: figurePath(i, f.path), message: f.message});
   });
   return capped(issues);
 }

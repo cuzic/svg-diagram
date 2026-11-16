@@ -53,7 +53,8 @@ export interface LaidOutChartPart {
 
 /** What every chart's layout is given: the band's room, its text size and the measurer. */
 /** `wrap`: the diagram's wrap mode (diagram({wrap})), for the labels Canvas.wrap breaks. */
-export interface ChartGeom {x: number; y: number; w: number; height?: number; size: number; widthOf: WidthOf; wrap: WrapMode}
+/** `geom`: what the fixed pixel sizes of a kind (box heights, offsets) are multiplied by: a canvas's font scale (lib/layout-handlers.ts), else 1, so a chart off a canvas is laid out as before. */
+export interface ChartGeom {x: number; y: number; w: number; height?: number; size: number; geom?: number; widthOf: WidthOf; wrap: WrapMode}
 
 export const overlaps = (a: Rect, b: Rect): boolean => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5;
 
