@@ -60,7 +60,10 @@ test('the example figures: both engines find the same (nothing)', async (t) => {
   if (why) return t.skip(why);
   for (const f of fs.readdirSync(path.join(ROOT, 'examples', 'out')).filter(f => f.endsWith('.svg'))) {
     const svg = fs.readFileSync(path.join(ROOT, 'examples', 'out', f), 'utf8');
-    assert.deepEqual(geometryChecks(svg), await browserChecks(page!, svg), f);
+    // the same tolerance as the other tests: glyph widths differ by a fraction of a pixel between the engines, and in a transformed group (math()) the contrast is judged in different coordinates on purpose (see `comparable`)
+    const g = geometryChecks(svg), b = await browserChecks(page!, svg);
+    assert.ok(same(comparable(g, svg), comparable(b, svg)), `${f}\n  browser : ${JSON.stringify(b)}\n  geometry: ${JSON.stringify(g)}`);
+    assert.deepEqual(kinds(comparable(g, svg)), kinds(comparable(b, svg)), f); // what is found is the same, whatever the numbers
   }
 });
 

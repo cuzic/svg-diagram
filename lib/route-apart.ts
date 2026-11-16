@@ -32,17 +32,33 @@ export function moveApart({routes, edges, rects}: ApartIn): Map<number, Pt[]> {
     return s;
   };
   const movable = (i: number): boolean => { const e = edges.get(i); return e !== undefined && !e.self && !e.outer; };
+  // Which arrows have a run along a given run: two runs lie along each other only when they go the same way under 4px apart (runsTogether), so each run is
+  // filed under its across coordinate in 4px buckets and only the two buckets beside its own are looked at, not every run of every arrow (ADR 0053)
+  const bucketOf = (x: {p: Pt; q: Pt}): string => x.p.y === x.q.y ? `h${Math.floor(x.p.y / 4)}` : `v${Math.floor(x.p.x / 4)}`;
+  const filed = new Map<string, {j: number; s: {p: Pt; q: Pt}}[]>();
+  const file = (j: number, r: Pt[], add: boolean): void => {
+    for (const s of segs(r)) {
+      const k = bucketOf(s), list = filed.get(k) ?? [];
+      if (add) list.push({j, s}); else { const at = list.findIndex(e => e.j === j && e.s === s); if (at >= 0) list.splice(at, 1); }
+      filed.set(k, list);
+    }
+  };
+  for (const [j, r] of out) file(j, r, true);
+  const along = (r: Pt[], skip: number): Set<number> => {
+    const found = new Set<number>();
+    for (const x of segs(r)) {
+      const k = bucketOf(x), n = Number(k.slice(1)), kind = k[0];
+      for (const b of [n - 1, n, n + 1]) for (const e of filed.get(`${kind}${b}`) ?? []) if (e.j !== skip && !found.has(e.j) && runsTogether(x, e.s)) found.add(e.j);
+    }
+    return found;
+  };
   const beside = (i: number, r: Pt[]): number[] => {
-    const mine = segs(r), res: number[] = [], ei = edges.get(i);
-    for (const [j, o] of out) if (ei && j !== i && movable(j) && !related(ei, must(edges.get(j))) && segs(o).some(y => mine.some(x => runsTogether(x, y)))) res.push(j);
+    const ei = edges.get(i), hits = along(r, i), res: number[] = [];
+    for (const [j] of out) if (ei && hits.has(j) && movable(j) && !related(ei, must(edges.get(j)))) res.push(j);
     return res;
   };
   /** How many other arrows (any: an outer return, a loop, one from the same tail or into the same head, an AND's) lie along this route. A move may not bring a new one beside it (swapping one for another does not count as fewer). */
-  const near = (i: number, r: Pt[]): Set<number> => {
-    const mine = segs(r), n = new Set<number>();
-    for (const [j, o] of out) if (j !== i && segs(o).some(y => mine.some(x => runsTogether(x, y)))) n.add(j);
-    return n;
-  };
+  const near = (i: number, r: Pt[]): Set<number> => along(r, i);
   const pierces = (i: number, r: Pt[]): number => {
     const e = must(edges.get(i)); let n = 0;
     for (const [id, b] of rects) if (id !== e.from && id !== e.to && segs(r).some(({p, q}) => Math.min(p.x, q.x) < b.x1 + CLEAR && Math.max(p.x, q.x) > b.x0 - CLEAR && Math.min(p.y, q.y) < b.y1 + CLEAR && Math.max(p.y, q.y) > b.y0 - CLEAR)) n++;
@@ -91,6 +107,7 @@ export function moveApart({routes, edges, rects}: ApartIn): Map<number, Pt[]> {
           // the moved run and its neighbours may not come nearer to a box than CLEAR unless they were that near before (counting the boxes alone lets a run onto the outline of a box another run already passes)
           if (crowds(i, r, t, k - 1, k + 1)) continue;
           if (beside(i, t).length >= now.length) continue;
+          file(i, r, false); file(i, t, true);
           out.set(i, t); done = moved = true;
           break;
         }

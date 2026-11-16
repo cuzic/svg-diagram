@@ -296,6 +296,11 @@ export function canvasRoles(s: number): Roles {
   return Object.freeze({...scaleRoles(ROLES, s), connectLabel: Math.round(CONNECT_LABEL_SIZE * s), tag: Math.round(TAG_SIZE * s)});
 }
 
+/** The roles a figure is drawn with at font scale `s`: a canvas diagram's (canvasRoles), else ROLES scaled. The one place that chooses, so a renderer need not import ROLES. */
+export function rolesAt(canvas: boolean, s: number): Roles {
+  return canvas ? canvasRoles(s) : scaleRoles(ROLES, s);
+}
+
 // Fixed sizes of text that is not a role: the label on a connector line and the tag pill on a box.
 // layout.ts measures with these and emit.ts draws with them, so they are defined once, here.
 export const CONNECT_LABEL_SIZE = 14;

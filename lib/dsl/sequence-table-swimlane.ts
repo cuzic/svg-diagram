@@ -1,3 +1,4 @@
+import {MAX_LANES_TO_ORDER, bestLaneOrder} from '../lane-order.ts';
 import {resolveIcon} from '../icon-registry.ts';
 import {assertSolidText, richBoxFields} from '../rich.ts';
 import type {ConnectBand} from '../types/containers.ts';
@@ -7,6 +8,7 @@ import type {ScreensBand, StateMatrixOpts, StateMatrixRow, PartRow, StateCellIn,
 import type {ActorIn, AnchorsOf, Declares, FlowCheck, FlowIn, LaneCheck, HandleOf, SeqStepIn, StateRowLoose, StepCheck, ValidateStateRows, StepIds, SwimlaneStepIn} from '../strict.ts';
 import {must} from '../must.ts';
 import {connectBand} from './defaults.ts';
+import {graphTones, litLink, resolveFocus} from '../focus.ts';
 import {assertBoxTone, assertFontSize, assertNoReveal, revealOf, scopeOpt, withAnchors, withHandle} from './shared.ts';
 
 // UML-style sequence diagram. actors: [{id, label, tone?}]. steps (in time order):
@@ -63,16 +65,76 @@ export function cell(text: string | number, opts: Omit<TableCellSpec, 'text'> = 
 //                Sides are picked from the lanes/columns: right->left across columns (the vertical leg sits
 //                just before the target, so it never crosses a box in between), bottom<->top within a column.
 //   opts.phases: [{label, from, to}]  — column groups named across the top (a stage, a sprint)
-//   opts.labelW: width of the lane-label column (default 128)
+//   opts.boundaries: [{after: laneId, label?} | {between: [laneId, laneId], label?}]  — a heavy dashed line across that lane boundary, named in a chip on the
+//                label column (a service blueprint's line of interaction / of visibility / of internal interaction). `between` throws when the two
+//                lanes are not next to each other, and is the form to use with laneOrder.
+//   opts.labelW: width of the lane-label column (default 128; 'fit' = the longest lane name on one line, the default on a canvas diagram)
+//   opts.laneOrder: 'auto' puts the lanes in the order that makes the hand-offs (opts.flows) shortest; `fixed: true` lanes stay put (lib/lane-order.ts)
 // Returns an array (the lane block followed by its flows); d.add() accepts it directly.
 //
 // Types: at most 6 lanes (rule swimlane-lanes); every step.lane is a declared lane id; step ids are unique; flows'
 // from / to are step ids (optionally ':side[@t]'); chip / labelAt need a label. The step ids are exposed to add().
+/** focus on a swimlane: the steps' tones (solid / accent / muted) and the flows' (lit: accent, the rest muted). A flow end may be 'id:side@t'. */
+function focusSwimlane(steps: SwimlaneStep[], opts: SwimlaneOpts): {steps: SwimlaneStep[]; opts: SwimlaneOpts} {
+  const ids = steps.map(s => s.id), hit = resolveFocus(must(opts.focus), ids, 'swimlane()');
+  const at = (end: string): number => ids.indexOf(must(end.split(':')[0]));
+  const flows = opts.flows ?? [];
+  const tones = graphTones(ids.length, flows.map(f => [at(f.from), at(f.to)] as const), hit);
+  return {
+    // a focused step is filled: its own text tones would not show on the fill (and would be refused), so they give way to the white text
+    steps: steps.map((s, i) => {
+      if (tones[i] !== 'solid') return {...s, tone: must(tones[i])};
+      const {titleTone: _t, bodyTone: _b, iconTone: _i, ...rest} = s as SwimlaneStep & {titleTone?: unknown; bodyTone?: unknown; iconTone?: unknown};
+      return {...rest, tone: 'solid' as const} as SwimlaneStep;
+    }),
+    opts: {...opts, flows: flows.map(f => ({...f, tone: litLink(at(f.from), at(f.to), hit) ? 'accent' as const : 'muted' as const}))},
+  };
+}
 export function swimlane<
   const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [], const Id extends string = never,
 >(lanes: L & LaneCheck<L>, steps: S & StepCheck<L, S>, opts?: Omit<SwimlaneOpts, 'flows' | 'id'> & {id?: Id; flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S> | Id> | ConnectBand)[] & AnchorsOf<StepIds<S> | Id>;
-export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
+export function swimlane(lanesIn: SwimlaneLane[], stepsIn: SwimlaneStep[], optsIn: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
+  const {steps, opts} = optsIn.focus === undefined ? {steps: stepsIn, opts: optsIn} : focusSwimlane(stepsIn, optsIn);
+  if (optsIn.focus !== undefined) {
+    try { return swimlaneOf(lanesIn, steps, opts); } catch (e) {
+      // what is left to refuse on a focused step is a coloured span of its text: say that focus made it solid
+      throw e instanceof Error && /tone 'solid'/.test(e.message) ? new Error(`swimlane(): focus fills the step (tone 'solid', white text): ${e.message}`) : e;
+    }
+  }
+  return swimlaneOf(lanesIn, steps, opts);
+}
+function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts): (SwimlaneBand | ConnectBand)[] {
+  if (opts.labelW !== undefined && opts.labelW !== 'fit' && !(typeof opts.labelW === 'number' && Number.isFinite(opts.labelW) && opts.labelW > 0)) throw new Error(`swimlane(): labelW must be a positive number or 'fit' (got ${JSON.stringify(opts.labelW)})`);
+  const lanes = opts.laneOrder === undefined ? lanesIn : orderLanes(lanesIn, steps, opts);
   for (const l of lanes) assertBoxTone(l.tone, `swimlane() lane "${l.id}"`);
+  let boundaries: {after: string; label?: string}[] | undefined;
+  if (opts.boundaries !== undefined) {
+    if (!Array.isArray(opts.boundaries)) throw new Error('swimlane(): boundaries must be a list, e.g. [{after: \'cust\', label: \'相互作用線\'}]');
+    const seenB = new Set<string>();
+    boundaries = opts.boundaries.map(b => {
+      if (b === null || typeof b !== 'object') throw new Error('swimlane(): boundaries: each one is {after: laneId, label?} or {between: [laneId, laneId], label?}');
+      if (b.label !== undefined && (typeof b.label !== 'string' || !b.label.trim())) throw new Error('swimlane(): boundaries: a label must be a non-empty string');
+      if ((b.after === undefined) === (b.between === undefined)) throw new Error('swimlane(): boundaries: write either `after` or `between` (exactly one)');
+      let upper: string;
+      if (b.between !== undefined) {
+        if (!Array.isArray(b.between) || b.between.length !== 2) throw new Error('swimlane(): boundaries: `between` is two lane ids, e.g. between: [\'cust\', \'front\']');
+        const [x, y] = b.between, i = lanes.findIndex(l => l.id === x), j = lanes.findIndex(l => l.id === y);
+        if (x === y) throw new Error(`swimlane(): boundaries: between [${x}, ${y}] names the same lane twice`);
+        if (i < 0 || j < 0) throw new Error(`swimlane(): boundaries: between [${x}, ${y}]: "${i < 0 ? x : y}" is not a lane id`);
+        if (Math.abs(i - j) !== 1) throw new Error(`swimlane(): boundaries: lanes "${x}" and "${y}" are not next to each other${opts.laneOrder !== undefined ? ' (laneOrder moved them apart: put fixed: true on the lanes either side of the boundary, or drop laneOrder)' : ' (a lane was added between them; move the boundary)'}`);
+        upper = must(lanes[Math.min(i, j)]).id;
+      } else {
+        if (opts.laneOrder !== undefined) throw new Error('swimlane(): with laneOrder the lanes move, so write boundaries as {between: [a, b]}, not {after}');
+        const at = lanes.findIndex(l => l.id === b.after);
+        if (at < 0) throw new Error(`swimlane(): boundaries: "${b.after}" is not a lane id`);
+        if (at === lanes.length - 1) throw new Error(`swimlane(): boundaries: "${b.after}" is the last lane, so there is no boundary after it`);
+        upper = b.after as string;
+      }
+      if (seenB.has(upper)) throw new Error(`swimlane(): boundaries: two lines on the boundary after lane "${upper}"`);
+      seenB.add(upper);
+      return {after: upper, ...(b.label === undefined ? {} : {label: b.label})};
+    });
+  }
   const laneIdx = new Map(lanes.map((l, i) => [l.id, i]));
   let next = 1, cols = 0;
   const placed = steps.map(st => {
@@ -124,7 +186,7 @@ export function swimlane(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: Swi
     return connectBand(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone}, false);
   });
   if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`swimlane(): fit must be 'shrink' (got ${String(opts.fit)})`);
-  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...scopeOpt(opts, 'swimlane()'), ...revealOf(opts)};
+  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, ...(boundaries?.length ? {boundaries} : {}), labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...scopeOpt(opts, 'swimlane()'), ...revealOf(opts)};
   return withAnchors([block, ...flows], placed.map(st => st.id));
 }
 // A component's states as a grid: one row per part, one column per state.
@@ -167,4 +229,19 @@ export function stateRow<const K extends string, O extends object = Record<strin
       });
     },
   };
+}
+
+/** swimlane({laneOrder: 'auto'}): the lanes in the order with the shortest hand-offs between them, by the flows swimlane() was given. */
+function orderLanes(lanes: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts): SwimlaneLane[] {
+  if (opts.laneOrder !== 'auto') throw new Error(`swimlane(): laneOrder must be 'auto' (got ${String(opts.laneOrder)})`);
+  if (lanes.length > MAX_LANES_TO_ORDER) throw new Error(`swimlane(): laneOrder: 'auto' orders up to ${MAX_LANES_TO_ORDER} lanes (got ${lanes.length}) — split the figure, or drop laneOrder and order them by hand`);
+  const laneOf = new Map(steps.filter(st => st.id !== undefined).map((st): [string, string] => [st.id as string, st.lane]));
+  const idx = new Map(lanes.map((l, i) => [l.id, i]));
+  // a flow that names an unknown step or lane is reported by the loops below; here it just does not count
+  const pairs = (opts.flows ?? []).flatMap((f): [number, number][] => {
+    const a = idx.get(laneOf.get(String(f.from).split(':')[0] as string) as string), b = idx.get(laneOf.get(String(f.to).split(':')[0] as string) as string);
+    return a === undefined || b === undefined ? [] : [[a, b]];
+  });
+  const fixed = new Set(lanes.flatMap((l, i) => (l.fixed ? [i] : [])));
+  return bestLaneOrder(lanes.length, fixed, pairs).map(i => lanes[i] as SwimlaneLane);
 }

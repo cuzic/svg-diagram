@@ -84,7 +84,7 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
   const out: LaidOutClasses = {
     type: 'classes', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + top,
     nodes: [], edges: [], texts: [], labels: [], anchors: [], labelBoxes: [],
-    ...(fitApplied.length ? {fitApplied} : {}),
+    ...(fitApplied.length ? {fitApplied} : {}), ...(band.focused ? {focused: band.focused} : {}),
   };
   const rects = new Map<string, {x: number; y: number; w: number; h: number}>();
   for (const c of band.classes) {
@@ -98,11 +98,12 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
     out.anchors.push({id: c.id, ...r});
     out.labelBoxes.push({label: c.name ?? c.id, ...r});
     let ty = r.y + PAD_Y;
-    for (const l of m.head) { out.texts.push({text: l.text, x: r.x + r.w / 2, y: ty + l.size, size: l.size, bold: l.bold, muted: !l.bold, anchor: 'middle'}); ty += lineH(l.size); }
+    const owner = out.nodes.length - 1;
+    for (const l of m.head) { out.texts.push({text: l.text, x: r.x + r.w / 2, y: ty + l.size, size: l.size, bold: l.bold, muted: !l.bold, anchor: 'middle', owner}); ty += lineH(l.size); }
     ty = r.y + m.headH + PAD_Y;
     for (const l of [...m.attrs, ...m.methods]) {
       if (l === m.methods[0] && m.attrs.length) ty = r.y + m.headH + m.attrsH + PAD_Y;
-      out.texts.push({text: l, x: r.x + PAD_X, y: ty + B, size: B, bold: false, muted: false, anchor: 'start'});
+      out.texts.push({text: l, x: r.x + PAD_X, y: ty + B, size: B, bold: false, muted: false, anchor: 'start', owner});
       ty += lineH(B);
     }
   }
@@ -159,7 +160,7 @@ export function layoutClassesBand(band: ClassesBand, x: number, y: number, w: nu
       return;
     }
     const raw = must(routes.get(i));
-    const pts = flip(r.kind) ? [...raw].reverse() : raw; // drawn from the child to the parent
+    const pts = flip(r.kind) ? raw.toReversed() : raw; // drawn from the child to the parent
     out.edges.push({from: r.from, to: r.to, kind, line, points: pts});
     const own = out.edges.length - 1;
     if (r.fromMult) pending.push(() => chip(own, must(r.fromMult), [near(pts, 0, 28, 12), near(pts, 0, 28, -12), near(pts, 0, 40, 12), near(pts, 0, 40, -12)]));

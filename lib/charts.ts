@@ -24,6 +24,8 @@ import {comboTexts, layoutCombo} from './charts-combo.ts';
 import type {ComboSpec} from './charts-combo.ts';
 import {harveyTexts, layoutHarvey} from './charts-harvey.ts';
 import type {HarveySpec} from './charts-harvey.ts';
+import {compareTexts, layoutCompare} from './charts-compare.ts';
+import type {CompareSpec} from './charts-compare.ts';
 import {catTexts, layoutCat} from './charts-cat.ts';
 import {distAxes, distTexts, layoutDist} from './charts-dist.ts';
 import {layoutMulti, multiTexts} from './charts-multi.ts';
@@ -39,7 +41,7 @@ import type {CausalSpec, DependencySpec, PertSpec} from './semnet.ts';
 import type {FontFamily, Rect, Dimmed, Roles, WidthOf, WrapMode} from './types/core.ts';
 import type {RevealOpts, ScopeOpts} from './types/core.ts';
 
-export type ChartSpec = {kind: 'waterfall'; spec: WaterfallSpec} | {kind: 'tornado'; spec: TornadoSpec} | {kind: 'heatmap'; spec: HeatmapSpec} | {kind: 'stacked'; spec: StackedSpec} | {kind: 'radar'; spec: RadarSpec} | {kind: 'treemap'; spec: TreemapSpec} | {kind: 'sankey'; spec: SankeySpec} | {kind: 'catplot'; spec: CatSpec} | {kind: 'distplot'; spec: DistSpec} | {kind: 'multiplot'; spec: MultiSpec} | {kind: 'regplot'; spec: RegSpec} | {kind: 'clustermap'; spec: ClusterSpec} | {kind: 'bubble'; spec: BubbleSpec} | {kind: 'butterfly'; spec: ButterflySpec} | {kind: 'combo'; spec: ComboSpec} | {kind: 'harvey'; spec: HarveySpec} | {kind: 'pert'; spec: PertSpec} | {kind: 'causal'; spec: CausalSpec} | {kind: 'dependency'; spec: DependencySpec};
+export type ChartSpec = {kind: 'waterfall'; spec: WaterfallSpec} | {kind: 'tornado'; spec: TornadoSpec} | {kind: 'heatmap'; spec: HeatmapSpec} | {kind: 'stacked'; spec: StackedSpec} | {kind: 'radar'; spec: RadarSpec} | {kind: 'treemap'; spec: TreemapSpec} | {kind: 'sankey'; spec: SankeySpec} | {kind: 'catplot'; spec: CatSpec} | {kind: 'distplot'; spec: DistSpec} | {kind: 'multiplot'; spec: MultiSpec} | {kind: 'regplot'; spec: RegSpec} | {kind: 'clustermap'; spec: ClusterSpec} | {kind: 'bubble'; spec: BubbleSpec} | {kind: 'butterfly'; spec: ButterflySpec} | {kind: 'combo'; spec: ComboSpec} | {kind: 'harvey'; spec: HarveySpec} | {kind: 'compare'; spec: CompareSpec} | {kind: 'pert'; spec: PertSpec} | {kind: 'causal'; spec: CausalSpec} | {kind: 'dependency'; spec: DependencySpec};
 
 export interface ChartBand extends RevealOpts, ScopeOpts {
   type: 'chart';
@@ -81,6 +83,7 @@ export function chartTexts(band: ChartBand, roles: Roles): [string, number, numb
       case 'butterfly': return butterflyTexts(band.spec as ButterflySpec);
       case 'combo': return comboTexts(band.spec as ComboSpec);
       case 'harvey': return harveyTexts(band.spec as HarveySpec);
+      case 'compare': return compareTexts(band.spec as CompareSpec);
       case 'clustermap': return clusterTexts(band.spec as ClusterSpec);
       case 'regplot': return regTexts(band.spec as RegSpec);
       case 'multiplot': return multiTexts(band.spec as MultiSpec);
@@ -109,6 +112,7 @@ export function layoutChart(band: ChartBand, x: number, y: number, w: number, wi
       case 'butterfly': return layoutButterfly(band.spec as ButterflySpec, g);
       case 'combo': return layoutCombo(band.spec as ComboSpec, g);
       case 'harvey': return layoutHarvey(band.spec as HarveySpec, g);
+      case 'compare': return layoutCompare(band.spec as CompareSpec, g);
       case 'clustermap': return layoutCluster(band.spec as ClusterSpec, g);
       case 'regplot': return layoutReg(band.spec as RegSpec, g);
       case 'multiplot': return layoutMulti(band.spec as MultiSpec, g);

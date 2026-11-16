@@ -131,6 +131,8 @@ export interface LayoutPlan<D extends string, R extends FitResult> {
   fold?: boolean;
   /** A written maxNodeW is not narrowed. */
   maxNodeW?: number;
+  /** Try this node width only, and fold only if `folded`: a search laying out other orders of a figure keeps the figure's frame, so any other width or fold would be set aside (ADR 0053). */
+  sameFit?: {width: number; folded: boolean};
   /** `maxNodeW: 'auto'` (ADR 0019 D2): the widest node width that fits the width (and the height budget) is looked for, from AUTO_GRID, also when `dir` is written; folding is the last resort. */
   autoWidth?: boolean;
   /** false: the component has no node width to narrow (a class diagram). */
@@ -159,12 +161,31 @@ const FOLD_SHARES = [1, 0.85, 0.7, 0.55];
  * Throws, with what was tried and one fix, when none fits. A figure that fits as written is attempt 0 and changes nothing.
  */
 export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPlan<D, R>): {result: R; applied: FitApplied[]} {
+  const got = planFit(plan);
+  if (!got.ok) throw new Error(got.failure());
+  return {result: got.result, applied: got.applied};
+}
+
+/** What `planFit` found: the layout that fits, or why none does (the message is made when asked for: a search that drops the figure never builds it). */
+export type FitOutcome<R> = {ok: true; result: R; applied: FitApplied[]} | {ok: false; failure: () => string};
+
+/** A figure that fits none of the ways ADR 0010 D1 allows, as the layout of a band returns it to a search that sets it aside (`failure` says what was tried, as `fitLayout` throws it). Told from a layout by `noFit`. */
+export type NoFit = {readonly noFit: true; readonly failure: () => string};
+export const isNoFit = <T extends object>(r: T | NoFit): r is NoFit => 'noFit' in r;
+/** The layout, or the error `fitLayout` would have thrown: where no search is left to set the figure aside. */
+export const fitOrThrow = <T extends object>(r: T | NoFit): T => { if (isNoFit(r)) throw new Error(r.failure()); return r; };
+
+/** `fitLayout` without the throw: a figure that fits none of the ways is an answer, not an error (a search that tries several figures sets it aside). */
+export function planFit<D extends string, R extends FitResult>(plan: LayoutPlan<D, R>): FitOutcome<R> {
   const narrow = plan.narrow !== false;
   const alt = plan.alt !== plan.start ? plan.alt : undefined;
   const free = !plan.explicitDir;
   const dirs: D[] = free && alt !== undefined ? [plan.start, alt] : [plan.start];
-  const widths = plan.autoWidth ? AUTO_GRID : narrow && free && plan.maxNodeW === undefined ? NARROWING : [plan.maxNodeW ?? WIDEST];
-  const widthMode = plan.autoWidth ? 'auto' as const : plan.mode, from0 = plan.autoWidth ? WIDEST : must(widths[0]); // what the figure would have had: the default node width
+  const allWidths = plan.autoWidth ? AUTO_GRID : narrow && free && plan.maxNodeW === undefined ? NARROWING : [plan.maxNodeW ?? WIDEST];
+  // a search that lays the same figure out again and again starts where the first layout fitted: the wider widths did not fit it (ADR 0053)
+  const same = plan.sameFit;
+  const widths = same && allWidths.includes(same.width) ? [same.width] : allWidths;
+  const widthMode = plan.autoWidth ? 'auto' as const : plan.mode, from0 = plan.autoWidth ? WIDEST : must(allWidths[0]); // what the figure would have had: the default node width
   // keepWords (ADR 0029 D3): every attempt is tried with the floor (no katakana word broken) first; only when none fits, without it. The order keeps what a figure
   // looked like without the option: narrower with the floor, narrower without, then folded with, folded without (a fold is the last resort in both).
   const floors = plan.keepWords ? [true, false] : [false];
@@ -181,7 +202,7 @@ export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPla
     return list;
   };
   // Folding (ADR 0010 D7), the last attempt: a layer wider than the figure is cut into rows, at the narrowest node width, the axis kept. `fold: true` also when `dir` is written.
-  const canFold = plan.foldable === true && plan.fold !== false;
+  const canFold = plan.foldable === true && plan.fold !== false && (same === undefined || same.folded);
   const folding = (floor: boolean): FitAttempt<R>[] => {
     const list: FitAttempt<R>[] = [];
     if (canFold && (plan.fold === true || free || plan.autoWidth)) {
@@ -204,32 +225,34 @@ export function fitLayout<D extends string, R extends FitResult>(plan: LayoutPla
   const allTried: Fitted<R>['tried'] = [], allResults: R[] = [];
   for (const stage of stages.filter(s => s.length)) {
     const got = fitWidth(plan.w, stage, fitOpts);
-    if (got.ok) return {result: got.result, applied: withWidths(got.applied, [...allTried, ...got.tried], allTried.length + got.index)};
+    if (got.ok) return {ok: true, result: got.result, applied: withWidths(got.applied, [...allTried, ...got.tried], allTried.length + got.index)};
     allTried.push(...got.tried); allResults.push(...got.results);
   }
-  const fitted = {ok: false as const, tried: allTried, results: allResults};
-  const notTried: string[] = [];
-  if (plan.explicitDir) notTried.push(`${alt !== undefined ? `dir '${alt}'${narrow ? ' and ' : ''}` : ''}${narrow ? 'narrower nodes' : ''} (dir is explicit; write dir: 'auto' to let ${alt !== undefined || narrow ? 'them' : 'it'} change)`);
-  else if (narrow && !plan.autoWidth && plan.maxNodeW !== undefined) notTried.push(`narrower nodes (maxNodeW is explicit: ${plan.maxNodeW})`);
-  if (!plan.explicitDir && alt === undefined && plan.axisKept) notTried.push(plan.axisKept);
-  if (plan.foldable && plan.fold === false) notTried.push('folding a layer into rows (fold is written: false)');
-  notTried.push(...(plan.notTried ?? []));
-  const tooTall = plan.heightBudget !== undefined && fitted.tried.some(t => t.fitsWidth ?? t.w <= plan.w + 0.5);
-  const wider = widerThan(fitted.tried, 40);
-  const fix = tooTall ? 'split the figure in two (fewer entities or fewer layers), or give the canvas more height' : plan.explicitDir ? `dir: 'auto', ${canFold && plan.fold === undefined ? 'or fold: true (a layer wider than the figure is cut into rows, the direction stays), ' : ''}or widen the figure (diagram({width: ${wider}}))` : plan.fix ?? (wider > 1400 ? 'split the figure in two (fewer entities on one level)' : `widen the figure (diagram({width: ${wider}}))`);
-  // where to split (ADR 0019 D3): a height failure by the first attempt that fits the width, a width failure by the narrowest one that did not fold
-  let split: string | undefined;
-  if (plan.layoutOf) {
-    const results = fitted.results, lays = results.map(plan.layoutOf);
-    if (tooTall) {
-      const i = fitted.tried.findIndex(t => t.w <= plan.w + 0.5);
-      const at = must(lays[i]);
-      if (at.vertical && plan.heightBudget !== undefined) split = splitByHeight(at.lay, plan.heightBudget);
-    } else {
-      const unfolded = results.map((r, i) => ({r, i})).filter(({i}) => !must(fitted.tried[i]).label.includes('fold'));
-      const narrowest = unfolded.sort((a, b) => must(fitted.tried[a.i]).w - must(fitted.tried[b.i]).w)[0];
-      if (narrowest) split = splitWidest(must(lays[narrowest.i]).lay);
+  return {ok: false, failure: () => {
+    const fitted = {ok: false as const, tried: allTried, results: allResults};
+    const notTried: string[] = [];
+    if (plan.explicitDir) notTried.push(`${alt !== undefined ? `dir '${alt}'${narrow ? ' and ' : ''}` : ''}${narrow ? 'narrower nodes' : ''} (dir is explicit; write dir: 'auto' to let ${alt !== undefined || narrow ? 'them' : 'it'} change)`);
+    else if (narrow && !plan.autoWidth && plan.maxNodeW !== undefined) notTried.push(`narrower nodes (maxNodeW is explicit: ${plan.maxNodeW})`);
+    if (!plan.explicitDir && alt === undefined && plan.axisKept) notTried.push(plan.axisKept);
+    if (plan.foldable && plan.fold === false) notTried.push('folding a layer into rows (fold is written: false)');
+    notTried.push(...(plan.notTried ?? []));
+    const tooTall = plan.heightBudget !== undefined && fitted.tried.some(t => t.fitsWidth ?? t.w <= plan.w + 0.5);
+    const wider = widerThan(fitted.tried, 40);
+    const fix = tooTall ? 'split the figure in two (fewer entities or fewer layers), or give the canvas more height' : plan.explicitDir ? `dir: 'auto', ${canFold && plan.fold === undefined ? 'or fold: true (a layer wider than the figure is cut into rows, the direction stays), ' : ''}or widen the figure (diagram({width: ${wider}}))` : plan.fix ?? (wider > 1400 ? 'split the figure in two (fewer entities on one level)' : `widen the figure (diagram({width: ${wider}}))`);
+    // where to split (ADR 0019 D3): a height failure by the first attempt that fits the width, a width failure by the narrowest one that did not fold
+    let split: string | undefined;
+    if (plan.layoutOf) {
+      const results = fitted.results, lays = results.map(plan.layoutOf);
+      if (tooTall) {
+        const i = fitted.tried.findIndex(t => t.fitsWidth ?? t.w <= plan.w + 0.5); // the test `tooTall` made: the width as measured, not as rounded up
+        const at = must(lays[i]);
+        if (at.vertical && plan.heightBudget !== undefined) split = splitByHeight(at.lay, plan.heightBudget);
+      } else {
+        const unfolded = results.map((r, i) => ({r, i})).filter(({i}) => !must(fitted.tried[i]).label.includes('fold'));
+        const narrowest = unfolded.sort((a, b) => must(fitted.tried[a.i]).w - must(fitted.tried[b.i]).w)[0];
+        if (narrowest) split = splitWidest(must(lays[narrowest.i]).lay);
+      }
     }
-  }
-  throw new Error(fitFailure(plan.who, plan.w, fitted.tried, fix, notTried, plan.heightBudget, split));
+    return fitFailure(plan.who, plan.w, fitted.tried, fix, notTried, plan.heightBudget, split);
+  }};
 }

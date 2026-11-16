@@ -289,7 +289,7 @@ export function installParts(h: WfHelpers): WfPartsApi {
     if (n.reference !== false) { // an insight is a reference, not a judgement
       const ry = d.stacked2 ? cy + 28 : cy;
       if (d.stacked2) cx = x + 18;
-      part(ctx, n, 'reference', cx + chipW(ctx, '参考表示') - 4, ry);
+      part(ctx, n, 'reference', cx + chipW(ctx, '参考表示') + 4, ry); // on the chip's corner, outside its text (inside it the badge touched the last character)
       drawChip(ctx, '参考表示', cx, ry, 'plain');
     }
     let ty = y + d.top + d.chipExtra + 12 + 24 + 6;

@@ -95,7 +95,7 @@ function targetRects(d: LaidOutDiagram, ids: string[]): Rect[] {
       for (const c of b.children) if (c.id && ids.includes(c.id)) out.push(c);
     } else if (b.type === 'grid') {
       for (const c of b.children) if (c.id && ids.includes(c.id)) out.push(c);
-    } else if (b.type === 'bars' || b.type === 'image' || b.type === 'quadrant' || b.type === 'chevron' || b.type === 'funnel' || b.type === 'cycle' || b.type === 'venn' || b.type === 'concentric') {
+    } else if (b.type === 'bars' || b.type === 'image' || b.type === 'quadrant' || b.type === 'chevron' || b.type === 'funnel' || b.type === 'cycle' || b.type === 'venn' || b.type === 'concentric' || b.type === 'emblem' || b.type === 'valueChain') {
       for (const a of b.anchors) if (item(a.id)) out.push(a);
     }
   };
@@ -136,7 +136,7 @@ function dimBand(b: LaidOutBand, focus: Rect[]): void {
     b.anchors.forEach(a => { const q = b.bubbles.find(v => v.id === a.id); if (q) q.dim = !focus.some(r => inside(a, r)); });
     for (const q of b.bubbles) if (q.dim === undefined) q.dim = true;
     b.dim = b.bubbles.every(q => q.dim);
-  } else if (b.type === 'chevron' || b.type === 'funnel' || b.type === 'cycle' || b.type === 'venn' || b.type === 'concentric') {
+  } else if (b.type === 'chevron' || b.type === 'funnel' || b.type === 'cycle' || b.type === 'venn' || b.type === 'concentric' || b.type === 'emblem' || b.type === 'valueChain') {
     b.dim = !focus.some(r => b.anchors.some(a => inside(a, r)) || inside(b, r));
   } else if (b.type === 'row' || b.type === 'grid') {
     for (const c of b.children) c.dim = !focus.some(r => inside(c, r));
@@ -157,7 +157,7 @@ export function applySpotlight(d: LaidOutDiagram): void {
     // a node of a self-placing figure is an anchor for connect(), but the figure is dimmed or lit as a whole
     const figureOf = (id: string): LaidOutBand | undefined => d.laidOut.find(b => b.type !== 'bars' && b.type !== 'image' && 'anchors' in b && (b.anchors as {id: string}[]).some(a => qualify(scopeOf(b), a.id) === id));
     const inFigure = missing.find(id => figureOf(id));
-    if (inFigure) throw new Error(`diagram({spotlight}): "${inFigure}" is a node inside a figure; spotlight lights a whole figure, so give the figure an {id} and spotlight that`);
+    if (inFigure) throw new Error(`diagram({spotlight}): "${inFigure}" is a node inside a figure; spotlight lights a whole figure, so give the figure an {id} and spotlight that (to light one branch of a tree or mindmap, write its focus: '${inFigure}')`);
     throw new Error(`diagram({spotlight}): unknown anchor id${missing.length > 1 ? 's' : ''} "${missing.join('", "')}"`);
   }
   const focus = found.flat();

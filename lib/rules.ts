@@ -50,6 +50,7 @@ import {bowtieFindings} from './rca-rules.ts';
 import {statusText} from './status.ts';
 
 import {must} from './must.ts';
+import {MAX_LANES_TO_ORDER, bestLaneOrder, laneDistance} from './lane-order.ts';
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
   'a11y-color-only-emphasis': '色だけで強調した語がある（太字も併用する。色が見えない読者にも伝わるように）',
@@ -64,7 +65,7 @@ export const RULE_DOCS = {
   'source-wraps': '出典行（diagram({sourceLine})）が 1 行に収まらず折り返している（短くする）',
   'legend-missing': '使った記法（線種・トーン）の凡例がない',
   'legend-incomplete': '凡例に載っていない記法がある（diagram({legend: "auto"}) で補える。凡例が要らない図は diagram({legend: false})）',
-  'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる',
+  'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる（swimlane の opts に laneOrder: \'auto\' を渡すと、この順に自動で並べる）',
   'text-mid-word-break': "レイアウトが、カタカナの語(「コンテキス/ト」)や英数字の語の途中で行を割っている。箱や列が最長の語より狭いときに起きる。diagram({keepWords: true}) で、箱を最長のカタカナの語より狭くしない(causeTree / tree / mindmap / faultTree / states / bpmn の task。cloud・chevron・cycle・swimlane には効かない)。ほかに、箱の幅を広げる・向き(dir)や maxNodeW を変える・文言を短くする・語の前後で改行を書く。漢字どうしの途中の改行は対象外。スペースの無い複合語の境目(「キャプチャ/ステージ」)は辞書なしでは見分けられず、誤検出になりうる(accept で許容する)",
   'glyph-missing': "図の文字に、絵文字として扱われない絵記号(✅ ❌ など。EMOJI_RE の外)がある。通常の文字のフォントで描かれ、字形が無いと空白になる(resvg のプレビューで確認できる)。icon.emoji() か SVG アイコン(box({icon}))を使うか、✓ ✗ などの字に置き換える",
   'connect-label-covers-arrow': "矢印のラベル(の下地)が、矢印の経路の 6 割より多くを覆い、見える部分が 20px に満たない。箱の間が狭く、矢じりや向きが読めなくなる。箱の間隔を広げる・ラベルを短くする・ラベルを箱の中に書く",
@@ -132,7 +133,8 @@ export const RULE_DOCS = {
   'slide-canvas-overflow': 'スライド用キャンバス(16:9)の高さに収まらない',
   'aspect-tall': '文書の図が縦に長い（高さが幅の 1.5 倍超。本の版面は縦横比が 1.5〜1.6 ほど）。部品に応じて、段組み（causeTree の fold、row の cols）か分割を検討する',
   'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む（diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）',
-  'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
+  'flowchart-decision-edges': '判断（flowchart のひし形）から出る矢印が 2 本未満、または 3 本以上、またはラベル（Yes / No など）がない',
+  'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・flowchart・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
   'density-compact-restored': "diagram({density: 'compact'}) の因果ツリー・状態遷移で、詰めた図のほうが検査の問題(箱を通る矢印・ラベルの重なり)が多いので、通常の間隔で描いた（情報）",
   'density': '文字量・箱の数が多い',
   'wf-callout-no-note': '図の番号に対応する注釈がない',
@@ -215,7 +217,9 @@ export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause 
     }
     else if (b.type === 'cause' && withCause) { // only legend: 'auto' reads these (the legend-* checks keep their old count)
       // a role that roleTags writes in words on the node needs no swatch: two double-frame swatches side by side would only blur it
-      for (const n of b.nodes) if (n.role && n.role !== 'effect' && n.role !== 'step' && !b.roleTags?.[n.role as keyof typeof b.roleTags]) used.add(`role:${n.role}`);
+      // with focus the tones are focus's (solid / accent / muted), not the roles': a role swatch would show a colour no node has
+      if (b.focused) { for (const n of b.nodes) if (n.tone && n.tone !== 'plain') used.add(`tone:${n.tone}`); }
+      else for (const n of b.nodes) if (n.role && n.role !== 'effect' && n.role !== 'step' && !b.roleTags?.[n.role as keyof typeof b.roleTags]) used.add(`role:${n.role}`);
       if (b.links.some(l => typeof l.from !== 'string' && l.from.length > 1)) used.add('edge:and');
       if (b.links.some(l => l.back)) used.add('edge:back');
       if (b.links.some(l => l.kind === 'blocks')) used.add('edge:blocks');
@@ -457,11 +461,6 @@ function loopUnderHints(connects: LaidOutConnect[]): string[] {
   return out;
 }
 
-function permutations<T>(a: T[]): T[][] {
-  if (a.length <= 1) return [a];
-  return a.flatMap((x, i) => permutations([...a.slice(0, i), ...a.slice(i + 1)]).map(p => [x, ...p]));
-}
-
 // rowHeader: true paints the row-heading cell `soft`; a row whose own tone also fills `soft` (accent / new) loses the difference.
 function rowHeaderRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   for (const b of walkBands(d.bands)) if (b.type === 'table') for (const message of b.semanticWarnings ?? []) out.push({rule: 'semantic-table-warning', severity: 'warn', message});
@@ -486,6 +485,7 @@ function grayToneRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   // a canvas() region with a pill (重点 / 中心 / 結論) says its tone in words, as for the legend (usedNotation): not a grayscale matter
   const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => must(b.canvas).worded[i]) : []));
   for (const b of all) if (b.type === 'box' && !worded.has(b)) used.add(b.tone ?? 'plain');
+  for (const b of all) if (b.type === 'emblem') for (const i of b.items) used.add(i.tone ?? 'plain');
   for (const b of d.laidOut ?? []) if (b.type === 'table') for (const r of b.rows) if (!r.header && r.tone) used.add(r.tone);
   const p = paintOf(tones, d.appearance);
   const fills = [...used].map(name => {
@@ -519,20 +519,15 @@ function swimlaneRules(d: LintTarget, out: Finding[]): void {
     const ids = new Map<string, number>(sl.steps.filter(s => s.id).map((s): [string, number] => [qualify(scopeOf(sl), s.id as string), sl.lanes.findIndex(l => l.id === s.lane)]));
     const flows = (d.connects ?? []).filter(c => ids.has(c.fromId) && ids.has(c.toId));
     if (!flows.length) continue;
-    const dist = (order: number[]) => { const pos = new Map(order.map((l, i) => [l, i])); return flows.reduce((s, c) => s + Math.abs((pos.get(ids.get(c.fromId) as number) as number) - (pos.get(ids.get(c.toId) as number) as number)), 0); };
+    const pairs = flows.map((c): [number, number] => [ids.get(c.fromId) as number, ids.get(c.toId) as number]);
     const cur = [...Array(n).keys()];
-    const curD = dist(cur);
+    const curD = laneDistance(cur, pairs);
     const handOffs = flows.filter(c => ids.get(c.fromId) !== ids.get(c.toId)).length;
     out.push({rule: 'swimlane-hand-offs', severity: 'info', message: `引き継ぎ ${handOffs} 件 / 矢印 ${flows.length} 本。レーン間の距離の合計 ${curD}`});
-    if (n >= 2 && n <= 8) {
+    if (n >= 2 && n <= MAX_LANES_TO_ORDER) {
       // lanes marked {fixed: true} keep their place (e.g. a collecting 'PM' lane at the bottom)
-      const free = cur.filter(i => !must(sl.lanes[i]).fixed);
-      let best = cur, bestD = curD;
-      for (const p of permutations(free)) {
-        const order = cur.map(i => (must(sl.lanes[i]).fixed ? i : must(p[free.indexOf(i)])));
-        const x = dist(order);
-        if (x < bestD) { best = order; bestD = x; }
-      }
+      const best = bestLaneOrder(n, new Set(cur.filter(i => must(sl.lanes[i]).fixed)), pairs);
+      const bestD = laneDistance(best, pairs);
       if (bestD < curD) out.push({rule: 'swimlane-lane-order', severity: 'warn', message: `レーンを「${best.map(i => must(sl.lanes[i]).label.replace(/\n/g, '')).join(' → ')}」の順にすると、レーン間の距離が ${curD} → ${bestD} に減る`});
     }
   }
@@ -655,7 +650,7 @@ export const EDGE_BENDS_MAX = 5, EDGE_BENDS_MEAN = 3;
 interface RoutedEdges {name: string; edges: {from: string; to: string; points: {x: number; y: number}[]}[]}
 function routedBands(bands: LaidOutBand[], out: RoutedEdges[] = []): RoutedEdges[] {
   for (const b of bands) {
-    if (b.type === 'cause' || b.type === 'states' || b.type === 'bpmn' || b.type === 'classes') out.push({name: `${b.type}${b.id ? ` ${b.id}` : ''}`, edges: b.edges});
+    if (b.type === 'cause' || b.type === 'states' || b.type === 'bpmn' || b.type === 'classes') out.push({name: `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart' : b.type}${b.id ? ` ${b.id}` : ''}`, edges: b.edges});
     else if (b.type === 'chart' && b.edges) out.push({name: `${b.kind}${b.id ? ` ${b.id}` : ''}`, edges: b.edges});
     else if (b.type === 'row' || b.type === 'grid') routedBands(b.children, out);
   }
@@ -767,9 +762,24 @@ function graphRules(d: LintTarget, out: Finding[]): void {
   for (const id of parent.keys()) { const r = find(id); groups.set(r, [...(groups.get(r) ?? []), id]); }
   if (groups.size > 1) out.push({rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${[...groups.values()].map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
 }
+// A decision (a diamond) is a fork: it needs two or more arrows out, and each says which answer it is (ADR 0041 D5)
+function flowRules(d: LintTarget, out: Finding[]): void {
+  for (const b of d.laidOut ?? []) {
+    if (b.type !== 'states' || !b.nodes) continue;
+    b.nodes.forEach((n, i) => {
+      const id = b.anchors[i]?.id;
+      if (n.shape !== 'diamond' || id === undefined) return;
+      const leaving = b.edges.flatMap((e, k) => e.from === id && e.to !== id ? [{e, k}] : []);
+      if (leaving.length < 2) out.push({rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印が ${leaving.length} 本。判断は分岐なので、2 本以上（Yes / No など）にする`});
+      else if (leaving.length > 2) out.push({rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印が ${leaving.length} 本。3 本以上の分岐は読みにくいので、2 つの判断に分ける`});
+      const bare = leaving.filter(({k}) => !b.labels.some(l => l.edge === k)).map(({e}) => `${e.from} → ${e.to}`);
+      if (bare.length && leaving.length >= 2) out.push({rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印にラベルがない（${bare.join('、')}）。どの答えの矢印か分かるよう、Yes / No などを付ける`});
+    });
+  }
+}
 // `density: 'compact'` that was not applied to a band (ADR 0036 D6): the compact figure had an arrow through a box or a label on another one
 function densityRules(d: LintTarget, out: Finding[]): void {
-  const who = (d.laidOut ?? []).flatMap(b => (b.type === 'cause' || b.type === 'states') && b.densityRestored ? [b.type === 'cause' ? 'causeTree()' : 'stateDiagram()'] : []);
+  const who = (d.laidOut ?? []).flatMap(b => (b.type === 'cause' || b.type === 'states') && b.densityRestored ? [b.type === 'cause' ? 'causeTree()' : b.flavor === 'flowchart' ? 'flowchart()' : 'stateDiagram()'] : []);
   if (who.length) out.push({rule: 'density-compact-restored', severity: 'info', message: `${[...new Set(who)].join('・')}: density: 'compact' にすると箱を通る矢印・重なるラベルが増えるので、この図は通常の間隔で描いた（高さは詰まっていない）`});
 }
 const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()', fta: 'faultTree()', bowtie: 'bowtie()'} as const;
@@ -781,15 +791,17 @@ function fitRules(d: LintTarget, out: Finding[]): void {
     const noDir = b.type === 'fta' || b.type === 'bowtie'; // a fault tree and a bow-tie have no `dir`
     const knobs = noDir ? 'maxNodeW' : 'dir / maxNodeW', say = noDir ? "maxNodeW: 'auto'" : "dir: 'auto'";
     out.push({rule: 'auto-fit-applied', severity: auto ? 'info' : 'warn', message: auto
-      ? `${FIT_WHO[b.type]}: ${knobs} を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`
-      : `${FIT_WHO[b.type]}: ${knobs} を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら ${say} と書く（info になる）。固定したいなら ${knobs} を明示する（収まらなければ試した案つきで止まる）`});
+      ? `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart()' : FIT_WHO[b.type]}: ${knobs} を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`
+      : `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart()' : FIT_WHO[b.type]}: ${knobs} を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら ${say} と書く（info になる）。固定したいなら ${knobs} を明示する（収まらなければ試した案つきで止まる）`});
   }
 }
 /** How to fix a mid-word break depends on whether the part's boxes can be widened: a chevron / cycle / swimlane fixes the frame first. */
 const MID_WORD_FIX: Record<string, string> = {
   chevron: "矢羽根の幅は段数で決まる。`direction: 'vertical'` にする、段を減らす、文言を短くする",
+  valueChain: '矢羽根の幅は主活動の数で決まる。主活動を減らす、文言を短くする、マージンの矢印を外す（`margin: false`）',
   cycle: '円は、カタカナの語に合わせて幅・高さの上限（幅 −8px、高さ 760px）まで広がる。それでも入らない語は、文言を短くする、項目を減らす',
   swimlane: "列の幅は段数で決まる。`fit: 'shrink'` を外す、列を減らす、文言を短くする",
+  emblem: "図形は語が割れない大きさまで 240px を上限に広がる。それでも割れる語は、`minSize` を上げる、`shape: 'square'` にする、文言を短くする（320px まで広がっても入らなければ throw する）",
 };
 function midWordRules(d: LintTarget, out: Finding[]): void {
   const source = sourceText(d.bands);
@@ -832,6 +844,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   rcaRules(d, out);
   fitRules(d, out);
   densityRules(d, out);
+  flowRules(d, out);
   textContrast(d, tones, out);
   colourOnlyEmphasis(d, out);
   nonTextContrast(d, tones, out);
@@ -918,6 +931,8 @@ export function diagramTitle(d: DiagramData): string {
     if (b.type === 'funnel') return oneLine(b.stages[0]?.label);
     if (b.type === 'venn') return oneLine(b.sets.map(s => s.label ?? s.name).join('・'));
     if (b.type === 'concentric') return oneLine(b.centre ?? b.rings[0]?.label);
+    if (b.type === 'emblem') return oneLine(b.items[0]?.label);
+    if (b.type === 'valueChain') return oneLine(b.primary[0]?.label);
     if (b.type === 'wordart') return oneLine(b.text);
   }
   return '';

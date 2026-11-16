@@ -32,7 +32,9 @@ import type {ButterflyOpts, ButterflyRow} from './charts-butterfly.ts';
 import {comboAlt, resolveCombo} from './charts-combo.ts';
 import type {ComboOpts, ComboSeries} from './charts-combo.ts';
 import {harveyAlt, resolveHarvey} from './charts-harvey.ts';
-import type {HarveyOpts, HarveyRow} from './charts-harvey.ts';
+import type {HarveyCell, HarveyOpts, HarveyRow} from './charts-harvey.ts';
+import {compareAlt, resolveCompare} from './charts-compare.ts';
+import type {CompareCell, CompareOpts} from './charts-compare.ts';
 import {fail} from './charts-base.ts';
 import {resolveIcon} from './icon-registry.ts';
 import type {ChartBand} from './charts.ts';
@@ -128,7 +130,12 @@ export function comboBand(categories: readonly string[], series: readonly ComboS
   return {type: 'chart', kind: 'combo', spec, alt: opts.alt ?? comboAlt(spec), ids: series.flatMap(s => s.id ? [s.id] : []), ...common('combo', opts)};
 }
 
-export function harveyBand(rows: readonly HarveyRow[], cols: readonly string[], values: readonly (readonly (number | null)[])[], opts: HarveyOpts): ChartBand {
+export function harveyBand(rows: readonly HarveyRow[], cols: readonly string[], values: readonly (readonly HarveyCell[])[], opts: HarveyOpts): ChartBand {
   const spec = resolveHarvey(rows, cols, values, opts);
   return {type: 'chart', kind: 'harvey', spec, alt: opts.alt ?? harveyAlt(spec), ids: spec.rowIds.flatMap(i => i ? [i] : []), ...common('harvey', opts)};
+}
+
+export function compareBand(rows: readonly string[], cols: readonly string[], cells: readonly (readonly CompareCell[])[], opts: CompareOpts): ChartBand {
+  const spec = resolveCompare(rows, cols, cells, opts);
+  return {type: 'chart', kind: 'compare', spec, alt: opts.alt ?? compareAlt(spec), ids: [], ...common('compare', opts)};
 }

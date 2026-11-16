@@ -44,6 +44,8 @@ type Anchored = Rect & {id?: string; anchors: (Rect & {id: string})[]};
 const anchorRects = (band: Anchored, intentional?: string): CheckRect[] =>
   band.anchors.map(a => ({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...((band.id || intentional) ? {holds: [band.id, intentional].filter((x): x is string => !!x)} : {})}));
 const figureRects = (band: Anchored): CheckRect[] => anchorRects(band);
+/** An emblem's obstacle is the bounding box of each shape, not its anchor: a triangle's anchor leaves out its lower corners. */
+const emblemRects = (band: Anchored & {bounds?: Anchored['anchors']}): CheckRect[] => anchorRects({...band, anchors: band.bounds ?? band.anchors});
 const overlappingFigureRects = (band: Anchored): CheckRect[] => anchorRects(band, `@intentional-overlap:${band.x},${band.y}`);
 const ownRect = (band: Rect & {id?: string}): CheckRect[] => [{id: band.id ?? null, label: labelOf(band), x: band.x, y: band.y, w: band.w, h: band.h}];
 const holdsFigure = (band: {id?: string}) => band.id ? {holds: [band.id]} : {};
@@ -226,7 +228,7 @@ const checkQuadrant = (band: LaidOutOf<'quadrant'>, _d: LaidOutDiagram, {problem
   });
 };
 
-const checkFlowShape = (band: LaidOutOf<'chevron' | 'funnel' | 'cycle' | 'venn' | 'concentric'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
+const checkFlowShape = (band: LaidOutOf<'chevron' | 'funnel' | 'cycle' | 'venn' | 'concentric' | 'emblem' | 'valueChain'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
   for (const t of band.labelBoxes) if (outsideBox(t, band)) problems.push(`${band.type}: label "${t.label}" runs outside the figure`);
   eachOverlap(band.labelBoxes, (a, b, o) => { if (o.dx > 1 && o.dy > 1) problems.push(`${band.type}: label "${a.label}" overlaps label "${b.label}" by ${dxdy(o)}`); });
 };
@@ -245,6 +247,7 @@ const checkPlane = (band: LaidOutOf<'plane'>, _d: LaidOutDiagram, {problems}: Ve
     if (outsideBox(b, fig)) problems.push(`plane: label "${b.label}" runs outside the figure (move its point, change labelAt / side, or enlarge the figure)`);
   }
   eachOverlap(boxes, (a, b, o) => problems.push(`plane: label "${a.label}" overlaps label "${b.label}" by ${dxdy(o)} (change labelAt / side)`));
+  problems.push(...(band.clashes ?? []));
   (band.paths ?? []).forEach((pa, i) => {
     if (pa.overshoot > 1.5) problems.push(`plane: path ${i + 1} leaves the axes by ${Math.round(pa.overshoot)}px (a curve through these points swings outside the plot; use smooth: false, add points, or widen the axis range)`);
   });
@@ -345,10 +348,13 @@ export const VERIFY_HANDLERS = {
   cycle: {rects: figureRects, check: flowCheck},
   venn: {rects: overlappingFigureRects, check: flowCheck},
   concentric: {rects: overlappingFigureRects, check: flowCheck},
+  emblem: {rects: emblemRects, check: flowCheck},
+  valueChain: {rects: figureRects, check: flowCheck},
   timeline: {rects: ownRect, check: {phase: 'timeline', run: checkTimeline}},
   bowtie: {rects: band => band.nodes.map((n, i) => ({id: null, label: band.labelBoxes[i]?.label ?? 'box', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
   fta: {rects: band => band.nodes.map((n, i) => ({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'event', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
-  tree: {rects: band => band.nodes.map((n, i) => ({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'node', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
+  // a band node has no label box and is checked as the band it is (its own rects), so the label boxes count only the text nodes
+  tree: {rects: band => { let li = 0; return band.nodes.flatMap(n => n.band ? [] : [{id: n.id ?? null, label: band.labelBoxes[li++]?.label ?? 'node', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}]); }},
   states: {rects: figureRects, check: {phase: 'states', run: checkStates}},
   cause: {rects: figureRects, check: {phase: 'cause', run: checkCause}},
   cloud: {rects: band => band.nodes.map(n => ({id: n.id ?? null, label: n.id ?? `cloud box ${n.key.toUpperCase()}`, x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)})), check: {phase: 'cloud', run: checkCloud}}, // every box is its own rect (also one without an id)

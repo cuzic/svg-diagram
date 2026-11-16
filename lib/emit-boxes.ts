@@ -1,4 +1,5 @@
 import {PALETTE, CONNECT_LABEL_SIZE, STRONG_STROKE, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
+import {marked, partAttr, partStep, partsOn} from './parts.ts';
 import type {ToneEnv} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import type {LaidOutGroup, LaidOutLegend, LaidOutRow, LaidOutGrid, LaidOutRaw, LaidOutStatus, LaidOutConnect, RawColorTone} from './types/containers.ts';
@@ -8,10 +9,10 @@ import type {LaidOutPeople, LaidOutDots} from './types/people-dots.ts';
 import type {LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
 import type {LaidOutBox, LaidOutCaption, LaidOutBanner} from './types/text-bands.ts';
 import {iconSvg} from './icon-svg.ts';
-import {ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W} from './layout-util.ts';
+import {boundaryChipH, ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W, stepBadgeGeom} from './layout-util.ts';
 import {visibleAt} from './reveal.ts';
 import {PERSON_BOX, PERSON_PATH} from './people.ts';
-import {arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
+import {tonedHead, arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
 import {ftaLegendSwatch} from './emit-fta.ts';
 
 import {must} from './must.ts';
@@ -19,10 +20,12 @@ import {must} from './must.ts';
 // centered on the title's own baseline (same offset every hand-authored
 // "① foo" box in this deck used between the badge and its number glyph).
 // On a solid box the badge / tag pill has the box's own fill, so a white ring keeps it apart from the box.
-export const ringed = (band: LaidOutBox): boolean => !band.dim && isSolidTone(band.tone);
+export const ringed = (band: Pick<LaidOutBox, 'dim' | 'tone'>): boolean => !band.dim && isSolidTone(band.tone);
 
 
-export function renderStepBadge(band: LaidOutBox, day: Theme): string {
+/** Where a box's step badge is: its centre and radius, the number's size and baseline (the title's own). The svg and the PPTX place it alike. */
+export function stepBadgeAt(band: Pick<LaidOutBox, 'x' | 'y' | 'w' | 'wrappedRuns' | 'padX' | 'padY' | 'align' | 'iconAt' | 'titleW' | 'icon'>, roles?: Roles): {cx: number; cy: number; r: number; size: number; baseline: number} {
+  const g = roles ? stepBadgeGeom(roles) : {r: STEP_BADGE_R, offset: STEP_BADGE_BASELINE_OFFSET, indent: STEP_INDENT, size: 16}, R = g.r; // a canvas diagram grows the badge with its text
   const titleRun = must(band.wrappedRuns[0]);
   // the same padding the text and the icon use (a swimlane step has its own)
   const px = band.padX ?? BOX_PAD_X, titleBaselineY = band.y + (band.padY ?? BOX_PAD_Y) + must(titleRun.lineYs[0]);
@@ -30,9 +33,13 @@ export function renderStepBadge(band: LaidOutBox, day: Theme): string {
   const indent = titleRun.indent ?? 0, left = band.x + px + indent, right = band.x + band.w - px;
   const align = band.align ?? (band.iconAt === 'top' ? 'center' : 'left');
   const textX = band.titleW === undefined || align === 'left' ? undefined : align === 'center' ? (left + right) / 2 - band.titleW / 2 : right - band.titleW;
-  const cx = textX !== undefined ? textX - STEP_INDENT + STEP_BADGE_R : band.x + px + STEP_BADGE_R + (band.icon && band.iconAt !== 'top' ? ICON_INDENT : 0);
-  const cy = titleBaselineY - STEP_BADGE_BASELINE_OFFSET;
-  return badgeSvg({cx, cy, r: STEP_BADGE_R, w: 2 * STEP_BADGE_R, shape: 'circle', label: String(band.step), aria: `手順 ${band.step}`, size: 16, fill: PALETTE[day].accent, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), baseline: titleBaselineY, snap: snap4, esc: escapeXml});
+  const cx = textX !== undefined ? textX - g.indent + R : band.x + px + R + (band.icon && band.iconAt !== 'top' ? ICON_INDENT : 0);
+  return {cx, cy: titleBaselineY - g.offset, r: R, size: g.size, baseline: titleBaselineY};
+}
+
+export function renderStepBadge(band: LaidOutBox, day: Theme, roles?: Roles): string {
+  const {cx, cy, r: R, size, baseline} = stepBadgeAt(band, roles);
+  return badgeSvg({cx, cy, r: R, w: 2 * R, shape: 'circle', label: String(band.step), aria: `${band.stepWord ?? '手順'} ${band.step}`, size, fill: PALETTE[day].accent, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), baseline, snap: snap4, esc: escapeXml});
 }
 
 
@@ -87,7 +94,7 @@ export function renderStamp(band: Rect & {stamp?: string; stampW?: number}, role
 
 
 export function renderBox(band: LaidOutBox, day: Theme, tones: ToneEnv, roles: Roles): string {
-  const badge = band.step != null ? `\n  ${renderStepBadge(band, day)}` : '';
+  const badge = band.step != null ? `\n  ${renderStepBadge(band, day, roles)}` : '';
   const iconText = band.icon ? renderBoxIcon(band, day, tones) : '';
   const tag = band.tagBox ? `\n  ${renderTag(band, day, tones, roles)}` : '';
   const frame = band.frame === false ? '' : `${renderBoxRect(band, day, tones, 'plain')}\n  `;
@@ -174,7 +181,7 @@ export function renderConnect(c: LaidOutConnect, day: Theme, tones: ToneEnv, rol
   const color = c.dim ? PALETTE.muted : resolveLineColor(tones, c.tone, day);
   const d = renderConnectPath(c);
   const strong = c.weight === 'strong';
-  const markers = arrowMarkers(c.arrow, c.dim, strong);
+  const markers = arrowMarkers(c.arrow, c.dim, strong, tonedHead(c));
   let path: string;
   if (strong) {
     path = `<path d="${d}" fill="none" stroke="${color}" stroke-width="${STRONG_STROKE}"${lineAttrs(c.line)}${markers}/>`;
@@ -278,18 +285,23 @@ export function renderRaw(band: LaidOutRaw, day: Theme): string {
 
 
 export function renderSwimlane(b: LaidOutSwimlane, day: Theme, roles: Roles): string {
-  const parts: string[] = [];
+  // ADR 0054: a lane (its label cell, body, border and name) and a phase (its divider and name) are parts
+  const on = partsOn(b), all: string[] = [];
+  let mark = '';
+  const parts = {push: (...xs: string[]) => all.push(...xs.map(x => marked(x, mark)))};
   const R = 8, n = b.lanes.length, hasPh = b.phaseH > 0;
   const X1 = b.x + b.w;
   if (hasPh) {
     parts.push(`<path d="${rrPath(b.bodyX, b.y, X1 - b.bodyX, b.phaseH, {tr: R})}" fill="${PALETTE[day].soft}"/>`);
     parts.push(`<path d="${rrPath(b.x, b.y, b.labelW, b.phaseH, {tl: R})}" fill="${PALETTE.code}"/>`);
-    for (const ph of b.phases) {
+    for (const [i, ph] of b.phases.entries()) {
+      mark = partAttr(on, partStep('phase', i, ph.lines.join('')));
       parts.push(`<path d="M${Math.round(ph.x)},${Math.round(b.y)} V${Math.round(b.y + b.phaseH)}" stroke="${PALETTE.border}" stroke-width="2"/>`);
       parts.push(textLines(ph.lines, {x: ph.x + ph.w / 2, top: b.y + 8, size: roles.note, weight: 700, anchor: 'middle', fill: PALETTE[day].accent}));
     }
   }
   b.lanes.forEach((ln, i) => {
+    mark = partAttr(on, partStep('lane', i, ln.labelLines.join('')));
     const first = i === 0 && !hasPh, last = i === n - 1;
     const bodyFill = i % 2 === 0 ? PALETTE.bg : PALETTE.code;
     const labelFill = ln.tone === 'accent' ? PALETTE[day].soft : PALETTE.code;
@@ -298,8 +310,18 @@ export function renderSwimlane(b: LaidOutSwimlane, day: Theme, roles: Roles): st
     if (i > 0 || hasPh) parts.push(`<path d="M${Math.round(b.x)},${Math.round(ln.y)} H${Math.round(X1)}" stroke="${PALETTE.border}" stroke-width="2"/>`);
     parts.push(textLines(ln.labelLines, {x: b.x + b.labelW / 2, top: ln.labelTop, size: roles.title, weight: 700, anchor: 'middle', fill: ln.tone === 'accent' ? PALETTE[day].accent : PALETTE.text}));
   });
+  mark = '';
   parts.push(`<path d="M${Math.round(b.bodyX)},${Math.round(b.y)} V${Math.round(b.y + b.h)}" stroke="${PALETTE.text}" stroke-width="2"/>`);
+  for (const bd of b.boundaries ?? []) { // a heavy dashed line over the lane border; its name sits in a chip on the label column
+    const y = Math.round(bd.y);
+    parts.push(`<path d="M${Math.round(b.x)},${y} H${Math.round(X1)}" stroke="${PALETTE.text}" stroke-width="3" stroke-dasharray="10,6"/>`);
+    if (bd.label) {
+      const h = boundaryChipH(roles.note), w = b.labelW - 16;
+      parts.push(`<rect x="${Math.round(b.x + 8)}" y="${Math.round(y - h / 2)}" width="${w}" height="${h}" rx="${h / 2}" fill="${PALETTE.bg}" stroke="${PALETTE.text}" stroke-width="1.5"/>`);
+      parts.push(textLines([bd.label], {x: b.x + b.labelW / 2, top: y - h / 2 + 3, size: roles.note, weight: 700, anchor: 'middle', fill: PALETTE.text}));
+    }
+  }
   parts.push(`<path d="${rrPath(b.x, b.y, b.w, b.h, {tl: R, tr: R, bl: R, br: R})}" fill="none" stroke="${PALETTE.text}" stroke-width="2.5"/>`);
-  return parts.join('\n  ');
+  return all.join('\n  ');
 }
 

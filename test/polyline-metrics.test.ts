@@ -1,7 +1,7 @@
 // node --test test/   — ADR 0016 U1: counting bends, crossings and length of polylines (pure functions of points; no font involved).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {bendsOf, crossingsOf, scoreOf, simplify, totalLength, crossingsWith} from '../lib/polyline-metrics.ts';
+import {bendsOf, crossingsOf, rescore, scoreOf, simplify, totalLength, crossingsWith} from '../lib/polyline-metrics.ts';
 import {layoutWithLanes, routeLayered} from '../lib/layered-route.ts';
 import {edgeStats} from '../lib/rules.ts';
 import type {LaidOutConnect} from '../lib/types/containers.ts';
@@ -103,4 +103,31 @@ test('crossingsWith: what one polyline adds to crossingsOf, and the same count w
   assert.equal(crossingsWith(a, [b, c, d]), crossingsOf([a, b, c, d]) - crossingsOf([b, c, d]));
   assert.equal(crossingsWith(b, [a, d]), 2);
   assert.equal(crossingsWith(a, []), 0);
+});
+
+test('rescore gives the same score as counting afresh, whichever routes changed', () => {
+  let seed = 11;
+  const rnd = (n: number): number => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed % n; };
+  const route = (grid: number) => {
+    let p = {x: rnd(grid) * 10, y: rnd(grid) * 10};
+    const pts = [p];
+    for (let k = 0, n = 1 + rnd(5); k < n; k++) { p = k % 2 === 0 ? {x: rnd(grid) * 10, y: p.y} : {x: p.x, y: rnd(grid) * 10}; pts.push(p); }
+    return pts;
+  };
+  for (let round = 0; round < 500; round++) {
+    const grid = 3 + rnd(10), n = 1 + rnd(10);
+    const prev = new Map(Array.from({length: n}, (_, i) => [i, route(grid)] as const));
+    // a copy that keeps some routes (the same points in a new array, as a rebuild makes them) and changes others
+    const next = new Map([...prev].map(([k, r]) => [k, rnd(3) === 0 ? route(grid) : r.map(p => ({...p}))] as const));
+    assert.deepEqual(rescore(prev, scoreOf([...prev.values()]), next), scoreOf([...next.values()]), String(round));
+  }
+  // a different set of routes is counted afresh
+  const a = new Map([[1, [{x: 0, y: 0}, {x: 10, y: 0}]]]), b = new Map([[2, [{x: 0, y: 0}, {x: 0, y: 10}]]]);
+  assert.deepEqual(rescore(a, scoreOf([...a.values()]), b), scoreOf([...b.values()]));
+});
+
+test('crossingsWith counts one route against the others, never the others against each other', () => {
+  const v = [{x: 5, y: -5}, {x: 5, y: 5}], h1 = [{x: 0, y: 0}, {x: 10, y: 0}], h2 = [{x: 0, y: 2}, {x: 10, y: 2}], v2 = [{x: 7, y: -5}, {x: 7, y: 5}];
+  assert.equal(crossingsWith(v, [h1, h2, v2]), 2);
+  assert.equal(crossingsWith(v, [h1, h2, v2]), crossingsOf([v, h1, h2, v2]) - crossingsOf([h1, h2, v2]));
 });

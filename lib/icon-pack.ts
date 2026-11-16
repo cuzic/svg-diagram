@@ -76,7 +76,7 @@ export function addPack(src: string, o: PackOpts): PackResult {
     const skipped: Record<string, string[]> = {};
     const got: Record<string, InstalledIcon> = {};
     for (const [name, group] of [...byName].sort(([a], [b]) => a.localeCompare(b))) {
-      const best = [...group].sort((a, b) => sizeRank(a) - sizeRank(b) || a.localeCompare(b)), kept = must(best[0]);
+      const best = group.toSorted((a, b) => sizeRank(a) - sizeRank(b) || a.localeCompare(b)), kept = must(best[0]);
       if (group.length > 1) collisions.push(`${name} (${group.length} files: ${kept} kept)`);
       try {
         const g = glyphFromSvg(fs.readFileSync(path.join(dir, kept), 'utf8'), kept, {color: true});

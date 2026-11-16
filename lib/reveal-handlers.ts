@@ -168,7 +168,7 @@ export const REVEAL_HANDLERS = {
   cause: plain,
   cloud: plain,
   states: plain,
-  tree: plain,
+  tree: nested, // a band node takes the tree's stage and until
   bars: {stage: true, visit: revealBars},
   chart: plain,
   people: plain,
@@ -198,6 +198,8 @@ export const REVEAL_HANDLERS = {
   cycle: plain,
   venn: plain,
   concentric: plain,
+  emblem: plain,
+  valueChain: plain,
   curve: plain,
   caption: plain,
   box: plain,

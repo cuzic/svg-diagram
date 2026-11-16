@@ -1,6 +1,8 @@
 // bubble(): a scatter chart whose third measure is the AREA of the circle (portfolio charts: growth × share × revenue). Both axes are
 // numeric with round ticks; every bubble is named; a legend circle says what the area stands for. Bubbles may overlap (the larger is
 // drawn first), so a name never sits where another bubble is.
+import {must} from './must.ts';
+import {axisPart, partStep} from './parts.ts';
 import {Canvas, checkIds, checkText, fail, finiteNum, niceScale, numText, thinTicks} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 
@@ -20,8 +22,13 @@ export interface BubbleOpts extends ChartOpts {
   /** What the area stands for ('売上') and its unit ('億円'): the legend reads "円の面積 = 売上". */
   sizeTitle?: string;
   sizeUnit?: string;
+  /** The words of the size legend: what the area is called (default '円の面積') and one circle (default '円'). */
+  areaLabel?: string;
+  circleLabel?: string;
+  /** The brackets around the size of one circle in the legend (default （ and ）). */
+  brackets?: readonly [open: string, close: string];
 }
-export interface BubbleSpec {points: BubblePoint[]; x: BubbleAxis; y: BubbleAxis; sizeTitle: string; sizeUnit: string}
+export interface BubbleSpec {points: BubblePoint[]; x: BubbleAxis; y: BubbleAxis; sizeTitle: string; sizeUnit: string; areaLabel: string; circleLabel: string; brackets: readonly [string, string]}
 
 const TONES = ['accent', 'danger', 'muted', 'text'];
 export function resolveBubble(points: readonly BubblePoint[], opts: BubbleOpts = {}): BubbleSpec {
@@ -39,7 +46,7 @@ export function resolveBubble(points: readonly BubblePoint[], opts: BubbleOpts =
     for (const f of ['min', 'max', 'line'] as const) if (a[f] !== undefined) finiteNum('bubble', `${k}.${f}`, a[f]);
     if (a.min !== undefined && a.max !== undefined && !(a.max > a.min)) fail('bubble', `${k}.max must be larger than ${k}.min`);
   }
-  return {points: list, x: opts.x ?? {}, y: opts.y ?? {}, sizeTitle: opts.sizeTitle ?? '', sizeUnit: opts.sizeUnit ?? ''};
+  return {points: list, x: opts.x ?? {}, y: opts.y ?? {}, sizeTitle: opts.sizeTitle ?? '', sizeUnit: opts.sizeUnit ?? '', areaLabel: opts.areaLabel ?? '円の面積', circleLabel: opts.circleLabel ?? '円', brackets: opts.brackets ?? ['（', '）']};
 }
 export function bubbleAlt(s: BubbleSpec): string {
   const u = (a: BubbleAxis) => a.unit ?? '';
@@ -65,7 +72,7 @@ export function bubbleTexts(s: BubbleSpec): [string, number][] {
   return out;
 }
 
-const legendText = (s: BubbleSpec, ref: number): string => `${s.sizeTitle ? `円の面積 = ${s.sizeTitle}` : '円の面積'}（円 = ${numText(ref)}${s.sizeUnit}）`;
+const legendText = (s: BubbleSpec, ref: number): string => `${s.sizeTitle ? `${s.areaLabel} = ${s.sizeTitle}` : s.areaLabel}${s.brackets[0]}${s.circleLabel} = ${numText(ref)}${s.sizeUnit}${s.brackets[1]}`;
 type Scale = ReturnType<typeof niceScale>;
 /** The same scale one tick wider on one side (the step stays, so the ticks stay the multiples the description measured). */
 const widen = (sc: Scale, side: 'lo' | 'hi'): Scale => {
@@ -112,23 +119,35 @@ export function layoutBubble(s: BubbleSpec, g: ChartGeom): LaidOutChartPart {
   // grid, ticks, axis titles
   const yt = sy.ticks.map(v => ({v})), xt = sx.ticks.map(v => ({v}));
   const yShown = thinTicks(yt, yOf, () => S + 2, 2), xShown = thinTicks(xt, xOf, t => c.tw(tickText('x', t.v)), 12);
-  for (const t of yt) { c.line(plotL, r1(yOf(t.v)), plotR, r1(yOf(t.v)), {stroke: 'border'}); if (yShown.has(t)) c.text(tickText('y', t.v), plotL - 8, c.mid(yOf(t.v)), 'end', 'muted'); }
-  for (const t of xt) { c.line(r1(xOf(t.v)), plotT, r1(xOf(t.v)), plotB, {stroke: 'border'}); if (xShown.has(t)) c.text(tickText('x', t.v), r1(xOf(t.v)), plotB + xTick + S, 'middle', 'muted'); }
-  c.line(plotL, plotB, plotR, plotB, {stroke: 'text'}); c.line(plotL, plotT, plotL, plotB, {stroke: 'text'});
-  if (s.y.title) c.text(s.y.title, plotL, g.y + S, 'start', 'text', {bold: true});
-  if (s.x.title) c.text(s.x.title, (plotL + plotR) / 2, plotB + xTick + 2 * S + 8, 'middle', 'text', {bold: true});
+  // ADR 0054: each axis (its grid lines, line, ticks and title) is a part; a bubble and its name another; the size legend a third
+  c.withPart(axisPart('y'), () => {
+    for (const t of yt) { c.line(plotL, r1(yOf(t.v)), plotR, r1(yOf(t.v)), {stroke: 'border'}); if (yShown.has(t)) c.text(tickText('y', t.v), plotL - 8, c.mid(yOf(t.v)), 'end', 'muted'); }
+  });
+  c.withPart(axisPart('x'), () => {
+    for (const t of xt) { c.line(r1(xOf(t.v)), plotT, r1(xOf(t.v)), plotB, {stroke: 'border'}); if (xShown.has(t)) c.text(tickText('x', t.v), r1(xOf(t.v)), plotB + xTick + S, 'middle', 'muted'); }
+    c.line(plotL, plotB, plotR, plotB, {stroke: 'text'});
+  });
+  c.withPart(axisPart('y'), () => c.line(plotL, plotT, plotL, plotB, {stroke: 'text'}));
+  if (s.y.title) c.withPart(axisPart('y'), () => c.text(must(s.y.title), plotL, g.y + S, 'start', 'text', {bold: true}));
+  if (s.x.title) c.withPart(axisPart('x'), () => c.text(must(s.x.title), (plotL + plotR) / 2, plotB + xTick + 2 * S + 8, 'middle', 'text', {bold: true}));
   // reference lines (thresholds) with their names
   if (s.x.line !== undefined && s.x.line >= sx.min && s.x.line <= sx.max) {
-    const x = r1(xOf(s.x.line)); c.line(x, plotT, x, plotB, {stroke: 'muted', dash: '6,4', sw: 2});
-    if (s.x.lineLabel) c.place(s.x.lineLabel, [{x: x + 5, y: plotT + S, anchor: 'start'}, {x: x - 5, y: plotT + S, anchor: 'end'}], 'muted', {plate: true});
+    const x = r1(xOf(s.x.line));
+    c.withPart(partStep('line', {index: 'x'}, s.x.lineLabel ?? ''), () => { // ADR 0054: a threshold and its name
+      c.line(x, plotT, x, plotB, {stroke: 'muted', dash: '6,4', sw: 2});
+      if (s.x.lineLabel) c.place(s.x.lineLabel, [{x: x + 5, y: plotT + S, anchor: 'start'}, {x: x - 5, y: plotT + S, anchor: 'end'}], 'muted', {plate: true});
+    });
   }
   if (s.y.line !== undefined && s.y.line >= sy.min && s.y.line <= sy.max) {
-    const y = r1(yOf(s.y.line)); c.line(plotL, y, plotR, y, {stroke: 'muted', dash: '6,4', sw: 2});
-    if (s.y.lineLabel) c.place(s.y.lineLabel, [{x: plotR - 4, y: y - 5, anchor: 'end'}, {x: plotR - 4, y: y + S + 4, anchor: 'end'}], 'muted', {plate: true});
+    const y = r1(yOf(s.y.line));
+    c.withPart(partStep('line', {index: 'y'}, s.y.lineLabel ?? ''), () => {
+      c.line(plotL, y, plotR, y, {stroke: 'muted', dash: '6,4', sw: 2});
+      if (s.y.lineLabel) c.place(s.y.lineLabel, [{x: plotR - 4, y: y - 5, anchor: 'end'}, {x: plotR - 4, y: y + S + 4, anchor: 'end'}], 'muted', {plate: true});
+    });
   }
   // bubbles: the largest first, so a small one stays visible on a large one; each one's box is a mark the names keep off
   const bs = s.points.map((p, i) => ({p, i, cx: xOf(p.x), cy: yOf(p.y), r: radius(p.size), tone: p.tone ?? 'accent' as ChartTone, key: p.id ?? `#${i}`}));
-  for (const b of [...bs].sort((a, z) => z.r - a.r || a.i - z.i)) {
+  for (const b of bs.toSorted((a, z) => z.r - a.r || a.i - z.i)) {
     if (b.cx - b.r < plotL - 2 || b.cx + b.r > plotR + 2 || b.cy - b.r < plotT - 2 || b.cy + b.r > plotB + 2) fail('bubble', `the bubble "${b.p.label}" runs out of the plot (widen the axis: x / y min / max)`);
     const rr = r1(b.r), d = `M${r1(b.cx - rr)},${r1(b.cy)} a${rr},${rr} 0 1,0 ${r1(2 * rr)},0 a${rr},${rr} 0 1,0 ${r1(-2 * rr)},0 Z`;
     c.path(d, {fill: b.tone, op: 0.3, stroke: b.tone, sw: 2, of: b.key});
@@ -137,7 +156,7 @@ export function layoutBubble(s: BubbleSpec, g: ChartGeom): LaidOutChartPart {
   c.anchors.splice(0, c.anchors.length, ...c.anchors.filter(a => !a.id.startsWith('#')));
   for (const b of bs) c.marks.push({x: b.cx - b.r, y: b.cy - b.r, w: 2 * b.r, h: 2 * b.r});
   // names: inside a bubble that holds its own name (the bubble's rect is the only mark then), else beside it, above, below
-  for (const b of [...bs].sort((a, z) => z.r - a.r || a.i - z.i)) {
+  for (const b of bs.toSorted((a, z) => z.r - a.r || a.i - z.i)) {
     const label = b.p.label, w = c.tw(label, true), mine = c.marks[b.i], at = (x: number, y: number, anchor: 'start' | 'middle' | 'end') => ({x, y, anchor});
     const inside = c.boxOf(label, Math.round(b.cx), c.mid(b.cy), 'middle', true);
     const roomInside = w + 8 <= 2 * b.r * 0.82 && S + 6 <= 2 * b.r * 0.82;
@@ -160,8 +179,11 @@ export function layoutBubble(s: BubbleSpec, g: ChartGeom): LaidOutChartPart {
   const ref = roundBelow(maxSize), rr = radius(ref), ltext = legendText(s, ref);
   if (rr * 2 + 12 + c.tw(ltext) > g.w) fail('bubble', 'the size legend does not fit (shorten sizeTitle / sizeUnit, or raise width)');
   const lcy = g.y + c.h - legendH / 2;
-  c.path(`M${r1(plotL + 2)},${r1(lcy)} a${r1(rr)},${r1(rr)} 0 1,0 ${r1(2 * rr)},0 a${r1(rr)},${r1(rr)} 0 1,0 ${r1(-2 * rr)},0 Z`, {fill: 'text', op: 0.15, stroke: 'text', sw: 2});
-  c.text(ltext, plotL + 2 * rr + 12, c.mid(lcy), 'start', 'text');
+  c.withPart(partStep('size legend', 0, ltext), () => {
+    c.path(`M${r1(plotL + 2)},${r1(lcy)} a${r1(rr)},${r1(rr)} 0 1,0 ${r1(2 * rr)},0 a${r1(rr)},${r1(rr)} 0 1,0 ${r1(-2 * rr)},0 Z`, {fill: 'text', op: 0.15, stroke: 'text', sw: 2});
+    c.text(ltext, plotL + 2 * rr + 12, c.mid(lcy), 'start', 'text');
+  });
+  c.partsByOf(new Map(bs.map(b => [b.key, partStep('point', b.p.id ?? b.i, b.p.label)])));
   return c.done();
 }
 const overlaps2 = (a: {x: number; y: number; w: number; h: number}, b: {x: number; y: number; w: number; h: number}): boolean => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5;

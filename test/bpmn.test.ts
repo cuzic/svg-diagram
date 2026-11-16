@@ -237,7 +237,9 @@ test('bpmn(): a flow from a node to itself keeps its label off the node; chips u
 
 test('bpmn(): a node tone is checked like a lane tone; node ids come with the figure (reveal); a node id cannot be spotlighted', async () => {
   assert.throws(() => bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x', tone: 'foo' as never}], []), /tone/);
-  assert.throws(() => bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x', tone: 'solid' as never}], []), /solid|tone/);
+  // a node may be filled (ADR 0051: 'solid' / 'solid-danger' draw white text); a lane may not
+  assert.doesNotThrow(() => bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x', tone: 'solid'}], []));
+  assert.throws(() => bpmn([{id: 'a', label: 'A', tone: 'solid' as never}], [{id: 'x', lane: 'a', label: 'x'}], []), /tone/);
   const b = bpmn([{id: 'a', label: 'A'}], [{id: 'x', lane: 'a', label: 'x'}], [], {reveal: 2});
   const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(b, box({id: 'ext', title: '外部', reveal: 2}), connect('x', 'ext', {route: 'elbow'})));
   assert.equal(laidOut.connects[0]!.reveal, 2);
@@ -281,4 +283,61 @@ test("bpmn(): fit other than 'shrink' throws; a flow too wide even shrunk still 
   const ids = Array.from({length: 14}, (_, i) => `n${i}`);
   const long = bpmn([{id: 'a', label: '担当'}], ids.map(id => ({id, lane: 'a', label: '長めの作業名'})), ids.slice(1).map((id, i) => ({from: ids[i]!, to: id})), {fit: 'shrink'});
   await assert.rejects(() => laid(long), /even shrunk/);
+});
+
+test('bpmn(): a flow back from a node with another node right under it does not run through that node', async () => {
+  const {t, verdict} = await laid(bpmn(
+    [{id: 'a', label: '営業'}, {id: 'b', label: '事務'}],
+    [
+      {id: 'mk', lane: 'b', label: '作成'}, {id: 'fix', lane: 'a', label: '修正を依頼'}, {id: 'ans', lane: 'a', label: '返信'},
+    ],
+    [{from: 'mk', to: 'fix'}, {from: 'mk', to: 'ans'}, {from: 'fix', to: 'mk', line: 'dashed'}],
+  ));
+  assert.deepEqual(verdict.problems, []);
+  const back = t.edges.find(e => e.from === 'fix' && e.to === 'mk');
+  const ans = t.nodes[2];
+  assert.ok(back && ans);
+  assert.ok(!back.points.slice(1).some((q, i) => overlap({x: Math.min(back.points[i]!.x, q.x), y: Math.min(back.points[i]!.y, q.y), w: Math.abs(back.points[i]!.x - q.x) + 1, h: Math.abs(back.points[i]!.y - q.y) + 1}, ans)));
+});
+
+test('bpmn(): a flow back to a node of the same lane with a node between them stays clear of every box', async () => {
+  const {t, verdict} = await laid(bpmn(
+    [{id: 'a', label: '担当'}, {id: 'b', label: '別担当'}],
+    [{id: 's', lane: 'a', kind: 'start', label: '開始'}, {id: 'x', lane: 'a', label: '二'}, {id: 'y', lane: 'a', label: '三'}, {id: 'z', lane: 'a', label: '四'}],
+    [{from: 's', to: 'x'}, {from: 's', to: 'y'}, {from: 's', to: 'z'}, {from: 'x', to: 'z'}, {from: 'z', to: 'x'}],
+  ));
+  assert.deepEqual(verdict.problems, []);
+  assert.ok(t.edges.some(e => e.from === 'z' && e.to === 'x'));
+});
+
+test('bpmn(): a gateway name stays clear of the flows that leave its top / bottom vertex and of the shapes round it', async () => {
+  const {verdict} = await laid(bpmn(
+    [{id: 'c', label: 'お客様'}, {id: 's', label: '営業'}, {id: 'j', label: '事務'}, {id: 'k', label: '経理'}],
+    [
+      {id: 'n1', lane: 'c', kind: 'start', label: '見積依頼'}, {id: 'n2', lane: 'j', label: '見積書を作成'}, {id: 'n3', lane: 's', label: '見積書を確認'},
+      {id: 'g1', lane: 's', kind: 'xor', label: '内容は適切か'}, {id: 'n3c', lane: 's', label: '修正を依頼'}, {id: 'n3d', lane: 's', label: 'お客様へ返信'},
+      {id: 'g2', lane: 's', kind: 'xor', label: '受注するか'}, {id: 'lost', lane: 's', kind: 'end', label: '失注'}, {id: 'n6', lane: 'j', label: '受注台帳に入力'},
+      {id: 'n7', lane: 'k', label: '請求・入金確認'}, {id: 'e', lane: 'k', kind: 'end', label: '完了'},
+    ],
+    [
+      {from: 'n1', to: 'n2', line: 'dashed'}, {from: 'n2', to: 'n3', line: 'dashed'}, {from: 'n3', to: 'g1'}, {from: 'g1', to: 'n3d', label: '問題なし'},
+      {from: 'g1', to: 'n3c', label: '要修正'}, {from: 'n3c', to: 'n2', line: 'dashed'}, {from: 'n3d', to: 'g2'}, {from: 'g2', to: 'lost', label: '受注せず'},
+      {from: 'g2', to: 'n6', label: '受注', line: 'dashed'}, {from: 'n6', to: 'n7', line: 'dashed'}, {from: 'n7', to: 'e'},
+    ],
+    {fit: 'shrink'},
+  ));
+  assert.deepEqual(verdict.problems, []);
+});
+
+test('bpmn(): a flow up into an end event does not overshoot above it to clear the event name', async () => {
+  const {t, verdict} = await laid(bpmn(
+    [{id: 'p', label: '担当者'}, {id: 'c', label: 'Copilot'}],
+    [{id: 'st', lane: 'p', kind: 'start', label: '月次の資料作成'}, {id: 'pp', lane: 'c', label: 'Copilot in PowerPoint', sub: '朝会資料の見出し下書き'}, {id: 'end', lane: 'p', kind: 'end', label: '確認・提出'}],
+    [{from: 'st', to: 'pp'}, {from: 'pp', to: 'end'}],
+    {fit: 'shrink'},
+  ));
+  assert.deepEqual(verdict.problems, []);
+  const end = t.anchors.find(a => a.id === 'end')!, e = t.edges.find(x => x.to === 'end')!;
+  const top = Math.min(...e.points.map(p => p.y));
+  assert.ok(top >= end.y + end.h / 2 - 0.5, `the flow turns at the end event's height (top ${top}, event centre ${end.y + end.h / 2})`);
 });

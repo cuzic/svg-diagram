@@ -184,7 +184,7 @@ export function paintLayers(art: LaidOutWordArt, day: Theme, dim = false): Paint
     for (let i = n; i >= 1; i--) layers.push(silhouette(look.extrude.tone, total, {dx: look.extrude.dx * i / n, dy: look.extrude.dy * i / n}));
   }
   let reach = total;
-  for (const o of [...look.outlines].reverse().slice(0, -1)) { layers.push(silhouette(o.tone, reach)); reach -= o.width; }
+  for (const o of look.outlines.toReversed().slice(0, -1)) { layers.push(silhouette(o.tone, reach)); reach -= o.width; }
   if (look.bevel) { const b = look.bevel.size; layers.push(silhouette('text', total, {dx: b, dy: b, opacity: 0.45}), silhouette('bg', total, {dx: -b, dy: -b, opacity: 0.8})); }
   layers.push({fill, ...own, dx: 0, dy: 0, hidden: false, text: true});
   return layers;

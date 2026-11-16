@@ -82,10 +82,14 @@ export interface PlanePoint {
   /** The stage it (and its label) appears at; default the plane's own. */
   reveal?: number;
   until?: number;
+  /** Where it is heading along x: a faint ring at [to, y] and a dashed arrow from the point to it (a Wardley map's planned evolution; provisional here, see ADR 0047 D3). `to` is right of the point and inside the x axis. */
+  evolves?: {to: number};
+  /** Internal (ADR 0054): the part (lib/parts.ts partStep) the PowerPoint export groups it in, a series of a line chart. */
+  part?: string;
 }
 /** A guide line between two positions / points (a projection onto an axis, a path). */
 /** `reveal` (here and on PlaneDim / PlaneLabel / PlanePath): default the max of the points it names (a coordinate counts 0) and the plane's own. */
-export interface PlaneLine {from: PlaneRef; to: PlaneRef; tone?: PlaneTone; /** Default true. */ dashed?: boolean; arrow?: boolean; reveal?: number}
+export interface PlaneLine {from: PlaneRef; to: PlaneRef; tone?: PlaneTone; /** Default true (false with `stages`, so a dependency does not look like a divider). */ dashed?: boolean; arrow?: boolean; reveal?: number; /** Internal (ADR 0054): see PlanePoint.part. */ part?: string}
 /**
  * A line through several positions / points. `smooth: true` draws a curve through every point: monotone cubic interpolation
  * (Fritsch-Carlson, like d3's curveMonotoneX) when x only increases along the path — it never overshoots the points, so no
@@ -107,6 +111,8 @@ export interface PlanePath {
   grow?: boolean;
   /** Internal (reveal.ts): the stage each piece of a `grow` path appears at. */
   segReveal?: number[];
+  /** Internal (ADR 0054): the part (lib/parts.ts partStep) the PowerPoint export groups it in, a series of a line chart. */
+  part?: string;
 }
 /** A dimension line: the distance between two positions / points, drawn beside them with a label on it. */
 export interface PlaneDim {
@@ -121,7 +127,7 @@ export interface PlaneDim {
   reveal?: number;
   until?: number;
 }
-export interface PlaneLabel {at: PlanePos; text: string; anchor?: 'start' | 'middle' | 'end'; tone?: PlaneTone; bold?: boolean; reveal?: number; /** Moves the label from its position, px [dx, dy]. */ offset?: [number, number]}
+export interface PlaneLabel {at: PlanePos; text: string; anchor?: 'start' | 'middle' | 'end'; tone?: PlaneTone; bold?: boolean; reveal?: number; /** Moves the label from its position, px [dx, dy]. */ offset?: [number, number]; /** Internal (ADR 0054): see PlanePoint.part. */ part?: string}
 export interface PlaneOpts extends RevealOpts {
   /** The text role of every label of the figure (axis names, ticks, point / dimension / free labels). Default 'note' (14px). */
   labelRole?: LabelRole;
@@ -129,6 +135,12 @@ export interface PlaneOpts extends RevealOpts {
   id?: string;
   x: PlaneAxis;
   y: PlaneAxis;
+  /**
+   * Named columns across x (a Wardley map's Genesis / Custom / Product / Commodity): dashed dividers between them and each name under its column.
+   * Equal widths by default; `{name, to}` puts the right edge of a column at x = `to` (every column but the last then needs one, increasing, inside the axis).
+   * The names are the x ticks (without tick marks), so not with x.ticks / step / categories. With `grid`, the vertical grid lines are left out (the dividers are them).
+   */
+  stages?: readonly (string | {name: string; to?: number})[];
   points?: PlanePoint[];
   lines?: PlaneLine[];
   paths?: PlanePath[];
@@ -171,7 +183,7 @@ export interface LaidOutCurve extends Rect {
   yTopLabel?: string; yBottomLabel?: string; xLabel?: string;
 }
 /** Text the plane draws: a baseline position, an anchor and a tone. */
-export interface PlaneText {s: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; tone: PlaneTone; bold: boolean; reveal?: number}
+export interface PlaneText {s: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; tone: PlaneTone; bold: boolean; reveal?: number; /** ADR 0054: the part it is grouped in (PlanePoint.part). */ part?: string}
 interface PlaneSeg {x1: number; y1: number; x2: number; y2: number}
 export interface LaidOutPlane extends Rect {
   type: 'plane';
@@ -188,13 +200,15 @@ export interface LaidOutPlane extends Rect {
   ticks: PlaneSeg[];
   grid: PlaneSeg[];
   texts: PlaneText[];
-  points: {x: number; y: number; tone: PlaneTone; shape: NonNullable<PlanePoint['shape']>; reveal?: number}[];
-  lines: (PlaneSeg & {tone: PlaneTone; dashed: boolean; arrow: boolean; reveal?: number})[];
+  points: {x: number; y: number; tone: PlaneTone; shape: NonNullable<PlanePoint['shape']>; reveal?: number; part?: string}[];
+  lines: (PlaneSeg & {tone: PlaneTone; dashed: boolean; arrow: boolean; reveal?: number; part?: string})[];
   /** `curves`: one [control 1, control 2, end] per piece of a smooth path (empty for a polyline, which runs through `pts`). `tip`: the unit direction of the arrowhead. `overshoot`: px the curve leaves the plot area. */
-  paths?: {pts: {x: number; y: number}[]; curves: {x: number; y: number}[][]; tone: PlaneTone; dashed: boolean; arrow: boolean; tip: {dx: number; dy: number}; reveal?: number; /** `grow` paths: the stage of each piece (one per segment of `pts`). */ segReveal?: number[]; overshoot: number}[];
+  paths?: {pts: {x: number; y: number}[]; curves: {x: number; y: number}[][]; tone: PlaneTone; dashed: boolean; arrow: boolean; tip: {dx: number; dy: number}; reveal?: number; /** `grow` paths: the stage of each piece (one per segment of `pts`). */ segReveal?: number[]; overshoot: number; part?: string}[];
   dims: {from: Point; to: Point; line: PlaneSeg; ext: PlaneSeg[]; chip: Rect; tone: PlaneTone; reveal?: number}[];
   /** Every label placed, as a rect: verify.ts reports two that overlap, one that leaves the figure, or one on the ink below. `dim`: the dimension line it belongs to. */
   labelBoxes: (Rect & {label: string; dim?: number})[];
+  /** Problems layout found that verify reports as they are (an evolution target on another point, an arrow too short to read). */
+  clashes?: string[];
   /** The plane's ink a label must stay clear of (axes and their arrowheads, ticks, points, guide and dimension lines). `dim`: the dimension it belongs to (its own label sits on it by design). */
   obstacles: (Rect & {what: string; dim?: number})[];
 }

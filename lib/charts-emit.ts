@@ -5,15 +5,22 @@ import {visibleAt} from './reveal.ts';
 import {iconSvg} from './icon-svg.ts';
 import type {LaidOutChart} from './charts.ts';
 import type {ColorKey, Theme} from './types/core.ts';
+import {marked, partAttr, partsOn} from './parts.ts';
 
 const r2 = (n: number): number => Math.round(n * 100) / 100;
 export function renderChart(b: LaidOutChart, day: Theme, emojiSpan: (s: string) => string, stage?: number, dimFill = false): string {
   const col = (k: ColorKey): string => colorOf(k, day);
   // an element belongs to one anchor or to several (a ribbon to both of its nodes): it dims when every one of them is dimmed
   const dimmed = (of: string | string[] | undefined): boolean => !!b.dim || (of !== undefined && [of].flat().every(k => !!b.dimIds?.includes(k)));
-  const out: string[] = [];
+  const out: string[] = [], on = partsOn(b);
   for (const it of b.items) {
-    const dim = dimmed(it.of);
+    const at = out.length;
+    draw(it, dimmed(it.of));
+    // ADR 0054: every element an item draws (a shade's page-colour underlay too) carries its part
+    if (it.part && on) for (let i = at; i < out.length; i++) out[i] = marked(out[i] as string, partAttr(on, it.part));
+  }
+  return out.join('\n  ');
+  function draw(it: LaidOutChart['items'][number], dim: boolean): void {
     if (it.k === 'rect') {
       const x = r2(it.x), y = r2(it.y), right = r2(it.x + it.w), bottom = r2(it.y + it.h);
       const d = `M${x},${y} H${right} V${bottom} H${x} Z`;
@@ -23,7 +30,7 @@ export function renderChart(b: LaidOutChart, day: Theme, emojiSpan: (s: string) 
           const thin = it.w < 1 || it.h < 1, i = thin ? 0 : Math.min(1, it.w / 2, it.h / 2);
           out.push(`<path d="M${x + i},${y + i} H${right - i} V${bottom - i} H${x + i} Z" fill="${PALETTE.bg}"${thin ? '' : ` stroke="${PALETTE.muted}" stroke-width="2" stroke-dasharray="2,5" stroke-linecap="round"`}/>`);
         }
-        continue;
+        return;
       }
       const fill = it.fill === 'none' ? 'none' : col(it.fill), op = it.op !== undefined && it.fill !== 'none' ? ` fill-opacity="${it.op}"` : '';
       const stroke = it.stroke ? ` stroke="${dim ? PALETTE.muted : col(it.stroke)}" stroke-width="${it.sw ?? 2}"${it.dash ? ` stroke-dasharray="${it.dash}"` : ''}` : '';
@@ -35,13 +42,12 @@ export function renderChart(b: LaidOutChart, day: Theme, emojiSpan: (s: string) 
       const stroke = it.stroke ? ` stroke="${dim ? PALETTE.muted : col(it.stroke)}" stroke-width="${it.sw ?? 2}" stroke-linejoin="round"${it.dash ? ` stroke-dasharray="${it.dash}"` : ''}` : '';
       out.push(`<path d="${it.d}" fill="${fill}"${op}${stroke}/>`);
     } else if (it.k === 'icon') {
-      if (it.of !== undefined && !visibleAt(b, stage)) continue;
+      if (it.of !== undefined && !visibleAt(b, stage)) return;
       out.push(iconSvg({glyph: it.glyph, name: it.name, x: it.x, y: it.y, size: it.size, color: dim ? PALETTE.muted : col(it.fill), dim, labelled: true}));
     } else {
-      if (it.of !== undefined && !visibleAt(b, stage)) continue;
+      if (it.of !== undefined && !visibleAt(b, stage)) return;
       const anchor = it.anchor === 'start' ? '' : ` text-anchor="${it.anchor}"`;
       out.push(`<text x="${it.x}" y="${it.y}"${anchor} font-size="${it.size}"${it.bold ? ' font-weight="700"' : ''} fill="${dim ? PALETTE.muted : col(it.fill)}">${emojiSpan(it.s)}</text>`);
     }
   }
-  return out.join('\n  ');
 }

@@ -7,11 +7,12 @@
 | 描きたいもの | 部品 | 書くもの |
 |---|---|---|
 | 組織図・階層 | `tree(root, {dir})` | 節 `{label, sub?, id?, tone?, children?}` |
-| マインドマップ | `mindmap(root, {layout, edges})` | 節（`tree` と同じ）。`layout`: radial（既定。中央から左右へ）/ right・left / down・up / org / list / brace / fishbone（特性要因図。大骨=子、中骨=孫、小骨=その下）/ timeline。`edges`: elbow・curve・straight（ツリー系の形だけ） |
+| マインドマップ | `mindmap(root, {layout, edges, focus})` | 節（`tree` と同じ）。`focus: 節の id`（配列も可）で「今ここ」: その節を塗り、その下とルートまでの道を強調色、ほかを薄くする（`spotlight` は図全体が単位で、枝を選べない。`tree` も同じ。状態遷移図・原因の木・クラス図・BPMN・スイムレーン・並びの図も同じ `focus` を持つ: README「図の中の「今ここ」」）。`layout`: radial（既定。中央から左右へ）/ right・left / down・up / org / list / brace / fishbone（特性要因図。大骨=子、中骨=孫、小骨=その下）/ timeline。`edges`: elbow・curve・straight（ツリー系の形だけ） |
 | ms・秒などの数値の時間軸 | `timeline({unit: 'ms', from: 0, to: 700, lanes, events, spans})` | `events: [{at, label, lane?, tone?}]`、`spans: [{from, to, label?, lane?, dim?}]`（`dim` は寸法線で長さを自動表記）。日付の期限は従来の `timeline({from: '2026', now, deadline})` |
 | 日付のない順序だけの出来事 | `steps([{title, body?, icon?, tag?}], {numbered, highlight})` | 番号バッジ・矢印つきの `row()`。`highlight: n` で 1 つ強調。`id` を付けると `s.col(n)` が端点 |
 | 区間を示す括弧・箱を指す吹き出し | `bracket(a.left, b.right, {label, side})` / `callout(id, {text, side})` | `connect()` の 2 本引きの代わり。bracket は箱の下（`side: 'above'` で上）、callout は 1 行の吹き出し |
 | 状態遷移図 | `stateDiagram(states, transitions, {initial, dir})` | 状態 `{id, label, final?, tone?}`（`tone` は `'solid'` / `'solid-danger'` も可）と遷移 `{from, to, label?}`（自己ループ・戻る遷移も可） |
+| 判断のある流れ図 | `flowchart(nodes, edges, {dir})` | 節 `{id, label, kind?: 'process'｜'decision'（ひし形）｜'terminator'（開始・終了）, sub?, tone?, icon?}`、矢印は遷移と同じ。既定は上から下。判断から出る矢印に `label: 'Yes'` / `'No'`。戻る矢印は外側を回る（`returns: 'outer'` が既定）。`initial` / `final` は無い |
 | スケジュール | `gantt(rows, {today})` | タスク `{label, start, end｜days, after?, progress?, milestone?}`（日付は `YYYY-MM-DD`、`today` は必ず書く。軸の外なら `extendToToday: true`、日付をビルドが受け取るなら `today: 'auto'` + `--today` / `SVG_DIAGRAM_TODAY` / `.svg-diagram.json` の `today`。時計は読まない） |
 | UML クラス図 | `classDiagram(classes, relations, {dir})` | クラス `{id, attrs?, methods?, stereotype?}` と関係 `{from, to, kind, label?, fromMult?, toMult?}` |
 | 業務フロー（BPMN 風） | `bpmn(lanes, nodes, flows, {fit, dir})` | レーン・ノード（task / start / end / xor / and / or）・フロー（`line: 'dashed'` はメッセージ）。940px に収まらず throw するときは `fit: 'shrink'`（スイムレーン `swimlane({fit: 'shrink'})` も同様） |

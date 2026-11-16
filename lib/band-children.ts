@@ -3,6 +3,7 @@
 // entry fails to compile (ChildBandsOf below), and test/band-registries.test.ts checks the tables at run time.
 
 import {IMAGE_PAD, imageSize} from './image.ts';
+import {treeItems} from './tree.ts';
 import type {Band} from './types/index.ts';
 
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
@@ -27,7 +28,7 @@ export const CHILD_BANDS = {
   cause: none,
   cloud: none,
   states: none,
-  tree: none,
+  tree: band => treeItems(band.root).flatMap(n => n.band ? [n.band] : []), // a band node
   bars: none,
   chart: none,
   people: none,
@@ -51,6 +52,8 @@ export const CHILD_BANDS = {
   cycle: none,
   venn: none,
   concentric: none,
+  emblem: none,
+  valueChain: none,
   curve: none,
   caption: none,
   box: none,
@@ -115,6 +118,8 @@ export const STACK_WIDTH = {
   cycle: noStack,
   venn: noStack,
   concentric: noStack,
+  emblem: noStack,
+  valueChain: noStack,
   curve: noStack,
   caption: noStack,
   box: noStack,

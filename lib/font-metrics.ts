@@ -16,13 +16,23 @@
 // file is not synthesized (Chromium's synthetic bold is wider).
 import fs from 'node:fs';
 import {execFileSync} from 'node:child_process';
-import * as hb from 'harfbuzzjs';
+import type * as HB from 'harfbuzzjs';
 import {FONT_STACKS} from './tokens.ts';
 import type {FontFamily, MeasureRequest, Measured} from './types/core.ts';
 import type {FontSpecs} from './types/project.ts';
 
 import {must} from './must.ts';
-interface Loaded {file: string; index: number; name: string; face: hb.Face; font: hb.Font; upem: number; covered: Set<number>; ascender: number; descender: number}
+interface Loaded {file: string; index: number; name: string; face: HB.Face; font: HB.Font; upem: number; covered: Set<number>; ascender: number; descender: number}
+
+// HarfBuzz is optional (a machine that only has a browser, such as ChatGPT's Code Interpreter, has none): the import is tried once, here, and
+// asking for it later says what to do instead. measure.ts takes that message as "no font file" and measures with Chromium unless the person asked for fonts.
+const hbModule: typeof HB | null = await import('harfbuzzjs').catch(() => null);
+export function harfbuzz(): typeof HB {
+  if (!hbModule) throw new Error('measure: "font" — harfbuzzjs is not installed, so the font files cannot be read. Use "measure": "chromium" (SVG_DIAGRAM_MEASURE=chromium) with a browser instead. Name the file in .svg-diagram.json to use fonts.');
+  return hbModule;
+}
+/** Whether the font files can be read at all (HarfBuzz is installed). */
+export const hasHarfbuzz = hbModule !== null;
 
 const GENERIC = new Set(['sans-serif', 'serif', 'monospace']);
 // CSS weight → fontconfig weight (what `fc-match family:weight=N` takes)
@@ -30,7 +40,7 @@ const FC_WEIGHT: [number, number][] = [[100, 0], [200, 40], [300, 50], [400, 80]
 const fcWeight = (w: number) => FC_WEIGHT.reduce((best, c) => Math.abs(c[0] - w) < Math.abs(best[0] - w) ? c : best)[1];
 
 /** The family name in the font's name table (name ID 1), '' when it has none. */
-function familyName(face: hb.Face): string {
+function familyName(face: HB.Face): string {
   try { return face.getName(1, 'en') || ''; } catch { return ''; }
 }
 
@@ -39,6 +49,7 @@ function load(file: string, index: number): Loaded {
   const key = `${file}#${index}`;
   let f = loaded.get(key);
   if (!f) {
+    const hb = harfbuzz();
     const buf = fs.readFileSync(file);
     const face = new hb.Face(new hb.Blob(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)), index);
     const font = new hb.Font(face);
@@ -85,6 +96,7 @@ function fontFor(family: FontFamily, weight: number, specs?: FontSpecs, required
 const WIDE = /[ᄀ-ᅟ⺀-〾ぁ-㏿㐀-䶿一-鿿ꀀ-꓏가-힣豈-﫿︰-﹯＀-｠￠-￦\u{1f300}-\u{1faff}\u{20000}-\u{3fffd}]/u;
 
 function advance(f: Loaded, text: string, size: number, weight: number): number {
+  const hb = harfbuzz();
   f.font.setVariations([new hb.Variation('wght', weight)]);
   const buf = new hb.Buffer();
   buf.addText(text);
@@ -117,7 +129,7 @@ function measureText(f: Loaded, family: FontFamily, text: string, size: number, 
 }
 
 /** The font that measures `emoji` (regular) as HarfBuzz objects, for reading its color glyphs (lib/emoji-color.ts); null when none can be found. */
-export function emojiFontFace(specs?: FontSpecs): {face: hb.Face; font: hb.Font; upem: number; ascender: number; descender: number} | null {
+export function emojiFontFace(specs?: FontSpecs): {face: HB.Face; font: HB.Font; upem: number; ascender: number; descender: number} | null {
   const f = fontFor('emoji', 400, specs, false);
   return f && {face: f.face, font: f.font, upem: f.upem, ascender: f.ascender, descender: f.descender};
 }
@@ -157,6 +169,7 @@ export function textBox(text: string, family: FontFamily, size: number, weight =
 
 /** The widths and heights measure.ts would get from Chromium, read from the font files. Synchronous: no browser. */
 export function measureWithFonts(requests: Map<string, MeasureRequest>, specs?: FontSpecs): Map<string, Measured> {
+  harfbuzz(); // says so at once when there is none
   const out = new Map<string, Measured>();
   for (const [key, r] of requests) {
     const weight = r.weight ?? 400;

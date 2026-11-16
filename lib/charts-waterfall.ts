@@ -1,6 +1,7 @@
 // waterfall(): how a start value turns into an end value, step by step. The bars float: an increase stands on the level it starts from
 // and rises, a decrease hangs from it, and thin connectors carry the running level from one bar to the next. Every bar prints its value
 // with a sign (+120 / -45), so an increase and a decrease differ by the sign and by the direction of the bar, not by colour alone.
+import {axisPart, partStep} from './parts.ts';
 import {Canvas, checkDomain, checkIds, checkInset, insetOrNeed, checkText, decimalsIn, fail, finiteNum, numText, signedText, thinTicks, valueScale} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 
@@ -115,14 +116,16 @@ export function layoutWaterfall(spec: WaterfallSpec, g: ChartGeom): LaidOutChart
 
   // value axis: the grid at the ticks, the zero line darker
   const shown = thinTicks(ticks, yOf, () => S + 2, 2);
-  for (const t of ticks) {
-    const y = r1(yOf(t.v));
-    c.line(plotL - 6, y, plotR, y, {stroke: t.v === 0 ? 'text' : 'border'});
-    if (shown.has(t)) c.text(t.s, plotL - 10, c.mid(y), 'end', 'muted');
-  }
-  if (!spec.axis && lo < 0) c.line(plotL, r1(yOf(0)), plotR, r1(yOf(0)), {stroke: 'text'});
-  else if (!spec.axis) c.line(plotL, r1(yOf(0)), plotR, r1(yOf(0)), {stroke: 'border'});
-  if (spec.axis) c.line(plotL, r1(yOf(sc.max)), plotL, r1(yOf(sc.min)), {stroke: 'border'});
+  c.withPart(axisPart('y'), () => {
+    for (const t of ticks) {
+      const y = r1(yOf(t.v));
+      c.line(plotL - 6, y, plotR, y, {stroke: t.v === 0 ? 'text' : 'border'});
+      if (shown.has(t)) c.text(t.s, plotL - 10, c.mid(y), 'end', 'muted');
+    }
+    if (!spec.axis && lo < 0) c.line(plotL, r1(yOf(0)), plotR, r1(yOf(0)), {stroke: 'text'});
+    else if (!spec.axis) c.line(plotL, r1(yOf(0)), plotR, r1(yOf(0)), {stroke: 'border'});
+    if (spec.axis) c.line(plotL, r1(yOf(sc.max)), plotL, r1(yOf(sc.min)), {stroke: 'border'});
+  });
 
   // bars
   const bars = spec.steps.map((s, i) => {
@@ -136,7 +139,7 @@ export function layoutWaterfall(spec: WaterfallSpec, g: ChartGeom): LaidOutChart
   if (spec.connectors) for (const [i, b] of bars.entries()) {
     if (i === n - 1) break;
     const y = r1(yOf(b.s.to));
-    c.line(b.x + bw, y, must(bars[i + 1]).x, y, {stroke: 'muted', dash: '4,3', avoid: true, sw: 2});
+    c.withPart(stepPart(spec, i), () => c.line(b.x + bw, y, must(bars[i + 1]).x, y, {stroke: 'muted', dash: '4,3', avoid: true, sw: 2}));
   }
   // value labels: above a bar that rises (or a level above zero), below one that falls; inside it (in the page colour) when the outside is taken
   for (const b of bars) {
@@ -151,9 +154,14 @@ export function layoutWaterfall(spec: WaterfallSpec, g: ChartGeom): LaidOutChart
   }
   // category labels under the plot
   for (const [i, ls] of cats.entries()) c.lines(ls, plotL + (i + 0.5) * slot, plotB + S + 8, 'middle', 'text', {bold: must(spec.steps[i]).kind !== 'delta', of: must(spec.steps[i]).id ?? `#${i}`});
+  c.partsByOf(stepsByOf(spec));
   void decimalsIn;
   return c.done();
 }
+
+/** ADR 0054: a step (its bar, value, name and the connector to the next step) is a part. */
+const stepPart = (spec: WaterfallSpec, i: number): string => partStep('step', spec.steps[i]?.id ?? i, spec.steps[i]?.label ?? '');
+const stepsByOf = (spec: WaterfallSpec): Map<string, string> => new Map(spec.steps.map((s, i) => [s.id ?? `#${i}`, stepPart(spec, i)]));
 
 /** dir: 'h': the same chart turned on its side: steps down the page, the running level along it. */
 function layoutWaterfallH(spec: WaterfallSpec, g: ChartGeom): LaidOutChartPart {
@@ -173,15 +181,17 @@ function layoutWaterfallH(spec: WaterfallSpec, g: ChartGeom): LaidOutChartPart {
   const y0 = g.y + 4, bodyB = y0 + n * pitch;
   const xOf = (v: number) => plotL + (v - sc.min) / (sc.max - sc.min) * (plotR - plotL);
   const shown = thinTicks(ticks, xOf, t => c.tw(t.s), 12);
-  for (const t of ticks) { const x = r1(xOf(t.v)); c.line(x, y0, x, bodyB + 6, {stroke: t.v === 0 ? 'text' : 'border'}); if (shown.has(t)) c.text(t.s, x, bodyB + S + 10, 'middle', 'muted'); }
-  if (!spec.axis) c.line(r1(xOf(0)), y0, r1(xOf(0)), bodyB, {stroke: lo < 0 ? 'text' : 'border'});
+  c.withPart(axisPart('x'), () => {
+    for (const t of ticks) { const x = r1(xOf(t.v)); c.line(x, y0, x, bodyB + 6, {stroke: t.v === 0 ? 'text' : 'border'}); if (shown.has(t)) c.text(t.s, x, bodyB + S + 10, 'middle', 'muted'); }
+    if (!spec.axis) c.line(r1(xOf(0)), y0, r1(xOf(0)), bodyB, {stroke: lo < 0 ? 'text' : 'border'});
+  });
   const bars = spec.steps.map((s, i) => {
     const cy = y0 + (i + 0.5) * pitch, key = s.id ?? `#${i}`, x1 = xOf(Math.min(s.from, s.to)), x2 = xOf(Math.max(s.from, s.to)), w = Math.max(2, x2 - x1);
     const solid = c.rect(r1(Math.abs(x2 - x1) < 2 ? x1 - 1 : x1), r1(cy - barH / 2), r1(w), barH, {fill: fillOf(s), id: s.id, of: key, solid: s.id ?? `bar "${s.label}"`});
     c.lines(must(cats[i]), g.x + labelW - 10 + 0, cy - (must(cats[i]).length - 1) * lh / 2 + S * 0.36, 'end', 'text', {bold: s.kind !== 'delta', of: key});
     return {s, i, cy, x1, x2, solid, key, fill: fillOf(s)};
   });
-  if (spec.connectors) for (const [i, b] of bars.entries()) { if (i === n - 1) break; const x = r1(xOf(b.s.to)); c.line(x, b.cy + barH / 2, x, must(bars[i + 1]).cy - barH / 2, {stroke: 'muted', dash: '4,3', avoid: true}); }
+  if (spec.connectors) for (const [i, b] of bars.entries()) { if (i === n - 1) break; const x = r1(xOf(b.s.to)); c.withPart(stepPart(spec, i), () => c.line(x, b.cy + barH / 2, x, must(bars[i + 1]).cy - barH / 2, {stroke: 'muted', dash: '4,3', avoid: true})); }
   for (const b of bars) {
     const text = must(texts[b.i]), right = b.s.kind === 'delta' ? b.s.value >= 0 : b.s.value >= 0;
     const r = {x: b.x2 + 7, y: c.mid(b.cy), anchor: 'start' as const}, l = {x: b.x1 - 7, y: c.mid(b.cy), anchor: 'end' as const};
@@ -190,5 +200,6 @@ function layoutWaterfallH(spec: WaterfallSpec, g: ChartGeom): LaidOutChartPart {
     const out = c.place(text, right ? [r, l] : [l, r], b.fill === 'muted' ? 'text' : b.fill, {bold: true, of: b.key}) ?? (fits ? c.text(text, (b.x1 + b.x2) / 2, c.mid(b.cy), 'middle', 'bg', {bold: true, of: b.key, on, host: b.solid}) : undefined);
     if (!out) fail('waterfall', `the value "${text}" of "${b.s.label}" has no room (raise width, or shorten the unit)`);
   }
+  c.partsByOf(stepsByOf(spec));
   return c.done();
 }

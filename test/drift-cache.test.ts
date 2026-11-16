@@ -107,3 +107,35 @@ test('check --drift --rebuild --jobs: a bad value is a usage error', () => {
   assert.equal(r.status, 2);
   assert.match(r.stderr, /--jobs/);
 });
+
+test('check --drift --rebuild: a data file the source reads at its top level (named or default fs import) is part of the pass', () => {
+  for (const imp of ["import {readFileSync} from 'node:fs';", "import fs from 'node:fs'; const readFileSync = fs.readFileSync;"]) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-cache-top-'));
+    fs.mkdirSync(path.join(dir, 'src'));
+    fs.writeFileSync(path.join(dir, 'src', 'data.txt'), '入口');
+    fs.writeFileSync(path.join(dir, 'src', 'a.ts'), `import {diagram, box, row} from 'svg-diagram';\n${imp}\nconst t = readFileSync(new URL('./data.txt', import.meta.url), 'utf8');\nexport default () => diagram({theme: 'blue', title: '試験図'}).add(row([box({id: 'a', title: t, tone: 'accent'})]));\n`);
+    assert.equal(cli('build-diagram.ts', dir, '--no-lint', 'src/a.ts').status, 0);
+    const run = () => cli('check-diagram.ts', dir, '--drift', '--rebuild', '--jobs', '1', 'src/a.ts');
+    assert.equal(run().status, 0);
+    assert.equal(run().status, 0, 'warm');
+    fs.writeFileSync(path.join(dir, 'src', 'data.txt'), '別の語');
+    const r = run();
+    assert.equal(r.status, 1, text(r));
+    assert.match(r.stderr, /src\/a\.ts/);
+  }
+});
+
+test('check --drift --rebuild: with outDir set the cache keys on the SVG in outDir (not svg/) and a hand edit there is not hidden', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'drift-cache-outdir-'));
+  fs.mkdirSync(path.join(dir, 'src'));
+  fs.writeFileSync(path.join(dir, 'src', 'a.ts'), box('入口'));
+  fs.writeFileSync(path.join(dir, '.svg-diagram.json'), JSON.stringify({outDir: 'images'}));
+  assert.equal(cli('build-diagram.ts', dir, '--no-lint', 'src/a.ts').status, 0);
+  assert.ok(fs.existsSync(path.join(dir, 'images', 'a.svg')));
+  const run = () => cli('check-diagram.ts', dir, '--drift', '--rebuild', '--jobs', '1', 'src/a.ts');
+  assert.equal(run().status, 0);
+  assert.ok(fs.readdirSync(path.join(dir, '.svg-diagram-cache')).some(f => f.endsWith('.json')), 'the pass is kept (the key was found in outDir)');
+  const f = path.join(dir, 'images', 'a.svg');
+  fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replace('</svg>', '<rect x="1" y="1" width="3" height="3" fill="#f00"/></svg>'));
+  assert.equal(run().status, 1);
+});

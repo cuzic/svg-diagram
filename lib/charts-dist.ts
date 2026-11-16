@@ -145,12 +145,12 @@ export function layoutDist(s: DistSpec, g: ChartGeom): LaidOutChartPart {
   const stroke = (i: number) => ({stroke: TONES[i] as 'accent', dash: DASH[i] || undefined});
   const fillOf = (i: number) => must(TONES[i]);
   // legend, axis names, grid
-  legend.forEach(l => {
+  legend.forEach(l => c.legendEntry(l.i, must(s.groups[l.i]).label, () => {
     const cy = g.y + l.row * (S + 12) + Math.max(9, Math.ceil(S * 0.64));
     if (s.kinds.includes('hist') && s.element === 'bars') c.rect(l.x, cy - 7, 22, 14, {fill: fillOf(l.i), op: 0.25, ...stroke(l.i), sw: 2});
     else c.line(l.x, cy, l.x + 22, cy, {...stroke(l.i), sw: 2});
     c.text(must(s.groups[l.i]).label, l.x + 28, c.mid(cy), 'start', 'text');
-  });
+  }));
   c.text(yName(s), plotL - 4, g.y + legendH + S + 2, 'start', 'muted', {bold: true});
   for (const t of p.ys.ticks) { c.line(plotL - 6, yOf(t), plotR, yOf(t), {stroke: t === 0 ? 'text' : 'border'}); c.text(numText(t), plotL - 10, c.mid(yOf(t)), 'end', 'muted'); }
   for (const t of p.xs.ticks) { c.line(xOf(t), plotB, xOf(t), plotB + 6, {stroke: 'border'}); c.text(numText(t), xOf(t), plotB + S + 10, 'middle', 'muted'); }
@@ -173,7 +173,7 @@ export function layoutDist(s: DistSpec, g: ChartGeom): LaidOutChartPart {
       c.path(d, {fill: 'none', ...stroke(i), sw: 2, of});
     }
     if (s.kinds.includes('ecdf')) {
-      const sorted = [...gr.values].sort((a, b) => a - b), n = sorted.length, k = s.stat === 'count' ? 1 : s.stat === 'percent' ? 100 / n : 1 / n;
+      const sorted = gr.values.toSorted((a, b) => a - b), n = sorted.length, k = s.stat === 'count' ? 1 : s.stat === 'percent' ? 100 / n : 1 / n;
       let d = `M${pt(p.xs.min, 0)}`;
       sorted.forEach((v, j) => { d += ` L${pt(v, j * k)} L${pt(v, (j + 1) * k)}`; });
       c.path(`${d} L${pt(p.xs.max, n * k)}`, {fill: 'none', ...stroke(i), sw: 2, of});

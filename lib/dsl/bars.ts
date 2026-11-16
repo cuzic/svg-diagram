@@ -87,7 +87,7 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   if (new Set(ids).size !== ids.length) throw new Error('bars(): each id must be unique');
   if (opts.id !== undefined && ids.includes(opts.id)) throw new Error(`bars(): the band's id "${opts.id}" is also a bar's id — each id must be unique`);
   const band: BarsBand = {type: 'bars', data: [...data], max, unit: opts.unit, dir: opts.dir ?? 'h', stack, height: opts.height, ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'bars()'), ...revealOf(opts)};
-  for (const k of ['plotInset', 'labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole', 'hideZero', 'lines', 'vlines', 'curve', 'cumulative', 'edges', 'valueFormat'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
+  for (const k of ['plotInset', 'labels', 'axis', 'grid', 'baseline', 'barRatio', 'labelRole', 'hideZero', 'lines', 'vlines', 'curve', 'cumulative', 'edges', 'valueFormat', 'rangeMark'] as const) if (opts[k] !== undefined) Object.assign(band, {[k]: opts[k]});
   return withHandle(withAnchors(band, data.map(d => d.id)), opts.id);
 }
 /** A bar for each item from its low to its high (a minimum and a maximum, a confidence interval): `rangeBars([{label: '開発', range: [3.2, 5.8]}], {unit: '万円'})`. The same as bars() with `range` data; the value text reads `3.2〜5.8万円`. */
@@ -138,6 +138,8 @@ export interface HistogramOpts extends Omit<BarsOpts, 'dir' | 'stack' | 'cumulat
   mean?: boolean;
   /** Draw the normal curve with the data's mean and standard deviation. */
   normal?: boolean;
+  /** The words before the numbers of the lines (default 下限 / 上限 / 目標 / 平均). */
+  lineWords?: {lsl?: string; usl?: string; target?: string; mean?: string};
 }
 /**
  * A histogram (ヒストグラム) of raw measurements: the class width is a round number, the bars touch, the class boundaries are written
@@ -159,12 +161,13 @@ export function histogram<const Id extends string = never>(values: readonly numb
   const out = (k: number) => (opts.lsl !== undefined && must(edges[k + 1]) <= opts.lsl + 1e-9) || (opts.usl !== undefined && must(edges[k]) >= opts.usl - 1e-9);
   const peak = opts.normal ? normalCount(m, m, s, n, width) : 0;
   const max = niceMax(Math.max(...counts, peak));
-  const {bins: _b, width: _w, lsl, usl, target, mean: showMean, normal, ...rest} = opts;
+  const {bins: _b, width: _w, lsl, usl, target, mean: showMean, normal, lineWords, ...rest} = opts;
+  const words = {lsl: '下限', usl: '上限', target: '目標', mean: '平均', ...lineWords};
   const lines: BarsLine[] = [];
-  if (lsl !== undefined) lines.push({at: slot(lsl), label: `下限 ${exact(lsl)}`});
-  if (target !== undefined) lines.push({at: slot(target), label: `目標 ${exact(target)}`, tone: 'muted'});
-  if (usl !== undefined) lines.push({at: slot(usl), label: `上限 ${exact(usl)}`});
-  if (showMean !== false) lines.push({at: slot(m), label: `平均 ${m.toFixed(decimalsOf(width) + 1)}`, tone: 'accent'});
+  if (lsl !== undefined) lines.push({at: slot(lsl), label: `${words.lsl} ${exact(lsl)}`});
+  if (target !== undefined) lines.push({at: slot(target), label: `${words.target} ${exact(target)}`, tone: 'muted'});
+  if (usl !== undefined) lines.push({at: slot(usl), label: `${words.usl} ${exact(usl)}`});
+  if (showMean !== false) lines.push({at: slot(m), label: `${words.mean} ${m.toFixed(decimalsOf(width) + 1)}`, tone: 'accent'});
   const every = labelEvery(edges.map(exact));
   const curve = normal && s > 0 ? {through: Array.from({length: 41}, (_, i) => { const sx = i / 40 * counts.length; return [sx, normalCount(must(edges[0]) + sx * width, m, s, n, width)] as [number, number]; }), tone: 'text' as const} : undefined;
   return bars(counts.map((c, k) => ({label: `${exact(must(edges[k]))}-${exact(must(edges[k + 1]))}`, value: c, ...(out(k) ? {tone: 'danger' as const} : {})})), {...rest, dir: 'v', barRatio: 1, max, edges: edges.map((e, i) => edgeShown(i, edges.length - 1, every) ? exact(e) : ''), hideZero: true, vlines: lines.sort((a, b) => a.at - b.at), ...(curve ? {curve} : {})}) as never;

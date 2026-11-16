@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {register} from 'node:module';
-import {bpmn, box, causeTree, checkDiagram, closeMeasurer, diagram, grid, mindmap, relationDiagram, renderDiagram, row, tree, whyWhyTree} from '../lib/dsl.ts';
+import {bpmn, box, causeTree, checkDiagram, chevron, closeMeasurer, concentric, cycle, diagram, emblem, funnel, grid, mindmap, quadrant, relationDiagram, renderDiagram, row, tree, venn, whyWhyTree} from '../lib/dsl.ts';
 import {loadConfig} from '../lib/config.ts';
 import {loadDiagram} from '../lib/load-source.ts';
 import {emitRevealStage} from '../lib/pipeline.ts';
@@ -112,4 +112,55 @@ test('withNodeIds: a band that has no named frame is returned as it is', () => {
   assert.equal(withNodeIdsBand(caption), caption);
   const d = {laidOut: [caption]} as never;
   assert.equal((withNodeIds(d) as {laidOut: LaidOutBand[]}).laidOut[0], caption);
+});
+
+test('nodeIds: a flow shape marks the frame of each item that has an id (chevron, funnel, cycle, venn, concentric, emblem), once each, and not the others', async () => {
+  const steps = [{id: 'a', label: '調べる'}, {label: '決める'}, {id: 'c', label: 'やる'}];
+  const figs: [string, ReturnType<typeof diagram>, string[]][] = [
+    ['chevron', diagram({theme: 'blue'}).add(chevron(steps)), ['a', 'c']],
+    ['chevron vertical', diagram({theme: 'blue'}).add(chevron(steps, {direction: 'vertical'})), ['a', 'c']],
+    ['funnel', diagram({theme: 'blue'}).add(funnel([{id: 'v', label: '訪問', value: 100}, {label: '登録', value: 40}, {id: 'p', label: '購入', value: 10}])), ['p', 'v']],
+    ['cycle', diagram({theme: 'blue'}).add(cycle(steps)), ['a', 'c']],
+    ['venn', diagram({theme: 'blue'}).add(venn([{id: 's1', name: 'A'}, {id: 's2', name: 'B'}])), ['s1', 's2']],
+    ['concentric', diagram({theme: 'blue'}).add(concentric([{id: 'in', label: '中心'}, {id: 'out', label: '外側'}, {label: '周辺'}])), ['in', 'out']],
+    ['emblem circle', diagram({theme: 'blue'}).add(emblem([{id: 'e1', label: '一'}, {label: '二'}, {id: 'e3', label: '三'}])), ['e1', 'e3']],
+    ['emblem polygon', diagram({theme: 'blue'}).add(emblem([{id: 'e1', label: '一'}, {id: 'e2', label: '二'}], {shape: 'trapezoid'})), ['e1', 'e2']],
+    ['emblem path', diagram({theme: 'blue'}).add(emblem([{id: 'e1', label: '一'}, {id: 'e2', label: '二'}], {shape: 'cylinder'})), ['e1', 'e2']],
+  ];
+  for (const [name, d, want] of figs) {
+    const on = await draw(d, true), off = await draw(d);
+    assert.deepEqual(sorted(marks(on.svg)), sorted(want), name);
+    assert.deepEqual(marks(off.svg), [], `${name}: off by default`);
+    assert.equal(strip(on.svg), off.svg, `${name}: nothing else changes`);
+  }
+});
+
+test('nodeIds: a flow shape with a scope names its items scope.id, as connect() does', async () => {
+  const d = diagram({theme: 'blue'}).add(chevron([{id: 'a', label: '調べる'}, {id: 'b', label: '決める'}], {scope: 'flow1'}));
+  assert.deepEqual(sorted(marks((await draw(d, true)).svg)), ['flow1.a', 'flow1.b']);
+});
+
+test('nodeIds: a quadrant marks the marker and every line of the name of each item that has an id', async () => {
+  const q = () => diagram({theme: 'blue'}).add(quadrant({
+    x: {title: '価格', low: '安い', high: '高い'}, y: {title: '品質', low: '低い', high: '高い'}, crosshair: true,
+    items: [{id: 'p', label: '製品 A', at: [0.8, 0.8]}, {id: 'r', label: '製品 B は名前が長いので折り返される長さにしてある文字列', at: [0.2, 0.3]}, {label: '名前なし', at: [0.5, 0.5]}],
+  }));
+  const on = await draw(q(), true), off = await draw(q());
+  const marked = marks(on.svg);
+  assert.deepEqual([...new Set(marked)].sort(), ['p', 'r']);
+  // the marker (a circle / polygon) and the label (a <text>) each carry it
+  assert.ok(/<(circle|polygon)[^>]* data-node="p"/.test(on.svg), 'the marker of p');
+  assert.ok(/<text[^>]* data-node="p"[^>]*>製品 A<\/text>/.test(on.svg), 'the label of p');
+  assert.ok(marked.filter(m => m === 'r').length >= 3, 'r: its marker and each wrapped line of its label');
+  assert.ok(!/data-node="[^"]*"[^>]*>名前なし/.test(on.svg), 'an item with no id is not marked');
+  assert.deepEqual(marks(off.svg), []);
+  assert.equal(strip(on.svg), off.svg, 'nothing else changes');
+});
+
+test('nodeIds: a quadrant item that is dimmed by a spotlight and a hollow marker still carry the name', async () => {
+  const d = diagram({theme: 'blue', spotlight: 'p'}).add(quadrant({
+    x: {title: '価格', low: '安い', high: '高い'}, y: {title: '品質', low: '低い', high: '高い'},
+    items: [{id: 'p', label: '製品 A', at: [0.8, 0.8], group: 'a'}, {id: 'q', label: '製品 B', at: [0.2, 0.3], group: 'b'}],
+  }));
+  assert.deepEqual([...new Set(marks((await draw(d, true)).svg))].sort(), ['p', 'q']);
 });

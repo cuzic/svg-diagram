@@ -1,6 +1,7 @@
 // sankey(): flows between layers of nodes. The height of a node and the thickness of a ribbon are proportional to the value they carry
 // (one scale for the whole figure), nodes never overlap, ribbons are paths from one node to the next. Nodes are layered from the sources
 // (longest path), and ordered inside a layer by the position of the nodes they connect to, to keep ribbons from crossing.
+import {partStep} from './parts.ts';
 import {Canvas, checkText, fail, finiteNum, numText} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
 import type {IconName} from './icons.ts';
@@ -139,8 +140,8 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
   // ribbons first (under everything): out-links stack down a node's right edge in the order of their targets, in-links down its left edge
   const centre = (id: string) => must(geo.get(id)).y + must(geo.get(id)).h / 2;
   const outOff = new Map<string, number>(), inOff = new Map<string, number>(), outAt = new Map<string, number>(), inAt = new Map<string, number>();
-  for (const l of [...s.links].sort((a, b) => centre(a.to) - centre(b.to))) { outOff.set(`${l.from}>${l.to}`, outAt.get(l.from) ?? 0); outAt.set(l.from, (outAt.get(l.from) ?? 0) + l.value * sc); }
-  for (const l of [...s.links].sort((a, b) => centre(a.from) - centre(b.from))) { inOff.set(`${l.from}>${l.to}`, inAt.get(l.to) ?? 0); inAt.set(l.to, (inAt.get(l.to) ?? 0) + l.value * sc); }
+  for (const l of s.links.toSorted((a, b) => centre(a.to) - centre(b.to))) { outOff.set(`${l.from}>${l.to}`, outAt.get(l.from) ?? 0); outAt.set(l.from, (outAt.get(l.from) ?? 0) + l.value * sc); }
+  for (const l of s.links.toSorted((a, b) => centre(a.from) - centre(b.from))) { inOff.set(`${l.from}>${l.to}`, inAt.get(l.to) ?? 0); inAt.set(l.to, (inAt.get(l.to) ?? 0) + l.value * sc); }
   const ribbons = s.links.map(l => {
     const a = must(geo.get(l.from)), b = must(geo.get(l.to)), t = l.value * sc, k = `${l.from}>${l.to}`;
     const x0 = a.x + nodeW, x1 = b.x, y0 = a.y + must(outOff.get(k)), y1 = b.y + must(inOff.get(k)), xm = (x0 + x1) / 2;
@@ -152,14 +153,15 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
     c.path(d, {of: [r.l.from, r.l.to], fill: r.l.tone === 'accent' ? 'accent' : r.l.tone, op: 0.22, ...(r.l.tone === 'danger' ? {stroke: 'danger' as const, sw: 2, dash: '6,4'} : {})});
   }
   // nodes, then their labels
-  for (const n of s.nodes) {
+  // ADR 0054: a node (its bar, icon and label) is one part
+  for (const n of s.nodes) c.withPart(partStep('node', n.id, nameOf(n.id).label), () => {
     const q = must(geo.get(n.id)), li = must(layer.get(n.id));
     c.rect(r1(q.x), r1(q.y), nodeW, r1(q.h), {fill: n.tone, id: n.id, of: n.id, solid: n.id});
     const ls = must(labels.get(n.id)), cy = q.y + q.h / 2;
     if (n.icon) c.icon(n.icon.glyph, n.icon.name, q.x + nodeW + 8, cy - lh / 2 + 1, lh - 2, 'text', n.id);
     c.lines(ls.length > 1 ? ls.map(t => t) : ls, q.x + nodeW + 8 + iconOf(n.id), cy - (ls.length - 1) * lh / 2 + S * 0.36, 'start', 'text', {bold: ls.length === 1, of: n.id, plate: true});
     void li;
-  }
+  });
   // the value on a ribbon, in the middle of its run, when it is thick enough and there is room
   if (s.linkLabels) for (const r of ribbons) {
     const text = val(r.l.value, s), cy = (r.y0 + r.y1) / 2 + r.t / 2;

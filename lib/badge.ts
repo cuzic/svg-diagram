@@ -17,12 +17,16 @@ export interface BadgeBox {x: number; y: number; w: number; h: number}
 
 export const BADGE_R = 11;       // base radius: fits 1-2 digits or one letter at the wireframe's 14px
 const BADGE_PAD = 6;             // room each side of a label wider than the base shape
+/** Where the middle of a glyph's ink sits above its baseline, in em. Measured on the sans stack's fonts for digits, capitals, kana and
+ *  kanji (0.38 on Yu Gothic, 0.36-0.37 on Noto Sans JP): the label is centred by its ink, not by the font's line box. */
+export const INK_MID = 0.38;
+const APEX = 3;                  // a triangle's apex rises this far above the circle of the same r
 
 /** Width/height of a badge for a label of measured width `textW`; `r` is the base radius. */
 export function badgeBox(cx: number, cy: number, textW: number, r = BADGE_R, shape: BadgeShape = 'circle'): BadgeBox {
-  const reach = shape === 'triangle' ? r + 3 : r;
+  const reach = shape === 'triangle' ? r + APEX : r;
   const w = Math.max(2 * reach, textW + 2 * BADGE_PAD);
-  return {x: cx - w / 2, y: cy - r - (shape === 'triangle' ? 3 : 0), w, h: 2 * r + (shape === 'triangle' ? 3 : 0)};
+  return {x: cx - w / 2, y: cy - r - (shape === 'triangle' ? APEX : 0), w, h: 2 * r + (shape === 'triangle' ? APEX : 0)};
 }
 
 /** Label colour for a fill (resolved #rrggbb): white-ish `bg` or `text`, whichever contrasts more. */
@@ -41,24 +45,29 @@ export interface BadgeSvgOpts {
 }
 
 export function badgeSvg(o: BadgeSvgOpts): string {
-  const {cx, cy, r, w, snap} = o;
+  const {r, w, snap} = o;
   const st = o.stroke ? ` stroke="${o.stroke}" stroke-width="${o.sw ?? 2}"` : '';
-  let shape: string;
-  if (o.shape === 'square') {
-    shape = `<rect x="${snap(cx - w / 2)}" y="${snap(cy - r)}" width="${snap(cx + w / 2) - snap(cx - w / 2)}" height="${snap(cy + r) - snap(cy - r)}" rx="3" fill="${o.fill}"${st}/>`;
-  } else if (o.shape === 'triangle') {
+  // The centre is decided ONCE, from the shape as it is drawn, and the label uses the same point: the shape snaps to the grid and
+  // the text used to be rounded on its own, so they disagreed by up to 2px.
+  let shape: string, cx: number, cy: number;
+  if (o.shape === 'triangle') {
     const hw = w / 2, p = (x: number, y: number) => `${Math.round(x)},${Math.round(y)}`;
-    shape = `<path d="M${p(cx, cy - r - 3)} L${p(cx + hw, cy + r)} L${p(cx - hw, cy + r)} Z" fill="${o.fill}"${st} stroke-linejoin="round"/>`;
-  } else if (w > 2 * r) { // a wide label: the circle becomes a pill
-    shape = `<rect x="${snap(cx - w / 2)}" y="${snap(cy - r)}" width="${snap(cx + w / 2) - snap(cx - w / 2)}" height="${snap(cy + r) - snap(cy - r)}" rx="${r}" fill="${o.fill}"${st}/>`;
+    cx = Math.round(o.cx); const top = Math.round(o.cy) - r - APEX, bottom = Math.round(o.cy) + r;
+    // the label goes at the centre of the triangle's inscribed circle (where the most room is), not at its bounding box's middle
+    const side = Math.hypot(hw, bottom - top), inradius = (w * (bottom - top) / 2) / ((w + 2 * side) / 2);
+    cy = bottom - inradius;
+    shape = `<path d="M${p(cx, top)} L${p(cx + hw, bottom)} L${p(cx - hw, bottom)} Z" fill="${o.fill}"${st} stroke-linejoin="round"/>`;
+  } else if (o.shape === 'square' || w > 2 * r) { // a square, or a wide label: the circle becomes a pill
+    const x0 = snap(o.cx - w / 2), x1 = snap(o.cx + w / 2), y0 = snap(o.cy - r), y1 = snap(o.cy + r);
+    cx = (x0 + x1) / 2; cy = (y0 + y1) / 2;
+    shape = `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="${o.shape === 'square' ? 3 : r}" fill="${o.fill}"${st}/>`;
   } else {
-    shape = `<circle cx="${snap(cx)}" cy="${snap(cy)}" r="${r}" fill="${o.fill}"${st}/>`;
+    cx = snap(o.cx); cy = snap(o.cy);
+    shape = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${o.fill}"${st}/>`;
   }
-  // centred on the shape as drawn (snapped), not on the unsnapped centre: the text must not slide out of a shape that moved up to 2px
-  const cyDrawn = o.shape === 'circle' && w <= 2 * r ? snap(cy) : (snap(cy - r) + snap(cy + r)) / 2;
-  const base = o.baseline ?? cyDrawn + o.size * 0.36 + (o.shape === 'triangle' ? 4 : 0);
+  const base = o.baseline ?? cy + o.size * INK_MID;
   const fill = o.text ?? PALETTE[badgeTextKey(o.fill)];
-  const text = o.label === '' ? '' : `\n  <text x="${Math.round(cx)}" y="${Math.round(base)}" text-anchor="middle" font-size="${o.size}" font-weight="${o.weight ?? 700}" fill="${fill}">${o.esc(o.label)}</text>`;
+  const text = o.label === '' ? '' : `\n  <text x="${cx}" y="${Math.round(base)}" text-anchor="middle" font-size="${o.size}" font-weight="${o.weight ?? 700}" fill="${fill}">${o.esc(o.label)}</text>`;
   return `<g role="img" aria-label="${o.esc(o.aria).replace(/"/g, '&quot;')}" data-badge="">\n  ${shape}${text}\n  </g>`;
 }
 

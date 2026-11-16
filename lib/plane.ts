@@ -9,6 +9,7 @@ import type {FontFamily, Rect, WidthOf, Roles} from './types/core.ts';
 import type {LaidOutPlane, PlaneBand, PlanePos, PlaneRef, PlaneText, PlaneTone} from './types/figures.ts';
 
 import {must} from './must.ts';
+import {PLANE_AXES} from './parts.ts';
 // the same tolerance verify.ts's rectOverlap uses, so what layout avoids is what verification would report
 const overlapsRect = (a: Rect, b: Rect): boolean => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5;
 
@@ -29,6 +30,7 @@ export function planeTexts(band: PlaneBand, roles: Roles): [string, number, numb
   const out: [string, number, number, FontFamily][] = [];
   const add = (s: string | undefined, weight = 400) => { if (s) out.push([s, sizeOf(band, roles), weight, 'sans']); };
   for (const axis of [band.x, band.y]) { add(axis.label, 700); for (const t of ticksOf(axis)) add(t.label); }
+  for (const s of band.stages ?? []) add(typeof s === 'string' ? s : s.name);
   for (const t of band.yTickSample ?? []) add(t);
   for (const p of band.points ?? []) add(p.label, 700);
   for (const d of band.dims ?? []) add(d.label, 700);
@@ -36,6 +38,12 @@ export function planeTexts(band: PlaneBand, roles: Roles): [string, number, numb
   return out;
 }
 
+/** The n + 1 edges of n stage columns, in axis units: equal widths, or where each column says it ends. */
+export function stageEdges(stages: NonNullable<PlaneBand['stages']>, min: number, max: number): number[] {
+  const n = stages.length, tos = stages.slice(0, -1).map(st => typeof st === 'string' ? undefined : st.to);
+  if (tos.every(t => t === undefined)) return Array.from({length: n + 1}, (_v, i) => min + (max - min) * i / n);
+  return [min, ...tos.map(Number), max];
+}
 export const fmt = (n: number): string => String(parseFloat(n.toPrecision(3)));
 function niceStep(range: number): number {
   const raw = range / 6, mag = 10 ** Math.floor(Math.log10(raw)), f = raw / mag;
@@ -93,8 +101,11 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   const size = sizeOf(band, roles), g = geomOf(band, roles), half = g * 5 / 14, labelH = size + 6;
   const tw = (s: string, weight = 400) => textWidth(widthOf, s, size, weight);
   const width = Math.min(w, band.width ?? w), left = x + (w - width) / 2, h = band.height;
-  const xTicks = ticksOf(band.x), yTicks = ticksOf(band.y);
   const xMin = band.x.min ?? 0, yMin = band.y.min ?? 0, xSpan = band.x.max - xMin;
+  const stages = band.stages ?? [];
+  // stages: column edges (equal widths unless the columns say where they end); the names are the x ticks, each at the middle of its column
+  const edges = stageEdges(stages, xMin, band.x.max);
+  const xTicks = stages.length ? stages.map((st, i) => ({at: ((edges[i] ?? xMin) + (edges[i + 1] ?? band.x.max)) / 2, label: typeof st === 'string' ? st : st.name})) : ticksOf(band.x), yTicks = ticksOf(band.y);
   if (!(xSpan > 0) || !(band.y.max > yMin)) throw new Error('plane(): each axis needs max > min');
   const yDown = !!band.yDown;
 
@@ -139,8 +150,8 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
     const n = Math.max(1, Math.ceil(Math.hypot(s.x2 - s.x1, s.y2 - s.y1) / 6));
     for (let i = 0; i <= n; i++) ink(what, {x: s.x1 + (s.x2 - s.x1) * i / n - 2, y: s.y1 + (s.y2 - s.y1) * i / n - 2, w: 4, h: 4}, dim);
   };
-  const addText = (s: string, tx: number, base: number, anchor: 'start' | 'middle' | 'end', tone: PlaneTone, bold = false, reveal?: number): void => {
-    texts.push({s, x: tx, y: base, anchor, tone, bold, ...(reveal ? {reveal} : {})});
+  const addText = (s: string, tx: number, base: number, anchor: 'start' | 'middle' | 'end', tone: PlaneTone, bold = false, reveal?: number, part?: string): void => {
+    texts.push({s, x: tx, y: base, anchor, tone, bold, ...(reveal ? {reveal} : {}), ...(part ? {part} : {})});
     const tww = tw(s, bold ? 700 : 400);
     boxes.push({label: s, x: anchor === 'middle' ? tx - tww / 2 : anchor === 'end' ? tx - tww : tx, y: base - size, w: tww, h: labelH});
   };
@@ -148,17 +159,19 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   const ticks: LaidOutPlane['ticks'] = [];
   for (const t of xTicks) {
     const tx = px(t.at);
-    const tick = {x1: tx, y1: axisY, x2: tx, y2: axisY + (yDown ? -TICK : TICK)};
-    ticks.push(tick);
-    inkSeg('a tick mark', tick);
-    addText(t.label, tx, yDown ? axisY - TICK - 8 : axisY + TICK + g + 2, 'middle', 'muted');
+    if (!stages.length) { // stage names are column names: no tick mark under them
+      const tick = {x1: tx, y1: axisY, x2: tx, y2: axisY + (yDown ? -TICK : TICK)};
+      ticks.push(tick);
+      inkSeg('a tick mark', tick);
+    }
+    addText(t.label, tx, yDown ? axisY - TICK - 8 : axisY + TICK + g + 2, 'middle', 'muted', false, undefined, PLANE_AXES);
   }
   for (const t of yTicks) {
     const ty = py(t.at);
     const tick = {x1: axisX, y1: ty, x2: axisX - TICK, y2: ty};
     ticks.push(tick);
     inkSeg('a tick mark', tick);
-    addText(t.label, axisX - TICK - 6, ty + half, 'end', 'muted');
+    addText(t.label, axisX - TICK - 6, ty + half, 'end', 'muted', false, undefined, PLANE_AXES);
   }
   // the axes (lines and arrowheads)
   ink('the x axis', {x: axisX, y: axisY - 2, w: plotR - axisX, h: 4});
@@ -166,11 +179,11 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   ink('the x axis arrow', {x: plotR - 10, y: axisY - 5, w: 12, h: 10});
   ink('the y axis arrow', yDown ? {x: axisX - 5, y: plotB - 10, w: 10, h: 12} : {x: axisX - 5, y: plotT - 2, w: 10, h: 12});
   const grid: LaidOutPlane['grid'] = band.grid ? [
-    ...xTicks.map(t => ({x1: px(t.at), y1: plotT, x2: px(t.at), y2: plotB})),
+    ...(stages.length ? [] : xTicks).map(t => ({x1: px(t.at), y1: plotT, x2: px(t.at), y2: plotB})),
     ...yTicks.map(t => ({x1: plotL, y1: py(t.at), x2: plotR, y2: py(t.at)})),
   ] : [];
-  if (band.x.label) addText(band.x.label, plotR + xLabelGap, axisY + half, 'start', 'muted', true);
-  if (band.y.label) addText(band.y.label, axisX - 4, yDown ? plotB + g + 14 : plotT - 14, 'start', 'muted', true);
+  if (band.x.label) addText(band.x.label, plotR + xLabelGap, axisY + half, 'start', 'muted', true, undefined, PLANE_AXES);
+  if (band.y.label) addText(band.y.label, axisX - 4, yDown ? plotB + g + 14 : plotT - 14, 'start', 'muted', true, undefined, PLANE_AXES);
 
   // A point label's spot for a side: the text anchor, its x, and its baseline.
   type Side = 'right' | 'left' | 'above' | 'below' | 'above-right' | 'above-left' | 'below-right' | 'below-left';
@@ -197,11 +210,11 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
       if (p.labelAt === undefined || p.labelAt === 'auto') {
         if (!p.labelOffset && !isEnd(p)) autoLabels.push({text: texts.length, box: boxes.length, q, label: p.label, bold: true, first: side, leader: isLeader(p)});
       }
-      addText(p.label, sp.x + ox, sp.base + oy, sp.anchor, tone, true, p.reveal);
+      addText(p.label, sp.x + ox, sp.base + oy, sp.anchor, tone, true, p.reveal, p.part);
     }
     if (isEnd(p)) endLabels.push({text: texts.length - 1, box: boxes.length - 1, y: q.y});
     ink('a point', {x: q.x - 7, y: q.y - 7, w: 14, h: 14});
-    return {x: q.x, y: q.y, tone, shape: p.shape ?? 'dot', ...(p.reveal ? {reveal: p.reveal} : {})};
+    return {x: q.x, y: q.y, tone, shape: p.shape ?? 'dot', ...(p.reveal ? {reveal: p.reveal} : {}), ...(p.part ? {part: p.part} : {})};
   });
 
   const lines: LaidOutPlane['lines'] = (band.lines ?? []).map(l => {
@@ -212,8 +225,45 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
       const xs = [b.x, b.x - ux * 10 - uy * 5, b.x - ux * 10 + uy * 5], ys = [b.y, b.y - uy * 10 + ux * 5, b.y - uy * 10 - ux * 5];
       ink('a guide line arrow', {x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)});
     }
-    return {x1: a.x, y1: a.y, x2: b.x, y2: b.y, tone: l.tone ?? 'muted', dashed: l.dashed ?? true, arrow: !!l.arrow, ...(l.reveal ? {reveal: l.reveal} : {})};
+    return {x1: a.x, y1: a.y, x2: b.x, y2: b.y, tone: l.tone ?? 'muted', dashed: l.dashed ?? !stages.length, arrow: !!l.arrow, ...(l.reveal ? {reveal: l.reveal} : {}), ...(l.part ? {part: l.part} : {})};
   });
+
+  // stage dividers, then each evolving point's ring and arrow (the arrow stops at the ring's edge)
+  for (let i = 1; i < stages.length; i++) {
+    const dx = px(must(edges[i])), seg = {x1: dx, y1: plotT, x2: dx, y2: plotB};
+    inkSeg('a stage divider', seg);
+    lines.push({...seg, tone: 'muted', dashed: true, arrow: false});
+  }
+  // Points are told apart by index, not by name: a point may have no label, or share one.
+  const clashes: string[] = [];
+  const pts = band.points ?? [], nameOf = (p: (typeof pts)[number]): string => p.label ?? p.id ?? 'a point';
+  const dots: {x: number; y: number; owner: number; target: boolean; name: string}[] = pts.map((p, i) => ({...pt(p.at), owner: i, target: false, name: nameOf(p)}));
+  pts.forEach((p, i) => {
+    if (!p.evolves) return;
+    const a = pt(p.at), b = {x: px(p.evolves.to), y: a.y}, len = b.x - a.x, stop = {x: b.x - Math.min(8, len / 2), y: b.y}, name = nameOf(p);
+    inkSeg('an evolution arrow', {x1: a.x, y1: a.y, x2: stop.x, y2: stop.y});
+    ink('an evolution arrow', {x: stop.x - 10, y: stop.y - 5, w: 12, h: 10});
+    ink('a point', {x: b.x - 7, y: b.y - 7, w: 14, h: 14});
+    points.push({x: b.x, y: b.y, tone: 'muted', shape: 'ring', ...(p.reveal ? {reveal: p.reveal} : {})});
+    lines.push({x1: a.x, y1: a.y, x2: stop.x, y2: stop.y, tone: p.tone ?? 'accent', dashed: true, arrow: true, ...(p.reveal ? {reveal: p.reveal} : {})});
+    dots.push({...b, owner: i, target: true, name});
+    if (len < 24) clashes.push(`plane: "${name}" (point ${i + 1}) evolves only ${Math.round(len)}px to the right, too short to draw the arrow (move evolves.to further right or widen the figure)`);
+  });
+  // Two points whose drawings meet (a point, its arrow, its target ring) are reported once as a pair, whichever way round and however many parts touch.
+  // At least one of the two must evolve; two plain points that overlap have never been checked.
+  const parts = (i: number) => dots.filter(d => d.owner === i), near = (a: {x: number; y: number}, b: {x: number; y: number}) => Math.hypot(a.x - b.x, a.y - b.y) < 14;
+  const onArrow = (i: number, d: {x: number; y: number}) => { // d lies on the arrow of point i: between its start and its ring, within the arrow head's reach
+    const ring = parts(i).find(q => q.target), src = parts(i).find(q => !q.target);
+    return !!ring && !!src && Math.abs(d.y - src.y) < 12 && d.x > src.x + 7 && d.x < ring.x - 7;
+  };
+  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+    if (!pts[i]?.evolves && !pts[j]?.evolves) continue;
+    const pi = parts(i), pj = parts(j);
+    if (pi.some(a => pj.some(b => near(a, b))) || pj.some(b => onArrow(i, b)) || pi.some(a => onArrow(j, a))) {
+      const tag = (k: number) => `"${nameOf(must(pts[k]))}" (point ${k + 1})`;
+      clashes.push(`plane: ${tag(i)} and ${tag(j)} overlap — a point, an evolution arrow or a target ring of one meets the other (move a point, or change evolves.to)`);
+    }
+  }
 
   const paths: NonNullable<LaidOutPlane['paths']> = (band.paths ?? []).map(pa => {
     if (pa.through.length < 2) throw new Error('plane(): a path needs at least 2 points in `through`');
@@ -240,7 +290,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
       ink('a path arrow', {x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)});
     }
     const overshoot = Math.max(0, ...samples.map(q => Math.max(plotL - q.x, q.x - plotR, plotT - q.y, q.y - plotB)));
-    return {pts, curves, tone: pa.tone ?? 'accent', dashed: pa.dashed ?? false, arrow: !!pa.arrow, tip: {dx: ux, dy: uy}, reveal: pa.reveal, ...(segReveal ? {segReveal} : {}), overshoot};
+    return {pts, curves, tone: pa.tone ?? 'accent', dashed: pa.dashed ?? false, arrow: !!pa.arrow, tip: {dx: ux, dy: uy}, reveal: pa.reveal, ...(segReveal ? {segReveal} : {}), overshoot, ...(pa.part ? {part: pa.part} : {})};
   });
 
   const dims: LaidOutPlane['dims'] = (band.dims ?? []).map((dm, di) => {
@@ -265,7 +315,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
 
   for (const l of band.labels ?? []) {
     const q = pt(l.at);
-    addText(l.text, q.x + (l.offset?.[0] ?? 0), q.y + half + (l.offset?.[1] ?? 0), l.anchor ?? 'middle', l.tone ?? 'text', !!l.bold, l.reveal);
+    addText(l.text, q.x + (l.offset?.[0] ?? 0), q.y + half + (l.offset?.[1] ?? 0), l.anchor ?? 'middle', l.tone ?? 'text', !!l.bold, l.reveal, l.part);
   }
 
   // An automatic point label that sits on the plane's ink (a dimension line and its extension lines included) or on another label moves to the first side that is free (all taken: stays).
@@ -298,7 +348,7 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
 
   // end labels: where two would touch, spread them apart (top to bottom, then back up from the bottom), keeping them on their points as near as possible
   if (endLabels.length >= 1) {
-    const sorted = [...endLabels].sort((a, b) => a.y - b.y), pitch = labelH + 2;
+    const sorted = endLabels.toSorted((a, b) => a.y - b.y), pitch = labelH + 2;
     const lo = plotT + size - 2, hi = plotB - 18; // a label's baseline stays inside the plot, off the axis
     let ys = sorted.map(e => Math.min(hi, Math.max(lo, e.y + half)));
     for (let i = 1; i < ys.length; i++) ys[i] = Math.max(must(ys[i]), must(ys[i - 1]) + pitch);
@@ -313,6 +363,6 @@ export function layoutPlane(band: PlaneBand, x: number, y: number, w: number, wi
   return {
     type: 'plane', id: band.id, x, y, w, h, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), labelSize: size, bounds: {x: left, y, w: width, h},
     axisX, axisY, plotL, plotR, plotT, plotB, yDown,
-    ticks, grid, texts, points, lines, ...(paths.length ? {paths} : {}), dims, labelBoxes: boxes, obstacles,
+    ticks, grid, texts, points, lines, ...(paths.length ? {paths} : {}), dims, labelBoxes: boxes, obstacles, ...(clashes.length ? {clashes: [...new Set(clashes)]} : {}),
   };
 }

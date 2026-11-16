@@ -95,6 +95,7 @@ export const MEASURE_HANDLERS = {
   swimlane: (band, m) => {
     for (const l of band.lanes) m.atoms(l.label, m.roles.title, 700);
     for (const p of band.phases ?? []) m.atoms(p.label, m.roles.note, 700);
+    for (const b of band.boundaries ?? []) if (b.label) m.atoms(b.label, m.roles.note, 700);
     for (const st of band.steps) m.own(st);
   },
   legend: (band, m) => { for (const item of band.items) m.atoms(item.label, m.roles.note, 400); },
@@ -116,6 +117,8 @@ export const MEASURE_HANDLERS = {
   cycle: fromTuples(flowShapeTexts),
   venn: fromTuples(flowShapeTexts),
   concentric: fromTuples(flowShapeTexts),
+  emblem: fromTuples(flowShapeTexts),
+  valueChain: fromTuples(flowShapeTexts),
   bars: fromTuples(barsTexts),
   chart: fromTuples(chartTexts),
   people: fromTuples(peopleTexts),
@@ -130,7 +133,7 @@ export const MEASURE_HANDLERS = {
   cause: fromTuples(causeTexts),
   cloud: fromTuples(cloudTexts),
   states: fromTuples(statesTexts),
-  tree: fromTuples(treeTexts),
+  tree: (band, m) => { fromTuples(treeTexts)(band, m); children(band, m); }, // the nodes' own text, then the bands that are nodes
 } satisfies MeasureHandlerTable;
 
 /** Pass 1: every atom this diagram needs measured, at the font sizes of `roles`. Pure: no measuring happens here. */

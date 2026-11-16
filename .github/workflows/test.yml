@@ -22,6 +22,20 @@ jobs:
           cache: pnpm
       - name: Japanese fonts (text widths are read from the font files; the browser comparisons need the same fonts)
         run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+      # the edge entries (spec/edge, pptx/edge) are tested with the font a Worker bundles, Noto Sans JP; it is kept out of fontconfig so the
+      # browser comparisons above still see the same fonts (test/helpers/text-engine.ts reads SVG_DIAGRAM_JA_FONTS)
+      - name: Noto Sans JP for the edge entries
+        run: |
+          d="$RUNNER_TEMP/ja-fonts"; mkdir -p "$d"
+          base=https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Sans/SubsetOTF/JP
+          curl -sSfL -o "$d/NotoSansJP-Regular.otf" "$base/NotoSansJP-Regular.otf"
+          curl -sSfL -o "$d/NotoSansJP-Bold.otf" "$base/NotoSansJP-Bold.otf"
+          (cd "$d" && sha256sum -c - <<'SUMS'
+          dff723ba59d57d136764a04b9b2d03205544f7cd785a711442d6d2d085ac5073  NotoSansJP-Regular.otf
+          1b0edfb500b73a4fa8a4fcaae1bbbd403994e08e73e3e0da37e70d3853f42c5f  NotoSansJP-Bold.otf
+          SUMS
+          )
+          echo "SVG_DIAGRAM_JA_FONTS=$d" >> "$GITHUB_ENV"
       - run: pnpm install --frozen-lockfile
       # the tests that compare with a real browser (lint --engine browser, --engine chromium, the Chromium measuring engine) need one
       - run: pnpm exec playwright install --with-deps chromium

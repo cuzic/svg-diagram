@@ -7,6 +7,10 @@
 //     is too crowded the rows grow (a `height` is a minimum), and when growing does not help the layout throws and says which item.
 // The rating of a cell is always written (its title / note), the groups are told apart by shape AND colour, and the size of a bubble
 // has a legend: colour is never the only carrier of meaning.
+import {LEGEND, partStep} from './parts.ts';
+
+/** ADR 0054: a quadrant's axes (its crosshair and the axis texts) are one part. */
+export const AXES = partStep('axes', 0, '');
 import {assertScope} from './scope-name.ts';
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
@@ -81,6 +85,8 @@ export interface QuadrantOpts extends RevealOpts, ScopeOpts {
   /** What the bubble area stands for ('売上'), and its unit ('億円'), for the size legend. */
   sizeTitle?: string;
   sizeUnit?: string;
+  /** The whole heading of the size legend, replacing "円の面積 = <sizeTitle>" (for a figure in another language). */
+  sizeLegend?: string;
   /** The order the groups are listed in the legend (default: first use). */
   groups?: readonly string[];
   /** No gaps between the cells: the cells read as one plot cut by a crosshair. */
@@ -108,6 +114,7 @@ export interface QuadrantBand {
   items: QuadrantItem[];
   arrows: QuadrantArrow[];
   sizeTitle?: string;
+  sizeLegend?: string;
   sizeUnit?: string;
   groups: string[];
   crosshair: boolean;
@@ -123,12 +130,12 @@ export interface QuadrantBand {
 
 export type QuadrantShape = 'circle' | 'square' | 'diamond' | 'triangle';
 export type QuadrantInk = 'text' | 'muted' | 'accent' | 'danger';
-export interface QuadrantText {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; size: number; bold: boolean; fill: QuadrantInk; /** index into bubbles: dims with its bubble */ item?: number}
+export interface QuadrantText {text: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; size: number; bold: boolean; fill: QuadrantInk; /** index into bubbles: dims with its bubble */ item?: number; /** ADR 0054: the part it is grouped in (a cell's caption, the axes, a legend entry) */ part?: string; /** ADR 0034: written as `data-node` (set by withNodeIds) */ dataNode?: string}
 export interface QuadrantBubble {
   x: number; y: number; /** area radius */ r: number; /** the radius of the circle that holds the shape */ cr: number; shape: QuadrantShape; tone: QuadrantInk;
   /** drawn as an outline (groups 5 to 8) */ hollow: boolean;
   /** index into cells: the cell the item belongs to (verify checks that it stays inside) */ cell: number;
-  id?: string; label: string; dim?: boolean;
+  id?: string; label: string; dim?: boolean; /** ADR 0034: written as `data-node` on the marker (set by withNodeIds) */ dataNode?: string;
 }
 export type QuadrantBoxKind = 'item' | 'arrow' | 'caption' | 'axis' | 'legend';
 export interface LaidOutQuadrant extends Rect, Dimmed {
@@ -138,7 +145,7 @@ export interface LaidOutQuadrant extends Rect, Dimmed {
   until?: number;
   plot: Rect;
   crosshair: boolean;
-  cells: (Rect & {tone: QuadrantTone})[];
+  cells: (Rect & {tone: QuadrantTone; /** ADR 0054 */ part?: string})[];
   /** The free-shaped regions as pixel polygons, in drawing order (their captions are in `texts`). */
   regions: {points: [number, number][]; tone: QuadrantTone}[];
   /** The lines of a crosshair (the inner cell borders). */
@@ -149,7 +156,7 @@ export interface LaidOutQuadrant extends Rect, Dimmed {
   /** The backing of an arrow's label. */
   chips: Rect[];
   /** Markers of the legend (a group's shape, a reference bubble). */
-  marks: {x: number; y: number; r: number; shape: QuadrantShape; tone: QuadrantInk; ring: boolean; hollow?: boolean}[];
+  marks: {x: number; y: number; r: number; shape: QuadrantShape; tone: QuadrantInk; ring: boolean; hollow?: boolean; /** ADR 0054: its legend entry */ part?: string}[];
   anchors: Anchor[];
   /** Every text, as a rect: verify.ts reports two that overlap or one that leaves the figure. */
   labelBoxes: (Rect & {label: string; kind: QuadrantBoxKind; /** an item label: index into bubbles */ item?: number})[];
@@ -333,7 +340,7 @@ export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
   return {
     type: 'quadrant', ...(opts.id ? {id: opts.id} : {}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until}),
     x, y, cols, rows, cells, items, arrows, groups, crosshair: opts.crosshair ?? p?.crosshair ?? false, regions,
-    ...(opts.sizeTitle === undefined ? {} : {sizeTitle: opts.sizeTitle}), ...(opts.sizeUnit === undefined ? {} : {sizeUnit: opts.sizeUnit}),
+    ...(opts.sizeTitle === undefined ? {} : {sizeTitle: opts.sizeTitle}), ...(opts.sizeLegend === undefined ? {} : {sizeLegend: opts.sizeLegend}), ...(opts.sizeUnit === undefined ? {} : {sizeUnit: opts.sizeUnit}),
     height: opts.height ?? p?.height, ...(opts.width === undefined ? {} : {width: opts.width}),
     ...(opts.allowEmpty === undefined ? {} : {allowEmpty: opts.allowEmpty === true ? true : opts.allowEmpty.map(([c, r]) => [c, r] as [number, number])}),
   };
@@ -353,7 +360,7 @@ export function sizeRefs(max: number): number[] {
   const v = [5, 2, 1].map(m => m * mag).find(m => m <= max * (1 + 1e-9)) ?? mag;
   return [v, v / 10];
 }
-const sizeLegendTitle = (b: QuadrantBand): string => `円の面積 = ${b.sizeTitle ?? '大きさ'}`;
+const sizeLegendTitle = (b: QuadrantBand): string => b.sizeLegend ?? `円の面積 = ${b.sizeTitle ?? '大きさ'}`;
 const sizeRefLabel = (b: QuadrantBand, v: number): string => `${fmtNum(v)}${b.sizeUnit ?? ''}`;
 const maxSize = (b: QuadrantBand): number => Math.max(0, ...b.items.map(i => i.size ?? 0));
 
@@ -419,7 +426,9 @@ interface Unit {
   col: number; row: number; ideal?: {x: number; y: number};
 }
 interface Spot {cx: number; cy: number; side: Side; box: Rect}
-class Grow extends Error {why: string; constructor(why: string) { super(why); this.why = why; }}
+/** An attempt that found no free spot for an item: why, so that the next one has the rows grown (or the items free to move). */
+interface Grow {grow: string}
+const isGrow = <T extends object>(r: T | Grow): r is Grow => 'grow' in r;
 
 export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, mode: WrapMode): LaidOutQuadrant {
   const size = roles.note, tSize = roles.title, lineN = size + 4, lineT = tSize + 5;
@@ -453,7 +462,9 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   const groupIndex = (g: string | undefined) => g === undefined ? -1 : band.groups.indexOf(g);
   const baseRow = Math.max(band.height ?? (rows === 2 ? 340 : 120 * rows + 90), 0) / rows;
   const rMax = Math.max(14, Math.min(44, Math.min(cw, baseRow - Math.max(...hdr)) * 0.2));
-  const labelW = Math.max(70, Math.min(150, cw * 0.55));
+  // an item label wraps at 150px for 14px text; a canvas (larger text) widens it in step, so a name keeps the same number of characters a line
+  // only a canvas (it sets roles.tag) widens it: a fill: true slide scales its roles too, and its fitted layout stays as before
+  const labelW = Math.max(70, Math.min(roles.tag !== undefined ? 150 * size / 14 : 150, cw * 0.55));
   const units: Unit[] = band.items.map((item, i) => {
     const gi = groupIndex(item.group);
     const shape = gi < 0 ? 'circle' : groupStyle(gi).shape, hollow = gi >= 0 && groupStyle(gi).hollow;
@@ -507,11 +518,11 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
 
     // ---- captions
     band.cells.forEach((rowCells, r) => rowCells.forEach((cell, k) => {
-      const cap = must(must(caps[r])[k]), cr0 = cellRect(k, r);
+      const cap = must(must(caps[r])[k]), cr0 = cellRect(k, r), part = band.regions.length ? undefined : partStep('cell', r * cols + k, [...cap.t].join('')); // ADR 0054
       const ink: QuadrantInk = cell.tone === 'accent' ? 'accent' : cell.tone === 'danger' ? 'danger' : 'text';
       let top = cr0.y + 8;
-      for (const line of cap.t) { texts.push({text: line, x: cr0.x + 10, y: top + tSize, anchor: 'start', size: tSize, bold: true, fill: ink}); top += lineT; }
-      for (const line of cap.n) { texts.push({text: line, x: cr0.x + 10, y: top + size, anchor: 'start', size, bold: false, fill: 'muted'}); top += lineN; }
+      for (const line of cap.t) { texts.push({text: line, x: cr0.x + 10, y: top + tSize, anchor: 'start', size: tSize, bold: true, fill: ink, ...(part ? {part} : {})}); top += lineT; }
+      for (const line of cap.n) { texts.push({text: line, x: cr0.x + 10, y: top + size, anchor: 'start', size, bold: false, fill: 'muted', ...(part ? {part} : {})}); top += lineN; }
       if (cap.t.length + cap.n.length) {
         const wd = Math.max(widest(cap.t, tSize, 700), widest(cap.n, size, 400)), box = {x: cr0.x + 10, y: cr0.y + 8, w: wd, h: top - cr0.y - 8};
         headers.push(box);
@@ -593,7 +604,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     for (const u of units.filter(u => u.ideal)) {
       const ideal = u.ideal as {x: number; y: number};
       const s = settle(u, g4(ideal.x), g4(ideal.y), SIDES, bodyRect(u.col, u.row), moveLimit);
-      if (!s) throw new Grow(`"${u.item.label}" has no free spot ${moveLimit < 1e6 ? `within ${moveLimit}px of its coordinates` : 'in its cell'}`);
+      if (!s) return {grow: `"${u.item.label}" has no free spot ${moveLimit < 1e6 ? `within ${moveLimit}px of its coordinates` : 'in its cell'}`};
       placed.push({u, spot: s});
       const px = Math.hypot(s.cx - ideal.x, s.cy - ideal.y);
       if (Math.hypot(s.cx - ideal.x, s.cy - ideal.y) > 3) moved.push({id: u.item.id, label: u.item.label, px});
@@ -601,30 +612,30 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     for (const [key, flow] of flows) {
       const k = Number(key.split(',')[0]), r = Number(key.split(',')[1]), body = bodyRect(k, r);
       const {rows: flowRows, heights: rowHs, total} = flow;
-      const n = flowRows.reduce((a, fr) => a + fr.length, 0);
-      if (total > body.h - 10) throw new Grow(`the cell [${k}, ${r}] cannot hold ${n} item${n > 1 ? 's' : ''}`);
+      // the rows are made at least `flowNeed` (total + 12) high, so the flow always fits its cell: only a spot can be missing
       let top = body.y + (body.h - total) / 2;
-      flowRows.forEach((fr, fi) => {
+      for (const [fi, fr] of flowRows.entries()) {
         const rw = fr.reduce((a, u) => a + uw(u), 0) + 12 * (fr.length - 1);
         let cx0 = body.x + (body.w - rw) / 2;
         for (const u of fr) {
           const cx = g4(cx0 + uw(u) / 2), cy = g4(top + u.cr);
           cx0 += uw(u) + 12;
           const s = tryAt(u, cx, cy, ['below']) ?? settle(u, g4(body.x + body.w / 2), g4(body.y + body.h / 2), FLOW_SIDES, body, 1e9);
-          if (!s) throw new Grow(`"${u.item.label}" has no free spot in its cell`);
+          if (!s) return {grow: `"${u.item.label}" has no free spot in its cell`};
           placed.push({u, spot: s});
         }
         top += must(rowHs[fi]) + 10;
-      });
+      }
     }
     return {regionPolys, rowH, plotT, plotB, plot, placed, moved, texts, labelBoxes, headers, cellRect, toCell, inPlot, free, labelAt};
   };
 
-  let result: ReturnType<typeof attempt> | undefined, lastWhy = '';
+  let result: Exclude<ReturnType<typeof attempt>, Grow> | undefined, lastWhy = '';
   // first keep every item near its coordinates and grow the rows; as a last resort let a crowded item move anywhere in its cell (the rule quadrant-item-moved says so)
   for (const [limit, tries] of [[MAX_MOVE, 9], [1e9, 4]] as const) {
     for (let k = 0; k < tries && !result; k++) {
-      try { result = attempt(1 + k * 0.25, limit); } catch (e) { if (!(e instanceof Grow)) throw e; lastWhy = e.why; }
+      const got = attempt(1 + k * 0.25, limit);
+      if (isGrow(got)) lastWhy = got.grow; else result = got;
     }
   }
   if (!result) throw new Error(`quadrant(): ${lastWhy}, even with the rows grown — fewer items, smaller sizes, a wider figure or a coarser grid`);
@@ -686,7 +697,8 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   }
 
   // ---- cells, axis names
-  const cells = band.cells.flatMap((rowCells, r) => rowCells.map((cell, k) => ({...cellRect(k, r), tone: cell.tone ?? 'plain'})));
+  // ADR 0054: a cell's part (its caption's, see the captions above); none where regions are drawn over the cells
+  const cells = band.cells.flatMap((rowCells, r) => rowCells.map((cell, k) => ({...cellRect(k, r), tone: cell.tone ?? 'plain', ...(band.regions.length ? {} : {part: partStep('cell', r * cols + k, [...must(must(caps[r])[k]).t].join(''))})})));
   const lines: LaidOutQuadrant['lines'] = [];
   if (band.crosshair) {
     for (let k = 1; k < cols; k++) lines.push({x1: plotL + must(colGrid.x[k]), y1: plotT, x2: plotL + must(colGrid.x[k]), y2: plotB});
@@ -699,21 +711,21 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   };
   const yx = plotL - 10;
   const topEnd = band.y.reversed ? band.y.low : band.y.high, bottomEnd = band.y.reversed ? band.y.high : band.y.low;
-  if (topEnd) { texts.push({text: topEnd, x: yx, y: plotT + size + 4, anchor: 'end', size, bold: false, fill: 'muted'}); axisBox(topEnd, size, 400, 'end', yx, plotT + size + 4); }
-  if (bottomEnd) { texts.push({text: bottomEnd, x: yx, y: plotB - 6, anchor: 'end', size, bold: false, fill: 'muted'}); axisBox(bottomEnd, size, 400, 'end', yx, plotB - 6); }
+  if (topEnd) { texts.push({text: topEnd, x: yx, y: plotT + size + 4, anchor: 'end', size, bold: false, fill: 'muted', part: AXES}); axisBox(topEnd, size, 400, 'end', yx, plotT + size + 4); }
+  if (bottomEnd) { texts.push({text: bottomEnd, x: yx, y: plotB - 6, anchor: 'end', size, bold: false, fill: 'muted', part: AXES}); axisBox(bottomEnd, size, 400, 'end', yx, plotB - 6); }
   const ty = (plotT + plotB) / 2 - (yTitle.length * lineT) / 2;
-  yTitle.forEach((line, k) => { const base = ty + k * lineT + tSize; texts.push({text: line, x: yx, y: base, anchor: 'end', size: tSize, bold: true, fill: 'text'}); axisBox(line, tSize, 700, 'end', yx, base); });
+  yTitle.forEach((line, k) => { const base = ty + k * lineT + tSize; texts.push({text: line, x: yx, y: base, anchor: 'end', size: tSize, bold: true, fill: 'text', part: AXES}); axisBox(line, tSize, 700, 'end', yx, base); });
   const xBase = plotB + 10 + size;
-  if (xLeft) { texts.push({text: xLeft, x: plotL, y: xBase, anchor: 'start', size, bold: false, fill: 'muted'}); axisBox(xLeft, size, 400, 'start', plotL, xBase); }
-  if (xRight) { texts.push({text: xRight, x: plotR, y: xBase, anchor: 'end', size, bold: false, fill: 'muted'}); axisBox(xRight, size, 400, 'end', plotR, xBase); }
-  texts.push({text: band.x.title, x: (plotL + plotR) / 2, y: xBase, anchor: 'middle', size: tSize, bold: true, fill: 'text'});
+  if (xLeft) { texts.push({text: xLeft, x: plotL, y: xBase, anchor: 'start', size, bold: false, fill: 'muted', part: AXES}); axisBox(xLeft, size, 400, 'start', plotL, xBase); }
+  if (xRight) { texts.push({text: xRight, x: plotR, y: xBase, anchor: 'end', size, bold: false, fill: 'muted', part: AXES}); axisBox(xRight, size, 400, 'end', plotR, xBase); }
+  texts.push({text: band.x.title, x: (plotL + plotR) / 2, y: xBase, anchor: 'middle', size: tSize, bold: true, fill: 'text', part: AXES});
   axisBox(band.x.title, tSize, 700, 'middle', (plotL + plotR) / 2, xBase);
 
   // ---- legends: the groups (shape + colour + name), then what the bubble area means
   const marks: LaidOutQuadrant['marks'] = [];
   let cursorY = g4(xBase + 14);
-  const legendText = (text: string, lx: number, ly: number, anchor: 'start' | 'middle' | 'end' = 'start') => {
-    texts.push({text, x: lx, y: ly + size - 2, anchor, size, bold: false, fill: 'text'});
+  const legendText = (text: string, lx: number, ly: number, anchor: 'start' | 'middle' | 'end' = 'start', part?: string) => {
+    texts.push({text, x: lx, y: ly + size - 2, anchor, size, bold: false, fill: 'text', ...(part ? {part} : {})});
     const wd = tw(text, size, 400);
     labelBoxes.push({x: anchor === 'end' ? lx - wd : lx, y: ly - 1, w: wd, h: size + 3, label: text, kind: 'legend'});
   };
@@ -722,8 +734,9 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     for (const [gi, g] of band.groups.entries()) {
       const need = 24 + tw(g, size, 400) + 20;
       if (lx > plotL && lx + need > plotR) { lx = plotL; ly += 26; }
-      marks.push({x: g4(lx + 9), y: ly + 8, r: 7, ...groupStyle(gi), ring: false});
-      legendText(g, lx + 22, ly);
+      const part = `${LEGEND}/${partStep('entry', gi, g)}`;
+      marks.push({x: g4(lx + 9), y: ly + 8, r: 7, ...groupStyle(gi), ring: false, part});
+      legendText(g, lx + 22, ly, 'start', part);
       lx += need;
     }
     cursorY = ly + 28;
@@ -733,13 +746,15 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
     const title = sizeLegendTitle(band);
     let lx = plotL;
     const rowMid = g4(rowTopY + Math.max(rMax, size) + 2);
-    legendText(title, lx, rowMid - size / 2 - 1);
+    const sizes = partStep('size legend', 0, title);
+    legendText(title, lx, rowMid - size / 2 - 1, 'start', sizes);
     lx += tw(title, size, 400) + 22;
     for (const rf of refs) {
       const label = sizeRefLabel(band, rf.v), need = 2 * rf.r + 8 + tw(label, size, 400) + 22;
       if (lx + need - 22 > plotR) break;
-      marks.push({x: g4(lx + rf.r), y: g4(rowMid), r: rf.r, shape: 'circle', tone: 'muted', ring: true});
-      legendText(label, lx + 2 * rf.r + 8, rowMid - size / 2 - 1);
+      const part = `${sizes}/${partStep('entry', {index: label}, label)}`;
+      marks.push({x: g4(lx + rf.r), y: g4(rowMid), r: rf.r, shape: 'circle', tone: 'muted', ring: true, part});
+      legendText(label, lx + 2 * rf.r + 8, rowMid - size / 2 - 1, 'start', part);
       lx += need;
     }
     cursorY = rowMid + Math.max(rMax, size) + 8;

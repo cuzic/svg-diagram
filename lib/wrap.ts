@@ -71,6 +71,7 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
   let cur: A[] = [];
   let curWidth = 0;
   let hardBreakBeforeLast = false; // the last line starts after an explicit \n: its length is the author's
+  let lastLineStart = 0; // index in `atoms` of the first atom of the line being built (the orphan fix needs what stood just before it)
   // phrase mode: atom i continues atom i-1 when both sit in one katakana / kanji run (until such a unit is wider than a line: then it breaks per character)
   const runGlue = runGlueOf(atoms, mode);
 
@@ -97,8 +98,10 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
       while (j + 1 < atoms.length && must(atoms[j + 1]).glue) unit.push(must(atoms[++j]));
       w = unit.reduce((s, a) => s + atomWidth(a), 0);
     }
+    const start = i;
     i = j;
     if (cur.length === 0 || curWidth + w <= maxWidth) {
+      if (cur.length === 0) lastLineStart = start;
       cur.push(...unit);
       curWidth += w;
     } else if (CANNOT_START_LINE.has(atom.text)) {
@@ -117,6 +120,7 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
       lines.push(cur);
       cur = unit;
       curWidth = w;
+      lastLineStart = start;
       hardBreakBeforeLast = false;
     }
   }
@@ -132,11 +136,13 @@ export function wrapStyledAtoms<A extends {text: string; glue?: boolean}>(atoms:
     if (solo) {
       let at = prev.length - 1;
       while (at >= 0 && isWhitespace(must(prev[at]).text)) at--;
-      const moved = prev[at];
+      // The orphan stood after a space in the source when the atom before it there is white space (a wrap at a space drops it): 'G' + ' ' + 'H', not 'GH'.
+      const sep = atoms[lastLineStart - 1], moved = prev[at], gap = prev.slice(at + 1);
+      const between = gap.length ? gap : (sep && isWhitespace(sep.text) ? [sep] : []);
       if (moved && at >= 2 && !moved.glue && !prev[at + 1]?.glue && !runGlued.has(moved) && !CANNOT_END_LINE.has(must(prev[at - 1]).text) && !CANNOT_START_LINE.has(moved.text)
-        && atomWidth(moved) + atomWidth(must(last[0])) <= maxWidth) {
-        prev.length = at;            // drops the moved atom and the white space after it
-        last.unshift(moved);
+        && atomWidth(moved) + between.reduce((w, a) => w + atomWidth(a), 0) + atomWidth(must(last[0])) <= maxWidth) {
+        prev.length = at;            // drops the moved atom and the white space after it ...
+        last.unshift(moved, ...between); // ... which both go to the front of the last line
       }
     }
   }

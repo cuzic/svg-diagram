@@ -59,5 +59,8 @@ export async function renderSource(file: string, opts: RenderSourceOptions = {})
   return {svg: r.svg, ...(r.html !== undefined ? {html: r.html} : {}), ok: problems.length === 0, problems, warnings: r.verdict.warnings, notes: r.notes, width: r.width, height: r.height, deps: [...new Set([abs, ...depsOf(abs).files, ...[config._file, findManifest(path.dirname(abs))].filter((f): f is string => !!f)])]};
 }
 
+export {MAX_FIGURE_HEIGHT, MAX_PNG_PIXELS, lintMessages, lintRendering, renderSpec, svgToPng} from './spec-render.ts';
+export type {RenderChecks, RenderSpecOptions, RenderSpecResult} from './spec-render.ts';
+
 /** Stops the Chromium that text measurement started. Call once when done (a long-lived dev server may leave it open). */
 export {closeMeasurer as close};

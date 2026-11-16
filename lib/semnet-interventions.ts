@@ -31,13 +31,13 @@ export function planInterventions(c: Canvas, items: readonly IvItem[], positions
     const horizontal = side !== 'left', len = (i: IvItem): number => horizontal ? i.w : BOX_H;
     const centreU = (r: Rect): number => horizontal ? r.x + r.w / 2 : r.y + r.h / 2;
     const want = new Map(group.map(i => [i.id, i.to.reduce((a, t) => a + centreU(must(positions.get(t))), 0) / i.to.length]));
-    const order = [...group].sort((a, b) => must(want.get(a.id)) - must(want.get(b.id)) || (a.id < b.id ? -1 : 1));
+    const order = group.toSorted((a, b) => must(want.get(a.id)) - must(want.get(b.id)) || (a.id < b.id ? -1 : 1));
     const lo = (horizontal ? c.x : c.y) + MARGIN, start = new Map<string, number>();
     let prev = lo - GAP;
     for (const i of order) { const s = Math.max(must(want.get(i.id)) - len(i) / 2, prev + GAP); start.set(i.id, s); prev = s + len(i); }
     if (horizontal) {
       const hi = c.x + c.w - MARGIN; let next = hi + GAP;
-      for (const i of [...order].reverse()) { const s = Math.min(must(start.get(i.id)), next - GAP - len(i)); start.set(i.id, s); next = s; }
+      for (const i of order.toReversed()) { const s = Math.min(must(start.get(i.id)), next - GAP - len(i)); start.set(i.id, s); next = s; }
       if (next < lo - 1e-6) return {problem: `the ${group.length} intervention boxes on the ${side} (${group.map(i => `"${i.label}"`).join(', ')}) are wider than the figure (${Math.round(c.w)}px)`};
     } else if (prev + MARGIN > c.y + c.h) c.h = prev + MARGIN - c.y; // a column of boxes may be taller than the loop; the figure grows
     for (const i of order) {

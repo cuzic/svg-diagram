@@ -113,11 +113,11 @@ export function layoutMulti(s: MultiSpec, g: ChartGeom): LaidOutChartPart {
   let lx = g.x, row = 0;
   if (many) s.names.forEach((nm, i) => { const w = 20 + 6 + c.tw(nm) + 22; if (lx + w - 22 > g.x + g.w && lx > g.x) { lx = g.x; row++; } legend.push({x: lx, row, i}); lx += w; });
   const legendH = many ? (row + 1) * (S + 12) : 0;
-  legend.forEach(l => {
+  legend.forEach(l => c.legendEntry(l.i, must(s.names[l.i]), () => {
     const cy = g.y + l.row * (S + 12) + Math.max(9, Math.ceil(S * 0.64));
     c.path(markerPath(must(SHAPES[l.i]), l.x + 7, cy, 5.5), {fill: tone(l.i), op: 0.85});
     c.text(must(s.names[l.i]), l.x + 20, c.mid(cy), 'start', 'text');
-  });
+  }));
   const marks: {x: number; y: number}[] = [];
   const dots = (sx: (v: number) => number, sy: (v: number) => number, xs: readonly number[], ys: readonly number[], r: number) => xs.forEach((v, i) => {
     const q = {x: sx(v), y: sy(must(ys[i]))}, k = must(s.gi[i]);

@@ -12,7 +12,7 @@ export type Dir = 'down' | 'right';
 export interface TreeNode {id: string; size: Size; children?: TreeNode[]}
 export interface TreeOpts {dir?: Dir; /** space between siblings */ gap?: number; /** space between a level and the next */ levelGap?: number}
 /** A `{` brace gathering the children of one parent (map-layouts.ts): its spine at x from y1 to y2, the tip at (tipX, ymid) pointing at the parent. */
-export interface Brace {x: number; y1: number; y2: number; ymid: number; tipX: number; side: 'right' | 'left'}
+export interface Brace {x: number; y1: number; y2: number; ymid: number; tipX: number; side: 'right' | 'left'; /** The id of the parent whose children it gathers (ADR 0054: it is in that parent's branch). */ of?: string}
 export interface TreeLayout {
   nodes: Map<string, Placed>;
   /** parent -> child polylines (centre to centre, elbow at the half-way level); `curve`: drawn as a smooth S along that axis; `bold`: a spine */
@@ -172,9 +172,11 @@ export interface LayeredOpts {
    * hold. A layer that fits is not touched; without `fold` nothing is added to the layering. `folded` in the result lists the layers that were cut.
    */
   fold?: number;
+  /** Stop once the order of each layer is found, and return only how many links cross between the layers (`orderCrossings`): a search ranks orders with it (ADR 0053). */
+  orderOnly?: boolean;
 }
 export interface LayeredEdgeOut {from: string; to: string; /** index of this edge in the input list */ index: number; /** centre to centre, through the layers it skips; reversed edges are drawn from `from` anyway */ points: Pt[]; reversed: boolean; self: boolean; /** runs in an outer lane (see LayeredOpts.outer) */ outer?: true}
-export interface LayeredLayout {nodes: Map<string, Placed>; edges: LayeredEdgeOut[]; /** layer index of each node (0 = first) */ layers: Map<string, number>; w: number; h: number; /** only with `fold`, when a layer was cut: its number before the cut (from 0) and the rows it became */ folded?: {layer: number; rows: number}[]}
+export interface LayeredLayout {/** Only with `orderOnly`: the links that cross between the layers once they are ordered. */ orderCrossings?: number; nodes: Map<string, Placed>; edges: LayeredEdgeOut[]; /** layer index of each node (0 = first) */ layers: Map<string, number>; w: number; h: number; /** only with `fold`, when a layer was cut: its number before the cut (from 0) and the rows it became */ folded?: {layer: number; rows: number}[]}
 
 /**
  * Which edges (by index in `edges`) a layering reverses to be acyclic. The `declared` ones (a return the author named, `back: true`)
@@ -254,7 +256,7 @@ function brandesKoepf(rows: string[][], succ: Map<string, string[]>, pred: Map<s
     const prev = up ? succ : pred; // the neighbours in the row before, in this view
     const pos = new Map<string, number>(), rowOf = new Map<string, string[]>();
     for (const r of view) r.forEach((id, i) => { pos.set(id, i); rowOf.set(id, r); });
-    const before = (v: string): string[] => [...must(prev.get(v))].sort((a, b) => must(pos.get(a)) - must(pos.get(b)));
+    const before = (v: string): string[] => must(prev.get(v)).toSorted((a, b) => must(pos.get(a)) - must(pos.get(b)));
     // 1. a segment that crosses an inner one (dummy to dummy) never gets aligned
     const conflict = new Set<string>();
     for (let i = 0; i + 1 < view.length; i++) {
@@ -326,6 +328,11 @@ function brandesKoepf(rows: string[][], succ: Map<string, string[]>, pred: Map<s
  * Nodes keep input order inside a layer until barycentre sweeps cut crossings; an edge that skips layers goes through a
  * dummy slot per layer so it does not run over the nodes in between. `start` ids (the entry states) are pinned to layer 0.
  */
+/** How many links cross between the layers when the nodes are written in this order: the ordering of layoutLayered and nothing after it, so a search can rank orders without laying each one out. */
+export function orderCrossings(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]; back?: readonly number[]} = {}): number {
+  return layoutLayered(nodes, edges, {...opts, orderOnly: true}).orderCrossings ?? 0;
+}
+
 export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]; back?: readonly number[]} = {}): LayeredLayout {
   const dir = opts.dir ?? 'right', gap = opts.gap ?? GAP, levelGap = opts.levelGap ?? LEVEL_GAP * 1.5, sweeps = opts.sweeps ?? 4;
   const ids = new Set<string>();
@@ -366,7 +373,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     const byLayer = [...layer.keys()].sort((p, q) => must(layer.get(p)) - must(layer.get(q)));
     for (const u of byLayer) if (!keep.has(u) && must(preds.get(u)).every(p => movers.has(p))) movers.add(u);
     // then from the last layer back, so a mover's targets (movers too) have already moved
-    for (const u of [...byLayer].reverse()) {
+    for (const u of byLayer.toReversed()) {
       const ts = must(succs.get(u));
       if (!movers.has(u) || !ts.length) continue;
       const l = Math.min(...ts.map(t => must(layer.get(t)))) - 1;
@@ -442,7 +449,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     chain.push(to);
     chains.push({e: d.e, index: d.index, ids: chain, rev: d.rev});
     // links always run from the lower layer to the higher one
-    const asc = la < lb ? chain : [...chain].reverse();
+    const asc = la < lb ? chain : chain.toReversed();
     for (let k = 0; k + 1 < asc.length; k++) link(must(asc[k]), must(asc[k + 1]));
   });
 
@@ -459,7 +466,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
   const nComp = compOfRoot.size;
   const rows: string[][] = Array.from({length: nLayers}, () => []);
   const rowAt = (l: number): string[] => must(rows[l]); // l < nLayers at every call
-  for (const sl of [...byRank].sort((p, q) => must(compIdx.get(p.id)) - must(compIdx.get(q.id)))) rowAt(sl.layer).push(sl.id); // stable: input order inside a component
+  for (const sl of byRank.toSorted((p, q) => must(compIdx.get(p.id)) - must(compIdx.get(q.id)))) rowAt(sl.layer).push(sl.id); // stable: input order inside a component
 
   // 4. barycentre sweeps, down then up, keeping the order of nodes with no neighbour
   const pos = new Map<string, number>();
@@ -505,6 +512,8 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
       }
     }
   }
+
+  if (opts.orderOnly) return {nodes: new Map(), edges: [], layers: new Map(), w: 0, h: 0, orderCrossings: allCrossings()} as unknown as LayeredLayout;
 
   // 5. coordinates: layers along one axis, each layer centred on the widest, then relaxed toward the neighbours without overlap
   const thick = rows.map(r => Math.max(0, ...r.map(id => along(must(slots.get(id)).size))));
@@ -577,7 +586,7 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
       continue;
     }
     // the chain runs in layering order; a reversed edge's real direction is the other way
-    const pts = (c.rev ? [...c.ids].reverse() : c.ids).map(centre);
+    const pts = (c.rev ? c.ids.toReversed() : c.ids).map(centre);
     edgesOut.push({from: c.e.from, to: c.e.to, index: c.index, points: pts, reversed: c.rev, self: false});
   }
   const total = must(at[nLayers - 1]) + must(thick[nLayers - 1]);

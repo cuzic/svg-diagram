@@ -19,35 +19,35 @@
   <text x="80" y="87" font-size="15" font-weight="700" fill="#22201b">調べる</text>
   <g role="img" aria-label="手順 1" data-badge="">
   <circle cx="56" cy="80" r="15" fill="#1d5fa8"/>
-  <text x="55" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">1</text>
+  <text x="56" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">1</text>
   </g>
 
   <rect x="204" y="56" width="164" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <text x="264" y="87" font-size="15" font-weight="700" fill="#22201b">直す</text>
   <g role="img" aria-label="手順 2" data-badge="">
   <circle cx="240" cy="80" r="15" fill="#1d5fa8"/>
-  <text x="239" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">2</text>
+  <text x="240" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">2</text>
   </g>
 
   <rect x="388" y="56" width="164" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <text x="448" y="87" font-size="15" font-weight="700" fill="#22201b">確かめる</text>
   <g role="img" aria-label="手順 3" data-badge="">
   <circle cx="424" cy="80" r="15" fill="#1d5fa8"/>
-  <text x="423" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">3</text>
+  <text x="424" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">3</text>
   </g>
 
   <rect x="572" y="56" width="164" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <text x="632" y="87" font-size="15" font-weight="700" fill="#22201b">出す</text>
   <g role="img" aria-label="手順 4" data-badge="">
   <circle cx="608" cy="80" r="15" fill="#1d5fa8"/>
-  <text x="607" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">4</text>
+  <text x="608" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">4</text>
   </g>
 
   <rect x="756" y="56" width="164" height="52" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <text x="816" y="87" font-size="15" font-weight="700" fill="#22201b">振り返る</text>
   <g role="img" aria-label="手順 5" data-badge="">
   <circle cx="792" cy="80" r="15" fill="#1d5fa8"/>
-  <text x="791" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">5</text>
+  <text x="792" y="87" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">5</text>
   </g>
 
   <path d="M184,83 L204,83" fill="none" stroke="#22201b" stroke-width="2.5" marker-end="url(#dsl-arrow)"/>

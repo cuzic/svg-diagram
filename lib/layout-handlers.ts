@@ -14,8 +14,10 @@ import {layoutQuadrant} from './quadrant.ts';
 import {layoutFlowShape} from './flow-shapes.ts';
 import {layoutWordArt} from './wordart.ts';
 import {CANVAS_MIN_ROW_H, canvasColumns, canvasRowHeights, canvasSpan} from './canvas.ts';
-import {layoutTreeBand, narrowField} from './tree.ts';
+import {layoutTreeBand, narrowField, treeItems} from './tree.ts';
+import {resolveAnchor} from './anchor-scope.ts';
 import {layoutStatesBand} from './states.ts';
+import {statesWords} from './states-words.ts';
 import {CAUSE_ROLES, layoutCauseBand, layoutCloudBand} from './toc.ts';
 import {layoutGantt} from './gantt.ts';
 import {layoutStatus} from './status.ts';
@@ -28,6 +30,7 @@ import {layoutChart} from './charts.ts';
 import {layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {GroupBand, LegendBand, ConnectBand, GroupRowBand, RowBand, GridBand, RawBand, SpacerBand, StatusBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow, RowArrow} from './types/containers.ts';
 import type {Rect} from './types/core.ts';
+import type {LaidOutTree, TreeItem} from './types/diagrams.ts';
 import type {PyramidBand, CurveBand, LaidOutPyramidLayer} from './types/figures.ts';
 import type {ImageBand} from './types/image.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
@@ -36,7 +39,7 @@ import type {BoxBand, CaptionBand, BannerBand} from './types/text-bands.ts';
 import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
 import {PALETTE, SHADES, blendLuminance, bestTextColor, paintOf} from './tokens.ts';
 import {
-  BOX_PAD_X, LINE_HEIGHT_EM, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, CANVAS_MIN_REGION_W, SWIMLANE_COMFY_COL, STAMP_GAP, STAMP_H, TAG_H,
+  BOX_PAD_X, LINE_HEIGHT_EM, boundaryChipH, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, CANVAS_MIN_REGION_W, SWIMLANE_COMFY_COL, STAMP_GAP, STAMP_H, TAG_H,
   groupTitleBand, gridChildGeometry, gridColumns, rowChildGeometry, snapGrid, stampChipW,
 } from './layout-util.ts';
 import {lineWidth} from './layout-text.ts';
@@ -46,6 +49,8 @@ import {addScoped, qualify, scopeOf} from './anchor-scope.ts';
 import {must} from './must.ts';
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
 const rectOf = (p: Rect): Rect => ({x: p.x, y: p.y, w: p.w, h: p.h});
+/** Writes `scope` onto a laid-out band/step whose static type has no such field (ADR 0012: scope is bolted on after layout, not part of each band's own shape). */
+const setScope = (placed: object, scope: string | undefined): void => { if (scope) (placed as unknown as {scope: string}).scope = scope; };
 
 /**
  * Band types whose insides are not on the 4px grid yet (a plot's fractional scale, the wireframe parts' own sizes): placed from the
@@ -69,7 +74,7 @@ function placedBand<B extends Band & {id?: string}, P extends LaidOutBand & Rect
   return (band, ctx, padX, cw) => {
     const placed = layout(band, padX, originOf(band.type, ctx.y), cw, ctx); // placed on the grid; the cursor stays where it was (no drift)
     const scope = scopeOf(band); // ADR 0012: the band's items are registered as `scope.id`; the band's own output keeps its bare ids, and says which scope they belong to
-    if (scope) (placed as unknown as {scope: string}).scope = scope;
+    setScope(placed, scope);
     if (band.id) ctx.register(band.id, rectOf(placed), say(what, band));
     const unanchored = (band as {unanchored?: readonly string[]}).unanchored; // whyWhyTree(): entities the maker named itself are not names the author can use
     if (anchorWhat !== undefined) for (const a of (placed as unknown as {anchors: (Rect & {id: string})[]}).anchors) if (!unanchored?.includes(a.id)) ctx.register(a.id, rectOf(a), say(anchorWhat, band), scope);
@@ -109,11 +114,11 @@ function layoutRaw(band: RawBand, ctx: LayoutCtx, padX: number, cw: number): voi
   ctx.y += band.h + (band.h > 0 ? ctx.d.gap : 0);
 }
 
-function layoutFlowShapeBand(band: Band & {type: 'chevron' | 'funnel' | 'cycle' | 'venn' | 'concentric'}, ctx: LayoutCtx, padX: number, cw: number): void {
+function layoutFlowShapeBand(band: Band & {type: 'chevron' | 'funnel' | 'cycle' | 'venn' | 'concentric' | 'emblem' | 'valueChain'}, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
   const placed = layoutFlowShape(band, padX, snapGrid(ctx.y), cw, widthOf, roles, ctx.wrap);
   const scope = scopeOf(band);
-  if (scope) (placed as unknown as {scope: string}).scope = scope;
+  setScope(placed, scope);
   if (band.id) { if (ctx.anchors.has(band.id)) ctx.claimed(band.id, `a ${band.type} takes an id that another anchor already has`); ctx.anchors.set(band.id, placed); }
   for (const a of placed.anchors) { const name = qualify(scope, a.id); if (ctx.anchors.has(name)) ctx.claimed(name, `a ${band.type} item takes an id that another anchor already has`); ctx.anchors.set(name, a); if (scope) addScoped(ctx.scopes, scope, a.id); }
   ctx.laidOut.push(placed); ctx.y += placed.h + d.gap;
@@ -182,6 +187,7 @@ function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number
   const gp = band.pad ?? 16;
   const top0 = ctx.y, startY = snapGrid(top0); // the frame sits on the grid; the cursor moves on from where it was (no drift)
   const frame: LaidOutGroup = {type: 'group', x: padX, y: startY, w: cw, h: 0, tone: band.tone, dashed: band.dashed, frame: band.frame, id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
+  const at = ctx.laidOut.length;
   ctx.laidOut.push(frame); // pushed first so the frame is drawn under its children
   ctx.y += gp;
   if (band.title) {
@@ -189,6 +195,7 @@ function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number
     const inkW = Math.max(0, ...t.wrappedRuns.flatMap(r => r.lines.map((_, i) => lineWidth(widthOf, r, i))));
     const inkX = t.align === 'center' ? t.x + (t.w - inkW) / 2 : t.align === 'right' ? t.x + t.w - inkW : t.x;
     t.inkBox = {x: inkX, y: t.y, w: inkW, h: t.h};
+    frame.title = t.text;
     ctx.laidOut.push(t);
     ctx.y += t.h + d.gap / 2;
   }
@@ -213,6 +220,7 @@ function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number
     ctx.y += STAMP_H + STAMP_GAP;
   }
   frame.h = ctx.y - top0;
+  frame.span = ctx.laidOut.length - at - 1; // its title and contents, nested groups and their contents included (ADR 0054 D5)
   if (fill) frame.h += fill.slack - (stretchOnly ? fill.slack : plan.top + plan.gap * (band.children.length - 1)); // what is left goes under the content
   ctx.y = top0 + frame.h; // (the contents were laid out from the cursor itself, not from the snapped top: only the frame is placed on the grid)
   if (band.id) {
@@ -230,7 +238,7 @@ function layoutImageBand(band: ImageBand, ctx: LayoutCtx, padX: number, cw: numb
     ctx.anchors.set(band.id, {x: placed.x, y: placed.y, w: placed.w, h: placed.h});
   }
   const scope = scopeOf(band);
-  if (scope) (placed as unknown as {scope: string}).scope = scope;
+  setScope(placed, scope);
   for (const a of placed.anchors) ctx.register(a.id, {x: a.x, y: a.y, w: a.w, h: a.h}, 'a mark takes an id that another anchor already has', scope);
   ctx.laidOut.push(placed);
   if (band.children?.length) { // the picture is a backdrop: its parts stack from the top inside it, drawn after it
@@ -245,19 +253,28 @@ function layoutImageBand(band: ImageBand, ctx: LayoutCtx, padX: number, cw: numb
 
 function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
-  let labelW = band.labelW ?? 128, colGap = band.colGap ?? 28, padX2 = 14;
+  // a boundary's name sits in a chip across the label column: the column is never narrower than the longest name + the chip's round ends, fit: 'shrink' included
+  const chipText = Math.max(0, ...(band.boundaries ?? []).filter(b => b.label).map(b => textWidth(widthOf, b.label as string, roles.note, 700)));
+  const minLabelW = chipText ? Math.ceil(chipText) + 36 : 0;
+  // labelW 'fit' (the default on a canvas, whose text is scaled up): the longest lane name on one line (+ the column's 24px padding), 128..30% of the width
+  const fitLabel = band.labelW === 'fit' || (band.labelW === undefined && d.canvas !== undefined);
+  // the canvas default gives way to the columns: never so wide that a column falls under the comfortable width (an author's 'fit' is taken as written)
+  const roomForLabel = band.labelW === undefined ? cw - 2 * 14 - (band.cols - 1) * (band.colGap ?? 28) - band.cols * SWIMLANE_COMFY_COL : Infinity;
+  const fitW = fitLabel ? Math.min(Math.ceil(Math.max(0, ...band.lanes.map(l => textWidth(widthOf, l.label, roles.title, 700)))) + 24, Math.floor(cw * 0.3), roomForLabel) : 0;
+  let labelW = typeof band.labelW === 'number' ? band.labelW : Math.max(128, minLabelW, fitW), colGap = band.colGap ?? 28, padX2 = 14; // no labelW given: wide enough for the longest line name
   const padY = 14;
   const colWAt = (): number => (cw - labelW - 2 * padX2 - (band.cols - 1) * colGap) / band.cols;
   if (band.fit === 'shrink' && colWAt() < SWIMLANE_COMFY_COL) { // free room for the columns: lane labels and gaps give way first, a step at a time
     const steps: [number, number, number][] = [[104, 20, 12], [88, 12, 8]];
     for (const [lw, cg, px] of steps) {
-      labelW = Math.min(labelW, lw); colGap = Math.min(colGap, cg); padX2 = Math.min(padX2, px);
+      labelW = Math.min(labelW, Math.max(lw, minLabelW)); colGap = Math.min(colGap, cg); padX2 = Math.min(padX2, px);
       if (colWAt() >= SWIMLANE_COMFY_COL) break;
     }
   }
+  if (minLabelW > labelW) throw new Error(`swimlane(): boundaries: the longest line name is ${Math.ceil(chipText)}px wide and needs a label column of ${minLabelW}px, but labelW is ${labelW}px — shorten the name or widen labelW`);
   const bodyX = padX + labelW;
   const colW = colWAt();
-  if (colW < 60) throw new Error(`swimlane(): ${band.cols} columns leave only ${Math.round(colW)}px each — widen the diagram, shrink labelW, or use fewer columns`);
+  if (colW < 60) throw new Error(`swimlane(): ${band.cols} columns leave only ${Math.round(colW)}px each — widen the diagram, ${minLabelW && labelW <= minLabelW ? `shorten the line names (they need a ${minLabelW}px label column)` : 'shrink labelW'}, or use fewer columns`);
   const top0 = ctx.y, startY = snapGrid(top0); // on the grid; the cursor moves on from where it was (no drift)
   const wrapLines = (text: string, size: number, weight: number, maxW: number) => wrapAtoms(splitAtoms(text), {maxWidth: Math.max(20, maxW), atomWidth: (a: string) => widthOf(a, size, weight, 'sans'), mode: ctx.wrap});
   // column-group headers across the top
@@ -275,7 +292,7 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
     const w = st.span * colW + (st.span - 1) * colGap;
     const step = ctx.placeBoxLike({...st, padX: st.padX ?? 12, padY: st.padY ?? 10}, x, 0, w, true, scopeOf(band));
     const stepScope = scopeOf(band);
-    if (stepScope) (step as unknown as {scope: string}).scope = stepScope; // a step's id is bare in its output; the scope says what it is called in the figure
+    setScope(step, stepScope); // a step's id is bare in its output; the scope says what it is called in the figure
     return step;
   });
   const laneIndex = new Map(band.lanes.map((l, i) => [l.id, i]));
@@ -288,26 +305,33 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
     const maxStep = Math.max(0, ...mine.map(s => s.h));
     const rows = 1 + Math.max(0, ...mine.map(s => s.row ?? 0));
     const blockH = rows * maxStep + (rows - 1) * rowGap;
-    const h = Math.max(blockH, labelH) + 2 * padY;
+    // a named boundary below this lane puts a chip across the lane border: the centred lane label leaves room for half of it
+    const chipHalf = boundaryChipH(roles.note) / 2 + 2, nChip = (band.boundaries ?? []).filter(b => b.label && (b.after === lane.id || band.lanes[i - 1]?.id === b.after)).length;
+    const h = Math.max(blockH, labelH + (nChip ? 2 * chipHalf : 0)) + 2 * padY;
     const out = {y, h, labelLines, labelTop: y + (h - labelH) / 2, tone: lane.tone, maxStep, blockTop: y + (h - blockH) / 2};
     y += h;
     return out;
   });
-  const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, ...(band.fit === 'shrink' ? narrowField(stepsPlaced.flatMap(s => s.wrappedRuns.map(r => r.lines))) : {}), id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
+  const boundaries = (band.boundaries ?? []).map(b => {
+    const at = must(laneIndex.get(b.after)), next = must(lanes[at + 1]);
+    return {y: next.y, ...(b.label ? {label: b.label} : {})};
+  });
+  const frame: LaidOutSwimlane = {type: 'swimlane', x: padX, y: startY, w: cw, h: y - startY, labelW, bodyX, phaseH, phases, lanes, ...(boundaries.length ? {boundaries} : {}), ...(band.fit === 'shrink' ? narrowField(stepsPlaced.flatMap(s => s.wrappedRuns.map(r => r.lines))) : {}), id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
   const frameScope = scopeOf(band);
-  if (frameScope) (frame as unknown as {scope: string}).scope = frameScope;
+  setScope(frame, frameScope);
   ctx.laidOut.push(frame); // before its steps so the lanes draw underneath
   if (band.id) {
     if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'a swimlane takes an id that another anchor already has');
     ctx.anchors.set(band.id, {x: frame.x, y: frame.y, w: frame.w, h: frame.h});
   }
   for (const st of stepsPlaced) {
-    const ln = must(lanes[laneIndex.get(st.lane) ?? -1]); // an unknown lane id throws here, as before
+    const ln = must(lanes[laneIndex.get(st.lane) ?? -1], `a lane "${st.lane}" in the swimlane (a step's lane is not one of the lanes)`); // an unknown lane id throws here, as before
     st.y = snapGrid(ln.blockTop + (st.row ?? 0) * (ln.maxStep + rowGap) + (ln.maxStep - st.h) / 2);
     if (st.id) ctx.anchors.set(qualify(scopeOf(band), st.id), {x: st.x, y: st.y, w: st.w, h: st.h}); // placeBoxLike already claimed (and checked) the id; this moves it to the lane row
     if (st.tagBox) st.tagBox.y = st.y - st.tagBox.h / 2;
     ctx.laidOut.push(st);
   }
+  frame.span = stepsPlaced.length;
   ctx.y = top0 + (y - startY) + d.gap;
 }
 
@@ -369,7 +393,7 @@ function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: nu
   const rowGap = ctx.gapForLabels(band, cw);
   const {widths, xOffsets} = rowChildGeometry({...band, gap: rowGap}, cw);
   const top0 = ctx.y, rowTop = snapGrid(top0); // on the grid; the cursor moves on from where it was (no drift)
-  const before = {n: ctx.laidOut.length, anchors: new Map(ctx.anchors), nodeBottoms: new Map(ctx.nodeBottoms), areaIds: new Set(ctx.areaIds), connects: ctx.connects.length, deferred: ctx.deferred.length};
+  const before = snapshotCtx(ctx);
   const place = (fills: (GroupFill | undefined)[]) => {
     const stretch: ((h: number) => void)[] = [], natural: number[] = [];
     let rowHeight = 0;
@@ -401,11 +425,7 @@ function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: nu
     return slack >= GROUP_FILL_MIN ? {slack, valign: c.valign ?? 'center'} : undefined;
   });
   if (fills.some(Boolean)) { // start the row over: take back what the first pass registered (ids, connectors), then lay it out with the room
-    ctx.laidOut.length = before.n;
-    ctx.anchors.clear(); before.anchors.forEach((v, k) => ctx.anchors.set(k, v));
-    ctx.nodeBottoms.clear(); before.nodeBottoms.forEach((v, k) => ctx.nodeBottoms.set(k, v));
-    ctx.areaIds.clear(); before.areaIds.forEach(k => ctx.areaIds.add(k));
-    ctx.connects.length = before.connects; ctx.deferred.length = before.deferred;
+    restoreCtx(ctx, before);
     placed = place(fills);
   }
   const {rowHeight, stretch} = placed;
@@ -577,8 +597,121 @@ const layoutGanttBand = placedBand((band: BandOf<'gantt'>, x, y, w, ctx) => layo
 const layoutCauseOrCloud = placedBand((band: Band & {type: 'cause' | 'cloud'}, x, y, w, ctx) => band.type === 'cause' ? layoutCauseBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight, ctx.d.canvas?.height !== undefined) : layoutCloudBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx),
   band => `${band.type === 'cause' ? 'a cause tree' : 'a cloud'} takes an id that another anchor already has`,
   band => `${band.type === 'cause' ? 'a cause tree node' : 'a cloud box'} takes an id that another anchor already has`);
-const layoutStates = placedBand((band: BandOf<'states'>, x, y, w, ctx) => layoutStatesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), 'a state diagram takes an id that another anchor already has', 'a state takes an id that another anchor already has');
-const layoutTree = placedBand((band: BandOf<'tree'>, x, y, w, ctx) => layoutTreeBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), 'a tree takes an id that another anchor already has', 'a tree node takes an id that another anchor already has');
+const layoutStates = placedBand((band: BandOf<'states'>, x, y, w, ctx) => layoutStatesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), band => `${statesWords(band.flavor).diagram} takes an id that another anchor already has`, band => `a ${statesWords(band.flavor).node} takes an id that another anchor already has`);
+/** What laying bands out writes into the layout context, copied so that a layout can be taken back (ADR 0049; layoutGroupRow does the same). A new piece of state in LayoutCtx belongs here. */
+function snapshotCtx(ctx: LayoutCtx) {
+  return {n: ctx.laidOut.length, y: ctx.y, anchors: new Map(ctx.anchors), nodeBottoms: new Map(ctx.nodeBottoms), areaIds: new Set(ctx.areaIds), connects: ctx.connects.length, deferred: ctx.deferred.length, scopes: new Map([...ctx.scopes.byBare].map(([k, v]) => [k, [...v]]))};
+}
+function restoreCtx(ctx: LayoutCtx, s: ReturnType<typeof snapshotCtx>): void {
+  ctx.laidOut.length = s.n; ctx.y = s.y;
+  ctx.anchors.clear(); for (const [k, v] of s.anchors) ctx.anchors.set(k, v);
+  ctx.nodeBottoms.clear(); for (const [k, v] of s.nodeBottoms) ctx.nodeBottoms.set(k, v);
+  ctx.areaIds.clear(); for (const k of s.areaIds) ctx.areaIds.add(k);
+  ctx.connects.length = s.connects; ctx.deferred.length = s.deferred;
+  ctx.scopes.byBare.clear(); for (const [k, v] of s.scopes) ctx.scopes.byBare.set(k, v);
+}
+// A tree whose nodes are bands (ADR 0049): each band is measured once per width (laid out, then taken back), the tree is placed from those sizes, and
+// every band is laid out for real inside its node's rectangle.
+function measureBandHeight(ctx: LayoutCtx, band: Band, w: number): number {
+  const before = snapshotCtx(ctx);
+  try {
+    ctx.y = 0;
+    ctx.stack([band], 0, w);
+    return Math.max(0, ctx.y - ctx.d.gap); // every handler leaves the cursor one gap below what it placed (a raw() of height 0 leaves none: clamped)
+  } finally { restoreCtx(ctx, before); }
+}
+/** A band node is laid out on the grid like any band: its rectangle (and the ends of the lines that reach it) move to where the band will really sit. */
+function snapBandNodes(placed: LaidOutTree, band: BandOf<'tree'>): void {
+  treeItems(band.root).forEach((n, i) => {
+    const node = placed.nodes[i];
+    if (!n.band || !node) return;
+    const dy = originOf(n.band.type, node.y) - node.y;
+    if (dy === 0) return;
+    const touches = (p: {x: number; y: number}, o: {x: number; y: number; w: number; h: number}): boolean => p.y >= o.y - 0.5 && p.y <= o.y + o.h + 0.5 && p.x >= o.x - 0.5 && p.x <= o.x + o.w + 0.5;
+    const on = (p: {x: number; y: number}): boolean => p.y >= node.y - 0.5 && p.y <= node.y + node.h + 0.5 && (Math.abs(p.x - node.x) < 0.5 || Math.abs(p.x - node.x - node.w) < 0.5 || (p.x >= node.x - 0.5 && p.x <= node.x + node.w + 0.5 && (Math.abs(p.y - node.y) < 0.5 || Math.abs(p.y - node.y - node.h) < 0.5)));
+    const mid = node.y + node.h / 2;
+    for (const e of placed.edges) {
+      const pts = e.points, last = pts.length - 1;
+      for (const [k, next] of [[0, 1], [last, last - 1]] as const) {
+        const p = must(pts[k]), q = pts[next];
+        if (!on(p)) continue;
+        // a horizontal leg stays horizontal; a line of two points keeps the end that sits on another node, but moves one that ends on a `{` or a spine
+        if (q && q.y === p.y && (pts.length > 2 || !placed.nodes.some(o => o !== node && touches(q, o)))) q.y += dy;
+        p.y += dy;
+      }
+    }
+    for (const br of placed.braces ?? []) { // a `{` reaches the middle of its children's sides: its end moves with the child
+      if (Math.abs(br.y1 - mid) <= 3) br.y1 += dy;
+      if (Math.abs(br.y2 - mid) <= 3) br.y2 += dy;
+    }
+    node.y += dy;
+    const anchor = placed.anchors.find((a: {id: string}) => a.id === n.id);
+    if (anchor && n.id) anchor.y += dy;
+  });
+}
+const treePlaced = placedBand((band: BandOf<'tree'>, x, y, w, ctx) => {
+  const placed = layoutTreeBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight, (b, bw) => measureBandHeight(ctx, b, bw));
+  snapBandNodes(placed, band);
+  return placed;
+}, 'a tree takes an id that another anchor already has', 'a tree node takes an id that another anchor already has');
+const layoutTree: BandLayoutHandler<BandOf<'tree'>> = (band, ctx, padX, cw) => {
+  treePlaced(band, ctx, padX, cw);
+  const items = treeItems(band.root);
+  if (!items.some(n => n.band)) return;
+  const placed = ctx.laidOut[ctx.laidOut.length - 1] as LaidOutTree, after = ctx.y;
+  const first = new Map<TreeItem, LaidOutBand | undefined>(); // what each band node put down first: its own figure (a group's frame comes before what is inside it)
+  items.forEach((n, i) => {
+    const node = placed.nodes[i];
+    if (!n.band || !node) return;
+    ctx.y = node.y;
+    const n0 = ctx.laidOut.length;
+    ctx.stack([n.band], node.x, node.w);
+    first.set(n, ctx.laidOut[n0]);
+  });
+  ctx.y = after;
+  funnelEdges(band, placed, items, first, ctx);
+};
+/** The two end points of the side of a shape that faces `dir` ('bottom' / 'top'): the corners of the drawn polygons when the shape is a flow shape (a chevron's side stops short of its point), else the rectangle's. */
+function facingEnds(rect: Rect, polygons: [number, number][][], dir: 'bottom' | 'top'): [{x: number; y: number}, {x: number; y: number}] {
+  const pts = polygons.flat();
+  if (!pts.length) { const y = dir === 'bottom' ? rect.y + rect.h : rect.y; return [{x: rect.x, y}, {x: rect.x + rect.w, y}]; }
+  const edge = dir === 'bottom' ? Math.max(...pts.map(p => p[1])) : Math.min(...pts.map(p => p[1])), onEdge = pts.filter(p => Math.abs(p[1] - edge) < 0.5);
+  return [{x: Math.min(...onEdge.map(p => p[0])), y: edge}, {x: Math.max(...onEdge.map(p => p[0])), y: edge}];
+}
+const polygonsOf = (b: LaidOutBand | undefined): [number, number][][] => ((b as {primitives?: {k: string; points?: [number, number][]}[]} | undefined)?.primitives ?? []).flatMap(pr => pr.k === 'polygon' && pr.points ? [pr.points] : []);
+const polygonsIn = (ctx: LayoutCtx, within: (pts: [number, number][]) => boolean, node?: (id: string | undefined) => boolean): [number, number][][] =>
+  ctx.laidOut.flatMap(b => ((b as {primitives?: {k: string; points?: [number, number][]; node?: string}[]}).primitives ?? []).flatMap(pr => pr.k === 'polygon' && pr.points && within(pr.points) && (!node || node(pr.node)) ? [pr.points] : []));
+/** A child with `from` is joined from a part inside its parent's band (known only now that the bands are placed): from the near side of that part (starting at the edge of the parent's band) to the near side of the child, as two lines (a funnel). */
+function funnelEdges(tree: BandOf<'tree'>, placed: LaidOutTree, items: TreeItem[], first: Map<TreeItem, LaidOutBand | undefined>, ctx: LayoutCtx): void {
+  if (!items.some(n => n.from !== undefined)) return;
+  const kind = tree.balanced ? tree.layout ?? 'radial' : tree.dir === 'right' ? 'right' : 'down'; // (a tree whose direction was left to the layout is judged by where the child landed)
+  if (!['down', 'up', 'org'].includes(kind)) throw new Error(`tree(): from draws a funnel to a child under (or over) its parent's band; ${tree.balanced ? `this mindmap's layout is '${kind}'` : "this tree grows to the right"} (use dir: 'down'; a mindmap: layout 'down', 'up' or 'org')`);
+  const parentOf = new Map<TreeItem, TreeItem>();
+  for (const n of items) for (const c of n.children ?? []) parentOf.set(c, n);
+  const rectOf = (n: TreeItem): Rect => must(placed.nodes[items.indexOf(n)]);
+  const inside = (r: Rect, o: Rect): boolean => r.x >= o.x - 0.5 && r.y >= o.y - 0.5 && r.x + r.w <= o.x + o.w + 0.5 && r.y + r.h <= o.y + o.h + 0.5;
+  const treeIds = new Set(placed.anchors.map(a => a.id));
+  items.forEach((child, i) => {
+    if (child.from === undefined) return;
+    const parent = must(parentOf.get(child)), pr = rectOf(parent), cr = rectOf(child);
+    const below = cr.y >= pr.y + pr.h - 0.5, above = cr.y + cr.h <= pr.y + 0.5;
+    if (!below && !above) throw new Error(`tree(): "${child.label}": from joins a child that lies below or above its parent's band, but this one is beside it (dir: 'right', a mindmap's radial / right / left / brace ...); use dir: 'down' (a mindmap: layout 'down', 'up' or 'org')`);
+    const name = resolveAnchor(ctx.scopes, child.from, n => ctx.anchors.has(n)), part = name === undefined ? undefined : ctx.anchors.get(name);
+    const bandId = (must(parent.band) as {id?: string}).id; // a name of the whole band (or of the tree node) is not a part of it
+    if (!name || !part || !inside(part, pr) || treeIds.has(name) || name === bandId) {
+      const ids = [...ctx.anchors].filter(([k, r]) => !treeIds.has(k) && k !== bandId && inside(r, pr)).map(([k]) => k);
+      throw new Error(`tree(): "${child.label}": from "${child.from}" is not an id inside the band of "${parent.label}"${ids.length ? ` (ids there: ${ids.join(', ')})` : ' (that band declares no ids)'}`);
+    }
+    placed.edges = placed.edges.filter(e => e.child !== i);
+    const partPolys = polygonsIn(ctx, pts => pts.every(p => p[0] >= part.x - 0.5 && p[0] <= part.x + part.w + 0.5 && p[1] >= part.y - 0.5 && p[1] <= part.y + part.h + 0.5), id => id !== undefined && (name === id || name.endsWith(`.${id}`)));
+    const childPolys = polygonsOf(first.get(child)); // the child's own figure only: a chevron inside a group is not the group's edge
+    const [pl, pRight] = facingEnds(part, partPolys, below ? 'bottom' : 'top'), [cl, cRight] = facingEnds(cr, childPolys, below ? 'top' : 'bottom');
+    const y0 = below ? pr.y + pr.h : pr.y; // from the edge of the parent's band: a part inside it (a swimlane's step) does not draw a line across the parts below it
+    const stage = Math.max((child.band as {reveal?: number}).reveal ?? 0, (must(parent.band) as {reveal?: number}).reveal ?? 0), untils = [(child.band as {until?: number}).until, (must(parent.band) as {until?: number}).until].filter((u): u is number => u !== undefined), until = untils.length ? Math.min(...untils) : undefined; // gone with the earlier of the two
+    const own = {child: i, ...(stage > (placed.reveal ?? 0) ? {reveal: stage} : {}), ...(until === undefined ? {} : {until})};
+    placed.edges.push({points: [{x: pl.x, y: y0}, cl], ...own}, {points: [{x: pRight.x, y: y0}, cRight], ...own});
+  });
+}
 const layoutBarsBand = placedBand((band: BandOf<'bars'>, x, y, w, ctx) => layoutBars(band, x, y, w, ctx.widthOf, ctx.roles), 'a bars band takes an id that another anchor already has', 'a bar takes an id that another anchor already has');
 const layoutChartBand = placedBand((band: BandOf<'chart'>, x, y, w, ctx) => layoutChart(band, x, y, w, ctx.widthOf, ctx.roles, ctx.wrap), 'a chart takes an id that another anchor already has', 'a chart element takes an id that another anchor already has');
 const layoutPeopleOrDots = placedBand((band: Band & {type: 'people' | 'dots'}, x, y, w, ctx) => band.type === 'people' ? layoutPeople(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles) : layoutDots(band, x, y, w, ctx.widthOf, ctx.d.day, ctx.roles),
@@ -636,6 +769,8 @@ export const LAYOUT_HANDLERS = {
   cycle: layoutFlowShapeBand,
   venn: layoutFlowShapeBand,
   concentric: layoutFlowShapeBand,
+  emblem: layoutFlowShapeBand,
+  valueChain: layoutFlowShapeBand,
   curve: layoutCurve,
   caption: layoutBoxLikeBand,
   box: layoutBoxLikeBand,

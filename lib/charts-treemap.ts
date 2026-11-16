@@ -1,6 +1,7 @@
 // treemap(): a tree of values as nested rectangles, the area of each proportional to its value (squarified, so cells stay close to square).
 // Every cell prints its name and value when they fit; a cell too small for them is drawn without a label and listed in the description
 // (strict: true makes it an error instead).
+import {partStep} from './parts.ts';
 import {Canvas, checkIds, checkText, fail, finiteNum, inkOnShade, numText} from './charts-base.ts';
 import type {ColorKey} from './types/core.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
@@ -169,15 +170,23 @@ export function layoutTreemap(s: TreemapSpec, g: ChartGeom): LaidOutChartPart {
     return false;
   };
   let leafNo = 0;
+  // ADR 0054: a top-level group (its frame, its header and the tiles in it) is a part, when there are several
+  const groupPart = (gi: number): string | undefined => { const top = s.nodes[gi]; return s.nodes.length > 1 && top?.children?.length ? partStep('group', top.id ?? gi, top.label) : undefined; };
   for (const q of placed) {
     const n = q.n;
     if (q.k === 'gone') { small.push(`${n.label} ${valueText(totalOf(n), s)}`); continue; }
+    const part = groupPart(q.gi);
+    if (part) { c.withPart(part, () => drawPlaced(q)); continue; }
+    drawPlaced(q);
+  }
+  function drawPlaced(q: Exclude<(typeof placed)[number], {k: 'gone'}>): void {
+    const n = q.n;
     if (q.k === 'leaf') {
       const id = n.id, key = id ?? `#${leafNo++}`, solidTone = n.tone, op = solidTone ? undefined : shadeOf(q.gi);
       const host = c.rect(q.x, q.y, q.w, q.h, {fill: solidTone ?? 'accent', ...(op === undefined ? {} : {op}), id, of: key, solid: id ?? `cell "${n.label}"`});
       const ink = solidTone ? 'bg' as const : inkOnShade(must(op));
       if (!label(q, host, ink, {fill: solidTone ?? 'accent', ...(op === undefined ? {} : {op}), ink}, key)) small.push(`${n.label} ${valueText(n.value ?? 0, s)}`);
-      continue;
+      return;
     }
     c.rect(r1(q.x), r1(q.y), r1(q.w), r1(q.h), {fill: 'bg', stroke: 'border', sw: 2, id: n.id, of: n.id});
     // the group's own label sits in a strip along the top of its frame

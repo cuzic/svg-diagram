@@ -65,9 +65,43 @@ export function crossingsOf(paths: P[][], o: CrossOpts = {}): number {
   return n;
 }
 
-/** The crossings of one polyline with each of the others (the same count as `crossingsOf`, for a figure in which only this one changed). */
+/** The crossings of one polyline with each of the others (the same count as `crossingsOf`, for a figure in which only this one changed). Only its own pairs are compared: the others are not counted against each other. */
 export function crossingsWith(path: P[], others: readonly P[][], o: CrossOpts = {}): number {
-  return crossingsOf([path, ...others], o) - crossingsOf([...others], o);
+  const m = o.margin ?? 0, tol = o.tol ?? 0;
+  type R = {at: number; lo: number; hi: number};
+  const runsOf = (p: P[]): {h: R[]; v: R[]} => {
+    const h: R[] = [], v: R[] = [];
+    for (let i = 1; i < p.length; i++) {
+      const a = p[i - 1], b = p[i];
+      if (!a || !b) continue;
+      if (a.y === b.y || Math.abs(a.y - b.y) < tol) h.push({at: a.y, lo: Math.min(a.x, b.x), hi: Math.max(a.x, b.x)});
+      if (a.x === b.x || Math.abs(a.x - b.x) < tol) v.push({at: a.x, lo: Math.min(a.y, b.y), hi: Math.max(a.y, b.y)});
+    }
+    return {h, v};
+  };
+  const cross = (h: R[], v: R[]): number => { let n = 0; for (const a of h) for (const b of v) if (b.at > a.lo + m && b.at < a.hi - m && a.at > b.lo + m && a.at < b.hi - m) n++; return n; };
+  const mine = runsOf(path);
+  let n = 0;
+  for (const other of others) { const r = runsOf(other); n += cross(mine.h, r.v) + cross(r.h, mine.v); }
+  return n;
+}
+
+const samePath = (a: P[], b: P[]): boolean => a === b || (a.length === b.length && a.every((p, k) => { const q = b[k] as P; return p.x === q.x && p.y === q.y; }));
+
+/**
+ * `scoreOf(next)`, from the score of `prev` and the routes that differ: a local search tries one change after another, and a change moves a few
+ * routes, so counting every pair of routes again for each try is most of its cost. The same numbers as counting afresh (test/polyline-metrics.test.ts).
+ */
+export function rescore<K>(prev: ReadonlyMap<K, P[]>, prevScore: {crossings: number; bends: number}, next: ReadonlyMap<K, P[]>): {crossings: number; bends: number} {
+  if (prev.size !== next.size || [...next.keys()].some(k => !prev.has(k))) return scoreOf([...next.values()]);
+  const before: P[][] = [], after: P[][] = [], rest: P[][] = [];
+  for (const [k, r] of next) { const old = prev.get(k) as P[]; if (samePath(old, r)) rest.push(r); else { before.push(old); after.push(r); } }
+  if (!after.length) return prevScore;
+  const against = (moved: P[][]): number => crossingsOf(moved) + moved.reduce((n, r) => n + crossingsWith(r, rest), 0);
+  return {
+    crossings: prevScore.crossings - against(before) + against(after),
+    bends: prevScore.bends - before.reduce((n, r) => n + bendsOf(r), 0) + after.reduce((n, r) => n + bendsOf(r), 0),
+  };
 }
 
 /** The candidate score of routed arrows: crossings and bends (lower is better; compared crossings first). */

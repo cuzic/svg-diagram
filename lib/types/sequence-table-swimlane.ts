@@ -1,7 +1,7 @@
 // Types: sequence, table and swimlane.
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
-import type {Align, Arrow, Bend, Dimmed, LineStyle, Rect, RevealOpts, RcaInfo, ScopeOpts, TextTone} from './core.ts';
+import type {Align, Arrow, Bend, Dimmed, LineStyle, Rect, RevealOpts, RcaInfo, ScopeOpts, TextTone, FocusOpts} from './core.ts';
 import type {BoxBand, BoxOpts, BoxTone, LaidOutBox} from './text-bands.ts';
 
 export interface SequenceActor {
@@ -161,16 +161,22 @@ export interface SwimlaneFlow {
   labelAt?: number;
   tone?: TextTone;
 }
+/** A heavy dashed line across the boundary after lane `after`, or between two lanes that must be next to each other (`between`: it throws when a lane was added or moved between them), optionally named in a chip on the label column (a service blueprint's line of interaction / visibility). */
+export type SwimlaneBoundary = {label?: string} & ({after: string; between?: undefined} | {between: readonly [string, string]; after?: undefined});
 /** Column group named across the top (a stage, a sprint). */
 export interface SwimlanePhase {label: string; from: number; to: number}
-export interface SwimlaneOpts extends RevealOpts, ScopeOpts {
+export interface SwimlaneOpts extends RevealOpts, ScopeOpts, FocusOpts {
   flows?: SwimlaneFlow[];
   phases?: SwimlanePhase[];
-  /** Width of the lane-label column (default 128). */
-  labelW?: number;
+  /** Lines across lane boundaries. With `laneOrder` only `between` can be used (the lanes move). */
+  boundaries?: SwimlaneBoundary[];
+  /** Width of the lane-label column (default 128; on a `canvas` diagram 'fit'). 'fit': as wide as the longest lane name on one line, up to 30% of the width (never narrower than 128). */
+  labelW?: number | 'fit';
   colGap?: number;
   /** 'shrink': when the columns come out narrower than ~112px, narrow the lane-label column and the column gaps (down to 88 / 12px) to give them room. Default: the sizes above, as given. */
   fit?: 'shrink';
+  /** 'auto': put the lanes in the order that makes the hand-offs shortest (the sum of the distances between the lanes each of `flows` joins). A lane with `fixed: true` keeps its place; a tie keeps the order given. Default: the order given. Up to 8 lanes. */
+  laneOrder?: 'auto';
   id?: string;
 }
 /** A step after swimlane() placed it in a column. */
@@ -187,7 +193,9 @@ export interface SwimlaneBand {
   /** Number of columns used. */
   cols: number;
   phases?: SwimlanePhase[];
-  labelW?: number;
+  /** As placed by swimlane(): the lane each line sits below. */
+  boundaries?: {after: string; label?: string}[];
+  labelW?: number | 'fit';
   colGap?: number;
   fit?: 'shrink';
   id?: string;
@@ -206,12 +214,16 @@ export interface LaidOutLane {
 }
 export interface LaidOutPhase {x: number; w: number; lines: string[]}
 export interface LaidOutSwimlane extends Rect {
+  /** How many of the bands after it are its steps (ADR 0054 D9.2: the PowerPoint export groups them with the lanes). */
+  span?: number;
   type: 'swimlane';
   labelW: number;
   bodyX: number;
   phaseH: number;
   phases: LaidOutPhase[];
   lanes: LaidOutLane[];
+  /** The lines across lane boundaries: y, and the chip's text (a line of the label column's width). */
+  boundaries?: {y: number; label?: string}[];
   /** With `fit: 'shrink'`: the steps whose text broke into lines of 2.5 characters or fewer on average (the shrink-narrow-text rule reads it). */
   narrow?: string[];
   id?: string;

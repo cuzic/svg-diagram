@@ -103,7 +103,7 @@ function runsOf(frames: Frame[]): Frame[][] {
   for (const f of frames) { const k = `${f.unit}|${f.kind}|${f.y}`; byRow.set(k, [...(byRow.get(k) ?? []), f]); }
   const runs: Frame[][] = [];
   for (const row of byRow.values()) {
-    const sorted = [...row].sort((a, b) => a.x - b.x);
+    const sorted = row.toSorted((a, b) => a.x - b.x);
     let run: Frame[] = [];
     for (const f of sorted) {
       const prev = run.at(-1);
@@ -206,11 +206,12 @@ export function contentBox(laidOut: LaidOutBand[], tight = false): Rect | null {
 
 /** What a flow shape (chevron, funnel, cycle, venn, concentric) actually draws: its circles, rects, polygons and texts, not the band's full-width rect. undefined for any other band. */
 function drawnExtent(b: LaidOutBand): Rect | null | undefined {
-  if (b.type !== 'chevron' && b.type !== 'funnel' && b.type !== 'cycle' && b.type !== 'venn' && b.type !== 'concentric') return undefined;
+  if (b.type !== 'chevron' && b.type !== 'funnel' && b.type !== 'cycle' && b.type !== 'venn' && b.type !== 'concentric' && b.type !== 'emblem' && b.type !== 'valueChain') return undefined;
   const rs: Rect[] = [...b.texts];
   for (const p of b.primitives) {
     if (p.k === 'circle') rs.push({x: p.cx - p.r, y: p.cy - p.r, w: 2 * p.r, h: 2 * p.r});
     else if (p.k === 'rect') rs.push({x: p.x, y: p.y, w: p.w, h: p.h});
+    else if (p.k === 'path' && p.box) rs.push(p.box); // a filled shape (an emblem's pill / cylinder ...); a line has no extent of its own
     else if (p.k === 'polygon' && p.points.length) { const xs = p.points.map(q => q[0]), ys = p.points.map(q => q[1]); rs.push({x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)}); }
   }
   return unionOf(rs);

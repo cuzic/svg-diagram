@@ -349,7 +349,7 @@ const DRAW: WfDrawTable = {
       cx += lw + 24;
     });
     let rx = x + w - 14;
-    for (const l of [...(n.right ?? [])].reverse()) {
+    for (const l of (n.right ?? []).toReversed()) {
       text(ctx, l, rx, mid(y + 22), {fill: 'bg', anchor: 'end'});
       rx -= tw(ctx, l, S, 400) + 20;
     }
@@ -613,7 +613,7 @@ function frameDecor(n: WfFrameDecor & {t: WfType}, x: number, y: number, w: numb
   let cx = x + 8;
   for (const c of [...defaults, ...(n.overlay ?? []).map(chipSpec)]) cx += drawChip(ctx, c.text, cx, y + 8, c.tone) + 6;
   let rx = x + w - 8;
-  for (const c of [...(n.overlayRight ?? [])].reverse().map(chipSpec)) { const cw = chipW(ctx, c.text); rx -= cw; drawChip(ctx, c.text, rx, y + 8, c.tone); rx -= 6; }
+  for (const c of (n.overlayRight ?? []).toReversed().map(chipSpec)) { const cw = chipW(ctx, c.text); rx -= cw; drawChip(ctx, c.text, rx, y + 8, c.tone); rx -= 6; }
   if (n.label && n.t !== 'chart') {
     const lw = tw(ctx, n.label, S, 700) + 12;
     const ty = grid(y + h - 30);
@@ -687,7 +687,7 @@ function drawOverlay(o: WfOverlay, ctx: WfCtx, x: number, y: number, w: number, 
   if (body.length) rect(ctx, dx + pad - 8, dy + pad + 24, dw - 2 * pad + 16, body.length * lh(S) + 16, {fill: 'bg'}); // opaque backing: keeps the body text the innermost box for overlap checks
   body.forEach((l, k) => text(ctx, l, dx + pad, dy + pad + 24 + 8 + S + k * lh(S), {}));
   let bx = dx + dw - pad;
-  for (const b of [...buttons].reverse()) {
+  for (const b of buttons.toReversed()) {
     const bw = autoW(b, ctx) ?? 0; // a btn always has a natural width
     bx -= bw;
     place(b, bx, dy + dh - pad - 32, bw, 32, ctx);

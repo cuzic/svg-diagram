@@ -1,11 +1,13 @@
-// The files of the .pptx package, as data: the fixed template with the one slide and its pictures added. Reading the template, drawing
-// the PNGs and zipping are the shell's (emit.ts).
+// The files of the .pptx package, as data: the fixed template with the one slide and its pictures added. Drawing the PNGs and zipping
+// are the shell's (emit.ts for Node, ../pptx-edge.ts for a Worker).
 import {must} from '../must.ts';
 import type {Picture} from './image-band.ts';
+import {TEMPLATE} from './template.ts';
+import {escapeXml} from '../emit-common.ts';
 
-export interface Entry {name: string; data: Buffer}
+export interface Entry {name: string; data: Uint8Array}
 /** The one slide: its XML, its size (EMU) and the pictures it places (picture i is media/image{i+1}.png / .svg). */
-export interface SlidePlan {xml: string; cx: number; cy: number; pictures: Picture[]}
+export interface SlidePlan {xml: string; cx: number; cy: number; pictures: Picture[]; /** The figure's accessible name and description (the svg's <title> and <desc>): the file's title and description. */ title?: string; desc?: string}
 
 const IMAGE_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image';
 /** Relationship ids of picture i in the slide's rels (the template uses the ids below 12). */
@@ -17,16 +19,21 @@ const slideRels = (count: number): string => Array.from({length: count}, (_, i) 
 }).join('');
 
 /** The template with the slide size and rels filled in, plus the slide and its media; `[Content_Types].xml` first, the rest sorted by name. The template already declares png and svg. */
-export function packageEntries(template: readonly Entry[], plan: SlidePlan, pngs: readonly Buffer[]): Entry[] {
+export function packageEntries(plan: SlidePlan, pngs: readonly Uint8Array[], template: readonly {name: string; text: string}[] = TEMPLATE): Entry[] {
   if (pngs.length !== plan.pictures.length) throw new Error(`${plan.pictures.length} pictures but ${pngs.length} PNGs`);
-  const entries = template.map(({name, data}) => {
-    if (name === 'ppt/presentation.xml') return {name, data: Buffer.from(data.toString().replace(/<p:sldSz[^>]*\/>/, `<p:sldSz cx="${plan.cx}" cy="${plan.cy}"/>`))};
-    if (name === 'ppt/slides/_rels/slide1.xml.rels') return {name, data: Buffer.from(data.toString().replace('</Relationships>', slideRels(plan.pictures.length) + '</Relationships>'))};
-    return {name, data};
+  const enc = new TextEncoder();
+  const entries: Entry[] = template.map(({name, text}) => {
+    if (name === 'ppt/presentation.xml') return {name, data: enc.encode(text.replace(/<p:sldSz[^>]*\/>/, `<p:sldSz cx="${plan.cx}" cy="${plan.cy}"/>`))};
+    if (name === 'docProps/core.xml' && plan.title) {
+      const desc = plan.desc ? `<dc:description>${escapeXml(plan.desc)}</dc:description>` : '';
+      return {name, data: enc.encode(text.replace(/<dc:title>[^<]*<\/dc:title>/, `<dc:title>${escapeXml(plan.title)}</dc:title>${desc}`))};
+    }
+    if (name === 'ppt/slides/_rels/slide1.xml.rels') return {name, data: enc.encode(text.replace('</Relationships>', slideRels(plan.pictures.length) + '</Relationships>'))};
+    return {name, data: enc.encode(text)};
   });
-  entries.push({name: 'ppt/slides/slide1.xml', data: Buffer.from(plan.xml)});
+  entries.push({name: 'ppt/slides/slide1.xml', data: enc.encode(plan.xml)});
   plan.pictures.forEach((p, i) => {
-    entries.push({name: `ppt/media/image${i + 1}.png`, data: must(pngs[i])}, {name: `ppt/media/image${i + 1}.svg`, data: Buffer.from(p.svg)});
+    entries.push({name: `ppt/media/image${i + 1}.png`, data: must(pngs[i])}, {name: `ppt/media/image${i + 1}.svg`, data: enc.encode(p.svg)});
   });
   return entries.sort((a, b) => (a.name === '[Content_Types].xml' ? -1 : b.name === '[Content_Types].xml' ? 1 : a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }

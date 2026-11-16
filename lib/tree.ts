@@ -8,6 +8,7 @@ import {fitLayout} from './fit-width.ts';
 import {longestUnitWidth, wrapText} from './wrap.ts';
 import type {FontFamily, Roles, WidthOf, WrapEnv, WrapMode} from './types/core.ts';
 import type {LaidOutTree, TreeBand, TreeItem, TreeNodeText} from './types/diagrams.ts';
+import type {Band} from './types/index.ts';
 
 import {must} from './must.ts';
 const PAD_X = 14, PAD_Y = 8, MIN_W = 88, GAP = 24, LEVEL_GAP = 44;
@@ -77,7 +78,7 @@ export function nodeRuns(r: {x: number; y: number; w: number}, l: NodeLines, rol
   return out;
 }
 
-export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number): LaidOutTree {
+export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, /** The height a band node takes at a width (the layout shell measures it); without it a band node throws. */ bandHeight?: (band: Band, w: number) => number): LaidOutTree {
   const items = treeItems(band.root);
   const seen = new Set<string>();
   for (const n of items) {
@@ -86,10 +87,25 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
   }
   // node i of `items` is "n<i>" in the layout (ids of the band are the user's; the layout needs unique keys for all)
   const key = new Map<TreeItem, string>(items.map((n, i) => [n, `n${i}`]));
+  const heights = new Map<Band, Map<number, number>>(); // fitLayout tries several widths: a band node is measured once per width
+  const heightOf = (band: Band, w: number): number => {
+    const byW = heights.get(band) ?? heights.set(band, new Map()).get(band) as Map<number, number>;
+    const known = byW.get(w);
+    if (known !== undefined) return known;
+    const h = must(bandHeight)(band, w);
+    byW.set(w, h);
+    return h;
+  };
   // One whole attempt: the text wrapped at maxW, a plain tree growing `dirNow` (a balanced mindmap keeps its layout).
   const attemptWith = (dirNow: 'down' | 'right', maxW: number, floor: boolean) => {
     const lines = new Map<TreeItem, NodeLines>();
     const build = (n: TreeItem): TreeNode => {
+      if (n.band) { // a band node keeps the width it was given; only its height is measured
+        if (!bandHeight) throw new Error(`tree(): "${n.label}" is a band node, which this layout cannot place`);
+        const bw = must(n.w), m = {label: [], sub: [], w: bw, h: heightOf(n.band, bw)};
+        lines.set(n, m);
+        return {id: must(key.get(n)), size: {w: m.w, h: m.h}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
+      }
       const m = measureNode(n.label, n.sub, maxW, widthOf, roles, env.wrap, floor);
       lines.set(n, m);
       return {id: must(key.get(n)), size: {w: m.w, h: m.h}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
@@ -103,7 +119,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     }));
     const kind = band.balanced ? band.layout ?? 'radial' : dirNow;
     if (band.sides && kind !== 'radial') throw new Error(`mindmap(): sides applies to the radial layout (this is layout: '${kind}')`);
-    const styled = band.edges !== undefined && band.edges !== 'elbow';
+    const styled = band.edges !== undefined && band.edges !== 'elbow' && band.edges !== false;
     if (styled && !['radial', 'right', 'left', 'down', 'up'].includes(kind)) throw new Error(`mindmap(): edges: '${band.edges}' applies to the radial, right, left, down and up layouts (this is layout: '${kind}')`);
     const grown = (dir: 'down' | 'right'): TreeLayout => layoutTree(laidRoot, {dir, gap: Math.round(GAP * (env.space ?? 1)), levelGap: Math.round(LEVEL_GAP * (env.space ?? 1))});
     const raw: TreeLayout = kind === 'radial' ? layoutBalanced(laidRoot, {gap: Math.round(GAP * (env.space ?? 1)), levelGap: Math.round(LEVEL_GAP * (env.space ?? 1)), sides})
@@ -112,7 +128,8 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
       : kind === 'brace' ? layoutBrace(laidRoot) : kind === 'fishbone' ? layoutFishbone(laidRoot) : layoutTimelineMap(laidRoot);
     // the line style: straight or smooth instead of the elbow (the first and last point of each line, the smooth one along the way the tree grows)
     const along: 'x' | 'y' = kind === 'down' || kind === 'up' ? 'y' : 'x';
-    const tree: TreeLayout = !styled ? raw : {...raw, edges: raw.edges.map(e => ({...e, points: [must(e.points[0]), must(e.points[e.points.length - 1])], ...(band.edges === 'curve' ? {curve: along} : {})}))};
+    const {braces: _braces, ...bare} = raw;
+    const tree: TreeLayout = band.edges === false ? {...bare, edges: bare.edges.filter(e => e.bold)} : !styled ? raw : {...raw, edges: raw.edges.map(e => ({...e, points: [must(e.points[0]), must(e.points[e.points.length - 1])], ...(band.edges === 'curve' ? {curve: along} : {})}))};
     return {size: {w: tree.w, h: tree.h}, score: {crossings: 0, bends: 0}, tree, lines, kind};
   };
   const explicitDir = !band.balanced && band.dir !== undefined && band.dir !== 'auto';
@@ -131,15 +148,20 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     nodes: [], edges: [], texts: [], anchors: [], labelBoxes: [],
     ...(fitApplied.length ? {fitApplied} : {}),
   };
+  const parentOf = new Map<TreeItem, number>(items.flatMap((n, i) => (n.children ?? []).map(c => [c, i] as const)));
   for (const n of items) {
-    const p = must(tree.nodes.get(must(key.get(n)))), l = must(lines.get(n));
+    const p = must(tree.nodes.get(must(key.get(n)))), l = must(lines.get(n)), up = parentOf.get(n);
     const r = {x: p.x + dx, y: p.y + dy, w: p.w, h: p.h};
-    out.nodes.push({...r, tone: n.tone ?? 'plain', ...(n.id ? {id: n.id} : {})});
+    out.nodes.push({...r, tone: n.tone ?? 'plain', ...(n.band ? {band: true as const} : {}), ...(n.id ? {id: n.id} : {}), ...(up === undefined ? {} : {parent: up})});
     if (n.id) out.anchors.push({id: n.id, ...r});
+    if (n.band) continue; // the band draws its own text, and is checked as a band
     out.texts.push(...nodeRuns(r, l, roles));
     out.labelBoxes.push({label: n.label, ...r});
   }
-  for (const e of tree.edges) out.edges.push({points: e.points.map(p => ({x: p.x + dx, y: p.y + dy})), ...(e.curve ? {curve: e.curve} : {}), ...(e.bold ? {bold: true} : {})});
-  if (tree.braces?.length) out.braces = tree.braces.map(b => ({...b, x: b.x + dx, tipX: b.tipX + dx, y1: b.y1 + dy, y2: b.y2 + dy, ymid: b.ymid + dy}));
+  const indexOf = new Map(items.map((n, i) => [must(key.get(n)), i]));
+  const funnels = items.some(n => n.from !== undefined);
+  const ends = (e: {from: string; to: string}) => ({...(indexOf.has(e.from) ? {from: must(indexOf.get(e.from))} : {}), ...(indexOf.has(e.to) ? {to: must(indexOf.get(e.to))} : {})});
+  for (const e of tree.edges) out.edges.push({points: e.points.map(p => ({x: p.x + dx, y: p.y + dy})), ...ends(e), ...(e.curve ? {curve: e.curve} : {}), ...(e.bold ? {bold: true} : {}), ...(band.focused && indexOf.has(e.to) && items[must(indexOf.get(e.to))]?.focusLit ? {lit: true as const} : {}), ...(funnels && indexOf.has(e.to) ? {child: must(indexOf.get(e.to))} : {})});
+  if (tree.braces?.length) out.braces = tree.braces.map(({of, ...b}) => ({...b, x: b.x + dx, tipX: b.tipX + dx, y1: b.y1 + dy, y2: b.y2 + dy, ymid: b.ymid + dy, ...(of !== undefined && indexOf.has(of) ? {of: must(indexOf.get(of))} : {})}));
   return out;
 }

@@ -1,7 +1,7 @@
 import {quadrantBand} from '../quadrant.ts';
 import type {QuadrantBand, QuadrantItem, QuadrantOpts, QuadrantPreset} from '../quadrant.ts';
-import {chevronBand, concentricBand, cycleBand, funnelBand, vennBand} from '../flow-shapes.ts';
-import type {ChevronBand, ChevronOpts, ConcentricBand, ConcentricOpts, ConcentricRing, CycleBand, CycleOpts, FlowStep, FunnelBand, FunnelOpts, FunnelStage, VennBand, VennOpts, VennSet} from '../flow-shapes.ts';
+import {chevronBand, concentricBand, cycleBand, emblemBand, funnelBand, valueChainBand, vennBand} from '../flow-shapes.ts';
+import type {ChevronBand, ChevronOpts, ConcentricBand, ConcentricOpts, ConcentricRing, CycleBand, CycleOpts, EmblemBand, EmblemItem, EmblemOpts, FlowStep, FunnelBand, FunnelOpts, FunnelStage, ValueChainBand, ValueChainOpts, VennBand, VennOpts, VennSet} from '../flow-shapes.ts';
 import {wordartBand} from '../wordart.ts';
 import type {WordArtBand, WordArtOpts} from '../wordart.ts';
 import {LABEL_ROLES} from '../tokens.ts';
@@ -51,6 +51,7 @@ export function curve(points: CurveBand['points'], opts: CurveOpts = {}): CurveB
 // A coordinate plane: axes with ticks, points, guide lines, dimension lines and labels, all in the plane's own units.
 //   plane({x: {label: 'x', max: 100, step: 20}, y: {label: 'y', max: 60}, yDown?: true (image coordinates), grid?: true,
 //          points: [{id: 'a', at: [20, 10], label: 'A', labelAt?, tone?, shape?: 'dot' | 'ring' | 'cross'}],
+//          stages?: ['起源', 'カスタム', ...] or [{name, to: x}, ...] (named x columns with dividers; Wardley map), points[].evolves?: {to: x} (ring + dashed arrow),
 //          lines:  [{from: 'a', to: [20, 0], tone?, dashed? (default true), arrow?}],       // guides / projections
 //          dims:   [{from: 'a', to: 'b', label: '40 m', side?: 'above' | 'below' | 'left' | 'right', tone?}],
 //          labels: [{at: [50, 55], text: '原点', anchor?, tone?, bold?}], height?, width?})
@@ -70,6 +71,22 @@ export function plane(opts: PlaneOpts): PlaneBand {
       if (a.ticks !== undefined || a.step !== undefined) throw new Error(`plane(): axis ${k} takes categories or ticks / step, not both (the categories are its ticks)`);
       if ((a.min ?? 0) >= 1 || a.max < c.length) throw new Error(`plane(): axis ${k} puts its ${c.length} categories at 1..${c.length}, so it needs min < 1 and max >= ${c.length} (use max: ${c.length + 1})`);
     }
+  }
+  if (opts.stages !== undefined) {
+    const st = opts.stages, name = (q: string | {name: string}) => typeof q === 'string' ? q : q?.name;
+    if (!Array.isArray(st) || st.length < 2 || st.some(q => typeof name(q) !== 'string' || !name(q))) throw new Error("plane(): stages must be a list of at least 2 names (or {name, to?}), e.g. ['起源', 'カスタム', '製品', 'コモディティ']");
+    if (opts.x.ticks !== undefined || opts.x.step !== undefined || opts.x.categories !== undefined) throw new Error('plane(): stages are the x axis ticks, so x takes no ticks / step / categories with them');
+    const tos = st.map(q => typeof q === 'string' ? undefined : q.to);
+    if (tos.some(t => t !== undefined)) {
+      const min = opts.x.min ?? 0, inner = tos.slice(0, -1);
+      if (tos[tos.length - 1] !== undefined) throw new Error("plane(): the last stage runs to the end of the x axis, so it takes no `to`");
+      if (inner.some(t => typeof t !== 'number' || !Number.isFinite(t))) throw new Error('plane(): when a stage says where it ends (`to`), every stage but the last must');
+      if (inner.some((t, i) => (t as number) <= (i ? inner[i - 1] as number : min) || (t as number) >= opts.x.max)) throw new Error('plane(): stage `to` values must increase and stay inside the x axis');
+    }
+  }
+  for (const p of opts.points ?? []) if (p.evolves) {
+    const to = p.evolves.to, min = opts.x.min ?? 0;
+    if (typeof to !== 'number' || !(to > p.at[0]) || to > opts.x.max || to < min) throw new Error(`plane(): a point's evolves.to must be a number right of the point (x ${p.at[0]}) and inside the x axis (got ${to})`);
   }
   return withHandle({type: 'plane', ...opts, height: opts.height ?? 300}, opts.id);
 }
@@ -100,10 +117,32 @@ export function chevron<const Id extends string = never, const I extends readonl
 export function funnel<const Id extends string = never, const I extends readonly FunnelStage[] = readonly FunnelStage[]>(stages: I, opts?: FunnelOpts & {id?: Id}): ShapeExtra<FunnelBand, Id, I> { return withHandle(funnelBand(stages, opts), opts?.id) as ShapeExtra<FunnelBand, Id, I>; }
 /** Three to eight nodes joined as a closed circular process. Node ids are anchors for connect() and spotlight. */
 export function cycle<const Id extends string = never, const I extends readonly FlowStep[] = readonly FlowStep[]>(steps: I, opts?: CycleOpts & {id?: Id}): ShapeExtra<CycleBand, Id, I> { return withHandle(cycleBand(steps, opts), opts?.id) as ShapeExtra<CycleBand, Id, I>; }
+/**
+ * Porter's value chain (価値連鎖 / バリューチェーン): support activities (支援活動) as bars over the primary activities (主活動) as chevrons, with the
+ * margin (マージン) as an arrow at the right end. Items are labels or `{label, sub, id, tone}`; ids are anchors for connect() and spotlight.
+ *   valueChain({support: ['全般管理', '人事・労務管理', '技術開発', '調達活動'], primary: ['購買物流', '製造', '出荷物流', '販売・マーケティング', 'サービス']})
+ * `margin: false` leaves the arrow out (a chain of activities only); `titles: false` leaves out the two captions.
+ */
+export function valueChain<const Id extends string = never, const S extends readonly (string | FlowStep)[] = readonly (string | FlowStep)[], const P extends readonly (string | FlowStep)[] = readonly (string | FlowStep)[]>(parts: {support?: S; primary: P}, opts?: ValueChainOpts & {id?: Id}): ValueChainBand & Declares<Id | ItemIds<Extract<S[number] | P[number], {id?: string}>[]>> & HandleOf<Id> { return withHandle(valueChainBand(parts, opts), opts?.id) as never; }
 /** A two- or three-set Venn diagram. Dashed outlines supplement translucent colours, so sets are not distinguished by colour alone. */
 export function venn<const Id extends string = never, const I extends readonly VennSet[] = readonly VennSet[]>(sets: I, opts?: VennOpts & {id?: Id}): ShapeExtra<VennBand, Id, I> { return withHandle(vennBand(sets, opts), opts?.id) as ShapeExtra<VennBand, Id, I>; }
 /** Nested rings, ordered from the outside or inside, with labels in the rings or in a side key. */
 export function concentric<const Id extends string = never, const I extends readonly ConcentricRing[] = readonly ConcentricRing[]>(rings: I, opts?: ConcentricOpts & {id?: Id}): ShapeExtra<ConcentricBand, Id, I> { return withHandle(concentricBand(rings, opts), opts?.id) as ShapeExtra<ConcentricBand, Id, I>; }
+/**
+ * A word or two inside a circle, square, triangle, diamond or hexagon (図形に文字を入れたもの). The shape grows to hold its text, and all the
+ * shapes of one band share a size; they wrap to the next row when the width runs out. `sub` is a smaller line under the label.
+ *   emblem('重要', {shape: 'triangle', tone: 'danger', id: 'warn'})                      // one shape; `id` is its anchor
+ *   emblem([{label: '課題', shape: 'hexagon'}, {label: '原因', sub: '3 件'}], {shape: 'circle'})   // several; `shape` is the default
+ * Other tools call this a "shape" (PowerPoint, Visio) or a "node" (Graphviz, Mermaid). Item ids are anchors for connect() and spotlight.
+ */
+export function emblem<const Id extends string = never>(label: string, opts?: Omit<EmblemItem, 'label'> & Omit<EmblemOpts, 'shape' | 'id' | 'gap'> & {id?: Id}): EmblemBand & Declares<Id> & HandleOf<Id>;
+export function emblem<const Id extends string = never, const I extends readonly EmblemItem[] = readonly EmblemItem[]>(items: I, opts?: EmblemOpts & {id?: Id}): ShapeExtra<EmblemBand, Id, I>;
+export function emblem(first: string | readonly EmblemItem[], opts: (Omit<EmblemItem, 'label'> & EmblemOpts) | undefined = undefined): EmblemBand {
+  if (typeof first !== 'string') return withHandle(emblemBand(first, opts), opts?.id);
+  const {sub, shape, tone, id, ...band} = opts ?? {};
+  const built = emblemBand([{label: first, ...(sub !== undefined ? {sub} : {}), ...(shape ? {shape} : {}), ...(tone ? {tone} : {}), ...(id ? {id} : {})}], band);
+  return withHandle(built, id && built.scope ? `${built.scope}.${id}` : id); // a scoped item is registered as <scope>.<id> (ADR 0012)
+}
 /**
  * Decorated headline text (ワードアート): bold, outlined (縁取り), shadowed, glowing, bent, turned ..., set horizontally or vertically
  * (縦書き), as one band.
