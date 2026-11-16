@@ -344,7 +344,6 @@
   "semnet:semnetTexts",
   "seq-table:layoutSequence",
   "seq-table:layoutTable",
-  "seq-table:lineH",
   "spec-kit:axis",
   "spec-kit:checkFlowEnd",
   "spec-kit:count",

@@ -379,6 +379,8 @@ export interface BpmnOpts extends RevealOpts, ScopeOpts, FocusOpts {
   id?: string;
   /** 'shrink': when the figure is wider than the diagram, narrow the lane-name column, the column gaps and the task boxes step by step until it fits (default: throw). */
   fit?: 'shrink';
+  /** 'v': the lanes are columns and the flow runs down (default 'h': the lanes are rows and the flow runs right). A vertical figure takes its column width from the lanes, so it has no `fit`. ADR 0042 */
+  dir?: 'h' | 'v';
 }
 export interface BpmnBand extends Omit<BpmnOpts, 'focus'> {
   /** Set by `focus`: the focused items' ids. The arrows that touch one are drawn in the accent colour, the others muted. */
@@ -514,7 +516,10 @@ export interface LaidOutBpmn extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  lanes: (Rect & {labelW: number; tone: BoxTone; /** ADR 0054: the lane's part (its band, header and name) */ part?: string})[];
+  /** `labelW`: the lane-name column of a horizontal figure; `labelH`: the lane-name header of a vertical one (then `labelW` is 0). */
+  lanes: (Rect & {labelW: number; labelH?: number; tone: BoxTone; /** ADR 0054: the lane's part (its band, header and name) */ part?: string})[];
+  /** 'v' for a vertical figure (ADR 0042). */
+  dir?: 'v';
   /** The shape of each node (a circle, a diamond or a rounded rectangle). */
   nodes: (Rect & {kind: BpmnNodeKind; tone: EmphasisTone; /** ADR 0034 */ dataNode?: string; /** ADR 0054: the node's part (a gateway's diamond, mark and question; an event's circle and name) */ part?: string})[];
   /** The icons of the tasks that have one (20px, above the label); `node` indexes `nodes`. */
