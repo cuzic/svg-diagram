@@ -9,7 +9,7 @@ import type {FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {GanttBand, GanttRow, GanttTask, LaidOutGantt} from './types/timeline.ts';
 
 import {must} from './must.ts';
-const ROW_H = 32, BAR_H = 18, HEAD_H = 44, PAD = 8, LABEL_MAX = 0.4, MS_DAY = 86400000, ARROW = 8;
+const ROW_H0 = 32, BAR_H0 = 18, HEAD_H0 = 44, PAD0 = 8, LABEL_MAX = 0.4, MS_DAY = 86400000, ARROW = 8;
 
 /** Drops repeated points and the middle point of three on a line. */
 const simplifyPts = (pts: Pt[]): Pt[] => {
@@ -80,8 +80,10 @@ export function ganttTexts(band: GanttBand, roles: Roles): [string, number, numb
   return out;
 }
 
-export function layoutGantt(band: GanttBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutGantt {
+/** `geom` multiplies the row, bar and header heights and the padding: 1 keeps them at their 14px values; a canvas passes its font scale, so the header holds both the tick dates and today's label. */
+export function layoutGantt(band: GanttBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, geom = 1): LaidOutGantt {
   const S = roles.note;
+  const ROW_H = Math.round(ROW_H0 * geom), BAR_H = Math.round(BAR_H0 * geom), HEAD_H = Math.round(HEAD_H0 * geom), PAD = Math.round(PAD0 * geom);
   const tasks = tasksOf(band);
   if (!tasks.length) throw new Error('gantt(rows) needs at least one task');
   const ids = new Map<string, GanttTask>();
