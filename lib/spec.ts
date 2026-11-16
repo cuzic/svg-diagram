@@ -6,13 +6,13 @@
 // `slide` / `fill` (a measured slide), `today: 'auto'` (the build's date) and `icon` (a process-wide manifest).
 import {causeTree, chevron, cloud, cycle, diagram, flowchart, funnel, gantt, journeyMap, mindmap, pyramid, quadrant, raci, sequence, stateDiagram, swimlane, table, valueChain, venn, whyWhyTree} from './dsl-pure.ts';
 import type {RenderChecks} from './svg-lint.ts';
-import {EMOJI_RE} from './tokens.ts';
+import {EMOJI_RE, SLIDE_CANVAS} from './tokens.ts';
 import type {Diagram, Verdict} from './types/index.ts';
 import {quadrantDefaults} from './quadrant.ts';
 
-import {ARROW, BOX_TONE, CELL, DATE, EMPHASIS_TONE, LEGEND_EN, LINE, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_NODE_WIDTH, MAX_QUOTED, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, MAX_TREE_NODES, PART_EN, QUADRANT_GRID, SPEC_VERSION, STEP_REF, SpecError, TEXT_TONE, axis, checkFlowEnd, count, dayOf, flowSteps, id, isDay, items, list, mustExist, object, oneOf, pair, refIssue, text, treeItem, treeSize, uniqueIds, whyNode, whySize, withoutType} from './spec-kit.ts';
+import {ARROW, BOX_TONE, CANVAS_LIMITS, CELL, DATE, EMPHASIS_TONE, LEGEND_EN, LINE, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_NODE_WIDTH, MAX_QUOTED, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, MAX_TREE_NODES, PART_EN, QUADRANT_GRID, SPEC_VERSION, STEP_REF, SpecError, TEXT_TONE, axis, checkFlowEnd, count, dayOf, flowSteps, id, isDay, items, list, mustExist, object, oneOf, pair, refIssue, text, treeItem, treeSize, uniqueIds, whyNode, whySize, withoutType} from './spec-kit.ts';
 import type {Json, JsonSchema, PartDef, SpecIssue} from './spec-kit.ts';
-export {SPEC_VERSION, MAX_TOTAL_TEXT, MAX_EMOJI, MAX_SWIMLANE_COLS, MAX_TREE_DEPTH, MAX_TREE_NODES, MAX_CAUSE_NODES, MAX_CAUSE_LINKS, MAX_ISSUES, SpecError} from './spec-kit.ts';
+export {SPEC_VERSION, CANVAS_LIMITS, MAX_TOTAL_TEXT, MAX_EMOJI, MAX_SWIMLANE_COLS, MAX_TREE_DEPTH, MAX_TREE_NODES, MAX_CAUSE_NODES, MAX_CAUSE_LINKS, MAX_ISSUES, SpecError} from './spec-kit.ts';
 export type {JsonSchema, SpecIssue} from './spec-kit.ts';
 import {PARTS_R1} from './spec-parts/r1.ts';
 import {PARTS_R2} from './spec-parts/r2.ts';
@@ -215,14 +215,15 @@ const PARTS: readonly PartDef[] = [
       direction: oneOf('horizontal', 'vertical'),
       current: {type: 'integer', minimum: 1, maximum: 8, description: 'The step in progress, from 1.'},
     }, ['type', 'steps']),
-    example: {type: 'chevron', steps: [{label: '計画', sub: '要件を確認'}, {label: '実装', sub: '小さく作る'}, {label: '検証', sub: '品質を確認'}, {label: '公開', sub: '利用を開始'}], current: 2},
+    example: {type: 'chevron', steps: [{label: '計画', sub: '要件を確認'}, {label: '実装', sub: '小さく作る'}, {label: '検証', sub: '品質を確認'}, {label: '公開', sub: '利用を開始'}], current: 3},
     check(part, at, issues) {
       const n = items(part, 'steps').length, c = part['current'];
       if (typeof c === 'number' && c > n) issues.push({path: `${at}.current`, message: `is ${c}, but there are ${n} steps`});
     },
     build(part) {
-      const {steps, ...opts} = withoutType(part);
-      return chevron(steps as never, opts as never);
+      // the spec counts steps from 1 (as `steps` and loopBack do); chevron() takes a zero-based index
+      const {steps, current, ...opts} = withoutType(part);
+      return chevron(steps as never, {...opts, ...(typeof current === 'number' ? {current: current - 1} : {})} as never);
     },
   },
   {
@@ -569,7 +570,9 @@ const PARTS: readonly PartDef[] = [
     },
     build(part, at) {
       const {lanes, steps, ...opts} = withoutType(part);
-      const bands = swimlane(lanes as never, steps as never, opts as never) as unknown as {type: string; cols?: number}[];
+      // the spec counts rows from 1 (as it does col); swimlane() stacks sub-rows from 0
+      const placed = (steps as Json[]).map(s => typeof s['row'] === 'number' ? {...s, row: s['row'] - 1} : s);
+      const bands = swimlane(lanes as never, placed as never, opts as never) as unknown as {type: string; cols?: number}[];
       const cols = bands.find(b => b.type === 'swimlane')?.cols ?? 0;
       if (cols > MAX_SWIMLANE_COLS) throw new SpecError([{path: `${at}.steps`, message: `uses ${cols} columns; the limit is ${MAX_SWIMLANE_COLS}. Give steps that happen together the same col`}]);
       const late = items(part, 'phases').flatMap((p, i) => (p['to'] as number) > cols ? [{path: `${at}.phases[${i}].to`, message: `is ${String(p['to'])}, but the steps use ${cols} column(s)`}] : []);
@@ -614,6 +617,9 @@ const PARTS: readonly PartDef[] = [
 
 const partOf = (type: unknown): PartDef | undefined => PARTS.find(p => p.type === type);
 
+/** The width a figure without a canvas is drawn at: a document's text column (diagram() in lib/dsl/diagram.ts). */
+const DOC_WIDTH = 940;
+
 /** The JSON Schema of a whole spec. */
 export const specSchema: JsonSchema = object({
   version: {const: SPEC_VERSION, description: 'Always 1.'},
@@ -626,6 +632,12 @@ export const specSchema: JsonSchema = object({
   appearance: oneOf('light', 'dark'),
   density: oneOf('normal', 'compact'),
   legend: {enum: ['auto', false], description: "'auto' lists the notation used; false shows no legend."},
+  canvas: object({
+    width: {type: 'integer', minimum: CANVAS_LIMITS.width[0], maximum: CANVAS_LIMITS.width[1], description: `The width of the canvas in px (default ${SLIDE_CANVAS.width}).`},
+    height: {type: 'integer', minimum: CANVAS_LIMITS.height[0], maximum: CANVAS_LIMITS.height[1], description: `The height of the canvas in px (default ${SLIDE_CANVAS.height}). With fit 'content', the most it may be.`},
+    minText: {type: 'number', minimum: CANVAS_LIMITS.minText[0], maximum: CANVAS_LIMITS.minText[1], description: `The smallest text in px (default ${SLIDE_CANVAS.minText}). Every text, box and gap grows by minText / 14.`},
+    fit: {...oneOf('content'), description: "'content': the canvas is as tall as what it holds, up to height. Left out: always height tall."},
+  }, [], `A figure for a slide or a screen, shown at its own size (1920x1080 for a full HD slide), instead of a figure for a document (${DOC_WIDTH}px wide, shown in a text column). Text and boxes grow with minText, so a large canvas holds more only when minText stays small.`),
   parts: list({oneOf: PARTS.map(p => p.schema)}, 4, 1),
 }, ['version', 'title', 'parts']);
 

@@ -185,8 +185,9 @@ export function slotsOf(data: readonly BarDatum[]): {slots: number[]; count: num
   return {slots, count};
 }
 
-export function layoutBars(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBars {
-  return band.dir === 'v' ? layoutVertical(band, x, y, w, widthOf, roles) : layoutHorizontal(band, x, y, w, widthOf, roles);
+/** `geom`: a canvas's font scale (1 off a canvas), which the height of a column chart grows by (written in px for 14px text), so its value axis holds its scaled tick labels. */
+export function layoutBars(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, geom = 1): LaidOutBars {
+  return band.dir === 'v' ? layoutVertical(band, x, y, w, widthOf, roles, geom) : layoutHorizontal(band, x, y, w, widthOf, roles);
 }
 
 function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBars {
@@ -245,9 +246,9 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
   return out;
 }
 
-function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBars {
+function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, geom: number): LaidOutBars {
   const f = flags(band), S = sizeOf(band, roles);
-  const h = band.height ?? 280;
+  const h = (band.height ?? 280) * geom;
   const ticks = f.axis ? ticksOf({max: band.max}, 'bars') : [];
   // a Pareto's left axis also has the total, where its 100% is
   if (f.axis && band.cumulative && band.max - must(ticks[ticks.length - 1]).at > band.max * 0.08) ticks.push({at: band.max, label: fmt(band.max)});
@@ -259,7 +260,8 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
   const {slots, count} = slotsOf(band.data), slot = (plotR - plotL) / count;
   const bw = band.barRatio === undefined ? Math.min(64, slot * .62) : slot * band.barRatio;
   const topLabels = [...band.lines ?? [], ...band.vlines ?? []].some(l => l.label);
-  const plotB = f.showCats || band.edges ? y + h - S * 1.4 - 14 : y + h - 4;
+  const plotB = f.showCats || band.edges ? y + h - S * 1.4 - 14 * geom : y + h - 4;
+  const underGap = 10 * geom; // the category / edge labels under the plot: clear of the value axis's lowest tick label, whose box reaches 5S/14 + 4 under the axis
   const plotTOf = (rows: number) => y + (f.axis || f.showValues || topLabels || band.cumulative ? S + 8 : 4) + Math.max(0, rows - 1) * (S + 4);
   // the labels of the vertical reference lines stand on rows above the plot; one that would touch its neighbour or a value label goes a row higher
   const rowsAt = (rows: number) => {
@@ -304,7 +306,7 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
       const {lo, hi} = barSpan(d), bh = (hi - lo) / band.max * (plotB - plotT), bx = plotL + must(slots[i]) * slot + (slot - bw) / 2;
       const r = addBar(out, d, {x: bx, y: plotB - hi / band.max * (plotB - plotT), w: bw, h: bh});
       const bar = out.bars.length - 1;
-      if (f.showCats && !band.edges) putText(out, S, d.label, bx + bw / 2, plotB + S + 10, 'middle', 'text', widthOf, false, undefined, bar);
+      if (f.showCats && !band.edges) putText(out, S, d.label, bx + bw / 2, plotB + S + underGap, 'middle', 'text', widthOf, false, undefined, bar);
       const pick = values[i];
       if (!pick) return;
       const text = valueText(d, band);
@@ -314,13 +316,13 @@ function layoutVertical(band: BarsBand, x: number, y: number, w: number, widthOf
   }
   if (f.axis) out.ticks.push({x1: plotL, y1: plotT, x2: plotL, y2: plotB});
   if (f.baseline) out.ticks.push({x1: plotL, y1: plotB, x2: plotR, y2: plotB});
-  overlays(out, band, {plotL, plotR, plotT, plotB, S, widthOf, yOf, vrows});
+  overlays(out, band, {plotL, plotR, plotT, plotB, S, widthOf, yOf, vrows, underGap});
   return out;
 }
 
 /** Reference lines, edge labels, the cumulative line (with its 0-100% axis) and the curve of a vertical bars(). */
-function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: number; plotT: number; plotB: number; S: number; widthOf: WidthOf; yOf: (v: number) => number; vrows: ReturnType<typeof vlineRows>}): void {
-  const {plotL, plotR, plotT, plotB, S, widthOf, yOf, vrows} = g;
+function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: number; plotT: number; plotB: number; S: number; widthOf: WidthOf; yOf: (v: number) => number; vrows: ReturnType<typeof vlineRows>; underGap: number}): void {
+  const {plotL, plotR, plotT, plotB, S, widthOf, yOf, vrows, underGap} = g;
   const ink: BarsInk = {lines: [], polylines: [], dots: []};
   const count = slotsOf(band.data).count, slot = (plotR - plotL) / count, xOf = (at: number) => plotL + at * slot;
   const hy: number[] = []; // where the labels of the horizontal lines already are
@@ -341,7 +343,7 @@ function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: nu
     if (at && at.row > 0) ink.lines.push({x1: lx, y1: plotT - 4 - at.row * (S + 4), x2: lx, y2: plotT - 4, fill, dashed: l.dashed !== false, soft: true, part});
     if (l.label && at) putText(out, S, l.label, at.x, plotT - 8 - at.row * (S + 4), at.anchor, fill, widthOf, true, undefined, undefined, part);
   }
-  if (band.edges) band.edges.forEach((e, i) => { if (e) putText(out, S, e, xOf(i), plotB + S + 10, 'middle', 'text', widthOf, false, undefined, undefined, PLANE_AXES); });
+  if (band.edges) band.edges.forEach((e, i) => { if (e) putText(out, S, e, xOf(i), plotB + S + underGap, 'middle', 'text', widthOf, false, undefined, undefined, PLANE_AXES); });
   if (band.curve) ink.polylines.push({pts: band.curve.through.map(([sx, v]) => ({x: xOf(sx), y: yOf(v)})), fill: LINE_TONE[band.curve.tone ?? 'text'], dashed: band.curve.dashed === true, soft: true});
   if (band.cumulative) {
     // ADR 0054: the percent axis on the right, and the cumulative line (its line, dots and percents), are parts

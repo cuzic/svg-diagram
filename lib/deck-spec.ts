@@ -24,7 +24,8 @@ const slideShape = (figure: JsonSchema): JsonSchema => object({
   notes: text('Speaker notes. Lines are separated by "\\n".', 5000),
 }, [], 'One 16:9 slide. Every field is optional, but a slide needs a title or a figure.');
 
-const FIGURE: JsonSchema = {...specSchema, description: 'The figure: the same JSON spec as a single diagram. It is laid out at its own size and then scaled to the room the slide leaves.'};
+const {canvas: _canvas, ...FIGURE_FIELDS} = specSchema.properties ?? {}; // a deck slide sizes its figure itself (validateDeck refuses a canvas)
+const FIGURE: JsonSchema = {...specSchema, properties: FIGURE_FIELDS, description: 'The figure: the same JSON spec as a single diagram. It is laid out at its own size and then scaled to the room the slide leaves.'};
 
 /** The deck's JSON Schema, figures included (each is a full spec). */
 export const deckSchema: JsonSchema = object({
@@ -49,7 +50,13 @@ export function validateDeck(input: unknown): SpecIssue[] {
     if (typeof s !== 'object' || s === null) return;
     const slide = s as Json;
     if (slide['title'] === undefined && slide['figure'] === undefined) issues.push({path: `slides[${i}]`, message: 'needs a title or a figure'});
-    if (slide['figure'] !== undefined) for (const f of validateSpec(slide['figure'])) issues.push({path: figurePath(i, f.path), message: f.message});
+    // a deck slide sizes its figure to the room it leaves; a canvas is a whole slide of its own, so the two cannot both decide. Said once,
+    // not with the canvas's own mistakes, and the rest of the figure is checked without it, so a bad canvas does not hide its other mistakes
+    const figure = slide['figure'];
+    const canvas = typeof figure === 'object' && figure !== null && !Array.isArray(figure) && Object.hasOwn(figure, 'canvas');
+    if (canvas) issues.push({path: figurePath(i, 'canvas'), message: 'is for a figure drawn alone: a deck slide sizes its figure to the room left on the slide (leave canvas out)'});
+    const {canvas: _refused, ...rest} = canvas ? figure as Json : {};
+    if (figure !== undefined) for (const f of validateSpec(canvas ? rest : figure)) issues.push({path: figurePath(i, f.path), message: f.message});
   });
   return capped(issues);
 }

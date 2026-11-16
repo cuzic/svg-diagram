@@ -72,7 +72,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
 ## npm パッケージ・tsc の無い環境で使う
 
-**JSON で図を渡す(`svg-diagram/spec`)**: `.ts` のソースはコードとして実行されるので、外部から図を受け取るサーバーには渡せない。`validateSpec()` / `specToDiagram()` は JSON を検査して、決まった部品(今は `flowchart` / `swimlane` / `sequence`)だけを DSL に変換する。`image()`・`math()`・`slide` / `fill`・`icon` は持たない。間違いは `parts[0].nodes[2].label` のように場所つきで返る。`partCatalog()` は部品ごとの説明・スキーマ・例を返す。Node では `svg-diagram/render` の `renderSpec(json)` が、ファイルを書かずに SVG と検査結果を返す(`lintRendering()`、`svgToPng()` も同じ入口にある)。
+**JSON で図を渡す(`svg-diagram/spec`)**: `.ts` のソースはコードとして実行されるので、外部から図を受け取るサーバーには渡せない。`validateSpec()` / `specToDiagram()` は JSON を検査して、決まった部品(今は `flowchart` / `swimlane` / `sequence`)だけを DSL に変換する。`image()`・`math()`・`slide` / `fill`・`icon` は持たない。間違いは `parts[0].nodes[2].label` のように場所つきで返る。`partCatalog()` は部品ごとの説明・スキーマ・例を返す。図は既定で文書向け(幅 940px、本文の列で等倍に見える大きさ)。スライドや画面に等倍で置く図は `"canvas": {"width": 1920, "height": 1080, "minText": 20, "fit": "content"}` と書く(`diagram({canvas})` と同じ。幅 1280〜3840・高さ 360〜2160・`minText` 14〜24、省略時は 1280×720・24px。文字・箱・間隔とグラフの目盛りなどの寸法は `minText / 14` 倍になるので、広いキャンバスに多くを載せるには `minText` を小さくする。`minText` が 24 を超えると、文字に合わせて大きくならない配置に文字が収まらない部品があるので、spec では断る。ADR 0057)。デッキ(`deck-spec`)の図は、スライドが大きさを決めるので `canvas` を書けない。Node では `svg-diagram/render` の `renderSpec(json)` が、ファイルを書かずに SVG と検査結果を返す(`lintRendering()`、`svgToPng()` も同じ入口にある)。
 
 Node と Chromium だけの環境(ChatGPT の Code Interpreter など)では、`.ts` をそのまま `node` で動かし、Chromium は playwright を介さず直接動かし、文字幅と PNG は Chromium で測って描く。手順と環境変数は [docs/chatgpt-code-interpreter.md](docs/chatgpt-code-interpreter.md)。
 
@@ -1383,7 +1383,7 @@ diagram({
 
 `layoutCheck: 'strict'` は文書向けの図（`theme:`）だけで使える。スライド向け（`day:`）の図は `density` 以外の規則を検査しないので、警告にならないまま素通りしないよう throw する。
 
-文書向けの図の SVG には `role="img"`・`<title>`・`<desc>`・生成元（ソースの SHA-256）が入る。`npm test` / `pnpm test` でルールの単体テスト。
+文書向けの図の SVG には `role="img"`・`<title>`・`<desc>`・生成元（ソースの SHA-256）が入る。`pnpm test` でルールの単体テスト。
 
 ## コンパイル時に検出されるもの
 図のソースを `.ts` で書き `npx tsc -p .`（エディタでも同じ）を通すと、`check` や実行時エラーが後で見つける問題の多くを、**書いた場所で**型エラーにできる。
@@ -1480,4 +1480,4 @@ MIT
 ## 開発（TypeScript）
 
 全ソースは TypeScript（`.ts`）。ビルド工程はなく、Node の型ストリップ（Node ≥ 22.18）でそのまま実行する。このため `enum` / `namespace` などの非消去構文は使えない（`erasableSyntaxOnly`）。
-型検査は `npx tsc -p .`（`pnpm typecheck`）、`strict: true`。図・画面の型は `lib/types.ts` にまとまっている（`Band`、`WfNode`、`LaidOutDiagram` など）。図のソースを `.ts` で書くと `import {diagram, box} from 'svg-diagram'` にも型が付く（`tsconfig` の `paths` で `lib/dsl.ts` を指す）。
+型検査は `pnpm typecheck`（`tsc -p .`）、`strict: true`。図・画面の型は `lib/types.ts` にまとまっている（`Band`、`WfNode`、`LaidOutDiagram` など）。図のソースを `.ts` で書くと `import {diagram, box} from 'svg-diagram'` にも型が付く（`tsconfig` の `paths` で `lib/dsl.ts` を指す）。
