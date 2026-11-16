@@ -1,6 +1,6 @@
 # ADR 0056: デッキをサーバーで表示し、全端末を発表者のスライドに合わせる(`svg-diagram serve` と、自分でデプロイする Worker)
 
-- 状態: 実装中(Opus のレビューを 2 回反映。手元の `serve`・Worker・`--publish` を実装し、手元で確かめた。下の「実装で決めたこと」)
+- 状態: 実装済み(手元の `serve`・Worker・`--publish`。Opus のレビューを 3 回反映し、Chromium で確かめた。残り: カラー絵文字の輪郭、`--publish` の自動テスト、Firefox と Safari、Worker の本番の Cloudflare へのデプロイと無料プランの Durable Object の上限の確認。下の「まだのこと」)
 - 日付: 2026-11-14
 - 基点: `main`(837df96、PR #364 まで)
 - 関連: ADR 0018(deck viewer)、ADR 0055(デッキの JSON と PowerPoint 書き出し)、ADR 0007(結果が入力だけで決まること)、ADR 0012(id の衝突)、ADR 0013(失敗したビルドの古い出力)
