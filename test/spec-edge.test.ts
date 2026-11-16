@@ -219,6 +219,12 @@ test('problems and findings are bounded at the limits of the schema', async () =
   assert.ok(r.findings.length <= 21, `${r.findings.length} findings`);
 });
 
+test('a chevron whose current is the last step (counted from 1) is drawn, not refused', async () => {
+  const r = await renderSpecEdge(spec({type: 'chevron', steps: [{label: '計画'}, {label: '実装'}, {label: '検証'}, {label: '公開'}], current: 4}), realEngine());
+  assert.deepEqual(r.issues, []);
+  assert.ok(r.svg);
+});
+
 test('a swimlane too narrow says so in the fields of a spec', async () => {
   const steps = Array.from({length: 8}, (_, i) => ({id: `s${i}`, lane: 'a', title: '手順', col: i + 1}));
   const r = await renderSpecEdge(spec({type: 'swimlane', lanes: [{id: 'a', label: '人'}], steps, colGap: 96}), realEngine());
