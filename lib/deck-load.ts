@@ -57,7 +57,9 @@ export function loadDeck(deckFile: string): {ok: true; loaded: LoadedDeck} | {ok
     if (typeof s !== 'object' || s === null) return s;
     const {figure, columns, ...rest} = s as DeckSlide;
     const out: DeckSlide = {...rest};
-    if (figure !== undefined) { const r = resolve(figure, `slides[${i}].figure`, figureKey(i)); if (r.keep) out.figure = r.value; }
+    // a cover draws no figure (ADR 0066 D2): its figure is left as written, for validateDeck to say so (not read, so a bad path is not said first)
+    if (figure !== undefined && rest.layout === 'cover') out.figure = figure;
+    else if (figure !== undefined) { const r = resolve(figure, `slides[${i}].figure`, figureKey(i)); if (r.keep) out.figure = r.value; }
     if (columns !== undefined) out.columns = Array.isArray(columns) ? columns.map((c, j) => {
       if (typeof c !== 'object' || c === null || c.figure === undefined) return c;
       const {figure: cf, ...crest} = c, r = resolve(cf, `slides[${i}].columns[${j}].figure`, figureKey(i, j));

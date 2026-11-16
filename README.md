@@ -62,6 +62,7 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 - デッキ、パスで書いた図、`.ts` が import したファイル、`image()` の画像、`.svg-diagram.json`、フォントを監視し、保存すると描き直す。誤りがあれば前のスライドを残し、誤りは発表者の画面と端末にだけ出す。
 - 既定は `127.0.0.1` だけで待ち受ける。同じ LAN の端末に見せるには `--host 0.0.0.0`（QR が出る。LAN は暗号化されないので、会場の Wi-Fi では `--publish` を勧める）。
 - `--publish https://<自分の Worker>`（または `SVG_DIAGRAM_PUBLISH_ORIGIN`）と `SVG_DIAGRAM_PUBLISH_TOKEN` で、自分の Cloudflare にデプロイした Worker に送る。手元のサーバーは立ち上げず、保存するたびに送る。Worker のデプロイと設定は `worker/README.md`。
+- **表紙**（`pptx-deck` も同じ。ADR 0066）: スライドに `"layout": "cover"` を書くと、`event`（会・シリーズの名前）・`title`・`lead`（副題）・`date`・`presenter` を大きく中央にそろえて描く。`date` と `presenter` は書いたとおりに描く（「2026年11月27日」でも「2026-11-27」でもよい）。表紙は `title` が要り、`figure`・`columns`・`columnScale`・`fit`・`callouts` は書けない（場所つきの誤り）。`event`・`date`・`presenter` は表紙にだけ書ける。例: `{"layout": "cover", "event": "第3回 図の描き方 勉強会", "title": "図で伝える、要件の話", "lead": "言葉だけでは伝わらないことを、図にして渡す。", "date": "2026年12月4日", "presenter": "山田 花子"}`。
 
 **Markdown から使う**: 図のソースを画像として書く（`![流れ図](./diagrams/flow.diagram.ts)`。パスは Markdown ファイルからの相対）。
 

@@ -32,7 +32,9 @@ function textSvg(b: TextBlock, box: TextBoxFn): string {
     if (!first) return '';
     // the baseline splits the pitch as the font's ascent and descent split its height (PowerPoint's exact line spacing does the same)
     const m = box('あ', 'sans', b.size, first.bold ? 700 : 400), base = top + b.pitch * m.ascent / (m.ascent + m.descent);
-    let x = b.x + b.inset.x;
+    // a centred line (a cover, ADR 0066) starts where its measured width leaves it in the middle of the box
+    const lineW = b.align === 'center' ? runs.reduce((sum, r) => sum + box(r.text, 'sans', b.size, r.bold ? 700 : 400).w, 0) : 0;
+    let x = b.x + b.inset.x + (b.align === 'center' ? (b.width - 2 * b.inset.x - lineW) / 2 : 0);
     return runs.map(r => {
       const weight = r.bold ? 700 : 400;
       const out = `<text x="${n(x)}" y="${n(base)}" font-family="sans-serif" font-size="${b.size}" font-weight="${weight}" fill="#${r.color}">${esc(r.text)}</text>`;
@@ -81,7 +83,9 @@ export function slideSvg(layout: DeckLayout, figure: SlideFigure | undefined, fo
 }
 
 /** What the slide says, for `<img alt>` (ADR 0056 D2: the SVG's own <title> is not read out from an <img>). */
-export function slideText(s: {title?: string; lead?: string; callouts?: readonly {label?: string; text: string}[]; source?: string; columns?: readonly {caption?: string; text?: string}[]}, figureTitle?: string, columnTitles: readonly (string | undefined)[] = []): string {
+export function slideText(s: {title?: string; lead?: string; callouts?: readonly {label?: string; text: string}[]; source?: string; columns?: readonly {caption?: string; text?: string}[]; layout?: 'cover'; event?: string; date?: string; presenter?: string}, figureTitle?: string, columnTitles: readonly (string | undefined)[] = []): string {
   const cols = (s.columns ?? []).flatMap((c, j) => [c.caption, columnTitles[j], c.text]);
+  // a cover's fields in the order they are seen (ADR 0066 D10)
+  if (s.layout === 'cover') return [s.event, s.title, s.lead, s.date, s.presenter, s.source].filter((t): t is string => !!t).join('\n');
   return [s.title, s.lead, figureTitle, ...cols, ...(s.callouts ?? []).map(c => (c.label ?? '') + c.text), s.source].filter((t): t is string => !!t).join('\n');
 }

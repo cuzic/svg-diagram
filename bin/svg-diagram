@@ -11,7 +11,7 @@
 # svg-diagram contact a.svg b.svg ... --out sheet.png [--cols N] [--width PX] [--per-page N | --pages N]   (a whole set on one picture)
 # svg-diagram deck <a.ts|a.svg>... [--out deck.html] [--title TEXT] [--cols N] [--csp]   (several figures in one self-contained HTML to look through: arrows, overview, zoom, print)
 # svg-diagram pptx <source.ts>... [--out FILE | --out-dir DIR] [--png-scale N] [--font NAME]   (one editable PowerPoint file per source)
-# svg-diagram pptx-deck <deck.json> [--out FILE] [--png-scale N] [--font NAME]   (16:9 slides: heading, lead, figure, callouts, source, notes)
+# svg-diagram pptx-deck <deck.json> [--out FILE] [--png-scale N] [--font NAME]   (16:9 slides: heading, lead, figure, callouts, source, notes; a cover with layout "cover")
 # svg-diagram serve <deck.json> [--port N] [--host ADDR] [--allow-host NAME]... [--open]   (present the deck in the browser; every device follows the presenter)
 # svg-diagram lint  [file.svg|file.ts|glob ...] [--svg-dir DIR] [--strict] [--fix] [--engine geometry|browser]   (default: ./svg/*.svg; geometry needs no browser)
 # svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--engine resvg|chromium] [--require-fresh]   (draw it in the terminal as sixel)
