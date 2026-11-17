@@ -1,6 +1,6 @@
 # ADR 0067: 複数のデッキを静的なサイトに書き出す(`svg-diagram site`)。デプロイは core の外で行う
 
-- 状態: 実装済み(2026-11-17。`site-diagram.ts`・`lib/site.ts`・`lib/present/ui.ts` の `transport: 'static'`・`docs/deck-site-deploy.md`。Opus のレビューを 3 回反映。`wrangler dev`(Workers の静的アセット)と素の静的サーバーの `/slides/` の下で、Chromium で確かめた。残り: 本番の Cloudflare へのデプロイ、CI の例の実地の確認)
+- 状態: 実装済み(2026-11-17。`site-diagram.ts`・`lib/site.ts`・`lib/present/ui.ts` の `transport: 'static'`・`docs/deck-site-deploy.md`。Opus のレビューを 3 回反映。`wrangler dev`(Workers の静的アセット)と素の静的サーバーの `/slides/` の下で、Chromium で確かめた。2026-11-17 に本番の Cloudflare(Workers の静的アセット)にダミーのデッキでデプロイし、ヘッダー・転送・差分の送信・Chromium での動きを確かめ、Worker は消した。残り: CI の例の実地の確認)
 - 基点: `main`(57ed92e9、ADR 0066 まで)
 - 関連: ADR 0056(`serve` と自分でデプロイする Worker)、ADR 0062〜0064(発表の画面)、ADR 0055(デッキの JSON)、ADR 0013(失敗したビルドの古い出力)
 
