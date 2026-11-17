@@ -1,7 +1,7 @@
 // The Worker of `svg-diagram serve --publish` (ADR 0056 D11-D16), deployed by each presenter on their own Cloudflare account. It draws
 // nothing: it keeps the outlined slide SVGs `--publish` sends, serves the viewer's and presenter's pages (core's lib/present/ui.ts), and
 // moves every device to the presenter's slide (one Durable Object per presentation). Every URL it answers is below; anything else is 404.
-import {ASSET_CSS, ASSET_JS, PRESENT_CSS, PRESENT_JS, presenterPage, printPage, viewerPage} from '../../lib/present/ui.ts';
+import {ASSET_CSS, ASSET_JS, PAGE_CSP, PRESENT_CSS, PRESENT_JS, presenterPage, printPage, SVG_CSP, viewerPage} from '../../lib/present/ui.ts';
 import {qrSvg} from '../../lib/present/qr.ts';
 import {PROTOCOL} from '../../lib/present/sync.ts';
 import {readSettings, type Env, type Settings} from './config.ts';
@@ -12,12 +12,12 @@ export {Presentation} from './presentation.ts';
 
 const PAGE_HEADERS = {
   'content-type': 'text/html; charset=utf-8',
-  'content-security-policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+  'content-security-policy': PAGE_CSP,
   'x-content-type-options': 'nosniff', 'x-robots-tag': 'noindex', 'referrer-policy': 'no-referrer', 'cache-control': 'no-store',
 };
 const SVG_HEADERS = {
   'content-type': 'image/svg+xml; charset=utf-8',
-  'content-security-policy': "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'",
+  'content-security-policy': SVG_CSP,
   'x-content-type-options': 'nosniff', 'x-robots-tag': 'noindex', 'cache-control': 'public, max-age=31536000, immutable',
 };
 const text = (body: string, status: number, extra: Record<string, string> = {}): Response =>

@@ -4,12 +4,27 @@
 
 export const ASSET_JS = '/assets/present.js', ASSET_CSS = '/assets/present.css';
 
+/** The CSP of a slide SVG, the same wherever it is served (`serve`, the Worker, `svg-diagram site`'s _headers; ADR 0056 D3, ADR 0067 D8). */
+export const SVG_CSP = "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'";
+/** The CSP of a page, but for frame-ancestors (which a <meta> CSP cannot carry): `serve` and the Worker add it in their header. */
+export const PAGE_CSP_META = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'";
+export const PAGE_CSP = `${PAGE_CSP_META}; frame-ancestors 'none'`;
+
+/**
+ * Where a page finds its script and stylesheet, and the CSP it carries itself. `serve` and the Worker use the defaults (absolute paths, the
+ * CSP in their header); `svg-diagram site` gives paths relative to the page and a <meta> CSP, as its files go to any static host (ADR 0067 D3, D8).
+ */
+export interface PageAssets {js: string; css: string; csp?: string}
+const SERVED: PageAssets = {js: ASSET_JS, css: ASSET_CSS};
+
 export interface PageConfig {
   role: 'viewer' | 'presenter';
-  /** How this page follows: Server-Sent Events plus POST (local), or a WebSocket (Worker). */
-  transport: 'sse' | 'ws';
+  /** How this page follows: Server-Sent Events plus POST (local), a WebSocket (Worker), or nothing: a static site's slides.json (ADR 0067 D4). */
+  transport: 'sse' | 'ws' | 'static';
   /** The SSE or WebSocket URL (a path; the page makes a ws: / wss: URL of it). */
   events: string;
+  /** static: the slides.json to read (relative to the page). */
+  slides?: string;
   /** Where a presenter's messages (go, link, pointer) are POSTed (sse only). */
   go?: string;
   /** The print page (every slide, for the browser's print to PDF). */
@@ -35,10 +50,13 @@ const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;'
 /** JSON that is safe inside a <script> element. */
 const scriptJson = (v: unknown): string => JSON.stringify(v).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
 
-function page(title: string, cfg: PageConfig, body: string): string {
-  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">`
-    + `<title>${esc(title || 'スライド')}</title><link rel="stylesheet" href="${ASSET_CSS}"></head><body class="${cfg.role}">${body}`
-    + `<script type="application/json" id="sd-config">${scriptJson(cfg)}</script><script src="${ASSET_JS}"></script></body></html>`;
+/** The head's start: a <meta> CSP goes right after the charset, before anything it is to govern. */
+const head = (a: PageAssets): string => `<!doctype html><html lang="ja"><head><meta charset="utf-8">${a.csp ? `<meta http-equiv="Content-Security-Policy" content="${esc(a.csp)}">` : ''}`;
+
+function page(title: string, cfg: PageConfig, body: string, a: PageAssets): string {
+  return `${head(a)}<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">`
+    + `<title>${esc(title || 'スライド')}</title><link rel="stylesheet" href="${esc(a.css)}"></head><body class="${cfg.role}">${body}`
+    + `<script type="application/json" id="sd-config">${scriptJson(cfg)}</script><script src="${esc(a.js)}"></script></body></html>`;
 }
 
 const OVERVIEW = `<div id="overview" class="overview" hidden role="dialog" aria-label="スライドの一覧"></div>`;
@@ -48,7 +66,7 @@ const HELP = `<div id="help" class="help" hidden role="dialog" aria-label="シ�
  * The viewer's page (ADR 0062): the slide filling the window, moved by the presenter while linked, and by the viewer too (keys, the bar,
  * a swipe, the wheel, the overview, a slide number); the bar shows where the presenter is and brings the viewer back there.
  */
-export function viewerPage(title: string, cfg: PageConfig): string {
+export function viewerPage(title: string, cfg: PageConfig, assets: PageAssets = SERVED): string {
   return page(title, cfg, `<main class="stage" id="stage"><div class="zbox" id="zbox"><img id="slide" alt="" draggable="false"><div id="spot" class="spot" hidden></div><div id="laser" class="laser" hidden></div></div></main>`
     + `<div id="progress" class="progress"><div id="progressbar"></div></div>`
     + `<nav id="nav" class="nav" aria-label="スライドの操作">`
@@ -59,7 +77,7 @@ export function viewerPage(title: string, cfg: PageConfig): string {
     + `${cfg.print ? `<a id="print" href="${esc(cfg.print)}" target="_blank" rel="noopener" title="全スライドを印刷・PDF に">印刷</a>` : ''}`
     + `<button id="helpbtn" type="button" title="ショートカットキー (?)" aria-label="ショートカットキー">?</button><button id="follow" type="button" class="follow" hidden></button></nav>`
     + `<div id="status" class="status" role="status" hidden></div><div id="live" class="sr" aria-live="polite"></div>`
-    + `<div id="hint" class="hint" hidden>横にすると大きく見えます</div>${OVERVIEW}${HELP}`);
+    + `<div id="hint" class="hint" hidden>横にすると大きく見えます</div>${OVERVIEW}${HELP}`, assets);
 }
 
 /** The presenter's page: the current and next slides, the notes, the timer and pace, linking, the laser, the count of viewers, the QR, the problems. */
@@ -80,14 +98,38 @@ export function presenterPage(title: string, cfg: PageConfig): string {
     + `<pre id="notes" class="notes"></pre>`
     + `<div class="qr"><div id="qr"></div><div id="qrurl" class="qrurl"></div><div id="qrnote" class="qrnote"></div></div>`
     + `<div class="keys">? でショートカットキーの一覧　→ 次　← 前　o 一覧　+ / − 拡大・縮小　k 連動　l レーザー　s スポットライト　t タイマー</div></aside></div>`
-    + `<div id="problems" class="problems" hidden></div>${OVERVIEW}${HELP}`);
+    + `<div id="problems" class="problems" hidden></div>${OVERVIEW}${HELP}`, SERVED);
 }
 
 /** Every slide on its own 1280 × 720 page, for the browser's print (no notes). */
-export function printPage(title: string, slides: readonly {url: string; text: string}[]): string {
-  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>${esc(title || 'スライド')}</title>`
-    + `<link rel="stylesheet" href="${ASSET_CSS}"></head><body class="print">${slides.map(s => `<img src="${esc(s.url)}" alt="${esc(s.text)}">`).join('')}</body></html>`;
+export function printPage(title: string, slides: readonly {url: string; text: string}[], assets: PageAssets = SERVED): string {
+  return `${head(assets)}<meta name="robots" content="noindex"><title>${esc(title || 'スライド')}</title>`
+    + `<link rel="stylesheet" href="${esc(assets.css)}"></head><body class="print">${slides.map(s => `<img src="${esc(s.url)}" alt="${esc(s.text)}">`).join('')}</body></html>`;
 }
+
+/** A deck on a static site's index (ADR 0067 D12): its page (`<slug>/`), title, number of slides, and its first slide (relative to the index). */
+export interface SiteIndexDeck {href: string; title: string; slides: number; cover: string}
+
+/** A static site's index (ADR 0067 D12): every deck, with its first slide as the picture. No script. */
+export function siteIndexPage(title: string, decks: readonly SiteIndexDeck[], assets: {css: string; csp?: string}): string {
+  const items = decks.map(d => `<li><a href="${esc(d.href)}"><img src="${esc(d.cover)}" alt="${esc(d.title)}" loading="lazy" decoding="async" width="320" height="180">`
+    + `<span class="t">${esc(d.title)}</span><span class="n">${d.slides} 枚</span></a></li>`).join('');
+  return `${head({js: '', ...assets})}<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">`
+    + `<title>${esc(title || 'スライド')}</title><link rel="stylesheet" href="${esc(assets.css)}"></head>`
+    + `<body class="site"><main><h1>${esc(title || 'スライド')}</h1><ul class="decks">${items}</ul></main></body></html>`;
+}
+
+export const SITE_CSS = `*{box-sizing:border-box}html,body{margin:0}
+body.site{background:#f6f6f4;color:#1c1c1c;font-family:system-ui,-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif}
+.site main{max-width:1120px;margin:0 auto;padding:24px 16px 48px}
+.site h1{font-size:24px;margin:8px 0 20px}
+.decks{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
+.decks a{display:flex;flex-direction:column;gap:6px;color:inherit;text-decoration:none;background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px}
+.decks a:hover,.decks a:focus-visible{border-color:#2563eb;outline:none;box-shadow:0 0 0 2px #2563eb33}
+.decks img{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#fff;border:1px solid #eee}
+.decks .t{font-weight:600;line-height:1.4}.decks .n{color:#666;font-size:13px}
+@media (prefers-color-scheme:dark){body.site{background:#161616;color:#eee}.decks a{background:#222;border-color:#3a3a3a}.decks .n{color:#aaa}}
+`;
 
 export const PRESENT_CSS = `*{box-sizing:border-box}[hidden]{display:none!important}html,body{margin:0;height:100%}
 body{background:#111;color:#eee;font-family:system-ui,-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif}
@@ -346,10 +388,10 @@ var KEYS = presenter ? [
   ['画面', [['f', '全画面'], ['?', 'この一覧']]]
 ] : [
   ['スライド', [['→ / space / PageDown / ↓', '次'], ['← / PageUp / ↑', '前'], ['Home / End', '最初 / 最後'], ['g', '番号を入れて移動'], ['o', 'スライドの一覧'], ['スワイプ / ホイール', '次 / 前']]],
-  ['発表者', [['b / Enter', '発表者のスライドに合わせる'], ['(自動)', '発表者が「連動」で動かすと、発表者のスライドに移る']]],
+  cfg.transport === 'static' ? null : ['発表者', [['b / Enter', '発表者のスライドに合わせる'], ['(自動)', '発表者が「連動」で動かすと、発表者のスライドに移る']]],
   ['拡大', [['+ / -', '拡大 / 縮小'], ['0 / Esc', '元の大きさ'], ['Ctrl + ホイール / ピンチ', '指した所を拡大・縮小'], ['ダブルクリック / ダブルタップ', 'その所を拡大 / 元に戻す'], ['ドラッグ / 矢印(拡大中)', '見る所をずらす']]],
   ['画面', [['f', '全画面'], ['?', 'この一覧']]]
-];
+].filter(Boolean);
 function toggleHelp() {
   var h = $('help');
   if (h.hidden) {
@@ -425,7 +467,7 @@ document.addEventListener('keydown', function (e) {
   else if (k === '0') resetZoom();
   else if (k === 'f') fullscreen();
   else if (k === 'g') { var n = Number(prompt('スライドの番号 (1〜' + total() + ')')); if (n >= 1) goto(n - 1); }
-  else if (!presenter && (k === 'b' || k === 'Enter')) backToPresenter();
+  else if (!presenter && cfg.transport !== 'static' && (k === 'b' || k === 'Enter')) backToPresenter();
   else if (presenter && k === 'k') send({type: 'link', on: !(held && held.linked)});
   else if (presenter && k === 'l') toggleLaser();
   else if (presenter && k === 's') toggleSpot();
@@ -568,8 +610,26 @@ $('help').onclick = function (e) { if (e.target === $('help')) toggleHelp(); };
 var idle;
 document.addEventListener('mousemove', function () { document.body.classList.remove('hide-cursor'); clearTimeout(idle); idle = setTimeout(function () { document.body.classList.add('hide-cursor'); }, 2000); });
 
+// a slide number put in the URL after the page opened (#3) moves a viewer there; one out of range is ignored. draw()'s replaceState fires no hashchange.
+if (!presenter) window.addEventListener('hashchange', function () {
+  var h = /^#(\d+)$/.exec(location.hash), n = h ? Number(h[1]) : 0;
+  if (n >= 1 && n <= total() && n - 1 !== pos) goto(n - 1);
+});
+/** A static site (ADR 0067 D4): the slides from slides.json, no presenter to follow; the viewer starts at #n (1..total) or the first slide. */
+function loadStatic() {
+  var base;
+  try { base = new URL(cfg.slides, location.href); } catch (e) { status('スライドを読めませんでした', true); return; }
+  fetch(base.href, {credentials: 'same-origin'}).then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.json(); }).then(function (j) {
+    if (!j || !Array.isArray(j.slides) || !j.slides.length) throw new Error('no slides');
+    deck = {type: 'deck', slides: j.slides.map(function (s) { return {url: new URL(String(s.url), base).href, title: String(s.title || ''), text: String(s.text || '')}; })};
+    var h = /^#(\d+)$/.exec(location.hash), n = h ? Number(h[1]) : 0;
+    pos = n >= 1 && n <= deck.slides.length ? n - 1 : 0; following = false;
+    draw();
+  }).catch(function () { status('スライドを読めませんでした', true); });
+}
 var token = /[#&]token=([A-Za-z0-9_-]+)/.exec(location.hash);
-if (presenter && cfg.claim && token) {
+if (cfg.transport === 'static') loadStatic();
+else if (presenter && cfg.claim && token) {
   // the token leaves the address bar at once (a projected screen shows it), and is traded for a cookie before the page connects
   history.replaceState(null, '', location.pathname + location.search);
   fetch(cfg.claim, {method: 'POST', credentials: 'same-origin', headers: {'content-type': 'application/json'}, body: JSON.stringify({token: token[1]})})

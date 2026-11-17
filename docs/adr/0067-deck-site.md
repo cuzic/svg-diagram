@@ -1,6 +1,6 @@
 # ADR 0067: 複数のデッキを静的なサイトに書き出す(`svg-diagram site`)。デプロイは core の外で行う
 
-- 状態: 提案(2026-11-17。利用者の決定を反映。Opus のレビューを 2 回反映: 1 回目で D2・D4・D5・D7・D8・D10・D13 など、2 回目で D8 の `_headers` を置き場所に依らない形にし、D10 で足したファイルを守るようにした。3 回目で Blocker・Major なし、Minor を反映)
+- 状態: 実装済み(2026-11-17。`site-diagram.ts`・`lib/site.ts`・`lib/present/ui.ts` の `transport: 'static'`・`docs/deck-site-deploy.md`。Opus のレビューを 3 回反映。`wrangler dev`(Workers の静的アセット)と素の静的サーバーの `/slides/` の下で、Chromium で確かめた。残り: 本番の Cloudflare へのデプロイ、CI の例の実地の確認)
 - 基点: `main`(57ed92e9、ADR 0066 まで)
 - 関連: ADR 0056(`serve` と自分でデプロイする Worker)、ADR 0062〜0064(発表の画面)、ADR 0055(デッキの JSON)、ADR 0013(失敗したビルドの古い出力)
 
@@ -85,7 +85,7 @@ core は**普通の静的ファイルを書き出すだけ**にし、ネット�
   - 書かれていなければ作る。元は、デッキのファイルが `deck.json` ならそのディレクトリの名前(カレントの `deck.json` ならカレントのディレクトリの名前)、ほかの名前ならファイル名から拡張子を除いたもの。これを小文字にし、`[a-z0-9]` 以外の並びを `-` に替え、頭と末尾の `-` を除き、64 文字に切り詰めてから末尾の `-` をもう一度除く。空になれば `deck-<番号>`(1 から、並びの順)。元の名前から大きく変わったとき(空になった、元の文字の半分以上が落ちた。`勉強会` → `deck-1`、`第2回勉強会` → `2` など)は、`site.json` で slug を書くよう警告する。
   - 予約した名前(`assets`、Cloudflare が使う `cdn-cgi`、D15 で Worker とまとめる場合に備えて `p`・`api`・`auth`)と重なるもの、ほかのデッキと重なるもの(`a/talk/deck.json` と `b/talk/deck.json` など)は誤り。誤りは場所(引数か `site.json` の何番目か)とともに出し、「`site.json` で slug を書く」と案内する。
 - D8. **CSP とヘッダー**: 置き場所に依らないよう、**ページの CSP は HTML の `<meta>` で持たせ**、`_headers` には外す書き方(Cloudflare だけの `!`)を使わない。
-  - `site` のページ(ビューア・印刷・一覧)の `<head>` の頭(`<meta charset>` の直後、`<link>` より前。`<meta>` の CSP はそれより後の要素にしか効かないため)に次を置く: `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">`。この `<meta>` は `site` のページだけに入れる(`serve` と Worker はヘッダーで CSP を送っており、`<meta>` を共通にすると 2 つが重なって効くため)。
+  - `site` のページ(ビューア・印刷・一覧)の `<head>` の頭(`<meta charset>` の直後、`<link>` より前。`<meta>` の CSP はそれより後の要素にしか効かないため)に次を置く: `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">`(`serve` と Worker のページの CSP から `frame-ancestors` を除いたもの。`lib/present/ui.ts` の `PAGE_CSP_META`)。この `<meta>` は `site` のページだけに入れる(`serve` と Worker はヘッダーで CSP を送っており、`<meta>` を共通にすると 2 つが重なって効くため)。
   - `_headers`(Cloudflare Pages・Workers の静的アセット・Netlify が読む書式のただのファイル。ほかの置き場所では無視される)には、ページの CSP を書かない。1 つの規則に `*` は 1 つ。
 
         /*
@@ -109,6 +109,7 @@ core は**普通の静的ファイルを書き出すだけ**にし、ネット�
   - `DIR` を置き換えてよいのは、`site` が前に書き、そのあと何も足されていないディレクトリのときだけ。`DIR` があって空でなく、次のどれかなら、何も書かずに誤りにする(ADR 0013 の「既存の出力は削除しない」と同じ考え)。
     - `DIR/manifest.json` がない、または `generator` が `"svg-diagram site"` でない。
     - `DIR` の中に、`manifest.json` の `files` にないファイルか、`files` のどれの親でもないディレクトリがある(利用者があとから足した `CNAME`・`_redirects`・`robots.txt` など)。その名前を出す。ただし OS が作るもの(`.DS_Store`・`Thumbs.db`・`desktop.ini`)は無視し、置き換えとともに消す。
+    - `DIR` が OS の作るファイルだけなら、空とみなす。
     - `DIR` がシンボリックリンク(rename でリンクが実体のディレクトリに置き換わるため。リンク先を `--out` に渡すよう案内する)。
   - サイトに自分のファイルを足したいときは、`site.json` の `"extra": {"CNAME": "site-files/CNAME", ".well-known/security.txt": "site-files/security.txt"}` に書く。キーは `DIR` の中の写す先(相対パス。`..` と絶対パスは誤り)、値は `site.json` からの相対パスで、通常のファイルだけ(ディレクトリ・シンボリックリンクは誤り)。写したものも `files` に入る。D2 の名前(`index.html`・`manifest.json`・`_headers`・`assets`)や slug と重なるものは誤り。
   - 入力が `DIR` の中にあるときも誤り。入力は、デッキ・`site.json`・`extra` のほかに、描くときに読んだファイル(図の `.ts` とその import 先、写真。`serve` と同じく `recordResolved` / `recordImageReads` で集める、render-thread.ts:169-170)、プロジェクトの設定(`.svg-diagram.json`)とフォントのファイル(`outlineFontCheck` が読むので別に集める)を含む。
@@ -116,6 +117,7 @@ core は**普通の静的ファイルを書き出すだけ**にし、ネット�
     - 書いている途中で落ちれば `DIR.tmp-*` が、2 つの rename のあいだで落ちれば `DIR.old-*` が残り、後者では `DIR` がない。次の実行は、残っているものを知らせる(戻し方: `DIR.old-*` を `DIR` に戻す。`DIR.tmp-*` は消してよい)。
     - `DIR` がマウントポイントのとき、親に書けないときなど、rename が失敗(`EXDEV`・`EBUSY`・`EACCES` など)すれば、何も変えずに誤りにする(1 つ目の rename の後なら戻してから)。
 - D11. **描き方**: デッキごとにそのディレクトリのプロジェクトの設定を読み、フォントを確かめ(`serve` と同じ)、**1 つずつ順に描く**。設定の読み込みはプロセス全体に効くので、ディレクトリの違うデッキを並行に描くと設定が混ざるため。
+  - パスで書いたアイコンの一覧(`svg-diagram.icons.json`、`lib/icon-registry.ts` の `findManifest()`)は、`serve` と同じく作業ディレクトリから探す(デッキごとには読まない)。フォルダーの違うデッキがそれぞれのアイコンの一覧を持つときは、今は 1 回の `site` にまとめられない。D2 の「入力」にもこのファイルが入る。
   - 1 つのデッキのスライドの数は core の `MAX_SLIDES` に従う。置き場所の上限は core では見ない(置き場所の知識を core に入れないため)。書き出し後に、いちばん大きいファイルとファイルの数を表示する(参考: Cloudflare Pages と Workers の静的アセットは 1 ファイル 25 MiB、ファイルの数は無料プランで 20,000、有料プランで 100,000)。
 - D12. **一覧のページ**(`index.html`): `ui.ts` に `siteIndexPage(title, decks)` を足す。デッキごとに題・スライド数・表紙の縮小画像(1 枚目の SVG を `<img loading="lazy" decoding="async">` で。`alt` はデッキの題)と `<slug>/` へのリンク。スクリプトは使わない。スタイルは `assets/site.<hash>.css`(D8 の CSP が `style-src 'self'` のため)。写真の入ったデッキでは、1 枚目の SVG が数 MiB になることがある(縮小画像を別に作るのは今回はしない)。
 

@@ -13,6 +13,7 @@
 # svg-diagram pptx <source.ts>... [--out FILE | --out-dir DIR] [--png-scale N] [--font NAME]   (one editable PowerPoint file per source)
 # svg-diagram pptx-deck <deck.json> [--out FILE] [--png-scale N] [--font NAME]   (16:9 slides: heading, lead, figure, callouts, source, notes; a cover with layout "cover")
 # svg-diagram serve <deck.json> [--port N] [--host ADDR] [--allow-host NAME]... [--open]   (present the deck in the browser; every device follows the presenter)
+# svg-diagram site <deck.json...|site.json> --out DIR   (several decks as a static site to put on any host: index, viewer, print; deploy it yourself)
 # svg-diagram lint  [file.svg|file.ts|glob ...] [--svg-dir DIR] [--strict] [--fix] [--engine geometry|browser]   (default: ./svg/*.svg; geometry needs no browser)
 # svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--engine resvg|chromium] [--require-fresh]   (draw it in the terminal as sixel)
 # svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium] [--gray] [--no-stale-banner] [--require-fresh]   (warns when the SVG is older than its source)
@@ -42,9 +43,10 @@ case "$cmd" in
   deck)    exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/deck-diagram.$X" "$@" ;;
   pptx)    exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/pptx-diagram.$X" "$@" ;;
   serve)   exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/serve-diagram.$X" "$@" ;;
+  site)    exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/site-diagram.$X" "$@" ;;
   pptx-deck) exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/pptx-deck-diagram.$X" "$@" ;;
   check)   exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/check-diagram.$X" "$@" ;;
   lint)    exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/lint-svg.$X" "$@" ;;
   preview) exec node ${NODE_FLAGS[@]+"${NODE_FLAGS[@]}"} "$B/preview-svg.$X" "$@" ;;
-  *) sed -n 2,18p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
+  *) sed -n 2,19p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
 esac
