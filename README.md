@@ -64,6 +64,12 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 - `--publish https://<自分の Worker>`（または `SVG_DIAGRAM_PUBLISH_ORIGIN`）と `SVG_DIAGRAM_PUBLISH_TOKEN` で、自分の Cloudflare にデプロイした Worker に送る。手元のサーバーは立ち上げず、保存するたびに送る。Worker のデプロイと設定は `worker/README.md`。
 - **表紙**（`pptx-deck` も同じ。ADR 0066）: スライドに `"layout": "cover"` を書くと、`event`（会・シリーズの名前）・`title`・`lead`（副題）・`date`・`presenter` を大きく中央にそろえて描く。`date` と `presenter` は書いたとおりに描く（「2026年11月27日」でも「2026-11-27」でもよい）。表紙は `title` が要り、`figure`・`columns`・`columnScale`・`fit`・`callouts` は書けない（場所つきの誤り）。`event`・`date`・`presenter` は表紙にだけ書ける。例: `{"layout": "cover", "event": "第3回 図の描き方 勉強会", "title": "図で伝える、要件の話", "lead": "言葉だけでは伝わらないことを、図にして渡す。", "date": "2026年12月4日", "presenter": "山田 花子"}`。
 
+**複数のデッキをサイトにする（`svg-diagram site`）**: `svg-diagram site site.json --out dist`（またはデッキを並べて `svg-diagram site a/deck.json b/deck.json --out dist`）は、デッキを静的なサイトに書き出す（ADR 0067）。一覧のページと、デッキごとに `serve` の聴き手と同じ画面（発表者なし）・印刷のページ・スライドの SVG を作る。ノートは書き出さない。ネットワークには触れないので、置くのは自分で行う（Cloudflare なら `npx wrangler deploy`。手順は `docs/deck-site-deploy.md`）。
+
+- 中のリンクはすべて相対なので、サイトの根でも `/slides/` の下でも動く。ページの CSP は `<meta>` に、スライドの CSP と長いキャッシュは `_headers`（Cloudflare・Netlify が読む）に入る。
+- どれか 1 枚でも描けなければ何も書かない。`dist/` は丸ごと置き換えるが、`site` が書いていないファイルがあれば止まる（足したいファイルは `site.json` の `extra`）。
+- 同じ入力からは同じバイト列ができる。スライドの名前は中身のハッシュなので、デプロイでは変わったものだけが送られる。
+
 **Markdown から使う**: 図のソースを画像として書く（`![流れ図](./diagrams/flow.diagram.ts)`。パスは Markdown ファイルからの相対）。
 
 - **対象は `.diagram.ts` で終わるファイルだけ**で、ほかの `.ts` や外部 URL の画像には触らない。対象はソースとして `import` されて実行されるので、**信頼できない Markdown（ユーザー投稿など）には使わない**。絶対パス（`/…`、`//host/…`、`C:/…`）は拒否し、ソースは `root`（既定は作業フォルダ。`md` は `--root`）の中にあるものだけ読む。
@@ -150,6 +156,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
     svg-diagram deck <a.ts|a.svg>... [--out deck.html] [--title TEXT] [--cols N] [--csp]   # 複数の図を、前へ・次へで見られる 1 つの自己完結 HTML に（一覧・拡大・印刷つき）
     svg-diagram serve <deck.json> [--port N] [--host ADDR] [--allow-host NAME]... [--open]   # デッキをブラウザで発表する。保存すると描き直し、つないだ全端末が発表者のスライドに合わせる（ADR 0056）
     svg-diagram serve <deck.json> --publish [ORIGIN] [--new-presenter-token | --revoke-presenter-tokens | --delete]   # 自分でデプロイした Worker（worker/）に送り、会場の外の端末にも見せる
+    svg-diagram site <deck.json>... | <site.json> --out DIR   # 複数のデッキを静的なサイトに書き出す。置くのは自分で（docs/deck-site-deploy.md、ADR 0067）
     svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--engine resvg|chromium]   # ターミナルに sixel で直接表示（.ts は SVG を書かずに作って描く）
 
 型もすべて同じ所から取れる: `import type {WfNode, TableCell, TextTone, RawColorTone} from 'svg-diagram'`。変数に切り出した表のセルは `cell('通る', {tone: 'accent'})` で作ると、tone が文字列に広がらない（`as const` でも可）。`row()` に入れられるのは `box()` と `group()`、`grid()` は `box()` だけ（違うものを入れると実行時エラー）。

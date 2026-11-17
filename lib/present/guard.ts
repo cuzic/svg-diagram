@@ -1,5 +1,6 @@
 // Who may ask the local server what (ADR 0056 D9), as pure functions over the request's headers: the Host it was sent to (a page of another
 // site that renamed its DNS to this machine is refused), and whether a request comes from this server's own pages (Origin, Sec-Fetch-Site).
+import {PAGE_CSP, SVG_CSP} from './ui.ts';
 
 /** The Host headers this server answers: each allowed name or address with the port, an IPv6 address in brackets. */
 export function allowedHosts(names: readonly string[], port: number): Set<string> {
@@ -41,7 +42,7 @@ export function sameSecret(a: string, b: string): boolean {
 /** The headers of a slide SVG (ADR 0056 D3): even opened directly in a tab, nothing in it runs or loads. */
 export const SVG_HEADERS: Record<string, string> = {
   'content-type': 'image/svg+xml; charset=utf-8',
-  'content-security-policy': "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'",
+  'content-security-policy': SVG_CSP,
   'x-content-type-options': 'nosniff',
   'cache-control': 'public, max-age=31536000, immutable',
 };
@@ -49,7 +50,7 @@ export const SVG_HEADERS: Record<string, string> = {
 /** The headers of a page: its own script and stylesheet only, no framing by another site, not indexed. */
 export const PAGE_HEADERS: Record<string, string> = {
   'content-type': 'text/html; charset=utf-8',
-  'content-security-policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+  'content-security-policy': PAGE_CSP,
   'x-content-type-options': 'nosniff',
   'x-robots-tag': 'noindex',
   'referrer-policy': 'no-referrer',
