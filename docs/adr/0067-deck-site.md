@@ -1,6 +1,6 @@
 # ADR 0067: 複数のデッキを静的なサイトに書き出す(`svg-diagram site`)。デプロイは core の外で行う
 
-- 状態: 提案(2026-11-17。Opus のレビューを 2 回反映: 1 回目で D2・D4・D5・D7・D8・D10・D13 など、2 回目で D8 の `_headers` を置き場所に依らない形にし、D10 で足したファイルを守るようにした。3 回目で Blocker・Major なし、Minor を反映)
+- 状態: 提案(2026-11-17。利用者の決定を反映。Opus のレビューを 2 回反映: 1 回目で D2・D4・D5・D7・D8・D10・D13 など、2 回目で D8 の `_headers` を置き場所に依らない形にし、D10 で足したファイルを守るようにした。3 回目で Blocker・Major なし、Minor を反映)
 - 基点: `main`(57ed92e9、ADR 0066 まで)
 - 関連: ADR 0056(`serve` と自分でデプロイする Worker)、ADR 0062〜0064(発表の画面)、ADR 0055(デッキの JSON)、ADR 0013(失敗したビルドの古い出力)
 
@@ -123,8 +123,8 @@ core は**普通の静的ファイルを書き出すだけ**にし、ネット�
 
 - D13. core には**デプロイするコードを入れない**。Cloudflare の API・トークン・アカウントの名前を、core のコードにも設定にも持たない。
 - D14. 代わりに `docs/deck-site-deploy.md` に、置き方を 3 つ書く。
-  1. 手元から: `npx wrangler pages deploy dist --project-name <名前>`。
-  2. Workers の静的アセット: Worker のコードは書かず、`wrangler.jsonc` に `name`・`compatibility_date`・`"assets": {"directory": "./dist"}` を書いて `wrangler deploy`。
+  1. **Workers の静的アセット(主な手順)**: Worker のコードは書かず、`wrangler.jsonc` に `name`・`compatibility_date`・`"assets": {"directory": "./dist"}` を書いて、手元から `npx wrangler deploy`。`wrangler.jsonc.example` を文書に載せる。
+  2. Cloudflare Pages(代わりの方法): `npx wrangler pages deploy dist --project-name <名前>`。
   3. CI(GitHub Actions): デッキのリポジトリに push すると流れる例。
      - 描くジョブと、デプロイするジョブを分ける。`site` はデッキの `.ts` の図を実行するので、`CLOUDFLARE_API_TOKEN` は描くジョブに渡さない。`dist/` は artifact で渡す。
      - フォント(Noto Sans JP など)はデッキのリポジトリ(か、CI で決まった相対の場所)に置き、`.svg-diagram.json` には設定ファイルのフォルダーからの相対パスで書く(手元と CI で同じ設定が使える)。文字の幅は Chromium で測らない設定を前提にする。
@@ -145,7 +145,7 @@ core は**普通の静的ファイルを書き出すだけ**にし、ネット�
   - 1 枚壊したデッキでは、`DIR` が前のまま残る。
   - `site` が書いていない空でない `DIR`、`site` が書いたあとにファイルを足した `DIR`、図の `.ts` を中に含む `DIR` では拒否する。`extra` に書いたファイルは写される。
   - ディレクトリの違う、設定の違う 2 つのデッキが、それぞれの設定で描かれる。
-- `wrangler pages dev dist` と、`_headers` を読まない素の静的なファイルのサーバーの両方で開く。Chromium(Playwright)で、次を見る。
+- `wrangler dev`(Workers の静的アセット、D14 の 1.) と、`_headers` を読まない素の静的なファイルのサーバーの両方で開く。Chromium(Playwright)で、次を見る。
   - 一覧からデッキに入り、めくる・一覧・印刷・`#n` での移動・`hashchange` が動く。
   - CSP の違反がない。SVG を直接開いても崩れない。
   - 下の階層(`/slides/`)に置いても動く。`/slug`(末尾のスラッシュなし)で開いても動く。
@@ -160,7 +160,7 @@ core は**普通の静的ファイルを書き出すだけ**にし、ネット�
 
 ## 結果(見込み)
 
-- `svg-diagram site site.json --out dist && npx wrangler pages deploy dist` の 2 行で、複数のデッキが期限なしで公開される。
+- `svg-diagram site site.json --out dist && npx wrangler deploy` の 2 行で、複数のデッキが期限なしで公開される。
 - core は Cloudflare に依存しない。置き場所を変えても core を変えなくてよい。
 - `serve` と Worker の振る舞いは、`hashchange` に移るようになることのほかは変わらない(D3・D4 は引数と `transport` を足すだけ)。
 
@@ -171,8 +171,9 @@ core は**普通の静的ファイルを書き出すだけ**にし、ネット�
 - **core に `site --deploy` を入れ、Cloudflare の API を直接呼ぶ**: 1 コマンドで済むが、core が Cloudflare のトークンと API の版に縛られる。`wrangler` を呼ぶだけでも、core が `wrangler` の有無と版を気にすることになる。D14 の 1 行で足りるので採らない。
 - **デッキごとに自己完結した 1 つの HTML(SVG を埋め込む)**: 置き場所を選ばず、ファイル 1 つで渡せる。けれどもスライドを 1 枚直しても全体を送り直し、ブラウザも全体を読み直す。写真の入ったデッキでは 1 ファイルが大きくなる。将来 `site --single-file` として足せる形(D4 の `static` の初期化に、`slides.json` の代わりに埋め込んだ JSON を渡すだけ)にしておく。
 
-## まだ決めていないこと(利用者に確かめる)
+## 利用者が決めたこと(2026-11-17)
 
-1. 用途は「置いておいていつでも見られる」でよいか(この ADR の前提)。ライブ発表で複数のデッキを送りたいのなら、ADR 0056 の拡張になる。
-2. 公開の範囲(誰でも見られる / Access で絞る)。どちらでも core は変わらないが、D14 の文書の既定をどちらにするか。
-3. デプロイのきっかけ(手元のコマンド / git push からの CI)。D14 にどちらも書くが、どちらを先に整えるか。
+1. 用途は「置いておいていつでも見られる」。ライブ発表は今までどおり `serve --publish`(ADR 0056)で行う。
+2. 公開の範囲は「URL を知っている人なら誰でも」。D14 の文書の既定はこれにし、Cloudflare Access で絞る方法は任意の手順として載せる。
+3. デプロイは、まず手元のコマンドで整えて確かめる。CI(GitHub Actions)の例は文書に書くが、確かめるのは後にする。
+4. 置き場所は Workers の静的アセット(Worker のコードなし)。D14 では 2. を先頭に置き、主な手順として確かめる。Pages の手順は代わりの方法として残す(`dist/` は同じ)。
