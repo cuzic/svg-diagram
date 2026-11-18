@@ -1,0 +1,102 @@
+import type { CanvasContent, CanvasKey, CanvasOpts, CanvasTemplate } from '../canvas.ts';
+import type { CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts } from '../qc-table.ts';
+import type { FmeaOpts, FmeaRow, IsIsNotHypothesisInput, IsIsNotInputRow, IsIsNotOpts, IsIsNotTestsOpts, JourneyLane, JourneyMapOpts, JourneyStage, QfdDemand, QfdOpts, RaciAssignment, RaciOpts, WhyWhyChain, WhyWhyTableOpts } from '../semantic-table.ts';
+import type { AttributeSample, ControlChartOpts, ControlType } from '../qc-plane.ts';
+import type { GridBand } from '../types/containers.ts';
+import type { PlaneBand } from '../types/figures.ts';
+import type { TableBand } from '../types/sequence-table-swimlane.ts';
+import type { Declares, HandleOf } from '../strict.ts';
+/**
+ * A control chart (管理図) from the data: the centre line and the limits are worked out (3 sigma), points outside them are red crosses,
+ * 7 in a row on one side of the centre line or 7 in a row rising / falling are red rings.
+ *   'x' / 'mr'      individual values: the X chart and its moving range (data: number[])
+ *   'xbar' / 'r'    subgroups of 2-10 measurements: the mean and the range (data: number[][])
+ *   'p' / 'np' / 'u'  attributes per sample: [{n: 200, d: 6}, ...] (n inspected, d defective / defects)
+ *   'c'             defects per unit (data: number[])
+ *   controlChart('xbar', [[10.1, 10.0, 9.9], [10.2, 10.1, 10.0], ...], {limits: {cl: 10, ucl: 10.4, lcl: 9.6}})
+ */
+export declare function controlChart<const Id extends string = never>(type: ControlType, data: readonly (number | number[] | AttributeSample)[], opts?: ControlChartOpts & {
+    id?: Id;
+}): PlaneBand & Declares<Id> & HandleOf<Id>;
+/**
+ * The X-bar chart and the R chart of the same subgroups, one above the other: `diagram().add(...xbarR(subgroups))`. `limits` and `yLabel`
+ * can be given for each chart as `{xbar, r}`; a plain value is for the X-bar chart (the R chart keeps its own). `id` is the X-bar chart's.
+ */
+type PerChart<T> = T | {
+    xbar?: T;
+    r?: T;
+};
+export declare function xbarR(subgroups: readonly number[][], opts?: Omit<ControlChartOpts, 'limits' | 'yLabel'> & {
+    id?: string;
+    limits?: PerChart<ControlChartOpts['limits']>;
+    yLabel?: PerChart<string>;
+}): [PlaneBand, PlaneBand];
+/**
+ * A check sheet (チェックシート): the items down the side, the columns (days, machines, shifts) across, a column and a row of totals.
+ * Without `counts` it is an empty sheet to fill in by hand (`boxes: true` puts a ☐ in each cell); with them each count is written as
+ * tally marks (正丅 = 7; `as: 'number'` for digits, `'both'` for both).
+ *   checkSheet([{label: '傷', counts: [3, 5, 2]}, {label: '汚れ', counts: [1, 0, 4]}], ['月', '火', '水'], {corner: '不良の種類'})
+ */
+export declare function checkSheet<const Id extends string = never>(items: readonly (string | CheckItem)[], columns: readonly string[], opts?: CheckSheetOpts & {
+    id?: Id;
+}): TableBand & Declares<Id> & HandleOf<Id>;
+/**
+ * A matrix diagram (マトリックス図, L-shaped): the rows (ideas, causes, requirements) against the columns (criteria, measures) with a
+ * ◎ ○ △ × where they relate. `weights` (the importance of each column) adds a row of them and a score per row — Σ weight x value,
+ * ◎ 9 / ○ 3 / △ 1 / × 0 unless `values` says otherwise — and the best score is marked.
+ *   matrix(['A 案', 'B 案'], ['コスト', '速さ', '品質'], [['○', '◎', '△'], ['◎', '△', '○']], {weights: [5, 3, 4], corner: '案 ＼ 評価'})
+ */
+export declare function matrix<const Id extends string = never>(rows: readonly string[], cols: readonly string[], cells: readonly (readonly MatrixMark[])[], opts?: MatrixOpts & {
+    id?: Id;
+}): TableBand & Declares<Id> & HandleOf<Id>;
+/** A RACI responsibility chart. Every task normally needs exactly one A and at least one R. */
+export declare function raci<const Id extends string = never>(tasks: readonly string[], roles: readonly string[], assignments: readonly (readonly RaciAssignment[])[], opts?: RaciOpts & {
+    id?: Id;
+}): TableBand & Declares<Id> & HandleOf<Id>;
+/** Failure mode and effects analysis. RPN is computed as S x O x D. */
+export declare function fmea<const Id extends string = never>(rows: readonly FmeaRow[], opts?: FmeaOpts & {
+    id?: Id;
+}): TableBand & Declares<Id> & HandleOf<Id>;
+/**
+ * A Kepner-Tregoe IS / IS NOT table: what the problem is and, for each of what / where / when / extent, what it could be but is not. The
+ * "違い" column is what sets the two apart, "変化" what changed around that difference. A row's `dim` is 'what' | 'where' | 'when' | 'extent' or your own heading.
+ *   isIsNot([{dim: 'what', is: 'API A のタイムアウト', isNot: 'API B は正常', distinct: 'A だけ外部 DB を使う', change: '接続設定を変更'}])
+ */
+export declare function isIsNot<const Id extends string = never>(rows: readonly IsIsNotInputRow[], opts?: IsIsNotOpts & {
+    id?: Id;
+}): TableBand & Declares<Id> & HandleOf<Id>;
+/**
+ * The hypotheses tested against an IS / IS NOT table: for each row, can this cause explain it (yes / only if something is assumed / no)?
+ * A hypothesis that explains every row is in bold, and the one with the fewest assumptions says so; the figure does not pick the cause.
+ *   isIsNotTests(rows, [{text: '接続設定の変更', results: ['yes', 'yes', 'ifAssumed'], assumes: ['古い接続が残っていた']}])
+ */
+export declare function isIsNotTests<const Id extends string = never>(rows: readonly IsIsNotInputRow[], hypotheses: readonly IsIsNotHypothesisInput[], opts?: IsIsNotTestsOpts & {
+    id?: Id;
+}): TableBand & Declares<Id> & HandleOf<Id>;
+/**
+ * A why-why analysis as a table: one row per chain of answers to "なぜ?", ending in the root cause (真因) and what is done about it (対策).
+ * A cause two chains share is written again in each row (a table has no merged cells). The tree form is whyWhyTree().
+ *   whyWhyTable('リリースが遅れた', [{whys: ['修正に時間がかかった', '影響範囲が広かった', '検証が最後に集中していた'], trueCause: '検証を早い段階でしていない', measure: '結合テストを毎週回す'}])
+ */
+export declare function whyWhyTable<const Id extends string = never>(problem: string, chains: readonly WhyWhyChain[], opts?: WhyWhyTableOpts & {
+    id?: Id;
+}): TableBand & Declares<Id> & HandleOf<Id>;
+/** Quality function deployment: weighted customer demands against quality characteristics. */
+export declare function qfd<const Id extends string = never>(demands: readonly QfdDemand[], characteristics: readonly string[], relations: readonly (readonly MatrixMark[])[], opts?: QfdOpts & {
+    id?: Id;
+}): TableBand & Declares<Id> & HandleOf<Id>;
+/** Customer journey map. A lane whose id is `emotion` is validated and drawn with numeric, toned status marks. */
+export declare function journeyMap<const Id extends string = never>(stages: readonly (string | JourneyStage)[], lanes: readonly JourneyLane[], opts?: JourneyMapOpts & {
+    id?: Id;
+}): TableBand & Declares<Id> & HandleOf<Id>;
+/**
+ * A fixed-region canvas from a named template: 'bmc' (Business Model Canvas), 'lean', 'vpc', 'swot', 'tows', 'errc', 'pest' (PESTLE with
+ * `pestle: true`), 'threeC', 'sevenS', 'fiveForces', 'empathy', 'persona', 'a3'. `content` is the text of each region (a string, or an array
+ * of short bullets) by region id; a wrong id is a type error (and throws, listing the valid ones). Each region is a box: with `id: 'c'` it
+ * is the anchor 'c-<region>' for connect(), reveal and spotlight.
+ *   canvas('swot', {strengths: ['技術力'], weaknesses: ['知名度'], opportunities: ['需要増'], threats: ['新規参入']}, {title: '現状分析'})
+ */
+export declare function canvas<const T extends CanvasTemplate, const Id extends string = never>(template: T, content: CanvasContent<T>, opts?: CanvasOpts<T> & {
+    id?: Id;
+}): GridBand & Declares<`${Id}-${CanvasKey<T>}`>;
+export {};
