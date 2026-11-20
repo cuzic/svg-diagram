@@ -58,6 +58,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 | `group(children, {title, tone})` | ラベル付きの枠。入れ子可 |
 | `connect(a.right, b.left, {label, route})` | 矢印。`a` は `const a = box({id: 'a'})` のハンドル（id を打ち直さない） |
 | `branch(a.right, [{to: 'b:left', label}, …])` | 1 つから複数へ扇形に出る矢印（既定は `route: 'elbow'`）。`connect` を並べて書かない |
+| `connect(a.right, 'c1:left', {via: {to: 'group'}})` | group の中の箱への矢印を、group の枠で止める（`references/freeform.md`「枠で止める: via」） |
 | `steps([{title, body, icon}], {numbered: true, highlight: 2})` | 日付のない順序だけの出来事。番号バッジと矢印つき |
 | `table(columns, rows, {title})` / `cell(text, {mark})` | 見出し付き表。`mark: 'ok' / 'mid' / 'ng' / 'best'` で ○△×◎ |
 | `banner({text, tone})` | 帯（章の見出しや結論の 1 行） |
@@ -85,7 +86,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 
 | 作りたい・直したい図 | 開くファイル |
 |---|---|
-| 型の部品を使わず、箱と線で描く図（`row` / `areas` / `group` / `connect` / `branch` の並べ方・揃え方・つなぎ方） | `references/freeform.md` |
+| 型の部品を使わず、箱と線で描く図（`row` / `areas` / `group` / `connect` / `branch` / `via` の並べ方・揃え方・つなぎ方） | `references/freeform.md` |
 | 組織図・マインドマップ・状態遷移図・ガント・クラス図・BPMN・数値の時間軸・`tree` などの自動配置、幅に収まらない・折れが多い | `references/auto-layout.md` |
 | TOC（因果ツリー・現状/未来現実/前提条件/移行ツリー・クラウド）、故障の木・なぜなぜ分析の木・ボウタイ図、戻り矢印の交差の見せ方（`hop`） | `references/toc.md` |
 | QC 七つ道具・新 QC 七つ道具（パレート・ヒストグラム・散布図・管理図・親和図・連関図・PDPC・アロー・ダイヤグラム） | `references/qc.md` |

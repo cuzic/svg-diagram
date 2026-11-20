@@ -218,8 +218,16 @@ export interface AreasBand {
   gap: number;
   rowGap: number;
 }
+/**
+ * connect({via}) (ADR 0069 D2): an end inside a framed group stops on that group's frame (the outermost framed group around it that does
+ * not hold the other end), on the side its ref names, within the box's span. 'group': every end that sits in a framed group;
+ * {from: 'group'} / {to: 'group'}: that end only (it must sit in one).
+ */
+export type ConnectVia = 'group' | {from?: 'group'; to?: 'group'};
 export interface ConnectOpts extends RevealOpts {
   route?: Route;
+  /** Stop an end on the frame of the group around it, not on its box (ADR 0069 D2): 'group', or {from: 'group'} / {to: 'group'}. Straight and elbow routes only. */
+  via?: ConnectVia;
   /** loop-under: how far below the lower anchor the return path runs (default 32). loop-side: how far outside the two anchors' side (default 32). */
   dip?: number;
   bend?: Bend;
@@ -265,6 +273,8 @@ export interface ConnectBand {
   until?: number;
   /** Internal (versus()): the end on a top / bottom side takes the start's x (kept inside that side), so the line drops plumb. */
   plumb?: boolean;
+  /** See ConnectOpts.via. A connect with it is always resolved after every band is placed (the frames are read off the laid-out groups). */
+  via?: ConnectVia;
 }
 /** branch() target: connect() options plus the target ref. */
 export interface BranchTarget extends ConnectOpts {to: string}
@@ -289,6 +299,10 @@ export interface LaidOutConnect extends Omit<ConnectBand, 'from' | 'to'> {
   /** Set when an end is a row or a column of a row (row({id})): the boxes in this area (even partly) count as that end. */
   fromArea?: Rect;
   toArea?: Rect;
+  /** Set when an end stops on a group's frame (connect({via}), ADR 0069 D2): that frame. The boxes in it count as that end for the
+   *  bend: 'auto' obstacles and the overlap checks, but not for the graph rules (they read fromId / toId, the box's own id). */
+  fromVia?: Rect;
+  toVia?: Rect;
   /** The original 'id:side@t' strings (for error messages). */
   fromLabel: string;
   toLabel: string;

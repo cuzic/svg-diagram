@@ -75,6 +75,24 @@ d.add(
 - 折れ線は `route: 'elbow'`、`bend: 'auto'` で他の箱を横切らない曲がり位置を選ぶ。戻りの線は `loop-under`（下を回る）と `loop-side`（同じ側の外を回る）。
 - ラベルは `label`、線の上に載せるなら `chip: true`。間隔は次の節。
 
+## 枠で止める: `via`
+
+group の中の箱へ向かう矢印を、箱ではなく group の枠で止める。枠全体が受け手（送り手）であることを見せ、線を枠の中に引き込まない。
+
+```ts
+// 決定メモから「同じ前提で始まる」の 3 つへ。線は枠の左辺で止まる
+branch('note:right', [{to: 'c1:left'}, {to: 'c2:left'}, {to: 'c3:left'}], {via: {to: 'group'}}),
+connect('c1:bottom', 'z:top', {via: {from: 'group'}}),   // 出る側も同じ
+connect('a:right', 'b:left', {via: 'group'}),            // 枠の中にある端すべて
+```
+
+- 止める枠は、箱を囲む枠のある group のうち、もう一方の端を含まない**いちばん外側**のもの。両端が同じ group の中なら、その group では止まらない（その中の、相手を含まない枠で止まる）。
+- 辺は参照の `:side` で決まる（`c1:left` なら枠の左辺）。辺の上の位置は箱の範囲。`@t` も箱の範囲に対して読む。水平にそろえる働きはそのまま効く。
+- 誤り（throw）: 辺がない・`center`、辺が相手と反対を向いている、`{to: 'group'}` の端が枠のある group の中にない、端が group の id そのもの（`via` は要らない）、`loop-under` / `loop-side`。
+- 枠なしの group（`frame: false`、row が包んだ caption など）は枠ではない。止まらない。
+- PowerPoint では `via` の端だけ箱に貼り付けない（README「矢印を group の枠で止める」）。
+- 全体は `examples/via-memo.ts`。
+
 ## ラベル付きの矢印の間隔は自動で広がる。広がらない場合
 
 ラベル付きの直線（`route: 'straight'`、既定）の矢印は、ラベルが端の箱に重ならず、矢印の向きが読める長さまで、間隔を自動で広げる。`gap` を大きく書かなくてよい。

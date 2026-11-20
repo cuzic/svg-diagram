@@ -19,6 +19,7 @@
 
 import type {MIN_FONT_SIZE} from './tokens.ts';
 import type {Arrow, ArrowWeight, Bend, DiagramOpts, LineStyle, SlideRef, TextTone, Theme} from './types/core.ts';
+import type {ConnectVia} from './types/containers.ts';
 import type {CurvePoint} from './types/figures.ts';
 import type {SeqDivider, SeqNote, SequenceActor, SeqMessage, SeqSelf, SwimlaneFlow, SwimlaneStep} from './types/sequence-table-swimlane.ts';
 import type {BoxOpts, RichText} from './types/text-bands.ts';
@@ -168,18 +169,18 @@ type StepRule = {step?: undefined} | {step: number | string; title: RichText};
 export type BoxInput<Id extends string = string> = Omit<BoxOpts, 'size'> & {id?: Id; /** @deprecated Has no effect (see BoxStyleOpts.size): use a role. */ size?: FontSize} & StepRule;
 
 /** loop-under takes `dip`, elbow takes `bend` / `bendOffset`; neither is meaningful for another route. */
-type Straight = {route?: 'straight'; dip?: never; bend?: never; bendOffset?: never};
-type Elbow = {route: 'elbow'; bend?: Bend; bendOffset?: number; dip?: never};
-type LoopUnder = {route: 'loop-under'; dip?: number; bend?: never; bendOffset?: never};
+type Straight = {route?: 'straight'; dip?: never; bend?: never; bendOffset?: never; via?: ConnectVia};
+type Elbow = {route: 'elbow'; bend?: Bend; bendOffset?: number; dip?: never; via?: ConnectVia};
+type LoopUnder = {route: 'loop-under'; dip?: number; bend?: never; bendOffset?: never; via?: never};
 /** Two anchors on the same left / right / top side, joined by a line that runs out past that side (a return up a column of boxes). */
-type LoopSide = {route: 'loop-side'; dip?: number; bend?: never; bendOffset?: never};
+type LoopSide = {route: 'loop-side'; dip?: number; bend?: never; bendOffset?: never; via?: never};
 /** chip / labelAt only make sense with a label. */
 type LabelRule = {label?: undefined; chip?: never; labelAt?: never} | {label: string; chip?: boolean; labelAt?: number};
 interface ConnectLook {arrow?: Arrow; line?: LineStyle; weight?: ArrowWeight; tone?: TextTone; reveal?: number; until?: number; /** legacy */ marker?: boolean; /** legacy */ dashed?: boolean}
 /** connect() options. */
 export type ConnectInput = ConnectLook & (Straight | Elbow | LoopUnder | LoopSide) & LabelRule;
 /** branch() options / targets: the route defaults to 'elbow', so `bend` needs no `route`. */
-export type BranchInput = ConnectLook & (Omit<Elbow, 'route'> & {route?: 'elbow'} | {route: 'straight'; dip?: never; bend?: never; bendOffset?: never} | LoopUnder) & LabelRule;
+export type BranchInput = ConnectLook & (Omit<Elbow, 'route'> & {route?: 'elbow'} | {route: 'straight'; dip?: never; bend?: never; bendOffset?: never; via?: ConnectVia} | LoopUnder) & LabelRule;
 
 /** pyramid(): at least two layers, bottom to top. */
 export type PyramidLayers = [string | {text: string}, string | {text: string}, ...(string | {text: string})[]];
