@@ -43,7 +43,7 @@ export function connectBand(from: string, to: string, opts: ConnectOpts, trackGi
 function checkVia(from: string, to: string, via: unknown, route: string): ConnectVia {
   const who = `connect(${from} -> ${to})`;
   const ok = via === 'group' || (!!via && typeof via === 'object' && !Array.isArray(via) && Object.keys(via).length > 0
-    && Object.entries(via).every(([k, v]) => (k === 'from' || k === 'to') && (v === 'group' || v === undefined)));
+    && Object.entries(via).every(([k, v]) => (k === 'from' || k === 'to') && (v === 'group' || v === undefined)) && Object.values(via).includes('group'));
   if (!ok) throw new Error(`${who}: via is 'group', {from: 'group'} or {to: 'group'} (got ${JSON.stringify(via)})`);
   if (route !== 'straight' && route !== 'elbow') throw new Error(`${who}: via works with route 'straight' or 'elbow' (a ${route} runs round the boxes, not up to a frame)`);
   const v = via as ConnectVia;

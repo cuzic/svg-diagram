@@ -91,7 +91,7 @@ test('via: levelled like any side-to-side line (one end moves, or both to the mi
 });
 
 test('via: an elbow with bend auto does not take the boxes in the frame for obstacles; the checks do not count them as overlaps', async () => {
-  const d = diagram({theme: 'blue', title: 't'}).add(row([memo(), convs()], {cols: [6, 6]}), connect('memo:bottom', 'c3:left', {via: {to: 'group'}, route: 'elbow', bend: 'auto'}));
+  const d = diagram({theme: 'blue', title: 't'}).add(row([memo(), convs()], {cols: [6, 6]}), connect('memo:right', 'c3:left', {via: {to: 'group'}, route: 'elbow', bend: 'auto'}));
   const {laidOut, verdict} = await checkDiagram(d);
   const c = laidOut.connects[0]!;
   assert.equal(c.to.x, frameOf(laidOut, '同じ前提').x);
@@ -143,4 +143,45 @@ test('via and the label gaps (D1): the gap a labelled via line runs through is w
     const gapOf = (r: typeof b) => (r.laidOut.laidOut.find(x => x.type === 'group') as LaidOutGroup).y - (boxOf(r.laidOut, 'top').y + boxOf(r.laidOut, 'top').h);
     assert.equal(gapOf(b), gapOf(plain), 'no room added for a node\'s icon the line does not reach');
   }
+});
+
+test('via: levelSides moves both ends to the middle of the overlap when neither middle is inside the other box', async () => {
+  const body = '本文の行。'.repeat(14);
+  const l = await render(row([group([box({id: 'A', title: 'A', body})], {title: 'L', valign: 'top'}), group([box({title: 'pad'}), box({id: 'B', title: 'B', body})], {title: 'R'})], {cols: [6, 6]}), connect('A:right', 'B:left', {via: 'group'}));
+  const A = boxOf(l, 'A'), B = boxOf(l, 'B'), c = l.connects[0]!;
+  assert.ok(A.y + A.h / 2 < B.y + 12 && B.y + B.h / 2 > A.y + A.h - 12, 'neither middle is well inside the other box');
+  assert.equal(c.from.y, c.to.y, 'level');
+  const lo = Math.max(A.y, B.y) + 12, hi = Math.min(A.y + A.h, B.y + B.h) - 12;
+  assert.ok(Math.abs(c.from.y - (lo + hi) / 2) < 0.01, `the middle of the overlap (${c.from.y} vs ${(lo + hi) / 2})`);
+  assert.equal(c.from.x, frameOf(l, 'L').x + frameOf(l, 'L').w);
+  assert.equal(c.to.x, frameOf(l, 'R').x);
+});
+
+test('via: an elbow whose leg at the frame would run along its edge is refused; one that leaves the same way is fine', async () => {
+  const fig = (c: Band) => render(row([box({id: 'a', title: 'A'}), box({title: 'spacer'}), box({title: 's2'})]), row([group([box({title: 'x'})], {frame: false}), group([box({id: 'c', title: 'C'})], {title: 'G'})], {cols: [4, 8]}), c);
+  await assert.rejects(fig(connect('a:right', 'c:top', {via: {to: 'group'}, route: 'elbow'})), /the elbow runs along the top edge of the frame at "c:top"/);
+  const ok = await fig(connect('a:bottom', 'c:top', {via: {to: 'group'}, route: 'elbow'}));
+  const c = ok.connects[0]!, last = c.points[c.points.length - 2]!;
+  assert.equal(c.to.y, frameOf(ok, 'G').y);
+  assert.equal(last.x, c.to.x, 'the last leg comes down onto the edge');
+});
+
+test('via: \'group\' on an end that is a group inside an outer frame stops on the outer frame; {to} on it is the group-id error', async () => {
+  const inner = group([box({title: 'i'})], {title: '内', id: 'G'});
+  const fig = (c: Band) => render(row([memo(), group([inner, box({title: 'o'})], {title: '外'})], {cols: [6, 6]}), c);
+  const l = await fig(connect('memo:right', 'G:left', {via: 'group'}));
+  assert.equal(l.connects[0]!.to.x, frameOf(l, '外').x);
+  assert.deepEqual(l.connects[0]!.toVia, {x: frameOf(l, '外').x, y: frameOf(l, '外').y, w: frameOf(l, '外').w, h: frameOf(l, '外').h});
+  await assert.rejects(fig(connect('memo:right', 'G:left', {via: {to: 'group'}})), /"G" is a group, so "G:left" already ends on its frame/);
+});
+
+test('via: the shape is checked; branch() adds a target\'s via to the shared one', () => {
+  assert.throws(() => connect('a:right', 'b:left', {via: {from: undefined}} as never), /via is 'group', \{from: 'group'\} or \{to: 'group'\}/);
+  assert.throws(() => connect('a:right', 'b:left', {via: {}} as never), /via is 'group'/);
+  const [both, shared, own, all] = branch('m:right', [{to: 'c1:left', via: {to: 'group'}}, {to: 'c2:left'}, {to: 'c3:left', via: {to: 'group'}}, {to: 'c4:left', via: 'group'}], {via: {from: 'group'}}) as ConnectBand[];
+  assert.deepEqual(both!.via, {from: 'group', to: 'group'});
+  assert.deepEqual(shared!.via, {from: 'group'});
+  assert.deepEqual(own!.via, {from: 'group', to: 'group'});
+  assert.equal(all!.via, 'group');
+  assert.deepEqual((branch('m:right', [{to: 'c1:left', via: {to: 'group'}}]) as ConnectBand[])[0]!.via, {to: 'group'});
 });

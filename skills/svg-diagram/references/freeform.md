@@ -88,7 +88,7 @@ connect('a:right', 'b:left', {via: 'group'}),            // 枠の中にある�
 
 - 止める枠は、箱を囲む枠のある group のうち、もう一方の端を含まない**いちばん外側**のもの。両端が同じ group の中なら、その group では止まらない（その中の、相手を含まない枠で止まる）。
 - 辺は参照の `:side` で決まる（`c1:left` なら枠の左辺）。辺の上の位置は箱の範囲。`@t` も箱の範囲に対して読む。水平にそろえる働きはそのまま効く。
-- 誤り（throw）: 辺がない・`center`、辺が相手と反対を向いている、`{to: 'group'}` の端が枠のある group の中にない、端が group の id そのもの（`via` は要らない）、`loop-under` / `loop-side`。
+- 誤り（throw）: 辺がない・`center`、辺が相手と反対を向いている、`{to: 'group'}` の端が枠のある group の中にない、端が group の id そのもの（`{from}` / `{to}` のとき。`via` は要らない）、elbow の脚が枠の辺の上を走る（横から入る折れ線が上辺・下辺に着く。相手の端も上下の辺にするか直線にする）、`loop-under` / `loop-side`。
 - 枠なしの group（`frame: false`、row が包んだ caption など）は枠ではない。止まらない。
 - PowerPoint では `via` の端だけ箱に貼り付けない（README「矢印を group の枠で止める」）。
 - 全体は `examples/via-memo.ts`。

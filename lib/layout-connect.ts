@@ -178,13 +178,12 @@ function viaEnds(band: ConnectBand, fromRef: ConnectRef, toRef: ConnectRef, from
   if (!via) return {fromEnd: fromRect, toEnd: toRect};
   if (band.route !== 'straight' && band.route !== 'elbow') throw new Error(`${who}: via works with route 'straight' or 'elbow' (a ${band.route} runs round the boxes, not up to a frame)`);
   const holds = (f: Rect, r: Rect): boolean => r.x >= f.x - 0.5 && r.y >= f.y - 0.5 && r.x + r.w <= f.x + f.w + 0.5 && r.y + r.h <= f.y + f.h + 0.5;
-  const same = (f: Rect, r: Rect): boolean => holds(f, r) && holds(r, f);
   const out: {fromEnd: Rect; toEnd: Rect; fromVia?: Rect; toVia?: Rect} = {fromEnd: fromRect, toEnd: toRect};
   let moved = false;
   for (const end of ['from', 'to'] as const) {
     if (via !== 'group' && via[end] !== 'group') continue;
     const [ref, rect, other, written] = end === 'from' ? [fromRef, fromRect, toRect, band.from] : [toRef, toRect, fromRect, band.to];
-    const own = frames.find(f => f.id === ref.id && same(f, rect));
+    const own = frames.find(f => f.id !== undefined && f.id === ref.id); // the end is a framed group (ids are unique)
     if (own && via !== 'group') throw new Error(`${who}: "${ref.id}" is a group, so "${written}" already ends on its frame: drop via ${end}`);
     // the frames round the box (not its own, when the end is a group) that do not hold the other end; nested or apart, never crossing,
     // so the largest is the outermost (stopping on an inner one would cross the outer frame)
@@ -208,6 +207,15 @@ function viaEnds(band: ConnectBand, fromRef: ConnectRef, toRef: ConnectRef, from
 function assertFacing(band: ConnectBand, side: string, p: Point, other: Point, written: string): void {
   const ok = side === 'left' ? other.x < p.x : side === 'right' ? other.x > p.x : side === 'top' ? other.y < p.y : other.y > p.y;
   if (!ok) throw new Error(`connect(${band.from} -> ${band.to}): via stops "${written}" on the ${side} edge of its frame, but the other end is not on that side — the line would cross the frame: use the side that faces the other end`);
+}
+
+/**
+ * The leg at an end stopped on a frame must leave the frame, not run along it: an elbow that reaches a top / bottom edge horizontally (or a
+ * left / right one vertically) would draw its last leg on the frame line itself, where no check sees it (a frame is not a check rectangle).
+ */
+function assertOffEdge(band: ConnectBand, side: string, end: Point, next: Point, written: string): void {
+  const along = side === 'top' || side === 'bottom' ? Math.abs(next.y - end.y) < 0.5 && Math.abs(next.x - end.x) > 0.5 : Math.abs(next.x - end.x) < 0.5 && Math.abs(next.y - end.y) > 0.5;
+  if (along) throw new Error(`connect(${band.from} -> ${band.to}): the elbow runs along the ${side} edge of the frame at "${written}" (its leg there lies on the frame line) — give the other end a side that leaves the same way (a ${side === 'top' || side === 'bottom' ? 'top / bottom' : 'left / right'} side, so the elbow starts that way), or use route 'straight'`);
 }
 
 export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf, roles: Roles, nodeBottoms: Map<string, number> = new Map(), scopes?: ScopeTable, frames: readonly Frame[] = []): LaidOutConnect {
@@ -244,6 +252,8 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
     const cands = (['end', 'start', 0.5, 0.25, 0.75] as Bend[]).map(b => routePoints({...band, bend: b}, from, to, fromRef.side));
     points = cands.find(clear) ?? must(cands[0]);
   }
+  if (fromVia) assertOffEdge(band, fromRef.side, must(points[0]), must(points[1]), band.from);
+  if (toVia) assertOffEdge(band, toRef.side, must(points[points.length - 1]), must(points[points.length - 2]), band.to);
   const segments = pathSegments(points);
 
   let labelX: number | undefined, labelY: number | undefined, labelBox: Rect | undefined, chipBox: Rect | undefined;
