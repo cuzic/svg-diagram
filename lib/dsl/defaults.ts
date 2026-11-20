@@ -19,7 +19,8 @@ export function applyConnectDefaults(bands: Band[], defaults: ConnectDefaults): 
     const route = merged.route ?? 'straight';
     if (route !== 'elbow') { merged.bend = own.bend; merged.bendOffset = own.bendOffset; }
     if (route !== 'loop-under' && route !== 'loop-side') merged.dip = own.dip;
-    return connectBand(b.from, b.to, merged);
+    const band = connectBand(b.from, b.to, merged);
+    return (b as ConnectBand).fan ? Object.assign(band, {fan: true as const}) : band;
   });
 }
 export function connectBand(from: string, to: string, opts: ConnectOpts, trackGiven = true): ConnectBand {

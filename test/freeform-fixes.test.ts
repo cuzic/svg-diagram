@@ -2,7 +2,7 @@
 // cols is refused, a frameless group honours valign, and a side-to-side connector between boxes of different heights is level.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {box, connect, diagram, group, row, renderDiagram} from '../lib/dsl.ts';
+import {box, branch, connect, diagram, group, row, renderDiagram, spacer} from '../lib/dsl.ts';
 import type {LaidOutBox} from '../lib/types/text-bands.ts';
 import type {LaidOutGroup} from '../lib/types/containers.ts';
 import type {Band} from '../lib/types/index.ts';
@@ -45,8 +45,36 @@ test('connect(a.right, b.left) between boxes of different heights is level when 
   assert.notEqual(placed.from.y, placed.to.y, 'an end placed with @ stays where it was put');
 });
 
+test('branch(): every arrow of a fan leaves the same point of the source; only the target ends move', async () => {
+  const fan = group(['c1', 'c2', 'c3'].map(id => box({title: id, id})), {title: 'R'});
+  const l = await render(row([group([box({title: 'memo', id: 'memo'})], {frame: false, valign: 'center', span: 4}), group([], {frame: false, span: 4}), fan], {cols: 12}),
+    ...branch('memo:right', [{to: 'c1:left'}, {to: 'c2:left'}, {to: 'c3:left'}]));
+  const starts = new Set(l.connects.map(c => c.from.y)), m = boxOf(l, 'memo');
+  assert.deepEqual([...starts], [m.y + m.h / 2], 'one start, at the middle of the source side');
+  const c2 = boxOf(l, 'c2'), mid = l.connects[1]!;
+  if (m.y + m.h / 2 >= c2.y + 12 && m.y + m.h / 2 <= c2.y + c2.h - 12) assert.equal(mid.to.y, mid.from.y, 'the middle branch is level');
+});
+
+test('connect(a.right, b.left): an overlap too thin to clear the rounded corners keeps the slanted line', async () => {
+  const l = await render(row([group([box({title: 'a', body: 'x\ny\nz', id: 'a'})], {frame: false}), group([spacer(100), box({title: 'b', body: 'x\ny\nz', id: 'b'})], {frame: false})], {cols: [6, 6]}), connect('a:right', 'b:left'));
+  const c = l.connects[0]!, a = boxOf(l, 'a'), b = boxOf(l, 'b');
+  const overlap = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  assert.ok(overlap > 0 && overlap < 24, `the boxes overlap by ${overlap}px`);
+  assert.notEqual(c.from.y, c.to.y, 'no level line hugging the corners');
+});
+
 test('connect(a.right, b.left): boxes whose heights do not overlap keep the slanted line', async () => {
   const l = await render(row([box({title: 'a', id: 'a'}), box({title: 'b', id: 'b'})]), row([box({title: 'c', id: 'c'}), box({title: 'd', id: 'd'})]), connect('a:right', 'd:left'));
   const c = l.connects[0]!;
   assert.ok(c.to.y > c.from.y + 8);
+});
+
+test('branch(): the fan survives diagram({connectDefaults}), which rebuilds the arrows', async () => {
+  const fan = group(['c1', 'c2', 'c3'].map(id => box({title: id, id})), {title: 'R'});
+  const d = diagram({theme: 'blue', title: 't', connectDefaults: {line: 'dashed'}}).add(
+    row([group([box({title: 'memo', id: 'memo'})], {frame: false, valign: 'center', span: 4}), group([], {frame: false, span: 4}), fan], {cols: 12}),
+    ...branch('memo:right', [{to: 'c1:left'}, {to: 'c2:left'}, {to: 'c3:left'}]));
+  const {connects} = (await renderDiagram(d, {name: 'x.svg', budget: 'cacheOnly'})).laidOut;
+  assert.equal(new Set(connects.map(c => c.from.y)).size, 1);
+  assert.ok(connects.every(c => c.line === 'dashed'));
 });

@@ -213,6 +213,8 @@ export interface ConnectBand {
   type: 'connect';
   /** Set by the loopBack pass: this is the arrow back of a row of steps, not an edge of a graph (graph-orphan-node / graph-disconnected leave it out). */
   loopBack?: true;
+  /** Made by branch(): one of several arrows leaving the same point of the source, so levelling (layout-connect.ts) moves only the target end. */
+  fan?: true;
   /** 'id', 'id:side' or 'id:side@t'. */
   from: string;
   to: string;

@@ -14,15 +14,15 @@
 | 箱をまとめる | `group([...], {title, tone})`。枠ごと `row` に並べられ、`span` / `col` / `flex` は group に書く |
 | 枠なしでまとめる | `group([...], {frame: false})`。`caption` / `table` などを `row` に置くと、これに自動で包まれる |
 | 縦の位置 | 枠付きの group は、row で高さがそろうと中身が縦中央に寄る（`valign: 'top'` で上詰め、`'stretch'` で箱 1 つが余りを埋める）。枠なしの group は既定が上詰めで、`valign` を書いたときだけ動く。`row` に直接置いた `box` は行の高さに伸びる |
-| 列に見出し | 最初の行を `caption(text, {bold: true, tone: 'text', span: 3})` の row にする |
+| 列に見出し | 最初の行を、見出しを枠なしの group で包んだ row にする: `group([caption(text, {bold: true, tone: 'text'})], {frame: false, span: 3})`（`caption` 自体は `span` を持たない） |
 
 ## つなぎ方
 
 - 参照は `'id:side'`（side は `left` / `right` / `top` / `bottom` / `center`）。group の `id` も、group の中の箱の `id` も参照先になる。
-- `connect('a:right', 'b:left')` は、2 つの箱の高さの範囲が重なっていれば、重なりの真ん中で水平に引く（高さが違っても斜めにならない）。重ならなければ、それぞれの辺の真ん中を結ぶ。端の位置を決めたいときは `'a:right@0.3'`（`@` を書いた端は動かさない）。
+- `connect('a:right', 'b:left')` は、高さが違っても、水平に引ける所があれば水平に引く: 片方の辺の真ん中がもう片方の箱の高さの中にあれば、その高さで引く。そうでなく、2 つの高さの重なりが十分にあれば、重なりの真ん中で引く。どちらでもなければ、それぞれの辺の真ん中を結ぶ（斜め）。`branch()` の線は元の端を動かさない（扇の根元は 1 点のまま）。端の位置を決めたいときは `'a:right@0.3'`（`@` を書いた端は動かさない）。
 - 1 つから複数へ扇形に出す線は `branch('memo:right', [{to: 'c1:left'}, {to: 'c2:left', label: '…'}])`。既定は `route: 'elbow'`。`connect` を同じ元から何本も書かない。
 - 折れ線は `route: 'elbow'`、`bend: 'auto'` で他の箱を横切らない曲がり位置を選ぶ。戻りの線は `loop-under`（下を回る）と `loop-side`（同じ側の外を回る）。
-- ラベルは `label`、線の上に載せるなら `chip: true`。行の中の矢印のラベルは、列の間（`gap`）を自動で広げて入れようとするが、足りないことがある（`connect-label-covers-arrow` で止まる）。そのときは `row([...], {gap: 56})` のように `gap` を大きく書く。行と行の間の縦の矢印は `diagram({gap})` で空ける。
+- ラベルは `label`、線の上に載せるなら `chip: true`。隣り合う箱を結ぶ、ラベル付きの直線（`route: 'straight'`）の矢印だけは、列の間（`gap`）を自動で広げて入れようとする。`elbow` や `branch()` の線、間に空いた列がある線は広げない。広げても足りないこともある（`connect-label-covers-arrow` で止まる）。そのときは `row([...], {gap: 56})` のように `gap` を大きく書く。行と行の間の縦の矢印は `diagram({gap})` で空ける。
 
 ## よくある形
 

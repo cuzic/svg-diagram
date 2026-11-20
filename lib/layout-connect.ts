@@ -53,21 +53,26 @@ function segRect(x0: number, y0: number, x1: number, y1: number): Rect {
 // left/right side (`bend`, 0..1, is where the middle leg sits between the two
 // endpoints). Collinear/duplicate points are dropped so a degenerate elbow
 // (aligned endpoints) is just a straight line.
-/** Least overlap (px) of two boxes' heights for a side-to-side connector to be drawn level. */
-const LEVEL_MIN_OVERLAP = 8;
+/** How far (px) a levelled end stays from the top and bottom of its box: clear of the rounded corners (rx 8). */
+const LEVEL_CLEAR = 12;
 
 /**
  * a.right → b.left (or a.left → b.right) between boxes of different heights: each side's middle is at a different y, so the
- * line would come out slightly slanted (or, as an elbow, with a tiny step). When the two boxes' heights overlap, both ends move
- * to the middle of the overlap and the line is level. An end placed with `@` stays where it was put.
+ * line would come out slightly slanted (or, as an elbow, with a tiny step). When one end's middle is well inside the other box's
+ * height, only the other end moves (to that middle); otherwise, when the two heights overlap enough, both ends move to the middle
+ * of the overlap. An arrow of a branch() fan moves only its target end, so the fan keeps one start. An end placed with `@` stays put.
  */
 function levelSides(band: ConnectBand, fromSide: string, toSide: string, fromRect: Rect, toRect: Rect, from: Point, to: Point): void {
   if (band.route !== 'straight' && band.route !== 'elbow') return;
   const facing = (fromSide === 'right' && toSide === 'left' && to.x >= from.x) || (fromSide === 'left' && toSide === 'right' && to.x <= from.x);
-  if (!facing || band.from.includes('@') || band.to.includes('@') || from.y === to.y) return;
-  const lo = Math.max(fromRect.y, toRect.y), hi = Math.min(fromRect.y + fromRect.h, toRect.y + toRect.h);
-  if (hi - lo < LEVEL_MIN_OVERLAP) return;
-  from.y = to.y = Math.round((lo + hi) / 2);
+  const placed = (ref: string): boolean => /:[^:]*@/.test(ref);
+  if (!facing || placed(band.from) || placed(band.to) || from.y === to.y) return;
+  const within = (y: number, r: Rect): boolean => y >= r.y + LEVEL_CLEAR && y <= r.y + r.h - LEVEL_CLEAR;
+  if (within(from.y, toRect)) { to.y = from.y; return; }
+  if (band.fan) return;
+  if (within(to.y, fromRect)) { from.y = to.y; return; }
+  const lo = Math.max(fromRect.y, toRect.y) + LEVEL_CLEAR, hi = Math.min(fromRect.y + fromRect.h, toRect.y + toRect.h) - LEVEL_CLEAR;
+  if (hi >= lo) from.y = to.y = (lo + hi) / 2;
 }
 
 function routePoints(band: ConnectBand, from: Point, to: Point, fromSide: string): Point[] {
