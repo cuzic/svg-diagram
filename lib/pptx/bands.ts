@@ -210,7 +210,9 @@ const imageBand: BandXml<DrawnBand> = (band, ctx, index) => {
 const chartBand: BandXml<LaidOutOf<'chart'>> = (band, ctx, index) => {
   const t = band.table;
   if (!t || band.dim || band.dimIds?.length) return imageBand(band, ctx, index);
-  const first = band.items.findIndex(it => it.cell), under = band.items.slice(0, Math.max(0, first)).filter(it => !it.cell), over = band.items.slice(Math.max(0, first)).filter(it => !it.cell);
+  // under the table: what is drawn before its first item, and what asks to be (a highlighted column's box, even after a tinted header)
+  const first = Math.max(0, band.items.findIndex(it => it.cell));
+  const under = band.items.filter((it, i) => !it.cell && (i < first || it.under)), over = band.items.filter((it, i) => !it.cell && i >= first && !it.under);
   const below = under.length ? overXml({...band, items: under}, ctx, index, 'under') : '';
   const table = chartTableXml(ctx.next(), bandName(ctx, band.kind, band.id), t, ctx.ld.day, ctx.fonts), marks = over.length ? overXml({...band, items: over}, ctx, index, 'marks') : '';
   return below + table + marks + bandAnchor(band, ctx);

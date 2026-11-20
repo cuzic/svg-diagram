@@ -1,5 +1,5 @@
 import {PALETTE, colorOf, textColorOf, type ToneEnv} from '../tokens.ts';
-import type {ChartTable, TableRule} from '../charts-base.ts';
+import type {ChartTable, TableCell, TableRule} from '../charts-base.ts';
 import type {Theme} from '../types/core.ts';
 import {resolveBoxStyle} from '../emit-common.ts';
 import {LINE_HEIGHT_EM} from '../layout-util.ts';
@@ -73,9 +73,25 @@ function ruleXml(tag: string, rule: TableRule | undefined, day: Theme): string {
  */
 export function chartTableXml(id: number, name: string, t: ChartTable, day: Theme, fonts: Fonts): string {
   const cols = t.colW.map(w => `<a:gridCol w="${emu(w)}"/>`).join('');
+  // the cell that covers column j of row i (a cell spanning to the right covers the null cells after it)
+  const at = (i: number, j: number): TableCell | undefined => {
+    const row = t.cells[i];
+    if (!row) return undefined;
+    for (let k = Math.min(j, row.length - 1); k >= 0; k--) { const c = row[k]; if (c) return k + (c.span ?? 1) > j ? c : undefined; }
+    return undefined;
+  };
+  // a side two cells share is drawn by both: a rule only one of them asks for is given to the other too (which side wins when they
+  // differ is up to the renderer, and a missing side can drop the line)
+  const sides = (c: TableCell, i: number, j: number): Pick<TableCell, 'l' | 'r' | 't' | 'b'> => ({
+    l: c.l ?? (j > 0 ? at(i, j - 1)?.r : undefined), r: c.r ?? at(i, j + (c.span ?? 1))?.l,
+    t: c.t ?? (i > 0 ? at(i - 1, j)?.b : undefined), b: c.b ?? at(i + 1, j)?.t,
+  });
+  // an empty cell (and a merged one) holds a 1pt paragraph with no insets, so PowerPoint never grows a short row (a padding row) to
+  // the height of a line of text it does not hold
+  const EMPTY = '<a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:lnSpc><a:spcPts val="100"/></a:lnSpc></a:pPr><a:endParaRPr lang="ja-JP" sz="100"/></a:p></a:txBody>';
   const rows = t.cells.map((row, i) => {
-    const cells = row.map(c => {
-      if (c === null) return '<a:tc hMerge="1"><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang="ja-JP"/></a:p></a:txBody><a:tcPr/></a:tc>';
+    const cells = row.map((c, j) => {
+      if (c === null) return `<a:tc hMerge="1">${EMPTY}<a:tcPr marL="0" marR="0" marT="0" marB="0"/></a:tc>`;
       const color = hex(colorOf(c.ink, day));
       const size = c.size ?? t.size, pitch = c.pitch ?? t.pitch, lnSpc = `<a:lnSpc><a:spcPts val="${Math.round(pitch * 75)}"/></a:lnSpc>`;
       const runs = c.lines.map((line, k) => `${k ? '<a:br/>' : ''}${runXml(line, size, !!c.bold, false, color, fonts)}`).join('');
@@ -86,9 +102,10 @@ export function chartTableXml(id: number, name: string, t: ChartTable, day: Them
       const anchor = c.valign === 'top' ? 't' : c.valign === 'bottom' ? 'b' : 'ctr';
       const fill = !c.fill ? '<a:noFill/>' : c.fill.op === undefined || c.fill.op >= 1 ? solidFill(colorOf(c.fill.key, day))
         : `<a:solidFill><a:srgbClr val="${hex(colorOf(c.fill.key, day))}"><a:alpha val="${Math.round(c.fill.op * 100000)}"/></a:srgbClr></a:solidFill>`;
-      const end = runs ? '' : '<a:endParaRPr lang="ja-JP"/>';
       const span = c.span && c.span > 1 ? ` gridSpan="${c.span}"` : '';
-      return `<a:tc${span}><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:pPr algn="${algn}">${lnSpc}</a:pPr>${runs}${end}</a:p></a:txBody><a:tcPr marL="${emu(c.align === 'start' ? padX : 2)}" marR="${emu(c.align === 'end' ? padX : 2)}" marT="${emu(marT)}" marB="${emu(marB)}" anchor="${anchor}">${ruleXml('lnL', c.l, day)}${ruleXml('lnR', c.r, day)}${ruleXml('lnT', c.t, day)}${ruleXml('lnB', c.b, day)}${fill}</a:tcPr></a:tc>`;
+      const {l, r, t: top, b} = sides(c, i, j), rules = `${ruleXml('lnL', l, day)}${ruleXml('lnR', r, day)}${ruleXml('lnT', top, day)}${ruleXml('lnB', b, day)}`;
+      if (!runs) return `<a:tc${span}>${EMPTY}<a:tcPr marL="0" marR="0" marT="0" marB="0">${rules}${fill}</a:tcPr></a:tc>`;
+      return `<a:tc${span}><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:pPr algn="${algn}">${lnSpc}</a:pPr>${runs}</a:p></a:txBody><a:tcPr marL="${emu(c.align === 'start' ? padX : 2)}" marR="${emu(c.align === 'end' ? padX : 2)}" marT="${emu(marT)}" marB="${emu(marB)}" anchor="${anchor}">${rules}${fill}</a:tcPr></a:tc>`;
     }).join('');
     return `<a:tr h="${emu(t.rowH[i] ?? 0)}">${cells}</a:tr>`;
   });
