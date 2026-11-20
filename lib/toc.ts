@@ -8,7 +8,7 @@ import {orderCrossings} from './graph-layout.ts';
 import {textWidth} from './atoms.ts';
 import {andClashes} from './cause-clash.ts';
 import {routesThroughNodes} from './verify-base.ts';
-import {causeCrossings} from './cause-hop.ts';
+import {ARROW_L, causeCrossings} from './cause-hop.ts';
 import {fitOrThrow, isNoFit, type NoFit, planFit, NARROWING} from './fit-width.ts';
 import {scoreOf} from './polyline-metrics.ts';
 import {gapFor, layeredAttempt} from './layered-route.ts';
@@ -29,7 +29,14 @@ export const CORE_BADGE_H = 22, CORE_BADGE_W = 44, CORE_BADGE_GAP = 2;
 /** How far inside the frame a `double` box's second outline runs (emit-figures draws it): the box is that much taller at both ends, so
  *  the text keeps the same padding from the inner outline that a plain box keeps from its frame (#378). */
 export const DOUBLE_INSET = 4;
-const AND_END = 21, AND_PEAK = 15, AND_REACH = 10;
+/** The arc of an AND (ADR 0070 D8, a cause tree's band): its middle `peak` from the tips leaves a visible gap to the arrowhead's base of 0.4 x
+ *  the text size (14 x `s`, the line half-width taken off); its ends are 6 x `s` farther; it reaches `reach` past the outer arrows.
+ *  pdpc / relationDiagram / whyWhyTree keep the old arc (21 / 15 / 10). `s` is 1 until the lines scale with the canvas text (D7). */
+export const andArc = (s = 1): {end: number; peak: number; reach: number} => {
+  const peak = ARROW_L + 1 + Math.ceil(0.4 * 14 * s);
+  return {peak, end: peak + Math.round(6 * s), reach: Math.round(10 * s)};
+};
+const OLD_ARC = {end: 21, peak: 15, reach: 10};
 
 /** What a role looks like when the node gives no tone. `double`: the box has a second outline (the finding of the figure). */
 export const CAUSE_ROLES: Record<CauseRole, {tone: EmphasisTone; double?: boolean; dashed?: boolean}> = {
@@ -252,6 +259,12 @@ function alapOf(band: CauseBand): {keep: string[]} | undefined {
 /** One whole layout of a cause tree; the figure that fits none of the ways is returned as `NoFit`; a mistake of the author's or a broken invariant still throws. */
 function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false, sameFit?: {width: number; folded: boolean}): LaidOutCause | NoFit {
   const {arrows, groups} = prep;
+  // a cause tree's own band (not pdpc / relationDiagram / whyWhyTree, ADR 0070 D1/M1): the AND arc of D8, the room before the heads that it
+  // needs (`headRun` = AND_END + 1, and the old 4px more for a last turn), and the ports of D3
+  const own = band.base === undefined && band.layerFrom === undefined;
+  const {end: AND_END, peak: AND_PEAK, reach: AND_REACH} = own ? andArc() : OLD_ARC;
+  const headRun = AND_END + 1;
+  const heads = own ? {headRun: Math.max(22, headRun), turnRun: Math.max(26, headRun + 4), andPorts: true} : undefined;
   // the last run of each arrow of an AND, when they can carry one arc (see below): the arrows arrive on one side, all heading the
   // same way, with room before the head for the arc
   const andEnds = (g: {arrows: number[]}, pointsOf: (k: number) => Pt[]) => {
@@ -280,9 +293,17 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
     // the most arrows that meet one node (each needs its own lane in the gap beside it)
     const degreeOf = (id: string): number => Math.max(arrows.filter(a => a.from === id).length, arrows.filter(a => a.to === id).length);
     const degree = Math.max(1, ...band.nodes.map(n => degreeOf(n.id)));
+    // ADR 0070 D3: the boundaries next to an AND group take one more step each. Their number depends on the order of the ports, so the most
+    // there can be: two for each group, and never more than the boundaries of the side (groups + lone arrows - 1)
+    const andSteps = (id: string): number => {
+      if (!heads) return 0;
+      const into = arrows.flatMap((a, k) => a.to === id ? [k] : []), ands = new Set(into.flatMap(k => groups.flatMap((g, gi) => g.arrows.includes(k) ? [gi] : [])));
+      const lone = into.filter(k => !groups.some(g => g.arrows.includes(k))).length;
+      return ands.size ? Math.min(2 * ands.size, ands.size + lone - 1) : 0;
+    };
     // the side the arrows meet must be long enough to keep their heads apart: a box grows (its text stays centred)
     const real = new Map(band.nodes.map(n => {
-      const l = must(lines.get(n.id)), need = 12 + (degreeOf(n.id) - 1) * PORT, h = l.h + (CAUSE_ROLES[n.role ?? 'effect'].double ? 2 * DOUBLE_INSET : 0);
+      const l = must(lines.get(n.id)), need = 12 + Math.max(degreeOf(n.id) - 1, arrows.filter(a => a.to === n.id).length - 1 + andSteps(n.id)) * PORT, h = l.h + (CAUSE_ROLES[n.role ?? 'effect'].double ? 2 * DOUBLE_INSET : 0);
       return [n.id, vertical ? {w: Math.max(l.w, need), h} : {w: l.w, h: Math.max(h, need)}];
     }));
     const hexIds = new Set(band.nodes.filter(n => n.role === 'obstacle' || n.role === 'risk').map(n => n.id)); // hexagons: arrows keep to the middle of their side (ADR 0016 D3)
@@ -300,7 +321,7 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
     // the returns that skip layers run in an outer lane: all of them when `returns: 'outer'` (or pdpc's default), the declared ones (`back`) when nothing is written
     const wanted: 'all' | 'declared' | undefined = band.returns === 'inline' ? undefined : (band.returns ?? band.returnsDefault) === 'outer' ? 'all' : declared.length ? 'declared' : undefined;
     const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: Math.round(GAP * (env.space ?? 1)), levelGap: Math.max(Math.round(LEVEL * (env.space ?? 1)), gapFor(degree, 0, env.space)), ...(declared.length ? {back: declared} : {}), ...(alap ? {alap} : {}), ...(fold === undefined ? {} : {fold})}, {
-      portStep: PORT, ...(env.space === undefined || env.space === 1 ? {} : {space: env.space}), groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: iw + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(band.straighten === false ? {straighten: false} : {}), ...(band.straighten === false || noDetour ? {} : {detour: true}), ...(plainRoutes ? {aside: false} : band.straighten === false ? {} : {apart: true}),
+      portStep: PORT, ...(env.space === undefined || env.space === 1 ? {} : {space: env.space}), groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: iw + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(heads ? {heads} : {}), ...(band.straighten === false ? {straighten: false} : {}), ...(band.straighten === false || noDetour ? {} : {detour: true}), ...(plainRoutes ? {aside: false} : band.straighten === false ? {} : {apart: true}),
       looseOf: (rts, ly) => {
         const route = new Map<number, Pt[]>();
         ly.edges.forEach((e, i) => { if (!e.self) route.set(e.index, must(rts.get(i))); });
