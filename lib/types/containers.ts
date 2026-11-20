@@ -190,7 +190,7 @@ export interface GridBand {
 }
 /** The cell an area covers in a track grid (0-based column / row, columns / rows spanned). */
 export interface TrackPlace {col: number; row: number; cs: number; rs: number}
-/** What the pure track geometry (canvasColumns / canvasSpan / canvasRowHeights) reads: the column / row weights and where each cell sits. */
+/** What canvasRowHeights reads of a track grid (a canvas() or an areas()): the column / row weights and where each cell sits. */
 export type TrackGrid = Pick<CanvasLayout, 'colW' | 'rowW' | 'place'>;
 export interface AreasOpts {
   /** Width ratio of each column (default: equal). One per column of the template. */
@@ -208,6 +208,8 @@ export interface AreasBand {
   id?: string;
   /** The content of every named area, in the order the names first appear in the template (row by row). */
   children: (BoxBand | GroupBand)[];
+  /** One per child: its area's name (the child's id, except for a wrapped band that carries the name as its own id). */
+  names: string[];
   /** One per child: the cell it covers. */
   place: TrackPlace[];
   colW: number[];

@@ -146,7 +146,7 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
 - **新しい帯 `areas`**(`AreasBand`)にする。今の `grid` 帯(canvas)は広げない(別案 1)。
   - `template`: CSS の `grid-template-areas` と同じ書き方。行は改行で区切る(文字列の配列でもよい。D4 の JSON と同じ形)。セルは ASCII の空白とタブ(`/[ \t]+/`)で区切り、`.` 1 文字が空きのセル。先頭と末尾の空行と字下げは捨てる。
   - 全角の空白(U+3000)は区切りにも名前にも使えない誤りにし、「全角の空白がある。半角の空白で区切る」と行と桁を示して返す。日本語の入力で混ざりやすいが、黙って区切りにすると、名前の中の打ち間違いと見分けられない(名前は ASCII なので、全角の空白が正しく使われる場所はない)。
-  - `cells`: 名前 → 中身。中身は box、group、または row が包むもの(caption・table・stat など)。
+  - `cells`: 名前 → 中身。中身は box、group、または row が包むもの(caption・table など。`stat` は box なのでそのまま置く)。
     - row が包むものは、row と同じく `group(x, {frame: false})` で包む。row の中の閉じた関数 `wrappable` / `wrap` を `lib/dsl/containers.ts` の関数に書き出し、row と areas で共有する。
     - row / grouprow / grid / areas / connect / spacer は直接は置けない(group に入れる)。
   - オプション:
@@ -167,14 +167,15 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
   - `cols` の数は列の数と同じ。列と行はそれぞれ 12 まで。
 - **id**: 名前がそのまま中身の id になる(`connect('memo:right', …)` がそのまま書ける)。
   - 中身に名前と違う `id` があれば誤り(名前は 1 つにする)。同じ id があれば、今の anchor の重複の誤り。
-  - row が包むもの(caption など)は、包んだ枠なしの group が名前を id に持つ。包まれる band 自身が名前と同じ `id` を持つときは、その band が anchor のままで、包む group には id を付けない(同じ id が 2 つにならないように)。
+  - row が包むもの(caption など)は、包んだ枠なしの group が名前を id に持つ。包まれる band 自身が名前と同じ `id` を持つときは、その band が anchor のままで、包む group には id を付けない(同じ id が 2 つにならないように)。そのとき `connect` の端はセル(伸ばした枠)ではなく、その band の自然な大きさの矩形になる。
+  - 名前は帯に `names`(中身と同じ順)として持ち、誤りの文言(幅・reveal)は中身の id でなくこれを読む(包んだ band が id を持つとき、包む group には id がない)。
   - 名前は中身の写しに入れる。`spanRow` と同じく `Object.create(Object.getPrototypeOf(c), …)` で写し、`withHandle` の付いた箱の `.top` などの持ち手を保つ。
   - TS の型は、`cells` のキーと、セルの中身が宣言する id(`IdsOf<cells の値>`。group の中の `c1` など)の両方を `Declares` に入れ、`Refers<RefsOf<…>>` も row と同じく引き継いで、`connect` の参照の型の検査(今の row と同じ仕組み)に乗せる。
 - **配置**(`lib/layout-handlers.ts` に `layoutAreas`):
   - 行の幾何は canvas と共有する。`canvasRowHeights` の引数の型を、`CanvasLayout` から `Pick<CanvasLayout, 'colW' | 'rowW' | 'place'>`(`TrackGrid` と名付ける)に狭める。`canvasSpan` はそのまま使う。areas の `rowW` はすべて 1(高さは中身だけで決め、比は使わない)。
   - 列の幅は `canvasColumns` ではなく、areas の関数 `areasColumns`(`lib/areas.ts`)で決める(実装で変えた。下の理由)。
-    - `canvasColumns` は列の左端をそれぞれ 4px に丸めるので、等分のつもりの列が 184 / 184 / 180 / 184px のように 4px ずれる。s33 を書き直した例で `layout-sibling-size` が 2 つ出た(`row({cols: 12})` の `gridColumns` では出ない)。canvas の出力を変えずに直せないので、canvas の関数は変えない。
-    - `areasColumns` は、幅を 4px の数で比に分け(切り捨て)、余った数を「同じ比の列すべてに 1 つずつ配れるとき」だけ配る(比の端数の大きい順)。同じ比の列は必ず同じ幅になる。それでも余った数は、列の間に均等に足す(間隔が 4px 広い所ができる)。4px に満たない端は右に残す。
+    - `canvasColumns` は列の左端をそれぞれ 4px に丸めるので、等分のつもりの列が 184 / 184 / 180 / 184px のように 4px ずれる。s33 を書き直した例で `layout-sibling-size` が 2 つ出た(元の s33 の `row({cols: 12})` の幅では出なかった。`gridColumns` でも幅によっては 288 / 292 / 288px のように違う)。canvas の出力を変えずに直せないので、canvas の関数は変えない。
+    - `areasColumns` は、幅を 4px の数で比に分け(切り捨て)、余った数を「同じ比の列すべてに 1 つずつ配れるとき」だけ配る(比の端数の大きい順)。同じ比の列は必ず同じ幅になる。それでも余った数は、どの列の間にも同じ数ずつ足せる分だけ足し(間隔はどこも同じ。`layout-gutter-uneven` を出さない)、残り(列の間の数より少ない)は右に残す。
   - 行の y を 4px の格子に乗せる処理を、`layoutCanvasGrid` から関数(`trackRowYs`)に書き出して共有する。canvas の出力は変わらない。
   - 1 回目: 各セルを、その列の x と幅で上端から置き、自然な高さを測る(`layoutGroupRow` と同じく、box は `placeBoxLike`、group は `ctx.stack`)。
   - 行の高さ: `canvasRowHeights(grid, needs, rowGap, 0)`。1 行のセルは行の高さ、複数の行にまたがるセルはその行の和(+ 間の `rowGap`)。足りなければ、またぐ行を等しく伸ばす(canvas と同じ)。
@@ -199,6 +200,7 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
   - `itemIdsOf`、`layoutHandlerFor`、`measureBandHeight`
   - `lib/reveal-handlers.ts`(中身の段階を中身ごとに読む。row と同じ)
   - `lib/dsl/rewrite.ts` の `NO_REVEAL` と、`assertNoReveal`(areas 全体には `reveal` を書けない。中身に書く。row と同じ)
+- spotlight は `areas({id})` を指せない(`row({id})` と同じ。areas 全体の帯は出力にないため)。中の領域の名前(中身の id)を指す。
 - canvas() を areas の上に作り直すことはしない(未決 3)。
 
 ### D4. JSON spec の型のない部品 `board`(7)

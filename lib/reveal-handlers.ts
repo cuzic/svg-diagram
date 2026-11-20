@@ -117,8 +117,8 @@ function revealRow(b: BandOf<'row'> | BandOf<'grouprow'>, n: number, u: number |
 
 // areas: like a row, the cells are set (each named area carries its own reveal) and a group in a cell is walked
 function revealAreas(b: BandOf<'areas'>, n: number, u: number | undefined, ctx: RevealCtx): void {
-  b.children.forEach(c => {
-    const level = ctx.set(c, n, `areas() area "${c.id}"`, u);
+  b.children.forEach((c, i) => {
+    const level = ctx.set(c, n, `areas() area "${b.names[i]}"`, u);
     if (c.type === 'group') ctx.walk(c.children, level, c.until);
   });
 }

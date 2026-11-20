@@ -275,7 +275,7 @@ export function canvasBand(template: string, content: Record<string, string | re
 /** The least height of a region that is meant to be filled (fit 'content'): a row never collapses to its title and one line. Label cells and optional regions left empty have no floor. */
 export const CANVAS_MIN_ROW_H = 96;
 
-// ---- geometry (pure; shared with areas(), which reads only the tracks: TrackGrid) -----------------------------------------------------------------------------------------------------------
+// ---- geometry (pure; canvasSpan / canvasRowHeights / trackRowYs are shared with areas(), which has its own columns: areasColumns) -----------------------------------------------------------------------------------------------------------
 
 /**
  * The x and width of every column of a canvas `cw` wide whose left edge is `x0`. Column starts are on the 4px grid the emitter snaps

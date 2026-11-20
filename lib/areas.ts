@@ -74,8 +74,8 @@ export function parseAreaTemplate(template: string | readonly string[]): AreaTem
 /**
  * The x and width of every column of an areas() `cw` wide whose left edge is `x0` (on the 4px grid): every width is a whole number of
  * 4px steps shared out by the ratios, and columns of the same ratio are exactly as wide (an equal split looks equal, never 184 / 180 /
- * 184px: the layout-sibling-size rule would flag it). The steps the ratios leave over widen the gutters, spread evenly; under one
- * step stays unused at the right.
+ * 184px: the layout-sibling-size rule would flag it). The steps the ratios leave over widen the gutters when every gutter can take
+ * the same number of them; what is left after that (fewer steps than gutters) stays unused at the right.
  */
 export function areasColumns(colW: readonly number[], x0: number, cw: number, gap: number): {x: number[]; w: number[]} {
   const n = colW.length, total = colW.reduce((a, b) => a + b, 0);
@@ -87,10 +87,10 @@ export function areasColumns(colW: readonly number[], x0: number, cw: number, ga
   for (const r of ratios.sort((a, b) => b.short - a.short || a.cols.length - b.cols.length)) {
     if (r.short > 1e-9 && r.cols.length <= left) { for (const i of r.cols) steps[i] = (steps[i] ?? 0) + 1; left -= r.cols.length; }
   }
-  const gutter = new Array<number>(Math.max(0, n - 1)).fill(gap);
-  for (let j = 0; j < left && n > 1; j++) { const k = Math.min(n - 2, Math.floor((j + 0.5) * (n - 1) / left)); gutter[k] = (gutter[k] ?? gap) + 4; }
+  // the steps still left widen every gutter alike (uneven gutters would be flagged by layout-gutter-uneven), the rest stays at the right
+  const gutter = gap + (n > 1 ? Math.floor(left / (n - 1)) * 4 : 0);
   const x: number[] = [], w = steps.map(s => s * 4);
   let at = x0;
-  w.forEach((v, i) => { x.push(at); at += v + (gutter[i] ?? 0); });
+  w.forEach(v => { x.push(at); at += v + gutter; });
   return {x, w};
 }

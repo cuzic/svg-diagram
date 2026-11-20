@@ -30,7 +30,7 @@ function assertBoxChildren(what: 'row' | 'grid', children: readonly {type?: stri
     if (c?.type !== 'box') throw new Error(`${what}(): child ${i} is ${c?.type === undefined ? 'not a band' : `a ${c.type}()`}, but ${what}() takes box() children only. Stack groups vertically with d.add(group(...), group(...)) instead of placing them in a ${what}`);
   });
 }
-// caption / stat / banner / table ... in a row() or an areas() cell: each goes into a frameless group (the same as writing
+// caption / banner / table ... (a stat() is a box) in a row() or an areas() cell: each goes into a frameless group (the same as writing
 // group([x], {frame: false}) by hand). Boxes and groups are placed as they are; the bands that place others (row, grid, areas) and
 // the ones that are not content (connect, spacer) are not wrapped (row() and areas() refuse them).
 const UNWRAPPED: readonly string[] = ['box', 'group', 'connect', 'spacer', 'row', 'grouprow', 'grid', 'areas'];
@@ -158,7 +158,7 @@ export function grid(children: BoxBand[], opts: GridOpts): GridBand {
   return {type: 'grid', children, cols: opts.cols, gap: opts.gap ?? 16};
 }
 
-/** What an areas() cell holds: a box, a group, or one band that a row would wrap (caption, table, stat ...). */
+/** What an areas() cell holds: a box, a group, or one band that a row would wrap (caption, table ...; a stat() is a box). */
 export type AreaContent = BoxBand | GroupBand | Exclude<Band, ConnectBand | SpacerBand | RowBand | GroupRowBand | GridBand | AreasBand>;
 const AREAS_OPTS: readonly string[] = ['cols', 'gap', 'rowGap', 'id', 'reveal', 'until'];
 const NOT_IN_AREA: Record<string, string> = {
@@ -216,7 +216,7 @@ export function areas(template: string | readonly string[], cells: Record<string
     return Object.getOwnPropertyDescriptor(copy, 'right') ? copy : withHandle(copy, name);
   });
   const band: AreasBand = {
-    type: 'areas', ...(opts.id ? {id: opts.id} : {}), children, place: t.names.map(n => t.place.get(n) as AreasBand['place'][number]),
+    type: 'areas', ...(opts.id ? {id: opts.id} : {}), children, names: [...t.names], place: t.names.map(n => t.place.get(n) as AreasBand['place'][number]),
     colW: opts.cols ? [...opts.cols] : new Array<number>(t.cols).fill(1), rowW: new Array<number>(t.rows).fill(1), gap, rowGap,
   };
   return withHandle(band, opts.id);

@@ -1,7 +1,7 @@
 // node --test test/   — areas(): bands placed by the named areas of a template, like CSS grid-template-areas (ADR 0069 D3).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {areas, box, caption, checkDiagram, closeMeasurer, connect, diagram, group, renderDiagram, rewrite, row, spacer, stat} from '../lib/dsl.ts';
+import {areas, box, caption, checkDiagram, closeMeasurer, connect, diagram, group, renderDiagram, rewrite, row, spacer, stat, table} from '../lib/dsl.ts';
 import {areasColumns, parseAreaTemplate} from '../lib/areas.ts';
 import {canvasRowHeights, trackRowYs} from '../lib/canvas.ts';
 import {fontsOf, planSlide} from '../lib/pptx/slide.ts';
@@ -54,6 +54,11 @@ test('parseAreaTemplate: a column of empty cells is allowed (a spacer); a row of
   assert.throws(() => parseAreaTemplate(['見出し b']), /"見出し" — a name is ASCII letters/);
   assert.throws(() => parseAreaTemplate([Array.from({length: 13}, (_, i) => `c${i}`).join(' ')]), /13 columns \(at most 12\)/);
   assert.throws(() => parseAreaTemplate('  \n  '), /the template is empty/);
+  assert.throws(() => parseAreaTemplate(Array.from({length: 13}, (_, i) => `r${i}`)), /13 rows \(at most 12\)/);
+  assert.equal(parseAreaTemplate(Array.from({length: 12}, (_, i) => `r${i}`)).rows, 12);
+  assert.throws(() => parseAreaTemplate(['', 'a b']), /line 1 is blank/, 'an array keeps every row: a blank one is not dropped');
+  const crlf = parseAreaTemplate('\r\n  a b\r\n  c c\r\n');
+  assert.deepEqual([crlf.cols, crlf.rows, crlf.names], [2, 2, ['a', 'b', 'c']], 'CRLF line ends');
 });
 
 test('areas(): the template and the cells name the same areas; cols has one ratio per column', () => {
@@ -64,6 +69,7 @@ test('areas(): the template and the cells name the same areas; cols has one rati
   const band = areas('a b', {a: box({title: 'a'}), b: box({title: 'b'})}, {gap: 10});
   assert.equal(band.gap, 12, 'the gap is rounded up to the 4px grid');
   assert.equal(band.rowGap, 12, 'rowGap defaults to the gap');
+  assert.equal(areas('a b', {a: box({title: 'a'}), b: box({title: 'b'})}, {gap: 16, rowGap: 10}).rowGap, 12, 'rowGap is rounded up too');
   assert.deepEqual(band.colW, [1, 1]);
 });
 
@@ -87,7 +93,7 @@ test('areas(): placement options, a different id, a band that places others, and
   assert.equal(shown.children[0]?.reveal, 2);
 });
 
-test('areas(): a caption / table / stat is wrapped in a frameless group that takes the name; the original band is not changed', () => {
+test('areas(): a caption / table is wrapped in a frameless group that takes the name (a stat is a box, placed as it is); the original band is not changed', () => {
   const memo = box({id: 'memo', title: '決定メモ'});
   const band = areas('note memo s', {note: caption('前提は 1 か所に'), memo, s: stat('3', '件')});
   const [note, m, s] = band.children;
@@ -201,7 +207,10 @@ test('areasColumns: whole 4px steps by the ratios; columns of one ratio are equa
   assert.ok([...weighted.x, ...weighted.w].every(v => v % 4 === 0));
   const last = weighted.w.length - 1;
   const right = weighted.x[last]! + weighted.w[last]!;
-  assert.ok(right <= 24 + 900 && right > 24 + 900 - 4, `the columns fill the width to under one step (${right})`);
+  assert.ok(right <= 24 + 900 && right > 24 + 900 - 4 * weighted.w.length, `the columns fill the width to under one step per gutter (${right})`);
+  const three = areasColumns([1, 1, 1], 0, 900, 16);
+  assert.deepEqual(three.w, [288, 288, 288]);
+  assert.deepEqual(three.x, [0, 304, 608], 'one step left for two gutters: the gutters stay equal, the step stays at the right');
   assert.deepEqual(areasColumns([1], 0, 401, 16), {x: [0], w: [400]});
 });
 
@@ -214,4 +223,26 @@ test('PowerPoint: a group in an areas() cell is one group with its frame and con
   assert.ok(g, 'the group is named after its title and id');
   assert.match(g[1] ?? '', /手引き[\s\S]*ルール/);
   assert.doesNotMatch(g[1] ?? '', /決定メモ/, 'the box of the next cell is not in it');
+});
+
+test('areas(): a wrapped band whose own id is the area name keeps the anchor; the messages still name the area', async () => {
+  const t = () => table([{label: '列'}], [['値']], {id: 'a'});
+  const band = areas('a b', {a: t(), b: box({title: 'b'})});
+  assert.equal(band.children[0]?.id, undefined, 'the wrapper takes no id (no second anchor "a")');
+  assert.deepEqual(band.names, ['a', 'b']);
+  const l = await render(areas('a b', {a: t(), b: box({title: 'b', body: '高い箱にする。高い箱にする。高い箱にする。高い箱にする。高い箱にする。'})}), connect('b:left', 'a:right'));
+  const tb = l.laidOut.find(x => x.type === 'table') as unknown as {x: number; w: number; y: number; h: number};
+  assert.equal(l.connects[0]!.to.x, tb.x + tb.w, 'the end is on the table itself (its natural size), not on the stretched cell');
+  const cells = Object.fromEntries('bcdefghi'.split('').map(n => [n, box({title: n})]));
+  await assert.rejects(render(areas('a b c d e f g h i', {a: t(), ...cells}, {gap: 24})), /areas: area "a" is only \d+px wide/);
+});
+
+test('areas(): an areas() in a group cell is laid out inside the frame; a connect in a group cell is resolved once (the measuring pass is taken back)', async () => {
+  const inner = areas('x y', {x: box({title: 'x'}), y: box({title: 'y'})}, {gap: 24});
+  const l = await render(areas('L R', {L: group([inner, box({id: 'z', title: 'z'}), connect('x:bottom', 'z:top')], {title: 'L'}), R: box({title: 'r'})}));
+  const L = frameOf(l, 'L'), x = boxOf(l, 'x'), y = boxOf(l, 'y');
+  assert.equal(x.y, y.y, 'side by side');
+  for (const b of [x, y]) assert.ok(b.x >= L.x + 16 && b.x + b.w <= L.x + L.w - 16 && b.y > L.y && b.y + b.h < L.y + L.h, 'inside the frame, within its padding');
+  assert.equal(l.connects.length, 1, 'one connector, not one per pass');
+  assert.equal(l.connects[0]!.from.y, x.y + x.h);
 });

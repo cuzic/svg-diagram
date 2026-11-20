@@ -444,10 +444,10 @@ function layoutAreas(band: AreasBand, ctx: LayoutCtx, padX: number, cw: number):
   const {d} = ctx;
   const {gap, rowGap} = ctx.areasGapFor(band, cw);
   const cols = areasColumns(band.colW, padX, cw, gap);
-  const cells = band.children.map((c, i) => {
+  const cells = band.children.map((_c, i) => {
     const s = canvasSpan(cols, must(band.place[i]));
     // per area, not per column: a column of empty cells (.) is a spacer and may be as narrow as its ratio makes it
-    if (s.w < CANVAS_MIN_REGION_W) throw new Error(`areas: area "${c.id}" is only ${Math.max(0, Math.round(s.w))}px wide (at least ${CANVAS_MIN_REGION_W}px): give its columns a larger share (cols), use a smaller gap, or widen the figure (diagram({width}))`);
+    if (s.w < CANVAS_MIN_REGION_W) throw new Error(`areas: area "${band.names[i]}" is only ${Math.max(0, Math.round(s.w))}px wide (at least ${CANVAS_MIN_REGION_W}px): give its columns a larger share (cols), use a smaller gap, or widen the figure (diagram({width}))`);
     return s;
   });
   const top = Math.ceil(ctx.y / 4 - 1e-6) * 4; // on the 4px grid (gap and rowGap are multiples of 4): every row edge is too
