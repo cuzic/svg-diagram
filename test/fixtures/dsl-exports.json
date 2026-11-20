@@ -2,6 +2,7 @@
  "affinity",
  "analyzeCausalLoops",
  "analyzeCriticalPath",
+ "areas",
  "arrowDiagram",
  "banner",
  "barplot",

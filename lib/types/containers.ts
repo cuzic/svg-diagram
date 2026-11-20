@@ -163,7 +163,7 @@ export interface GridOpts {
 export interface CanvasLayout {
   template: string;
   /** One per child: the column / row it starts in and the columns / rows it spans. */
-  place: {col: number; row: number; cs: number; rs: number}[];
+  place: TrackPlace[];
   colW: number[];
   rowW: number[];
   /** Least height / width of the canvas (only with fit 'aspect'). */
@@ -187,6 +187,36 @@ export interface GridBand {
   cols: number;
   gap: number;
   canvas?: CanvasLayout;
+}
+/** The cell an area covers in a track grid (0-based column / row, columns / rows spanned). */
+export interface TrackPlace {col: number; row: number; cs: number; rs: number}
+/** What canvasRowHeights reads of a track grid (a canvas() or an areas()): the column / row weights and where each cell sits. */
+export type TrackGrid = Pick<CanvasLayout, 'colW' | 'rowW' | 'place'>;
+export interface AreasOpts {
+  /** Width ratio of each column (default: equal). One per column of the template. */
+  cols?: number[];
+  /** Gap between the columns (px, default 16, rounded up to a multiple of 4). */
+  gap?: number;
+  /** Gap between the rows (px, default `gap`, rounded up to a multiple of 4). */
+  rowGap?: number;
+  /** Makes the whole areas() an anchor (the boxes in it count as its end, as with row({id})). */
+  id?: string;
+}
+/** areas(): cells placed by the named areas of a template (ADR 0069 D3). `children[i]` sits at `place[i]` and has the area's name as its id. */
+export interface AreasBand {
+  type: 'areas';
+  id?: string;
+  /** The content of every named area, in the order the names first appear in the template (row by row). */
+  children: (BoxBand | GroupBand)[];
+  /** One per child: its area's name (the child's id, except for a wrapped band that carries the name as its own id). */
+  names: string[];
+  /** One per child: the cell it covers. */
+  place: TrackPlace[];
+  colW: number[];
+  /** One per template row; all 1 (a row is as tall as its content). */
+  rowW: number[];
+  gap: number;
+  rowGap: number;
 }
 export interface ConnectOpts extends RevealOpts {
   route?: Route;

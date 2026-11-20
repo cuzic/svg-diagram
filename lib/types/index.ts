@@ -35,7 +35,7 @@ import type {FlowShapeBand, LaidOutFlowShape} from '../flow-shapes.ts';
 import type {LaidOutWordArt, WordArtBand} from '../wordart.ts';
 import type {LaidOutQuadrant, QuadrantBand} from '../quadrant.ts';
 import type {BarsBand, LaidOutBars} from './bars.ts';
-import type {ConnectBand, GridBand, GroupBand, GroupRowBand, LaidOutConnect, LaidOutGrid, LaidOutGroup, LaidOutLegend, LaidOutRaw, LaidOutRow, LegendBand, RawBand, RowBand, SpacerBand, StatusBand, LaidOutStatus} from './containers.ts';
+import type {AreasBand, ConnectBand, GridBand, GroupBand, GroupRowBand, LaidOutConnect, LaidOutGrid, LaidOutGroup, LaidOutLegend, LaidOutRaw, LaidOutRow, LegendBand, RawBand, RowBand, SpacerBand, StatusBand, LaidOutStatus} from './containers.ts';
 import type {DiagramData, Dimmed, Roles} from './core.ts';
 import type {BowtieBand, LaidOutBowtie, BpmnBand, FtaBand, LaidOutFta, CauseBand, ClassesBand, CloudBand, LaidOutBpmn, LaidOutCause, LaidOutClasses, LaidOutCloud, LaidOutStates, LaidOutTree, StatesBand, TreeBand} from './diagrams.ts';
 import type {CurveBand, LaidOutCurve, LaidOutPlane, LaidOutPyramid, PlaneBand, PyramidBand} from './figures.ts';
@@ -51,7 +51,7 @@ import type {LaidOutScreens, LaidOutWireframe, ScreensBand, WireframeBand} from 
 export type Band =
   | ChartBand
   | CaptionBand | BoxBand | BannerBand | GroupBand | LegendBand | SpacerBand | RawBand | StatusBand
-  | RowBand | GroupRowBand | GridBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | MathBand | TimelineBand | NumericTimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | FtaBand | BowtieBand | ImageBand | QuadrantBand | FlowShapeBand | WordArtBand
+  | RowBand | GroupRowBand | GridBand | AreasBand | ConnectBand | PyramidBand | CurveBand | PlaneBand | BarsBand | PeopleBand | DotsBand | MathBand | TimelineBand | NumericTimelineBand | TreeBand | StatesBand | CauseBand | CloudBand | GanttBand | ClassesBand | BpmnBand | FtaBand | BowtieBand | ImageBand | QuadrantBand | FlowShapeBand | WordArtBand
   | SequenceBand | TableBand | SwimlaneBand | WireframeBand | ScreensBand;
 export type LaidOutBand = (
   | LaidOutChart

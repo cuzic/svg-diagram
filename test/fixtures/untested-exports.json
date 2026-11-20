@@ -15,7 +15,6 @@
   "budget:budgetWarnings",
   "canvas:canvasBand",
   "canvas:canvasColumns",
-  "canvas:canvasRowHeights",
   "canvas:canvasSpan",
   "charts-base:checkDomain",
   "charts-base:checkIds",

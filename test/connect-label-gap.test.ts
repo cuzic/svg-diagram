@@ -220,3 +220,13 @@ test('a node (icon above its text) is joined at its centred icon: @0.3 on a node
     assert.deepEqual([...verdict.problems, ...verdict.warnings].filter(m => /own end|covers-arrow/.test(m)), [], `gap ${gap} @${at} ${label}`);
   }
 });
+
+test('a node below is joined at its icon, inside the box: the gap leaves room for the label above the box, not only above the icon', async () => {
+  for (const gap of [8, 16, 24]) for (const label of ['とても長いラベルの例です', '確認', 'OK']) for (const labelAt of [0.5, 0.3, 0.7]) for (const chip of [false, true]) {
+    for (const up of [false, true]) {
+      const node = (id: string) => box({id, title: id, icon: 'user', iconAt: 'top'});
+      const c = up ? connect('b:top', 'a:bottom', {label, labelAt, chip}) : connect('a:bottom', 'b:top', {label, labelAt, chip});
+      await assertClean(diagram({theme: 'blue', gap}).add(node('a'), node('b'), c), `gap ${gap} "${label}" @${labelAt} chip ${chip}${up ? ' up' : ''}`);
+    }
+  }
+});

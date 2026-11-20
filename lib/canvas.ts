@@ -2,7 +2,7 @@
 // boxes sit in the cells of the template (columns / rows they span), so every region is an ordinary box: it can be an anchor,
 // be revealed, spotlighted, linted and checked like one. This file holds the templates, the validation and the pure geometry;
 // layout.ts only places the boxes.
-import type {CanvasLayout, GridBand} from './types/containers.ts';
+import type {CanvasLayout, GridBand, TrackGrid} from './types/containers.ts';
 import type {EmphasisTone} from './types/core.ts';
 import type {BoxBand} from './types/text-bands.ts';
 
@@ -275,7 +275,7 @@ export function canvasBand(template: string, content: Record<string, string | re
 /** The least height of a region that is meant to be filled (fit 'content'): a row never collapses to its title and one line. Label cells and optional regions left empty have no floor. */
 export const CANVAS_MIN_ROW_H = 96;
 
-// ---- geometry (pure) -----------------------------------------------------------------------------------------------------------
+// ---- geometry (pure; canvasSpan / canvasRowHeights / trackRowYs are shared with areas(), which has its own columns: areasColumns) -----------------------------------------------------------------------------------------------------------
 
 /**
  * The x and width of every column of a canvas `cw` wide whose left edge is `x0`. Column starts are on the 4px grid the emitter snaps
@@ -299,7 +299,7 @@ export function canvasSpan(cols: {x: number[]; w: number[]}, p: {col: number; cs
  * The height of every row, from what each cell needs: a row is as tall as its tallest single-row cell; a cell spanning rows that needs more
  * than they give widens them equally; and the whole is at least `minTotal`, shared by the rows' weights (a row that needs more keeps it).
  */
-export function canvasRowHeights(c: CanvasLayout, needs: readonly number[], gap: number, minTotal: number): number[] {
+export function canvasRowHeights(c: TrackGrid, needs: readonly number[], gap: number, minTotal: number): number[] {
   const n = c.rowW.length, rows = new Array<number>(n).fill(0);
   const cells = c.place.map((p, i) => ({...p, need: needs[i] ?? 0}));
   for (const k of [...new Set(cells.map(p => p.rs))].sort((a, b) => a - b)) {
@@ -317,4 +317,14 @@ export function canvasRowHeights(c: CanvasLayout, needs: readonly number[], gap:
     fixed.add(over);
   }
   return rows;
+}
+
+/**
+ * The top of every row and the bottom of the last one plus `gap` (n + 1 values): each row's height is rounded up to the 4px grid, so
+ * with `top` and `gap` on the grid every row edge is too. A cell of rows r..r+k-1 runs from ys[r] to ys[r + k] - gap.
+ */
+export function trackRowYs(top: number, rows: readonly number[], gap: number): number[] {
+  const ys = [top];
+  rows.forEach((v, r) => ys.push(must(ys[r]) + Math.ceil(v / 4 - 1e-6) * 4 + gap));
+  return ys;
 }

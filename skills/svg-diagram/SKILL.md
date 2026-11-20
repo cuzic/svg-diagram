@@ -54,6 +54,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 | `caption(text, {bold, tone: 'text'})` | 図の見出し・一言。ほぼ全部の図の 1 行目 |
 | `box({title, body, icon, tone, id})` | 箱。`tone`: plain / accent / new / changed / removed / muted / danger（`solid`、`solid-danger` は強調） |
 | `row([a, b], {cols})` | 横並び。`cols: [6, 6]`（12 列）。子は `box` / `group` / `caption` / `banner` ほか。子の `span` / `col` は `cols` のある行だけ（無いと throw） |
+| `areas(template, cells, {cols, gap})` | 名前の領域で置く（CSS の grid-template-areas）。行をまたいで列をそろえるときは `span` / `col` を数えずにこれ。名前が id になる（`references/freeform.md`） |
 | `group(children, {title, tone})` | ラベル付きの枠。入れ子可 |
 | `connect(a.right, b.left, {label, route})` | 矢印。`a` は `const a = box({id: 'a'})` のハンドル（id を打ち直さない） |
 | `branch(a.right, [{to: 'b:left', label}, …])` | 1 つから複数へ扇形に出る矢印（既定は `route: 'elbow'`）。`connect` を並べて書かない |
@@ -84,7 +85,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 
 | 作りたい・直したい図 | 開くファイル |
 |---|---|
-| 型の部品を使わず、箱と線で描く図（`row` / `group` / `connect` / `branch` の並べ方・揃え方・つなぎ方） | `references/freeform.md` |
+| 型の部品を使わず、箱と線で描く図（`row` / `areas` / `group` / `connect` / `branch` の並べ方・揃え方・つなぎ方） | `references/freeform.md` |
 | 組織図・マインドマップ・状態遷移図・ガント・クラス図・BPMN・数値の時間軸・`tree` などの自動配置、幅に収まらない・折れが多い | `references/auto-layout.md` |
 | TOC（因果ツリー・現状/未来現実/前提条件/移行ツリー・クラウド）、故障の木・なぜなぜ分析の木・ボウタイ図、戻り矢印の交差の見せ方（`hop`） | `references/toc.md` |
 | QC 七つ道具・新 QC 七つ道具（パレート・ヒストグラム・散布図・管理図・親和図・連関図・PDPC・アロー・ダイヤグラム） | `references/qc.md` |
