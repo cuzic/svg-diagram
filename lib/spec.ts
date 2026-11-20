@@ -10,9 +10,9 @@ import {EMOJI_RE, SLIDE_CANVAS} from './tokens.ts';
 import type {Diagram, Verdict} from './types/index.ts';
 import {quadrantDefaults} from './quadrant.ts';
 
-import {ARROW, BOX_TONE, CANVAS_LIMITS, CELL, DATE, SPEC_WIDTH, EMPHASIS_TONE, LEGEND_EN, LINE, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_NODE_WIDTH, MAX_QUOTED, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, MAX_TREE_NODES, PART_EN, QUADRANT_GRID, SPEC_VERSION, STEP_REF, SpecError, TEXT_TONE, axis, checkFlowEnd, count, dayOf, flowSteps, id, isDay, items, list, mustExist, object, oneOf, pair, refIssue, text, treeItem, treeSize, uniqueIds, whyNode, whySize, withoutType} from './spec-kit.ts';
+import {ARROW, BOX_TONE, CANVAS_LIMITS, CELL, DATE, SPEC_WIDTH, EMPHASIS_TONE, LEGEND_EN, LINE, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_NODE_WIDTH, MAX_QUOTED, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, MAX_TREE_NODES, PART_EN, QUADRANT_GRID, SPEC_VERSION, STEP_REF, SpecError, TEXT_TONE, axis, checkFlowEnd, count, dayOf, flowSteps, id, isDay, items, list, mustExist, object, oneOf, pair, refIssue, text, treeItem, treeSize, uniqueIds, whyNode, whySize, withoutSchemaField, withoutType} from './spec-kit.ts';
 import type {Json, JsonSchema, PartDef, SpecIssue} from './spec-kit.ts';
-export {SPEC_VERSION, CANVAS_LIMITS, MAX_TOTAL_TEXT, MAX_EMOJI, MAX_SWIMLANE_COLS, MAX_TREE_DEPTH, MAX_TREE_NODES, MAX_CAUSE_NODES, MAX_CAUSE_LINKS, MAX_ISSUES, SpecError} from './spec-kit.ts';
+export {SPEC_VERSION, CANVAS_LIMITS, MAX_TOTAL_TEXT, MAX_EMOJI, MAX_SWIMLANE_COLS, MAX_TREE_DEPTH, MAX_TREE_NODES, MAX_CAUSE_NODES, MAX_CAUSE_LINKS, MAX_ISSUES, SpecError, withoutSchemaField} from './spec-kit.ts';
 export type {JsonSchema, SpecIssue} from './spec-kit.ts';
 import {PARTS_R1} from './spec-parts/r1.ts';
 import {PARTS_R2} from './spec-parts/r2.ts';
@@ -757,7 +757,8 @@ export const capped = (issues: SpecIssue[]): SpecIssue[] => issues.length <= MAX
 const messageOf = (e: unknown): string => e instanceof Error ? e.message : String(e);
 
 /** Checks `input` all the way, builders included: a builder has rules of its own, and only it knows the columns a swimlane ends up with. */
-function assemble(input: unknown): {diagram: Diagram | null; issues: SpecIssue[]} {
+function assemble(written: unknown): {diagram: Diagram | null; issues: SpecIssue[]} {
+  const input = withoutSchemaField(written); // a spec file names its schema for the editor (ADR 0071)
   const issues: SpecIssue[] = [];
   validate(specSchema, input, '', issues);
   if (issues.length) return {diagram: null, issues: capped(issues)}; // everything below assumes the shapes are right

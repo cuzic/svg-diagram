@@ -1397,6 +1397,17 @@ svg-diagram check --covers words.csv --svg-dir svg diagrams/formula.ts
 使うフォントは、`FONT_STACKS` の先頭から見て最初に入っているファミリー（fontconfig の `fc-match` で探す）。ファイルを直接指定するなら（相対パスは、`.svg-diagram.json` のあるフォルダ基準。どこから実行しても同じ） `{"fonts": {"sans": {"regular": "/path/YuGothR.ttc#0", "bold": "/path/YuGothB.ttc#0"}}}`（`#N` は .ttc の何番目か。`mono` `emoji` も同じ）。fontconfig のない環境（macOS など）や、どのマシンでも同じ値にしたいときは指定する。
 Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Gothic）は幅 1px・高さ 1px 以内、mono（Consolas など hinting の効くフォント）は Chromium が advance を整数ピクセルに丸める（切り上げることもある）ため、1 字あたり 1px 以内。例の図 3 つは、どちらの方式でも SVG がバイト単位で同じだった。フォントに無い字は emoji → sans のフォントで測り、どれにも無ければ 1em（全角）か 0.5em。`lint-svg` と `show` と `preview` は引き続き Chromium を使う。
 
+**エディタで補完・検査する（JSON Schema）**: パッケージの `schema/` に、JSON のファイルの JSON Schema がある（ADR 0071）。先頭に `"$schema"` を書くと、VS Code などがフィールドの補完・説明・誤りの表示をする（部品の `type` は全種類から選べ、説明と例のひな形が出る）。CLI と `svg-diagram/spec` などの検査は、先頭の文字列の `$schema` を読み飛ばす（文字列でなければ知らないフィールドとして誤り）。
+
+| ファイル | 書く `$schema`（案件の根からの例） |
+|---|---|
+| `.svg-diagram.json` | `"./node_modules/svg-diagram/schema/config.schema.json"` |
+| デッキ（`deck.json` など） | `"./node_modules/svg-diagram/schema/deck.schema.json"` |
+| デッキが指す図の `.json`（JSON の spec。`canvas` は書けない） | `"./node_modules/svg-diagram/schema/figure.schema.json"` |
+| `site.json` | `"./node_modules/svg-diagram/schema/site.schema.json"` |
+
+パスはそのファイルからの相対なので、サブフォルダのファイルは `../node_modules/...` にする。spec・図・デッキのスキーマは CLI が検査に使うものから作り、`site.json` と `.svg-diagram.json` のものは型とテストで CLI の検査に合わせている（部品を足したら `pnpm schema` で作り直す。古いままならテストが落ちる）。図とデッキのスキーマは隣の `spec.schema.json` を参照するので、5 つのファイルは同じフォルダに置いたまま使う。形で言えることだけを言う: 部品ごとの規則（id の重複、表紙に書けない項目、文字数の合計など）は CLI が最後に検査する。パッケージの出口は `svg-diagram/schema/<名前>.schema.json`。
+
 ## check のルール（lib/rules.ts）
 `legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える。記法が少なく凡例が要らない図は `diagram({legend: false})` で「凡例は要らない」と宣言する。凡例を足すためだけに足さない）、`quadrant-empty-cell`（`quadrant()` に項目のないマスがある。意図した空きは `allowEmpty`）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
 `a11y-no-title`、`box-size-ignored`（警告: `box({size})` は効果がない。大きい文字は `stat()` などの役割で。次の版で throw する）、`source-wraps`（出典行が折り返している）、`connect-label-covers-arrow`（警告: 矢印のラベルが経路の 6 割超を覆い、見える部分が 20px 未満。箱の間隔を、文言に書いた要る間隔まで広げる・ラベルを短くする）、`glyph-missing`（警告: 絵文字として扱われない絵記号 ✅ ❌ など。字形が無いと空白になる。`icon.emoji()` か SVG アイコンへ）、`text-mid-word-break`（警告: カタカナ・英数字の語の途中で行が割れている。箱を広げる・`maxNodeW` や `dir` を変える・文言を短くする。漢字の途中は対象外）、`stat-fit-shrunk`（情報: `stat()` の値が箱に収まらず、自動で縮めた。`accept` で許容）、`draft-status`（情報: `diagram({status: 'draft'})` のまま。`check --forbid-draft` で warn。`accept` で許容）、`stat-no-source`（`diagram({evidenceCheck})` を書いた図だけ。出典のない `stat()` の数字。info、`'strict'` で warn）、`cjk-line-long`（見出し＝caption の title / display / stat と banner の headline の 1 行が、全角換算で本文幅 600px に収まる字数 — title 40・banner 37・stat 17・display 10 字 — を超える。半角は 0.5 字。目安以内でも、図が狭くて見出しが自動で折り返したときも出す。改行で分けるか短くする）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、`shrink-narrow-text`（`bpmn` / `swimlane` の `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。図を縦向きにする・2 つに分ける・文言を短くする・`maxWidth` を広げる）、`gray-tone-collision`（使っている 2 つのトーンの塗りが、白黒にすると見分けにくい。塗りを CIE L* にして、差が 10 未満なら警告。10 は、紙の白黒印刷で 2 つの平らな灰色が「違う」と読めなくなるあたり。soft（L* 約 93）と plain の白（100）が当たり、solid との組は当たらない。控えめにするトーン（muted / removed）は除く。破線の有無が違う組と、塗りが同じ組（new と accent、changed と plain。色でも塗りでは見分けていない）は除く。canvas() の、ピル（重点・中心など）で言葉にした領域は数えない。`diagram({accept})` で許容できる。`preview --gray` で目でも確かめる）、

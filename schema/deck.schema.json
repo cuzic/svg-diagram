@@ -1,0 +1,321 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "svg-diagram deck",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The JSON Schema of this file, for the editor (such as \"./node_modules/svg-diagram/schema/deck.schema.json\"). The CLIs ignore it."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "The file's title (the presentation's properties).",
+      "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+      "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+    },
+    "fit": {
+      "type": "string",
+      "enum": [
+        "fill",
+        "width"
+      ],
+      "description": "How the figures take the room the slide leaves: \"fill\" (default) lays each out at the width that draws it largest (up to 1.5 times), so little room is left empty; \"width\" keeps each at its own width (or its column's) and scales it up to 1.25 times."
+    },
+    "slides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "layout": {
+            "type": "string",
+            "enum": [
+              "cover"
+            ],
+            "description": "\"cover\": a cover (title slide): the event, title, lead (as the subtitle), date and presenter, large and centred. A cover needs a title and has no figure, columns, columnScale, fit or callouts. Leave it out for an ordinary slide."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "The slide heading, drawn large at the top (on a cover: the title, large and centred).",
+            "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+          },
+          "lead": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "description": "One or two sentences under the heading: what the slide says (on a cover: the subtitle).",
+            "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+          },
+          "event": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Cover only: the event or series, such as 「第2回 AI開発の進め方 勉強会」, above the title.",
+            "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+          },
+          "date": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "Cover only: the date, drawn as written (any form, such as 「2026年11月27日」 or \"2026-11-27\").",
+            "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+          },
+          "presenter": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Cover only: who presents, drawn as written (an affiliation or several names in this one text).",
+            "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+          },
+          "figure": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "\\.(ts|json)$",
+                "patternErrorMessage": "A figure path ends in .ts or .json (relative to this deck); or write the spec itself.",
+                "description": "The path of a diagram source (.ts) or of a figure file (.json), relative to this deck file."
+              },
+              {
+                "$ref": "#/definitions/figure"
+              }
+            ],
+            "description": "The figure: the same JSON spec as a single diagram. It is laid out at its own size and then scaled to the room the slide leaves. Not on a cover."
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "caption": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60,
+                  "description": "A small bold heading over the column, one line.",
+                  "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                  "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+                },
+                "figure": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "\\.(ts|json)$",
+                      "patternErrorMessage": "A figure path ends in .ts or .json (relative to this deck); or write the spec itself.",
+                      "description": "The path of a diagram source (.ts) or of a figure file (.json), relative to this deck file."
+                    },
+                    {
+                      "$ref": "#/definitions/figure"
+                    }
+                  ],
+                  "description": "The column's figure (a JSON spec). Write either figure or text."
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 600,
+                  "description": "Short text for the column: lines separated by \"\\n\"; a line starting with ・ or \"- \" is a bullet. Write either figure or text.",
+                  "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f]*$",
+                  "patternErrorMessage": "Write text: not blank, and no control character other than a line break or a tab."
+                },
+                "width": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 3,
+                      "description": "The column's share of the row (1 to 3)."
+                    },
+                    {
+                      "type": "string",
+                      "const": "auto"
+                    }
+                  ],
+                  "description": "The column's share of the row: 1 to 3, or \"auto\" (the default): when every column is auto, the shares are chosen to leave the least empty room on the slide with every text at 9pt or more (fit \"width\": equal shares)."
+                }
+              },
+              "required": [],
+              "additionalProperties": false,
+              "description": "One column: a figure or short text."
+            },
+            "minItems": 2,
+            "maxItems": 3,
+            "description": "Two or three columns side by side, in place of the figure. Not on a cover."
+          },
+          "columnScale": {
+            "type": "string",
+            "enum": [
+              "each",
+              "same"
+            ],
+            "description": "\"each\" (default): each column's figure as large as it fits; \"same\": every figure at one scale (to compare a before and an after). Not on a cover."
+          },
+          "fit": {
+            "type": "string",
+            "enum": [
+              "fill",
+              "width"
+            ],
+            "description": "How the figures take the room the slide leaves: \"fill\" (default) lays each out at the width that draws it largest (up to 1.5 times), so little room is left empty; \"width\" keeps each at its own width (or its column's) and scales it up to 1.25 times. Not on a cover."
+          },
+          "callouts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60,
+                  "description": "Plain words before the emphasised text, such as 「足す一文：」.",
+                  "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                  "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300,
+                  "description": "The emphasised text, drawn bold in a tinted box near the bottom of the slide.",
+                  "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                  "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 0,
+            "maxItems": 3,
+            "description": "Up to three emphasised lines near the bottom of the slide. Not on a cover."
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "description": "Where the facts come from, drawn small at the bottom.",
+            "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000,
+            "description": "Speaker notes. Lines are separated by \"\\n\".",
+            "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f]*$",
+            "patternErrorMessage": "Write text: not blank, and no control character other than a line break or a tab."
+          }
+        },
+        "required": [],
+        "additionalProperties": false,
+        "description": "One 16:9 slide. Every field is optional, but a slide needs a title, a figure or columns. figure and columns do not go together. With \"layout\": \"cover\" it is a cover: title (required), lead, event, date, presenter, source and notes only."
+      },
+      "minItems": 1,
+      "maxItems": 300
+    }
+  },
+  "required": [
+    "slides"
+  ],
+  "additionalProperties": false,
+  "description": "A PowerPoint deck of 16:9 slides. A cover is a slide with \"layout\": \"cover\".",
+  "definitions": {
+    "figure": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1,
+          "description": "Always 1."
+        },
+        "lang": {
+          "type": "string",
+          "enum": [
+            "ja",
+            "en"
+          ],
+          "description": "The language of the words the figure writes by itself (legends, headings such as 'Today'): ja (default) or en. Write your own text in the same language."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "The accessible name of the figure. Drawn above it only with showTitle.",
+          "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+          "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+        },
+        "showTitle": {
+          "type": "boolean",
+          "description": "true: draw the title above the figure."
+        },
+        "desc": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 400,
+          "description": "A one-sentence description for screen readers.",
+          "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+          "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+        },
+        "sourceLine": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Where the content comes from, printed under the figure.",
+          "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+          "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+        },
+        "theme": {
+          "type": "string",
+          "enum": [
+            "blue",
+            "teal",
+            "amber"
+          ],
+          "description": "Default blue."
+        },
+        "appearance": {
+          "type": "string",
+          "enum": [
+            "light",
+            "dark"
+          ]
+        },
+        "density": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "compact"
+          ]
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 320,
+          "maximum": 940,
+          "description": "The width the figure is laid out at, in px (320 to 940, default 940): narrower makes boxes and tables wrap their text instead of the figure being shrunk later (a column of a slide). Text sizes do not change."
+        },
+        "legend": {
+          "enum": [
+            "auto",
+            false
+          ],
+          "description": "'auto' lists the notation used; false shows no legend."
+        },
+        "parts": {
+          "$ref": "spec.schema.json#/definitions/parts"
+        }
+      },
+      "required": [
+        "version",
+        "title",
+        "parts"
+      ],
+      "additionalProperties": false,
+      "description": "A figure: the same JSON spec as a single diagram, without canvas (the slide sizes it)."
+    }
+  }
+}

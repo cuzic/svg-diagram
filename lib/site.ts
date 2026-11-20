@@ -11,7 +11,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set(['assets', 'cdn-cgi',
 export const ROOT_FILES: ReadonlySet<string> = new Set(['index.html', 'manifest.json', '_headers']);
 /** Files an OS leaves in a folder: not taken for the user's own (D10), and replaced with the rest. */
 export const OS_FILES: ReadonlySet<string> = new Set(['.DS_Store', 'Thumbs.db', 'desktop.ini']);
-const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
+export const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 export interface SiteDeck {
   /** The deck file (absolute). */
@@ -39,7 +39,8 @@ const against = (dir: string, p: string): string => path.isAbsolute(p) ? path.no
 export function parseSite(raw: unknown, siteFile: string): {ok: true; plan: SitePlan} | {ok: false; errors: string[]} {
   const dir = path.dirname(siteFile), errors: string[] = [], where = path.basename(siteFile);
   if (!isObject(raw)) return {ok: false, errors: [`${where}: needs an object with "decks"`]};
-  for (const k of Object.keys(raw)) if (!['title', 'decks', 'extra'].includes(k)) errors.push(`${where}: unknown field "${k}" (title, decks, extra)`);
+  for (const k of Object.keys(raw)) if (!['$schema', 'title', 'decks', 'extra'].includes(k)) errors.push(`${where}: unknown field "${k}" (title, decks, extra)`);
+  if (raw['$schema'] !== undefined && typeof raw['$schema'] !== 'string') errors.push(`${where}.$schema: needs a string (the schema's path or URL, for the editor)`);
   if (raw['title'] !== undefined && typeof raw['title'] !== 'string') errors.push(`${where}.title: needs a string`);
   const decks: SiteDeck[] = [];
   if (!Array.isArray(raw['decks']) || raw['decks'].length === 0) errors.push(`${where}.decks: needs a list of one deck or more`);
