@@ -106,8 +106,8 @@ test('origin: set by pdpc(), relationDiagram() and whyWhyTree(); no key on a cau
 test("edge-parallel on the reported CRT's shape: none under layer: 'asap' since the long arrows' turns have tracks (ADR 0070 U4a), none with the default", async () => {
   const asap = await laid(crtReportShape({layer: 'asap'})), byDefault = await laid(crtReportShape());
   const pairs = (t: LaidOutCause) => parallelRuns(t.edges.map(e => e.points), laneStepOf());
-  // asap had 17 pairs (1329px, one finding) before U4a; what is left is the last turns into a head (U4b), under the threshold
-  assert.ok(pairs(asap.band).reduce((s, p) => s + p.overlap, 0) <= 2 * laneStepOf());
+  // asap had 17 pairs (1329px, one finding) before U4a; what is left is two arrows into one head, before it (their last turns: U4b)
+  for (const p of pairs(asap.band)) assert.equal(asap.band.edges[p.a]!.to, asap.band.edges[p.b]!.to, JSON.stringify(p));
   assert.deepEqual(asap.findings, []);
   assert.equal(pairs(byDefault.band).length, 0);
   assert.deepEqual(byDefault.findings, []);

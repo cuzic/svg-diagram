@@ -103,7 +103,8 @@ test('the reported CRT (U0 fixture): only the preconditions move, every other no
 test('the reported CRT (U0 fixture), as reported: the bundles go away and no arrow bends more than 4 times by default', async () => {
   const crt = await laid(crtReportShape()), asap = await laid(crtReportShape({layer: 'asap'}));
   const bends = (t: LaidOutCause) => t.edges.map(e => bendsOf(e.points));
-  // asap drew arrows on one line (the report) until the long arrows' turns got tracks (ADR 0070 U4a, test/crt-tracks.test.ts)
+  // asap drew arrows on one line (the report) until the long arrows' turns got tracks (ADR 0070 U4a, test/crt-tracks.test.ts): none now
+  assert.equal(parallelPairs(asap, 4), 0, 'asap: no two arrows run under 4px apart since U4a');
   assert.equal(parallelPairs(crt, 4), 0, 'no two arrows run under 4px apart');
   assert.ok(Math.max(...bends(crt)) <= 4, `the most bends of one arrow: ${Math.max(...bends(crt))}`);
   const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);

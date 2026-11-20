@@ -259,38 +259,41 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
    * placed (the direct arrows' lanes, the long arrows' last turns into an AND, the returns' turns in an outer lane, the routes found around
    * the boxes) stay where they are. The long arrows' turns whose spans, each made longer by a lane step at both ends, overlap form a
    * cluster: its turns take tracks a lane apart (`laneIn`, else LANE), in the order that does not cross two of them that can be uncrossed
-   * (left-edge: turns that do not overlap share a track), the cluster centred where its turns were and shifted along the gap by the least
-   * that keeps every track inside its gap and a lane step from the runs already there, on the side of each it was on (else on either side:
-   * it may then cross that run, U4b's constraints order them). A turn that overlaps nothing and is clear stays half-way, so a figure with
-   * no such turns is unchanged. A cluster that finds no place keeps its old turns (the gap is too short for them: U4c sizes the gaps).
+   * (turns that do not overlap may share a track), and the cluster is shifted from where its turns were so that every track is inside its
+   * gap and a lane step from the runs already there. Of those places (the nearest on each side, keeping each turn on the side of each run it
+   * was on, else on either side), the one with the fewest crossings of the cluster's arrows is taken (two arrows on one line count as one), and
+   * none when every place crosses more than the turns half-way: the tracks add no crossings where they move a run. A turn that overlaps nothing and is clear
+   * stays half-way, so a figure with no such turns is unchanged; a cluster with no place (a gap too short: U4c sizes the gaps) too.
    */
   const placeTracks = (pending: Pending[], out: Map<number, Pt[]>): void => {
     type Run = {x: number; lo: number; hi: number};
-    type Ask = {p: Pt; q: Pt; lo: number; hi: number; min: number; max: number; set: (x: number) => void};
+    type Ask = {own: Pending; p: Pt; q: Pt; lo: number; hi: number; min: number; max: number; set: (x: number | undefined) => void};
     const fixed = new Map<number, Run[]>(), asks = new Map<number, Ask[]>();
     const add = <T>(m: Map<number, T[]>, g: number, v: T): void => { m.set(g, [...(m.get(g) ?? []), v]); };
     const gapAt = (x: number): number | undefined => { for (const [g, gl] of layerRight) { const gr = layerLeft.get(g + 1); if (gr !== undefined && x > gl - 0.5 && x < gr + 0.5) return g; } return undefined; };
+    const made = [...out.values()].filter(r => r.length); // the routes already made (the pending arrows hold an empty place in `out`)
     // the runs across the gaps that are already placed: every vertical run of a route already made, and the turns given to the pending ones
-    for (const r of out.values()) { // the pending arrows hold an empty place here
+    for (const r of made) {
       for (let k = 1; k < r.length; k++) {
         const a = at(r, k - 1), b = at(r, k), g = Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) >= 0.5 ? gapAt(a.x) : undefined;
         if (g !== undefined) add(fixed, g, {x: a.x, lo: Math.min(a.y, b.y), hi: Math.max(a.y, b.y)});
       }
     }
-    for (const {i, pts, turns} of pending) {
-      const e = edgeAt(i), l0 = layerOf(e.from), sgn = forward(i) ? 1 : -1;
+    for (const own of pending) {
+      const {i, pts, turns} = own, e = edgeAt(i), l0 = layerOf(e.from), sgn = forward(i) ? 1 : -1;
       const long = pts.length > 2 && pts.length - 1 === Math.abs(layerOf(e.to) - l0); // one way point per layer passed
       for (let k = 0; k + 1 < pts.length; k++) {
         const p = at(pts, k), q = at(pts, k + 1);
-        if (Math.abs(p.y - q.y) < 0.5) continue;
+        if (p.y === q.y) continue; // no turn (the same test as elbows')
         const g = long ? Math.min(l0 + k * sgn, l0 + (k + 1) * sgn) : Math.min(l0, layerOf(e.to));
         const gl = layerRight.get(g), gr = layerLeft.get(g + 1);
         const lo = Math.min(p.y, q.y), hi = Math.max(p.y, q.y), x = turns[k];
         if (x !== undefined || !long || gl === undefined || gr === undefined) { if (x !== undefined) add(fixed, g, {x, lo, hi}); continue; }
-        // inside the gap, a stub from its sides; the last run into the head keeps the head's room
+        // inside the gap, a stub from its sides; the last run into the head keeps the room of a direct arrow's last run (`headRunOf`: 22, or
+        // the AND's arc). Not `turnRunOf` (26): a long arrow into an AND turns at `lastTurn` and never asks here
         const last = k + 2 === pts.length, room = last ? Math.max(STUB, headRunOf(e.to)) : STUB;
         const min = gl + (last && sgn < 0 ? room : STUB), max = gr - (last && sgn > 0 ? room : STUB);
-        add(asks, g, {p, q, lo, hi, min, max, set: v => { turns[k] = v; }});
+        add(asks, g, {own, p, q, lo, hi, min, max, set: v => { turns[k] = v; }});
       }
     }
     const near = (a: {lo: number; hi: number}, b: {lo: number; hi: number}): boolean => a.lo - LANE < b.hi + LANE && b.lo - LANE < a.hi + LANE;
@@ -304,34 +307,80 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
         seen.add(a0);
         for (let n = 0; n < c.length; n++) for (const b of list) if (!seen.has(b) && near(at(c, n), b)) { seen.add(b); c.push(b); }
         if (c.length < 2 && !runs.some(r => near(r, a0) && Math.abs(r.x - (a0.p.x + a0.q.x) / 2) < LANE)) continue; // alone and clear: half-way, as before
-        // the order along the gap: of two runs that go down (y grows toward the later layer), the one that comes in higher turns later; of two
-        // that go up, the one that comes in higher turns first. Then neither crosses the other's runs (a pair that swaps sides crosses once anyway)
+        // the order along the gap: of two runs that go down (y grows toward the later layer), the one that comes in higher turns later (and of
+        // two that come in at one height, the one that goes out lower turns first); of two that go up, the one that comes in higher turns
+        // first. Then neither crosses the other's runs (a pair that swaps sides crosses once anyway)
         const inY = (a: Ask): number => (a.p.x <= a.q.x ? a.p : a.q).y, outY = (a: Ask): number => (a.p.x <= a.q.x ? a.q : a.p).y;
         const down = (a: Ask): boolean => outY(a) > inY(a);
-        const order = c.toSorted((a, b) => Number(down(a)) - Number(down(b)) || (down(a) ? inY(b) - inY(a) : inY(a) - inY(b)) || outY(a) - outY(b));
-        // left-edge: a turn takes the track after those of the turns before it in that order whose spans it overlaps; turns that do not
-        // overlap share a track (their ends stay two lane steps apart)
+        const order = c.toSorted((a, b) => Number(down(a)) - Number(down(b)) || (down(a) ? inY(b) - inY(a) || outY(b) - outY(a) : inY(a) - inY(b) || outY(a) - outY(b)));
+        // tracks, greedily in that order: a turn takes the track after the highest of the turns before it whose spans it overlaps; turns that
+        // do not overlap may share a track (their ends stay two lane steps apart)
         const track: number[] = [];
         order.forEach((a, k) => { track.push(Math.max(-1, ...order.slice(0, k).flatMap((b, m) => near(a, b) ? [at(track, m)] : [])) + 1); });
         const tracksN = Math.max(...track) + 1;
         const centre = order.reduce((s, a) => s + (a.p.x + a.q.x) / 2, 0) / order.length;
-        // the shift of the whole cluster from its centre nearest 0 that keeps every track inside its turn's bounds and a lane step from
-        // the runs already there (each such run rules out an interval of shifts); the gap's own step first, then the plain lane step.
-        // keepSide: a turn stays on the side of each such run it was on (half-way across), as going past it would cross the run's ends
-        const shiftFor = (step: number, keepSide: boolean): number[] | undefined => {
+        // the places the cluster may take: shifted from its centre so that every track is inside its turn's bounds and a lane step from the
+        // runs already there (each rules out an interval of shifts); at the gap's own step, then the plain lane step. keepSide: a turn stays
+        // on the side of each such run it was on half-way across, unless it was on the run's line (within a lane step), where either side may do.
+        // The nearest such shift on each side of 0, for each way.
+        const shifts = (step: number, keepSide: boolean): number[][] => {
           const xs = order.map((_a, k) => centre + (at(track, k) - (tracksN - 1) / 2) * step);
           const lo = Math.max(...order.map((a, k) => a.min - at(xs, k))), hi = Math.min(...order.map((a, k) => a.max - at(xs, k)));
-          if (lo > hi + 0.01) return undefined;
+          if (lo > hi + 0.01) return [];
           const banned = order.flatMap((a, k) => runs.filter(r => near(r, a)).map(r => {
             const was = (a.p.x + a.q.x) / 2, u = r.x - at(xs, k) - LANE, v = r.x - at(xs, k) + LANE;
-            return keepSide ? (was >= r.x ? [-Infinity, v] as const : [u, Infinity] as const) : [u, v] as const;
+            return !keepSide || Math.abs(was - r.x) < LANE ? [u, v] as const : was > r.x ? [-Infinity, v] as const : [u, Infinity] as const;
           }));
           const ok = (d: number): boolean => d >= lo - 0.01 && d <= hi + 0.01 && banned.every(([u, v]) => d <= u + 0.01 || d >= v - 0.01);
-          const d = [0, lo, hi, ...banned.flat()].filter(d => Number.isFinite(d) && ok(d)).sort((u, v) => Math.abs(u) - Math.abs(v) || u - v)[0];
-          return d === undefined ? undefined : xs.map(x => x + d);
+          const ds = [0, lo, hi, ...banned.flat()].filter(d => Number.isFinite(d) && ok(d));
+          const nearest = (side: number[]): number[] => side.length ? [side.reduce((m, d) => Math.abs(d) < Math.abs(m) ? d : m)] : [];
+          return [...nearest(ds.filter(d => d >= 0)), ...nearest(ds.filter(d => d < 0))].map(d => xs.map(x => x + d));
         };
-        const chosen = shiftFor(step, true) ?? (step > LANE ? shiftFor(LANE, true) : undefined) ?? shiftFor(step, false) ?? (step > LANE ? shiftFor(LANE, false) : undefined);
-        if (chosen) order.forEach((a, k) => a.set(at(must(chosen), k)));
+        // ADR 0070 D4: the tracks may not add crossings. Each place is scored by the crossings of the cluster's arrows (with each other and with
+        // the rest, the pending ones at their turns so far) and taken with the fewest, then in the order above, then the least moved; a place
+        // with more crossings than the turns half-way leaves the cluster half-way
+        const mine = new Set(order.map(a => a.own));
+        // only the runs the cluster's turns can change matter: those of its arrows, and of the rest, between the outer ends of its turns' runs
+        // along the layers (each route cut to its stretches of runs that reach there)
+        const x0 = Math.min(...order.map(a => Math.min(a.p.x, a.q.x))) - 1, x1 = Math.max(...order.map(a => Math.max(a.p.x, a.q.x))) + 1;
+        const within = (r: Pt[]): Pt[][] => {
+          const out: Pt[][] = [];
+          let cur: Pt[] = [];
+          for (let k = 1; k < r.length; k++) {
+            const p = at(r, k - 1), q = at(r, k);
+            if (Math.max(p.x, q.x) >= x0 && Math.min(p.x, q.x) <= x1) { if (!cur.length) cur.push(p); cur.push(q); } else if (cur.length) { out.push(cur); cur = []; }
+          }
+          if (cur.length) out.push(cur);
+          return out;
+        };
+        const rest = [...made, ...pending.filter(o => !mine.has(o)).map(o => elbows(o.pts, o.turns))].flatMap(within);
+        // two arrows on one line (under 4px apart) hide how they pass each other: such a pair counts as a crossing, half-way and placed
+        type Seg = {p: Pt; q: Pt};
+        const segsOf = (r: Pt[]): Seg[] => r.slice(1).map((q, k) => ({p: at(r, k), q}));
+        const along = (x: Seg[], y: Seg[]): boolean => x.some(u => y.some(v => runsTogether(u, v)));
+        type Box = {x0: number; x1: number; y0: number; y1: number};
+        const boxOf = (r: Pt[]): Box => ({x0: Math.min(...r.map(p => p.x)) - 4, x1: Math.max(...r.map(p => p.x)) + 4, y0: Math.min(...r.map(p => p.y)) - 4, y1: Math.max(...r.map(p => p.y)) + 4});
+        const meet = (a: Box, b: Box): boolean => a.x0 <= b.x1 && b.x0 <= a.x1 && a.y0 <= b.y1 && b.y0 <= a.y1;
+        const restAll = rest.map(r => ({r, s: segsOf(r), b: boxOf(r)}));
+        const crossings = (): number => {
+          const r = [...mine].map(o => within(elbows(o.pts, o.turns)).map(x => ({r: x, s: segsOf(x), b: boxOf(x)}))); // each arrow's stretches
+          return r.reduce((n, xs, k) => {
+            const others = [...restAll, ...r.slice(k + 1).flat()];
+            return n + xs.reduce((m, x) => { const o = others.filter(y => meet(x.b, y.b)); return m + crossingsWith(x.r, o.map(y => y.r)) + o.filter(y => along(x.s, y.s)).length; }, 0);
+          }, 0);
+        };
+        const halfway = crossings();
+        let best: {xs: number[]; n: number; rank: number; moved: number} | undefined;
+        const ways = [[step, true], [LANE, true], [step, false], [LANE, false]] as const;
+        ways.forEach(([st, keep], rank) => {
+          if (rank % 2 && step <= LANE) return; // the gap's step is the lane step: nothing new
+          for (const xs of shifts(st, keep)) {
+            order.forEach((a, k) => a.set(at(xs, k)));
+            const n = crossings(), moved = Math.abs(at(xs, 0) - (centre + (at(track, 0) - (tracksN - 1) / 2) * st));
+            if (n <= halfway && (!best || n < best.n || (n === best.n && (rank < best.rank || (rank === best.rank && moved < best.moved))))) best = {xs, n, rank, moved};
+          }
+        });
+        order.forEach((a, k) => a.set(best ? at(best.xs, k) : undefined));
       }
     }
   };

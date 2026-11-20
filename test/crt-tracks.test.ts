@@ -47,6 +47,44 @@ test('with tracks: two runs of different arrows on one track keep their ends a l
   }
 });
 
+/** A layout of fixed box sizes (30 high) from the ids, widths and edges of one of the random layered graphs that found the faults. */
+const shaped = (widths: [string, number][], es: [string, string][]) => layoutWithLanes(widths.map(([id, w]) => ({id, size: {w, h: 30}})), es.map(([from, to]) => ({from, to})), {dir: 'right', gap: 24, levelGap: 60});
+const routeOf = (l: ReturnType<typeof layoutWithLanes>, tracks: boolean): Map<number, Pt[]> => routeLayered(l, p => p, 22, undefined, undefined, true, false, false, false, false, 1, false, {}, tracks);
+
+test('with tracks: two long arrows whose spans end under a lane step apart do not share a track (the spans are made a lane step longer at both ends)', () => {
+  // n0 -> n4 and n0 -> n8 turn in one gap with their spans 12px apart: without the extension they took one track, end to end
+  const l = shaped([['n0', 80], ['n1', 68], ['n2', 61], ['n3', 94], ['n4', 75], ['n5', 86], ['n6', 90], ['n7', 63], ['n8', 96]], [['n0', 'n1'], ['n0', 'n4'], ['n0', 'n6'], ['n0', 'n8'], ['n1', 'n4'], ['n1', 'n8'], ['n3', 'n6'], ['n5', 'n6']]);
+  const idx = (from: string, to: string): number => l.edges.findIndex(e => e.from === from && e.to === to);
+  const a = idx('n0', 'n4'), b = idx('n0', 'n8');
+  const runs = across(routeOf(l, true));
+  const near = runs.filter(r => r.i === a).flatMap(r => runs.filter(s => s.i === b && Math.max(r.lo, s.lo) - Math.min(r.hi, s.hi) < LANE));
+  assert.ok(near.length > 0, 'the two arrows have runs across one gap whose spans end under a lane step apart');
+  for (const r of runs.filter(r => r.i === a)) for (const s of near) assert.ok(Math.abs(r.x - s.x) >= LANE || Math.max(r.lo, s.lo) - Math.min(r.hi, s.hi) >= LANE, `on one track: ${JSON.stringify([r, s])}`);
+});
+
+test('with tracks: a long arrow that turned on the line of a direct arrow\'s lane leaves it to the side that crosses nothing (no more crossings)', () => {
+  // half-way, the last turn of a long arrow into n5 lay on the lane of a direct arrow; moving it always to the right added 2 crossings
+  const l = shaped([['n0', 93], ['n1', 91], ['n2', 91], ['n3', 67], ['n4', 63], ['n5', 88], ['n6', 93]], [['n0', 'n2'], ['n0', 'n3'], ['n0', 'n5'], ['n0', 'n6'], ['n1', 'n2'], ['n1', 'n6'], ['n2', 'n5'], ['n3', 'n5'], ['n5', 'n6']]);
+  const old = scoreOf([...routeOf(l, false).values()]), now = scoreOf([...routeOf(l, true).values()]);
+  assert.ok(now.crossings <= old.crossings, `${old.crossings} -> ${now.crossings}`);
+  assert.equal(parallelRuns([...routeOf(l, true).values()], 4).length <= parallelRuns([...routeOf(l, false).values()], 4).length, true);
+});
+
+test('with tracks: no random layered graph gets more crossings or bends than with its turns half-way (400 graphs, fixed seeds)', () => {
+  let seed = 0;
+  const rng = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  for (let s = 1; s <= 400; s++) {
+    seed = s;
+    const n = 4 + Math.floor(rng() * 8);
+    const widths = Array.from({length: n}, (_, i): [string, number] => [`n${i}`, 60 + Math.floor(rng() * 40)]);
+    const es: [string, string][] = [];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (rng() < 0.3) es.push([`n${i}`, `n${j}`]);
+    if (!es.length) continue;
+    const l = shaped(widths, es), old = scoreOf([...routeOf(l, false).values()]), now = scoreOf([...routeOf(l, true).values()]);
+    assert.ok(now.crossings <= old.crossings && now.bends <= old.bends, `seed ${s}: ${JSON.stringify(old)} -> ${JSON.stringify(now)}`);
+  }
+});
+
 const laid = async (d: Diagram): Promise<{t: LaidOutCause; parallel: number; crossing: number}> => {
   const r = await checkDiagram(d);
   const count = (rule: string): number => r.verdict.findings.filter(f => f.rule === rule).length;
@@ -68,7 +106,8 @@ test("the reported CRT's shape at layer 'asap': no two arrows on one line any mo
   const {t, parallel, crossing} = await laid(crtReportShape({layer: 'asap'}));
   const pairs = parallelRuns(t.edges.map(e => e.points), LANE);
   assert.deepEqual(pairs.filter(p => p.gap < 4), [], 'nothing left on one line (17 pairs, 0px apart at most, before the tracks)');
-  assert.ok(pairs.reduce((s, p) => s + p.overlap, 0) <= 2 * LANE, `what is left is under the check's threshold: ${JSON.stringify(pairs)}`);
+  // what is left is U4b's: two arrows into one head, side by side before it (their last turns, `lastTurn`)
+  for (const p of pairs) assert.equal(t.edges[p.a]!.to, t.edges[p.b]!.to, `a pair that is not two arrows into one head: ${JSON.stringify(p)}`);
   assert.equal(parallel, 0);
   assert.equal(crossing, 0);
   assert.deepEqual(t.loose, []);

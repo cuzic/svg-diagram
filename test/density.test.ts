@@ -87,9 +87,19 @@ const C43 = {
 };
 test('density compact: a cause tree whose compact gaps would put an arrow through a box is drawn at the normal gaps (c43 of the review)', async () => {
   const {causeTree, diagram, checkDiagram} = await import('../lib/dsl.ts');
-  const run = async (density: 'normal' | 'compact') => (await checkDiagram(diagram({theme: 'blue', width: 1800, density}).add(causeTree(C43.nodes, C43.links, {dir: 'left'}) as never))).verdict.problems;
+  // with the old routes (`straighten: false`): since ADR 0070 U4a the default routes of c43 no longer run n0 -> n4 through n1 when compact
+  const run = async (density: 'normal' | 'compact') => (await checkDiagram(diagram({theme: 'blue', width: 1800, density}).add(causeTree(C43.nodes, C43.links, {dir: 'left', straighten: false}) as never))).verdict;
   const normal = await run('normal'), compact = await run('compact');
-  assert.deepEqual(compact.filter(p => !normal.includes(p)), [], JSON.stringify(compact));
+  assert.deepEqual(compact.problems.filter(p => !normal.problems.includes(p)), [], JSON.stringify(compact.problems));
+  assert.ok(compact.findings.some(f => f.rule === 'density-compact-restored'), 'the fall back ran');
+});
+
+test('density compact: c43 with its default routes (tracks, ADR 0070 U4a) stays compact, with no more problems than at the normal gaps', async () => {
+  const {causeTree, diagram, checkDiagram} = await import('../lib/dsl.ts');
+  const run = async (density: 'normal' | 'compact') => (await checkDiagram(diagram({theme: 'blue', width: 1800, density}).add(causeTree(C43.nodes, C43.links, {dir: 'left'}) as never))).verdict;
+  const normal = await run('normal'), compact = await run('compact');
+  assert.deepEqual(compact.problems.filter(p => !normal.problems.includes(p)), [], JSON.stringify(compact.problems));
+  assert.ok(!compact.findings.some(f => f.rule === 'density-compact-restored'), 'kept compact');
 });
 
 // c123 of the review: this figure fits 1800px only at the compact gaps (the normal gaps do not fit: "does not fit 1760px"), and one arrow runs through a box there.
