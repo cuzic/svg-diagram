@@ -2,7 +2,8 @@
 // the checks read too: side by side in a row, across empty columns of a `cols` row, and between two bands of a stack.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {diagram, box, row, group, connect, checkDiagram, closeMeasurer} from '../lib/dsl.ts';
+import {diagram, box, row, group, connect, image, checkDiagram, closeMeasurer} from '../lib/dsl.ts';
+import path from 'node:path';
 import {LABEL_COVER_MAX, LABEL_VISIBLE_MIN, ceil4, connectRoom, hidesArrow, labelCover, labelRoom, roomFor} from '../lib/connect-rules.ts';
 import {connectLabelWidth, labelRects} from '../lib/layout-connect.ts';
 import type {LaidOutConnect} from '../lib/types/containers.ts';
@@ -19,11 +20,12 @@ async function assertClean(d: ReturnType<typeof diagram>, what: string): Promise
   const {laidOut, verdict} = await checkDiagram(d);
   assert.deepEqual(verdict.problems.filter(p => p.includes('overlaps its own end')), [], what);
   assert.deepEqual(verdict.warnings.filter(w => w.includes('connect-label-covers-arrow')), [], what);
-  const c = laidOut.connects.find(x => x.label)!;
-  const need = connectRoom(c)!;
-  assert.ok(len(c) >= need - 1e-6, `${what}: route ${len(c)}px, the label needs ${need}px`);
-  assert.equal(hidesArrow(labelCover(c)!), false, what);
-  return c;
+  for (const c of laidOut.connects.filter(x => x.label)) {
+    const need = connectRoom(c)!;
+    assert.ok(len(c) >= need - 1e-6, `${what}: route ${len(c)}px, the label needs ${need}px`);
+    assert.equal(hidesArrow(labelCover(c)!), false, what);
+  }
+  return laidOut.connects.find(x => x.label)!;
 }
 
 test('roomFor: clear of both ends at labelAt, and not hiding the arrow', () => {
@@ -46,7 +48,9 @@ test('labelRoom: the label rectangle of resolveConnect, along the route', () => 
   assert.equal(labelRoom('abcd', true, 'horizontal', 0.5, roles, widthOf), Math.max(68 + 12, Math.min(68 / 0.6, 68 + 20)));
   assert.equal(labelRoom('abcd', true, 'vertical', 0.5, roles, widthOf), Math.max(24 + 12, Math.min(24 / 0.6, 44))); // a chip is 24px high
   assert.equal(labelRoom('abcd', false, 'vertical', 0.5, roles, widthOf), 17 + 12); // beside the line: covers none of it
-  assert.equal(labelRoom('abcd', false, 'slanted', 0.5, roles, widthOf), Math.max(29, Math.min(17 / 0.6, 37)));
+  // on a slanted line a plain label's top is 17 + 2 above its point: twice that, plus 6px a side
+  assert.equal(labelRoom('abcd', false, 'slanted', 0.5, roles, widthOf), 2 * 19 + 12);
+  assert.equal(labelRoom('abcd', false, 'slanted', 0.5, roles, widthOf, 0), 2 * 19); // margin 0: where the checks start to fire
 });
 
 test('labelRects / connectLabelWidth: the rectangles resolveConnect draws (a chip 16px wider and 24px high)', async () => {
@@ -129,4 +133,61 @@ test('a row that cannot grow keeps its gap, and the check names the room the lab
     const said = [...r.verdict.problems, ...r.verdict.warnings].filter(m => m.includes(label));
     assert.ok(said.length > 0 && said.every(m => m.includes(need)), `${need}: ${said.join(' / ')}`);
   }
+});
+
+test('a route exactly as long as the room is clean: chips and plain labels of 1 to 20 kana, side by side and stacked', async () => {
+  const kana = 'あいうえおかきくけこさしすせそたちつてと';
+  for (let n = 1; n <= 20; n++) for (const chip of [true, false]) for (const labelAt of [0.5, 0.3]) {
+    const label = kana.slice(0, n), v = {label, chip, labelAt};
+    await assertClean(diagram({theme: 'blue'}).add(row([box({id: 'a', title: 'L'}), box({id: 'b', title: 'R'})], {gap: 16}), connect('a:right', 'b:left', v)), `side by side, ${name(v)}`);
+    await assertClean(diagram({theme: 'blue'}).add(box({id: 'a', title: 'L'}), box({id: 'b', title: 'R'}), connect('a:bottom', 'b:top', v)), `stacked, ${name(v)}`);
+  }
+  // 19.99999999999994px left visible is not "under 20"
+  assert.equal(hidesArrow({share: 296 / 316, visible: 316 - 296 - 6e-14}), false);
+});
+
+test('a slanted vertical arrow with a plain label (the label sits above its point, not on it)', async () => {
+  for (const label of ['確認', '確認する']) for (const gap of [16, 24]) for (const labelAt of [0.5, 0.3]) {
+    const d = diagram({theme: 'blue', gap}).add(box({id: 'a', title: '上'}), row([box({id: 'b', title: '左'}), box({id: 'x', title: '右'})]), connect('a:bottom', 'b:top', {label, labelAt}));
+    const {verdict} = await checkDiagram(d);
+    assert.deepEqual([...verdict.problems, ...verdict.warnings].filter(m => /own end|covers-arrow/.test(m)), [], `${label} gap ${gap} labelAt ${labelAt}`);
+  }
+});
+
+test('a figure the checks already pass keeps its height (a plain label beside a vertical line, diagram gap 20 / 24, on a canvas too)', async () => {
+  for (const gap of [20, 24, 28]) for (const canvas of [undefined, {height: 720}]) {
+    const mk = (label?: string) => diagram({theme: 'blue', gap, ...(canvas ? {canvas} : {})} as never).add(box({id: 'a', title: '上'}), box({id: 'b', title: '下'}), connect('a:bottom', 'b:top', label ? {label} : {}));
+    const labelled = await checkDiagram(mk('確認')), bare = await checkDiagram(mk());
+    const yOf = (r: typeof bare) => (r.laidOut.laidOut[1] as unknown as {y: number}).y;
+    assert.equal(yOf(labelled), yOf(bare), `gap ${gap} ${canvas ? 'canvas' : ''}`);
+    assert.deepEqual(labelled.verdict.problems, []);
+  }
+});
+
+test('the parts over a picture get no extra room (the picture does not grow): main\'s check error, not a throw', async () => {
+  const kitchen = path.resolve(import.meta.dirname, '../examples/assets/kitchen.png');
+  const d = diagram({theme: 'blue'}).add(image(kitchen, {alt: 'x', width: 260, pad: 24, over: [box({id: 'a', title: '上'}), box({id: 'b', title: '下'})]}), connect('a:bottom', 'b:top', {label: '確認', chip: true}));
+  const {verdict} = await checkDiagram(d);
+  assert.ok(verdict.problems.some(p => p.includes('overlaps its own end') && p.includes('px or more')));
+});
+
+test('a cols row in a group of a cols grouprow is widened for the width the shared gap leaves it', async () => {
+  // the long label widens the outer 12-column gap, which narrows the group: the inner row's gap is solved for that narrower width
+  const kana = 'あいうえおかきくけこさしすせそたちつてとなにぬねの';
+  for (const n of [7, 9, 11]) {
+    const inner = row([box({id: 'a', title: 'A', span: 2}), box({id: 'b', title: 'B', col: 4, span: 2})], {cols: 6});
+    const d = diagram({theme: 'blue'}).add(
+      row([group([inner], {title: 'g', span: 8}), group([box({title: 'x'})], {title: 'h', span: 4})], {cols: 12}),
+      row([box({id: 'p', title: 'P', span: 4}), box({id: 'q', title: 'Q', span: 4, col: 9})], {cols: 12}),
+      connect('p:right', 'q:left', {label: kana, chip: true}),
+      connect('a:right', 'b:left', {label: kana.slice(0, n), chip: true}));
+    await assertClean(d, `${n} kana`);
+  }
+});
+
+test('the "N px" hint is given only where the ends face each other (not for a line that runs back through the boxes)', async () => {
+  const back = await checkDiagram(diagram({theme: 'blue'}).add(box({id: 'a', title: '上'}), box({id: 'b', title: '下'}), connect('b:bottom', 'a:top', {label: '確認', chip: true})));
+  const said = back.verdict.problems.filter(p => p.includes('overlaps its own end'));
+  assert.ok(said.length > 0 && said.every(p => !/\d+px or more/.test(p)), said.join(' / '));
+  assert.equal(connectRoom(back.laidOut.connects[0]!), undefined);
 });

@@ -64,7 +64,6 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
   const collectConnects = (bs: Band[]): void => { for (const b of bs) { if (b.type === 'connect' && b.label && b.route === 'straight' && !b.annot) labelled.push(b); else collectConnects(childrenOf(b)); } };
   collectConnects(d.bands);
   const idsIn = (b: Band, out = new Set<string>()): Set<string> => { const x = b as {id?: string}; if (x.id) out.add(x.id); for (const c of childrenOf(b)) idsIn(c, out); return out; };
-  const room = (c: ConnectBand, axis: LabelAxis): number => labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf);
   const MIN_CHILD_W = 80;
   // the gap one row (laid out `cw` wide) needs for the labelled connectors between neighbours that sit side by side: the smallest gap
   // whose real distance between the two children (rowChildGeometry(): column edges on the 4px grid, empty columns between them included)
@@ -79,7 +78,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
       const f = parseRef(c.from), t = parseRef(c.to);
       const i = kids.findIndex(k => k.has(f.id)), j = kids.findIndex(k => k.has(t.id));
       if (i < 0 || j < 0 || Math.abs(i - j) !== 1 || !((i < j && f.side === 'right' && t.side === 'left') || (i > j && f.side === 'left' && t.side === 'right'))) continue;
-      const need = room(c, 'horizontal'), lo = Math.min(i, j), hi = Math.max(i, j);
+      const need = labelRoom(c.label as string, c.chip, 'horizontal', c.labelAt, roles, widthOf), lo = Math.min(i, j), hi = Math.max(i, j);
       if (!Number.isFinite(need) || distance(band.gap, lo, hi) >= need) continue;
       // the distance is linear in the gap: (k + 1) gaps and k columns of (cw - (cols - 1) gap) / cols for k empty columns between them
       const k = slots && band.cols ? must(slots[hi]).col - must(slots[lo]).col - must(slots[lo]).span : 0, cols = band.cols ?? 1;
@@ -100,8 +99,11 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
   // The space to add after a band of a stack, for the labelled connectors from its bottom to the top of the next band (or back up).
   // Bands that take no height (a connect, a spacer / raw of height 0) are skipped when finding "the next band". The ends may sit deep
   // inside their bands (in a group, a row): the space between the bands is widened as if they were on the bands' edges.
+  // A gap the checks already pass (as long as the label needs with no margin) stays as it is: a figure that draws clean does not move.
   const bandGaps = new Map<Band, number>();
   const flat = (b: Band): boolean => (b.type === 'connect' && b.route !== 'loop-under' && b.annot?.side !== 'below') || ((b.type === 'spacer' || b.type === 'raw') && b.h === 0);
+  // two boxes of the same stack, joined at the same `@t`, are as wide as the stack: the line is vertical (else the x of the ends is not known yet)
+  const isBox = (b: Band, id: string): boolean => b.type === 'box' && b.id === id;
   const verticalGaps = (bs: Band[]): void => {
     const tall = bs.filter(b => !flat(b));
     for (let n = 0; n + 1 < tall.length; n++) {
@@ -111,43 +113,55 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
         const f = parseRef(c.from), t = parseRef(c.to);
         const down = above.has(f.id) && f.side === 'bottom' && below.has(t.id) && t.side === 'top', up = below.has(f.id) && f.side === 'top' && above.has(t.id) && t.side === 'bottom';
         if (!down && !up) continue;
-        const need = room(c, 'slanted'); // the x of the ends is not known yet: a plain label may sit on the line
+        const [hi, lo] = down ? [f, t] : [t, f];
+        const axis: LabelAxis = isBox(a, hi.id) && isBox(b, lo.id) && hi.at === lo.at ? 'vertical' : 'slanted';
+        const need = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf), fails = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf, 0);
         // the next band's top is rounded to the 4px grid (at most 2px up): leave those 2px too
-        if (Number.isFinite(need) && d.gap < need) extra = Math.max(extra, ceil4(need + 2) - d.gap);
+        if (Number.isFinite(need) && d.gap < fails) extra = Math.max(extra, ceil4(need + 2) - d.gap);
       }
       if (extra > 0) bandGaps.set(a, extra);
     }
   };
 
   {
-    const grids = new Map<string, {need: number; rows: {cw: number; spans: number[]}[]}>();
-    const walk = (bs: Band[], cw: number): void => {
-      if (labelled.length) verticalGaps(bs);
+    let grids = new Map<string, {need: number; rows: {cw: number; spans: number[]}[]}>();
+    const walk = (bs: Band[], cw: number, over = false): void => {
+      if (labelled.length && !over) verticalGaps(bs); // the parts over a picture: the picture's height is fixed, there is no room to add
       for (const b of bs) {
         const inner = stackWidthOf(b, cw);
-        if (inner !== null) walk(childrenOf(b), inner);
+        if (inner !== null) walk(childrenOf(b), inner, over || b.type === 'image');
         else if ((b.type === 'row' || b.type === 'grouprow') && b.cols) {
           const key = `${b.cols}/${b.gap}`, g = grids.get(key) ?? {need: b.gap, rows: []};
           g.need = Math.max(g.need, gapNeeded(b as RowLike, cw));
           g.rows.push({cw, spans: colSlots((b as RowLike).children).map(s => s.span)});
           grids.set(key, g);
-          if (b.type === 'grouprow') { // (nested widths use the declared gap: the shared one is not known until every row has been seen)
-            const {widths} = rowChildGeometry(b, cw);
-            b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, must(widths[i]) - 2 * (c.pad ?? 16)); });
+          if (b.type === 'grouprow') { // nested widths use the shared gap of the previous round (the declared gap in the first)
+            const {widths} = rowChildGeometry({...b, gap: sharedGaps.get(key) ?? b.gap}, cw);
+            b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, must(widths[i]) - 2 * (c.pad ?? 16), over); });
           }
         } else if (b.type === 'grouprow') {
           const {widths} = rowChildGeometry({...b, gap: gapForLabels(b as RowLike, cw)}, cw); // the same gap the real pass will use
-          b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, must(widths[i]) - 2 * (c.pad ?? 16)); });
+          b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, must(widths[i]) - 2 * (c.pad ?? 16), over); });
         }
       }
     };
-    walk(d.bands, contentWidth);
-    for (const [key, g] of grids) {
-      const [colsN, baseN] = key.split('/').map(Number), cols = must(colsN), base = must(baseN);
-      const width = (cw: number, span: number, gap: number) => span * ((cw - (cols - 1) * gap) / cols) + (span - 1) * gap;
-      // growing must not squeeze a box: each child keeps >= 70% of its width (and >= 40px) or the gap stays as declared (verify reports the label)
-      const fits = g.need === base || g.rows.every(r => r.spans.every(sp => width(r.cw, sp, g.need) >= Math.min(width(r.cw, sp, base), Math.max(40, 0.7 * width(r.cw, sp, base)))));
-      sharedGaps.set(key, fits ? g.need : base);
+    // A row inside a group of a `cols` grouprow is as wide as the shared gap leaves it, and the shared gap depends on what the rows need:
+    // walk again with the shared gaps of the previous round until they stay the same (a few rounds at most).
+    for (let round = 0; round < 4; round++) {
+      grids = new Map();
+      bandGaps.clear();
+      walk(d.bands, contentWidth);
+      let changed = false;
+      for (const [key, g] of grids) {
+        const [colsN, baseN] = key.split('/').map(Number), cols = must(colsN), base = must(baseN);
+        const width = (cw: number, span: number, gap: number) => span * ((cw - (cols - 1) * gap) / cols) + (span - 1) * gap;
+        // growing must not squeeze a box: each child keeps >= 70% of its width (and >= 40px) or the gap stays as declared (verify reports the label)
+        const fits = g.need === base || g.rows.every(r => r.spans.every(sp => width(r.cw, sp, g.need) >= Math.min(width(r.cw, sp, base), Math.max(40, 0.7 * width(r.cw, sp, base)))));
+        const gap = fits ? g.need : base;
+        if ((sharedGaps.get(key) ?? base) !== gap) changed = true;
+        sharedGaps.set(key, gap);
+      }
+      if (!changed) break;
     }
   }
   // ---- pass 2: layout top-to-bottom ----
