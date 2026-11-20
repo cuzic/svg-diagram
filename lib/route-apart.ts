@@ -12,6 +12,8 @@ export interface ApartIn {
   edges: ReadonlyMap<number, ApartEdge>;
   /** The boxes of the placed figure by id. A move may not leave the area the boxes and routes already take. */
   rects: ReadonlyMap<string, {x0: number; x1: number; y0: number; y1: number}>;
+  /** The shortest last run into the head of an arrow (by its key in `routes`): room for the arrowhead, and for an AND's arc (ADR 0070 D8). Default 22. */
+  headRun?: (edge: number) => number;
 }
 
 /** A moved run keeps this clear of every box that is not an end of its arrow (the pierce test then counts a run that comes nearer). */
@@ -23,7 +25,7 @@ const STEPS = [8, -8, 16, -16, 24, -24];
 /** Arrows from one tail or into one head merge on purpose (the ones into an AND are D11-D13's): only arrows with no end in common are counted as beside. An AND's arrow may move, but never next to another arrow (`near`). */
 const related = (a: ApartEdge, b: ApartEdge): boolean => a.from === b.from || a.to === b.to;
 
-export function moveApart({routes, edges, rects}: ApartIn): Map<number, Pt[]> {
+export function moveApart({routes, edges, rects, headRun}: ApartIn): Map<number, Pt[]> {
   const out = new Map(routes);
   const cache = new WeakMap<Pt[], {p: Pt; q: Pt}[]>(); // per call: the rendering core holds no module-level state
   const segs = (r: Pt[]): {p: Pt; q: Pt}[] => {
@@ -102,7 +104,7 @@ export function moveApart({routes, edges, rects}: ApartIn): Map<number, Pt[]> {
           // the runs on both sides keep their direction and a length that still shows a turn (the last one room for the arrowhead)
           const c = vertical ? 'x' : 'y';
           const keeps = (m: number, min: number): boolean => { const r0 = must(r[m]), r1 = must(r[m + 1]), t0 = must(t[m]), t1 = must(t[m + 1]), before = r1[c] - r0[c], after = t1[c] - t0[c]; return before === 0 || (Math.sign(before) === Math.sign(after) && Math.abs(after) >= min); };
-          if (!keeps(k - 1, JOG) || !keeps(k + 1, k + 2 === r.length - 1 ? 22 : JOG)) continue;
+          if (!keeps(k - 1, JOG) || !keeps(k + 1, k + 2 === r.length - 1 ? headRun?.(i) ?? 22 : JOG)) continue;
           if (!inside(t) || pierces(i, t) > baseP || bendsOf(t) > bendsOf(r) || [...near(i, t)].some(j => !baseN.has(j)) || crossingsWith(t, rest) > baseX) continue;
           // the moved run and its neighbours may not come nearer to a box than CLEAR unless they were that near before (counting the boxes alone lets a run onto the outline of a box another run already passes)
           if (crowds(i, r, t, k - 1, k + 1)) continue;

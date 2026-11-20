@@ -21,7 +21,7 @@
   <path d="M480,80 L485,92 L475,92 z" fill="#22201b"/>
   <path d="M632,392 L632,324" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M632,312 L637,324 L627,324 z" fill="#22201b"/>
-  <path d="M448,100 Q468,88 488,100" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M448,104 Q468,92 488,104" fill="none" stroke="#22201b" stroke-width="2"/>
   <rect x="252" y="44" width="112" height="36" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
   <rect x="392" y="44" width="128" height="36" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
   <rect x="576" y="276" width="112" height="36" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
