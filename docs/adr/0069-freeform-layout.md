@@ -1,9 +1,9 @@
-# ADR 0069: 自由な図(box / group / row / connect)の配置 — ラベルの間隔、枠で止まる矢印、名前の領域(`areas`)、JSON spec の `board`
+# ADR 0069: 自由な図の配置 — ラベルの間隔、`via`、`areas`、spec の `board`
 
 - 状態: 提案
 - 日付: 2026-11-20
-- 基点: `main`(7a95096e、ADR 0067 まで)
-- 関連: ADR 0012(id のスコープ)、ADR 0014(そろえと余白、`group({valign})`)、ADR 0016(矢印の端のそろえ)、ADR 0050(組み合わせられる帯)、ADR 0054(PowerPoint のグループ)、ADR 0055(デッキ)、ADR 0057(spec の `canvas`)、ADR 0061(段の幅の自動)
+- 基点: `main`(7a95096e、ADR 0067 まで)。D1 と D2 は PR #377(`fix/freeform-small`)の上に作る。
+- 関連: ADR 0012(id のスコープ)、ADR 0014(そろえと余白、`group({valign})`)、ADR 0016(矢印の端のそろえ)、ADR 0027(PowerPoint 書き出し、接続の判定)、ADR 0050(組み合わせられる帯)、ADR 0054(PowerPoint のグループ)、ADR 0055(デッキ)、ADR 0057(spec の `canvas`)、ADR 0061(段の幅の自動)
 
 ## 背景
 
@@ -18,63 +18,112 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
 7. 自由な図は TS だけで書ける。JSON spec(`lib/spec.ts`)にないので、deck.json、MCP サーバー、ChatGPT からは描けない。選べるのは型のある部品だけで、`versus` に偏る理由の 1 つになっている。
 8. SKILL.md に `branch()` がない。自由な図の手引き(`references/freeform.md`)がない。
 
-1〜3 と 8 は別の PR(ブランチ `fix/freeform-small`)で直している。3 は `lib/layout-connect.ts` に `levelSides` を足し、左右の辺どうしで高さが重なる箱は、重なりの真ん中の高さで水平につなぐ。この ADR は 4〜7 を扱う。
+1〜3 と 8 は PR #377 で直している。3 は `lib/layout-connect.ts` の `levelSides` で、左右の辺どうしでつなぐ 2 つの箱について次のようにする。
+
+- 一方の端の真ん中の高さが、相手の箱の上下から 12px(`LEVEL_CLEAR`)以上内側にあれば、相手の端だけをその高さに動かす(片方だけ動かすのを先に試す)。
+- そうでなければ、2 つの箱の高さの重なりが上下の角から 12px ずつ空けても残るとき、両端を重なりの真ん中に動かす。
+- `branch()` の矢印は `fan: true` を持ち、行き先の端だけを動かす(扇の始点は 1 つのまま)。`@` で置いた端は動かさない。
+
+この ADR は 4〜7 を扱う。
 
 ### 今の仕組み(コードを読んで分かったこと)
 
-- **ラベルのための間隔(4)**: `lib/layout.ts` の前処理 `gapNeeded` / `gapForLabels` / `sharedGaps` が、ラベル付きの直線の connect(`route: 'straight'`)で、row の隣り合う子を右 → 左(または左 → 右)でつなぐものについて、row の `gap` を「ラベルの幅 + chip の 16 + 両側 6px(`LABEL_MARGIN`)」まで既定で広げる。`cols` の row では、同じ `cols` / `gap` の行がすべて同じ広げた間隔を使う(`sharedGaps`。どの子も元の幅の 7 割を保てるときだけ)。検査は 2 つあり、どちらも別の値で判定する。
-  - `lib/verify.ts` の「ラベルが自分の端の箱に重なる」(エラー)。
-  - `lib/connect-rules.ts` の `labelCover` / `hidesArrow`(`connect-label-covers-arrow`、警告): ラベルが経路の 6 割(`LABEL_COVER_MAX`)より多くを覆い、かつ見える部分が 20px(`LABEL_VISIBLE_MIN`)未満。
+- **ラベルのための間隔(4)**: `lib/layout.ts` の前処理 `gapNeeded` / `gapForLabels` / `sharedGaps` が、ラベル付きの直線の connect(`route: 'straight'`)で、row の隣り合う子を右 → 左(または左 → 右)でつなぐものについて、row の `gap` を「ラベルの幅 + chip なら 16 + 両側 6px(`LABEL_MARGIN`)」まで既定で広げる。
+  - `cols` の row では、同じ `cols` / `gap` の行がすべて同じ広げた間隔を使う(`sharedGaps`)。どの子も元の幅の 7 割(40px 以上)を保てるときだけ広げる。
+  - `cols` のない row では、子が `MIN_CHILD_W`(80px)より細くならないときだけ広げる(`maxGap`)。
+  - 検査は 2 つあり、それぞれ別の値で判定する。
+    - `lib/verify.ts` の `checkConnects`: ラベルが自分の端の箱に重なる(エラー)。
+    - `lib/connect-rules.ts` の `labelCover` / `hidesArrow`(`connect-label-covers-arrow`、警告): ラベルが経路の 6 割(`LABEL_COVER_MAX`)より多くを覆い、かつ見える部分が 20px(`LABEL_VISIBLE_MIN`)未満。
   - 試した結果(2026-11-20、この worktree):
-    - 隣どうしの row で chip のラベル「照らし合わせる」: 間隔は広がるが、見える部分は 18px で `connect-label-covers-arrow` が出る。広げる目標(両側 6px、計 12px)が検査の 20px に足りていない。
-    - `cols: 12` の row で `col` を 1 つ空けた 2 つの箱: 前処理は「間の空いた列が場所を作る」として飛ばす(`b.col !== a.col + a.span`)が、空いた列が 1 つでは足りず、端の箱に重なるエラー。
-    - 縦(`a:bottom` → `b:top`)のラベル: 帯と帯の間は `diagram({gap})`(既定 16)のままで、広げる仕組みがない。chip でも chip でないラベルでも端の箱に重なるエラー、`gap: 40` では `connect-label-covers-arrow`(見える部分 15px)。利用者が s10・s21 で `gap: 56` を書いたのはこのため。
-    - `route: 'elbow'` は前処理が集めない(`collectConnects` が `'straight'` だけを見る)。
-- **端の位置(5)**: `resolveConnect`(`lib/layout-connect.ts`)は `'id:side@t'` を `parseRef` で読み、`ctx.anchors` の矩形の辺の点(`anchorPoint`)を端にする。group は `id` があるときだけ枠の矩形を anchors に登録する(`layoutGroupAt`)。箱がどの group の中にあるかは、どこにも記録していない。
+    - 隣どうしの row で chip のラベル「照らし合わせる」: chip の幅は 114px、間隔は 128px に広がるが、経路の長さは 132px(4px の格子への丸めで、宣言した間隔と経路の長さが違う)。見える部分は 18px で `connect-label-covers-arrow` が出る。広げる目標(両側 6px)が、検査の 20px に足りていない。
+    - `cols: 12` の row で `col` を 1 つ空けた 2 つの箱: 前処理は「間の空いた列が場所を作る」として飛ばす(`b.col !== a.col + a.span`)。空いた列が 1 つでは足りず、端の箱に重なるエラーになる。
+    - 縦(`a:bottom` → `b:top`)のラベル: 帯と帯の間は `diagram({gap})`(既定 16)のままで、広げる仕組みがない。chip でも chip でないラベルでも端の箱に重なるエラーになる。`gap: 40` では `connect-label-covers-arrow`(見える部分 15px)。利用者が s10・s21 で `gap: 56` を書いたのはこのため。
+    - `route: 'elbow'` は前処理が集めない(`collectConnects` が `'straight'` だけを見る)。辺を書かない connect(中心から中心)も対象外(`gapNeeded` が `right` / `left` の辺を見る)。
+- **端の位置(5)**: `resolveConnect`(`lib/layout-connect.ts`)は `'id:side@t'` を `parseRef` で読み、`ctx.anchors` の矩形の辺の点(`anchorPoint`)を端にする。その後に、ノードの下端(`nodeBottoms`)、`plumb`、#377 の `levelSides` の順で端を直す。
+  - group は `id` があるときだけ枠の矩形を anchors に登録する(`layoutGroupAt`)。箱がどの group の中にあるかは、どこにも記録していない。ただし `LaidOutGroup.span`(ADR 0054 D5)が、続く何本の帯が中身かを持っている。
+  - 検査の矩形では group の枠は障害物ではない(`lib/verify-handlers.ts` の `group: {}`)。端の箱は `isOwnEndpoint`(`lib/verify.ts`)が id と `fromArea` / `toArea` で見分ける。
 - **列のそろえ(6)**: 行をまたいで列をそろえる手段は 2 つある。
   - `row({cols})` の共有の列(`rowChildGeometry` と `gridColumns`、ADR 0014 D1): 同じ `cols` と `gap` の行は同じ列の端を使う。子ごとに `span` と `col` を書く。
-  - `canvas()`(`lib/canvas.ts`)の `grid` 帯: テンプレートのセル(`place: {col, row, cs, rs}`)に箱を置き、行をまたぐ箱も書ける。列の幅は比(`colW`)、行の高さは中身から(`canvasRowHeights`)。ただし `GridBand.children` は `BoxBand[]` だけで、テンプレートは BMC・SWOT などの決まったものだけ(`TEMPLATES`)。`layoutCanvasGrid` は箱を `placeBoxLike` で置くだけで、group を置けない。`CanvasLayout` には `worded` / `floor` / `empty` / `requireAll` / `aspect` など、型のあるキャンバスのための項目が多い。
-  - 純粋な幾何の関数 `canvasColumns` / `canvasSpan` / `canvasRowHeights` は、`CanvasLayout` のうち `colW` / `rowW` / `place` しか読まない。
-- **group の並び(6)**: `layoutGroupRow` は、子(箱と group)をまず上端からそれぞれ置き、いちばん高いものに枠を伸ばす。伸ばした分が 16px(`GROUP_FILL_MIN`)以上あれば、`snapshotCtx` / `restoreCtx` で取り消して、`valign` に従って中身を置き直す(ADR 0014 D2)。box は `LaidOutRow` で包んで出す。
-- **JSON spec(7)**: `lib/spec.ts` の `PARTS` と `lib/spec-parts/r1〜r7.ts` に 64 の部品がある。どれも型のある部品で、box / group / row / connect に当たるものはない。部品ごとに `schema` / `example` / `check` / `build` を持ち、`build` が DSL の関数を呼ぶ。MCP の `list_diagram_parts`(プラグインの `src/tools.ts`)は `partCatalog()` をそのまま返す。デッキの図(ADR 0055)も同じ spec。`parts` は 4 つまで。部品をまたぐ id の重複は `checkAnchors` が部品の `anchors` の一覧(最上位だけ)で調べる。
-- **PowerPoint(ADR 0054)**: group の枠は `LaidOutGroup.span` で中身の帯と 1 つのグループになる(`lib/pptx/slide.ts`)。コネクタは `glueOf` で端の箱の図形に貼り付け、辺は `siteIndex` が参照の `:side` から選ぶ(`@t` の位置は無視し、辺の真ん中に貼る)。
+  - `canvas()`(`lib/canvas.ts`)の `grid` 帯: テンプレートのセル(`place: {col, row, cs, rs}`)に箱を置き、行をまたぐ箱も書ける。列の幅は比(`colW`)、行の高さは中身から決まる(`canvasRowHeights`)。
+    - ただし `GridBand.children` は `BoxBand[]` だけで、テンプレートは BMC・SWOT などの決まったものだけ(`TEMPLATES`)。
+    - `layoutCanvasGrid` は箱を `placeBoxLike` で置くだけで、group を置けない。
+    - `CanvasLayout` には `worded` / `floor` / `empty` / `requireAll` / `aspect` など、型のあるキャンバスのための項目が多い。
+  - 純粋な幾何の関数 `canvasColumns` / `canvasSpan` / `canvasRowHeights` は、`CanvasLayout` のうち `colW` / `rowW` / `place` しか読まない。`canvasColumns` は間隔が 4 の倍数だと仮定している(`canvasBand` が丸める)。行の y を 4px の格子に乗せる処理は `layoutCanvasGrid` の中にある。
+- **group の並び(6)**: `layoutGroupRow` は、子(箱と group)をまず上端からそれぞれ置き、いちばん高いものに枠を伸ばす。
+  - 伸ばした分が 16px(`GROUP_FILL_MIN`)以上あれば、`snapshotCtx` / `restoreCtx` で取り消して、`valign` に従って中身を置き直す(ADR 0014 D2)。
+  - #377 の後は、枠のある group は既定で中央、枠のない group は `valign` を書いたときだけ動き、既定は上。
+  - 箱は `LaidOutRow` で包んで出す。
+  - 前処理の `walk`(`lib/layout.ts`)は、中の幅を `stackWidthOf`(`lib/band-children.ts` の `STACK_WIDTH`。幅 1 つか `null` を返す)で求め、`grouprow` は自分で子の幅を計算して中を歩く。
+- **JSON spec(7)**: `lib/spec.ts` の `PARTS` と `lib/spec-parts/r1〜r7.ts` に 64 の部品がある。
+  - どれも型のある部品で、box / group / row / connect に当たるものはない。
+  - 部品ごとに `schema` / `example` / `check` / `build` を持ち、`build` が DSL の関数を呼ぶ。
+  - MCP の `list_diagram_parts`(プラグインの `src/tools.ts`)は `partCatalog()` をそのまま返す。デッキの図(ADR 0055)も同じ spec。
+  - `parts` は 4 つまで。部品をまたぐ id の重複は、`checkAnchors` が部品の `anchors` に書いたキーの一覧(最上位だけ)で調べる。
+  - 検証の `validateOneOf` は、オブジェクトの枝を `const` の項目か必須の項目で選ぶ。`kind` を省略できる枝の分け方には使えない。
+- **PowerPoint(ADR 0054、0027)**:
+  - group の枠は `LaidOutGroup.span` で中身の帯と 1 つのグループになる(`lib/pptx/slide.ts`)。
+  - コネクタは `glueOf` で端の箱の図形に貼り付け、辺は `siteIndex` が参照の `:side` から選ぶ。`@t` の位置は無視して辺の真ん中に貼る。
+  - PowerPoint は、貼り付けた図形を動かすまで書かれた座標のまま描く。LibreOffice は開いたときに、貼り付けから経路を作り直す(ADR 0027 の `judge-glue`)。そのため、端が辺の真ん中にないコネクタを貼ると、LibreOffice では線が辺の真ん中へ動く。
 
 ## 決定
 
 ### D1. ラベルのための間隔を、検査と同じ基準で、縦と空いた列にも広げる(4)
 
 - 新しいオプション(`gap: 'auto'`)は作らない。横の row では今も既定で広げている。足りないのは、広げる量と、広げる場所。
-- **基準を 1 つにする**: `lib/connect-rules.ts` に `labelRoom(label, chip, axis, roles, widthOf)` を足し、ラベルのある経路が要る長さを返す。
-  - ラベルの矩形の長さ `L`(横は chip なら幅 + 16、chip でなければ線の上に乗るので 0。縦は chip なら 24、chip でなければ線の横に置くので 0)。矩形は `resolveConnect` の `labelBox` / `chipBox` と同じ式で求める(式を `layout-connect.ts` から書き出して共有する)。
-  - 要る長さ = max(`L` + 2 × `LABEL_MARGIN`(端の箱に重ならない)、min(`L` / `LABEL_COVER_MAX`、`L` + `LABEL_VISIBLE_MIN`)(`hidesArrow` が成り立たない))。chip でない縦のラベルは、線の横に置く文字の高さ(文字の大きさ + 4)+ 2 × `LABEL_MARGIN`。
-  - `gapNeeded` と `labelCoverRules` / `verify.ts` が同じ定数を見るので、「広げたのに検査で止まる」ことがなくなる。chip の「照らし合わせる」(chip の幅 116px)なら、間隔は今の 128px(116 + 12)から 136px(min(116 / 0.6, 116 + 20) = 136 と 128 の大きい方)になる。経路の長さと間隔の差(線の太さ、矢じり)は実装で確かめ、テストで検査と突き合わせる。
-- **空いた列**: `cols` の row で、間に空いた列がある 2 つの子も対象にする。今の「空いた列があれば飛ばす」をやめ、実際の距離(空いた列の幅 + 間隔)が要る長さに足りないときだけ、`sharedGaps` の共有の間隔を広げる。列の幅は間隔から決まるので、`width(cw, span, gap)` の式で、要る長さを満たす最小の間隔を求める(二分探索。7 割の制約は今と同じ)。
-- **縦**: 帯と帯の間(`ctx.stack` が並べる、同じ stack の続く 2 つの帯)を、ラベル付きの直線の connect が下 → 上(または上 → 下)でつなぐとき、その間を要る長さまで広げる。
-  - 前処理で、帯ごとに「この帯の後に足す高さ」(`Map<Band, number>`)を求め、`ctx.stack` の中で次の帯を置く前に `ctx.y` に足す。各ハンドラーが足す `d.gap` は変えない。
-  - 端の id が帯の中のどこにあっても(group や row の中でも)、その帯に属するとみなす(今の `idsIn` と同じ)。ただし端から帯の端までの距離(group の内側の余白など)も経路の長さに入るので、前処理では帯の下端・上端を知らず、余白の分を引かない(安全側に広げすぎることはない。足りないときは今と同じ検査が知らせる)。
-  - 対象は stack の続く 2 つの帯だけ。間に別の帯があるときは、その帯の高さが経路を伸ばすので広げない(足りなければ検査が知らせる)。
-- `route: 'elbow'` は対象にしない(未決 1)。
-- 広げられない(子を 7 割より細くする、`justify` が `center` / `start` の row)ときは今と同じく間隔を変えず、検査が知らせる。そのとき検査の文言に「間隔を N px 以上に」と、要る長さを書く(今は「箱の間隔を広げる」とだけ言う)。
-- 出力が変わるのは、今エラーか `connect-label-covers-arrow` の警告(許容を含む)になる図だけ。検査を通る図の間隔は変わらない(要る長さ以下なら広げない)。
+- **基準を 1 つにする**: `lib/connect-rules.ts` に `labelRoom(label, chip, axis, labelAt, roles, widthOf)` を足し、ラベルのある経路が要る長さを返す。2 つの量を分けて求める。
+  - `E`(経路に沿ったラベルの長さ): 横で chip でなければ文字の幅 `lw`、横で chip なら `lw + 16`、縦で chip なら 24、縦で chip でなければ文字の高さ(大きさ + 4)。
+  - `C`(ラベルが覆う線の長さ): chip なら `E`。chip でないラベルは線の上か横に置くので 0。ただし縦で両端の x がそろっていない(斜めの)線では、ラベルを線の横に逃がさず線の上に置くので `E` とする(安全側)。
+  - 端の箱に重ならない長さ: `(E / 2 + LABEL_MARGIN) / min(t, 1 − t)`。`t` は `labelAt`(既定 0.5。そのとき `E + 2 × LABEL_MARGIN`)。
+  - 覆いすぎない長さ: `C > 0` なら `min(C / LABEL_COVER_MAX, C + LABEL_VISIBLE_MIN)`(`hidesArrow` が成り立たない)、`C = 0` なら 0。
+  - 要る長さは、この 2 つの大きい方。
+  - 矩形の大きさは `resolveConnect` の `labelBox` / `chipBox` と同じ式で求める(式を `layout-connect.ts` から書き出して共有する)。
+  - `gapNeeded` と `labelCoverRules` / `checkConnects` が同じ定数と式を見るので、「広げたのに検査で止まる」ことがなくなる。chip でない横のラベルは今と同じ `lw + 12` で、今より狭くならない。
+- **経路の長さで比べる**: 要る長さは、宣言した間隔ではなく実際の経路の長さと比べる。経路は 4px の格子への丸めで間隔と数 px 違う(上の例では間隔 128px で経路 132px)。間隔は、経路が要る長さ以上になる最小の 4 の倍数に切り上げる。上の例の chip(114px)では、要る長さは max(114 + 12、min(114 / 0.6、114 + 20)) = 134px。経路 132px では 2px 足りないので、経路が 136px になる間隔にする。
+- **空いた列**: `cols` の row で、間に空いた列がある 2 つの子も対象にする。
+  - 今の「空いた列があれば飛ばす」をやめ、実際の距離が要る長さに足りないときだけ、`sharedGaps` の共有の間隔を広げる。
+  - 空いた列が `k` 本なら、距離は `(k + 1) × gap + k × colW`、`colW = (cw − (cols − 1) × gap) / cols` で、`gap` の 1 次式になる。要る長さを満たす `gap` を式で解き、4 の倍数に切り上げる。
+  - 子の幅の 7 割の制約は今と同じ。
+- **縦**: 同じ stack の続く 2 つの帯の間を広げる。ラベル付きの直線の connect が、前の帯の中の id の `bottom` から次の帯の中の id の `top` へ(または逆向きに)つなぐときが対象で、その間を要る長さまで広げる。
+  - 高さを取らない帯(`connect`、高さ 0 の `spacer` など)は飛ばして「続く 2 つ」を数える。
+  - 前処理で、帯ごとに「この帯の後に足す高さ」(`Map<Band, number>`)を求める。`ctx.stack` の中で、次の帯を置く前に `ctx.y` に足す。各ハンドラーが足す `d.gap` は変えない。
+  - 端の id が帯の中のどこにあっても(group や row の中でも)、その帯に属するとみなす(今の `idsIn` と同じ)。前処理では帯の下端・上端を知らないので、端から帯の端までの距離(group の内側の余白など)を引かない。そのため広げすぎることはないが、足りないこともあり、そのときは今と同じ検査が知らせる。
+  - 対象は続く 2 つの帯だけ。間に高さのある帯があるときは、その帯の高さが経路を伸ばすので広げない(足りなければ検査が知らせる)。
+- **対象外**: `route: 'elbow'`(未決 1)と、辺を書かない connect(中心から中心。線の向きが箱の位置で決まり、前処理では分からない)。どちらも検査が知らせる。
+- **広げられないとき**: `cols` の row で子が 7 割より細くなるとき、`cols` のない row で子が 80px(`MIN_CHILD_W`)より細くなるとき、`justify` が `center` / `start` の row のときは、今と同じく間隔を変えない。そのときは検査の文言に「間隔を N px 以上に」と要る長さを書く(今は「箱の間隔を広げる」とだけ言う)。
+- **出力の変わる図**: 今エラーか `connect-label-covers-arrow` の警告(許容した図を含む)になる図だけ。検査を通る図の間隔は変わらない(要る長さ以下なら広げない)。
 
-### D2. 枠で止まる端(`via: 'group'`)(5)
+### D2. 枠で止まる端(`via`)(5)
 
-    group([box({title: '決定メモ', id: 'memo'})], {title: '書き出す先'}),
-    group([box({id: 'c1', …}), box({id: 'c2', …}), box({id: 'c3', …})], {id: 'convs', title: '同じ前提で始まる'}),
-    connect('memo:right', 'c1:left', {via: 'group', route: 'elbow'}),
+    memo: box({title: '決定メモ', body: '1枚に書き出す', tone: 'solid'}),
+    convs: group([box({id: 'c1', …}), box({id: 'c2', …}), box({id: 'c3', …})], {title: '同じ前提で始まる'}),
+    connect('memo:right', 'c1:left', {via: {to: 'group'}, route: 'elbow'}),
 
-- `ConnectOpts` に `via?: 'group' | {from?: 'group'; to?: 'group'}` を足す。
-  - `'group'` は両端に、`{from: 'group'}` / `{to: 'group'}` は片方の端にだけ効く。
-- 意味: 端の箱を囲む枠のある group のうち、もう一方の端を含まない**いちばん外側**の group の枠の辺に、端を移す。辺は参照の `:side`(`memo:right` なら枠の右辺)。辺の上の位置は箱の範囲(左右の辺なら箱の上端〜下端、上下の辺なら左端〜右端)で、`@t` も箱の範囲に対して読む。線は枠の外から来て枠で止まり、枠を横切らない。いちばん外側にしたのは、入れ子の group の内側の枠で止めると、外側の枠を横切るため。
-- 作り: 端の矩形を「枠の辺 × 箱の範囲」に置き換えてから、今の `anchorPoint` と別 PR の `levelSides` に渡す。たとえば左右の辺なら `{x: 枠.x(右辺なら 枠.x + 枠.w), y: 箱.y, w: 0, h: 箱.h}`。経路・ラベル・`levelSides` の水平そろえ・`bend: 'auto'` の障害物の判定は、そのまま使える(障害物から、その端の group の枠の中の箱を外すのは `fromArea` / `toArea` と同じ扱い)。
-- 箱を囲む group の記録: `layoutGroupAt` が、自分の中身として置いた anchor の名前ごとに、枠(`LaidOutGroup` そのもの。`id` のない group も)の一覧を `ctx.enclosing: Map<string, LaidOutGroup[]>`(内側から外側の順)に足す。row に伸ばされた後の枠の高さを読むため、`via` のある connect は必ず後回し(`ctx.deferred`)にして、すべての帯を置いた後に解決する。
-- 誤り(throw。spec では link の場所つき):
-  - 端に `:side` がない(`'memo'` だけ)。どの辺で止めるか決まらない。
-  - 端の箱を囲む、枠のある group がない(`frame: false` だけ、または group の外)。「`via` を外すか、箱を group に入れる」。
+- **オプション**: `ConnectOpts` に `via?: 'group' | {from?: 'group'; to?: 'group'}` を足す。
+  - `{from: 'group'}` / `{to: 'group'}` はその端にだけ効く。その端が枠のある group の中になければ誤り。
+  - `'group'` は、枠のある group の中にある端すべてに効く。どちらの端も枠のある group の中になければ誤り。片方だけなら、その端にだけ効く。
+- **意味**: 端の箱を囲む枠のある group のうち、もう一方の端を含まない**いちばん外側**の group を選び、その枠の辺に端を移す。
+  - 辺は参照の `:side` で決まる(`c1:left` なら枠の左辺)。
+  - 辺の上の位置は箱の範囲で決まる(左右の辺なら箱の上端〜下端、上下の辺なら左端〜右端)。`@t` も箱の範囲に対して読む。
+  - 線は枠の外から来て枠で止まり、枠を横切らない。いちばん外側にしたのは、入れ子の内側の枠で止めると外側の枠を横切るため。
+- **作り**:
+  - 端の矩形を「枠の辺 × 箱の範囲」に置き換える。左右の辺なら `{x: 枠の左端(右辺なら右端), y: 箱.y, w: 0, h: 箱.h}`。
+  - 置き換えた矩形から、`anchorPoint`、`nodeBottoms`、`plumb`、#377 の `levelSides` の順で今の処理を通す。`levelSides` は箱の高さの範囲で読むので、片方だけ動かす規則・12px の空き・`fan` の扱いはそのまま効く。
+  - その端の `fromArea` / `toArea` に枠の矩形を入れる。これで `bend: 'auto'` の障害物の判定(`inside()`)が枠の中の箱を障害物から外し、`verify.ts` の `isOwnEndpoint` が枠の中の箱を自分の端として扱う(group の枠そのものは検査の矩形ではないので、別の扱いは要らない)。
+  - `LaidOutConnect` の `fromId` / `toId` は箱の id のまま。グラフの検査(`graph-orphan-node` など)は箱どうしの線として読む。PowerPoint のために `fromVia` / `toVia`(印だけ)を残す。
+- **枠の見つけ方**: レイアウトの途中の状態(`ctx` の表)には持たない。`snapshotCtx` / `restoreCtx`(`layoutGroupRow`、`measureBandHeight`、D3 の 2 回目)が取り消す表に新しいものを足すと、取り消し漏れで古い枠が残るため。
+  - 代わりに、`via` のある connect は必ず後回し(`ctx.deferred`)にし、すべての帯を置いた後に、最後の `laidOut` から求める。
+  - `LaidOutGroup` の `span` で中身の帯をたどり、その中の箱(`LaidOutRow` の子、帯の箱)の id を集めて、「id → 囲む枠の一覧(内側から外側)」を作る。row に伸ばされた後の枠の高さもそのまま読める。
+- **誤り**(throw。spec では link の場所つき):
+  - 端に辺がない(`'memo'` だけ)、または辺が `center`。どの辺で止めるか決まらない。
+  - 辺がもう一方の端と反対を向いている(右にある相手へ `c1:left` 以外、たとえば `c1:right` で止める)。線が枠の中を戻って横切る。左右の辺は相手が左右どちらにあるか、上下の辺は上下どちらにあるかで判定する。
+  - その端が枠のある group の中にない(上の「オプション」の規則)。「`via` を外すか、箱を group に入れる」。
   - 端が group の id そのもの(`'convs:left'`)。もともと枠の辺なので `via` は要らない。
   - `route` が `loop-under` / `loop-side`、または注釈(`bracket` / `callout`)。
-- 検査と記録: `LaidOutConnect` の `fromId` / `toId` は箱の id のまま(グラフの検査 `graph-orphan-node` などは箱どうしの線として読む)。`fromVia` / `toVia` に、止めた枠の矩形を残す。`lib/verify.ts` の「端の箱に重なる」の判定は、その端では枠を端として扱う。
-- PowerPoint: `via` の端はコネクタを図形に貼り付けない(`glueOf` を呼ばない)。貼ると PowerPoint が箱の辺の真ん中(枠の内側)へ線を引き直すため。開いたときの見た目は SVG と同じで、箱を動かしてもその端は動かない(ADR 0027 の「ラベルは箱について動かない」と同じ種類の制約として README に書く)。
+- **PowerPoint**: 貼り付けの決まりを 1 つにする。「コネクタの端が、貼る図形の辺の真ん中(`siteIndex` の点)から 0.5px 以内にあるときだけ貼る」。
+  - `via` の端は枠の辺の上にあり、箱の辺の真ん中ではないので貼らない。
+  - #377 の `levelSides` で動いた端と、`@t` で置いた端も、真ん中から外れていれば貼らない。今の `@t` の端は真ん中に貼るので、LibreOffice では開くと線が動いている。これも直る。
+  - 貼らない端は、図形を動かしてもついてこない(ADR 0027 の「ラベルは箱について動かない」と同じ種類の制約として README に書く)。PowerPoint で開いたときの見た目は SVG と同じ。
+  - `@t` の図の pptx の golden は変わる(貼り付けがなくなる)。
 
 ### D3. 名前の領域で置く `areas`(6)
 
@@ -90,24 +139,52 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
     }, {cols: [4, 3, 4], gap: 64})
 
 - **新しい帯 `areas`**(`AreasBand`)にする。今の `grid` 帯(canvas)は広げない(別案 1)。
-  - `template`: CSS の `grid-template-areas` と同じ書き方。行は改行(配列でもよい。D4 の JSON と同じ形)、セルは空白で区切り、`.` は空きのセル。先頭と末尾の空行と字下げは捨てる。
-  - `cells`: 名前 → 中身。中身は box、group、または row が包むもの(caption・table・stat など。row と同じく `group(x, {frame: false})` で包む。`lib/dsl/containers.ts` の `wrappable` を共有する)。row / grid / areas / connect / spacer は直接は置けない(group に入れる)。
-  - オプション: `cols?: number[]`(列の幅の比。既定は等分)、`gap?: number`(列の間。既定 16)、`rowGap?: number`(行の間。既定は `gap`)、`id?: string`(全体の anchor)。
-- **検査**(組み立てのとき、名前つきの誤り):
-  - どの行も同じ数のセル。名前は `^[A-Za-z][A-Za-z0-9_-]*$`。
+  - `template`: CSS の `grid-template-areas` と同じ書き方。行は改行で区切る(文字列の配列でもよい。D4 の JSON と同じ形)。セルは空白で区切り、`.` 1 文字が空きのセル。先頭と末尾の空行と字下げは捨てる。
+  - `cells`: 名前 → 中身。中身は box、group、または row が包むもの(caption・table・stat など)。
+    - row が包むものは、row と同じく `group(x, {frame: false})` で包む。row の中の閉じた関数 `wrappable` / `wrap` を `lib/dsl/containers.ts` の関数に書き出し、row と areas で共有する。
+    - row / grouprow / grid / areas / connect / spacer は直接は置けない(group に入れる)。
+  - オプション:
+    - `cols?: number[]`: 列の幅の比。既定は等分。
+    - `gap?: number`: 列の間。既定 16。4 の倍数に切り上げる(`canvasColumns` の前提)。
+    - `rowGap?: number`: 行の間。既定は `gap`。
+    - `id?: string`: 全体の anchor。row の `id` と同じく `areaIds` に入れ、中の箱をその端として扱う。
+  - areas は row の子にできない(`row([areas(…)])` は誤り。group で包む)。row の子は 1 行の中の 1 つの幅を取るものに限る、という今の決まりを保つ。
+- **中身の位置の項目は誤り**: セルの中身の `span` / `col` / `flex` / `width` は、セルが位置と幅を決めるので、書いたら throw する(#377 で `cols` のない row の `span` を誤りにしたのと同じ考え)。
+- **テンプレートの検査**(組み立てのとき。どれも名前つきの誤り):
+  - どの行も同じ数のセル。
+  - 名前は `^[A-Za-z][A-Za-z0-9_-]*$`(canvas の `id` と同じ)。
   - 1 つの名前のセルは長方形になる(CSS と同じ。L 字や離れた 2 か所は誤り)。
+  - `..` や `...` は誤り(CSS では 1 つの空きのセル。ここでは `.` 1 文字だけにして、桁をそろえるための点と名前の打ち間違いを見分けやすくする)。
+  - `.` だけの行・列は誤り(高さ・幅を決める中身がない)。
   - テンプレートの名前と `cells` のキーが一致する(足りない名前・余った名前の両方を挙げる)。
   - `cols` の数は列の数と同じ。列と行はそれぞれ 12 まで。
-- **id**: 名前がそのまま中身の id になる(`connect('memo:right', …)` がそのまま書ける)。中身に名前と違う `id` があれば誤り(名前は 1 つにする)。同じ id があれば今の anchor の重複の誤り。TS の型は、`cells` のキーを `Declares` に入れて、`connect` の参照の型の検査(今の row と同じ仕組み)に乗せる。
+- **id**: 名前がそのまま中身の id になる(`connect('memo:right', …)` がそのまま書ける)。
+  - 中身に名前と違う `id` があれば誤り(名前は 1 つにする)。同じ id があれば、今の anchor の重複の誤り。
+  - 名前は中身の写しに入れる。`spanRow` と同じく `Object.create(Object.getPrototypeOf(c), …)` で写し、`withHandle` の付いた箱の `.top` などの持ち手を保つ。
+  - TS の型は、`cells` のキーを `Declares` に入れて、`connect` の参照の型の検査(今の row と同じ仕組み)に乗せる。
 - **配置**(`lib/layout-handlers.ts` に `layoutAreas`):
-  - 幾何は canvas と共有する。`canvasColumns` / `canvasSpan` / `canvasRowHeights` の引数の型を、`CanvasLayout` から `Pick<CanvasLayout, 'colW' | 'rowW' | 'place'>`(`TrackGrid` と名付ける)に狭める。canvas の出力は変わらない。
-  - 1 回目: 各セルを、その列の x と幅で、上端からそれぞれ置き、自然な高さを測る(`layoutGroupRow` と同じく、box は `placeBoxLike`、group は `ctx.stack`)。
-  - 行の高さ: `canvasRowHeights(grid, needs, rowGap, 0)`。1 行のセルは行の高さ、複数の行にまたがるセルはその行の和(+ 間の `rowGap`)で、足りなければまたぐ行を等しく伸ばす(canvas と同じ)。
-  - 2 回目: `snapshotCtx` / `restoreCtx` で取り消し、各セルを行の y に置き直す。box はセルの高さに伸ばす(row と同じ)。group は枠をセルの高さに伸ばし、16px 以上の余りは `valign` に従って中身に渡す(`GroupFill`。ADR 0014 D2 と同じ)。セルの中身が 1 回目と同じ幅なので、文字の折り返しは変わらない。
-  - 出力の帯は今の型だけを使う(box は `LaidOutRow` で包む、group は `layoutGroupAt` の `LaidOutGroup` と `span`)。`emit.ts`・`emit-html.ts`・PowerPoint(D6)・`data-node`・spotlight・reveal は変えない。
-  - 列は 4px の格子に乗せる(`canvasColumns` が既にそうしている)。列の幅が 96px(`CANVAS_MIN_REGION_W`)未満になれば、canvas と同じ文言で誤り。
-- **ラベルの間隔**(D1 と同じ基準): 横に隣り合うセル(左のセルの最後の列 + 1 = 右のセルの最初の列、行が重なる)の間をラベル付きの connect がつなぐとき `gap` を、縦に隣り合うセルなら `rowGap` を、要る長さまで広げる。areas の間隔は 1 つなので、どれか 1 本が要れば全体が広がる(列のそろえを崩さないため)。子を 7 割より細くするなら広げない(D1 と同じ)。
-- **周りの登録**: `CHILD_BANDS`(`lib/band-children.ts`)・`stackWidthOf`(セルの幅で中を歩く)・`itemIdsOf`・`layoutHandlerFor`・`measureBandHeight` に `areas` を足す。`CHILD_BANDS` は表に型がないとコンパイルが通らない作り。
+  - 幾何は canvas と共有する。`canvasColumns` / `canvasSpan` / `canvasRowHeights` の引数の型を、`CanvasLayout` から `Pick<CanvasLayout, 'colW' | 'rowW' | 'place'>`(`TrackGrid` と名付ける)に狭める。areas の `rowW` はすべて 1(高さは中身だけで決め、比は使わない)。
+  - 行の y を 4px の格子に乗せる処理を、`layoutCanvasGrid` から関数(`trackRowYs`)に書き出して共有する。canvas の出力は変わらない。
+  - 1 回目: 各セルを、その列の x と幅で上端から置き、自然な高さを測る(`layoutGroupRow` と同じく、box は `placeBoxLike`、group は `ctx.stack`)。
+  - 行の高さ: `canvasRowHeights(grid, needs, rowGap, 0)`。1 行のセルは行の高さ、複数の行にまたがるセルはその行の和(+ 間の `rowGap`)。足りなければ、またぐ行を等しく伸ばす(canvas と同じ)。
+  - 2 回目: `snapshotCtx` / `restoreCtx` で取り消し、各セルを行の y に置き直す。セルの中身は 1 回目と同じ幅なので、文字の折り返しは変わらない。
+    - box はセルの高さに伸ばす(row と同じ)。
+    - group は枠をセルの高さに伸ばし、16px 以上の余りを中身に渡す(`GroupFill`)。決まりは #377 と同じで、枠のある group は既定で中央、枠のない group(row が包んだ caption なども)は `valign` を書いたときだけ動き、既定は上。
+  - 出力の帯は今の型だけを使う(box は `LaidOutRow` で包む、group は `layoutGroupAt` の `LaidOutGroup` と `span`)。`emit.ts`・`emit-html.ts`・PowerPoint(D6)・`data-node`・spotlight は変えない。
+  - 列の幅が 96px(`CANVAS_MIN_REGION_W`)未満になれば誤り。文言は canvas() のものを使わず、`areas: area "memo" is only Npx wide …` と areas の言葉で書く。
+- **ラベルの間隔**(D1 と同じ基準):
+  - 横に隣り合うセル(左のセルの最後の列 + 1 = 右のセルの最初の列、かつ行が重なる)の間をラベル付きの connect がつなぐときは `gap` を、縦に隣り合うセルのときは `rowGap` を、要る長さまで広げる。
+  - areas の間隔は 1 つなので、どれか 1 本が要れば全体が広がる(列のそろえを崩さないため)。
+  - 子を 7 割より細くするなら広げない(D1 と同じ)。
+- **前処理の順**(`lib/layout.ts` の `walk`):
+  - `STACK_WIDTH.areas = null`(幅 1 つでは中を表せない)。`walk` に areas の枝を足す。
+  - まず areas の間隔(D1 で広げた後のもの)を決め、次にその間隔で `canvasColumns` からセルの幅を求めて、group の中身を歩く(中の row のラベルの間隔の計算に使う)。
+  - 今の `grouprow` の枝は、広げた間隔を使う場合と宣言の間隔を使う場合(`cols` の row)が混ざっている。areas は常に「間隔が先、中の幅が後」とする。
+- **周りの登録**:
+  - `CHILD_BANDS` と `STACK_WIDTH`(`lib/band-children.ts`。表に型がないとコンパイルが通らない)
+  - `itemIdsOf`、`layoutHandlerFor`、`measureBandHeight`
+  - `lib/reveal-handlers.ts`(中身の段階を中身ごとに読む。row と同じ)
+  - `lib/dsl/rewrite.ts` の `NO_REVEAL` と、`assertNoReveal`(areas 全体には `reveal` を書けない。中身に書く。row と同じ)
 - canvas() を areas の上に作り直すことはしない(未決 3)。
 
 ### D4. JSON spec の型のない部品 `board`(7)
@@ -115,6 +192,7 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
     {"type": "board",
      "areas": ["head memo convs", "head memo convs", ". note note"],
      "cols": [4, 3, 4],
+     "gap": 64,
      "nodes": [
        {"id": "head", "kind": "group", "title": "担当者の頭の中", "tone": "muted",
         "children": [{"title": "提出先の手引き"}, {"title": "社内ルール"}, {"title": "環境の制約"}]},
@@ -125,45 +203,76 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
      "links": [{"from": "head", "to": "memo"},
                {"from": "memo", "to": "c1", "via": "to", "route": "elbow"}]}
 
-- **D3 と同じ配置の仕組みを使う**: `build` は `areas(…)` と `connect(…)` を呼ぶだけで、spec 専用の配置は持たない。TS と JSON で同じ図が同じ SVG になる。
-- `nodes`(1〜24):
-  - `kind: 'box'`(既定): `id`、`title`、`body`、`lines`(箇条書き、8 まで)、`tone`、`stamp`。
-  - `kind: 'group'`: `id`、`title`、`tone`、`dashed`、`valign`、`children`(box の node、1〜8)、`areas` と `cols`(中を名前の領域で置く。なければ縦に積む。DSL の `group([areas(…)])` になる)。group の中の group は 1 段まで(全体で 3 段)。
-  - `kind: 'caption'`: `id`、`text`、`bold`、`tone`。
-  - 最上位の node の `id` は必須(テンプレートの名前)。group の中の node の `id` は、つなぐときだけ要る。
-- `areas`(最上位、省略可): 文字列の配列。省略すると、最上位の node を書いた順に 1 行に並べる(`[nodes の id を空白でつないだもの]`)。group の中の `areas` も同じ。
-- `links`(0〜40): `from`、`to`(node の id。group の中の box も)、`fromSide` / `toSide`(`left` / `right` / `top` / `bottom`)、`label`(40 字)、`chip`、`line`、`tone`、`arrow`、`route`(`straight` / `elbow`)、`via`(`from` / `to` / `both`。D2 の `{from: 'group'}` などに直す)。
-  - **辺の省略**: `fromSide` / `toSide` がなければ、テンプレートの上のセルの位置から決める。両端の最上位のセル(group の中の box なら、その group のセル)の列の範囲が重ならず行の範囲が重なれば左右(左にある方が `right`)、行の範囲が重ならず列の範囲が重なれば上下。どちらでもない(斜め)ときは、`links[i].fromSide` の場所で「辺を書く」と返す。同じセルの中の 2 つの box も同じく返す。モデルが辺の名前を間違えやすいので、多くの場合に書かなくて済むようにする。DSL の `connect()` の省略時(中心どうし)は変えない。
-- `check`(組み立ての前、場所つき): D3 のテンプレートの検査を `parts[i].areas[2]` などの場所で返す。node の id の重複(group の中も含めて。`checkAnchors` が最上位しか見ないので、`board` の `anchors` には入れ子を平らにした一覧を渡す。`PartDef.anchors` を「キーの名前」から「id を集める関数」も受けるように広げる)。`links` の端の存在。`via` の端が group の中の box であること。
-- 上限は spec の今の考え(`MAX_TOTAL_TEXT` など)に合わせ、node 24・link 40 とする(`flowchart` の 40 / 60 より小さい。自由な図は手で読める量に絞る)。
-- **description**(`list_diagram_parts` に出る): 「A free layout: boxes and framed groups placed by named areas, joined by arrows. Use it when the figure is a few blocks and the arrows between them, and no typed part names that shape (a memo that feeds several conversations, a trace across stages, layers with what slips through). Prefer a typed part when one fits: a comparison is compare or versus, a process is flowchart or steps.」型のある部品を優先する一文を入れ、`board` が新しい偏りにならないようにする。
+- **D3 と同じ配置の仕組みを使う**: `build` は `areas(…)`(と group の中の `areas(…)`)と `connect(…)` を呼ぶだけで、spec 専用の配置は持たない。TS と JSON で同じ図が同じ SVG になる。
+- **node のスキーマ**: 1 つの平らなオブジェクトにし、`kind` を列挙(`box`(既定)/ `group` / `caption`)で持つ(`flowchart` の node と同じ形)。`validateOneOf` は `kind` を省略できる枝を選べないので、`oneOf` は使わない。`kind` に合わない項目は `check()` が `parts[0].nodes[1].text` などの場所で断る。
+  - box: `id`、`title`、`body`、`lines`(箇条書き、8 まで)、`tone`、`stamp`。
+  - group: `id`、`title`、`tone`、`dashed`、`valign`、`children`、`areas`、`cols`、`gap`、`rowGap`。
+    - `children` は node(1〜8)。box と caption のほか、group も書ける。ただし入れ子は最上位の group の中の group 1 段まで(board → group → group → box の 3 段)。
+    - `areas` があれば中を名前の領域で置く(DSL の `group([areas(…)])`)。そのとき children の `id` は必須(テンプレートの名前)。`areas` がなければ縦に積む。
+  - caption: `id`、`text`、`bold`、`tone`。
+  - 最上位の node の `id` は必須(テンプレートの名前)。`areas` のない group の中の node の `id` は、つなぐときだけ要る。
+  - テンプレートの名前になる `id`(最上位の node と、`areas` のある group の children)は D3 の名前の規則(`^[A-Za-z][A-Za-z0-9_-]*$`)に従う。spec の `id()` は任意の文字列を許すので、`check()` が `parts[0].nodes[2].id` の場所で断る。
+- **board の項目**:
+  - `areas`(省略可): 文字列の配列。省略すると、最上位の node を書いた順に 1 行に並べる。最上位の node が 12 を超えるのに `areas` がないときは、「`areas` を書く」と返す(列は 12 まで)。group の中の `areas` も同じ。
+  - `cols`、`gap`、`rowGap`: D3 と同じ。
+  - `nodes`: 入れ子を含めて 24 まで。
+  - `links`: 0〜40。
+- **links**: 項目は `from`、`to`、`fromSide` / `toSide`(`left` / `right` / `top` / `bottom`)、`label`(40 字)、`chip`、`line`、`tone`、`arrow`、`route`(`straight` / `elbow`)、`via`(`from` / `to` / `both`)。
+  - `via` は D2 の `{from: 'group'}` / `{to: 'group'}` / `'group'` に直す。
+  - 端は同じ board の box か group の node だけ。caption の node と、ほかの部品の anchor は誤り(部品をまたぐ線は、部品の配置が別々で、つながりが読めない)。
+  - **辺の省略**: `fromSide` / `toSide` がなければ、テンプレートの上のセルの位置から決める。モデルは辺の名前を間違えやすいので、多くの場合に書かなくて済むようにする。
+    - 両端のセルを比べる。端が group の中の box なら、その group のセルを使う。
+    - 列の範囲が重ならず行の範囲が重なれば左右(左にある方が `right`)、行の範囲が重ならず列の範囲が重なれば上下で決める。
+    - 2 つの端が同じ group の中にあるときは、その group の中の `areas` があれば、そのテンプレートで同じように決める。なければ(縦に積んだ group)上下で決める。
+    - どれでも決まらない(斜めのセル、同じ group の同じセル)ときは、`parts[0].links[i].fromSide` の場所で「辺を書く」と返す。
+    - DSL の `connect()` の省略時(中心から中心)は変えない。
+- **check**(組み立ての前、場所つき):
+  - D3 のテンプレートの検査を `parts[i].areas[2]` などの場所で返す。
+  - node の id の重複(group の中も含む)。`checkAnchors` は部品の `anchors` のキーの最上位しか見ないので、`PartDef.anchors` を「キーの名前」か「id を集める関数」にし、board は入れ子を平らにした一覧を返す。
+  - `links` の端の存在と種類、`via` の端が枠のある group の中の box であること。
+- 上限(node 24・link 40)は、spec の今の考え(`MAX_TOTAL_TEXT` など)に合わせた。`flowchart` の 40 / 60 より小さい。自由な図は手で読める量に絞る。
+- **description**(`list_diagram_parts` に出る): 「A free layout: boxes and framed groups placed by named areas, joined by arrows. Use it when the figure is a few blocks and the arrows between them, and no typed part names that shape (a memo that feeds several conversations, a trace across stages, layers with what slips through). Prefer a typed part when one fits: a comparison is compare or versus, a process is flowchart or steps.」
+  - 型のある部品を優先する一文を入れ、`board` が新しい偏りにならないようにする。
 - `example` は上の s04 の形を小さくしたもの。
-- MCP: プラグインの `list_diagram_parts` は `partCatalog()` を返すので、core を取り込めば `board` が出る(ADR 0057 と同じ)。デッキの図も spec なので、deck.json でも書ける。プラグインの取り込みと、ChatGPT のツールの更新(ウィジェットのキャッシュ。プラグインの手順)は別の PR。
+- **MCP とデッキ**: プラグインの `list_diagram_parts` は `partCatalog()` を返すので、core を取り込めば `board` が出る(ADR 0057 と同じ)。デッキの図も spec なので、deck.json でも書ける。プラグインへの取り込みと、ChatGPT のツールの更新(ウィジェットのキャッシュ。プラグインの手順)は別の PR にする。
 
 ### D5. 作る順と PR
 
-1. **PR 1(D1)**: ラベルの間隔。いちばん小さく、ほかに依存しない。`labelRoom` の基準は D3 と D4 も使う。
-2. **PR 2(D3)**: `areas`。`canvas.ts` の幾何の型を狭める変更を含む。`references/freeform.md`(別 PR で足す)に節を足す。
-3. **PR 3(D2)**: `via: 'group'`。`layout-connect.ts` を触るので、`levelSides` の入った別 PR の後。PR 2 とは触るファイルがほぼ別で、並行して進められる。
-4. **PR 4(D4)**: `board`。PR 2 と PR 3 の後。続けて、プラグインのリポジトリで core を取り込む PR。
+1. **PR 1(D1)**: ラベルの間隔。`labelRoom` のために `layout-connect.ts` の矩形の式を書き出すので、#377 の上に作る。D3 と D4 も同じ基準を使う。
+2. **PR 2(D3)**: `areas`。`canvas.ts` の幾何の型を狭める変更を含む。
+3. **PR 3(D2)**: `via`。PR 2 の後。どちらも `layout-handlers.ts` と `layout-ctx.ts`(後回しの扱い)を触るので、並行させずに順に入れる。PowerPoint の貼り付けの決まりもこの PR に含める。
+4. **PR 4(D4)**: `board`。PR 2 と PR 3 の後。続けて、プラグインのリポジトリで core を取り込む PR を作る。
 
-4 つの PR は、それぞれ Opus のレビューを受けてから main に入れる。PR 2 の後に、nov27 の 8 枚を `areas` で書き直して、`span` / `col` と `gap: 56` がいくつ消えるかを数え、PR 2 の説明に書く。
+4 つの PR は、それぞれ Opus のレビューを受けてから main に入れる。PR 2 の後に nov27 の 8 枚を `areas` で書き直し、`span` / `col` と `gap: 56` がいくつ消えるかを数えて、PR 2 の説明に書く。
 
 ### D6. PowerPoint(ADR 0054)
 
 - `areas` は今の帯の型(包んだ `row`、`group` と `span`)だけを出すので、PowerPoint の書き出しは変えない。group の枠と中身は今どおり 1 つのグループになる。`areas` 全体はグループにしない(row や grid も全体ではまとめていない)。
-- `via` の端は貼り付けない(D2)。
+- 貼り付けは D2 の決まり(辺の真ん中にある端だけを貼る)に従う。
 - `board` は spec から DSL を組み立てるだけなので、`pptx-deck` と `svg-diagram/pptx/deck/edge` でもそのまま描ける。
+
+### D7. 文書(ADR 0066 D9 と同じく、PR ごとに)
+
+- **SKILL.md**(`skills/svg-diagram/SKILL.md`): PR 2 で `areas`、PR 3 で `via` を、自由な図の書き方の一覧に足す。PR 4 で「JSON で自由な図を描くなら `board`。型のある部品が合えばそちらを先に」を足す。
+- **`references/freeform.md`**(#377 で足す): PR 2 で「行をまたいでそろえる: `areas`」の節を足し、s33 と s04 の書き直しを例にする。PR 3 で「枠で止める: `via`」、PR 1 で「ラベル付きの矢印の間隔は自動で広がる。広がらない場合」の節を足す。
+- **README**: DSL の節に `areas` と `connect({via})`、spec の節に `board`、PowerPoint の節に貼り付けの決まり(D2)を足す。
+- **`test/fixtures/untested-exports.json`**: 新しく出す関数(`areas`、`labelRoom`、テンプレートの解析、`trackRowYs`)はテストを書き、この一覧には足さない。
+- spec の `description`(node・link・各項目)は、MCP の利用者が読む唯一の説明なので、D4 の決まり(辺の省略、`via`、`kind` ごとの項目)をそこに書く。
 
 ## 検討したほかの案
 
-1. **canvas の `grid` 帯に名前のテンプレートを足す**: 幾何(列の比、またぐ行、行の高さ)は同じだが、`GridBand.children` は箱だけで、`layoutCanvasGrid` は group を置けない。`CanvasLayout` は型のあるキャンバスのための項目(`worded`・`floor`・`empty`・`requireAll`・`aspect`・タグの下の余白)を持ち、`canvas-region-empty` などの検査がそれを読む。group を入れると、それらの検査と HTML 出力(`emit-html.ts` が grid の子を箱として描く)の両方に手が入る。幾何の関数だけを共有し、帯は分けた。
-2. **`row({cols})` を広げる(行をまたぐ `rowSpan`)**: row は 1 行ずつの帯で、行をまたぐ子を置くには前後の行を知る必要がある。名前の領域の方が、行の数と列の数を 1 か所で見て書ける。
-3. **`gap: 'auto'`(依頼の案)**: 横の row は既に既定で広げているので、`'auto'` を足すと「書かなくても広がる」と「書けば広がる」が混ざる。既定で広げ、その範囲を縦と空いた列に広げた(D1)。広げてほしくない図のための `gap: {fixed: true}` のような逃げ道は、要る例が出るまで作らない。
-4. **`via` を参照の書き方に入れる(`'convs>c1:left'`、`'c1:left^'`)**: JSON の `from` / `to` が文字列のまま書けるが、記号の意味が読んで分からない。今の `'id:side@t'` の文法も複雑になる。オプションにした。
-5. **`via` で、いちばん内側の group で止める**: 入れ子の group で外側の枠を横切る。外側にした(D2)。止める group を id で選ぶ書き方(`via: {to: 'convs'}`)は未決 2。
-6. **spec の `board` を、row / group / connect をそのまま JSON にしたもの(`{type: 'row', children: [...]}` の木)にする**: DSL と 1 対 1 で作りやすいが、行をまたぐそろえは `span` / `col` の足し算に戻り、モデルが書き間違えやすい(この ADR の 6 の理由そのもの)。配置は名前の領域だけにした。
-7. **`board` に node の座標(x / y)を書かせる**: 重なりや文字のはみ出しを書き手が防ぐことになり、このツールの「座標を書かない」作りに反する(`lib/dsl.ts` の冒頭)。
+1. **canvas の `grid` 帯に名前のテンプレートを足す**: 幾何(列の比、またぐ行、行の高さ)は同じだが、次の理由で帯を分け、幾何の関数だけを共有した。
+   - `GridBand.children` は箱だけで、`layoutCanvasGrid` は group を置けない。
+   - `CanvasLayout` は型のあるキャンバスのための項目(`worded`・`floor`・`empty`・`requireAll`・`aspect`・タグの下の余白)を持ち、`canvas-region-empty` などの検査がそれを読む。
+   - group を入れると、それらの検査と HTML 出力(`emit-html.ts` が grid の子を箱として描く)の両方に手が入る。
+2. **`row({cols})` を広げる(行をまたぐ `rowSpan`)**: row は 1 行ずつの帯で、行をまたぐ子を置くには前後の行を知る必要がある。名前の領域なら、行の数と列の数を 1 か所で見て書ける。
+3. **`gap: 'auto'`(依頼の案)**: 横の row は既に既定で広げているので、`'auto'` を足すと「書かなくても広がる」と「書けば広がる」が混ざる。既定で広げ、その範囲を縦と空いた列に広げた(D1)。広げてほしくない図のための逃げ道(`gap: {fixed: true}` など)は、要る例が出るまで作らない。
+4. **`via` を参照の書き方に入れる(`'convs>c1:left'`、`'c1:left^'`)**: JSON の `from` / `to` が文字列のまま書けるが、記号の意味が読んで分からない。今の `'id:side@t'` の文法も複雑になる。そのためオプションにした。
+5. **`via` で、いちばん内側の group で止める**: 入れ子の group で外側の枠を横切るので、外側にした(D2)。止める group を id で選ぶ書き方(`via: {to: 'convs'}`)は未決 2。
+6. **囲む枠を、レイアウトの途中で `ctx` の表に記録する**: `snapshotCtx` / `restoreCtx` の取り消しに入れ忘れると古い枠が残る。取り消す場所は 3 つ(`layoutGroupRow`、`measureBandHeight`、areas の 2 回目)ある。最後の `laidOut` と `span` から求めることにした(D2)。
+7. **spec の `board` を、row / group / connect をそのまま JSON にしたもの(`{type: 'row', children: [...]}` の木)にする**: DSL と 1 対 1 で作りやすい。しかし行をまたぐそろえが `span` / `col` の足し算に戻り、モデルが書き間違えやすい(この ADR の 6 の理由そのもの)。配置は名前の領域だけにした。
+8. **`board` の node を `kind` ごとの `oneOf` にする**: `validateOneOf` はオブジェクトの枝を `const` か必須の項目で選ぶので、`kind` を省略できる box の枝を選べない。平らなオブジェクトにした(D4)。
+9. **`board` に node の座標(x / y)を書かせる**: 重なりや文字のはみ出しを書き手が防ぐことになり、このツールの「座標を書かない」作りに反する(`lib/dsl.ts` の冒頭)。
 
 ## 未決
 
@@ -172,31 +281,48 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
 3. `canvas()` を `areas` の上に作り直すか(テンプレートを `areas` の文字列で書く)。出力を 1 byte も変えずにできるかを確かめてから決める。
 4. `areas` の列の幅を中身から決める(ADR 0061 の `width: "auto"` のように)。今は比だけ。
 5. `areas` の行の比と高さ(`rows`、`h`)。今は中身の高さだけ。
-6. `board` の上限(node 24・link 40)が足りるか。nov27 の 8 枚はどれも node 12 以下・link 6 以下。
-7. `board` の links に `branch()`(1 つから複数へ)に当たる書き方を入れるか。今は link を並べる。
+6. `board` の上限(node 24・link 40)で足りるか。nov27 の 8 枚は、どれも node 12 以下・link 6 以下。
+7. `board` の links に、`branch()`(1 つから複数へ。#377 の `fan`)に当たる書き方を入れるか。今は link を並べる。
 
 ## テスト
 
 - **D1**(`test/connect-label-gap.test.ts`):
-  - 隣どうしの row、`cols` の row で列を 1 つ空けたもの、縦の 2 つの帯、group の中の縦の 2 つの帯のそれぞれで、chip あり・なし、短い・長いラベルの connect を描き、`connect-label-covers-arrow` と「端の箱に重なる」のどちらも出ないこと。
-  - `labelRoom` の値で、`hidesArrow` が成り立たないこと、`verify.ts` の重なりが出ないことを、同じ関数で突き合わせる(基準のずれを防ぐ)。
-  - 広げられない row(子が 7 割より細くなる)では間隔が変わらず、文言に要る長さが出ること。
+  - 次の場所で、chip あり・なし、短い・長いラベル、`labelAt` 0.5 と 0.3 の connect を描き、`connect-label-covers-arrow` と「端の箱に重なる」のどちらも出ないことを確かめる。
+    - 隣どうしの row
+    - `cols` の row で列を 1 つ・2 つ空けたもの
+    - 縦の 2 つの帯(間に connect の帯があるものも)
+    - group の中の縦の 2 つの帯
+  - `labelRoom` を経路の実際の長さと比べ、`hidesArrow` が成り立たないこと、`checkConnects` の重なりが出ないことを、同じ関数で突き合わせる(基準のずれを防ぐ)。
+  - chip でない横のラベルの間隔が、今の `gapNeeded` より狭くならないこと。
+  - 広げられない row(`cols` で 7 割、`cols` なしで 80px)では間隔が変わらず、文言に要る長さが出ること。
   - ラベルのない図と、今の基準で検査を通る図の SVG が変わらないこと(`examples/` の golden)。
 - **D2**(`test/connect-via-group.test.ts`):
-  - 端が枠の辺の上で、y が箱の範囲の中、線が枠を横切らないこと。row で伸ばされた枠(`layoutGroupRow` の後)の辺に乗ること。
-  - 入れ子の group でいちばん外側の枠に止まること。両端が同じ group の中のときは、その group では止まらないこと。
-  - 誤り 4 種の文言。`levelSides` と合わせて水平になること。
-  - PowerPoint: `via` の端に `stCxn` / `endCxn` がないこと、もう一方の端は今どおり貼られること。
+  - 端が枠の辺の上にあり、y が箱の範囲の中にあり、線が枠を横切らないこと。row で伸ばされた枠(`layoutGroupRow` の後)と、areas の 2 回目で置き直した枠の辺に乗ること(取り消し後の古い枠を読まない)。
+  - 入れ子の group では、いちばん外側の枠で止まること。両端が同じ group の中のときは、その group では止まらないこと。
+  - 誤りの文言: 辺なし・`center`・反対向きの辺・枠のある group の外・group の id・loop と注釈。
+  - #377 の `levelSides` と合わせて水平になること(片方だけ動く場合と、重なりの真ん中に動く場合)。`branch()` の `fan` と合わせても始点が 1 つのままであること。
+  - `bend: 'auto'` の elbow が、枠の中の箱を障害物にしないこと。`verify.ts` が枠の中の箱との重なりを誤りにしないこと。
+  - PowerPoint: `via` の端、`levelSides` で動いた端、`@t` の端に `stCxn` / `endCxn` がないこと。辺の真ん中の端は今どおり貼られること。
 - **D3**(`test/areas.test.ts`):
-  - テンプレートの解析(空行・字下げ・配列、`.`、長方形でない名前、行のセルの数の違い、名前とキーの過不足、`cols` の数)。
-  - 列がそろうこと: 違う行の同じ列のセルの x と幅が同じ。行をまたぐセルの高さが行の和。group の枠がセルの高さに伸び、`valign` が効くこと。
-  - 名前が id になり、`connect('memo:right', …)` が解決すること。名前と違う `id` が誤りになること。
-  - canvas の例の SVG が変わらないこと(幾何の型を狭めただけ)。
+  - テンプレートの解析: 空行・字下げ・配列、`.`、`..`、`.` だけの行・列、長方形でない名前、行のセルの数の違い、名前とキーの過不足、`cols` の数。
+  - 中身の `span` / `col` / `flex` / `width`、名前と違う `id`、`row([areas(…)])`、areas 全体の `reveal` が誤りになること。
+  - 列がそろうこと: 違う行の同じ列のセルの x と幅が同じ。行をまたぐセルの高さが行の和。group の枠がセルの高さに伸び、`valign` が #377 と同じ決まりで効くこと。
+  - 名前が id になり、`connect('memo:right', …)` が解決すること。持ち手のある箱(`withHandle`)で `.right` が使えること。`areas({id})` を端にできること。
+  - 中の row のラベルの間隔が、広げた areas の間隔から求めた幅で決まること(前処理の順)。
+  - canvas の例の SVG が変わらないこと(幾何の型を狭め、行の y の処理を書き出しただけ)。
   - PowerPoint: `areas` の中の group が `span` で 1 つのグループになること(`test/pptx` の今の検査に例を足す)。
   - s04・s33 を `areas` で書いた例を `examples/` に足し、`build`(lint --strict)を警告なしで通ること。
 - **D4**(`test/spec-board.test.ts`):
   - `partCatalog()` の全例のテスト(ADR 0057 の全例を描くテスト)に `board` が入り、通ること。
-  - 場所つきの誤り: `parts[0].areas[1]`(長方形でない)、`parts[0].nodes[2].id`(重複、group の中も)、`parts[0].links[0].to`(ない id)、`parts[0].links[1].fromSide`(斜めで辺がない)、`parts[0].links[2].via`(group の中でない)。
-  - 辺の省略: 左右・上下・group の中の box の場合に、DSL で辺を書いたものと同じ SVG になること。
+  - 場所つきの誤り:
+    - `parts[0].areas[1]`(長方形でない)
+    - `parts[0].nodes[2].id`(重複、group の中も含む。名前の規則に合わない)
+    - `parts[0].nodes[1].text`(`kind` に合わない項目)
+    - `parts[0].nodes[0].children[1].id`(`areas` のある group で id がない)
+    - `parts[0].links[0].to`(ない id、caption、ほかの部品の id)
+    - `parts[0].links[1].fromSide`(斜めで辺が決まらない)
+    - `parts[0].links[2].via`(枠のある group の中でない)
+  - 入れ子の上限(group の中の group の中の group)、node の数(入れ子を含めて 24)、`areas` のない 13 個の node が誤りになること。
+  - 辺の省略: 左右・上下・group の中の box・同じ group の中(`areas` あり・なし)の場合に、DSL で辺を書いたものと同じ SVG になること。
   - 同じ図を DSL(`areas` + `connect`)と spec(`board`)で書き、SVG がバイト単位で同じこと。
   - デッキ(`validateDeck`)の図に `board` を書けること。
