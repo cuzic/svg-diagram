@@ -1,6 +1,6 @@
 # ADR 0069: 自由な図の配置 — ラベルの間隔、`via`、`areas`、spec の `board`
 
-- 状態: 実装済み(2026-11-20。前提の小さな直し #377、PR 1(D1、ラベルの間隔)#381、PR 2(D3、`areas`)#383、PR 3(D2、`via`)#386、PR 4(D4、spec の `board`)#387。どの PR も Opus のレビューで Blocker と Major がなくなってから入れた。nov27 の 8 枚は `areas` で書き直し、研修のフォルダに入れた。残り: プラグインのリポジトリで core を取り込む PR、`column-grid` の PowerPoint の golden の更新)
+- 状態: 実装済み(2026-11-20。前提の小さな直し #377、PR 1(D1、ラベルの間隔)#381、PR 2(D3、`areas`)#383、PR 3(D2、`via`)#386、PR 4(D4、spec の `board`)#387。どの PR も Opus のレビューで Blocker と Major がなくなってから入れた。nov27 の 8 枚は `areas` で書き直し、研修のフォルダに入れた。残り: プラグインのリポジトリで core を取り込む PR、PowerPoint の golden の更新(`column-grid` の変化と manifest にない例。#389 の workflow で行う))
 - 日付: 2026-11-20
 - 基点: `main`(7a95096e、ADR 0067 まで)。D1 と D2 は PR #377(`fix/freeform-small`)の上に作る。
 - 関連: ADR 0012(id のスコープ)、ADR 0014(そろえと余白、`group({valign})`)、ADR 0016(矢印の端のそろえ)、ADR 0027(PowerPoint 書き出し、接続の判定)、ADR 0050(組み合わせられる帯)、ADR 0054(PowerPoint のグループ)、ADR 0055(デッキ)、ADR 0057(spec の `canvas`)、ADR 0061(段の幅の自動)
