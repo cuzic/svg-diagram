@@ -32,7 +32,8 @@ export type ChartItem = (
   | {k: 'path'; d: string; fill: ColorKey | 'none'; op?: number; stroke?: ColorKey; sw?: number; dash?: string; of?: string | string[]; soft?: boolean}
   | {k: 'icon'; name: string; glyph: IconGlyph; x: number; y: number; size: number; fill: ColorKey; of?: string}
   | {k: 'text'; s: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; of?: string}
-) & {part?: string; /** Drawn by the chart's `table` (a cell's text, fill or rule): the PowerPoint export writes the table and leaves these out. */ cell?: true};
+) & {part?: string; /** Drawn by the chart's `table` (a cell's text, fill or rule): the PowerPoint export writes the table and leaves these out. */ cell?: true;
+  /** Drawn under the chart's `table` in the PowerPoint export (a highlighted column's box), wherever it comes in the drawing order. */ under?: true};
 /** A line along a side of a table cell, as the svg draws it there. */
 export interface TableRule {stroke: ColorKey; sw: number; dash?: string}
 /** One cell of a chart drawn as a table (TableCell[][] holds null where a cell to the left spans over it). */
@@ -182,6 +183,11 @@ export class Canvas {
    */
   partsByOf(byOf: ReadonlyMap<string, string>): void {
     for (const it of this.items) if (it.part === undefined && typeof it.of === 'string') { const p = byOf.get(it.of); if (p) it.part = p; }
+  }
+  /** Draws what the PowerPoint export puts under the chart's `table` (a highlighted column's box): the items get `under`. */
+  underTable(draw: () => void): void {
+    const n = this.items.length;
+    try { draw(); } finally { for (let i = n; i < this.items.length; i++) (this.items[i] as ChartItem).under = true; }
   }
   /** Draws one entry of the chart's legend: its sample and name are a part inside the legend's (ADR 0054). */
   legendEntry<T>(i: number, label: string, draw: () => T): T { return this.withPart(LEGEND, () => this.withPart(partStep('entry', i, label), draw)); }

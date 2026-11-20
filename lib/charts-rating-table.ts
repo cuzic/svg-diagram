@@ -55,7 +55,7 @@ export function layoutRatingTable<T>(t: RatingTable<T>, look: RatingLook<T>, g: 
 
   if (t.ruled) c.asCell(() => c.rect(g.x, g.y, g.w, headH, {fill: 'accent', op: 0.1}));
   // highlighted columns are boxed under everything else
-  t.cols.forEach((k, j) => { if (highlight.includes(k)) c.rect(r1(left + j * colW + 2), g.y, r1(colW - 4), r1(bodyB - g.y), {fill: 'accent', op: 0.08, stroke: 'accent', sw: 2}); });
+  c.underTable(() => t.cols.forEach((k, j) => { if (highlight.includes(k)) c.rect(r1(left + j * colW + 2), g.y, r1(colW - 4), r1(bodyB - g.y), {fill: 'accent', op: 0.08, stroke: 'accent', sw: 2}); }));
   // ADR 0054: the column heads are a part, a row (its name, its ratings, notes and the rule under it) another
   c.withPart(partStep('columns', 0, ''), () => c.asCell(() => {
     if (corner.length) c.lines(corner, g.x + inset, headBase(corner.length), 'start', 'muted');

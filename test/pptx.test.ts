@@ -20,6 +20,7 @@ import {NO_TONES} from '../lib/tokens.ts';
 import {loadConfig} from '../lib/config.ts';
 import {loadDiagram} from '../lib/load-source.ts';
 import {renderDiagram} from '../lib/dsl/render.ts';
+import {checkDiagram, diagram, harvey} from '../lib/dsl.ts';
 import {closeMeasurer} from '../lib/measure.ts';
 import {xmlProblems} from '../lib/xml-check.ts';
 import {unzipEntry} from './helpers/pptx/unzip.ts';
@@ -118,7 +119,22 @@ test('chartTableXml: a chart table as a PowerPoint table, each cell with its own
   // a side with no rule and a cell with no fill say so, so no table style shows through
   assert.match(xml, /<a:lnL w="0"><a:noFill\/><\/a:lnL>/);
   assert.match(xml, /<a:noFill\/><\/a:tcPr>/);
-  assert.match(xml, /<a:endParaRPr lang="ja-JP"\/><\/a:p>/);
+  // an empty cell (and a merged one) holds a 1pt line with no insets, so PowerPoint does not grow a short row
+  assert.match(xml, /<a:spcPts val="100"\/><\/a:lnSpc><\/a:pPr><a:endParaRPr lang="ja-JP" sz="100"\/><\/a:p><\/a:txBody><a:tcPr marL="0" marR="0" marT="0" marB="0"/);
+  assert.match(xml, /<a:tc hMerge="1">.*?sz="100".*?<a:tcPr marL="0" marR="0" marT="0" marB="0"\/><\/a:tc>/);
+  // a side two cells share: the rule only one of them asks for goes on both (the row name's right rule is the rating cell's left)
+  const cells = [...xml.matchAll(/<a:tc[ >].*?<\/a:tc>/g)].map(m => m[0]);
+  assert.match(cells[3] ?? '', /<a:lnR w="19050"/, 'the row name keeps its own right rule');
+  assert.match(cells[4] ?? '', /<a:lnL w="19050"/, 'the rating cell keeps its own left rule (own wins over the neighbour\'s)');
+  assert.match(cells[4] ?? '', /<a:lnR w="0"/, 'nothing to share on the right');
+  assert.match(cells[1] ?? '', /<a:lnB w="0"/);
+  const shared = chartTableXml(8, 't', {x: 0, y: 0, colW: [20, 20], rowH: [20, 20], size: 14, pitch: 18, cells: [
+    [{lines: ['a'], align: 'middle', valign: 'middle', ink: 'text'}, {lines: ['b'], align: 'middle', valign: 'middle', ink: 'text', l: {stroke: 'border', sw: 1}}],
+    [{lines: ['c'], align: 'middle', valign: 'middle', ink: 'text', t: {stroke: 'border', sw: 2, dash: '3,3'}}, {lines: ['d'], align: 'middle', valign: 'middle', ink: 'text'}],
+  ]}, 1, {sans: 'S', mono: 'M'});
+  const sc = [...shared.matchAll(/<a:tc[ >].*?<\/a:tc>/g)].map(m => m[0]);
+  assert.match(sc[0] ?? '', /<a:lnR w="9525"/, 'a gets b\'s left rule as its right');
+  assert.match(sc[0] ?? '', /<a:lnB w="19050"[^>]*>.*?<a:prstDash val="dash"\/>/, 'a gets c\'s dashed top as its bottom');
 });
 
 test('swimlaneTable: the label column, body columns cut at the phases, a row per lane; boundaryChips: a chip per named boundary', () => {
@@ -207,3 +223,11 @@ test('example PPTX files have sound slide relationships', async t => {
 });
 
 test.after(async () => { await closeMeasurer(); });
+
+test('a ruled harvey (with notes): the highlighted column\'s box is marked to go under the table, though its tinted header comes first', async () => {
+  const {laidOut} = await checkDiagram(diagram({theme: 'blue'}).add(harvey(['価格', '機能'], ['A 社', 'B 社'], [[[4, '安い'], 2], [2, [4, '多い']]], {highlight: ['A 社']})));
+  const chart = laidOut.laidOut.find(b => b.type === 'chart') as {items: {k: string; cell?: true; under?: true; stroke?: string; sw?: number}[]};
+  const first = chart.items.findIndex(it => it.cell), box = chart.items.findIndex(it => it.k === 'rect' && it.stroke === 'accent' && it.sw === 2);
+  assert.ok(first >= 0 && box > first, 'the box comes after the first cell item in the drawing');
+  assert.equal(chart.items[box]?.under, true);
+});
