@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {box, causeTree, checkDiagram, closeMeasurer, cloud, connect, diagram, pdpc, renderDiagram, transitionUnits} from '../lib/dsl.ts';
 import type {LaidOutCause, LaidOutCloud} from '../lib/types/diagrams.ts';
 import {tocFindings} from '../lib/toc-rules.ts';
+import {DOUBLE_INSET} from '../lib/toc.ts';
 import {usedNotation} from '../lib/rules.ts';
 
 test.after(() => closeMeasurer());
@@ -192,7 +193,7 @@ test('causeTree({coreDriver}): the SVG has a thick frame and a badge for the cor
 test("causeTree({tree, layer}): prt / frt / tt put an input chain just before its target (alap); crt, no tree and layer: 'asap' keep the first layer (ADR 0019 D1)", async () => {
   const nodes = [N('g', {role: 'goal'}), N('i1', {role: 'io'}), N('i2', {role: 'io'}), N('i3', {role: 'io'}), N('o', {role: 'obstacle'}), N('a', {role: 'action'}), N('r', {role: 'root'})];
   const links = [{from: 'r', to: 'i1'}, {from: 'i1', to: 'i2'}, {from: 'i2', to: 'i3'}, {from: 'i3', to: 'g'}, {from: 'o', to: 'a'}, {from: 'a', to: 'i3'}];
-  const yOf = async (opts: object) => { const {t} = await laidCause(causeTree(nodes, links, opts)); const by = (id: string) => t.nodes[t.anchors.findIndex(a => a.id === id)]; return {o: by('o')!.y, a: by('a')!.y, r: by('r')!.y, i3: by('i3')!.y}; };
+  const yOf = async (opts: object) => { const {t} = await laidCause(causeTree(nodes, links, opts)); const by = (id: string) => t.nodes[t.anchors.findIndex(a => a.id === id)]; const mid = (id: string) => by(id)!.y + by(id)!.h / 2; return {o: mid('o'), a: mid('a'), r: mid('r'), i3: mid('i3')}; }; // middles: a root's double outline makes it taller than its layer's other boxes
   const asap = await yOf({}), prt = await yOf({tree: 'prt'});
   assert.equal(asap.o, asap.r, 'asap: the obstacle sits on the first layer, with the root');
   assert.ok(prt.o < prt.r && prt.a < prt.o, "alap: the obstacle and the action rise to just before i3 (the root is a cause's start and stays); up is a smaller y");
@@ -674,4 +675,25 @@ test("legend: 'auto' leaves out the swatches of the roles roleTags writes in wor
   assert.ok(!used({roleTags: true}).has('role:root'), 'root is written in words on the node');
   assert.ok(used({roleTags: true}).has('role:obstacle'), 'an obstacle has a shape of its own: it keeps its swatch');
   assert.ok(used({roleTags: {goal: 'x'}}).has('role:root') === false, 'a map is a roleTags too: root keeps its default words');
+});
+
+test('causeTree (#378): a double-outlined box keeps its text clear of the inner outline, and the 中核 badge keeps its label inside it (minText 18, both layers)', async () => {
+  const {geometryChecks} = await import('../lib/geometry-checks.ts');
+  const L = (id: string, label: string, extra: object = {}) => ({id, label, ...extra});
+  for (const layer of [undefined, 'alap'] as const) {
+    const band = causeTree(
+      [L('u1', '売主から見ると報告の内容と画面の表示が食い違う', {role: 'ude'}), L('u2', '値下げの提案に使える根拠が乏しい', {role: 'ude'}),
+        L('m', '担当者が各画面のデータを手作業で集計している'),
+        L('r1', '会社として報告書の必須項目と品質基準を定めていない', {role: 'root'}), L('r2', '売却期限や許容価格を売主と事前に整理していない', {role: 'root'})],
+      [{from: 'r1', to: 'm'}, {from: 'm', to: 'u1'}, {from: 'm', to: 'u2'}, {from: 'r2', to: 'u2'}],
+      {tree: 'crt', dir: 'up', maxNodeW: 260, coreDriver: true, roleTags: true, ...(layer ? {layer} : {})});
+    const r = await renderDiagram(diagram({theme: 'blue', canvas: {width: 1400, height: 1200, minText: 18, fit: 'content'}}).add(band), {name: 'c378.svg', budget: 'measure'});
+    assert.ok(r.svg.includes('中核') && r.svg.includes('rx="5"'), `${layer ?? 'default'}: the figure has a core badge and a double outline`);
+    // the lint's own measure: every text sits inside the smallest box around it with its padding (no font-dependent numbers here)
+    assert.deepEqual(geometryChecks(r.svg)!.containerOverflow, [], `${layer ?? 'default'} layer`);
+    // the layout: a root's first line is as far below its inner outline as a plain box's first line is below its frame
+    const t = r.laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause;
+    const lead = (id: string) => { const n = t.nodes[t.anchors.findIndex(a => a.id === id)]!; return Math.min(...t.texts.filter(x => x.x > n.x && x.x < n.x + n.w && x.y > n.y && x.y < n.y + n.h).map(x => x.y)) - n.y; };
+    assert.equal(lead('r1'), lead('m') + DOUBLE_INSET, `${layer ?? 'default'}: the root's text keeps its padding inside the inner outline`);
+  }
 });

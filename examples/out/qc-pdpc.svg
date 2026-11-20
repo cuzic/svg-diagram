@@ -1,55 +1,55 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="848" viewBox="0 0 940 848" role="img" aria-labelledby="svg-title">
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="864" viewBox="0 0 940 864" role="img" aria-labelledby="svg-title">
   <title id="svg-title">新製品の立ち上げ計画（PDPC）</title>
   <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/qc-pdpc.ts","sourceSha256":"2ad7dfe4cf91653b8e9e831a42bffb8c3a8f0e01a3f4e7516508e4f30ca5438c"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
   </style>
-  <rect x="0" y="0" width="940" height="848" fill="#ffffff"/>
+  <rect x="0" y="0" width="940" height="864" fill="#ffffff"/>
 
-  <path d="M480,56 L480,128" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M480,136 L475,124 L485,124 z" fill="#22201b"/>
-  <path d="M468,172 L468,244" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M468,252 L463,240 L473,240 z" fill="#22201b"/>
-  <path d="M444,288 L444,360" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M444,368 L439,356 L449,356 z" fill="#22201b"/>
-  <path d="M412,404 L412,460 L448,460 L448,732 L424,732 L424,748" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M424,756 L419,744 L429,744 z" fill="#22201b"/>
-  <path d="M492,288 L492,308 L576,308 L576,360" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
-  <path d="M576,368 L571,356 L581,356 z" fill="#22201b"/>
-  <path d="M576,404 L576,476" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
-  <path d="M576,484 L571,472 L581,472 z" fill="#22201b"/>
-  <path d="M596,484 L596,468 L656,468 L656,196 L492,196 L492,184" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
-  <path d="M492,172 L497,184 L487,184 z" fill="#22201b"/>
-  <path d="M388,404 L388,424 L352,424 L352,476" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
-  <path d="M352,484 L347,472 L357,472 z" fill="#22201b"/>
-  <path d="M352,540 L352,612" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
-  <path d="M352,620 L347,608 L357,608 z" fill="#22201b"/>
-  <path d="M376,676 L376,748" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
-  <path d="M376,756 L371,744 L381,744 z" fill="#22201b"/>
-  <rect x="432" y="20" width="96" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="436" y="24" width="88" height="28" rx="5" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="436" y="136" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="436" y="252" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="332" y="368" width="140" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="356" y="756" width="88" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="360" y="760" width="80" height="28" rx="5" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <polygon points="528,368 624,368 640,388 624,404 528,404 512,388" fill="#ffffff" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4" stroke-linejoin="round"/>
-  <rect x="512" y="484" width="128" height="56" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
-  <polygon points="304,484 400,484 416,512 400,540 304,540 288,512" fill="#ffffff" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4" stroke-linejoin="round"/>
-  <rect x="280" y="620" width="140" height="56" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
-  <text x="481" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">設計に着手</text>
-  <text x="481" y="158" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">試作する</text>
-  <text x="481" y="274" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">評価試験</text>
-  <text x="400" y="390" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">量産ラインを準備</text>
-  <text x="400" y="778" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">量産開始</text>
-  <text x="576" y="390" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">強度が足りない</text>
-  <text x="576" y="506" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">材質を変更して</text>
-  <text x="576" y="526" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">再試作</text>
-  <text x="351" y="506" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">部品の納期が遅</text>
-  <text x="351" y="526" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">れる</text>
-  <text x="351" y="642" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">代替の仕入先に切</text>
-  <text x="351" y="662" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">り替える</text>
+  <path d="M480,64 L480,136" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M480,144 L475,132 L485,132 z" fill="#22201b"/>
+  <path d="M468,180 L468,252" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M468,260 L463,248 L473,248 z" fill="#22201b"/>
+  <path d="M444,296 L444,368" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M444,376 L439,364 L449,364 z" fill="#22201b"/>
+  <path d="M412,412 L412,468 L448,468 L448,740 L424,740 L424,756" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M424,764 L419,752 L429,752 z" fill="#22201b"/>
+  <path d="M492,296 L492,316 L576,316 L576,368" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M576,376 L571,364 L581,364 z" fill="#22201b"/>
+  <path d="M576,412 L576,484" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M576,492 L571,480 L581,480 z" fill="#22201b"/>
+  <path d="M596,492 L596,476 L656,476 L656,204 L492,204 L492,192" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M492,180 L497,192 L487,192 z" fill="#22201b"/>
+  <path d="M388,412 L388,432 L352,432 L352,484" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M352,492 L347,480 L357,480 z" fill="#22201b"/>
+  <path d="M352,548 L352,620" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M352,628 L347,616 L357,616 z" fill="#22201b"/>
+  <path d="M376,684 L376,756" fill="none" stroke="#22201b" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M376,764 L371,752 L381,752 z" fill="#22201b"/>
+  <rect x="432" y="20" width="96" height="44" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="436" y="24" width="88" height="36" rx="5" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="436" y="144" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="436" y="260" width="88" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="332" y="376" width="140" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="356" y="764" width="88" height="44" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="360" y="768" width="80" height="36" rx="5" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <polygon points="528,376 624,376 640,396 624,412 528,412 512,396" fill="#ffffff" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4" stroke-linejoin="round"/>
+  <rect x="512" y="492" width="128" height="56" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <polygon points="304,492 400,492 416,520 400,548 304,548 288,520" fill="#ffffff" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4" stroke-linejoin="round"/>
+  <rect x="280" y="628" width="140" height="56" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="481" y="46" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">設計に着手</text>
+  <text x="481" y="166" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">試作する</text>
+  <text x="481" y="282" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">評価試験</text>
+  <text x="400" y="398" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">量産ラインを準備</text>
+  <text x="400" y="790" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">量産開始</text>
+  <text x="576" y="398" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">強度が足りない</text>
+  <text x="576" y="514" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">材質を変更して</text>
+  <text x="576" y="534" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">再試作</text>
+  <text x="351" y="514" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">部品の納期が遅</text>
+  <text x="351" y="534" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">れる</text>
+  <text x="351" y="650" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">代替の仕入先に切</text>
+  <text x="351" y="670" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">り替える</text>
 
-  <text x="20" y="822" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+  <text x="20" y="838" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
 </svg>
