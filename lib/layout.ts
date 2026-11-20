@@ -102,8 +102,11 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
   // A gap the checks already pass (as long as the label needs with no margin) stays as it is: a figure that draws clean does not move.
   const bandGaps = new Map<Band, number>();
   const flat = (b: Band): boolean => (b.type === 'connect' && b.route !== 'loop-under' && b.annot?.side !== 'below') || ((b.type === 'spacer' || b.type === 'raw') && b.h === 0);
-  // two boxes of the same stack, joined at the same `@t`, are as wide as the stack: the line is vertical (else the x of the ends is not known yet)
+  // two boxes of the same stack, joined at the same `@t`, are as wide as the stack: the line is vertical (else the x of the ends is not known
+  // yet). A node (icon above its text) is joined at its icon, centred: only its middle (`@0.5`) is at the box's middle.
   const isBox = (b: Band, id: string): boolean => b.type === 'box' && b.id === id;
+  const aligned = (a: Band, b: Band, hi: {id: string; at: number}, lo: {id: string; at: number}): boolean =>
+    isBox(a, hi.id) && isBox(b, lo.id) && hi.at === lo.at && (hi.at === 0.5 || (!topIcon(a as BoxBand) && !topIcon(b as BoxBand)));
   const verticalGaps = (bs: Band[]): void => {
     const tall = bs.filter(b => !flat(b));
     for (let n = 0; n + 1 < tall.length; n++) {
@@ -114,10 +117,10 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
         const down = above.has(f.id) && f.side === 'bottom' && below.has(t.id) && t.side === 'top', up = below.has(f.id) && f.side === 'top' && above.has(t.id) && t.side === 'bottom';
         if (!down && !up) continue;
         const [hi, lo] = down ? [f, t] : [t, f];
-        const axis: LabelAxis = isBox(a, hi.id) && isBox(b, lo.id) && hi.at === lo.at ? 'vertical' : 'slanted';
+        const axis: LabelAxis = aligned(a, b, hi, lo) ? 'vertical' : 'slanted';
         const need = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf), fails = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf, 0);
-        // the next band's top is rounded to the 4px grid (at most 2px up): leave those 2px too
-        if (Number.isFinite(need) && d.gap < fails) extra = Math.max(extra, ceil4(need + 2) - d.gap);
+        // the next band's top is rounded to the 4px grid (at most 2px up): the route can be 2px shorter than d.gap; leave those 2px too
+        if (Number.isFinite(need) && d.gap - 2 < fails) extra = Math.max(extra, ceil4(need + 2) - d.gap);
       }
       if (extra > 0) bandGaps.set(a, extra);
     }
@@ -146,7 +149,10 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
       }
     };
     // A row inside a group of a `cols` grouprow is as wide as the shared gap leaves it, and the shared gap depends on what the rows need:
-    // walk again with the shared gaps of the previous round until they stay the same (a few rounds at most).
+    // walk again with the shared gaps of the previous round until they stay the same (a few rounds at most). A grid whose widened gap
+    // squeezed a child once keeps its declared gap from then on: narrower nested rows could otherwise make it fit again, and the gap
+    // would flip between the two values with the number of rounds.
+    const rejected = new Set<string>();
     for (let round = 0; round < 4; round++) {
       grids = new Map();
       bandGaps.clear();
@@ -157,7 +163,8 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
         const width = (cw: number, span: number, gap: number) => span * ((cw - (cols - 1) * gap) / cols) + (span - 1) * gap;
         // growing must not squeeze a box: each child keeps >= 70% of its width (and >= 40px) or the gap stays as declared (verify reports the label)
         const fits = g.need === base || g.rows.every(r => r.spans.every(sp => width(r.cw, sp, g.need) >= Math.min(width(r.cw, sp, base), Math.max(40, 0.7 * width(r.cw, sp, base)))));
-        const gap = fits ? g.need : base;
+        if (!fits) rejected.add(key);
+        const gap = rejected.has(key) ? base : g.need;
         if ((sharedGaps.get(key) ?? base) !== gap) changed = true;
         sharedGaps.set(key, gap);
       }

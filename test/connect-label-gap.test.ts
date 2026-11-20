@@ -191,3 +191,32 @@ test('the "N px" hint is given only where the ends face each other (not for a li
   assert.ok(said.length > 0 && said.every(p => !/\d+px or more/.test(p)), said.join(' / '));
   assert.equal(connectRoom(back.laidOut.connects[0]!), undefined);
 });
+
+test('a diagram gap at the edge of the room: the route is up to 2px shorter than the gap, so a gap of exactly the room is widened too', async () => {
+  for (const gap of [36, 38, 40, 42]) for (const chip of [true, false]) {
+    const v = {label: '確認', chip};
+    await assertClean(diagram({theme: 'blue', gap}).add(box({id: 'a', title: '上'}), box({id: 'b', title: '下'}), connect('a:bottom', 'b:top', v)), `gap ${gap}, ${chip ? 'chip' : 'plain'}`);
+  }
+});
+
+test('a shared column grid that a nested row cannot afford stays at its declared gap (no flip-flop between rounds)', async () => {
+  for (const [width, span] of [[800, 3], [1200, 2]] as const) {
+    const inner = row([box({id: 'a', title: 'A', span: 1}), box({id: 'b', title: 'B', col: 3, span: 1})], {cols: 4});
+    const d = diagram({theme: 'blue', width}).add(
+      row([group([inner], {title: 'g', span}), group([box({title: 'z'})], {title: 'h', span: 4 - span})], {cols: 4}),
+      row([box({id: 'c', title: 'C', span: 1}), box({id: 'e', title: 'E', col: 2, span: 1})], {cols: 4}),
+      connect('a:right', 'b:left', {label: '確認', chip: true}), connect('c:right', 'e:left', {label: '確認', chip: true}));
+    const {laidOut, verdict} = await checkDiagram(d);
+    const ce = laidOut.connects.find(c => c.fromId === 'c')!;
+    assert.equal(ce.to.x - ce.from.x, 16, `width ${width}: the declared gap`);
+    assert.ok(verdict.problems.some(p => p.includes('connect(c:right -> e:left)') && /\dpx or more/.test(p)), `width ${width}: the check names the room`);
+  }
+});
+
+test('a node (icon above its text) is joined at its centred icon: @0.3 on a node and a box is a slanted line, widened as one', async () => {
+  for (const gap of [16, 24, 32]) for (const at of [0.2, 0.3]) for (const label of ['確認', '確認する']) {
+    const d = diagram({theme: 'blue', gap}).add(box({id: 'a', title: '上', icon: 'database', iconAt: 'top'}), box({id: 'b', title: '下'}), connect(`a:bottom@${at}`, `b:top@${at}`, {label}));
+    const {verdict} = await checkDiagram(d);
+    assert.deepEqual([...verdict.problems, ...verdict.warnings].filter(m => /own end|covers-arrow/.test(m)), [], `gap ${gap} @${at} ${label}`);
+  }
+});
