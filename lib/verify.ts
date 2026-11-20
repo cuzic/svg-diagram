@@ -35,6 +35,7 @@ import type {LaidOutCaption} from './types/text-bands.ts';
 import type {CheckRect, Verdict} from './types/verdicts.ts';
 
 import {must} from './must.ts';
+import {ceil4, connectRoom} from './connect-rules.ts';
 function checkOverlaps(rects: CheckRect[]): string[] {
   const problems: string[] = [];
   for (let i = 0; i < rects.length; i++) {
@@ -64,7 +65,7 @@ function checkConnects(d: LaidOutDiagram, rects: CheckRect[]): string[] {
         // The path starts on its own boxes, but the label/chip must not sit on top of their text:
         // a chip wider than the gap between two boxes lands on both bodies.
         const own = c.labelBox && rectOverlap(c.labelBox, r);
-        if (own) problems.push(`${who} label "${c.label}" overlaps its own end "${r.label}" by ${Math.round(own.dx)}x${Math.round(own.dy)}px (widen the gap between the boxes, shorten the label, or label a longer leg with route: 'elbow')`);
+        if (own) problems.push(`${who} label "${c.label}" overlaps its own end "${r.label}" by ${Math.round(own.dx)}x${Math.round(own.dy)}px (${widenHint(c)}, shorten the label, or label a longer leg with route: 'elbow')`);
         continue;
       }
       for (const seg of c.pathSegments) {
@@ -79,6 +80,9 @@ function checkConnects(d: LaidOutDiagram, rects: CheckRect[]): string[] {
   }
   return problems;
 }
+
+/** "widen the gap between the boxes", with the room the label needs on a straight connect (labelRoom(), ADR 0069 D1). */
+const widenHint = (c: LaidOutConnect): string => { const need = connectRoom(c); return need !== undefined && Number.isFinite(need) ? `widen the gap between the boxes to ${ceil4(need)}px or more` : 'widen the gap between the boxes'; };
 
 const connectName = (c: LaidOutConnect): string =>
   c.annot?.kind === 'callout' ? `callout(${c.toLabel})` : c.annot?.kind === 'bracket' ? `bracket(${c.fromLabel}, ${c.toLabel})` : `connect(${c.fromLabel} -> ${c.toLabel})`;

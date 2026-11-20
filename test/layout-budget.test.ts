@@ -14,6 +14,8 @@ const BUDGET: Record<string, Record<string, number>> = {
   'canvas-empathy': {'layout-unused-space': 1},
   'canvas-seven-s': {'layout-unused-space': 2},
   'chevron-vertical': {'layout-figure-narrow': 1},
+  // the label 「同期」 widens the shared 6-column gap from 60 to 64 (ADR 0069 D1): 900px no longer splits into 6 equal columns (260 / 256 / 256)
+  'column-grid': {'layout-sibling-size': 3},
   'emphasis-tiers': {'layout-sibling-size': 2},
   'facet': {'layout-sibling-size': 1},
   'hero': {'layout-unused-space': 3},

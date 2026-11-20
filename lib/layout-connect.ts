@@ -37,6 +37,19 @@ function anchorPoint(rect: Rect, side: string, at = 0.5): Point {
   }
 }
 
+/** The width of a connect's label text (the chip, if any, is 16px wider). */
+export const connectLabelWidth = (label: string, roles: Roles, widthOf: WidthOf): number => textWidth(widthOf, label, roles.connectLabel ?? CONNECT_LABEL_SIZE, 400);
+
+/**
+ * The rectangle a connect's label takes, its text baseline at (labelX, labelY): the text itself, or, for a chip, the 24px-high pill 16px
+ * wider than the text (then `labelBox` is the chip too). One formula for the layout and for labelRoom() (lib/connect-rules.ts, ADR 0069 D1).
+ */
+export function labelRects(labelWidth: number, roles: Roles, chip: boolean, labelX = 0, labelY = 0): {labelBox: Rect; chipBox?: Rect} {
+  const size = roles.connectLabel ?? CONNECT_LABEL_SIZE;
+  if (chip) { const chipBox = {x: labelX - (labelWidth + 16) / 2, y: labelY - 17, w: labelWidth + 16, h: 24}; return {labelBox: chipBox, chipBox}; }
+  return {labelBox: {x: labelX - labelWidth / 2, y: labelY - size, w: labelWidth, h: size + 4}};
+}
+
 // positions along a leg to try for a chip, nearest the middle first
 const CHIP_TS = Array.from({length: 41}, (_, i) => 0.1 + i * 0.02).sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5));
 const CONNECT_STROKE_PAD = 3; // half-thickness allowance so a perfectly horizontal/vertical path segment still has a non-zero-area bbox to check
@@ -184,7 +197,7 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
 
   let labelX: number | undefined, labelY: number | undefined, labelBox: Rect | undefined, chipBox: Rect | undefined;
   if (band.label) {
-    const labelWidth = textWidth(widthOf, band.label, (roles.connectLabel ?? CONNECT_LABEL_SIZE), 400);
+    const labelWidth = connectLabelWidth(band.label, roles, widthOf);
     const dy = band.chip ? 5 : -6; // a chip sits ON the line; a plain label sits above it
     if (band.route === 'elbow' && points.length === 4) {
       // vertical-first: label rides the middle (horizontal) leg; horizontal-
@@ -232,11 +245,7 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
         labelY = Math.round(from.y + (to.y - from.y) * t + (roles.connectLabel ?? CONNECT_LABEL_SIZE) / 2 - 2);
       }
     }
-    labelBox = {x: labelX - labelWidth / 2, y: labelY - (roles.connectLabel ?? CONNECT_LABEL_SIZE), w: labelWidth, h: (roles.connectLabel ?? CONNECT_LABEL_SIZE) + 4};
-    if (band.chip) {
-      chipBox = {x: labelX - (labelWidth + 16) / 2, y: labelY - 17, w: labelWidth + 16, h: 24};
-      labelBox = chipBox;
-    }
+    ({labelBox, chipBox} = labelRects(labelWidth, roles, !!band.chip, labelX, labelY));
   }
 
   // fromLabel/toLabel preserve the original "id:side" strings for error

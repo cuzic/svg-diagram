@@ -199,7 +199,9 @@ export interface CauseOpts extends RevealOpts, ScopeOpts, FocusOpts {
    *  Only a figure that says it is checked (the `toc-*` rules of `check`); not written, nothing is checked. It never changes the drawing. */
   tree?: 'crt' | 'frt' | 'prt' | 'tt' | 'nbr';
   /** Where an entity that nothing causes goes (ADR 0019 D1): 'asap' the first layer, 'alap' just before its nearest effect (a chain of such entities too; root, injection and start entities stay
-   *  on the first layer). Default: 'alap' when `tree` is 'prt', 'frt' or 'tt', else 'asap' (the picture as it was). */
+   *  on the first layer). Default: 'alap' when `tree` is 'prt', 'frt', 'tt' or 'nbr'; for 'crt' (ADR 0070 D1) only the preconditions and the chains that
+   *  start from them alone move (every other node keeps its asap layer; a CRT with no precondition is as it was); else 'asap' (the picture as it was).
+   *  A written 'alap' on a CRT moves every entry but a root / injection / start entity, as above. */
   layer?: 'asap' | 'alap';
   /** The current reality tree (the band causeTree() returned for tree: 'crt') this future reality tree answers: its `de` / `goal` entities name the `ude` they mirror (node `mirrors`), and `check`
    *  finds an unknown or doubled one and a `ude` nothing answers (`toc-mirror`). Only its ids are kept; its text is not read as part of this figure. */
@@ -241,7 +243,11 @@ export interface CauseBand extends Omit<CauseOpts, 'focus'> {
   layerFrom?: 'effect';
   /** Entities that are not anchors (no connect() / spotlight / reveal can name them, and two figures may use the same ids). Set by whyWhyTree() for the entities it named itself, not by the author. */
   unanchored?: readonly string[];
+  /** Which maker built this band, when it is not causeTree() (ADR 0070 D2): pdpc(), relationDiagram() or whyWhyTree(). Set by the DSL, not by the author; carried to `LaidOutCause.origin`. */
+  origin?: CauseOrigin;
 }
+/** The makers of a cause band other than causeTree() (ADR 0070 D2). */
+export type CauseOrigin = 'pdpc' | 'relation' | 'whywhy';
 /** An answer to "なぜ?" in whyWhyTree(): what explains the node above it. `trueCause: true` marks the root cause; `measure` is what is done about it. */
 export interface WhyNode {id?: string; why: string; because?: readonly WhyNode[]; trueCause?: true; measure?: string}
 /** A threat or a consequence of a bow-tie, with the barriers between it and the top event, in the order the flow meets them. */
@@ -455,6 +461,8 @@ export interface LaidOutCause extends Rect, Dimmed {
   unanchored?: readonly string[];
   /** What the layout changed on its own to fit the width (none: the figure is as written). */
   fitApplied?: FitApplied[];
+  /** Which maker built the band, when it is not causeTree() (ADR 0070 D2); absent for a cause tree. The checks that only a cause tree gets (`edge-parallel`) read it. */
+  origin?: CauseOrigin;
   /** A negative branch tree (`tree: 'nbr'`): whether its layers run top-bottom (false: left-right, `dir: 'right'`). Read by the crossing hint (ADR 0037). */
   nbr?: {vertical: boolean};
   id?: string;

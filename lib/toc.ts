@@ -222,10 +222,31 @@ function rankedIds(prep: CausePrep, band: CauseBand, anotherOrder?: readonly str
   return order;
 }
 
-/** ALAP (ADR 0019 D1): the entities where a cause starts stay on the first layer; the input side (preconditions, obstacles, actions) moves up to its effects. */
+/** The nodes a CRT moves by default (ADR 0070 D1): the preconditions, and every node whose causes (one or more, on the links as
+ *  written, before any cycle is cut) all are in the set, found forwards to the least fixpoint. A node on a cycle never joins: its cause on
+ *  the cycle does not join before it does. */
+export function crtMovers(band: Pick<CauseBand, 'nodes' | 'links'>): Set<string> {
+  const causes = new Map<string, string[]>(band.nodes.map(n => [n.id, []]));
+  for (const l of band.links) for (const f of typeof l.from === 'string' ? [l.from] : l.from) causes.get(l.to)?.push(f);
+  const moves = new Set(band.nodes.filter(n => n.role === 'precondition').map(n => n.id));
+  for (let grew = moves.size > 0; grew;) {
+    grew = false;
+    for (const [id, cs] of causes) if (!moves.has(id) && cs.length && cs.every(c => moves.has(c))) { moves.add(id); grew = true; }
+  }
+  return moves;
+}
+
+/** ALAP (ADR 0019 D1): the entities where a cause starts stay on the first layer; the input side (preconditions, obstacles, actions) moves up to its effects.
+ *  A CRT with no `layer` written (ADR 0070 D1) moves only its preconditions and the chains they start: every other node is kept; with no
+ *  precondition, no ALAP at all (the layers are the asap ones, byte for byte). */
 function alapOf(band: CauseBand): {keep: string[]} | undefined {
+  if (band.layerFrom === 'effect') return {keep: []};
+  if (band.tree === 'crt' && band.layer === undefined) {
+    const moves = crtMovers(band);
+    return moves.size ? {keep: band.nodes.filter(n => !moves.has(n.id)).map(n => n.id)} : undefined;
+  }
   const layerMode = band.layer ?? (band.tree === 'prt' || band.tree === 'frt' || band.tree === 'tt' || band.tree === 'nbr' ? 'alap' : 'asap');
-  return band.layerFrom === 'effect' ? {keep: []} : layerMode === 'alap' ? {keep: band.nodes.filter(n => n.role === 'root' || n.role === 'injection' || n.role === 'start').map(n => n.id)} : undefined;
+  return layerMode === 'alap' ? {keep: band.nodes.filter(n => n.role === 'root' || n.role === 'injection' || n.role === 'start').map(n => n.id)} : undefined;
 }
 
 /** One whole layout of a cause tree; the figure that fits none of the ways is returned as `NoFit`; a mistake of the author's or a broken invariant still throws. */
@@ -321,7 +342,7 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
   };
 
   const out: LaidOutCause = {
-    type: 'cause', ...(band.coreBadge === undefined ? {} : {coreBadge: band.coreBadge}), id: band.id, reveal: band.reveal, ...(band.unanchored ? {unanchored: band.unanchored} : {}), ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + 2 * pad.y,
+    type: 'cause', ...(band.coreBadge === undefined ? {} : {coreBadge: band.coreBadge}), id: band.id, reveal: band.reveal, ...(band.unanchored ? {unanchored: band.unanchored} : {}), ...(band.origin ? {origin: band.origin} : {}), ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + 2 * pad.y,
     nodes: [], edges: [], ands: [], loose: attempt.loose, texts: [], anchors: [], labelBoxes: [],
     ...(fitApplied.length ? {fitApplied} : {}), ...(band.tree === 'nbr' ? {nbr: {vertical}} : {}), ...(band.focused ? {focused: band.focused} : {}),
   };
