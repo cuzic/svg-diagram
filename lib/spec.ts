@@ -21,6 +21,7 @@ import {PARTS_R4} from './spec-parts/r4.ts';
 import {PARTS_R5} from './spec-parts/r5.ts';
 import {PARTS_R6} from './spec-parts/r6.ts';
 import {PARTS_R7} from './spec-parts/r7.ts';
+import {BOARD} from './spec-parts/board.ts';
 
 const PARTS: readonly PartDef[] = [
   {
@@ -613,6 +614,7 @@ const PARTS: readonly PartDef[] = [
     },
   },
   ...PARTS_R1, ...PARTS_R2, ...PARTS_R3, ...PARTS_R4, ...PARTS_R5, ...PARTS_R6, ...PARTS_R7,
+  BOARD,
 ];
 
 const partOf = (type: unknown): PartDef | undefined => PARTS.find(p => p.type === type);
@@ -740,15 +742,14 @@ function totalText(v: unknown): number {
 function checkAnchors(parts: readonly Json[], issues: SpecIssue[]): void {
   const first = new Map<string, number>();
   parts.forEach((part, i) => {
-    const key = partOf(part['type'])?.anchors;
+    const key = partOf(part['type'])?.anchors, at = `parts[${i}]`;
     if (!key) return;
-    items(part, key).forEach((x, j) => {
-      const v = x['id'];
-      if (typeof v !== 'string') return;
+    const ids = typeof key === 'function' ? key(part, at) : items(part, key).flatMap((x, j) => typeof x['id'] === 'string' ? [{id: x['id'], path: `${at}.${key}[${j}].id`}] : []);
+    for (const {id: v, path} of ids) {
       const seen = first.get(v);
       if (seen === undefined) first.set(v, i);
-      else if (seen !== i) issues.push({path: `parts[${i}].${key}[${j}].id`, message: `"${v}" is already used in parts[${seen}] (ids must be unique in the figure)`});
-    });
+      else if (seen !== i) issues.push({path, message: `"${v}" is already used in parts[${seen}] (ids must be unique in the figure)`});
+    }
   });
 }
 

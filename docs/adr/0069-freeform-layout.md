@@ -278,6 +278,19 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
   - 型のある部品を優先する一文を入れ、`board` が新しい偏りにならないようにする。
 - `example` は上の s04 の形を小さくしたもの。
 - **MCP とデッキ**: プラグインの `list_diagram_parts` は `partCatalog()` を返すので、core を取り込めば `board` が出る(ADR 0057 と同じ)。デッキの図も spec なので、deck.json でも書ける。プラグインへの取り込みと、ChatGPT のツールの更新(ウィジェットのキャッシュ。プラグインの手順)は別の PR にする。
+- **実装で決めたこと(PR 4)**:
+  - 部品は `lib/spec-parts/board.ts`。node のスキーマは段ごとに作る(`nodeSchema(1〜3)`)。最上位だけ `id` を必須にし、3 段目(group の中の group の children)は `children` / `areas` / `cols` / `gap` / `rowGap` を持たない(スキーマを有限にするため)。3 段目の `kind: 'group'` は `check()` が `….kind` の場所で断る。
+  - `tone` は 1 つの列挙(box の 9 つと caption の `text`)にし、`kind` に合わないもの(group の `solid`、caption の `plain` など)は `check()` が断る。`kind` ごとの必須の項目は、box の `title`、group の `children`、caption の `text`。合わない項目の文言には、その項目を持つ `kind` を添える(`text` は `kind: 'caption'` の項目)。
+  - `areas` のない group に `cols` / `gap` / `rowGap` を書くと誤り(縦に積むので意味がない)。board の `cols` / `gap` / `rowGap` は、`areas` を省いた 1 行のテンプレートにも効く(`cols` の数はその列の数)。
+  - テンプレートの名前でない id(`areas` のない group の中の node)にも、`:` と `@` は使えない(link の参照で辺と位置として読まれるため。swimlane の steps と同じ)。
+  - `areas` のない group の中の caption の `id` は、重複の検査には入るが anchor にはしない(caption は link の端にならない)。テンプレートの名前の caption は、D3 のとおり包む枠なしの group が名前を id に持つ。
+  - 辺の片方だけを書いた link で、もう片方が位置から決まらないときは、書いていない方(`fromSide` か `toSide`)の場所で返す。位置から決まるときは、書いた辺を使い、書いていない辺だけを補う。
+  - `via` の検査: `from` / `to` は、その端が box で、もう一方の端を含まない group の中にあること(端が group なら「group への線はもともと枠で止まる」で断る。D2 の `{to: 'group'}` と同じ)。`both` は、どちらかの端がそうであればよい(D2 の `'group'` と同じ)。
+  - テンプレートの誤りは `parseAreaTemplate`(D3)の文言をそのまま使い、文言の行の番号から `areas[i]` の場所を決める。名前の過不足は、テンプレートにしかない名前を `areas` の場所、テンプレートにない node を `nodes[i].id` の場所で返す。
+  - `PartDef.anchors` は、キーの名前か、`{id, path}` の一覧を返す関数にした。board は入れ子を平らにした一覧を返し、部品をまたぐ重複は `parts[1].nodes[0].children[0].id` のような入れ子の場所で返す。
+  - `test/spec.test.ts` の `IN_NO_SPEC_YET` から `areas` / `box` / `group` / `caption` / `connect` を外し、「別の名前の部品から届く builder」(`THROUGH_A_PART`、すべて `board`)として数える。`branch` は未決 7 のとおり残す。
+  - DSL と spec のバイト単位の比較は、s04(`examples/areas-memo.ts`)を、`branch()` の代わりに会話ごとの `connect` で書いたもので行う。`branch()` は `fan` を持ち、`levelSides` で動く端が変わるため、link を並べた board とは同じ SVG にならない(未決 7)。`via-memo.ts` の書き出す先は枠なしの group(`frame: false`)で、board の group は枠を外せないので、比較には枠のある group(`areas-memo.ts` と同じ)を使う。
+  - `description` は D4 の文に、`kind` ごとの中身、`areas` の省略、辺の省略、`via`、上限を足した。項目ごとの `description` にも、どの `kind` の項目かと辺の省略の決まりを書いた(D7)。
 
 ### D5. 作る順と PR
 

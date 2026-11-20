@@ -107,8 +107,11 @@ export interface PartDef {
   example: Json;
   check: Check;
   build: (part: Json, at: string) => unknown;
-  /** The list whose ids become anchors of the whole figure, so they must not repeat between parts. */
-  anchors?: string;
+  /**
+   * The ids that become anchors of the whole figure, so they must not repeat between parts: the list whose items' ids they are, or a
+   * function that gathers them with their places (a part whose ids are nested, such as board's groups).
+   */
+  anchors?: string | ((part: Json, at: string) => {id: string; path: string}[]);
   /** Options the part takes when the spec says `lang: 'en'` and the part does not give them. */
   en?: Json;
   /** English for the words this part puts in the legend (keys as in LEGEND_EN), for `lang: 'en'`. */
