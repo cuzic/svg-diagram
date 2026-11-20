@@ -1,67 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="1202" viewBox="0 0 940 1202" role="img" aria-labelledby="svg-title">
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="1210" viewBox="0 0 940 1210" role="img" aria-labelledby="svg-title">
   <title id="svg-title">納期遅れの連関図</title>
   <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/qc-relation.ts","sourceSha256":"a84a46f105093a4c2366f49c4f63d5c74a07bcfcf7b0c02991bed0f64f769a1c"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
   </style>
-  <rect x="0" y="0" width="940" height="1202" fill="#ffffff"/>
+  <rect x="0" y="0" width="940" height="1210" fill="#ffffff"/>
 
-  <path d="M476,696 L476,780" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M476,792 L471,780 L481,780 z" fill="#22201b"/>
-  <path d="M464,848 L464,932" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M464,940 L459,928 L469,928 z" fill="#22201b"/>
-  <path d="M536,996 L536,1080" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M536,1092 L531,1080 L541,1080 z" fill="#22201b"/>
-  <path d="M416,76 L416,404 L512,404 L512,480" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M512,492 L507,480 L517,480 z" fill="#22201b"/>
-  <path d="M480,548 L480,632" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M480,640 L475,628 L485,628 z" fill="#22201b"/>
-  <path d="M336,76 L336,160" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M336,172 L331,160 L341,160 z" fill="#22201b"/>
-  <path d="M396,76 L396,764 L440,764 L440,780" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M440,792 L435,780 L445,780 z" fill="#22201b"/>
-  <path d="M636,76 L636,916 L512,916 L512,932" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M512,940 L507,928 L517,928 z" fill="#22201b"/>
-  <path d="M660,76 L660,1064 L580,1064 L580,1080" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M580,1092 L575,1080 L585,1080 z" fill="#22201b"/>
-  <path d="M300,228 L300,312" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M300,320 L295,308 L305,308 z" fill="#22201b"/>
-  <path d="M288,396 L288,1064 L512,1064 L512,1080" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M512,1092 L507,1080 L517,1080 z" fill="#22201b"/>
-  <path d="M312,396 L312,416 L488,416 L488,480" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M488,492 L483,480 L493,480 z" fill="#22201b"/>
-  <path d="M500,548 L500,608 L648,608 L648,1024 L556,1024 L556,1080" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M556,1092 L551,1080 L561,1080 z" fill="#22201b"/>
-  <rect x="480" y="1092" width="112" height="56" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
-  <rect x="428" y="640" width="124" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="376" y="792" width="128" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="428" y="940" width="124" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="420" y="492" width="140" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="332" y="20" width="124" height="56" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="336" y="24" width="116" height="48" rx="5" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="592" y="20" width="112" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="244" y="172" width="112" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="236" y="320" width="128" height="76" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="535" y="1112" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">納期に遅れる</text>
-  <text x="535" y="1132" text-anchor="middle" font-size="14" fill="#6f6659">出 0・入 4</text>
-  <text x="489" y="662" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">急ぎの割り込み</text>
-  <text x="489" y="682" text-anchor="middle" font-size="14" fill="#6f6659">出 1・入 1</text>
-  <text x="440" y="812" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">並行作業が多い</text>
-  <text x="440" y="832" text-anchor="middle" font-size="14" fill="#6f6659">出 1・入 2</text>
-  <text x="489" y="962" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">切り替えのロス</text>
-  <text x="489" y="982" text-anchor="middle" font-size="14" fill="#6f6659">出 1・入 2</text>
-  <text x="489" y="512" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">計画が守られない</text>
-  <text x="489" y="532" text-anchor="middle" font-size="14" fill="#6f6659">出 2・入 2</text>
-  <text x="394" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">見積もりが甘い</text>
-  <text x="394" y="62" text-anchor="middle" font-size="14" fill="#22201b">出 3・入 0</text>
-  <text x="648" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">経験者に集中</text>
-  <text x="648" y="62" text-anchor="middle" font-size="14" fill="#6f6659">出 2・入 0</text>
-  <text x="299" y="192" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">残業が増える</text>
-  <text x="299" y="212" text-anchor="middle" font-size="14" fill="#6f6659">出 1・入 1</text>
-  <text x="299" y="342" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">疲れてミスが増</text>
-  <text x="299" y="362" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">える</text>
-  <text x="299" y="382" text-anchor="middle" font-size="14" fill="#6f6659">出 2・入 1</text>
+  <path d="M476,704 L476,788" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M476,800 L471,788 L481,788 z" fill="#22201b"/>
+  <path d="M464,856 L464,940" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M464,948 L459,936 L469,936 z" fill="#22201b"/>
+  <path d="M536,1004 L536,1088" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M536,1100 L531,1088 L541,1088 z" fill="#22201b"/>
+  <path d="M416,84 L416,412 L512,412 L512,488" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M512,500 L507,488 L517,488 z" fill="#22201b"/>
+  <path d="M480,556 L480,640" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M480,648 L475,636 L485,636 z" fill="#22201b"/>
+  <path d="M336,84 L336,168" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M336,180 L331,168 L341,168 z" fill="#22201b"/>
+  <path d="M396,84 L396,772 L440,772 L440,788" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M440,800 L435,788 L445,788 z" fill="#22201b"/>
+  <path d="M636,80 L636,924 L512,924 L512,940" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M512,948 L507,936 L517,936 z" fill="#22201b"/>
+  <path d="M660,80 L660,1072 L580,1072 L580,1088" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M580,1100 L575,1088 L585,1088 z" fill="#22201b"/>
+  <path d="M300,236 L300,320" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M300,328 L295,316 L305,316 z" fill="#22201b"/>
+  <path d="M288,404 L288,1072 L512,1072 L512,1088" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M512,1100 L507,1088 L517,1088 z" fill="#22201b"/>
+  <path d="M312,404 L312,424 L488,424 L488,488" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M488,500 L483,488 L493,488 z" fill="#22201b"/>
+  <path d="M500,556 L500,616 L648,616 L648,1032 L556,1032 L556,1088" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M556,1100 L551,1088 L561,1088 z" fill="#22201b"/>
+  <rect x="480" y="1100" width="112" height="56" rx="8" fill="#ffffff" stroke="#b91c1c" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <rect x="428" y="648" width="124" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="376" y="800" width="128" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="428" y="948" width="124" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="420" y="500" width="140" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="332" y="20" width="124" height="64" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="336" y="24" width="116" height="56" rx="5" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="592" y="24" width="112" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="244" y="180" width="112" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="236" y="328" width="128" height="76" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="535" y="1120" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">納期に遅れる</text>
+  <text x="535" y="1140" text-anchor="middle" font-size="14" fill="#6f6659">出 0・入 4</text>
+  <text x="489" y="670" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">急ぎの割り込み</text>
+  <text x="489" y="690" text-anchor="middle" font-size="14" fill="#6f6659">出 1・入 1</text>
+  <text x="440" y="820" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">並行作業が多い</text>
+  <text x="440" y="840" text-anchor="middle" font-size="14" fill="#6f6659">出 1・入 2</text>
+  <text x="489" y="970" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">切り替えのロス</text>
+  <text x="489" y="990" text-anchor="middle" font-size="14" fill="#6f6659">出 1・入 2</text>
+  <text x="489" y="520" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">計画が守られない</text>
+  <text x="489" y="540" text-anchor="middle" font-size="14" fill="#6f6659">出 2・入 2</text>
+  <text x="394" y="46" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">見積もりが甘い</text>
+  <text x="394" y="66" text-anchor="middle" font-size="14" fill="#22201b">出 3・入 0</text>
+  <text x="648" y="46" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">経験者に集中</text>
+  <text x="648" y="66" text-anchor="middle" font-size="14" fill="#6f6659">出 2・入 0</text>
+  <text x="299" y="200" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">残業が増える</text>
+  <text x="299" y="220" text-anchor="middle" font-size="14" fill="#6f6659">出 1・入 1</text>
+  <text x="299" y="350" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">疲れてミスが増</text>
+  <text x="299" y="370" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">える</text>
+  <text x="299" y="390" text-anchor="middle" font-size="14" fill="#6f6659">出 2・入 1</text>
 
-  <text x="20" y="1178" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+  <text x="20" y="1186" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
 </svg>

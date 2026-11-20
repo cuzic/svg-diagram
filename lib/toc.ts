@@ -26,6 +26,9 @@ const GAP = 28, LEVEL = 64, PORT = 22; // PORT: the step between the arrows that
 /** The arc across the arrows of an AND: where its ends and its middle are, as distances from the arrowheads' tips. */
 /** The 中核 badge (ADR 0015 D4): its height and its gap to the frame; emit-figures draws it, the layout keeps the room. */
 export const CORE_BADGE_H = 22, CORE_BADGE_W = 44, CORE_BADGE_GAP = 2;
+/** How far inside the frame a `double` box's second outline runs (emit-figures draws it): the box is that much taller at both ends, so
+ *  the text keeps the same padding from the inner outline that a plain box keeps from its frame (#378). */
+export const DOUBLE_INSET = 4;
 const AND_END = 21, AND_PEAK = 15, AND_REACH = 10;
 
 /** What a role looks like when the node gives no tone. `double`: the box has a second outline (the finding of the figure). */
@@ -258,8 +261,8 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
     const degree = Math.max(1, ...band.nodes.map(n => degreeOf(n.id)));
     // the side the arrows meet must be long enough to keep their heads apart: a box grows (its text stays centred)
     const real = new Map(band.nodes.map(n => {
-      const l = must(lines.get(n.id)), need = 12 + (degreeOf(n.id) - 1) * PORT;
-      return [n.id, vertical ? {w: Math.max(l.w, need), h: l.h} : {w: l.w, h: Math.max(l.h, need)}];
+      const l = must(lines.get(n.id)), need = 12 + (degreeOf(n.id) - 1) * PORT, h = l.h + (CAUSE_ROLES[n.role ?? 'effect'].double ? 2 * DOUBLE_INSET : 0);
+      return [n.id, vertical ? {w: Math.max(l.w, need), h} : {w: l.w, h: Math.max(h, need)}];
     }));
     const hexIds = new Set(band.nodes.filter(n => n.role === 'obstacle' || n.role === 'risk').map(n => n.id)); // hexagons: arrows keep to the middle of their side (ADR 0016 D3)
     const nodes = ranked.map(n => { const rl = must(real.get(n.id)); return {id: n.id, size: vertical ? {w: rl.h, h: rl.w} : rl}; });

@@ -16,7 +16,7 @@ import {snap4, escapeAttr, escapeXml, emojiSpan, resolveTextColor, lineAttrs, ar
 import type {PathCut} from './emit-common.ts';
 import {HOP_R} from './cause-hop.ts';
 import {renderBoxRect} from './emit-boxes.ts';
-import {CORE_BADGE_H, CORE_BADGE_W, CORE_BADGE_GAP} from './toc.ts';
+import {CORE_BADGE_H, CORE_BADGE_W, CORE_BADGE_GAP, DOUBLE_INSET} from './toc.ts';
 
 import {must} from './must.ts';
 import {GANTT_AXIS, marked, partAttr, partStep, partsOn, PLANE_AXES} from './parts.ts';
@@ -311,7 +311,7 @@ export function renderStates(b: LaidOutStates, day: Theme, tones: ToneEnv): stri
     }
     out.push(renderBoxRect({...n, dim: b.dim}, day, tones, 'plain'));
     // the inner outline of an end state: on a solid fill its stroke would be the fill colour, so it is drawn in the text colour (white)
-    const inner = renderBoxRect({x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8, tone: n.tone, dim: b.dim}, day, tones, 'plain').replace('rx="8"', 'rx="5"');
+    const inner = renderBoxRect({x: n.x + DOUBLE_INSET, y: n.y + DOUBLE_INSET, w: n.w - 2 * DOUBLE_INSET, h: n.h - 2 * DOUBLE_INSET, tone: n.tone, dim: b.dim}, day, tones, 'plain').replace('rx="8"', 'rx="5"');
     if (n.final) out.push(!b.dim && isSolidTone(n.tone) ? inner.replace(/stroke="[^"]*"/, `stroke="${colorOf(toneStyle(tones, n.tone).text, day)}"`) : inner);
   }
   const ink = (t: LaidOutStates['texts'][number]): string => {
@@ -333,6 +333,9 @@ export function renderStates(b: LaidOutStates, day: Theme, tones: ToneEnv): stri
 
 // The core driver (ADR 0015 D4): a thick frame and a small 中核 badge just outside the side of the box away from the arrows that leave it
 const CORE_STROKE = 3.5, BADGE_W = CORE_BADGE_W, BADGE_H = CORE_BADGE_H, BADGE_GAP = CORE_BADGE_GAP;
+// the label's line box (ascent + descent, about 1.45em: 20px at 14px) centred in the 22px badge: 1px clear at the top and the bottom. At
+// y + 16 the line box touched the badge's top edge (and the lint read the label as spilling out of it by 4px, #378)
+const BADGE_BASELINE = 17;
 function coreBadge(n: LaidOutCause['nodes'][number], id: string, b: LaidOutCause, day: Theme): string {
   const leave = b.edges.find(e => e.from === id)?.points[0], eps = 1;
   const side = !leave ? 'top' : Math.abs(leave.y - n.y) < eps ? 'bottom' : Math.abs(leave.y - n.y - n.h) < eps ? 'top' : Math.abs(leave.x - n.x) < eps ? 'right' : 'left';
@@ -340,7 +343,9 @@ function coreBadge(n: LaidOutCause['nodes'][number], id: string, b: LaidOutCause
   const x = side === 'left' ? n.x - BADGE_W - BADGE_GAP : side === 'right' ? n.x + n.w + BADGE_GAP : n.x + 6;
   const y = side === 'top' ? n.y - BADGE_H - BADGE_GAP : side === 'bottom' ? n.y + n.h + BADGE_GAP : n.y + 6;
   const fill = b.dim ? PALETTE.muted : colorOf('accent', day);
-  return `<rect x="${snap4(x)}" y="${snap4(y)}" width="${BADGE_W}" height="${BADGE_H}" rx="8" fill="${fill}"/>\n  <text x="${snap4(x + BADGE_W / 2)}" y="${snap4(y + 16)}" text-anchor="middle" font-size="14" font-weight="700" fill="${PALETTE.bg}">${escapeXml(b.coreBadge ?? '中核')}</text>`;
+  // the label is placed from the badge as it is drawn (snapped once): snapping the text's own point to the 4px grid moved it up to 2px
+  const bx = snap4(x), by = snap4(y);
+  return `<rect x="${bx}" y="${by}" width="${BADGE_W}" height="${BADGE_H}" rx="8" fill="${fill}"/>\n  <text x="${bx + BADGE_W / 2}" y="${by + BADGE_BASELINE}" text-anchor="middle" font-size="14" font-weight="700" fill="${PALETTE.bg}">${escapeXml(b.coreBadge ?? '中核')}</text>`;
 }
 export function renderCause(b: LaidOutCause, day: Theme, tones: ToneEnv): string {
   const out: string[] = [];
