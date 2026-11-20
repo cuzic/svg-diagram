@@ -73,8 +73,15 @@ test('branch(): the fan survives diagram({connectDefaults}), which rebuilds the 
   const fan = group(['c1', 'c2', 'c3'].map(id => box({title: id, id})), {title: 'R'});
   const d = diagram({theme: 'blue', title: 't', connectDefaults: {line: 'dashed'}}).add(
     row([group([box({title: 'memo', id: 'memo'})], {frame: false, valign: 'center', span: 4}), group([], {frame: false, span: 4}), fan], {cols: 12}),
-    ...branch('memo:right', [{to: 'c1:left'}, {to: 'c2:left'}, {to: 'c3:left'}]));
+    ...(branch('memo:right', [{to: 'c1:left'}, {to: 'c2:left'}, {to: 'c3:left'}]) as Band[]));
   const {connects} = (await renderDiagram(d, {name: 'x.svg', budget: 'cacheOnly'})).laidOut;
   assert.equal(new Set(connects.map(c => c.from.y)).size, 1);
   assert.ok(connects.every(c => c.line === 'dashed'));
+});
+
+test('connect(a.right, b.left): a short box beside a tall one is entered at its own middle', async () => {
+  const l = await render(row([tall(), group([box({title: 's', id: 's'})], {frame: false, valign: 'center'})], {cols: [6, 6]}), connect('L:right', 's:left'));
+  const c = l.connects[0]!, s = boxOf(l, 's');
+  assert.equal(c.from.y, c.to.y);
+  assert.equal(c.to.y, s.y + s.h / 2, 'the line runs at the short box\'s middle, not the tall one\'s');
 });

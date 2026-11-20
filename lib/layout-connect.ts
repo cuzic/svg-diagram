@@ -59,7 +59,7 @@ const LEVEL_CLEAR = 12;
 /**
  * a.right → b.left (or a.left → b.right) between boxes of different heights: each side's middle is at a different y, so the
  * line would come out slightly slanted (or, as an elbow, with a tiny step). When one end's middle is well inside the other box's
- * height, only the other end moves (to that middle); otherwise, when the two heights overlap enough, both ends move to the middle
+ * height, only the other end moves (to that middle; when both qualify, the end on the taller box); otherwise, when the two heights overlap enough, both ends move to the middle
  * of the overlap. An arrow of a branch() fan moves only its target end, so the fan keeps one start. An end placed with `@` stays put.
  */
 function levelSides(band: ConnectBand, fromSide: string, toSide: string, fromRect: Rect, toRect: Rect, from: Point, to: Point): void {
@@ -68,6 +68,9 @@ function levelSides(band: ConnectBand, fromSide: string, toSide: string, fromRec
   const placed = (ref: string): boolean => /:[^:]*@/.test(ref);
   if (!facing || placed(band.from) || placed(band.to) || from.y === to.y) return;
   const within = (y: number, r: Rect): boolean => y >= r.y + LEVEL_CLEAR && y <= r.y + r.h - LEVEL_CLEAR;
+  // the end on the taller box moves, so the line runs at the shorter box's middle (a fan keeps its start, whatever the heights)
+  const moveFrom = !band.fan && toRect.h < fromRect.h && within(to.y, fromRect);
+  if (moveFrom) { from.y = to.y; return; }
   if (within(from.y, toRect)) { to.y = from.y; return; }
   if (band.fan) return;
   if (within(to.y, fromRect)) { from.y = to.y; return; }
