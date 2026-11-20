@@ -71,22 +71,33 @@ test('source-wraps says how long the line is, and how long it may be', async () 
 });
 
 test('an NBR that has to be folded to fit crosses: the warning points to dir: right and its width cost; a written dir: right gets no such hint', async () => {
-  const nbr = (dir?: 'right') => {
+  const nbr = (dir?: 'right', branches = 3, width = 2400) => {
     const nodes: object[] = [{id: 'inj', label: '全拠点に週次報告を義務づける', role: 'injection'}], links: object[] = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < branches; i++) {
       nodes.push({id: `a${i}`, label: `副作用の原因${i}が起きて現場が混乱する`}, {id: `c${i}`, label: `条件${i}が重なる`, role: 'precondition'}, {id: `t${i}`, label: `転換点${i}を越えて悪化する`, role: 'tipping'}, {id: `u${i}`, label: `悪い結果${i}が出る`, role: 'ude'}, {id: `x${i}`, label: `対策${i}を先に打つ`, role: 'trim'});
       links.push({from: 'inj', to: `a${i}`}, {from: [`a${i}`, `c${i}`], to: `t${i}`}, {from: `t${i}`, to: `u${i}`}, {from: `x${i}`, to: `t${i}`, kind: 'blocks'});
     }
-    return diagram({theme: 'blue', width: 2400, legend: false}).add(causeTree(nodes as never, links as never, {tree: 'nbr', ...(dir ? {dir} : {})}));
+    return diagram({theme: 'blue', width, legend: false}).add(causeTree(nodes as never, links as never, {tree: 'nbr', ...(dir ? {dir} : {})}));
   };
   // wide enough: neither direction crosses (the crossings come from narrowing / folding, not from the shape)
-  const wide = await verdictOf(nbr());
-  assert.ok(!wide.warnings.some(w => w.startsWith('[cause-')), wide.warnings.join('\n'));
-  const wideRight = await verdictOf(nbr('right'));
-  assert.ok(!wideRight.warnings.some(w => w.startsWith('[cause-')));
-  // the hint is only on a top-bottom NBR's own clash warnings (checked on a narrow canvas, where it is folded)
-  const narrow = diagram({theme: 'blue', legend: false}).add(...nbr().bands);
-  const clashes = (await verdictOf(narrow)).warnings.filter(x => x.startsWith('[cause-'));
-  assert.ok(clashes.length > 0, 'the folded 3-branch NBR crosses (if the font changes and it no longer does, this test needs a larger figure)');
+  for (const branches of [3, 4]) {
+    const wide = await verdictOf(nbr(undefined, branches));
+    assert.ok(!wide.warnings.some(w => w.startsWith('[cause-')), wide.warnings.join('\n'));
+    const wideRight = await verdictOf(nbr('right', branches));
+    assert.ok(!wideRight.warnings.some(w => w.startsWith('[cause-')));
+  }
+  // the hint is only on a top-bottom NBR's own clash warnings (checked on narrow canvases, where it is folded). Which folded figure crosses
+  // depends on the font's widths (and on the routes: the tracks of ADR 0070 U4a uncross some), so a few are drawn: 3 branches on the
+  // default canvas and 4 on canvases 1100 to 1300 wide. At least one of them crosses, and every clash of each carries the hint
+  const clashes: string[] = [];
+  for (const [branches, width] of [[3, undefined], [4, 1100], [4, 1200], [4, 1300]] as const) {
+    const narrow = diagram({theme: 'blue', legend: false, ...(width ? {width} : {})}).add(...nbr(undefined, branches).bands);
+    const r = await checkDiagram(narrow).catch(() => undefined); // a width it does not fit at all is not one of them
+    if (!r) continue;
+    const band = r.laidOut.laidOut.find(b => b.type === 'cause') as {fitApplied?: {what: string}[]} | undefined;
+    assert.ok(band?.fitApplied?.some(a => a.what === 'fold'), `${branches} branches at ${width ?? 'the default width'} are folded`);
+    clashes.push(...r.verdict.warnings.filter(x => x.startsWith('[cause-')));
+  }
+  assert.ok(clashes.length > 0, 'a folded NBR crosses (if the font changes and none does any more, this test needs a larger figure)');
   for (const w of clashes) assert.match(w, /dir: 'right'/);
 });
