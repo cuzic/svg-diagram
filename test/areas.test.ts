@@ -6,7 +6,8 @@ import {areasColumns, parseAreaTemplate} from '../lib/areas.ts';
 import {canvasRowHeights, trackRowYs} from '../lib/canvas.ts';
 import {fontsOf, planSlide} from '../lib/pptx/slide.ts';
 import type {LaidOutBox} from '../lib/types/text-bands.ts';
-import type {LaidOutGroup, LaidOutRow} from '../lib/types/containers.ts';
+import type {LaidOutConnect, LaidOutGroup, LaidOutRow} from '../lib/types/containers.ts';
+import {connectRoom, hidesArrow, labelCover} from '../lib/connect-rules.ts';
 import type {Band} from '../lib/types/index.ts';
 
 test.after(() => closeMeasurer());
@@ -245,4 +246,60 @@ test('areas(): an areas() in a group cell is laid out inside the frame; a connec
   for (const b of [x, y]) assert.ok(b.x >= L.x + 16 && b.x + b.w <= L.x + L.w - 16 && b.y > L.y && b.y + b.h < L.y + L.h, 'inside the frame, within its padding');
   assert.equal(l.connects.length, 1, 'one connector, not one per pass');
   assert.equal(l.connects[0]!.from.y, x.y + x.h);
+});
+
+// ---- the gaps for labels (ADR 0069 D3 with D1's labelRoom) ----
+
+const LABELS = ['確認', '照らし合わせる結果を渡す'];
+const VARIANTS = LABELS.flatMap(label => [true, false].flatMap(chip => [0.5, 0.3].map(labelAt => ({label, chip, labelAt}))));
+const routeLen = (c: LaidOutConnect): number => c.points.slice(1).reduce((s, p, i) => s + Math.hypot(p.x - c.points[i]!.x, p.y - c.points[i]!.y), 0);
+async function assertClean(d: ReturnType<typeof diagram>, what: string): Promise<Laid> {
+  const {laidOut, verdict} = await checkDiagram(d);
+  assert.deepEqual(verdict.problems, [], what);
+  assert.deepEqual(verdict.warnings.filter(w => w.includes('connect-label-covers-arrow')), [], what);
+  for (const c of laidOut.connects.filter(x => x.label)) {
+    assert.ok(routeLen(c) >= connectRoom(c)! - 1e-6, `${what}: route ${routeLen(c)}px, the label needs ${connectRoom(c)}px`);
+    assert.equal(hidesArrow(labelCover(c)!), false, what);
+  }
+  return laidOut;
+}
+const four = () => Object.fromEntries(['a', 'b', 'c', 'd'].map(n => [n, box({title: n})]));
+
+test('areas(): a labelled connect between areas side by side widens the column gap (adjacent, across 1 and 2 spacer columns)', async () => {
+  for (const [template, cols] of [['a b', [1, 1]], ['a . b', [4, 1, 4]], ['a . . b', [3, 1, 1, 3]]] as const) {
+    for (const v of VARIANTS) {
+      // (wide enough that the long chip at labelAt 0.3, 328px, leaves every area 70% of its width)
+      const d = diagram({theme: 'blue', width: 1400}).add(areas(template, {a: box({title: 'a'}), b: box({title: 'b'})}, {cols: [...cols], gap: 8}), connect('a:right', 'b:left', v));
+      await assertClean(d, `${template} ${JSON.stringify(v)}`);
+    }
+  }
+  // and back the other way (b to a), the same
+  await assertClean(diagram({theme: 'blue'}).add(areas('a b', {a: box({title: 'a'}), b: box({title: 'b'})}, {gap: 8}), connect('b:left', 'a:right', {label: LABELS[1]!, chip: true})), 'right to left');
+});
+
+test('areas(): a labelled connect between areas one above the other widens the row gap (vertical boxes, and a group cell)', async () => {
+  for (const v of VARIANTS) {
+    await assertClean(diagram({theme: 'blue'}).add(areas(['a b', 'c d'], four(), {gap: 16}), connect('a:bottom', 'c:top', v)), `boxes ${JSON.stringify(v)}`);
+    await assertClean(diagram({theme: 'blue'}).add(areas(['g b', 'c d'], {g: group([box({id: 'in', title: 'in'})], {title: 'G'}), b: box({title: 'b'}), c: box({title: 'c'}), d: box({title: 'd'})}), connect('in:bottom', 'c:top', v)), `in a group ${JSON.stringify(v)}`);
+  }
+});
+
+test('areas(): a figure that draws clean keeps its gaps; a pair with a filled area between them is left to the checks', async () => {
+  const gapsOf = async (...extra: Band[]) => {
+    const l = (await checkDiagram(diagram({theme: 'blue'}).add(areas(['a b c', 'd e f'], Object.fromEntries('abcdef'.split('').map(n => [n, box({title: n})])), {gap: 160, rowGap: 80}), ...extra))).laidOut;
+    return {col: boxOf(l, 'b').x - (boxOf(l, 'a').x + boxOf(l, 'a').w), row: boxOf(l, 'd').y - (boxOf(l, 'a').y + boxOf(l, 'a').h)};
+  };
+  const bare = await gapsOf();
+  assert.deepEqual(await gapsOf(connect('a:right', 'b:left', {label: '確認', chip: true}), connect('a:bottom', 'd:top', {label: '確認', chip: true})), bare, 'room enough: nothing moves');
+  const narrow = async (...extra: Band[]) => (await checkDiagram(diagram({theme: 'blue'}).add(areas('a b c', {a: box({title: 'a'}), b: box({title: 'b'}), c: box({title: 'c'})}, {gap: 8}), ...extra))).laidOut;
+  const across = await narrow(connect('a:right', 'c:left', {label: '照らし合わせる結果を渡す', chip: true})), plain = await narrow();
+  assert.equal(boxOf(across, 'b').x, boxOf(plain, 'b').x, 'b sits between a and c: not widened');
+});
+
+test('areas(): an area that would be squeezed under 70% keeps the declared gap, and the check names the gap it needs', async () => {
+  const cells = Object.fromEntries('abcdefgh'.split('').map(n => [n, box({title: n})]));
+  const d = diagram({theme: 'blue', width: 1100}).add(areas('a b c d e f g h', cells, {gap: 8}), connect('a:right', 'b:left', {label: 'とても長いラベルで、箱の間には入りきらない', chip: true}));
+  const {laidOut, verdict} = await checkDiagram(d);
+  assert.equal(boxOf(laidOut, 'b').x - (boxOf(laidOut, 'a').x + boxOf(laidOut, 'a').w), 8);
+  assert.ok(verdict.problems.some(p => /\dpx or more/.test(p)) || verdict.warnings.some(w => /\d+ ?px/.test(w) && w.includes('connect-label-covers-arrow')), [...verdict.problems, ...verdict.warnings].join('\n'));
 });

@@ -26,7 +26,7 @@ import {ceil4, labelRoom} from './connect-rules.ts';
 import type {LabelAxis} from './connect-rules.ts';
 import {addScoped, qualify, scopesOf} from './anchor-scope.ts';
 import {
-  BOX_PAD_X, BOX_PAD_Y, ICON_H, STAMP_GAP, STAMP_H, TAG_H, TAG_PAD_X, TOP_ICON_GAP, TOP_ICON_SIZE,
+  BOX_PAD_X, BOX_PAD_Y, CANVAS_MIN_REGION_W, ICON_H, STAMP_GAP, STAMP_H, TAG_H, TAG_PAD_X, TOP_ICON_GAP, TOP_ICON_SIZE,
   anchorRect, colSlots, rowChildGeometry, snapGrid, stampChipW, topIcon, withSourceLine, withTitleLine,
 } from './layout-util.ts';
 import type {AreasBand, LaidOutConnect, ConnectBand} from './types/containers.ts';
@@ -128,9 +128,75 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
     }
   };
 
-  // areas(): the column and row gaps it is laid out with: the declared ones. (Widening them for labelled connectors between
-  // neighbouring areas, with the same measure as the rows', goes here: ADR 0069 D3.)
-  const areasGapFor = (band: AreasBand, _cw: number): {gap: number; rowGap: number} => ({gap: band.gap, rowGap: band.rowGap});
+  // areas() (ADR 0069 D3): the column and row gaps it is laid out with (`cw` wide), the same for the pre-pass and layoutAreas. A labelled
+  // straight connect between two areas side by side (their rows overlap, every cell between them is empty: spacer columns count) widens
+  // `gap` until their real distance (areasColumns) is the room the label needs; one between two areas one above the other (their columns
+  // overlap, every cell between them is empty) widens `rowGap`. An areas() has one gap of each kind, so one label widens it everywhere.
+  // A pair with a filled cell between them is left to the checks (the line would cross that cell), as are elbows and centre-to-centre ends.
+  const areasGaps = new Map<AreasBand, Map<number, {gap: number; rowGap: number}>>();
+  const areasGapFor = (band: AreasBand, cw: number): {gap: number; rowGap: number} => {
+    const known = areasGaps.get(band)?.get(cw);
+    if (known) return known;
+    let gap = band.gap, rowGap = band.rowGap;
+    if (labelled.length) {
+      const ids = band.children.map(c => idsIn(c)), place = band.place;
+      const cellAt = new Map<string, number>(); // `${row}/${col}` -> the area there (missing: an empty cell)
+      place.forEach((p, i) => { for (let r = p.row; r < p.row + p.rs; r++) for (let c = p.col; c < p.col + p.cs; c++) cellAt.set(`${r}/${c}`, i); });
+      const empty = (rows: [number, number], cols: [number, number]): boolean => {
+        for (let r = rows[0]; r < rows[1]; r++) for (let c = cols[0]; c < cols[1]; c++) if (cellAt.has(`${r}/${c}`)) return false;
+        return true;
+      };
+      const overlap = (a0: number, an: number, b0: number, bn: number): [number, number] => [Math.max(a0, b0), Math.min(a0 + an, b0 + bn)];
+      const span = (g: number, i: number): {x: number; w: number} => canvasSpan(areasColumns(band.colW, 0, cw, g), must(place[i]));
+      // the distance between area `lo` (left) and `hi` (right) at gap g, spacer columns included
+      const distance = (g: number, lo: number, hi: number): number => { const a = span(g, lo), b = span(g, hi); return b.x - (a.x + a.w); };
+      const isBox = (i: number, id: string): boolean => { const c = band.children[i]; return c?.type === 'box' && c.id === id; };
+      for (const c of labelled) {
+        const f = parseRef(c.from), t = parseRef(c.to);
+        const i = ids.findIndex(k => k.has(f.id)), j = ids.findIndex(k => k.has(t.id));
+        if (i < 0 || j < 0 || i === j) continue;
+        const a = must(place[i]), b = must(place[j]);
+        const rows = overlap(a.row, a.rs, b.row, b.rs), cols = overlap(a.col, a.cs, b.col, b.cs);
+        const across = rows[0] < rows[1] && ((f.side === 'right' && t.side === 'left' && a.col + a.cs <= b.col) || (f.side === 'left' && t.side === 'right' && b.col + b.cs <= a.col));
+        const down = cols[0] < cols[1] && ((f.side === 'bottom' && t.side === 'top' && a.row + a.rs <= b.row) || (f.side === 'top' && t.side === 'bottom' && b.row + b.rs <= a.row));
+        if (across) {
+          const [lo, hi] = a.col < b.col ? [i, j] : [j, i], L = must(place[lo]), H = must(place[hi]);
+          if (!empty(rows, [L.col + L.cs, H.col])) continue;
+          const need = labelRoom(c.label as string, c.chip, 'horizontal', c.labelAt, roles, widthOf);
+          if (!Number.isFinite(need) || distance(band.gap, lo, hi) >= need) continue; // a figure that leaves the room keeps its gap
+          // the distance is linear in the gap: (k + 1) gaps and the spacer columns' share of what the gaps leave
+          const k = H.col - L.col - L.cs, n = band.colW.length, total = band.colW.reduce((x, y) => x + y, 0);
+          const share = band.colW.slice(L.col + L.cs, H.col).reduce((x, y) => x + y, 0) / total, per = k + 1 - share * (n - 1);
+          let g = per > 0 ? Math.max(band.gap, ceil4((need - share * cw) / per)) : band.gap;
+          while (g < cw && distance(g, lo, hi) < need) g += 4; // the columns are whole 4px steps: add a step until the real distance is enough
+          gap = Math.max(gap, g);
+        } else if (down) {
+          const [hiI, loI] = a.row < b.row ? [i, j] : [j, i], U = must(place[hiI]), D = must(place[loI]);
+          if (!empty([U.row + U.rs, D.row], cols)) continue;
+          const [top, bottom] = a.row < b.row ? [f, t] : [t, f];
+          // two boxes placed directly in areas of the same columns, joined at the same `@t`, are joined by a vertical line; a node (icon
+          // above its text) only at its middle. Anything else is 'slanted' (the safe side), as in D1's stacks.
+          const vertical = isBox(hiI, top.id) && isBox(loI, bottom.id) && U.col === D.col && U.cs === D.cs && top.at === bottom.at
+            && (top.at === 0.5 || (!topIcon(band.children[hiI] as BoxBand) && !topIcon(band.children[loI] as BoxBand)));
+          const axis: LabelAxis = vertical ? 'vertical' : 'slanted';
+          const need = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf), fails = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf, 0);
+          // the rows are on the 4px grid, so the route is at least (k + 1) row gaps (the rows between, when there are any, only add to it).
+          // A gap the checks already pass stays as it is; one that does not grows to the room with its margin.
+          const k = D.row - U.row - U.rs;
+          if (Number.isFinite(need) && (k + 1) * band.rowGap < fails) rowGap = Math.max(rowGap, ceil4(need / (k + 1)));
+        }
+      }
+      // growing the column gap must not squeeze an area: each keeps >= 70% of its width (and the 96px every area needs), or the gap stays as
+      // declared (the checks report the label, with the gap it needs)
+      if (gap !== band.gap) {
+        const fits = place.every((_p, i) => { const before = span(band.gap, i).w, after = span(gap, i).w; return after >= Math.max(0.7 * before, Math.min(before, CANVAS_MIN_REGION_W)); });
+        if (!fits) gap = band.gap;
+      }
+    }
+    const out = {gap, rowGap};
+    areasGaps.set(band, (areasGaps.get(band) ?? new Map()).set(cw, out));
+    return out;
+  };
 
   {
     let grids = new Map<string, {need: number; rows: {cw: number; spans: number[]}[]}>();
