@@ -103,13 +103,12 @@ test('origin: set by pdpc(), relationDiagram() and whyWhyTree(); no key on a cau
   assert.ok(!Object.hasOwn((await laid(fig(causeTree(nodes, links, {tree: 'crt'})))).band, 'origin'));
 });
 
-test("edge-parallel on the reported CRT's shape: pairs under layer: 'asap', none with the default (ADR 0070 U0 fixture)", async () => {
+test("edge-parallel on the reported CRT's shape: none under layer: 'asap' since the long arrows' turns have tracks (ADR 0070 U4a), none with the default", async () => {
   const asap = await laid(crtReportShape({layer: 'asap'})), byDefault = await laid(crtReportShape());
   const pairs = (t: LaidOutCause) => parallelRuns(t.edges.map(e => e.points), laneStepOf());
-  const shared = (t: LaidOutCause) => pairs(t).filter(p => { const a = t.edges[p.a]!, b = t.edges[p.b]!; return a.from === b.from || a.to === b.to; });
-  assert.ok(pairs(asap.band).length > 0);
-  assert.ok(shared(asap.band).length > 0, 'pairs that share an end are among them');
-  assert.equal(asap.findings.length, 1);
+  // asap had 17 pairs (1329px, one finding) before U4a; what is left is two arrows into one head, before it (their last turns: U4b)
+  for (const p of pairs(asap.band)) assert.equal(asap.band.edges[p.a]!.to, asap.band.edges[p.b]!.to, JSON.stringify(p));
+  assert.deepEqual(asap.findings, []);
   assert.equal(pairs(byDefault.band).length, 0);
   assert.deepEqual(byDefault.findings, []);
 });

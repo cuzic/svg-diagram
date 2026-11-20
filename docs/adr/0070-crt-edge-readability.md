@@ -169,7 +169,8 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 - トラックの間隔の下限は、hop(ADR 0028)の「同じ向きの線が近い」の閾値(約 10.5px)より大きく保つ(`density: 'compact'` の 11px が下限)。
 - D8 で弧が頭から遠くなる(深さ 21 → 25〜29px)ので、hop を省く範囲(弧の外接矩形 ±8px、`lib/cause-hop.ts:63-66`、理由 `and-arc`)も頭から遠くまで広がる。**これは受け入れる効果とする**(弧の近くで線が飛び越すと、弧と hop の半円が重なって読みにくいので、省くこと自体は正しい)。トラックの配置で帯を避ける制約は足さない(隙間が高くなるため)。U3・U4 の PR の hop の内訳に `and-arc` を含め、`toc-hop`・`toc-hop-all` で `and-arc` の省きが増えたら、U4c で「頭の手前 `AND_END + 8` の帯に、ほかの頭へ入る矢印の水平の run を置かない」を足すかを決める。
 - `elbows` は、区間ごとの曲がりの座標(トラック)を受け取る形にする(`turn` / `lastTurn` の 2 つの引数を、区間の配列に置き換える)。
-- **`causeTree` の帯だけで有効にする**: `AttemptOpts` に `tracks?: boolean` を足し、`tryLayoutCause` が `band.base === undefined && band.layerFrom === undefined` のときだけ渡す。pdpc(外周の戻り辺が既定)・relationDiagram・whyWhyTree と states・classes・semnet は今の経路で、出力はバイト単位で同じ。
+- **`causeTree` の帯だけで有効にする**: `AttemptOpts` に `tracks?: boolean` を足し、`tryLayoutCause` が `band.base === undefined && band.layerFrom === undefined` のときだけ渡す。pdpc(外周の戻り辺が既定)・relationDiagram・whyWhyTree と states・classes・semnet は今の経路で、出力はバイト単位で同じ。**`straighten: false` の帯にも渡さない**(U4a で追記)。`straighten: false` は「従来の図に戻す手段」(`layeredAttempt` の説明)なので、トラックの割り当ても従来の真ん中の曲がりに戻す。ただし U3 の `heads`(D3・D8)は `straighten: false` でも効く。そのため、従来の図に戻るのは `tracks` の分だけで、図全体は従来とバイト単位では同じにならない。
+- **重なりと交差の交換**(U4a で追記): トラックの置き場所を選ぶときは、1 本の線の上に重なる 2 本の矢印(4px 未満。組ごとに 1 回)を、交差 1 つと同じ重さで数える。重なった 2 本はどちらがどこへ行くかが読めず、トラックで離すと、隠れていた交差が見えることがある。そのため、重なり 1 組を本物の交差 1 つと交換することがある(`cause-crossing` が増えうる)。`tracks` のとき、`routeLayered` の `fixed` と `spread` の選び方も同じ基準(交差 + 重なり、次に折れ)にそろえる。次の基準として、レーン未満の並走の組を数える。
 - 案の比べ方は変えない(`pick0`・`sharing`・`apartOf` は (交差, 折れ) のまま)。D12〜D14 のずらしは上の条件つきで残し、D4 の後に何かを動かしているかを D2 で数え、何も動かさないなら別の PR で外す(未決)。
 - P4(同じ尾から出る辺の重なり): 別の仕組みは作らない。同じ尾から出る矢印の曲がりも D4 の同じ割り当てに入り、口は今どおり `PORT` 間隔で分かれる。alap の実測では P4 は再現しないので、D2 の検査で見張る。
 
