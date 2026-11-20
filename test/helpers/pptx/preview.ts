@@ -102,6 +102,20 @@ function markerOf(kind: 'a' | 'v' | 'd', color: string, size: number): string {
 }
 const markerDefs = (): string => [...markers.values()].join('');
 
+/** The height of a text body's lines at their exact spacing (what a table cell's anchor places). */
+function textHeight(txBody: El | undefined): number {
+  if (!txBody) return 0;
+  let h = 0;
+  for (const p of kids(txBody, 'a:p')) {
+    const ppr = kid(p, 'a:pPr'), runs = kids(p, 'a:r');
+    if (!runs.length) continue;
+    const size = Number(kid(runs[0] as El, 'a:rPr')?.attrs['sz'] ?? 1800) / 75;
+    const pitch = Number(find(kid(ppr, 'a:lnSpc'), 'a:spcPts')?.attrs['val'] ?? 0) / 75 || size * 1.2;
+    h += (kids(p, 'a:br').length + 1) * pitch;
+  }
+  return h;
+}
+
 /** A DrawingML table: each cell its fill, its own borders (lnL / lnR / lnT / lnB) or the table style's thin white ones, and its text. */
 function tableSvg(tbl: El, x0: number, y0: number): string {
   const cols = kids(kid(tbl, 'a:tblGrid') as El, 'a:gridCol').map(c => px(c.attrs['w']));
@@ -118,13 +132,17 @@ function tableSvg(tbl: El, x0: number, y0: number): string {
       const rs = Number(tc.attrs['rowSpan'] ?? 1);
       const rh = rs > 1 ? kids(tbl, 'a:tr').slice(kids(tbl, 'a:tr').indexOf(tr), kids(tbl, 'a:tr').indexOf(tr) + rs).reduce((a, t) => a + px(t.attrs['h']), 0) : h;
       const pr = kid(tc, 'a:tcPr');
-      out.push(`<rect x="${x}" y="${y}" width="${w}" height="${rh}" fill="${color(kid(pr, 'a:solidFill')) ?? 'none'}" stroke="${pr && kids(pr).some(k => /^a:ln[LRTB]$/.test(k.tag)) ? 'none' : '#ffffff'}" stroke-width="1"/>`);
+      out.push(`<rect x="${x}" y="${y}" width="${w}" height="${rh}" fill="${fill(pr)}" stroke="${pr && kids(pr).some(k => /^a:ln[LRTB]$/.test(k.tag)) ? 'none' : '#ffffff'}" stroke-width="1"/>`);
       for (const [tag, x1, y1, x2, y2] of [['a:lnL', x, y, x, y + rh], ['a:lnR', x + w, y, x + w, y + rh], ['a:lnT', x, y, x + w, y], ['a:lnB', x, y + rh, x + w, y + rh]] as const) {
         const ln = kid(pr, tag);
         if (!ln || kid(ln, 'a:noFill')) continue;
-        out.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color(kid(ln, 'a:solidFill')) ?? '#000'}" stroke-width="${px(ln.attrs['w'] ?? '12700')}"/>`);
+        const dash = (kid(ln, 'a:prstDash')?.attrs['val'] ?? 'solid') === 'solid' ? '' : ' stroke-dasharray="4,3"';
+        out.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color(kid(ln, 'a:solidFill')) ?? '#000'}" stroke-width="${px(ln.attrs['w'] ?? '12700')}"${dash}/>`);
       }
-      out.push(text(kid(tc, 'a:txBody'), {x, y, w, h: rh}, {l: px(pr?.attrs['marL'] ?? '91440'), t: px(pr?.attrs['marT'] ?? '45720'), r: px(pr?.attrs['marR'] ?? '91440')}));
+      // the cell's anchor: the text block at the top (after marT), in the middle, or at the bottom (before marB)
+      const marT = px(pr?.attrs['marT'] ?? '45720'), marB = px(pr?.attrs['marB'] ?? '45720'), textH = textHeight(kid(tc, 'a:txBody')), anchor = pr?.attrs['anchor'] ?? 't';
+      const top = anchor === 'ctr' ? (rh - textH) / 2 : anchor === 'b' ? rh - marB - textH : marT;
+      out.push(text(kid(tc, 'a:txBody'), {x, y, w, h: rh}, {l: px(pr?.attrs['marL'] ?? '91440'), t: top, r: px(pr?.attrs['marR'] ?? '91440')}));
       ci += 1;
     }
     y += h;

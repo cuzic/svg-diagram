@@ -120,6 +120,8 @@ export interface GanttText extends Dimmed {text: string; x: number; y: number; s
 export interface LaidOutGantt extends Rect, Dimmed {
   type: 'gantt';
   id?: string;
+  /** false: the axis line is not drawn (the PPTX export draws the frame as a table: pptx/frame-tables.ts). */
+  frame?: false;
   reveal?: number;
   until?: number;
   plot: {x1: number; x2: number; y1: number; y2: number};

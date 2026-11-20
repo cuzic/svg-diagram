@@ -11,6 +11,10 @@ import {crc32, zipEntries} from '../lib/pptx/zip.ts';
 import {crc32 as zlibCrc32} from 'node:zlib';
 import {emitPptx, fontFilesOf} from '../lib/pptx/emit.ts';
 import {BAND_HANDLERS} from '../lib/pptx/bands.ts';
+import {chartTableXml} from '../lib/pptx/table.ts';
+import {boundaryChips, swimlaneTable} from '../lib/pptx/swimlane.ts';
+import {bpmnMarks, bpmnTable, ganttMarks, ganttTable} from '../lib/pptx/frame-tables.ts';
+import {ROLES} from '../lib/tokens.ts';
 import {groupFrameXml} from '../lib/pptx/shapes.ts';
 import {NO_TONES} from '../lib/tokens.ts';
 import {loadConfig} from '../lib/config.ts';
@@ -90,8 +94,86 @@ test('the schema check rejects a slide with a wrong element', {skip: !(hasXmllin
 
 test('every band type is either native (a function) or an image', () => {
   assert.equal(typeof BAND_HANDLERS.table, 'function');
-  assert.equal(BAND_HANDLERS.chart, 'image');
+  // a chart is native when it is a table (harvey, compare, heatmap), else drawn from its SVG
+  assert.equal(typeof BAND_HANDLERS.chart, 'function');
   assert.ok(Object.keys(BAND_HANDLERS).length >= 30);
+});
+
+test('chartTableXml: a chart table as a PowerPoint table, each cell with its own fill, sides and anchor', () => {
+  const xml = chartTableXml(7, 'heatmap', {x: 10, y: 20, colW: [40, 30, 30], rowH: [20, 24], size: 14, pitch: 18, cells: [
+    [{lines: ['角'], align: 'start', valign: 'bottom', padX: 4, padY: 8, ink: 'muted'}, {lines: ['見出し'], align: 'middle', valign: 'middle', ink: 'text', bold: true, span: 2}, null],
+    [{lines: ['行', '2行目'], align: 'start', valign: 'middle', ink: 'text', r: {stroke: 'border', sw: 2}},
+      {lines: ['50%'], align: 'middle', valign: 'middle', ink: 'bg', fill: {key: 'accent', op: 0.5}, l: {stroke: 'bg', sw: 2}},
+      {lines: [], align: 'middle', valign: 'middle', ink: 'muted', t: {stroke: 'border', sw: 2, dash: '3,3'}}],
+  ]}, 1, {sans: 'S', mono: 'M'});
+  assert.deepEqual(xmlProblems(xml), []);
+  assert.match(xml, /^<p:graphicFrame>.*<p:cNvPr id="7" name="heatmap"\/>.*<a:off x="95250" y="190500"\/><a:ext cx="952500" cy="419100"\/>/);
+  assert.equal([...xml.matchAll(/<a:gridCol /g)].length, 3);
+  assert.match(xml, /<a:tc gridSpan="2">.*?<a:t>見出し<\/a:t>.*?<\/a:tc><a:tc hMerge="1">/);
+  // the bottom-anchored corner: its inset less the line's descent below the baseline (0.2 of the pitch)
+  assert.match(xml, /<a:t>角<\/a:t>.*?<a:tcPr marL="38100" marR="19050" marT="0" marB="41910" anchor="b">/);
+  assert.match(xml, /<a:t>行<\/a:t><\/a:r><a:br\/>.*?<a:t>2行目<\/a:t>/);
+  assert.match(xml, /<a:t>50%<\/a:t>.*?<a:srgbClr val="[0-9A-F]{6}"><a:alpha val="50000"\/><\/a:srgbClr><\/a:solidFill><\/a:tcPr>/);
+  assert.match(xml, /<a:lnT w="19050"[^>]*>.*?<a:prstDash val="dash"\/>/);
+  // a side with no rule and a cell with no fill say so, so no table style shows through
+  assert.match(xml, /<a:lnL w="0"><a:noFill\/><\/a:lnL>/);
+  assert.match(xml, /<a:noFill\/><\/a:tcPr>/);
+  assert.match(xml, /<a:endParaRPr lang="ja-JP"\/><\/a:p>/);
+});
+
+test('swimlaneTable: the label column, body columns cut at the phases, a row per lane; boundaryChips: a chip per named boundary', () => {
+  const lane = (y: number, h: number, label: string, tone?: 'accent') => ({y, h, labelLines: [label], labelTop: y + 10, maxStep: 40, blockTop: y + 8, ...(tone ? {tone} : {})});
+  const b = {type: 'swimlane' as const, x: 0, y: 0, w: 500, h: 230, labelW: 100, bodyX: 100, phaseH: 30,
+    phases: [{x: 110, w: 200, lines: ['前']}, {x: 310, w: 190, lines: ['後']}],
+    lanes: [lane(30, 100, 'A'), lane(130, 100, 'B', 'accent')], boundaries: [{y: 130, label: '境'}, {y: 130}]};
+  const t = swimlaneTable(b, ROLES);
+  // body edges 100 | 110 | 310 | 500: an unnamed sliver before the first phase, then the two phases
+  assert.deepEqual(t.colW, [100, 10, 200, 190]);
+  assert.deepEqual(t.rowH, [30, 100, 100]);
+  const [head, a, bRow] = t.cells;
+  assert.deepEqual(head?.map(c => c?.lines.join('') ?? null), ['', '', '前', '後']);
+  // a lane's body spans every body column; the accent lane's label is soft and accent
+  assert.equal(a?.[1]?.span, 3);
+  assert.deepEqual([bRow?.[0]?.fill, bRow?.[0]?.ink], [{key: 'soft'}, 'accent']);
+  // the boundary is the dashed rule between the two lanes
+  assert.equal(a?.[1]?.b?.dash, '10,6');
+  assert.equal(bRow?.[0]?.t?.dash, '10,6');
+  assert.deepEqual(boundaryChips(b, ROLES).map(c => c.label), ['境']);
+});
+
+test('ganttTable: a column per stretch between ticks, a row per task or section; ganttMarks: the chart without its frame', () => {
+  const text = (t: string, x: number, y: number, anchor: 'start' | 'middle', bold = false) => ({text: t, x, y, size: 14, bold, muted: false, anchor});
+  const b = {type: 'gantt' as const, x: 0, y: 0, w: 400, h: 108, plot: {x1: 80, x2: 380, y1: 36, y2: 100}, ticks: [{x: 80}, {x: 230}],
+    sections: [{x: 0, y: 36, w: 400, h: 32}], bars: [{x: 90, y: 75, w: 100, h: 18, label: 'T', tone: 'accent' as const}], deps: [],
+    texts: [text('11/3', 80, 16, 'middle'), text('S', 8, 56, 'start', true), text('T', 8, 88, 'start')], anchors: [], labelBoxes: []};
+  const t = ganttTable(b, ROLES);
+  // edges 0 | 80 | 230 | 380 | 400: the tick at the plot's left is its edge, the one at 230 a rule
+  assert.deepEqual(t.colW, [80, 150, 150, 20]);
+  assert.deepEqual(t.rowH, [36, 32, 32, 8]);
+  const [head, sec, task] = t.cells;
+  assert.deepEqual(head?.map(c => !!c?.b), [false, true, true, false]);
+  assert.deepEqual([sec?.[0]?.lines, sec?.[0]?.bold, sec?.[3]?.fill], [['S'], true, {key: 'code'}]);
+  assert.deepEqual([task?.[0]?.lines, task?.[0]?.fill, task?.[2]?.l?.stroke, task?.[1]?.r?.stroke, task?.[3]?.l], [['T'], undefined, 'border', 'border', undefined]);
+  const m = ganttMarks(b);
+  assert.deepEqual([m.frame, m.sections, m.ticks, m.texts.map(x => x.text)], [false, [], [], ['11/3']]);
+});
+
+test('bpmnTable: a row per lane (a column, vertical) with its name cell; bpmnMarks: the figure without lanes; lanes with a gap make no table', () => {
+  const text = (t: string, x: number, y: number, bold: boolean) => ({text: t, x, y, size: 14, bold, muted: false, anchor: 'middle' as const});
+  const lane = (x: number, y: number, w: number, h: number, tone: 'plain' | 'accent', v = false) => ({x, y, w, h, labelW: v ? 0 : 100, ...(v ? {labelH: 40} : {}), tone});
+  const base = {type: 'bpmn' as const, x: 0, y: 0, w: 500, h: 200, nodes: [], icons: [], edges: [], labels: [], anchors: [], labelBoxes: []};
+  const h = {...base, lanes: [lane(0, 0, 500, 100, 'plain'), lane(0, 100, 500, 100, 'accent')], texts: [text('A', 50, 55, true), text('B', 50, 155, true), text('作業', 300, 55, true)]};
+  const t = bpmnTable(h, ROLES, NO_TONES, 1);
+  assert.deepEqual([t?.colW, t?.rowH], [[100, 400], [100, 100]]);
+  assert.deepEqual(t?.cells.map(r => r.map(c => c?.lines.join(''))), [['A', ''], ['B', '']]);
+  assert.deepEqual(t?.cells[0]?.[1]?.fill, {key: 'bg'});
+  assert.notDeepEqual(t?.cells[1]?.[1]?.fill, {key: 'bg'});
+  assert.deepEqual(bpmnMarks(h).texts.map(x => x.text), ['作業']);
+  assert.deepEqual(bpmnMarks(h).lanes, []);
+  const v = {...base, dir: 'v' as const, lanes: [lane(0, 0, 250, 200, 'plain', true), lane(250, 0, 250, 200, 'plain', true)], texts: [text('A', 125, 25, true), text('B', 375, 25, true)]};
+  const tv = bpmnTable(v, ROLES, NO_TONES, 1);
+  assert.deepEqual([tv?.colW, tv?.rowH, tv?.cells[0]?.map(c => c?.lines.join(''))], [[250, 250], [40, 160], ['A', 'B']]);
+  assert.equal(bpmnTable({...h, lanes: [lane(0, 0, 500, 90, 'plain'), lane(0, 100, 500, 100, 'plain')]}, ROLES, NO_TONES, 1), undefined);
 });
 
 const has = (command: string): boolean => { try { execFileSync('sh', ['-c', `command -v ${command}`], {stdio: 'ignore'}); return true; } catch { return false; } };

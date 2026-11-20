@@ -121,7 +121,8 @@ test('with or without the parts, the converter puts the same texts in the same b
   for (const p of partCatalog()) {
     const ld = (await renderInBrowser(specToDiagram(spec(p.example)), {measure: engine.measure})).laidOut;
     for (const [i, band] of ld.laidOut.entries()) {
-      if (BAND_HANDLERS[band.type] !== 'image' || !('h' in band)) continue;
+      // a chart that is a table is written as one (chartBand), but its SVG still goes through the converter when it is dimmed
+      if ((BAND_HANDLERS[band.type] !== 'image' && band.type !== 'chart') || !('h' in band)) continue;
       const {svg} = bandPicture(ld, band as never, i).picture;
       let n = 1000;
       const withParts = svgShapesXml(svg, {sans: 'S', mono: 'M'}, () => ++n);
@@ -144,8 +145,10 @@ test('the parts of ADR 0054 D6 and D9: each figure has groups of the kinds the t
     ['lines', ['series: ', 'axes']],
     ['radar', ['series: ', 'axes', 'legend', 'entry: ']],
     ['gantt', ['task: ', 'axis']],
-    ['bpmn', ['lane: ', 'gateway: ', 'event: ']],
-    ['swimlane', ['lane: ']],
+    // the lanes are a table (ADR 0054 D9.4): the nodes over it keep their groups
+    ['bpmn', ['gateway: ', 'event: ']],
+    // the lanes are a table (ADR 0054 D9.4): the steps over it are one group
+    ['swimlane', ['swimlane steps']],
     ['sequence', ['participant: ', 'message: ']],
     ['faultTree', ['event: ']],
     ['bowtie', ['knot']],
@@ -164,11 +167,11 @@ test('the parts of ADR 0054 D6 and D9: each figure has groups of the kinds the t
     ['butterfly', ['row: ', 'axis']],
     ['waterfall', ['step: ', 'axis']],
     ['combo', ['bars: ', 'series: ', 'axis']],
-    ['heatmap', ['row: ', 'columns']],
+    // a table's rows are not groups (a PowerPoint table cannot be grouped): what is drawn over it is
+    ['heatmap', ['legend', 'entry: ']],
     ['bubble', ['point: ', 'axis']],
     ['bars', ['bar: ', 'axes']],
     ['pareto', ['bar: ', 'cumulative', 'axis']],
-    ['compare', ['row: ', 'columns']],
     ['valueChain', ['primary']],
     ['cycle', ['step: ']],
     ['causeTree', ['node: '], {tree: 'crt', nodes: [{id: 'u', label: '遅れる', role: 'ude'}, {id: 'r', label: '評価', role: 'root'}], links: [{from: 'r', to: 'u'}]}],
@@ -178,6 +181,66 @@ test('the parts of ADR 0054 D6 and D9: each figure has groups of the kinds the t
     const names = groups(treeOf(await slideOf(part))).map(g => g.name);
     for (const p of prefixes) assert.ok(names.some(n => n.startsWith(p)), `${type}: no group "${p}…" in ${names.join(', ')}`);
   }
+});
+
+test('a chart that is a table (harvey, compare, heatmap) is a PowerPoint table; only what the table cannot hold is drawn over it', async () => {
+  for (const type of ['harvey', 'compare', 'heatmap']) {
+    const slide = await slideOf(example(type));
+    assert.equal([...slide.matchAll(/<a:tbl>/g)].length, 1, type);
+    const table = slide.match(/<a:tbl>[\s\S]*<\/a:tbl>/)?.[0] ?? '';
+    const outside = slide.replace(table, '');
+    // the row and column names are cells, not text boxes
+    const rows = (example(type) as {rows: (string | {label: string})[]}).rows.map(r => typeof r === 'string' ? r : r.label);
+    for (const r of rows) {
+      assert.ok(table.includes(`<a:t>${r}</a:t>`), `${type}: ${r} in the table`);
+      assert.ok(!outside.includes(`<a:t>${r}</a:t>`), `${type}: ${r} only in the table`);
+    }
+  }
+  // a mark of compare() is the text of its cell
+  assert.match((await slideOf(example('compare'))).match(/<a:tbl>[\s\S]*<\/a:tbl>/)?.[0] ?? '', /<a:t>[○△×◎]<\/a:t>/);
+});
+
+test('the frame of a Gantt chart and the lanes of a BPMN figure are a PowerPoint table; the bars, nodes and flows are shapes over it', async () => {
+  const gantt = example('gantt') as {rows: ({label: string} | {section: string})[]};
+  const bpmn = example('bpmn') as {lanes: {label: string}[]; nodes: {label?: string; id: string; kind?: string}[]};
+  for (const [part, names, over] of [
+    [gantt, gantt.rows.map(r => 'section' in r ? r.section : r.label), 'gantt bars'],
+    [bpmn, bpmn.lanes.map(l => l.label), 'bpmn flow'],
+  ] as const) {
+    const slide = await slideOf(part);
+    assert.equal([...slide.matchAll(/<a:tbl>/g)].length, 1);
+    const table = slide.match(/<a:tbl>[\s\S]*<\/a:tbl>/)?.[0] ?? '', outside = slide.replace(table, '');
+    for (const n of names) {
+      assert.ok(table.includes(`<a:t>${n}</a:t>`), `${n} in the table`);
+      assert.ok(!outside.includes(`<a:t>${n}</a:t>`), `${n} only in the table`);
+    }
+    assert.match(outside, new RegExp(`name="${over}"`));
+    assert.ok(!/<p:grpSp>(?:(?!<\/p:grpSp>)[\s\S])*<a:tbl>/.test(slide));
+  }
+  // a task's name is not a cell
+  const task = bpmn.nodes.find(n => n.label && (n.kind ?? 'task') === 'task')?.label ?? '';
+  const slide = await slideOf(bpmn);
+  assert.ok(!(slide.match(/<a:tbl>[\s\S]*<\/a:tbl>/)?.[0] ?? '').includes(task));
+});
+
+test('the lanes of a swimlane are a PowerPoint table: a row per lane (and the phases), the steps boxes over it with their arrows glued', async () => {
+  const lanes = [{id: 'c', label: '顧客'}, {id: 's', label: '営業'}, {id: 'w', label: '倉庫'}];
+  const steps = [{id: 'o', lane: 'c', col: 1, title: '注文する'}, {id: 'r', lane: 's', col: 2, title: '受注を登録する'}, {id: 'p', lane: 'w', col: 3, title: '出荷する'}];
+  const slide = await slideOf({type: 'swimlane', lanes, steps, flows: [{from: 'o', to: 'r'}, {from: 'r', to: 'p'}],
+    phases: [{label: '受注', from: 1, to: 2}, {label: '出荷', from: 3, to: 3}], boundaries: [{between: ['s', 'w'], label: '社内'}]});
+  const table = slide.match(/<a:tbl>[\s\S]*<\/a:tbl>/)?.[0] ?? '';
+  assert.equal([...slide.matchAll(/<a:tbl>/g)].length, 1);
+  // the phase row and one row per lane; the lane names and phase names are cells
+  assert.equal([...table.matchAll(/<a:tr /g)].length, 4);
+  for (const t of ['顧客', '営業', '倉庫', '受注', '出荷']) assert.ok(table.includes(`<a:t>${t}</a:t>`), t);
+  // a step is a box over the table, not a cell; a boundary is a dashed rule of the table and its name a chip
+  assert.ok(!table.includes('<a:t>注文する</a:t>') && slide.includes('<a:t>注文する</a:t>'));
+  assert.match(table, /<a:prstDash val="dash"\/>/);
+  assert.match(slide.replace(table, ''), /name="boundary: 社内"/);
+  // the table is not in a group (PowerPoint cannot group a table); the arrows glue to the steps
+  assert.ok(!/<p:grpSp>(?:(?!<\/p:grpSp>)[\s\S])*<a:tbl>/.test(slide));
+  assert.equal([...slide.matchAll(/<a:stCxn /g)].length, 2);
+  assert.equal([...slide.matchAll(/<a:endCxn /g)].length, 2);
 });
 
 test('namedAs and drawParts: a name is kind, text and DSL id; drawParts groups a native shape with its texts by part', async () => {

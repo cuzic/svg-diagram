@@ -5,7 +5,7 @@ import {partStep} from './parts.ts';
 import {LEGEND} from './parts.ts';
 import {niceNear, niceUp} from './qc.ts';
 import {Canvas, checkText, decimalsIn, fail, finiteNum, inkOnShade, numText, shadeOps} from './charts-base.ts';
-import type {ChartGeom, ChartOpts, LaidOutChartPart} from './charts-base.ts';
+import type {ChartGeom, ChartOpts, ChartTable, LaidOutChartPart, TableCell, TableRule} from './charts-base.ts';
 
 import {must} from './must.ts';
 export interface HeatmapOpts extends ChartOpts {
@@ -121,11 +121,11 @@ export function layoutHeatmap(s: HeatmapSpec, g: ChartGeom): LaidOutChartPart {
   if (g.height !== undefined && g.height < headH + s.rows.length * cellH + legendH) fail('heatmap', `height ${g.height} is too small for ${s.rows.length} rows (need at least ${headH + s.rows.length * cellH + legendH})`);
   const r1 = (v: number) => Math.round(v * 10) / 10;
   // ADR 0054: the column heads (with the corner) are a part, a row (its name and its cells) another
-  c.withPart(partStep('columns', 0, ''), () => {
+  c.withPart(partStep('columns', 0, ''), () => c.asCell(() => {
     if (s.corner) c.lines(c.wrap(s.corner, rowW - 12, true), g.x + 4, g.y + headH - 8 - (c.wrap(s.corner, rowW - 12, true).length - 1) * lh, 'start', 'muted', {bold: true});
     heads.forEach((h, i) => c.lines(h, plotL + (i + 0.5) * cellW, g.y + headH - 8 - (h.length - 1) * lh, 'middle', 'text', {bold: true}));
-  });
-  s.rows.forEach((r, i) => c.withPart(partStep('row', i, r), () => {
+  }));
+  s.rows.forEach((r, i) => c.withPart(partStep('row', i, r), () => c.asCell(() => {
     const y = bodyT + i * cellH, cy = y + cellH / 2;
     c.lines(must(rowLs[i]), g.x + 4, c.mid(cy) - (must(rowLs[i]).length - 1) * lh / 2, 'start', 'text', {bold: s.rowHeader});
     must(s.values[i]).forEach((v, j) => {
@@ -139,8 +139,9 @@ export function layoutHeatmap(s: HeatmapSpec, g: ChartGeom): LaidOutChartPart {
       const host = c.rect(r1(x + gap / 2), r1(y + gap / 2), r1(cellW - gap), r1(cellH - gap), {fill: 'accent', op, solid: `cell ${r} x ${s.cols[j]}`});
       c.text(t, x + cellW / 2, c.mid(cy), 'middle', ink, {bold: true, host, on: {fill: 'accent', op, ink}});
     });
-  }));
-  if (s.rowHeader) c.line(r1(plotL - 2), r1(bodyT), r1(plotL - 2), r1(bodyT + s.rows.length * cellH), {stroke: 'border'});
+  })));
+  if (s.rowHeader) c.asCell(() => c.line(r1(plotL - 2), r1(bodyT), r1(plotL - 2), r1(bodyT + s.rows.length * cellH), {stroke: 'border'}));
+  c.table = heatGrid(s, {x: g.x, y: g.y, rowW, cellW, cellH, headH, size: S, pitch: lh, corner: s.corner ? c.wrap(s.corner, rowW - 12, true) : [], heads, rowLs, texts, ops});
   if (s.scale) {
     const top = bodyT + s.rows.length * cellH + 14;
     c.withPart(LEGEND, () => c.text(s.legendTitle, g.x, c.mid(top + 7), 'start', 'muted', {}));
@@ -152,4 +153,30 @@ export function layoutHeatmap(s: HeatmapSpec, g: ChartGeom): LaidOutChartPart {
   }
   void Canvas;
   return c.done();
+}
+
+/**
+ * The table a heatmap draws, for the PowerPoint export: the shaded cells with the page colour as the 2px gap between them, an empty cell
+ * with a dashed frame, the rule after the row labels.
+ */
+function heatGrid(s: HeatmapSpec, m: {x: number; y: number; rowW: number; cellW: number; cellH: number; headH: number; size: number; pitch: number; corner: string[]; heads: string[][]; rowLs: string[][]; texts: string[][]; ops: number[]}): ChartTable {
+  const GAP: TableRule = {stroke: 'bg', sw: 2}, DASH: TableRule = {stroke: 'border', sw: 2, dash: '3,3'}, RULE: TableRule = {stroke: 'border', sw: 2};
+  const empty = (i: number, j: number): boolean => j >= 0 && j < s.cols.length && i >= 0 && i < s.rows.length && must(s.values[i])[j] === null;
+  // a side two cells share is dashed when either of them is empty (PowerPoint draws one line there)
+  const side = (i: number, j: number, di: number, dj: number): TableRule => empty(i, j) || empty(i + di, j + dj) ? DASH : GAP;
+  const header: TableCell[] = [
+    {lines: m.corner, align: 'start', valign: 'bottom', padX: 4, padY: 8, ink: 'muted', bold: true},
+    ...m.heads.map((h): TableCell => ({lines: h, align: 'middle', valign: 'bottom', padY: 8, ink: 'text', bold: true})),
+  ];
+  const body = s.rows.map((_r, i): TableCell[] => [
+    {lines: must(m.rowLs[i]), align: 'start', valign: 'middle', padX: 4, ink: 'text', ...(s.rowHeader ? {bold: true, r: RULE} : {})},
+    ...must(s.values[i]).map((v, j): TableCell => {
+      const sides = {l: j === 0 && s.rowHeader ? RULE : side(i, j, 0, -1), r: side(i, j, 0, 1), t: side(i, j, -1, 0), b: side(i, j, 1, 0)};
+      const text = must(must(m.texts[i])[j]);
+      if (v === null) return {lines: [text], align: 'middle', valign: 'middle', ink: 'muted', ...sides};
+      const op = must(m.ops[heatLevel(v, s)]);
+      return {lines: [text], align: 'middle', valign: 'middle', ink: inkOnShade(op), bold: true, fill: {key: 'accent', op}, ...sides};
+    }),
+  ]);
+  return {x: m.x, y: m.y, colW: [m.rowW, ...s.cols.map(() => m.cellW)], rowH: [m.headH, ...s.rows.map(() => m.cellH)], cells: [header, ...body], size: m.size, pitch: m.pitch};
 }

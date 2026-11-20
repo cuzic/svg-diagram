@@ -62,5 +62,6 @@ export function layoutCompare(s: CompareSpec, g: ChartGeom): LaidOutChartPart {
   return layoutRatingTable({rows: s.rows, cols: s.cols, cells, corner: s.corner, ruled: true}, {
     who: 'compare', ratingW: Math.max(36, Math.ceil(g.size * 2.6)), ratingH: Math.round(g.size * 1.25) + 16,
     draw: (c, cx, cy, mark, of) => { const m = CELL_MARKS[mark]; c.text(m.glyph, cx, c.mid(cy), 'middle', m.tone, {bold: m.bold, of}); },
+    cellText: mark => { const m = CELL_MARKS[mark]; return {s: m.glyph, ink: m.tone, ...(m.bold ? {bold: true} : {})}; },
   }, g);
 }

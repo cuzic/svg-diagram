@@ -3,7 +3,8 @@
 import {partStep} from './parts.ts';
 import {must} from './must.ts';
 import {Canvas, fail} from './charts-base.ts';
-import type {ChartGeom, LaidOutChartPart} from './charts-base.ts';
+import type {ChartGeom, ChartTable, LaidOutChartPart, TableCell, TableRule} from './charts-base.ts';
+import type {ColorKey} from './types/core.ts';
 
 /** A rated cell (the note is drawn only in a ruled table), or null for a cell that is not rated (drawn as a dash). */
 export type RatedCell<T> = {rating: T; note?: string} | null;
@@ -23,6 +24,8 @@ export interface RatingLook<T> {
   ratingW: number;
   ratingH: number;
   draw(c: Canvas, cx: number, cy: number, rating: T, of: string): void;
+  /** The rating as the text of its table cell, when it is one (a mark): `draw` then draws it as the cell's text. Else it is drawn over the table. */
+  cellText?(rating: T): {s: string; ink: ColorKey; bold?: boolean};
   /** What goes under the table (a legend). */
   foot?: {h: number; draw(c: Canvas, tableBottom: number): void};
 }
@@ -50,33 +53,64 @@ export function layoutRatingTable<T>(t: RatingTable<T>, look: RatingLook<T>, g: 
   const left = g.x + rowW, centred = (cy: number, n: number) => cy - (n - 1) * lh / 2 + S * 0.36;
   const headBase = (n: number) => t.ruled ? centred(g.y + headH / 2, n) : g.y + headH - 8 - (n - 1) * lh;
 
-  if (t.ruled) c.rect(g.x, g.y, g.w, headH, {fill: 'accent', op: 0.1});
+  if (t.ruled) c.asCell(() => c.rect(g.x, g.y, g.w, headH, {fill: 'accent', op: 0.1}));
   // highlighted columns are boxed under everything else
   t.cols.forEach((k, j) => { if (highlight.includes(k)) c.rect(r1(left + j * colW + 2), g.y, r1(colW - 4), r1(bodyB - g.y), {fill: 'accent', op: 0.08, stroke: 'accent', sw: 2}); });
   // ADR 0054: the column heads are a part, a row (its name, its ratings, notes and the rule under it) another
-  c.withPart(partStep('columns', 0, ''), () => {
+  c.withPart(partStep('columns', 0, ''), () => c.asCell(() => {
     if (corner.length) c.lines(corner, g.x + inset, headBase(corner.length), 'start', 'muted');
     t.cols.forEach((k, j) => { const hd = must(heads[j]); c.lines(hd, left + (j + 0.5) * colW, headBase(hd.length), 'middle', 'text', {bold: boldHead(k)}); });
     c.line(g.x, bodyT, g.x + g.w, bodyT, {stroke: 'text'});
-  });
+  }));
   let y = bodyT;
   t.rows.forEach((r, i) => c.withPart(partStep('row', t.rowIds?.[i] ?? i, r), () => {
     const rh = must(rowH[i]), name = must(names[i]), rid = t.rowIds?.[i], cy = y + rh / 2, key = rid ?? `#${i}`;
-    c.lines(name, g.x + inset, centred(cy, name.length), 'start', 'text', {bold: true, of: key});
+    c.asCell(() => c.lines(name, g.x + inset, centred(cy, name.length), 'start', 'text', {bold: true, of: key}));
     if (rid) c.anchors.push({id: rid, x: g.x, y: r1(y), w: g.w, h: rh});
     must(t.cells[i]).forEach((cell, j) => {
       const cx = left + (j + 0.5) * colW;
-      if (cell === null) { c.text('—', cx, c.mid(cy), 'middle', 'muted', {of: key}); return; }
-      if (!t.ruled) { look.draw(c, cx, cy, cell.rating, key); return; }
+      const rating = (x: number) => look.cellText ? c.asCell(() => look.draw(c, x, cy, (cell as {rating: T}).rating, key)) : look.draw(c, x, cy, (cell as {rating: T}).rating, key);
+      if (cell === null) { c.asCell(() => c.text('—', cx, c.mid(cy), 'middle', 'muted', {of: key})); return; }
+      if (!t.ruled) { rating(cx); return; }
       const x = left + j * colW, note = must(must(notes[i])[j]);
-      look.draw(c, x + ratingW / 2, cy, cell.rating, key);
-      c.line(x + ratingW, y + 6, x + ratingW, y + rh - 6, {stroke: 'muted', dash: '4,3', sw: 1, of: key});
-      c.lines(note, x + ratingW + 8, centred(cy, note.length), 'start', 'text', {of: key});
+      rating(x + ratingW / 2);
+      c.asCell(() => {
+        c.line(x + ratingW, y + 6, x + ratingW, y + rh - 6, {stroke: 'muted', dash: '4,3', sw: 1, of: key});
+        c.lines(note, x + ratingW + 8, centred(cy, note.length), 'start', 'text', {of: key});
+      });
     });
     y += rh;
-    c.line(g.x, y, g.x + g.w, y, {stroke: i === t.rows.length - 1 ? 'text' : 'border'});
+    c.asCell(() => c.line(g.x, y, g.x + g.w, y, {stroke: i === t.rows.length - 1 ? 'text' : 'border'}));
   }));
-  if (t.ruled) t.cols.forEach((_k, j) => c.line(left + j * colW, g.y, left + j * colW, bodyB, {stroke: 'border'}));
+  if (t.ruled) c.asCell(() => t.cols.forEach((_k, j) => c.line(left + j * colW, g.y, left + j * colW, bodyB, {stroke: 'border'})));
+  c.table = ratingGrid(t, look, {x: g.x, y: g.y, rowW, colW, headH, rowH, inset, size: S, pitch: lh, corner, heads, names, notes, boldHead});
   look.foot?.draw(c, bodyB);
   return c.done();
+}
+
+/** The table a rating table draws, cell by cell (the same places, colours and rules as above), for the PowerPoint export. */
+function ratingGrid<T>(t: RatingTable<T>, look: RatingLook<T>, m: {x: number; y: number; rowW: number; colW: number; headH: number; rowH: number[]; inset: number; size: number; pitch: number;
+  corner: string[]; heads: string[][]; names: string[][]; notes: string[][][]; boldHead: (k: string) => boolean}): ChartTable {
+  const {ruled} = t, last = t.rows.length - 1;
+  const BORDER: TableRule = {stroke: 'border', sw: 2}, DARK: TableRule = {stroke: 'text', sw: 2}, DASH: TableRule = {stroke: 'muted', sw: 1, dash: '4,3'};
+  const colW = [m.rowW, ...t.cols.flatMap(() => ruled ? [look.ratingW, m.colW - look.ratingW] : [m.colW])];
+  const head: TableCell = ruled ? {lines: [], align: 'middle', valign: 'middle', ink: 'text', fill: {key: 'accent', op: 0.1}} : {lines: [], align: 'middle', valign: 'bottom', padY: 8, ink: 'text'};
+  const spanned = (cell: TableCell): (TableCell | null)[] => ruled ? [{...cell, span: 2}, null] : [cell];
+  const header: (TableCell | null)[] = [
+    {...head, lines: m.corner, align: 'start', padX: m.inset, ink: 'muted', b: DARK, ...(ruled ? {r: BORDER} : {})},
+    ...t.cols.flatMap((k, j) => spanned({...head, lines: must(m.heads[j]), ...(m.boldHead(k) ? {bold: true} : {}), b: DARK, ...(ruled ? {l: BORDER} : {})})),
+  ];
+  const body = t.rows.map((_r, i): (TableCell | null)[] => {
+    const sides = {t: i === 0 ? DARK : BORDER, b: i === last ? DARK : BORDER};
+    const name: TableCell = {lines: must(m.names[i]), align: 'start', valign: 'middle', padX: m.inset, ink: 'text', bold: true, ...sides, ...(ruled ? {r: BORDER} : {})};
+    return [name, ...must(t.cells[i]).flatMap((cell, j): (TableCell | null)[] => {
+      const base: TableCell = {lines: [], align: 'middle', valign: 'middle', ink: 'text', ...sides, ...(ruled ? {l: BORDER} : {})};
+      if (cell === null) return spanned({...base, lines: ['—'], ink: 'muted'});
+      const mark = look.cellText?.(cell.rating);
+      const rating: TableCell = mark ? {...base, lines: [mark.s], ink: mark.ink, ...(mark.bold ? {bold: true} : {})} : base;
+      if (!ruled) return [rating];
+      return [{...rating, r: DASH}, {lines: must(must(m.notes[i])[j]), align: 'start', valign: 'middle', padX: 8, ink: 'text', ...sides, l: DASH}];
+    })];
+  });
+  return {x: m.x, y: m.y, colW, rowH: [m.headH, ...m.rowH], cells: [header, ...body], size: m.size, pitch: m.pitch};
 }

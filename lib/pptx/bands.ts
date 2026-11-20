@@ -9,11 +9,13 @@ import {boxTextXml, geomShapeXml, lineXml, linesText, namedAs, presetXml, roundG
 import {ringed, stepBadgeAt} from '../emit-boxes.ts';
 import {badgeTextKey} from '../badge.ts';
 import {boxXml, plainBox, groupFrameXml, groupXml, anchorXml, picXml, type TextBox} from './shapes.ts';
-import {tableXml} from './table.ts';
+import {chartTableXml, tableXml} from './table.ts';
 import {freeformPathXml, rowArrowXml, type Glue} from './connectors.ts';
 import {bandPicture, type Picture} from './image-band.ts';
 import {imageRids} from './package.ts';
 import {treeXml} from './tree.ts';
+import {boundaryChips, swimlaneTable} from './swimlane.ts';
+import {bpmnMarks, bpmnTable, ganttMarks, ganttTable} from './frame-tables.ts';
 import {quadrantXml} from './quadrant.ts';
 import {statesXml} from './states.ts';
 import {causeXml} from './cause.ts';
@@ -200,13 +202,76 @@ const imageBand: BandXml<DrawnBand> = (band, ctx, index) => {
   return drawn + anchorXml(anchorId, `anchor-${band.id}`, anchor);
 };
 
+/**
+ * A chart that is a table (harvey, compare, heatmap) as a PowerPoint table, with what the table does not hold (a Harvey ball, a legend,
+ * a highlighted column's frame) drawn as shapes: those drawn before the table's first item under it, the rest over it. A dimmed chart, or
+ * one with dimmed elements, stays as the other charts are (the table has no dimmed look).
+ */
+const chartBand: BandXml<LaidOutOf<'chart'>> = (band, ctx, index) => {
+  const t = band.table;
+  if (!t || band.dim || band.dimIds?.length) return imageBand(band, ctx, index);
+  const first = band.items.findIndex(it => it.cell), under = band.items.slice(0, Math.max(0, first)).filter(it => !it.cell), over = band.items.slice(Math.max(0, first)).filter(it => !it.cell);
+  const below = under.length ? overXml({...band, items: under}, ctx, index, 'under') : '';
+  const table = chartTableXml(ctx.next(), bandName(ctx, band.kind, band.id), t, ctx.ld.day, ctx.fonts), marks = over.length ? overXml({...band, items: over}, ctx, index, 'marks') : '';
+  return below + table + marks + bandAnchor(band, ctx);
+};
+
+/** What is drawn over (or under) a band's table: shapes from its svg, else a picture. */
+function overXml(band: DrawnBand, ctx: Ctx, index: number, which: string): string {
+  const {picture, rect} = bandPicture(ctx.ld, band, index);
+  const xml = svgShapesXml(picture.svg, ctx.fonts, ctx.next);
+  if (xml !== null) return groupXml(ctx.next(), namedAs(which, '', undefined), rect, xml);
+  const rids = imageRids(ctx.pictures.length);
+  ctx.pictures.push({svg: recolor(ctx.tones, picture.svg, ctx.ld.appearance), pngSvg: recolor(ctx.tones, picture.pngSvg, ctx.ld.appearance)});
+  return picXml(ctx.next(), `${band.type}-${index}-${which}`, rect, rids.png, rids.svg);
+}
+
+/** A connector glues to a shape, not to a table: an invisible rectangle over a band with an id stands in for it, as for a picture. */
+function bandAnchor(band: DrawnBand & {id?: string}, ctx: Ctx): string {
+  if (!band.id) return '';
+  const anchor = {x: band.x, y: band.y, w: band.w, h: band.h}, anchorId = ctx.next();
+  register(ctx, band.id, anchorId, anchor);
+  return anchorXml(anchorId, `anchor-${band.id}`, anchor);
+}
+
+/** A Gantt chart's frame (row names, header, ticks, sections) as a PowerPoint table (./frame-tables.ts), its bars and arrows as shapes over it. */
+const ganttBand: BandXml<LaidOutOf<'gantt'>> = (band, ctx, index) => {
+  if (band.dim) return imageBand(band, ctx, index);
+  const table = chartTableXml(ctx.next(), bandName(ctx, 'gantt', band.id), ganttTable(band, ctx.ld.roles), ctx.ld.day, ctx.fonts);
+  return table + overXml(ganttMarks(band), ctx, index, 'gantt bars') + bandAnchor(band, ctx);
+};
+
+/** A BPMN figure's lanes as a PowerPoint table (./frame-tables.ts), its events, tasks, gateways and flows as shapes over it. */
+const bpmnBand: BandXml<LaidOutOf<'bpmn'>> = (band, ctx, index) => {
+  const t = band.dim ? undefined : bpmnTable(band, ctx.ld.roles, ctx.tones, ctx.ld.day);
+  if (!t) return imageBand(band, ctx, index);
+  const table = chartTableXml(ctx.next(), bandName(ctx, 'bpmn', band.id), t, ctx.ld.day, ctx.fonts);
+  return table + overXml(bpmnMarks(band), ctx, index, 'bpmn flow') + bandAnchor(band, ctx);
+};
+
+/**
+ * A swimlane's frame as a PowerPoint table (./swimlane.ts), the names of its boundaries as chips over it. Its steps are the bands after it,
+ * drawn as boxes over the table (slide.ts). A dimmed swimlane stays as it was drawn from its SVG.
+ */
+const swimlaneBand: BandXml<LaidOutOf<'swimlane'>> = (band, ctx, index) => {
+  if (band.dim) return imageBand(band, ctx, index);
+  const {ld, fonts} = ctx, size = ld.roles.note;
+  const table = chartTableXml(ctx.next(), bandName(ctx, 'swimlane', band.id), swimlaneTable(band, ld.roles), ld.day, fonts);
+  const chips = boundaryChips(band, ld.roles).map(c => {
+    // as the svg draws it: a pill of the page colour with a thin dark line, the name bold in its middle (its first line's top 3px down)
+    const line = {text: c.label, x: c.x + c.w / 2, y: c.y + 3 + size, anchor: 'middle' as const, size, bold: true, color: PALETTE.text};
+    return geomShapeXml(ctx.next(), namedAs('boundary', c.label), c, roundGeomXml('pill', c.w, c.h), {fill: PALETTE.bg, stroke: PALETTE.text, widthPx: 1.5}, boxTextXml(c, [line], fonts));
+  }).join('');
+  return table + chips + bandAnchor(band, ctx);
+};
+
 /** One disposition per laid-out band type; a missing band type fails compilation. */
 export const BAND_HANDLERS = {
   caption: captionBand, box: boxBand, banner: boxBand, group: groupFrameBand, row: rowBand, grid: gridBand, table: tableBand,
-  legend: legendBand, swimlane: 'image', wireframe: 'image', screens: 'image', sequence: 'image', raw: 'image', pyramid: pyramidBand,
+  legend: legendBand, swimlane: swimlaneBand, wireframe: 'image', screens: 'image', sequence: 'image', raw: 'image', pyramid: pyramidBand,
   curve: 'image', plane: 'image', quadrant: quadrantBand, wordart: 'image', chevron: flowBand, funnel: flowBand, cycle: flowBand,
-  venn: flowBand, concentric: flowBand, emblem: flowBand, valueChain: flowBand, bars: 'image', chart: 'image', image: 'image', people: 'image', dots: 'image', math: 'image',
-  timeline: timelineBand, tree: treeBand, states: statesBand, cause: causeBand, cloud: 'image', gantt: 'image', classes: 'image', bpmn: 'image',
+  venn: flowBand, concentric: flowBand, emblem: flowBand, valueChain: flowBand, bars: 'image', chart: chartBand, image: 'image', people: 'image', dots: 'image', math: 'image',
+  timeline: timelineBand, tree: treeBand, states: statesBand, cause: causeBand, cloud: 'image', gantt: ganttBand, classes: 'image', bpmn: bpmnBand,
   fta: 'image', status: 'image', bowtie: 'image',
 } satisfies {[T in LaidOutType]: BandXml<LaidOutOf<T>> | 'image'};
 
