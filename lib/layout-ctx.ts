@@ -3,7 +3,7 @@
 // out to `ctx.laidOut`, register anchors, and advance `ctx.y`.
 
 import type {ScopeTable} from './anchor-scope.ts';
-import type {LaidOutConnect, ConnectBand} from './types/containers.ts';
+import type {AreasBand, LaidOutConnect, ConnectBand} from './types/containers.ts';
 import type {DiagramData, Rect, Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
 import type {BannerBand, BoxBand, CaptionBand, WrappedRun} from './types/text-bands.ts';
@@ -49,6 +49,8 @@ export interface LayoutCtx extends WrapEnv {
   stack(bands: Band[], x: number, w: number): void;
   /** The gap a row's children are laid out with (grown to fit labelled connectors between them). */
   gapForLabels(band: RowLike, cw: number): number;
+  /** The column and row gaps an areas() `cw` wide is laid out with (the same ones the pre-pass walked its cells at). */
+  areasGapFor(band: AreasBand, cw: number): {gap: number; rowGap: number};
 }
 
 export type BandLayoutHandler<B> = (band: B, ctx: LayoutCtx, x: number, w: number) => void;

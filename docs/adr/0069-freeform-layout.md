@@ -151,8 +151,8 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
     - row / grouprow / grid / areas / connect / spacer は直接は置けない(group に入れる)。
   - オプション:
     - `cols?: number[]`: 列の幅の比。既定は等分。
-    - `gap?: number`: 列の間。既定 16。4 の倍数に切り上げる(`canvasColumns` の前提)。
-    - `rowGap?: number`: 行の間。既定は `gap`。
+    - `gap?: number`: 列の間。既定 16。4 の倍数に切り上げる(列の端を 4px の格子に乗せるため)。
+    - `rowGap?: number`: 行の間。既定は `gap`。同じく 4 の倍数に切り上げる(行の端を格子に乗せる `trackRowYs` の前提)。
     - `id?: string`: 全体の anchor。row の `id` と同じく `areaIds` に入れ、中の箱をその端として扱う。
   - areas は row の子にできない(`row([areas(…)])` は誤り。group で包む)。row の子は 1 行の中の 1 つの幅を取るものに限る、という今の決まりを保つ。
 - **中身の位置の項目は誤り**: セルの中身の `span` / `col` / `flex` / `width` は、セルが位置と幅を決めるので、書いたら throw する(#377 で `cols` のない row の `span` を誤りにしたのと同じ考え)。
@@ -167,10 +167,14 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
   - `cols` の数は列の数と同じ。列と行はそれぞれ 12 まで。
 - **id**: 名前がそのまま中身の id になる(`connect('memo:right', …)` がそのまま書ける)。
   - 中身に名前と違う `id` があれば誤り(名前は 1 つにする)。同じ id があれば、今の anchor の重複の誤り。
+  - row が包むもの(caption など)は、包んだ枠なしの group が名前を id に持つ。包まれる band 自身が名前と同じ `id` を持つときは、その band が anchor のままで、包む group には id を付けない(同じ id が 2 つにならないように)。
   - 名前は中身の写しに入れる。`spanRow` と同じく `Object.create(Object.getPrototypeOf(c), …)` で写し、`withHandle` の付いた箱の `.top` などの持ち手を保つ。
   - TS の型は、`cells` のキーと、セルの中身が宣言する id(`IdsOf<cells の値>`。group の中の `c1` など)の両方を `Declares` に入れ、`Refers<RefsOf<…>>` も row と同じく引き継いで、`connect` の参照の型の検査(今の row と同じ仕組み)に乗せる。
 - **配置**(`lib/layout-handlers.ts` に `layoutAreas`):
-  - 幾何は canvas と共有する。`canvasColumns` / `canvasSpan` / `canvasRowHeights` の引数の型を、`CanvasLayout` から `Pick<CanvasLayout, 'colW' | 'rowW' | 'place'>`(`TrackGrid` と名付ける)に狭める。areas の `rowW` はすべて 1(高さは中身だけで決め、比は使わない)。
+  - 行の幾何は canvas と共有する。`canvasRowHeights` の引数の型を、`CanvasLayout` から `Pick<CanvasLayout, 'colW' | 'rowW' | 'place'>`(`TrackGrid` と名付ける)に狭める。`canvasSpan` はそのまま使う。areas の `rowW` はすべて 1(高さは中身だけで決め、比は使わない)。
+  - 列の幅は `canvasColumns` ではなく、areas の関数 `areasColumns`(`lib/areas.ts`)で決める(実装で変えた。下の理由)。
+    - `canvasColumns` は列の左端をそれぞれ 4px に丸めるので、等分のつもりの列が 184 / 184 / 180 / 184px のように 4px ずれる。s33 を書き直した例で `layout-sibling-size` が 2 つ出た(`row({cols: 12})` の `gridColumns` では出ない)。canvas の出力を変えずに直せないので、canvas の関数は変えない。
+    - `areasColumns` は、幅を 4px の数で比に分け(切り捨て)、余った数を「同じ比の列すべてに 1 つずつ配れるとき」だけ配る(比の端数の大きい順)。同じ比の列は必ず同じ幅になる。それでも余った数は、列の間に均等に足す(間隔が 4px 広い所ができる)。4px に満たない端は右に残す。
   - 行の y を 4px の格子に乗せる処理を、`layoutCanvasGrid` から関数(`trackRowYs`)に書き出して共有する。canvas の出力は変わらない。
   - 1 回目: 各セルを、その列の x と幅で上端から置き、自然な高さを測る(`layoutGroupRow` と同じく、box は `placeBoxLike`、group は `ctx.stack`)。
   - 行の高さ: `canvasRowHeights(grid, needs, rowGap, 0)`。1 行のセルは行の高さ、複数の行にまたがるセルはその行の和(+ 間の `rowGap`)。足りなければ、またぐ行を等しく伸ばす(canvas と同じ)。
@@ -181,13 +185,14 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
   - 領域(名前のセル)の幅が 96px(`CANVAS_MIN_REGION_W`)未満になれば誤り。判定は列ごとではなく領域ごとにする。`.` だけの列(`cols: [4, 1, 4]` の真ん中のような余白)はどれだけ細くてもよい。文言は canvas() のものを使わず、`areas: area "memo" is only Npx wide …` と areas の言葉で書く。
 - **ラベルの間隔**(D1 と同じ基準):
   - 横に並ぶセル(行が重なり、間の列がすべて空き)の間をラベル付きの connect がつなぐときは `gap` を、縦に並ぶセル(列が重なり、間の行がすべて空き。ただし `.` だけの行は誤りなので、ふつうは隣り合う行)のときは `rowGap` を、要る長さまで広げる。
-  - 距離は、間の空きの列の幅の和 + (空きの列の数 + 1) × `gap`。隣り合うセルなら `gap` だけ。s21 のように余白の列をはさむ場合も、この距離で比べる。空きの列の幅も `gap` で変わるので、D1 の空いた列と同じく式で解き、`canvasColumns` で確かめて足りなければ 4px ずつ足す。
+  - 距離は、間の空きの列の幅の和 + (空きの列の数 + 1) × `gap`。隣り合うセルなら `gap` だけ。s21 のように余白の列をはさむ場合も、この距離で比べる。空きの列の幅も `gap` で変わるので、D1 の空いた列と同じく式で解き、`areasColumns` で確かめて足りなければ 4px ずつ足す。
+  - 実装(PR 2)は D1(PR 1)と並行で作ったので、この広げる処理はまだない。`lib/layout.ts` の `areasGapFor(band, cw)` が宣言の `gap` / `rowGap` を返す 1 か所にしてあり、D1 の `labelRoom` が main に入った後に、ここで広げる。それまでは、ラベル付きの矢印のための間隔は利用者が `gap` / `rowGap` に書く(`references/freeform.md` にもそう書いた)。
   - 間に中身のあるセルをはさむ 2 つのセルは対象外(線がそのセルを横切る。検査が知らせる)。
   - areas の間隔は 1 つなので、どれか 1 本が要れば全体が広がる(列のそろえを崩さないため)。
   - 子を 7 割より細くするなら広げない(D1 と同じ)。
 - **前処理の順**(`lib/layout.ts` の `walk`):
   - `STACK_WIDTH.areas = null`(幅 1 つでは中を表せない)。`walk` に areas の枝を足す。
-  - まず areas の間隔(D1 で広げた後のもの)を決め、次にその間隔で `canvasColumns` からセルの幅を求めて、group の中身を歩く(中の row のラベルの間隔の計算に使う)。
+  - まず areas の間隔(D1 で広げた後のもの。`areasGapFor`)を決め、次にその間隔で `areasColumns` からセルの幅を求めて、group の中身を歩く(中の row のラベルの間隔の計算に使う)。
   - 今の `grouprow` の枝は、広げた間隔を使う場合と宣言の間隔を使う場合(`cols` の row)が混ざっている。areas は常に「間隔が先、中の幅が後」とする。
 - **周りの登録**:
   - `CHILD_BANDS` と `STACK_WIDTH`(`lib/band-children.ts`。表に型がないとコンパイルが通らない)
@@ -266,7 +271,7 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
 - **SKILL.md**(`skills/svg-diagram/SKILL.md`): PR 2 で `areas`、PR 3 で `via` を、自由な図の書き方の一覧に足す。PR 4 で「JSON で自由な図を描くなら `board`。型のある部品が合えばそちらを先に」を足す。
 - **`references/freeform.md`**(#377 で足す): PR 2 で「行をまたいでそろえる: `areas`」の節を足し、s33 と s04 の書き直しを例にする。PR 3 で「枠で止める: `via`」、PR 1 で「ラベル付きの矢印の間隔は自動で広がる。広がらない場合」の節を足す。
 - **README**: DSL の節に `areas` と `connect({via})`、spec の節に `board`、PowerPoint の節に、`via` の端は貼らないことと、LibreOffice では `@t`・`levelSides`・`plumb` で動いた端が開いたときに辺の真ん中に戻ること(知られた制約、D2)を足す。
-- **`test/fixtures/untested-exports.json`**: 新しく出す関数(`areas`、`labelRoom`、テンプレートの解析、`trackRowYs`)はテストを書き、この一覧には足さない。
+- **`test/fixtures/untested-exports.json`**: 新しく出す関数(`areas`、`labelRoom`、テンプレートの解析、`areasColumns`、`trackRowYs`)はテストを書き、この一覧には足さない。
 - spec の `description`(node・link・各項目)は、MCP の利用者が読む唯一の説明なので、D4 の決まり(辺の省略、`via`、`kind` ごとの項目)をそこに書く。
 
 ## 検討したほかの案
@@ -323,7 +328,7 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
 - **D3**(`test/areas.test.ts`):
   - テンプレートの解析: 空行・字下げ・配列、`.`、`..`・`...`、`.` だけの行(誤り)と列(許す。`cols` の比の幅の空きになる)、全角の空白(行と桁つきの誤り)、長方形でない名前、行のセルの数の違い、名前とキーの過不足、`cols` の数。
   - 中身の `span` / `col` / `flex` / `width`、名前と違う `id`、`row([areas(…)])`、areas 全体の `reveal` が誤りになること。
-  - 列がそろうこと: 違う行の同じ列のセルの x と幅が同じ。行をまたぐセルの高さが行の和。group の枠がセルの高さに伸び、`valign` が #377 と同じ決まりで効くこと。
+  - 列がそろうこと: 違う行の同じ列のセルの x と幅が同じ。同じ比の列は同じ幅(`areasColumns`)。行をまたぐセルの高さが行の和。group の枠がセルの高さに伸び、`valign` が #377 と同じ決まりで効くこと。
   - 名前が id になり、`connect('memo:right', …)` が解決すること。持ち手のある箱(`withHandle`)で `.right` が使えること。`areas({id})` を端にできること。
   - 中の row のラベルの間隔が、広げた areas の間隔から求めた幅で決まること(前処理の順)。
   - canvas の例の SVG が変わらないこと(幾何の型を狭め、行の y の処理を書き出しただけ)。

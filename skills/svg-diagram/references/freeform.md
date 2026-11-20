@@ -1,20 +1,70 @@
 # 箱と線で描く図（freeform）
 （svg-diagram の入口は `../SKILL.md`）
 
-型の決まった部品（`versus`・`chevron`・`quadrant` など）に合わない図は、`row` / `group` / `box` / `connect` / `branch` で組む。左右の対比が言いたいことでないのに `versus` を選ばない。書き方の全部は README の「部品」表。
+型の決まった部品（`versus`・`chevron`・`quadrant` など）に合わない図は、`row` / `areas` / `group` / `box` / `connect` / `branch` で組む。左右の対比が言いたいことでないのに `versus` を選ばない。書き方の全部は README の「部品」表。
 
 ## 並べ方
 
 | したいこと | 書き方 |
 |---|---|
 | 横に並べる | `row([a, b, c])`。幅は `flex`（既定 1）で分ける。固定幅は `justify: 'center'` と `width` |
-| 行をまたいで列をそろえる | どの行も `row([...], {cols: 12, gap})` にして、子に `span`（何列分）と `col`（何列目から。1 始まり）を書く。同じ `cols` / `gap` の行は列の端が同じになる。設定は `const g = {cols: 12, gap: 56} as const` にまとめて使い回す |
+| 行をまたいで列をそろえる | `areas` で名前の領域を書く（下の「行をまたいでそろえる: `areas`」）。`row` で書くなら、どの行も `row([...], {cols: 12, gap})` にして、子に `span`（何列分）と `col`（何列目から。1 始まり）を書く。同じ `cols` / `gap` の行は列の端が同じになる。設定は `const g = {cols: 12, gap: 56} as const` にまとめて使い回す |
 | 等分 | `row([a, b, c], {cols: 12})`（子に `span` を書かなければ 4+4+4）。`cols: [3, 6, 3]` は子ごとの `span` を行に書く形 |
 | 先頭を空ける | 2 行目の最初の子に `col: 4`。`span` / `col` は **`cols` のある行だけ**で効く（無いと throw） |
 | 箱をまとめる | `group([...], {title, tone})`。枠ごと `row` に並べられ、`span` / `col` / `flex` は group に書く |
 | 枠なしでまとめる | `group([...], {frame: false})`。`caption` / `table` などを `row` に置くと、これに自動で包まれる |
 | 縦の位置 | 枠付きの group は、row で高さがそろうと中身が縦中央に寄る（`valign: 'top'` で上詰め、`'stretch'` で箱 1 つが余りを埋める）。枠なしの group は既定が上詰めで、`valign` を書いたときだけ動く。`row` に直接置いた `box` は行の高さに伸びる |
 | 列に見出し | 最初の行を、見出しを枠なしの group で包んだ row にする: `group([caption(text, {bold: true, tone: 'text'})], {frame: false, span: 3})`（`caption` 自体は `span` を持たない） |
+
+## 行をまたいでそろえる: `areas`
+
+行をまたいで列をそろえる図、行をまたぐ枠がある図は、`areas(template, cells, opts)` で書く。CSS の `grid-template-areas` と同じ書き方。
+
+- テンプレートは 1 行が 1 段。セルは半角の空白で区切る。`.` 1 文字が空きのセル（`..` は誤り）。全角の空白は誤り（行と桁を示して止まる）。
+- 同じ名前を並べると、その範囲が 1 つの領域になる（長方形だけ。L 字は誤り）。行をまたいでもよい。
+- `cells` は名前 → 中身。中身は `box`、`group`、または `caption` / `table` / `stat` など（枠なしの `group` に自動で包まれる）。`row` / `grid` / `areas` は `group` に入れてから置く。
+- 名前がそのまま中身の `id` になる。`connect('memo:right', 'c1:left')` のように書ける。中身に名前と違う `id` を書くと誤り。
+- 列の幅は `cols: [4, 3, 4]` の比（既定は等分）。行の高さは中身で決まる。`gap`（列の間、既定 16）と `rowGap`（行の間、既定は `gap`）。
+- 中身に `span` / `col` / `flex` / `width` は書かない（書くと throw）。位置と幅はテンプレートが決める。
+- `.` だけの列は余白になる（`cols: [4, 1, 4]` の真ん中）。`.` だけの行は誤り（高さが 0 になるので、行の間は `rowGap` で空ける）。
+- `box` はセルの高さに伸びる。`group` の枠もセルの高さに伸び、中身は `row` のときと同じ決まりで寄る（枠付きは縦中央、枠なしは上。`valign` で変える）。
+- 領域の幅が 96px より狭くなると止まる。
+- `row([areas(…)])` は誤り。横に並べたいものは、同じ `areas` の列にする。
+- 領域の間のラベル付きの矢印のために `gap` / `rowGap` が自動で広がることは、まだない。ラベルが矢印を覆うときは `gap` / `rowGap` を大きく書く。
+
+```ts
+// 見出し・変わる系列・変わらない系列の 3 段が同じ列に乗る（2 段目の先頭の空きは . 1 つ。span / col の足し算をしない）
+const head = (text: string) => caption(text, {bold: true, tone: 'text'});
+d.add(
+  areas(`
+    hm  hr  hs  ht
+    m   r2  s3  t3
+    .   r1  s1  t1
+  `, {
+    hm: head('決定メモ'), hr: head('要件'), hs: head('シナリオ'), ht: head('テスト'),
+    m: box({title: 'M2 有効期限', body: '3か月 → 6か月に変更', tone: 'solid'}),
+    r2: box({title: 'R2 有効期限を確かめる', tone: 'accent'}), s3: box({title: 'S3 境界', tone: 'accent'}), t3: box({title: 'T3 先に直す', tone: 'accent'}),
+    r1: box({title: 'R1 添付書類と照合', tone: 'muted'}), s1: box({title: 'S1・S2', tone: 'muted'}), t1: box({title: 'T1・T2 そのまま', tone: 'muted'}),
+  }, {gap: 56, rowGap: 24}),
+  connect('m:right', 'r2:left'), connect('r2:right', 's3:left'), connect('s3:right', 't3:left'),
+  connect('r1:right', 's1:left', {tone: 'muted'}), connect('s1:right', 't1:left', {tone: 'muted'}),
+);
+```
+
+```ts
+// 左の枠 → 真ん中 → 右の 3 つへ扇形。列の幅は cols の比で、子に span を書かない
+d.add(
+  areas('head memo convs', {
+    head: group([box({title: '提出先の手引き'}), box({title: '社内ルール'}), box({title: '環境の制約'})], {title: '担当者の頭の中'}),
+    memo: group([box({title: '決定メモ', body: '1枚に書き出す', tone: 'solid'})], {title: '書き出す先'}),
+    convs: group([box({id: 'c1', title: '今の会話'}), box({id: 'c2', title: '新しい会話'}), box({id: 'c3', title: '別の人・別のAI'})], {title: '同じ前提で始まる', tone: 'accent'}),
+  }, {cols: [4, 3, 4], gap: 64}),
+  connect('head:right', 'memo:left'),
+  branch('memo:right', [{to: 'c1:left'}, {to: 'c2:left'}, {to: 'c3:left'}]),
+);
+```
+
+全体は `examples/areas-trace.ts` と `examples/areas-memo.ts`。
 
 ## つなぎ方
 

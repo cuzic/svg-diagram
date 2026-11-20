@@ -27,7 +27,9 @@ import {
   BOX_PAD_X, BOX_PAD_Y, ICON_H, STAMP_GAP, STAMP_H, TAG_H, TAG_PAD_X, TOP_ICON_GAP, TOP_ICON_SIZE,
   anchorRect, colSlots, rowChildGeometry, snapGrid, stampChipW, topIcon, withSourceLine, withTitleLine,
 } from './layout-util.ts';
-import type {LaidOutConnect, ConnectBand} from './types/containers.ts';
+import type {AreasBand, LaidOutConnect, ConnectBand} from './types/containers.ts';
+import {areasColumns} from './areas.ts';
+import {canvasSpan} from './canvas.ts';
 import type {DiagramData, Roles, WidthOf, Rect, WrapMode} from './types/core.ts';
 import type {LaidOutDiagram, LaidOutBand, LaidOutBox, Band} from './types/index.ts';
 import type {CaptionBand, BoxBand, BannerBand, BoxChrome} from './types/text-bands.ts';
@@ -86,13 +88,20 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
     return gap <= maxGap ? gap : band.gap; // would squeeze the children: keep the gap (verify reports the label that does not fit)
   };
 
+  // areas(): the column and row gaps it is laid out with: the declared ones. (Widening them for labelled connectors between
+  // neighbouring areas, with the same measure as the rows', goes here: ADR 0069 D3.)
+  const areasGapFor = (band: AreasBand, _cw: number): {gap: number; rowGap: number} => ({gap: band.gap, rowGap: band.rowGap});
+
   {
     const grids = new Map<string, {need: number; rows: {cw: number; spans: number[]}[]}>();
     const walk = (bs: Band[], cw: number): void => {
       for (const b of bs) {
         const inner = stackWidthOf(b, cw);
         if (inner !== null) walk(childrenOf(b), inner);
-        else if ((b.type === 'row' || b.type === 'grouprow') && b.cols) {
+        else if (b.type === 'areas') { // the gaps first, then the widths of its cells at those gaps (what the real pass uses)
+          const cols = areasColumns(b.colW, 0, cw, areasGapFor(b, cw).gap);
+          b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, canvasSpan(cols, must(b.place[i])).w - 2 * (c.pad ?? 16)); });
+        } else if ((b.type === 'row' || b.type === 'grouprow') && b.cols) {
           const key = `${b.cols}/${b.gap}`, g = grids.get(key) ?? {need: b.gap, rows: []};
           g.need = Math.max(g.need, gapNeeded(b as RowLike));
           g.rows.push({cw, spans: colSlots((b as RowLike).children).map(s => s.span)});
@@ -180,7 +189,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
   };
   const ctx: LayoutCtx = {
     d, roles, widthOf, tones, wrap, keepWords, space, y: d.pad, laidOut, anchors, nodeBottoms, areaIds, connects, deferred, scopes,
-    setBox, claimed, register, placeBoxLike, gapForLabels,
+    setBox, claimed, register, placeBoxLike, gapForLabels, areasGapFor,
     stack: (bands, padX, cw) => {
       for (const band of bands) layoutHandlerFor(band.type)(band as never, ctx, padX, cw);
     },

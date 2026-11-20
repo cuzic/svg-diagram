@@ -7,7 +7,7 @@ import {treeItems} from './tree.ts';
 import type {Band} from './types/index.ts';
 
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
-/** One entry per band type: the bands it holds as its `children` (group, row, grouprow, grid, and an image's `over` parts). */
+/** One entry per band type: the bands it holds as its `children` (group, row, grouprow, grid, areas, and an image's `over` parts). */
 export type ChildBandsTable = {[T in Band['type']]: (band: BandOf<T>) => Band[]};
 
 const none = (): Band[] => [];
@@ -43,6 +43,7 @@ export const CHILD_BANDS = {
   grouprow: band => band.children,
   row: band => band.children,
   grid: band => band.children,
+  areas: band => band.children,
   pyramid: none,
   plane: none,
   quadrant: none,
@@ -109,6 +110,7 @@ export const STACK_WIDTH = {
   grouprow: noStack,
   row: noStack,
   grid: noStack,
+  areas: noStack, // its cells are as wide as their columns (layout.ts walks them with the widths of its gap)
   pyramid: noStack,
   plane: noStack,
   quadrant: noStack,

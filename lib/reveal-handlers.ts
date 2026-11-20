@@ -115,6 +115,14 @@ function revealRow(b: BandOf<'row'> | BandOf<'grouprow'>, n: number, u: number |
   for (const [key, un] of slotUntil) if (!stays.has(key)) ctx.untils.set(key, un);
 }
 
+// areas: like a row, the cells are set (each named area carries its own reveal) and a group in a cell is walked
+function revealAreas(b: BandOf<'areas'>, n: number, u: number | undefined, ctx: RevealCtx): void {
+  b.children.forEach(c => {
+    const level = ctx.set(c, n, `areas() area "${c.id}"`, u);
+    if (c.type === 'group') ctx.walk(c.children, level, c.until);
+  });
+}
+
 function revealImage(b: BandOf<'image'>, n: number, u: number | undefined, ctx: RevealCtx): void {
   for (const [i, m] of (b.marks ?? []).entries()) { const r = ctx.set(m, n, `image() mark ${i + 1}`, u); if (m.id) ctx.ids.set(ctx.name(m.id), r); }
   for (const [i, l] of (b.labels ?? []).entries()) ctx.set(l, n, `image() label ${i + 1}`, u);
@@ -185,6 +193,7 @@ export const REVEAL_HANDLERS = {
   },
   raw: plain,
   grouprow: {stage: true, visit: revealRow},
+  areas: {stage: true, visit: revealAreas},
   row: {stage: true, visit: revealRow},
   // grid() takes box() children only (its constructor rejects a group), and a box holds no bands: nothing nested to walk, so each
   // cell is just set (test/grid-reveal-nested.test.ts pins this)

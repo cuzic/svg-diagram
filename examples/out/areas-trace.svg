@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="296" viewBox="0 0 940 296" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">番号でたどって直す範囲を絞る</title>
+  <desc id="svg-desc">要素: M2 有効期限、R2 有効期限を確かめる、S3 境界: ちょうど6か月、T3 先に直す、R1 添付書類と照合、S1・S2、T1・T2 そのまま</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/areas-trace.ts","sourceSha256":"bb6ef9d333ee9b30f2595bb6d107b7193a16af57f578e6ab9dfd862f02055532"}</metadata>
+  <defs>
+    <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
+    </marker>
+    <marker id="dsl-arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6f6659"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="296" fill="#ffffff"/>
+
+  
+
+  <text x="110" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">決定メモ</text>
+
+  
+
+  <text x="350" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">要件</text>
+
+  
+
+  <text x="590" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">シナリオ</text>
+
+  
+
+  <text x="830" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">テスト</text>
+
+  <rect x="20" y="64" width="180" height="84" rx="8" fill="#1d5fa8" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="40" y="95" font-size="15" font-weight="700" fill="#ffffff">M2 有効期限</text>
+  <text x="40" y="123" font-size="14" font-weight="400" fill="#ffffff">3か月 → 6か月に変更</text>
+
+  <rect x="260" y="64" width="180" height="84" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="280" y="95" font-size="15" font-weight="700" fill="#22201b">R2 有効期限を確か</text>
+  <text x="280" y="116" font-size="15" font-weight="700" fill="#22201b">める</text>
+
+  <rect x="500" y="64" width="180" height="84" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="520" y="95" font-size="15" font-weight="700" fill="#22201b">S3 境界: ちょうど6</text>
+  <text x="520" y="116" font-size="15" font-weight="700" fill="#22201b">か月</text>
+
+  <rect x="740" y="64" width="180" height="84" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="760" y="95" font-size="15" font-weight="700" fill="#22201b">T3 先に直す</text>
+
+  <rect x="260" y="172" width="180" height="104" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+  <text x="280" y="203" font-size="15" font-weight="700" fill="#22201b">R1 添付書類と照合</text>
+
+  <rect x="500" y="172" width="180" height="104" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+  <text x="520" y="203" font-size="15" font-weight="700" fill="#22201b">S1・S2</text>
+
+  <rect x="740" y="172" width="180" height="104" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+  <text x="760" y="203" font-size="15" font-weight="700" fill="#22201b">T1・T2 そのまま</text>
+  <text x="760" y="231" font-size="14" font-weight="400" fill="#22201b">全部流して、壊れてい</text>
+  <text x="760" y="250.6" font-size="14" font-weight="400" fill="#22201b">ないか確かめる</text>
+
+  <path d="M200,106 L260,106" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+
+  <path d="M440,106 L500,106" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+
+  <path d="M680,106 L740,106" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
+
+  <path d="M440,224 L500,224" fill="none" stroke="#6f6659" stroke-width="2" marker-end="url(#dsl-arrow-muted)"/>
+
+  <path d="M680,224 L740,224" fill="none" stroke="#6f6659" stroke-width="2" marker-end="url(#dsl-arrow-muted)"/>
+</svg>

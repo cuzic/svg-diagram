@@ -87,6 +87,7 @@ export const MEASURE_HANDLERS = {
     children(band, m);
   },
   grouprow: children,
+  areas: children,
   row: childrenOwn,
   grid: (band, m) => {
     if (band.canvas?.title) m.own({type: 'caption', text: band.canvas.title, align: 'left', role: 'title', bold: true, tone: 'text', mono: false});

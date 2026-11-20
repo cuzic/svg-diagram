@@ -1,11 +1,12 @@
 import {resolveLoopBacks} from '../loop-back.ts';
-import type {ConnectBand, GridBand, GridOpts, GroupBand, RowBand, RowOpts, SpacerBand, GroupRowBand} from '../types/containers.ts';
+import {parseAreaTemplate} from '../areas.ts';
+import type {AreasBand, AreasOpts, ConnectBand, GridBand, GridOpts, GroupBand, RowBand, RowOpts, SpacerBand, GroupRowBand} from '../types/containers.ts';
 import type {TextTone} from '../types/core.ts';
 import type {Band} from '../types/index.ts';
 import type {BoxBand, BoxTone} from '../types/text-bands.ts';
 import type {Declares, IdsOf, HandleOf, Refers, RefsOf, RowHandleOf} from '../strict.ts';
 import type {IconName} from '../icons.ts';
-import {assertNoReveal, assertOneOf, handleFor, withHandle} from './shared.ts';
+import {assertNoReveal, assertOneOf, cloneBand, handleFor, withHandle} from './shared.ts';
 import {box, group} from './text-bands.ts';
 
 export function spacer(h: number, opts?: {reveal?: number}): SpacerBand {
@@ -29,6 +30,17 @@ function assertBoxChildren(what: 'row' | 'grid', children: readonly {type?: stri
     if (c?.type !== 'box') throw new Error(`${what}(): child ${i} is ${c?.type === undefined ? 'not a band' : `a ${c.type}()`}, but ${what}() takes box() children only. Stack groups vertically with d.add(group(...), group(...)) instead of placing them in a ${what}`);
   });
 }
+// caption / stat / banner / table ... in a row() or an areas() cell: each goes into a frameless group (the same as writing
+// group([x], {frame: false}) by hand). Boxes and groups are placed as they are; the bands that place others (row, grid, areas) and
+// the ones that are not content (connect, spacer) are not wrapped (row() and areas() refuse them).
+const UNWRAPPED: readonly string[] = ['box', 'group', 'connect', 'spacer', 'row', 'grouprow', 'grid', 'areas'];
+function wrappable(c: Band): boolean { return c?.type !== undefined && !UNWRAPPED.includes(c.type); }
+// the row placement (flex / width / span / col) moves to the wrapper, where the row reads it
+function wrap(c: Band): GroupBand {
+  const {flex, width, span, col} = c as {flex?: number; width?: number; span?: number; col?: number};
+  const place = Object.fromEntries(Object.entries({flex, width, span, col}).filter(([, v]) => v !== undefined));
+  return group(c, {frame: false, ...place});
+}
 // children: box() descriptors. justify: 'stretch' (default — fill the row,
 // each child's share set by its `flex`, default 1) | 'center' | 'start'
 // (fixed width per child, via each child's `width` or row-level `width`).
@@ -45,19 +57,13 @@ function assertBoxChildren(what: 'row' | 'grid', children: readonly {type?: stri
 // in a row cannot be combined with `arrows: 'between'`.
 export function row<C extends BoxBand, const Id extends string = never>(children: C[], opts?: RowOpts & {id?: Id}): RowBand & Declares<IdsOf<C> | Id> & RowHandleOf<Id>;
 export function row<C extends BoxBand | GroupBand, const Id extends string = never>(children: C[], opts?: RowOpts & {id?: Id}): GroupRowBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & RowHandleOf<Id>;
-export function row<C extends BoxBand | GroupBand | Exclude<Band, ConnectBand | SpacerBand | RowBand | GroupRowBand | GridBand>, const Id extends string = never>(children: C[], opts?: RowOpts & {id?: Id}): GroupRowBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & RowHandleOf<Id>;
+export function row<C extends BoxBand | GroupBand | Exclude<Band, ConnectBand | SpacerBand | RowBand | GroupRowBand | GridBand | AreasBand>, const Id extends string = never>(children: C[], opts?: RowOpts & {id?: Id}): GroupRowBand & Declares<IdsOf<C> | Id> & Refers<RefsOf<C>> & RowHandleOf<Id>;
 export function row(rawChildren: Band[], opts: RowOpts = {}): RowBand | GroupRowBand {
   assertOneOf(opts.arrows, ['between', 'none'], 'row() arrows');
   assertOneOf(opts.justify, ['stretch', 'center', 'start'], 'row() justify');
   assertNoReveal(opts, 'row()'); // a row is shown with its children: give each child its own reveal
-  // caption / stat / banner / table ... in a row: each goes into a frameless group (the same as writing group([x], {frame: false}) by hand)
-  const wrappable = (c: Band) => c?.type !== undefined && !['box', 'group', 'connect', 'spacer', 'row', 'grouprow', 'grid'].includes(c.type);
-  // the row placement (flex / width / span / col) moves to the wrapper, where the row reads it
-  const wrap = (c: Band): GroupBand => {
-    const {flex, width, span, col} = c as {flex?: number; width?: number; span?: number; col?: number};
-    const place = Object.fromEntries(Object.entries({flex, width, span, col}).filter(([, v]) => v !== undefined));
-    return group(c, {frame: false, ...place});
-  };
+  const nested = rawChildren.findIndex(c => c?.type === 'areas');
+  if (nested >= 0) throw new Error(`row(): child ${nested} is an areas() — a row's child takes one width in one row; put the areas() in a group: row([group([areas(...)]), ...])`);
   const children = rawChildren.map(c => wrappable(c) ? wrap(c) : c) as (BoxBand | GroupBand)[];
   const hasGroup = children.some(c => c?.type === 'group');
   if (hasGroup) {
@@ -150,4 +156,68 @@ export function grid(children: BoxBand[], opts: GridOpts): GridBand {
   assertNoReveal(opts, 'grid()');
   assertBoxChildren('grid', children);
   return {type: 'grid', children, cols: opts.cols, gap: opts.gap ?? 16};
+}
+
+/** What an areas() cell holds: a box, a group, or one band that a row would wrap (caption, table, stat ...). */
+export type AreaContent = BoxBand | GroupBand | Exclude<Band, ConnectBand | SpacerBand | RowBand | GroupRowBand | GridBand | AreasBand>;
+const AREAS_OPTS: readonly string[] = ['cols', 'gap', 'rowGap', 'id', 'reveal', 'until'];
+const NOT_IN_AREA: Record<string, string> = {
+  row: 'put the row in a group', grouprow: 'put the row in a group', grid: 'put the grid in a group', areas: 'put the inner areas() in a group',
+  connect: 'write connect() after the areas(), not in a cell', spacer: 'leave the cell empty with . instead',
+};
+const ceil4 = (v: number): number => Math.ceil(v / 4 - 1e-9) * 4;
+const gapOpt = (v: unknown, what: string): number | undefined => {
+  if (v === undefined) return undefined;
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) throw new Error(`areas({${what}}) must be a number >= 0 (got ${JSON.stringify(v)})`);
+  return ceil4(v);
+};
+/**
+ * Places bands by the named areas of a template, like CSS grid-template-areas (ADR 0069 D3):
+ *
+ *     areas(`
+ *       head  memo  convs
+ *       .     note  note
+ *     `, {head: group([...], {title}), memo: box({...}), convs: group([...]), note: caption('...')}, {cols: [4, 3, 4], gap: 64})
+ *
+ * One row per line, cells split by spaces, `.` an empty cell; every name covers a rectangle and is the id of what it holds, so
+ * `connect('memo:right', 'c1:left')` works as written. Columns share the width by `cols` (default equal); a row is as tall as what
+ * its cells need, a cell spanning rows as tall as those rows, and boxes / group frames are stretched to their cell (a framed group
+ * centres its content, as in a row). The template places and sizes the cells, so their content takes no span / col / flex / width.
+ */
+export function areas<const C extends Record<string, AreaContent>, const Id extends string = never>(template: string | readonly string[], cells: C, opts?: AreasOpts & {id?: Id}): AreasBand & Declares<Extract<keyof C, string> | IdsOf<C[keyof C]> | Id> & Refers<RefsOf<C[keyof C]>> & HandleOf<Id>;
+export function areas(template: string | readonly string[], cells: Record<string, Band>, opts: AreasOpts = {}): AreasBand {
+  if (!opts || typeof opts !== 'object' || Array.isArray(opts)) throw new Error('areas(template, cells, opts): opts is an object');
+  for (const k of Object.keys(opts)) if (!AREAS_OPTS.includes(k)) throw new Error(`areas(): unknown option "${k}" (options: cols, gap, rowGap, id)`);
+  assertNoReveal(opts, 'areas()'); // shown with its cells: give each cell's content its own reveal
+  const t = parseAreaTemplate(template);
+  if (!cells || typeof cells !== 'object' || Array.isArray(cells)) throw new Error('areas(template, cells): cells is an object of area name -> box / group / band');
+  const keys = Object.keys(cells).filter(k => cells[k] !== undefined);
+  const missing = t.names.filter(n => !keys.includes(n)), extra = keys.filter(k => !t.names.includes(k));
+  if (missing.length || extra.length) throw new Error(`areas(): the template and the cells do not name the same areas${missing.length ? ` — no cell for ${missing.map(n => `"${n}"`).join(', ')}` : ''}${extra.length ? ` — ${extra.map(n => `"${n}"`).join(', ')} not in the template` : ''} (template: ${t.names.join(', ')})`);
+  if (opts.cols !== undefined) {
+    if (!Array.isArray(opts.cols) || opts.cols.length !== t.cols) throw new Error(`areas({cols}): one width ratio per column — the template has ${t.cols} columns (got ${JSON.stringify(opts.cols)})`);
+    if (opts.cols.some(v => typeof v !== 'number' || !Number.isFinite(v) || v <= 0)) throw new Error(`areas({cols}): every ratio is a number > 0 (got ${JSON.stringify(opts.cols)})`);
+  }
+  if (opts.id !== undefined && (typeof opts.id !== 'string' || !opts.id)) throw new Error(`areas({id}) is a non-empty string (got ${JSON.stringify(opts.id)})`);
+  const gap = gapOpt(opts.gap, 'gap') ?? 16, rowGap = gapOpt(opts.rowGap, 'rowGap') ?? gap;
+  const children = t.names.map((name): BoxBand | GroupBand => {
+    const c = cells[name] as Band & {id?: string; span?: number; col?: number; flex?: number; width?: number};
+    if (!c || typeof c !== 'object' || typeof c.type !== 'string') throw new Error(`areas(): area "${name}" is not a band (got ${JSON.stringify(c)})`);
+    const why = NOT_IN_AREA[c.type];
+    if (why) throw new Error(`areas(): area "${name}" is a ${c.type}() — an area holds a box, a group or one band such as a caption or a table: ${why}`);
+    for (const k of ['span', 'col', 'flex', 'width'] as const) if (c[k] !== undefined) throw new Error(`areas(): area "${name}" has ${k}: ${c[k]} — the template places and sizes an area (its columns and the cols ratios): drop ${k}`);
+    if (c.id !== undefined && c.id !== name) throw new Error(`areas(): area "${name}" holds a ${c.type}() with id "${c.id}" — the area's name is its id: drop the id (or name the area "${c.id}")`);
+    if (wrappable(c)) {
+      // a band with the name as its own id keeps it (it is the anchor); otherwise the frameless wrapper takes the name
+      const g = wrap(c);
+      return c.id === name ? g : withHandle(Object.assign(g, {id: name}), name);
+    }
+    const copy = Object.assign(cloneBand(c as BoxBand | GroupBand), {id: name}); // a copy, so the handles of box({id}) (.right ...) are kept
+    return Object.getOwnPropertyDescriptor(copy, 'right') ? copy : withHandle(copy, name);
+  });
+  const band: AreasBand = {
+    type: 'areas', ...(opts.id ? {id: opts.id} : {}), children, place: t.names.map(n => t.place.get(n) as AreasBand['place'][number]),
+    colW: opts.cols ? [...opts.cols] : new Array<number>(t.cols).fill(1), rowW: new Array<number>(t.rows).fill(1), gap, rowGap,
+  };
+  return withHandle(band, opts.id);
 }

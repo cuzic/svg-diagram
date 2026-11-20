@@ -22,7 +22,7 @@ export type Predicate = (band: Band, path: readonly Band[]) => boolean;
 
 const SHOWN = ['reveal', 'until'] as const;
 // The bands whose constructor calls assertNoReveal: they are shown from the start (a row's children carry their own reveal). The rest take one.
-const NO_REVEAL: readonly string[] = ['spacer', 'row', 'grouprow', 'grid', 'legend', 'raw', 'wireframe', 'screens', 'people', 'dots', 'math', 'pyramid', 'curve'];
+const NO_REVEAL: readonly string[] = ['spacer', 'row', 'grouprow', 'grid', 'areas', 'legend', 'raw', 'wireframe', 'screens', 'people', 'dots', 'math', 'pyramid', 'curve'];
 const KEYS: Record<string, readonly string[]> = {
   box: ['tone', 'dashed', 'titleTone', 'bodyTone', 'noteTone', 'iconTone', 'align', ...SHOWN],
   group: ['tone', 'dashed', 'titleTone', ...SHOWN],

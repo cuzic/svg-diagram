@@ -8,6 +8,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 
 const BUDGET: Record<string, Record<string, number>> = {
+  'areas-trace': {'layout-unused-space': 3}, // the short boxes in a row of taller ones
   'bracket-callout': {'layout-sibling-size': 1},
   'canvas-bmc': {'layout-sibling-size': 1, 'layout-unused-space': 3},
   'canvas-empathy': {'layout-unused-space': 1},
