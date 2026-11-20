@@ -10,7 +10,7 @@
 // a longer description (Google developer style guide).
 
 import {midWordBreaksIn, missingGlyphs, sourceText} from './text-rules.ts';
-import {labelCover, hidesArrow} from './connect-rules.ts';
+import {ceil4, connectRoom, labelCover, hidesArrow} from './connect-rules.ts';
 import {axisMismatches} from './axis-rules.ts';
 import {qualify, scopeOf} from './anchor-scope.ts';
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
@@ -851,8 +851,12 @@ function glyphRules(d: LintTarget, out: Finding[]): void {
   if (glyphs.length) out.push({rule: 'glyph-missing', severity: 'warn', message: `絵文字として扱われない絵記号がある（${glyphs.map(g => `「${g}」`).join('')}）。通常の文字のフォントで描かれ、字形が無いと空白になる。直し方: icon.emoji() か SVG アイコン（box({icon})）を使う、または ✓ ✗ などの字に置き換える`});
 }
 function labelCoverRules(d: LintTarget, out: Finding[]): void {
-  const hits = (d.connects ?? []).flatMap(c => { const cover = c.label ? labelCover(c) : undefined; return cover && hidesArrow(cover) ? [`「${c.label}」(${c.fromId}→${c.toId}、見える部分 ${Math.round(cover.visible)}px)`] : []; });
-  if (hits.length) out.push({rule: 'connect-label-covers-arrow', severity: 'warn', message: `矢印のラベルが矢印のほとんどを覆っていて、向きが読めない: ${hits.slice(0, 4).join('、')}${hits.length > 4 ? ` ほか ${hits.length - 4} 件` : ''}。直し方: 箱の間隔を広げる、ラベルを短くする、ラベルを箱の中に書く`});
+  // the room each hidden label needs (labelRoom(), the basis the layout widens gaps by: ADR 0069 D1), on straight connects
+  const hidden = (d.connects ?? []).filter(c => { const cover = c.label ? labelCover(c) : undefined; return !!cover && hidesArrow(cover); });
+  const hits = hidden.map(c => { const cover = must(labelCover(c)), need = connectRoom(c); return `「${c.label}」(${c.fromId}→${c.toId}、見える部分 ${Math.round(cover.visible)}px${need !== undefined && Number.isFinite(need) ? `、要る間隔 ${ceil4(need)}px` : ''})`; });
+  const needs = hidden.map(c => connectRoom(c)).filter((n): n is number => n !== undefined && Number.isFinite(n));
+  const widen = needs.length === 1 && hidden.length === 1 ? `箱の間隔を ${ceil4(must(needs[0]))}px 以上に広げる` : needs.length ? '箱の間隔を、それぞれの要る間隔以上に広げる' : '箱の間隔を広げる';
+  if (hits.length) out.push({rule: 'connect-label-covers-arrow', severity: 'warn', message: `矢印のラベルが矢印のほとんどを覆っていて、向きが読めない: ${hits.slice(0, 4).join('、')}${hits.length > 4 ? ` ほか ${hits.length - 4} 件` : ''}。直し方: ${widen}、ラベルを短くする、ラベルを箱の中に書く`});
 }
 function axisRules(d: LintTarget, out: Finding[]): void {
   const found = axisMismatches(d.bands);
