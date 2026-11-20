@@ -59,6 +59,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 | `connect(a.right, b.left, {label, route})` | 矢印。`a` は `const a = box({id: 'a'})` のハンドル（id を打ち直さない） |
 | `branch(a.right, [{to: 'b:left', label}, …])` | 1 つから複数へ扇形に出る矢印（既定は `route: 'elbow'`）。`connect` を並べて書かない |
 | `connect(a.right, 'c1:left', {via: {to: 'group'}})` | group の中の箱への矢印を、group の枠で止める（`references/freeform.md`「枠で止める: via」） |
+| spec の `board`（deck.json・MCP の JSON） | JSON で自由な図を描くなら `board`。型のある部品が合えばそちらを先に。`areas` と `nodes`（`kind`: box / group / caption）と `links`（辺は位置から決まる。`via` も書ける）。README「JSON で自由な図を描く」 |
 | `steps([{title, body, icon}], {numbered: true, highlight: 2})` | 日付のない順序だけの出来事。番号バッジと矢印つき |
 | `table(columns, rows, {title})` / `cell(text, {mark})` | 見出し付き表。`mark: 'ok' / 'mid' / 'ng' / 'best'` で ○△×◎ |
 | `banner({text, tone})` | 帯（章の見出しや結論の 1 行） |

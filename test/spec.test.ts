@@ -519,10 +519,14 @@ test('the spec entry reaches no node: module, directly or through what it import
 });
 
 // A new builder must be decided on: add it to lib/spec.ts, or say here that specs do not have it yet.
-const IN_NO_SPEC_YET = new Set(['analyzeCausalLoops', 'analyzeCriticalPath', 'areas', 'arrowDiagram', 'banner', 'barplot', 'box', 'bracket', 'branch', 'callout', 'canvas', 'caption', 'catplot', 'cell', 'clustermap', 'connect', 'curve', 'diagram', 'displot', 'dots', 'ecdfplot', 'emblem', 'facet', 'fillScaleLimit', 'grid', 'group', 'hero', 'hist2d', 'histplot', 'iconRow', 'isIsNotTests', 'isType', 'jointplot', 'kde2d', 'kdeplot', 'legend', 'node', 'pairplot', 'people', 'plane', 'pointplot', 'raw', 'regplot', 'residplot', 'rewrite', 'row', 'rugplot', 'screens', 'spacer', 'stat', 'stateMatrix', 'stateRow', 'stripplot', 'styled', 'swarmplot', 'tally', 'transitionUnits', 'violinplot', 'when', 'wireframe', 'within', 'wordart', 'xbarR']);
+const IN_NO_SPEC_YET = new Set(['analyzeCausalLoops', 'analyzeCriticalPath', 'arrowDiagram', 'banner', 'barplot', 'bracket', 'branch', 'callout', 'canvas', 'catplot', 'cell', 'clustermap', 'curve', 'diagram', 'displot', 'dots', 'ecdfplot', 'emblem', 'facet', 'fillScaleLimit', 'grid', 'hero', 'hist2d', 'histplot', 'iconRow', 'isIsNotTests', 'isType', 'jointplot', 'kde2d', 'kdeplot', 'legend', 'node', 'pairplot', 'people', 'plane', 'pointplot', 'raw', 'regplot', 'residplot', 'rewrite', 'row', 'rugplot', 'screens', 'spacer', 'stat', 'stateMatrix', 'stateRow', 'stripplot', 'styled', 'swarmplot', 'tally', 'transitionUnits', 'violinplot', 'when', 'wireframe', 'within', 'wordart', 'xbarR']);
+/** Builders a spec reaches through a part of another name: board's nodes and links (ADR 0069 D4). */
+const THROUGH_A_PART: Readonly<Record<string, string>> = {areas: 'board', box: 'board', group: 'board', caption: 'board', connect: 'board'};
 
 test('every builder is either in the spec or listed as not in it yet', () => {
-  const inSpec = new Set(partCatalog().map(p => p.type));
+  const types = new Set(partCatalog().map(p => p.type));
+  for (const [b, part] of Object.entries(THROUGH_A_PART)) assert.ok(types.has(part), `${b} is reached through ${part}`);
+  const inSpec = new Set([...types, ...Object.keys(THROUGH_A_PART)]);
   const builders = Object.entries(pure).filter(([, v]) => typeof v === 'function').map(([k]) => k);
   assert.deepEqual(builders.filter(b => !inSpec.has(b) && !IN_NO_SPEC_YET.has(b)), [], 'decide these in lib/spec.ts or IN_NO_SPEC_YET');
   assert.deepEqual([...inSpec].filter(t => IN_NO_SPEC_YET.has(t)), []);

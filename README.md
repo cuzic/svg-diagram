@@ -89,6 +89,23 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
 **JSON で図を渡す(`svg-diagram/spec`)**: `.ts` のソースはコードとして実行されるので、外部から図を受け取るサーバーには渡せない。`validateSpec()` / `specToDiagram()` は JSON を検査して、決まった部品(今は `flowchart` / `swimlane` / `sequence`)だけを DSL に変換する。`image()`・`math()`・`slide` / `fill`・`icon` は持たない。間違いは `parts[0].nodes[2].label` のように場所つきで返る。`partCatalog()` は部品ごとの説明・スキーマ・例を返す。図は既定で文書向け(幅 940px、本文の列で等倍に見える大きさ)。スライドや画面に等倍で置く図は `"canvas": {"width": 1920, "height": 1080, "minText": 20, "fit": "content"}` と書く(`diagram({canvas})` と同じ。幅 1280〜3840・高さ 360〜2160・`minText` 14〜24、省略時は 1280×720・24px。文字・箱・間隔とグラフの目盛りなどの寸法は `minText / 14` 倍になるので、広いキャンバスに多くを載せるには `minText` を小さくする。`minText` が 24 を超えると、文字に合わせて大きくならない配置に文字が収まらない部品があるので、spec では断る。ADR 0057)。デッキ(`deck-spec`)の図は、スライドが大きさを決めるので `canvas` を書けない。Node では `svg-diagram/render` の `renderSpec(json)` が、ファイルを書かずに SVG と検査結果を返す(`lintRendering()`、`svgToPng()` も同じ入口にある)。
 
+**JSON で自由な図を描く(`board`)**: 型のある部品に合わない図(数個の箱と枠と、その間の矢印)は、spec の `board` で書く(ADR 0069 D4)。TS の `areas` + `group` / `box` / `caption` + `connect({via})` をそのまま組み立てるので、同じ図は TS と JSON で同じ SVG になる。型のある部品が合うなら、そちらを先に使う(比べるなら `compare` / `versus`、手順なら `flowchart` / `steps`)。
+
+```json
+{"type": "board", "areas": ["head memo convs", ". note note"], "cols": [4, 3, 4], "gap": 64,
+ "nodes": [
+   {"id": "head", "kind": "group", "title": "担当者の頭の中", "children": [{"title": "提出先の手引き"}, {"title": "社内ルール"}]},
+   {"id": "memo", "title": "決定メモ", "body": "1枚に書き出す"},
+   {"id": "convs", "kind": "group", "title": "同じ前提で始まる", "children": [{"id": "c1", "title": "今の会話"}, {"id": "c2", "title": "新しい会話"}]},
+   {"id": "note", "kind": "caption", "text": "前提は 1 か所にだけ書く"}],
+ "links": [{"from": "head", "to": "memo"}, {"from": "memo", "to": "c1", "via": "to"}]}
+```
+
+- `nodes` は `kind` で決まる平らなオブジェクト。`box`(既定。`title`・`body`・`lines`・`tone`・`stamp`)、`group`(`title`・`tone`・`dashed`・`valign`・`children`、中を名前の領域で置くなら `areas`・`cols`・`gap`・`rowGap`)、`caption`(`text`・`bold`・`tone`)。ほかの種類の項目を書くと `parts[0].nodes[1].text` のように場所つきで断る。
+- `areas` は `areas()` のテンプレートを 1 行 1 文字列で書いたもの。最上位の node の `id` が領域の名前になる(ASCII の英字で始まる英数字・`_`・`-`)。省略すると、書いた順に 1 行に並べる(13 個以上なら `areas` が要る。文書の幅では、短い箱でも 1 行に並ぶのは 8 個ほどで、領域が 96px より細くなると「`areas` で行を分ける」と知らせる)。`areas` のある group の children も `id` が要る。`areas` のない group は children を縦に積む。group の中の group は 1 段まで(board → group → group → box)。
+- `links` は同じ board の box か group だけをつなぐ(caption とほかの部品の id は誤り)。`fromSide` / `toSide` を省くと、テンプレートの位置から辺を決める: 両端を含むいちばん内側の容れ物で、左右に並ぶなら右 → 左、上下に並ぶなら下 → 上、縦に積む group では先に書いた方が上。斜めに並ぶときと、group とその中の箱をつなぐときは、辺を書く(書かないと `links[i].fromSide` で知らせる)。`via`(`from` / `to` / `both`)は `connect({via})` と同じく、端を group の枠で止める。枠で止まる端に書いた辺が相手を向いていなければ、配置の前に `links[i].fromSide` で知らせる。同じ link を 2 度書くと誤り。配置で出る `connect(a:… -> b:…)` の誤りは、その link(`parts[0].links[i]`)の場所で返る。
+- 上限は node 24(入れ子を含む)、link 40。デッキ(deck.json)の図も spec なので、`board` を書ける。
+
 Node と Chromium だけの環境(ChatGPT の Code Interpreter など)では、`.ts` をそのまま `node` で動かし、Chromium は playwright を介さず直接動かし、文字幅と PNG は Chromium で測って描く。手順と環境変数は [docs/chatgpt-code-interpreter.md](docs/chatgpt-code-interpreter.md)。
 
 ## Web ページで使う(`svg-diagram/browser`)
