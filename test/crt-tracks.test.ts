@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {laneStepOf, layoutWithLanes, routeLayered} from '../lib/layered-route.ts';
 import {parallelRuns, scoreOf} from '../lib/polyline-metrics.ts';
 import type {Pt} from '../lib/graph-layout.ts';
-import {checkDiagram, closeMeasurer} from '../lib/dsl.ts';
+import {causeTree, checkDiagram, closeMeasurer, diagram} from '../lib/dsl.ts';
 import type {Diagram} from '../lib/dsl.ts';
 import type {LaidOutCause} from '../lib/types/diagrams.ts';
 import {CRT_REPORT_LINKS, crtReportShape} from './fixtures/crt-report-shape.ts';
@@ -67,7 +67,8 @@ test('with tracks: a long arrow that turned on the line of a direct arrow\'s lan
   const l = shaped([['n0', 93], ['n1', 91], ['n2', 91], ['n3', 67], ['n4', 63], ['n5', 88], ['n6', 93]], [['n0', 'n2'], ['n0', 'n3'], ['n0', 'n5'], ['n0', 'n6'], ['n1', 'n2'], ['n1', 'n6'], ['n2', 'n5'], ['n3', 'n5'], ['n5', 'n6']]);
   const old = scoreOf([...routeOf(l, false).values()]), now = scoreOf([...routeOf(l, true).values()]);
   assert.ok(now.crossings <= old.crossings, `${old.crossings} -> ${now.crossings}`);
-  assert.equal(parallelRuns([...routeOf(l, true).values()], 4).length <= parallelRuns([...routeOf(l, false).values()], 4).length, true);
+  const before = parallelRuns([...routeOf(l, false).values()], 4).length, after = parallelRuns([...routeOf(l, true).values()], 4).length;
+  assert.ok(after <= before, `pairs on one line ${before} -> ${after}`);
 });
 
 test('with tracks: no random layered graph gets more crossings or bends than with its turns half-way (400 graphs, fixed seeds)', () => {
@@ -83,6 +84,46 @@ test('with tracks: no random layered graph gets more crossings or bends than wit
     const l = shaped(widths, es), old = scoreOf([...routeOf(l, false).values()]), now = scoreOf([...routeOf(l, true).values()]);
     assert.ok(now.crossings <= old.crossings && now.bends <= old.bends, `seed ${s}: ${JSON.stringify(old)} -> ${JSON.stringify(now)}`);
   }
+});
+
+/** The pairs of arrows with runs on one line (under 4px apart), once per pair: what the tracks may trade for a crossing (ADR 0070 D4). */
+const onOneLine = (rs: Pt[][]): number => new Set(parallelRuns(rs, 4).map(p => `${p.a}:${p.b}`)).size;
+/** The review's layered graphs (round 2): 3 to 5 layers of 2 to 4 boxes 40 to 80 high, edges between any two layers. */
+const reviewGraphs = (count: number) => {
+  let seed = 12345;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  return Array.from({length: count}, () => {
+    const L = 3 + Math.floor(rnd() * 3), per = 2 + Math.floor(rnd() * 3), boxes: {id: string; size: {w: number; h: number}}[] = [], layer: string[][] = [];
+    for (let l = 0; l < L; l++) { layer.push([]); for (let k = 0; k < per; k++) { const id = `n${l}_${k}`; boxes.push({id, size: {w: 60 + Math.floor(rnd() * 60), h: 40 + Math.floor(rnd() * 40)}}); layer[l]!.push(id); } }
+    const es: {from: string; to: string}[] = [], seen = new Set<string>();
+    const m = Math.floor(boxes.length * (1 + rnd()));
+    for (let k = 0; k < m; k++) {
+      const a = Math.floor(rnd() * (L - 1)), b = a + 1 + Math.floor(rnd() * (L - 1 - a)), from = layer[a]![Math.floor(rnd() * per)]!, to = layer[b]![Math.floor(rnd() * per)]!;
+      if (seen.has(from + to)) continue;
+      seen.add(from + to); es.push({from, to});
+    }
+    return layoutWithLanes(boxes, es, {dir: 'right', gap: 24, levelGap: 64});
+  });
+};
+
+test('the review\'s graphs #133 and #320: no more crossings with tracks (the fixed / spread routes are chosen by the placing\'s own measure)', () => {
+  const graphs = reviewGraphs(321);
+  for (const g of [133, 320]) {
+    const old = scoreOf([...routeOf(graphs[g]!, false).values()]), now = scoreOf([...routeOf(graphs[g]!, true).values()]);
+    assert.ok(now.crossings <= old.crossings && now.bends <= old.bends, `#${g}: ${JSON.stringify(old)} -> ${JSON.stringify(now)}`);
+  }
+});
+
+test('the review\'s graphs (400, boxes 40 to 80 high): crossings + pairs on one line never grow; a crossing grows only where a pair on one line went (#35), bends only where crossings went', () => {
+  const traded: number[] = [];
+  reviewGraphs(400).forEach((l, g) => {
+    const old = [...routeOf(l, false).values()], now = [...routeOf(l, true).values()];
+    const a = scoreOf(old), b = scoreOf(now), la = onOneLine(old), lb = onOneLine(now);
+    assert.ok(b.crossings + lb <= a.crossings + la, `#${g}: ${a.crossings} + ${la} -> ${b.crossings} + ${lb}`);
+    if (b.crossings > a.crossings) { assert.ok(lb < la, `#${g}: a crossing more with no pair on one line less`); traded.push(g); }
+    if (b.bends > a.bends) assert.ok(b.crossings < a.crossings, `#${g}: bends ${a.bends} -> ${b.bends} with no crossing less`);
+  });
+  assert.deepEqual(traded, [35], 'the one trade of pairs on one line for crossings (44 -> 46, 4 pairs on one line fewer)');
 });
 
 const laid = async (d: Diagram): Promise<{t: LaidOutCause; parallel: number; crossing: number}> => {
@@ -111,4 +152,14 @@ test("the reported CRT's shape at layer 'asap': no two arrows on one line any mo
   assert.equal(parallel, 0);
   assert.equal(crossing, 0);
   assert.deepEqual(t.loose, []);
+});
+
+test('a random cause tree of the review (#80): the 0px overlap of two long arrows goes (traded for two bends), no crossing of an AND, no edge-parallel', async () => {
+  const spec: [string, number][] = [['n0', 13], ['n1', 6], ['n2', 10], ['n3', 6], ['n4', 11], ['n5', 8], ['n6', 8], ['n7', 8], ['n8', 6], ['n9', 10], ['n10', 16]];
+  const links = ([['n0', 'n1'], ['n0', 'n2'], ['n2', 'n3'], ['n1', 'n4'], ['n1', 'n5'], ['n0', 'n6'], ['n3', 'n7'], ['n2', 'n8'], ['n2', 'n9'], ['n7', 'n10'], ['n8', 'n9'], ['n6', 'n8'], ['n6', 'n7']] as const).map(([from, to]) => ({from, to}));
+  const nodes = spec.map(([id, n]) => ({id, label: `${id} ${'あ'.repeat(n - id.length - 1)}`}));
+  const {t, parallel, crossing} = await laid(diagram({theme: 'blue', width: 1800}).add(causeTree(nodes, links, {dir: 'up'})));
+  assert.equal(onOneLine(t.edges.map(e => e.points)), 0, 'before the tracks n2 -> n9 and n6 -> n7 ran 47px on one line');
+  assert.equal(parallel, 0);
+  assert.equal(crossing, 0);
 });
