@@ -287,7 +287,6 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     });
     return {cross, par};
   };
-  const callMemo = new Map<string, (number | undefined)[][]>(); // the turns placed for a whole build's routes
   const trackMemo = new Map<string, number[] | null>(); // a cluster's place, by everything it was chosen from (build() runs again and again)
   /**
    * ADR 0070 D4 (U4a, `tracks`): the turns of the long arrows that no one placed (they turned half-way across their gap, so long arrows
@@ -304,13 +303,6 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
    * stays half-way, so a figure with no such turns is unchanged; a cluster with no place (a gap too short: U4c sizes the gaps) too.
    */
   const placeTracks = (pending: Pending[], out: Map<number, Pt[]>): void => {
-    // the same routes as an earlier build (build() runs again for every trial): the same turns
-    let hk = 2166136261;
-    const mix = (v: number): void => { hk = Math.imul(hk ^ Math.round(v * 100), 16777619) >>> 0; };
-    for (const r of out.values()) { mix(r.length); for (const p of r) { mix(p.x); mix(p.y); } }
-    for (const o of pending) { mix(o.i); for (const p of o.pts) { mix(p.x); mix(p.y); } for (const t of o.turns) mix(t ?? -1e9); }
-    const callKey = `${hk}:${out.size}:${pending.length}`, done = callMemo.get(callKey);
-    if (done) { pending.forEach((o, k) => { o.turns.length = 0; o.turns.push(...must(done[k])); }); return; }
     type Run = {x: number; lo: number; hi: number};
     type Ask = {own: Pending; p: Pt; q: Pt; lo: number; hi: number; min: number; max: number; set: (x: number | undefined) => void};
     const fixed = new Map<number, Run[]>(), asks = new Map<number, Ask[]>();
@@ -434,7 +426,6 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
         for (const o of mine) { const r = elbows(o.pts, o.turns); routeNow.set(o, r); signs.set(o, signOf(r)); }
       }
     }
-    callMemo.set(callKey, pending.map(o => [...o.turns]));
   };
   const build = (): Map<number, Pt[]> => {
     const out = new Map<number, Pt[]>();
