@@ -1,7 +1,8 @@
 // node --test test/   — areas(): bands placed by the named areas of a template, like CSS grid-template-areas (ADR 0069 D3).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {areas, box, caption, checkDiagram, closeMeasurer, connect, diagram, group, renderDiagram, rewrite, row, spacer, stat, table} from '../lib/dsl.ts';
+import path from 'node:path';
+import {areas, box, caption, checkDiagram, closeMeasurer, connect, diagram, group, image, renderDiagram, rewrite, row, spacer, stat, table} from '../lib/dsl.ts';
 import {areasColumns, parseAreaTemplate} from '../lib/areas.ts';
 import {canvasRowHeights, trackRowYs} from '../lib/canvas.ts';
 import {fontsOf, planSlide} from '../lib/pptx/slide.ts';
@@ -302,4 +303,34 @@ test('areas(): an area that would be squeezed under 70% keeps the declared gap, 
   const {laidOut, verdict} = await checkDiagram(d);
   assert.equal(boxOf(laidOut, 'b').x - (boxOf(laidOut, 'a').x + boxOf(laidOut, 'a').w), 8);
   assert.ok(verdict.problems.some(p => /\dpx or more/.test(p)) || verdict.warnings.some(w => /\d+ ?px/.test(w) && w.includes('connect-label-covers-arrow')), [...verdict.problems, ...verdict.warnings].join('\n'));
+});
+
+test('areas(): a node below is joined at its icon (inside the box): the row gap leaves room for the label above the box', async () => {
+  const node = (id: string) => box({title: id, icon: 'user', iconAt: 'top'});
+  for (const label of ['とても長いラベルの例です', '確認']) for (const labelAt of [0.5, 0.3]) for (const chip of [false, true]) {
+    await assertClean(diagram({theme: 'blue'}).add(areas(['a', 'b'], {a: node('a'), b: node('b')}, {rowGap: 8}), connect('a:bottom', 'b:top', {label, labelAt, chip})), `"${label}" @${labelAt} chip ${chip}`);
+  }
+});
+
+test('areas(): with filled rows between two areas (other columns), the row gap is not widened (their heights only come with layout)', async () => {
+  const fig = (...extra: Band[]) => diagram({theme: 'blue'}).add(areas(['a x', '. y', 'b z'], {a: box({title: 'a'}), b: box({title: 'b'}), x: box({title: 'x'}), y: box({title: 'y', body: '本文 '.repeat(40)}), z: box({title: 'z'})}, {rowGap: 8}), ...extra);
+  const bare = await checkDiagram(fig());
+  const labelled = await assertClean(fig(connect('a:bottom', 'b:top', {label: 'とても長いラベルの例です'})), 'the tall row between leaves the room');
+  assert.equal(boxOf(labelled, 'b').y, boxOf(bare.laidOut, 'b').y, 'nothing moves');
+});
+
+test('areas(): two labelled pairs, one across a spacer column: every pair fits at the final gap', async () => {
+  for (const width of [900, 1000, 1100, 1200]) {
+    const d = diagram({theme: 'blue', width}).add(areas(['a b . c', 'd . . e'], Object.fromEntries('abcde'.split('').map(n => [n, box({title: n})])), {cols: [3, 3, 1, 3], gap: 8}),
+      connect('a:right', 'b:left', {label: '確認する', chip: true}), connect('d:right', 'e:left', {label: 'とても長いラベルの例です。さらに長くする', chip: true}));
+    await assertClean(d, `width ${width}`);
+  }
+});
+
+test('areas(): an areas() among the parts over a picture is not widened (the picture does not grow)', async () => {
+  const kitchen = path.resolve(import.meta.dirname, '../examples/assets/kitchen.png');
+  const d = diagram({theme: 'blue'}).add(image(kitchen, {alt: 'x', width: 400, pad: 16, over: [areas(['a', 'b'], {a: box({title: '上'}), b: box({title: '下'})}, {rowGap: 8})]}), connect('a:bottom', 'b:top', {label: '確認', chip: true}));
+  const {laidOut, verdict} = await checkDiagram(d);
+  assert.equal(boxOf(laidOut, 'b').y - (boxOf(laidOut, 'a').y + boxOf(laidOut, 'a').h), 8, 'the declared row gap');
+  assert.ok(verdict.problems.some(p => p.includes('overlaps its own end')), verdict.problems.join('\n'));
 });

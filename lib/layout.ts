@@ -109,6 +109,16 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
   const isBox = (b: Band, id: string): boolean => b.type === 'box' && b.id === id;
   const aligned = (a: Band, b: Band, hi: {id: string; at: number}, lo: {id: string; at: number}): boolean =>
     isBox(a, hi.id) && isBox(b, lo.id) && hi.at === lo.at && (hi.at === 0.5 || (!topIcon(a as BoxBand) && !topIcon(b as BoxBand)));
+  // A node's top end is its icon, inside the box (anchorRect): the route runs on past the box's top edge by the box's top padding, and the
+  // label, placed along the whole route, comes that much closer to the lower box. The gap the label needs grows by what keeps it clear
+  // of the lower box: `drop × t / (1 − t)`, t the label's place counted from the upper end (labelAt 0.5: the drop itself).
+  const boxIn = (b: Band, id: string): BoxBand | undefined => b.type === 'box' && b.id === id ? b : childrenOf(b).reduce<BoxBand | undefined>((hit, c) => hit ?? boxIn(c, id), undefined);
+  const nodeDrop = (lower: Band, end: {id: string; side: string}, labelAt: number | undefined, down: boolean): number => {
+    const node = end.side === 'top' ? boxIn(lower, end.id) : undefined;
+    if (!node || !topIcon(node)) return 0;
+    const t = down ? labelAt ?? 0.5 : 1 - (labelAt ?? 0.5);
+    return t < 1 ? (node.padY ?? BOX_PAD_Y) * t / (1 - t) : Infinity;
+  };
   const verticalGaps = (bs: Band[]): void => {
     const tall = bs.filter(b => !flat(b));
     for (let n = 0; n + 1 < tall.length; n++) {
@@ -120,7 +130,8 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
         if (!down && !up) continue;
         const [hi, lo] = down ? [f, t] : [t, f];
         const axis: LabelAxis = aligned(a, b, hi, lo) ? 'vertical' : 'slanted';
-        const need = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf), fails = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf, 0);
+        const drop = nodeDrop(b, lo, c.labelAt, down);
+        const need = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf) + drop, fails = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf, 0) + drop;
         // the next band's top is rounded to the 4px grid (at most 2px up): the route can be 2px shorter than d.gap; leave those 2px too
         if (Number.isFinite(need) && d.gap - 2 < fails) extra = Math.max(extra, ceil4(need + 2) - d.gap);
       }
@@ -134,11 +145,13 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
   // overlap, every cell between them is empty) widens `rowGap`. An areas() has one gap of each kind, so one label widens it everywhere.
   // A pair with a filled cell between them is left to the checks (the line would cross that cell), as are elbows and centre-to-centre ends.
   const areasGaps = new Map<AreasBand, Map<number, {gap: number; rowGap: number}>>();
+  const overAreas = new Set<AreasBand>(); // areas() among the parts over a picture (the walk fills it): the picture's size is fixed, nothing widens
   const areasGapFor = (band: AreasBand, cw: number): {gap: number; rowGap: number} => {
     const known = areasGaps.get(band)?.get(cw);
     if (known) return known;
     let gap = band.gap, rowGap = band.rowGap;
-    if (labelled.length) {
+    const pairs: {lo: number; hi: number; need: number}[] = []; // the side-by-side pairs, checked again at the final gap
+    if (labelled.length && !overAreas.has(band)) {
       const ids = band.children.map(c => idsIn(c)), place = band.place;
       const cellAt = new Map<string, number>(); // `${row}/${col}` -> the area there (missing: an empty cell)
       place.forEach((p, i) => { for (let r = p.row; r < p.row + p.rs; r++) for (let c = p.col; c < p.col + p.cs; c++) cellAt.set(`${r}/${c}`, i); });
@@ -163,7 +176,9 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
           const [lo, hi] = a.col < b.col ? [i, j] : [j, i], L = must(place[lo]), H = must(place[hi]);
           if (!empty(rows, [L.col + L.cs, H.col])) continue;
           const need = labelRoom(c.label as string, c.chip, 'horizontal', c.labelAt, roles, widthOf);
-          if (!Number.isFinite(need) || distance(band.gap, lo, hi) >= need) continue; // a figure that leaves the room keeps its gap
+          if (!Number.isFinite(need)) continue;
+          pairs.push({lo, hi, need});
+          if (distance(band.gap, lo, hi) >= need) continue; // a figure that leaves the room keeps its gap
           // the distance is linear in the gap: (k + 1) gaps and the spacer columns' share of what the gaps leave
           const k = H.col - L.col - L.cs, n = band.colW.length, total = band.colW.reduce((x, y) => x + y, 0);
           const share = band.colW.slice(L.col + L.cs, H.col).reduce((x, y) => x + y, 0) / total, per = k + 1 - share * (n - 1);
@@ -179,15 +194,20 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
           const vertical = isBox(hiI, top.id) && isBox(loI, bottom.id) && U.col === D.col && U.cs === D.cs && top.at === bottom.at
             && (top.at === 0.5 || (!topIcon(band.children[hiI] as BoxBand) && !topIcon(band.children[loI] as BoxBand)));
           const axis: LabelAxis = vertical ? 'vertical' : 'slanted';
-          const need = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf), fails = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf, 0);
-          // the rows are on the 4px grid, so the route is at least (k + 1) row gaps (the rows between, when there are any, only add to it).
-          // A gap the checks already pass stays as it is; one that does not grows to the room with its margin.
-          const k = D.row - U.row - U.rs;
-          if (Number.isFinite(need) && (k + 1) * band.rowGap < fails) rowGap = Math.max(rowGap, ceil4(need / (k + 1)));
+          // rows between the two (filled in other columns): their heights add to the route but are not known before layout, so such a
+          // pair is not widened (the checks report it if it is still short)
+          if (D.row > U.row + U.rs) continue;
+          const drop = nodeDrop(band.children[loI] as Band, a.row < b.row ? t : f, c.labelAt, a.row < b.row);
+          const need = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf) + drop, fails = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf, 0) + drop;
+          // the rows are on the 4px grid, so the route is the row gap (plus how deep the ends sit in their areas). A gap the checks already
+          // pass stays as it is; one that does not grows to the room with its margin.
+          if (Number.isFinite(need) && band.rowGap < fails) rowGap = Math.max(rowGap, ceil4(need));
         }
       }
       // growing the column gap must not squeeze an area: each keeps >= 70% of its width (and the 96px every area needs), or the gap stays as
       // declared (the checks report the label, with the gap it needs)
+      // a wider gap can take a step off a spacer column (areasColumns cuts every column to whole steps): every pair must fit at the final gap
+      if (gap !== band.gap) while (gap < cw && pairs.some(q => distance(gap, q.lo, q.hi) < q.need)) gap += 4;
       if (gap !== band.gap) {
         const fits = place.every((_p, i) => { const before = span(band.gap, i).w, after = span(gap, i).w; return after >= Math.max(0.7 * before, Math.min(before, CANVAS_MIN_REGION_W)); });
         if (!fits) gap = band.gap;
@@ -206,6 +226,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
         const inner = stackWidthOf(b, cw);
         if (inner !== null) walk(childrenOf(b), inner, over || b.type === 'image');
         else if (b.type === 'areas') { // the gaps first, then the widths of its cells at those gaps (what the real pass uses)
+          if (over) overAreas.add(b);
           const cols = areasColumns(b.colW, 0, cw, areasGapFor(b, cw).gap);
           b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, canvasSpan(cols, must(b.place[i])).w - 2 * (c.pad ?? 16), over); });
         } else if ((b.type === 'row' || b.type === 'grouprow') && b.cols) {
