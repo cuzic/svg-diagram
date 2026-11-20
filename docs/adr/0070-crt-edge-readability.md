@@ -8,7 +8,7 @@
 
 ## 背景
 
-利用者の CRT(現状問題構造ツリー、`tree: 'crt'`)が読みにくい、という報告が届いた(2026-11-20)。図は 24 節・25 本の link(AND を展開すると矢印 31 本、AND 6 組)で、指定は `{tree: 'crt', dir: 'up', maxNodeW: 260, fold: true, roleTags: true, coreDriver: true}`、`canvas: {width: 2600, minText: 18}`。利用者は報告のあと `layer: 'alap'` も書いた。
+利用者の CRT(現状問題構造ツリー、`tree: 'crt'`)が読みにくい、という報告が届いた(2026-11-20)。図は 25 節・25 本の link(AND を展開すると矢印 31 本、AND 6 組)で、指定は `{tree: 'crt', dir: 'up', maxNodeW: 260, fold: true, roleTags: true, coreDriver: true}`、`canvas: {width: 2600, minText: 18}`。利用者は報告のあと `layer: 'alap'` も書いた。
 
 報告された見え方の問題:
 
@@ -256,7 +256,7 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 
 | 単位 | 内容 | 依存 | 大きさ |
 |---|---|---|---|
-| U0 | 報告の図の構造だけを写した fixture(`test/fixtures/crt-report-shape.ts`: 24 節・同じ link と AND・同じ役割、ラベルは同じ文字数のダミー)。pdpc・relationDiagram・whyWhyTree の不変は、各 PR で golden(`pnpm golden`)の `qc-pdpc`・`qc-relation`・`why-why` の差分 0 で示す | なし | 小 |
+| U0 | 報告の図の構造だけを写した fixture(`test/fixtures/crt-report-shape.ts`: 25 節・同じ link と AND・同じ役割、ラベルは同じ文字数のダミー)。pdpc・relationDiagram・whyWhyTree の不変は、各 PR で golden(`pnpm golden`)の `qc-pdpc`・`qc-relation`・`why-why` の差分 0 で示す | なし | 小 |
 | U1 | D1: CRT の既定を前提条件だけの ALAP に(link の上の不動点 M、`keep` = M の外、前提条件が無ければ渡さない)。ADR 0019 への注記。`test/` の `tree: 'crt'` の見直し。`pnpm golden`(差分 0) | U0 | 小 |
 | U2 | D2: `parallelRuns` と `edge-parallel`(info、`causeTree` の帯だけ)。`LaidOutCause` の `origin`。`RULE_DOCS`・`check --explain` | なし(U1 と並行可) | 小 |
 | U3 | D3 と D8: AND の組の隣の口の間隔、`need`、弧の定数、**頭の手前の最後の run の 5 つの下限を弧の深さから求める**(`layered-route.ts:209`・`:246`・`:254`・`:394`、`route-search.ts:54`) | U2(物差し) | 中 |
