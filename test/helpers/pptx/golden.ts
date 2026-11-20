@@ -6,6 +6,8 @@
 //   node test/helpers/pptx/golden.ts --update examples/*.ts   rewrite the manifest (review the diff of the changed names first)
 //
 // Like the SVG golden (`pnpm golden`), the hashes hold for the measuring setup of .svg-diagram.json (fonts), so run it where that is installed.
+// The manifest is kept for the CI fonts: the workflow .github/workflows/pptx-golden.yml (run by hand) compares, and with update=true
+// uploads the rewritten manifest as an artifact to commit.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
