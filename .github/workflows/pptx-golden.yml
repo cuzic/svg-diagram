@@ -34,7 +34,7 @@ jobs:
         if: inputs.update
         run: |
           node test/helpers/pptx/golden.ts --update examples/*.ts
-          git diff --stat examples/out/pptx-golden.json
+          git diff --unified=0 examples/out/pptx-golden.json
       - if: inputs.update
         uses: actions/upload-artifact@v4
         with:
