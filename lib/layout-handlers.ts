@@ -375,7 +375,9 @@ function layoutConnect(band: ConnectBand, ctx: LayoutCtx, _padX: number, _cw: nu
   // connector reserves no loop-under space.
   // A bare id that a scoped item also answers to waits too (ADR 0012): whether it is ambiguous is known only when every band is placed.
   const waits = (id: string): boolean => !ctx.anchors.has(id) || ctx.scopes.byBare.has(id);
-  if (waits(parseRef(band.from).id) || waits(parseRef(band.to).id)) { ctx.deferred.push(band); return; }
+  // a connect({via}) stops on a group's frame, read off the final laid-out groups (ADR 0069 D2): kept out of the layout state that
+  // snapshotCtx / restoreCtx take back, so a frame a row or an areas() lays out again is never read in its first, discarded size
+  if (band.via || waits(parseRef(band.from).id) || waits(parseRef(band.to).id)) { ctx.deferred.push(band); return; }
   const resolved = resolveConnect(band, ctx.anchors, ctx.areaIds, widthOf, roles, ctx.nodeBottoms, ctx.scopes);
   ctx.connects.push(resolved);
   // a bracket / callout under its boxes needs room for its line and label, as a loop-under does

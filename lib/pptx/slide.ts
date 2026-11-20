@@ -32,7 +32,10 @@ const glueOf = (ctx: Ctx, dslId: string, p: {x: number; y: number}, label: strin
 function connectXml(c: LaidOutConnect, ctx: Ctx): string {
   const fit = c.annot ? undefined : fitConnector(c.points);
   if (!fit?.ok) return freeformXml(ctx.next(), c, ctx.ld.day, ctx.tones);
-  return connectorXml(ctx.next(), c, fit.x, ctx.ld.day, ctx.tones, glueOf(ctx, c.fromId, must(c.points[0]), c.fromLabel), glueOf(ctx, c.toId, must(c.points[c.points.length - 1]), c.toLabel));
+  // an end on a group's frame (connect({via}), ADR 0069 D2) is not glued: glued to its box, it would be drawn back to the box's edge, inside
+  // the frame, as soon as the box moves (LibreOffice: on opening). Every other end is glued as before.
+  const from = c.fromVia ? undefined : glueOf(ctx, c.fromId, must(c.points[0]), c.fromLabel), to = c.toVia ? undefined : glueOf(ctx, c.toId, must(c.points[c.points.length - 1]), c.toLabel);
+  return connectorXml(ctx.next(), c, fit.x, ctx.ld.day, ctx.tones, from, to);
 }
 
 /** A connector label is a text box of its own (a cxnSp cannot hold text), so it stays where it was when a box moves -- ADR 0027 known limit. */

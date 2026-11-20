@@ -1,4 +1,4 @@
-import type {ConnectBand, ConnectOpts} from '../types/containers.ts';
+import type {ConnectBand, ConnectOpts, ConnectVia} from '../types/containers.ts';
 import type {ConnectDefaults} from '../types/core.ts';
 import type {Band} from '../types/index.ts';
 import {mapBands, revealOf} from './shared.ts';
@@ -33,6 +33,24 @@ export function connectBand(from: string, to: string, opts: ConnectOpts, trackGi
   const line = opts.line ?? (opts.dashed ? 'dashed' : 'solid');
   // weight: 'strong' = a thick line (a name for the meaning, not a px); 'double' already reads as a thick line, so the two cannot be combined
   if (opts.weight && line === 'double') throw new Error(`connect(${from} -> ${to}): weight '${opts.weight}' cannot go with line 'double' (both mean a thick line)`);
-  const band: ConnectBand = {type: 'connect', from, to, route: opts.route ?? 'straight', dip: opts.dip ?? 32, bend: opts.bend ?? 0.5, bendOffset: opts.bendOffset, arrow, line, ...(opts.weight ? {weight: opts.weight} : {}), chip: !!opts.chip, labelAt: opts.labelAt ?? 0.5, tone: opts.tone, label: opts.label, ...revealOf(opts)};
+  const via = opts.via === undefined ? undefined : checkVia(from, to, opts.via, opts.route ?? 'straight');
+  const band: ConnectBand = {type: 'connect', from, to, route: opts.route ?? 'straight', dip: opts.dip ?? 32, bend: opts.bend ?? 0.5, bendOffset: opts.bendOffset, arrow, line, ...(opts.weight ? {weight: opts.weight} : {}), chip: !!opts.chip, labelAt: opts.labelAt ?? 0.5, tone: opts.tone, label: opts.label, ...revealOf(opts), ...(via ? {via} : {})};
   return trackGiven ? Object.defineProperty(band, GIVEN, {value: opts, configurable: true}) : band;
+}
+
+// connect({via}) (ADR 0069 D2): what can be told before layout. Whether an end sits in a framed group, and which way the other end lies, is
+// checked when the connect is resolved (lib/layout-connect.ts).
+function checkVia(from: string, to: string, via: unknown, route: string): ConnectVia {
+  const who = `connect(${from} -> ${to})`;
+  const ok = via === 'group' || (!!via && typeof via === 'object' && !Array.isArray(via) && Object.keys(via).length > 0
+    && Object.entries(via).every(([k, v]) => (k === 'from' || k === 'to') && (v === 'group' || v === undefined)) && Object.values(via).includes('group'));
+  if (!ok) throw new Error(`${who}: via is 'group', {from: 'group'} or {to: 'group'} (got ${JSON.stringify(via)})`);
+  if (route !== 'straight' && route !== 'elbow') throw new Error(`${who}: via works with route 'straight' or 'elbow' (a ${route} runs round the boxes, not up to a frame)`);
+  const v = via as ConnectVia;
+  for (const [end, ref] of [['from', from], ['to', to]] as const) {
+    if (v !== 'group' && v[end] !== 'group') continue;
+    const side = (ref.split(':')[1] ?? '').split('@')[0];
+    if (v !== 'group' && (!side || side === 'center')) throw new Error(`${who}: via ${end} needs a side on "${ref}" (left / right / top / bottom): the side says which edge of the frame the line stops on`);
+  }
+  return v;
 }

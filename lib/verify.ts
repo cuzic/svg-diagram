@@ -59,7 +59,7 @@ function checkConnects(d: LaidOutDiagram, rects: CheckRect[]): string[] {
     const who = connectName(c);
     const within = (r: CheckRect, a?: Rect) => !!a && Math.min(r.x + r.w, a.x + a.w) - Math.max(r.x, a.x) > 0.5 && Math.min(r.y + r.h, a.y + a.h) - Math.max(r.y, a.y) > 0.5;
     // an end that is a row / a column of a row (row({id})) owns the boxes in it (a box spanning several columns belongs to each of them)
-    const isOwnEndpoint = (r: CheckRect) => (r.id !== null && (r.id === c.fromId || r.id === c.toId)) || !!r.holds?.some(h => h === c.fromId || h === c.toId) || within(r, c.fromArea) || within(r, c.toArea);
+    const isOwnEndpoint = (r: CheckRect) => (r.id !== null && (r.id === c.fromId || r.id === c.toId)) || !!r.holds?.some(h => h === c.fromId || h === c.toId) || within(r, c.fromArea) || within(r, c.toArea) || within(r, c.fromVia) || within(r, c.toVia); // the boxes in a frame an end stops on (connect({via})) too
     for (const r of rects) {
       if (isOwnEndpoint(r)) {
         // The path starts on its own boxes, but the label/chip must not sit on top of their text:

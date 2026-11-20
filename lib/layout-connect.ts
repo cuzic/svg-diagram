@@ -164,7 +164,62 @@ function resolveAnnotation(band: ConnectBand, annot: NonNullable<ConnectBand['an
   return {...band, from: must(points[0]), to: must(points[points.length - 1]), fromId: fromRef.id, toId: toRef.id, fromLabel: band.from, toLabel: band.to, points, pathSegments: pathSegments(points), labelX, labelY, labelBox, chipBox};
 }
 
-export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf, roles: Roles, nodeBottoms: Map<string, number> = new Map(), scopes?: ScopeTable): LaidOutConnect {
+/** A framed group's rectangle (and its id), as connect({via}) reads them off the laid-out bands. */
+export type Frame = Rect & {id?: string};
+const SIDES = ['left', 'right', 'top', 'bottom'];
+
+/**
+ * connect({via}) (ADR 0069 D2): the rectangle each end is joined at. An end with via stops on the frame of the outermost framed group that
+ * holds its box but not the other end, on the side its ref names: the rectangle is that edge of the frame across the box's span, so `@t`,
+ * plumb and levelSides read the box's range as before. Also the frames themselves (fromVia / toVia).
+ */
+function viaEnds(band: ConnectBand, fromRef: ConnectRef, toRef: ConnectRef, fromRect: Rect, toRect: Rect, frames: readonly Frame[]): {fromEnd: Rect; toEnd: Rect; fromVia?: Rect; toVia?: Rect} {
+  const who = `connect(${band.from} -> ${band.to})`, via = band.via;
+  if (!via) return {fromEnd: fromRect, toEnd: toRect};
+  if (band.route !== 'straight' && band.route !== 'elbow') throw new Error(`${who}: via works with route 'straight' or 'elbow' (a ${band.route} runs round the boxes, not up to a frame)`);
+  const holds = (f: Rect, r: Rect): boolean => r.x >= f.x - 0.5 && r.y >= f.y - 0.5 && r.x + r.w <= f.x + f.w + 0.5 && r.y + r.h <= f.y + f.h + 0.5;
+  const out: {fromEnd: Rect; toEnd: Rect; fromVia?: Rect; toVia?: Rect} = {fromEnd: fromRect, toEnd: toRect};
+  let moved = false;
+  for (const end of ['from', 'to'] as const) {
+    if (via !== 'group' && via[end] !== 'group') continue;
+    const [ref, rect, other, written] = end === 'from' ? [fromRef, fromRect, toRect, band.from] : [toRef, toRect, fromRect, band.to];
+    const own = frames.find(f => f.id !== undefined && f.id === ref.id); // the end is a framed group (ids are unique)
+    if (own && via !== 'group') throw new Error(`${who}: "${ref.id}" is a group, so "${written}" already ends on its frame: drop via ${end}`);
+    // the frames round the box (not its own, when the end is a group) that do not hold the other end; nested or apart, never crossing,
+    // so the largest is the outermost (stopping on an inner one would cross the outer frame)
+    const around = frames.filter(f => f !== own && holds(f, rect) && !holds(f, other)).sort((a, b) => b.w * b.h - a.w * a.h)[0];
+    if (!around) {
+      if (via !== 'group') throw new Error(`${who}: via ${end}: "${ref.id}" is not inside a framed group that leaves out the other end — drop via, or put the box in a group`);
+      continue;
+    }
+    if (!SIDES.includes(ref.side)) throw new Error(`${who}: via needs a side on "${written}" (left / right / top / bottom): the side says which edge of the frame the line stops on`);
+    const F = {x: around.x, y: around.y, w: around.w, h: around.h};
+    const edge = ref.side === 'left' ? {x: F.x, y: rect.y, w: 0, h: rect.h} : ref.side === 'right' ? {x: F.x + F.w, y: rect.y, w: 0, h: rect.h}
+      : ref.side === 'top' ? {x: rect.x, y: F.y, w: rect.w, h: 0} : {x: rect.x, y: F.y + F.h, w: rect.w, h: 0};
+    if (end === 'from') { out.fromEnd = edge; out.fromVia = F; } else { out.toEnd = edge; out.toVia = F; }
+    moved = true;
+  }
+  if (!moved) throw new Error(`${who}: via 'group', but neither end is inside a framed group that leaves out the other end — drop via, or put a box in a group`);
+  return out;
+}
+
+/** An end stopped on a frame must face the other end: a left edge has it to the left, a top edge above ... (else the line crosses its own frame). */
+function assertFacing(band: ConnectBand, side: string, p: Point, other: Point, written: string): void {
+  const ok = side === 'left' ? other.x < p.x : side === 'right' ? other.x > p.x : side === 'top' ? other.y < p.y : other.y > p.y;
+  if (!ok) throw new Error(`connect(${band.from} -> ${band.to}): via stops "${written}" on the ${side} edge of its frame, but the other end is not on that side — the line would cross the frame: use the side that faces the other end`);
+}
+
+/**
+ * The leg at an end stopped on a frame must leave the frame, not run along it: an elbow that reaches a top / bottom edge horizontally (or a
+ * left / right one vertically) would draw its last leg on the frame line itself, where no check sees it (a frame is not a check rectangle).
+ */
+function assertOffEdge(band: ConnectBand, side: string, end: Point, next: Point, written: string): void {
+  const along = side === 'top' || side === 'bottom' ? Math.abs(next.y - end.y) < 0.5 && Math.abs(next.x - end.x) > 0.5 : Math.abs(next.x - end.x) < 0.5 && Math.abs(next.y - end.y) > 0.5;
+  if (along) throw new Error(`connect(${band.from} -> ${band.to}): the elbow runs along the ${side} edge of the frame at "${written}" (its leg there lies on the frame line) — give the other end a side that leaves the same way (a ${side === 'top' || side === 'bottom' ? 'top / bottom' : 'left / right'} side, so the elbow starts that way), or use route 'straight'`);
+}
+
+export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, areaIds: Set<string>, widthOf: WidthOf, roles: Roles, nodeBottoms: Map<string, number> = new Map(), scopes?: ScopeTable, frames: readonly Frame[] = []): LaidOutConnect {
+  if (band.annot && band.via) throw new Error(`connect(${band.from} -> ${band.to}): a ${band.annot.kind}() takes no via`);
   if (band.annot) return resolveAnnotation(band, band.annot, anchors, widthOf, roles, scopes);
   const fromRef = resolveRef(band.from, anchors, scopes), toRef = resolveRef(band.to, anchors, scopes);
   const fromRect = anchors.get(fromRef.id);
@@ -172,19 +227,23 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
   if (!fromRect) throw new Error(`connect(): unknown anchor id "${fromRef.id}" (give the source box an id: '${fromRef.id}')${scopes ? unknownHint(scopes, fromRef.id) : ''}`);
   if (!toRect) throw new Error(`connect(): unknown anchor id "${toRef.id}" (give the target box an id: '${toRef.id}')${scopes ? unknownHint(scopes, toRef.id) : ''}`);
   if (band.route === 'loop-side' && (fromRef.side !== toRef.side || !['left', 'right', 'top'].includes(fromRef.side))) throw new Error(`connect(${band.from} -> ${band.to}): route 'loop-side' joins two anchors on the same left / right / top side (got ${fromRef.side} and ${toRef.side}); for the bottom side use 'loop-under'`);
-  const from = anchorPoint(fromRect, fromRef.side, fromRef.at);
-  const to = anchorPoint(toRect, toRef.side, toRef.at);
-  // a node: left / right / top meet its icon, but bottom is under its label
-  if (fromRef.side === 'bottom' && nodeBottoms.has(fromRef.id)) from.y = must(nodeBottoms.get(fromRef.id));
-  if (toRef.side === 'bottom' && nodeBottoms.has(toRef.id)) to.y = must(nodeBottoms.get(toRef.id));
-  if (band.plumb && (toRef.side === 'top' || toRef.side === 'bottom')) to.x = Math.min(toRect.x + toRect.w, Math.max(toRect.x, from.x));
-  levelSides(band, fromRef.side, toRef.side, fromRect, toRect, from, to);
+  const {fromEnd, toEnd, fromVia, toVia} = viaEnds(band, fromRef, toRef, fromRect, toRect, frames);
+  const from = anchorPoint(fromEnd, fromRef.side, fromRef.at);
+  const to = anchorPoint(toEnd, toRef.side, toRef.at);
+  if (fromVia) assertFacing(band, fromRef.side, from, to, band.from);
+  if (toVia) assertFacing(band, toRef.side, to, from, band.to);
+  // a node: left / right / top meet its icon, but bottom is under its label (not an end on a frame: it would be pulled back inside)
+  if (!fromVia && fromRef.side === 'bottom' && nodeBottoms.has(fromRef.id)) from.y = must(nodeBottoms.get(fromRef.id));
+  if (!toVia && toRef.side === 'bottom' && nodeBottoms.has(toRef.id)) to.y = must(nodeBottoms.get(toRef.id));
+  if (band.plumb && (toRef.side === 'top' || toRef.side === 'bottom')) to.x = Math.min(toEnd.x + toEnd.w, Math.max(toEnd.x, from.x));
+  levelSides(band, fromRef.side, toRef.side, fromEnd, toEnd, from, to);
   let points = routePoints(band, from, to, fromRef.side);
   if (band.route === 'elbow' && band.bend === 'auto') {
     // Pick the first bend whose path stays clear of every box except the two it joins.
     const inside = (r: Rect, a?: Rect) => !!a && Math.min(r.x + r.w, a.x + a.w) - Math.max(r.x, a.x) > 0.5 && Math.min(r.y + r.h, a.y + a.h) - Math.max(r.y, a.y) > 0.5;
     const fromArea = areaIds.has(fromRef.id) ? fromRect : undefined, toArea = areaIds.has(toRef.id) ? toRect : undefined; // the boxes inside a row / column end belong to that end
-    const others = [...anchors.entries()].filter(([id, r]) => id !== fromRef.id && id !== toRef.id && !areaIds.has(id) && !inside(r, fromArea) && !inside(r, toArea)).map(([, r]) => r);
+    // (and the boxes in a frame an end stops on: the line comes from outside up to the frame)
+    const others = [...anchors.entries()].filter(([id, r]) => id !== fromRef.id && id !== toRef.id && !areaIds.has(id) && !inside(r, fromArea) && !inside(r, toArea) && !inside(r, fromVia) && !inside(r, toVia)).map(([, r]) => r);
     const clear = (pts: Point[]) => pathSegments(pts).every(seg => others.every(r => {
       const ox = Math.min(seg.x + seg.w, r.x + r.w) - Math.max(seg.x, r.x);
       const oy = Math.min(seg.y + seg.h, r.y + r.h) - Math.max(seg.y, r.y);
@@ -193,6 +252,8 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
     const cands = (['end', 'start', 0.5, 0.25, 0.75] as Bend[]).map(b => routePoints({...band, bend: b}, from, to, fromRef.side));
     points = cands.find(clear) ?? must(cands[0]);
   }
+  if (fromVia) assertOffEdge(band, fromRef.side, must(points[0]), must(points[1]), band.from);
+  if (toVia) assertOffEdge(band, toRef.side, must(points[points.length - 1]), must(points[points.length - 2]), band.to);
   const segments = pathSegments(points);
 
   let labelX: number | undefined, labelY: number | undefined, labelBox: Rect | undefined, chipBox: Rect | undefined;
@@ -223,7 +284,7 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
           for (const t of CHIP_TS) {
             const mx = l.p0.x + (l.p1.x - l.p0.x) * t, my = l.p0.y + (l.p1.y - l.p0.y) * t;
             const bx = {x: mx - cw2 / 2, y: my - 12, w: cw2, h: 24};
-            if (!hit(fromRect, bx) && !hit(toRect, bx)) { pick = {mx, my}; break; }
+            if (!hit(fromVia ?? fromRect, bx) && !hit(toVia ?? toRect, bx)) { pick = {mx, my}; break; }
           }
           if (pick) break;
         }
@@ -251,5 +312,5 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
   // fromLabel/toLabel preserve the original "id:side" strings for error
   // messages — `from`/`to` themselves get overwritten by the spread below
   // with the resolved {x,y} points emit.ts's renderConnectPath needs.
-  return {...band, from, to, fromId: fromRef.id, toId: toRef.id, fromArea: areaIds.has(fromRef.id) ? fromRect : undefined, toArea: areaIds.has(toRef.id) ? toRect : undefined, fromLabel: band.from, toLabel: band.to, points, pathSegments: segments, labelX, labelY, labelBox, chipBox};
+  return {...band, from, to, fromId: fromRef.id, toId: toRef.id, fromArea: areaIds.has(fromRef.id) ? fromRect : undefined, toArea: areaIds.has(toRef.id) ? toRect : undefined, ...(fromVia ? {fromVia} : {}), ...(toVia ? {toVia} : {}), fromLabel: band.from, toLabel: band.to, points, pathSegments: segments, labelX, labelY, labelBox, chipBox};
 }

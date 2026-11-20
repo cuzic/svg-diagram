@@ -175,7 +175,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 | group(children, {title, tone, titleAlign, valign, flex, width, span, col}) | ラベル付きの枠。**入れ子可**（ホスト > コンテナ > プロセス）。`row([group(...), group(...)])` で横に並べると、枠の高さは一番高いものにそろい、低いほうの中身は余りの中で縦中央に寄る（余りが 16px 未満なら動かない。`valign: 'top'` で上詰め、`'stretch'` で箱 1 つが余りを埋める。`frame: false` の group は既定が上詰めで、`valign` を書いたときだけ動く。`flex` / `width` / `span` / `col` は box と同じ。`arrows: 'between'` は不可）。中の box の id も、`connect()` の参照先になる |
 | versus(left, right, {shared, connectLabels}) | 左右の `group()` を 12 列の半分ずつに並べる対比。各部は `{title, children, tone, id}`。`shared` を付けると、その共通部を下に置いて左右から接続する（3 部すべてに `id` が必要）。接続ラベルは `connectLabels.left` / `.right`、接続線は各部の中央から共通部へ垂直に降りる（`connectRoute` は `'straight'` 既定 / `'elbow'`、`connectArrow: 'none'` で矢頭なし）。各部の `children` は配列（縦積み）で、`direction: 'row'` なら横並び |
 | hero({banner, stat, flow, caption, note}) | 章の頭に置く 1 枚: 帯（任意）の下に、流れの箱（`flow: [box(...), ...]`、矢印でつなぐ）とその行き着く大きな数字（`stat: {value, label, tone}`）を 1 行に並べ、その下に一言（`caption`）と出典・注（`note`）。箱が 5 つ以上なら数字を上に置く（`layout: 'stack'`）。既存の部品を並べるだけ。下の「章の頭の 1 枚」 |
-| connect / branch | 矢印。route(straight/elbow/loop-under/loop-side)、arrow(end/both/start/none)、line(solid/dashed/dotted/double)、weight(strong)、chip、labelAt、アンカー `id:side@0.2`。`a:right` → `b:left` は、片方の辺の真ん中がもう片方の箱の高さの中にあればその高さで、2 つの高さの重なりが十分にあれば重なりの真ん中で、水平に引く（`branch()` は元の端を動かさない。`@` で位置を書いた端も動かさない） |
+| connect / branch | 矢印。route(straight/elbow/loop-under/loop-side)、arrow(end/both/start/none)、line(solid/dashed/dotted/double)、weight(strong)、chip、labelAt、アンカー `id:side@0.2`。`a:right` → `b:left` は、片方の辺の真ん中がもう片方の箱の高さの中にあればその高さで、2 つの高さの重なりが十分にあれば重なりの真ん中で、水平に引く（`branch()` は元の端を動かさない。`@` で位置を書いた端も動かさない）。`via: {to: 'group'}`（`{from: 'group'}`、両端なら `'group'`）で、group の中の箱への端を、その箱を囲む枠のある group の枠の辺で止める（ADR 0069 D2。下の「矢印を group の枠で止める」） |
 | legend(items) | 線種・トーンの凡例 |
 | swimlane(lanes, steps, {flows, phases, boundaries, fit, laneOrder, labelW, focus}) | スイムレーン図。レーン=担当（人・チーム・システム）、列=時間。引き継ぎの矢印を自動で向きづけ。`col` で並行作業を揃える。列が狭くなるときは `fit: 'shrink'` でレーン名の列と列の間隔を詰める `laneOrder: 'auto'` は、`flows` の引き継ぎが最も短くなるレーン順に並べ替える（`fixed: true` のレーンはそのまま。8 本まで。同じ長さなら渡した順）。。**サービスブループリント**: `boundaries: [{between: ['cust', 'front'], label: '相互作用線'}, {between: ['front', 'back'], label: '可視線'}, …]` で、2 つのレーンの境目に太い破線を全幅に引き、`label` をラベル列のチップに書く（隣り合っていなければ throw。`{after: id}` も書ける。チップの分だけ両側のレーンが高くなり、名前が入る幅（`labelW` を書かなければ自動で広がり、書いて足りなければ throw）が要る。`fit: 'shrink'` もその幅より狭めない。失敗点・待ちは手順の `tag`。`examples/service-blueprint.ts`） `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
 | sequence(actors, steps) | シーケンス図。message / self / note / divider、自動番号 |
@@ -247,6 +247,19 @@ map・video 等は残りの高さを埋める。`overlay` / `overlayRight` で�
 - `table(..., {dense: true})`: 行の上下の余白を 8px から 4px に詰める（文字は 14px のまま。title の帯は変えない）。`cellH` / `h` / `headerH` と併用でき、固定高が優先される。ただし「その行に必要な高さ」は dense の余白で計算するので、dense なしでは足りない高さでも dense なら通る。`h` / `headerH` / `dense` を使わない表の出力は変わらない。例は `examples/table-row-h.ts`。
 - `table(columns, rows, {rowHeader: true})`: 左端の列を行ラベルにする。行ラベルのセルは**常に `soft` で塗り、太字**にし、右側に太い縦罫線（幅 3、文字色）を引く（塗りに頼らない区別）。見出し行との左上のセルは見出し行のまま。`cellH` / 行の `h` が無いときは本文と同じく上揃え、あるときは縦中央。行ラベルの折り返しも行の必要高さに入り、`h` / `headerH` / `dense` / `cellH` と併用できる。行の `tone` が `accent` / `new`（塗りが `soft`）だと行ラベルと本文が同じ塗りになるので `rowheader-tone-collides` を warn する（`muted` / `removed` は塗りが `code` なので出ない）。列が 1 つだけだと throw。`rowHeader` を使わない表の出力は変わらない。例は `examples/table-row-header.ts`。
 - `stamp: '架空の例'`: box / banner / group の右下に小さなチップを出す（「架空の例」「イメージ」「要確認」）。内容の下に 1 段ぶんの帯を確保するので、本文に重ならない。箱より幅が広いスタンプは throw。画面部品（wf）の `stamp` は従来のまま。
+
+### 矢印を group の枠で止める（`connect({via})`）
+
+`connect('memo:right', 'c1:left', {via: {to: 'group'}})` は、`c1` を囲む枠のある group の枠の左辺で矢印を止める。枠の中に線を引き込まず、枠全体が受け手であることを見せる（ADR 0069 D2）。
+
+- 止める枠は、その箱を囲む枠のある group のうち、もう一方の端を含まない**いちばん外側**のもの。辺は参照の `:side`、辺の上の位置は箱の範囲（`@t` も箱の範囲に対して読む）。高さの違う 2 つを水平にそろえる働きも、今と同じに効く。
+- `via: 'group'` は、枠のある group の中にある端すべてに効く。`{from: 'group'}` / `{to: 'group'}` は、その端だけ（その端が枠のある group の中になければ誤り）。
+- 誤り: 端に辺がない・`center`、辺がもう一方の端と反対を向いている（線が枠を横切る）、端が group の id そのもの（`{from}` / `{to}` のとき。もともと枠の辺に着く）、elbow の最後（最初）の脚が枠の辺の上を走る（`a:right` → `c:top` のように、横から入る折れ線が上辺に着く。相手の端も上下の辺にするか直線にする）、`route` が `loop-under` / `loop-side`。
+- `via` のある矢印は、すべての帯を置いた後に引く（重なりの順で最後に描かれる）。グラフの検査（`graph-orphan-node` など）は、今どおり箱どうしの線として読む（枠の中のほかの箱は、つながったことにならない）。
+
+**PowerPoint（`svg-diagram pptx` / `pptx-deck`）での貼り付け**: 矢印の端は、箱の図形に貼り付ける（箱を動かすと線がついてくる）。ただし `via` で枠に止めた端は貼り付けない。箱に貼ると、箱を動かしたとき（LibreOffice では開いたとき）に、線が箱の辺へ、つまり枠の内側へ引き直されるため。貼らない端は、図形を動かしてもついてこない（ラベルが箱について動かないのと同じ種類の制約）。PowerPoint で開いたときの見た目は SVG と同じ。
+
+**知られた制約（LibreOffice）**: LibreOffice Impress は、開いたときに貼り付けから経路を作り直す。そのため、辺の真ん中から動いた端（`'a:right@0.3'`、高さの違う箱を水平にそろえた端、`versus` の共通部への垂直な線）は、LibreOffice では辺の真ん中に戻る。PowerPoint では書かれた座標のまま描き、箱を動かせば線がついてくる。PowerPoint での編集のしやすさを優先している（ADR 0027、ADR 0069 D2）。
 
 ## くり返しをまとめる書き方
 同じ指定を図の中で何度も書くときの、まとめ方。

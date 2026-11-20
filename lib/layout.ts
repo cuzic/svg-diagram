@@ -113,7 +113,11 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
   // label, placed along the whole route, comes that much closer to the lower box. The gap the label needs grows by what keeps it clear
   // of the lower box: `drop × t / (1 − t)`, t the label's place counted from the upper end (labelAt 0.5: the drop itself).
   const boxIn = (b: Band, id: string): BoxBand | undefined => b.type === 'box' && b.id === id ? b : childrenOf(b).reduce<BoxBand | undefined>((hit, c) => hit ?? boxIn(c, id), undefined);
-  const nodeDrop = (lower: Band, end: {id: string; side: string}, labelAt: number | undefined, down: boolean): number => {
+  // An end that a connect({via: {to / from: 'group'}}) stops on a frame (ADR 0069 D2) is not the icon: no drop. With via: 'group' it is not
+  // known before layout whether the end sits in a frame, so the drop stays (the safe side).
+  const onFrame = (c: ConnectBand, end: 'from' | 'to'): boolean => !!c.via && c.via !== 'group' && c.via[end] === 'group';
+  const nodeDrop = (lower: Band, end: {id: string; side: string}, labelAt: number | undefined, down: boolean, framed = false): number => {
+    if (framed) return 0;
     const node = end.side === 'top' ? boxIn(lower, end.id) : undefined;
     if (!node || !topIcon(node)) return 0;
     const t = down ? labelAt ?? 0.5 : 1 - (labelAt ?? 0.5);
@@ -130,7 +134,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
         if (!down && !up) continue;
         const [hi, lo] = down ? [f, t] : [t, f];
         const axis: LabelAxis = aligned(a, b, hi, lo) ? 'vertical' : 'slanted';
-        const drop = nodeDrop(b, lo, c.labelAt, down);
+        const drop = nodeDrop(b, lo, c.labelAt, down, onFrame(c, down ? 'to' : 'from'));
         const need = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf) + drop, fails = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf, 0) + drop;
         // the next band's top is rounded to the 4px grid (at most 2px up): the route can be 2px shorter than d.gap; leave those 2px too
         if (Number.isFinite(need) && d.gap - 2 < fails) extra = Math.max(extra, ceil4(need + 2) - d.gap);
@@ -197,7 +201,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
           // rows between the two (filled in other columns): their heights add to the route but are not known before layout, so such a
           // pair is not widened (the checks report it if it is still short)
           if (D.row > U.row + U.rs) continue;
-          const drop = nodeDrop(band.children[loI] as Band, a.row < b.row ? t : f, c.labelAt, a.row < b.row);
+          const drop = nodeDrop(band.children[loI] as Band, a.row < b.row ? t : f, c.labelAt, a.row < b.row, onFrame(c, a.row < b.row ? 'to' : 'from'));
           const need = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf) + drop, fails = labelRoom(c.label as string, c.chip, axis, c.labelAt, roles, widthOf, 0) + drop;
           // the rows are on the 4px grid, so the route is the row gap (plus how deep the ends sit in their areas). A gap the checks already
           // pass stays as it is; one that does not grows to the room with its margin.
@@ -341,7 +345,9 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
     },
   };
   ctx.stack(d.bands, d.pad, contentWidth);
-  for (const band of deferred) connects.push(resolveConnect(band, anchors, areaIds, widthOf, roles, nodeBottoms, scopes)); // throws "unknown anchor id" if it never appears
+  // the framed groups, for connect({via}) (ADR 0069 D2): their final rectangles (a row / areas() has stretched them by now)
+  const frames = laidOut.flatMap(b => b.type === 'group' && b.frame !== false ? [{x: b.x, y: b.y, w: b.w, h: b.h, id: b.id}] : []);
+  for (const band of deferred) connects.push(resolveConnect(band, anchors, areaIds, widthOf, roles, nodeBottoms, scopes, frames)); // throws "unknown anchor id" if it never appears
 
   const contentHeight = Math.round(ctx.y - d.gap + d.pad);
   // canvas: at least its height, unless fit: 'content' (then as tall as the content; an overflow is still drawn and warned)
