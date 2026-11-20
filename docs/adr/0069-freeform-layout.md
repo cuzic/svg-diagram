@@ -279,7 +279,8 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
 - `example` は上の s04 の形を小さくしたもの。
 - **MCP とデッキ**: プラグインの `list_diagram_parts` は `partCatalog()` を返すので、core を取り込めば `board` が出る(ADR 0057 と同じ)。デッキの図も spec なので、deck.json でも書ける。プラグインへの取り込みと、ChatGPT のツールの更新(ウィジェットのキャッシュ。プラグインの手順)は別の PR にする。
 - **実装で決めたこと(PR 4)**:
-  - 部品は `lib/spec-parts/board.ts`。node のスキーマは段ごとに作る(`nodeSchema(1〜3)`)。最上位だけ `id` を必須にし、3 段目(group の中の group の children)は `children` / `areas` / `cols` / `gap` / `rowGap` を持たない(スキーマを有限にするため)。3 段目の `kind: 'group'` は `check()` が `….kind` の場所で断る。
+  - 部品は `lib/spec-parts/board.ts`。node のスキーマは段ごとに作る(`nodeSchema(1〜3)`)。最上位だけ `id` を必須にし、3 段目(group の中の group の children)は `kind` を `box` / `caption` だけにし、group の項目を持たない(スキーマを有限にするため)。3 段目の group はスキーマの検査が `….kind` の場所で断る。
+  - 2・3 段目の node の項目は説明を持たず、node の説明で「最上位の node と同じ意味」と書く(catalog の board は 13.3KB から 10.8KB に。プラグインが公開する specSchema を小さく保つ)。
   - `tone` は 1 つの列挙(box の 9 つと caption の `text`)にし、`kind` に合わないもの(group の `solid`、caption の `plain` など)は `check()` が断る。`kind` ごとの必須の項目は、box の `title`、group の `children`、caption の `text`。合わない項目の文言には、その項目を持つ `kind` を添える(`text` は `kind: 'caption'` の項目)。
   - `areas` のない group に `cols` / `gap` / `rowGap` を書くと誤り(縦に積むので意味がない)。board の `cols` / `gap` / `rowGap` は、`areas` を省いた 1 行のテンプレートにも効く(`cols` の数はその列の数)。
   - テンプレートの名前でない id(`areas` のない group の中の node)にも、`:` と `@` は使えない(link の参照で辺と位置として読まれるため。swimlane の steps と同じ)。
@@ -291,6 +292,13 @@ nov27 の研修のデッキで `versus` を使いすぎていたため、利用�
   - `test/spec.test.ts` の `IN_NO_SPEC_YET` から `areas` / `box` / `group` / `caption` / `connect` を外し、「別の名前の部品から届く builder」(`THROUGH_A_PART`、すべて `board`)として数える。`branch` は未決 7 のとおり残す。
   - DSL と spec のバイト単位の比較は、s04(`examples/areas-memo.ts`)を、`branch()` の代わりに会話ごとの `connect` で書いたもので行う。`branch()` は `fan` を持ち、`levelSides` で動く端が変わるため、link を並べた board とは同じ SVG にならない(未決 7)。`via-memo.ts` の書き出す先は枠なしの group(`frame: false`)で、board の group は枠を外せないので、比較には枠のある group(`areas-memo.ts` と同じ)を使う。
   - `description` は D4 の文に、`kind` ごとの中身、`areas` の省略、辺の省略、`via`、上限を足した。項目ごとの `description` にも、どの `kind` の項目かと辺の省略の決まりを書いた(D7)。
+  - レビュー(1 回目)で足したこと:
+    - `via` で枠に止まる端に書いた辺が相手を向いていない(枠の辺の外側に相手の領域がない)ときは、配置の前に `links[i].fromSide` / `toSide` で断る。枠は領域いっぱいに伸びるので、相手の領域の始まりが辺の外になければ、必ず D2 の「反対向きの辺」の誤りになる。縦に積む group の中では左右の辺は向かない。
+    - 配置で出る `connect(a:… -> b:…)` の文言は、`a` から `b` への board の link がちょうど 1 つなら、その `parts[i].links[j]` の場所で返す(`locateMessage`)。
+    - 同じ link(全項目が同じ)を 2 度書くと誤り。
+    - 1 行の上限 12 は、文書の幅(940px)では届かない(短い箱でも 9 個で領域が 96px 未満になる)。description に「文書の図では 1 行に 8 個ほど。多ければ `areas`」と書き、領域が細すぎる誤りの直し方を spec の言葉(`areas` で行を分ける、`cols`、`gap`)に置き換える(spec は `diagram({width})` で広げられない)。上限 12 はキャンバスの図のために残す。
+    - `gap` の説明に、自動で広がるのは列に余裕があるときだけで、ラベルは短くすることを書いた。
+    - `areas` のない group の中の caption の id は、部品をまたぐ重複の検査にも入れない(anchor ではない)。1 つの誤り(名前にできない id)は、id の場所で 1 度だけ返す(テンプレートの解析と「areas にない」の重ねた誤りを出さない)。
 
 ### D5. 作る順と PR
 

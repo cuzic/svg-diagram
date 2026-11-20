@@ -102,8 +102,8 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 ```
 
 - `nodes` は `kind` で決まる平らなオブジェクト。`box`(既定。`title`・`body`・`lines`・`tone`・`stamp`)、`group`(`title`・`tone`・`dashed`・`valign`・`children`、中を名前の領域で置くなら `areas`・`cols`・`gap`・`rowGap`)、`caption`(`text`・`bold`・`tone`)。ほかの種類の項目を書くと `parts[0].nodes[1].text` のように場所つきで断る。
-- `areas` は `areas()` のテンプレートを 1 行 1 文字列で書いたもの。最上位の node の `id` が領域の名前になる(ASCII の英字で始まる英数字・`_`・`-`)。省略すると、書いた順に 1 行に並べる(13 個以上なら `areas` が要る)。`areas` のある group の children も `id` が要る。`areas` のない group は children を縦に積む。group の中の group は 1 段まで(board → group → group → box)。
-- `links` は同じ board の box か group だけをつなぐ(caption とほかの部品の id は誤り)。`fromSide` / `toSide` を省くと、テンプレートの位置から辺を決める: 両端を含むいちばん内側の容れ物で、左右に並ぶなら右 → 左、上下に並ぶなら下 → 上、縦に積む group では先に書いた方が上。斜めに並ぶときと、group とその中の箱をつなぐときは、辺を書く(書かないと `links[i].fromSide` で知らせる)。`via`(`from` / `to` / `both`)は `connect({via})` と同じく、端を group の枠で止める。
+- `areas` は `areas()` のテンプレートを 1 行 1 文字列で書いたもの。最上位の node の `id` が領域の名前になる(ASCII の英字で始まる英数字・`_`・`-`)。省略すると、書いた順に 1 行に並べる(13 個以上なら `areas` が要る。文書の幅では、短い箱でも 1 行に並ぶのは 8 個ほどで、領域が 96px より細くなると「`areas` で行を分ける」と知らせる)。`areas` のある group の children も `id` が要る。`areas` のない group は children を縦に積む。group の中の group は 1 段まで(board → group → group → box)。
+- `links` は同じ board の box か group だけをつなぐ(caption とほかの部品の id は誤り)。`fromSide` / `toSide` を省くと、テンプレートの位置から辺を決める: 両端を含むいちばん内側の容れ物で、左右に並ぶなら右 → 左、上下に並ぶなら下 → 上、縦に積む group では先に書いた方が上。斜めに並ぶときと、group とその中の箱をつなぐときは、辺を書く(書かないと `links[i].fromSide` で知らせる)。`via`(`from` / `to` / `both`)は `connect({via})` と同じく、端を group の枠で止める。枠で止まる端に書いた辺が相手を向いていなければ、配置の前に `links[i].fromSide` で知らせる。同じ link を 2 度書くと誤り。配置で出る `connect(a:… -> b:…)` の誤りは、その link(`parts[0].links[i]`)の場所で返る。
 - 上限は node 24(入れ子を含む)、link 40。デッキ(deck.json)の図も spec なので、`board` を書ける。
 
 Node と Chromium だけの環境(ChatGPT の Code Interpreter など)では、`.ts` をそのまま `node` で動かし、Chromium は playwright を介さず直接動かし、文字幅と PNG は Chromium で測って描く。手順と環境変数は [docs/chatgpt-code-interpreter.md](docs/chatgpt-code-interpreter.md)。

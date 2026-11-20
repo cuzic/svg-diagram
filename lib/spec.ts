@@ -853,6 +853,8 @@ export interface LocatedMessage {
 /** Where in `spec` a message is about: the text that it quotes, the only part there is, or the only part of the kind it names. */
 export function locateMessage(spec: unknown, message: string): string | null {
   const parts = (spec as Json)['parts'] as unknown[];
+  const link = linkOf(parts, message);
+  if (link) return link;
   const quoted = locateIn(spec, '', message);
   if (quoted) return quoted;
   if (parts.length === 1) return 'parts[0]';
@@ -862,6 +864,15 @@ export function locateMessage(spec: unknown, message: string): string | null {
   return same.length === 1 ? `parts[${same[0]}]` : null;
 }
 
+/** A message about `connect(a:side -> b:side)`: the board link (ADR 0069 D4) that made it, when exactly one link joins a to b. */
+const CONNECT_OF = /^connect\(([^\s:@]+)(?::\w+)?(?:@[\d.]+)? -> ([^\s:@)]+)/;
+function linkOf(parts: readonly unknown[], message: string): string | null {
+  const m = CONNECT_OF.exec(message);
+  if (!m) return null;
+  const hits = parts.flatMap((p, i) => (p as Json)['type'] !== 'board' ? [] : items(p as Json, 'links').flatMap((l, j) => l['from'] === m[1] && l['to'] === m[2] ? [`parts[${i}].links[${j}]`] : []));
+  return hits.length === 1 ? hits[0] as string : null;
+}
+
 /** The DSL's advice names options a spec does not have; this is the same advice in the fields a spec does have. */
 const LABEL_HAS_NO_ROOM = / \(widen the gap between the boxes, shorten the label, or label a longer leg with route: 'elbow'\)$/;
 const LABEL_ADVICE = 'Shorten or drop this label, raise colGap, or leave an empty column between the two steps.';
@@ -869,7 +880,11 @@ const COLUMNS_TOO_NARROW = /^(swimlane\(\): \d+ columns leave only -?\d+px each)
 const COLUMNS_ADVICE = 'Lower colGap or use fewer columns.';
 /** A figure too narrow for its band (flow-shapes.ts): a spec has no width, so only the rest of the advice (fewer sectors or steps, the circle). */
 const WIDEN_DIAGRAM = /widen the diagram \(diagram\(\{width: \d+\}\) or more\), /;
+/** An area of a board too narrow: a spec gives no diagram({width}) to widen it, but areas can take more rows. */
+const AREA_TOO_NARROW = /^(areas: area "[^"]*" is only \d+px wide \(at least \d+px\)): .*$/s;
+const AREA_ADVICE = 'Put the nodes in more rows (areas), give this column a larger share (cols), or use a smaller gap.';
 function inSpecTerms(message: string): {message: string; fix?: string} {
+  if (AREA_TOO_NARROW.test(message)) return {message: message.replace(AREA_TOO_NARROW, '$1'), fix: AREA_ADVICE};
   if (WIDEN_DIAGRAM.test(message)) return {message: message.replace(WIDEN_DIAGRAM, '')};
   if (LABEL_HAS_NO_ROOM.test(message)) return {message: message.replace(LABEL_HAS_NO_ROOM, ''), fix: LABEL_ADVICE};
   if (COLUMNS_TOO_NARROW.test(message)) return {message: message.replace(COLUMNS_TOO_NARROW, '$1'), fix: COLUMNS_ADVICE};

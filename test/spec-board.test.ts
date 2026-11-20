@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {areas, box, caption, closeMeasurer, connect, diagram, group, renderDiagram} from '../lib/dsl.ts';
-import {partCatalog, specToDiagram, validateSpec} from '../lib/spec.ts';
+import {layoutIssue, locateMessage, partCatalog, specToDiagram, validateSpec} from '../lib/spec.ts';
 import {renderSpec} from '../lib/spec-render.ts';
 import {validateDeck} from '../lib/deck-spec.ts';
 import {BOARD_MAX_NODES} from '../lib/spec-parts/board.ts';
@@ -205,4 +205,40 @@ test('a deck slide can hold a board figure', () => {
   assert.deepEqual(validateDeck({slides: [{title: '決定メモ', figure: spec(s04Board)}]}), []);
   const bad = validateDeck({slides: [{title: '決定メモ', figure: spec(board({nodes: [{id: 'a', title: 'A'}], links: [{from: 'a', to: 'b'}]}))}]});
   assert.deepEqual(bad.map(i => i.path), ['slides[0].figure.parts[0].links[0].to']);
+});
+
+test('a written side that a via end cannot stop on is reported at the side, before the layout', () => {
+  const mk = (link: Record<string, unknown>, areasOf = ['g z']) => spec(board({areas: areasOf, nodes: [{id: 'g', kind: 'group', title: 'G', children: [{id: 'x', title: 'X'}, {id: 'w', title: 'W'}]}, {id: 'z', title: 'Z'}], links: [link]}));
+  assert.deepEqual(pathsOf(mk({from: 'x', to: 'z', fromSide: 'left', toSide: 'left', via: 'from'})), ['parts[0].links[0].fromSide']);
+  assert.deepEqual(pathsOf(mk({from: 'x', to: 'z', fromSide: 'bottom', toSide: 'left', via: 'from', route: 'elbow'})), ['parts[0].links[0].fromSide']);
+  assert.deepEqual(pathsOf(mk({from: 'z', to: 'x', fromSide: 'left', toSide: 'left', via: 'to'})), ['parts[0].links[0].toSide']);
+  assert.deepEqual(pathsOf(mk({from: 'z', to: 'x', fromSide: 'left', toSide: 'top', via: 'both'})), ['parts[0].links[0].toSide']);
+  assert.deepEqual(pathsOf(mk({from: 'z', to: 'x', fromSide: 'left', toSide: 'right', via: 'both'})), []);
+  assert.deepEqual(pathsOf(mk({from: 'x', to: 'z', fromSide: 'right', toSide: 'left', via: 'from'})), []);
+  assert.deepEqual(pathsOf(mk({from: 'x', to: 'z', fromSide: 'bottom', toSide: 'top', via: 'from'}, ['g', 'z'])), []);
+  assert.deepEqual(pathsOf(mk({from: 'x', to: 'z', fromSide: 'right', toSide: 'top', via: 'from'}, ['g', 'z'])), ['parts[0].links[0].fromSide']);
+  // a side without via is the author's to choose
+  assert.deepEqual(pathsOf(mk({from: 'x', to: 'z', fromSide: 'left', toSide: 'left'})), []);
+});
+
+test('a link written twice is reported; a layout message about a connect points at its link; a narrow area gets advice a spec can follow', () => {
+  const two = [{id: 'a', title: 'A'}, {id: 'b', title: 'B'}];
+  assert.deepEqual(pathsOf(spec(board({nodes: two, links: [{from: 'a', to: 'b'}, {from: 'b', to: 'a'}, {from: 'a', to: 'b'}]}))), ['parts[0].links[2]']);
+  const s = spec({type: 'flowchart', nodes: [{id: 'f', label: 'F'}], edges: []}, board({nodes: two, links: [{from: 'a', to: 'b'}, {from: 'b', to: 'a', fromSide: 'left', toSide: 'right'}]}));
+  assert.equal(locateMessage(s, 'connect(b:left -> a:right): the label covers the arrow'), 'parts[1].links[1]');
+  assert.equal(locateMessage(s, 'connect(a:right -> b:left@0.3): something'), 'parts[1].links[0]');
+  const issue = layoutIssue(spec(board({nodes: two})), 'areas: area "a" is only 84px wide (at least 96px): give its columns a larger share (cols), use a smaller gap, or widen the figure (diagram({width}))');
+  assert.equal(issue.path, 'parts[0].nodes[0].id');
+  assert.ok(!issue.message.includes('diagram({width})') && issue.message.includes('more rows (areas)'), issue.message);
+});
+
+test('the catalog entry of board stays small: nested nodes refer to the top-level descriptions', () => {
+  const entry = partCatalog().find(p => p.type === 'board');
+  assert.ok(JSON.stringify(entry).length < 12_000, String(JSON.stringify(entry).length));
+});
+
+test('a caption in a stack is no anchor, so another part may use its id', () => {
+  const flow = {type: 'flowchart', nodes: [{id: 'n', label: 'F'}], edges: []};
+  assert.deepEqual(pathsOf(spec(flow, board({nodes: [{id: 'g', kind: 'group', children: [{title: 'A'}, {id: 'n', kind: 'caption', text: '注'}]}]}))), []);
+  assert.deepEqual(pathsOf(spec(flow, board({nodes: [{id: 'n', kind: 'caption', text: '注'}]}))), ['parts[1].nodes[0].id']);
 });
