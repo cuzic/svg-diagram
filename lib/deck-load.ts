@@ -31,12 +31,19 @@ export const hasSource = (sources: ReadonlyMap<string, string>, i: number): bool
 
 const message = (e: unknown): string => e instanceof Error ? e.message : String(e);
 
+/** A file's JSON without the `$schema` an editor reads (ADR 0071): the deck and a .json figure may start with it; the checks never see it. */
+export const withoutSchemaField = (v: unknown): unknown => {
+  if (typeof v !== 'object' || v === null || Array.isArray(v) || !Object.hasOwn(v, '$schema')) return v;
+  const {$schema: _schema, ...rest} = v as Record<string, unknown>;
+  return rest;
+};
+
 /** The deck at `deckFile` with its figure paths read, or every problem with it (each with its place). */
 export function loadDeck(deckFile: string): {ok: true; loaded: LoadedDeck} | {ok: false; errors: string[]} {
   const abs = path.resolve(deckFile), dir = path.dirname(abs), rel = path.relative(process.cwd(), abs), shown = rel && !rel.startsWith('..') ? rel : abs;
   const files = [abs];
   let raw: unknown;
-  try { raw = JSON.parse(fs.readFileSync(abs, 'utf8')); } catch (e) { return {ok: false, errors: [`${shown}: ${message(e)}`]}; }
+  try { raw = withoutSchemaField(JSON.parse(fs.readFileSync(abs, 'utf8'))); } catch (e) { return {ok: false, errors: [`${shown}: ${message(e)}`]}; }
   const slides = (raw as {slides?: unknown} | null)?.slides;
   // a figure given as a path: a .json spec is read in place; a .ts source is drawn as it is (and left out of the deck). Returns what the
   // figure becomes: the spec, or undefined for a .ts (or a path that failed); `keep` is false when the field is to be dropped
@@ -47,7 +54,7 @@ export function loadDeck(deckFile: string): {ok: true; loaded: LoadedDeck} | {ok
     if (f.endsWith('.ts')) { if (fs.existsSync(at)) sources.set(key, at); else errors.push(`${where}: ${f} does not exist`); return {keep: false}; }
     if (f.endsWith('.json')) {
       files.push(at);
-      try { return {keep: true, value: JSON.parse(fs.readFileSync(at, 'utf8')) as unknown}; }
+      try { return {keep: true, value: withoutSchemaField(JSON.parse(fs.readFileSync(at, 'utf8')))}; }
       catch (e) { errors.push(`${where}: ${f}: ${message(e)}`); return {keep: false}; }
     }
     errors.push(`${where}: a path must name a diagram source (.ts) or a spec file (.json); otherwise write the spec itself`);

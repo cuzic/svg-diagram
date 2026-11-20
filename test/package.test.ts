@@ -30,8 +30,8 @@ test('dist/ is built before every pack and publish, from scratch', () => {
   assert.ok(build.include.includes('lib/**/*.ts') && build.include.includes('*.ts'));
 });
 
-test('what `files` lists is what ships: bin, skills, README and LICENSE exist, dist comes from the build, and nothing else is listed', () => {
-  assert.deepEqual([...pkg.files].sort(), ['LICENSE', 'README.md', 'bin', 'dist', 'skills']);
+test('what `files` lists is what ships: bin, schema, skills, README and LICENSE exist, dist comes from the build, and nothing else is listed', () => {
+  assert.deepEqual([...pkg.files].sort(), ['LICENSE', 'README.md', 'bin', 'dist', 'schema', 'skills']);
   for (const f of pkg.files.filter((f: string) => f !== 'dist')) assert.ok(fs.existsSync(path.join(ROOT, f)), f);
   assert.ok(fs.readdirSync(path.join(ROOT, 'skills')).length > 0);
 });
@@ -45,8 +45,9 @@ test('the command is the bash wrapper, executable, and runs the compiled files w
 });
 
 test('the entry points are in dist/ and are what the build produces from lib/', () => {
-  assert.deepEqual(Object.keys(pkg.exports).sort(), ['.', './browser', './markdown', './markdown-it', './pptx/deck/edge', './pptx/edge', './remark', './render', './spec', './spec/edge', './vitepress']);
-  for (const [name, e] of Object.entries(pkg.exports) as [string, {types: string; default: string}][]) {
+  assert.deepEqual(Object.keys(pkg.exports).sort(), ['.', './browser', './markdown', './markdown-it', './pptx/deck/edge', './pptx/edge', './remark', './render', './schema/*.json', './spec', './spec/edge', './vitepress']);
+  assert.equal(pkg.exports['./schema/*.json'], './schema/*.json'); // the JSON Schema files (ADR 0071), shipped as they are: test/schema-files.test.ts
+  for (const [name, e] of Object.entries(pkg.exports).filter(([name]) => name !== './schema/*.json') as [string, {types: string; default: string}][]) {
     for (const f of [e.types, e.default]) assert.match(f, /^\.\/dist\//, `${name}: ${f}`);
     assert.ok(fs.existsSync(path.join(ROOT, e.default.replace('./dist/', '').replace(/\.js$/, '.ts'))), `${name} has a source`);
   }

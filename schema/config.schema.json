@@ -1,0 +1,1391 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "svg-diagram .svg-diagram.json",
+  "description": "Project-wide settings, found by walking up from the current directory.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The JSON Schema of this file, for the editor (such as \"./node_modules/svg-diagram/schema/deck.schema.json\"). The CLIs ignore it."
+    },
+    "outDir": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Where build writes the SVGs when neither --out nor --out-dir is given (default \"svg\"), and where lint and check --drift look for them. Relative to this file's folder."
+    },
+    "accept": {
+      "type": "object",
+      "properties": {
+        "a11y-text-contrast": {
+          "type": "string",
+          "minLength": 1,
+          "description": "テキストと背景のコントラスト比が WCAG の 4.5:1 未満（許容する理由を書く）"
+        },
+        "a11y-color-only-emphasis": {
+          "type": "string",
+          "minLength": 1,
+          "description": "色だけで強調した語がある（太字も併用する。色が見えない読者にも伝わるように）（許容する理由を書く）"
+        },
+        "a11y-nontext-contrast": {
+          "type": "string",
+          "minLength": 1,
+          "description": "意味を持つ枠線・線のコントラスト比が 3:1 未満（色以外の手がかりも併用する）（許容する理由を書く）"
+        },
+        "title-duplicated": {
+          "type": "string",
+          "minLength": 1,
+          "description": "題名（diagram({title})）と、先頭の caption が同じ文字列。diagram({title, showTitle: true}) に寄せて、caption を消せる（許容する理由を書く）"
+        },
+        "a11y-no-title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "SVG の <title> に使える題名が見つからない（diagram({title}) を指定）（許容する理由を書く）"
+        },
+        "bars-values-hidden": {
+          "type": "string",
+          "minLength": 1,
+          "description": "値ラベルも目盛りも出さない bars があるのに、図の題名（SVG の <title>）がなく、値を読み上げる <desc> が届かない（doc 媒体）（許容する理由を書く）"
+        },
+        "bars-thin-bar": {
+          "type": "string",
+          "minLength": 1,
+          "description": "棒が 1px 以下（値は 0 でない）。図の高さ・幅を上げるか max を見直す（許容する理由を書く）"
+        },
+        "image-large": {
+          "type": "string",
+          "minLength": 1,
+          "description": "埋め込んだ画像が大きい（300 KB 超）。ファイルがそのまま SVG に入り、段階表示の各ファイルにも入る。縮小・圧縮してから使う（許容する理由を書く）"
+        },
+        "cjk-line-long": {
+          "type": "string",
+          "minLength": 1,
+          "description": "見出し（caption の title / display / stat と banner の headline）の 1 行が、全角で数えて長すぎる（本文幅 600px に収まる字数の目安を超える、または図の幅に収まらず自動で折り返した。短くするか改行する）（許容する理由を書く）"
+        },
+        "draft-status": {
+          "type": "string",
+          "minLength": 1,
+          "description": "図が下書き（diagram({status: \"draft\"})）のまま。公開前に外す（check --forbid-draft で warn にできる）（許容する理由を書く）"
+        },
+        "source-wraps": {
+          "type": "string",
+          "minLength": 1,
+          "description": "出典行（diagram({sourceLine})）が 1 行に収まらず折り返している（短くする）（許容する理由を書く）"
+        },
+        "legend-missing": {
+          "type": "string",
+          "minLength": 1,
+          "description": "使った記法（線種・トーン）の凡例がない（許容する理由を書く）"
+        },
+        "legend-incomplete": {
+          "type": "string",
+          "minLength": 1,
+          "description": "凡例に載っていない記法がある（diagram({legend: \"auto\"}) で補える。凡例が要らない図は diagram({legend: false})）（許容する理由を書く）"
+        },
+        "swimlane-lane-order": {
+          "type": "string",
+          "minLength": 1,
+          "description": "レーンの並べ替えで、レーンをまたぐ距離を減らせる（swimlane の opts に laneOrder: 'auto' を渡すと、この順に自動で並べる）（許容する理由を書く）"
+        },
+        "text-mid-word-break": {
+          "type": "string",
+          "minLength": 1,
+          "description": "レイアウトが、カタカナの語(「コンテキス/ト」)や英数字の語の途中で行を割っている。箱や列が最長の語より狭いときに起きる。diagram({keepWords: true}) で、箱を最長のカタカナの語より狭くしない(causeTree / tree / mindmap / faultTree / states / bpmn の task。cloud・chevron・cycle・swimlane には効かない)。ほかに、箱の幅を広げる・向き(dir)や maxNodeW を変える・文言を短くする・語の前後で改行を書く。漢字どうしの途中の改行は対象外。スペースの無い複合語の境目(「キャプチャ/ステージ」)は辞書なしでは見分けられず、誤検出になりうる(accept で許容する)（許容する理由を書く）"
+        },
+        "glyph-missing": {
+          "type": "string",
+          "minLength": 1,
+          "description": "図の文字に、絵文字として扱われない絵記号(✅ ❌ など。EMOJI_RE の外)がある。通常の文字のフォントで描かれ、字形が無いと空白になる(resvg のプレビューで確認できる)。icon.emoji() か SVG アイコン(box({icon}))を使うか、✓ ✗ などの字に置き換える（許容する理由を書く）"
+        },
+        "connect-label-covers-arrow": {
+          "type": "string",
+          "minLength": 1,
+          "description": "矢印のラベル(の下地)が、矢印の経路の 6 割より多くを覆い、見える部分が 20px に満たない。箱の間が狭く、矢じりや向きが読めなくなる。箱の間隔を広げる・ラベルを短くする・ラベルを箱の中に書く（許容する理由を書く）"
+        },
+        "chart-axis-mismatch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "同じ単位で、横に並べる(同じ grouprow の別の group)か縦に続ける(間に別のチャートを挟まない)2 つのチャートの値の軸が違う。それぞれが自分のデータに合わせて軸を決めるので、同じ長さが別の値に見える(5.76 と 9.5 がほぼ同じ長さ)。両方に同じ domain: [0, 10] を書く(bars は max)。横向きのチャートは、ラベルの列の幅が違うと同じ値が別の長さに見えるので plotInset もそろえる。意図して別の量を別の軸で描くなら、axisGroup: false か accept（許容する理由を書く）"
+        },
+        "wrap-fell-back": {
+          "type": "string",
+          "minLength": 1,
+          "description": "wrap: 'bunsetsu-soft' で、文節で折ると図が幅に収まらなかったので、従来の折り方(phrase)で配置した(情報。漢字・ひらがなの途中で折れる行が残る)。図を 2 枚に分ける・文言を短くする・図の幅を広げると、文節で折れる。（許容する理由を書く）"
+        },
+        "shrink-narrow-text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "fit: 'shrink' で bpmn / swimlane を詰めた結果、task / step の幅が狭すぎて本文が 2〜3 字ずつ折れる。縦向き・図の分割・文言の短縮を検討する（許容する理由を書く）"
+        },
+        "gray-tone-collision": {
+          "type": "string",
+          "minLength": 1,
+          "description": "使っている 2 つのトーンの塗りが、白黒（グレースケール）にすると見分けにくい（明度差 L* が 10 未満。破線などの形の手がかりがあれば除く）（許容する理由を書く）"
+        },
+        "rowheader-tone-collides": {
+          "type": "string",
+          "minLength": 1,
+          "description": "表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある（許容する理由を書く）"
+        },
+        "semantic-table-warning": {
+          "type": "string",
+          "minLength": 1,
+          "description": "意味付き表の入力に注意点がある（例: RACI の空の役割列）（許容する理由を書く）"
+        },
+        "swimlane-lanes": {
+          "type": "string",
+          "minLength": 1,
+          "description": "レーンが多い（6 本まで）（許容する理由を書く）"
+        },
+        "swimlane-hand-offs": {
+          "type": "string",
+          "minLength": 1,
+          "description": "レーンをまたぐ引き継ぎの数（情報）（許容する理由を書く）"
+        },
+        "edge-crossings": {
+          "type": "string",
+          "minLength": 1,
+          "description": "線どうしの交差・重なりがある（許容する理由を書く）"
+        },
+        "edge-bends": {
+          "type": "string",
+          "minLength": 1,
+          "description": "自動配置の図（cause / states / bpmn / classes / semnet）で、1 本の矢印が 5 回以上折れる、または折れの合計 ÷ 矢印の数が 3 を超える。既定は情報、diagram({layoutCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "edge-parallel": {
+          "type": "string",
+          "minLength": 1,
+          "description": "causeTree() の図で、別の矢印どうしの同じ向きの線が、レーンの間隔（14px、density: \"compact\" で 11px）より近くで 4px を超えて並び、その長さの合計がレーンの間隔の 2 倍を超える（端を共有する矢印どうしも数える。たどれない平行線の束になる）。pdpc・relationDiagram・whyWhyTree は対象外。既定は情報、diagram({layoutCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "quadrant-item-moved": {
+          "type": "string",
+          "minLength": 1,
+          "description": "quadrant() の項目が、重なりを避けるため指定した座標から 16px 以上動いた（座標は目安として読まれる）（許容する理由を書く）"
+        },
+        "quadrant-size-floor": {
+          "type": "string",
+          "minLength": 1,
+          "description": "quadrant() の項目の size が小さすぎ、最小の円で描いた（面積が値より大きく見える）（許容する理由を書く）"
+        },
+        "quadrant-empty-cell": {
+          "type": "string",
+          "minLength": 1,
+          "description": "quadrant() のマスに項目が 1 つもない（「該当なし」の空の枠が残っている。意図した空きは allowEmpty で示す）（許容する理由を書く）"
+        },
+        "quadrant-tone-only": {
+          "type": "string",
+          "minLength": 1,
+          "description": "quadrant() の項目の色（tone）だけで種類を分けている（group を使うと形と凡例でも伝わる）（許容する理由を書く）"
+        },
+        "funnel-values-rise": {
+          "type": "string",
+          "minLength": 1,
+          "description": "funnel({scale: \"value\"}) の値が下の段で増えている（漏斗として読むなら、値と段の順を確認する）（許容する理由を書く）"
+        },
+        "toc-ude-count": {
+          "type": "string",
+          "minLength": 1,
+          "description": "現状ツリー(causeTree({tree: \"crt\"}))の UDE が 5〜10 個の範囲の外。部分図なら accept で許容する。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "toc-no-desired-result": {
+          "type": "string",
+          "minLength": 1,
+          "description": "未来現実ツリー(causeTree({tree: \"frt\"}))に望む結果(role: de、最終のゴールなら goal)が無い。strict が求めるからと本文に無い文を作らず、本文に結果の文が無い枝(副作用の枝など)は accept で理由を書いて許容する(ADR 0037)。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "toc-parts": {
+          "type": "string",
+          "minLength": 1,
+          "description": "TOC のツリーの部品が足りない・違う(crt に根本原因 root が無い、frt に施策 injection が無い、frt に root がある)。frt に望む結果 de / goal が無いのは toc-no-desired-result(ここに accept を書いた図は、そちらも許容される)。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "toc-nbr-parts": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ネガティブブランチ(causeTree({tree: \"nbr\"}))に、トリミングの施策(role: trim)か、悪い結果(role: ude)が無い。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "toc-nbr-no-tipping": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ネガティブブランチで、転換点(role: tipping)を通らずに、原因を持たない実体から ude へ至る因果の道が残っている(転換点の無い枝)。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "toc-nbr-tipping-not-and": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ネガティブブランチの転換点(role: tipping)が、AND(複数の原因が揃って越える)の結果になっていない。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "toc-nbr-trim-too-late": {
+          "type": "string",
+          "minLength": 1,
+          "description": "トリミングの施策(role: trim)が断つ(kind: blocks)先が、転換点より結果側(下流)にある。転換点そのもの、またはその手前を断つ。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "toc-tt-unit": {
+          "type": "string",
+          "minLength": 1,
+          "description": "移行ツリー(causeTree({tree: \"tt\"}))の AND の結果が、ニーズ(role: need または precondition)と行動(role: action)の両方を原因に持たない(現状 + ニーズ + 行動 → 新しい現実の単位の形でない)。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "toc-prt-bottom-not-action": {
+          "type": "string",
+          "minLength": 1,
+          "description": "前提条件ツリー(causeTree({tree: \"prt\"}))の最下部の中間目標(中間目標の鎖の底)に、行動(role: action)がつながっていない(最下部は、実行できる行動)。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "toc-prt-one-to-one": {
+          "type": "string",
+          "minLength": 1,
+          "description": "前提条件ツリーの障害と中間目標が、全部 1 対 1 だけ(1 つの中間目標に複数の障害、または 1 つの障害が複数の中間目標を妨げる形が PRT らしい)。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "toc-obstacle-phrase": {
+          "type": "string",
+          "minLength": 1,
+          "description": "前提条件ツリーの障害のラベルが「ない」「無い」「不足」で終わる(障害は、無いことではなく、そこにある事実で書く指針。日本語の文末の判定なので偽陽性がある。常に info)（許容する理由を書く）"
+        },
+        "toc-injection-to-obstacle": {
+          "type": "string",
+          "minLength": 1,
+          "description": "未来現実ツリー(causeTree({tree: \"frt\"}) など)で、施策(role: injection)から障害(role: obstacle)へ通常の矢印(kind が blocks でない)が引かれている。矢印は「原因が結果を生む」と読まれるので、施策が障害を生むと逆の因果に読まれる。施策が障害を断つ・防ぐ意味なら、そのリンクに kind: \"blocks\" を付ける(破線と横棒の止め方になる)。diagram({tocCheck: \"strict\"}) で warn。（許容する理由を書く）"
+        },
+        "toc-role-indistinct": {
+          "type": "string",
+          "minLength": 1,
+          "description": "tree を書いた causeTree に root / goal / start（どれも同じアクセント色の二重枠）があるのに、roleTags が無い。別々の図で同じ見た目が別の意味を持つ（現状ツリーの根本原因と、未来現実ツリーのゴール・施策）と、白黒や凡例なしでは取り違える。causeTree({roleTags: true}) で役割を文字にする。情報（check --strict は落ちない）。文書をまたぐ版は check --docs 側の後続（許容する理由を書く）"
+        },
+        "toc-legend-suggested": {
+          "type": "string",
+          "minLength": 1,
+          "description": "tree を書いた causeTree を含む図に、legend の指定がない。役割は色と枠でしか区別されない。diagram({legend: 'auto'}) を付けるか、causeTree({roleTags: true}) で役割を文字にする。情報。legend: false と書けば出ない（許容する理由を書く）"
+        },
+        "toc-mirror": {
+          "type": "string",
+          "minLength": 1,
+          "description": "未来現実ツリー(causeTree({tree: \"frt\", mirrors: crt}))の望む結果(de / goal)の mirrors が、現状ツリーの ude の id でない、ude に対応する望む結果が無い、同じ ude を複数が mirrors している(1 対 1 でない)。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "fta-gate-one-input": {
+          "type": "string",
+          "minLength": 1,
+          "description": "故障の木(faultTree)の AND / OR / vote ゲートの入力が 1 つだけ。ゲートが意味を持たない。diagram({rcaCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "fta-vote-degenerate": {
+          "type": "string",
+          "minLength": 1,
+          "description": "故障の木の vote ゲートの k が 1(OR と同じ)または入力の数(AND と同じ)。diagram({rcaCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "fta-top-is-leaf": {
+          "type": "string",
+          "minLength": 1,
+          "description": "故障の木の頂上事象にゲートが無い(1 つの事象だけの木)。diagram({rcaCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "fta-undeveloped-left": {
+          "type": "string",
+          "minLength": 1,
+          "description": "故障の木に、展開していない事象(ひし形)が残っている(常に info。意図した省略なら無視してよい)（許容する理由を書く）"
+        },
+        "isisnot-no-isnot": {
+          "type": "string",
+          "minLength": 1,
+          "description": "IS/IS NOT 表(isIsNot)に、IS NOT が空の行がある(比較対象が無い)。diagram({rcaCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "isisnot-no-distinct-at-all": {
+          "type": "string",
+          "minLength": 1,
+          "description": "IS/IS NOT 表に「違い」が 1 つも無い(IS と IS NOT で鋭く違う点を挙げる)。diagram({rcaCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "isisnot-no-hypothesis-stands": {
+          "type": "string",
+          "minLength": 1,
+          "description": "仮説の検定表(isIsNotTests)に、説明できない行が 0 の仮説が無い(原因はまだ分かっていない。常に info)（許容する理由を書く）"
+        },
+        "whywhy-no-root": {
+          "type": "string",
+          "minLength": 1,
+          "description": "なぜなぜ分析(whyWhyTable / whyWhyTree)に、真因(trueCause)の無い鎖(葉)がある。どこまで掘ったか分からない。diagram({rcaCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "whywhy-measure-without-root": {
+          "type": "string",
+          "minLength": 1,
+          "description": "なぜなぜ分析で、真因でない所に対策(measure)がある(症状への対策になる)。diagram({rcaCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "whywhy-single-chain": {
+          "type": "string",
+          "minLength": 1,
+          "description": "なぜなぜ分析が 1 本の鎖だけ(分岐が無い。原因が 1 つに決まっているか確かめる。常に info)（許容する理由を書く）"
+        },
+        "whywhy-dig-below-root": {
+          "type": "string",
+          "minLength": 1,
+          "description": "なぜなぜの木で、真因(trueCause)の節の下にまだ「なぜ」がある(真因より下を掘っている。常に info)（許容する理由を書く）"
+        },
+        "bowtie-barrier-missing": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ボウタイ図(bowtie)で、脅威または結果にバリアが 1 つも無い(防ぐ・和らげる手が無い道)。diagram({rcaCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "fta-single-point": {
+          "type": "string",
+          "minLength": 1,
+          "description": "故障の木に、単独で頂上事象を起こす事象(大きさ 1 のカットセット)がある。カットセットが多すぎて調べられないときもこの規則の info(常に info)（許容する理由を書く）"
+        },
+        "toc-source-has-cause": {
+          "type": "string",
+          "minLength": 1,
+          "description": "原因を持たない役割(crt の root、frt・nbr の injection、nbr の trim、precondition)の実体に、入る矢印がある。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "toc-chain-only": {
+          "type": "string",
+          "minLength": 1,
+          "description": "crt / frt が分岐も合流も AND も無い 1 本鎖(途中の原因を飛ばしている可能性)。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "toc-orphan": {
+          "type": "string",
+          "minLength": 1,
+          "description": "causeTree({tree}) の実体のうち、どのリンクにも出てこないものがある(graph-orphan-node は connect() の線しか見ない)。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "toc-cycle-undeclared": {
+          "type": "string",
+          "minLength": 1,
+          "description": "causeTree({tree}) に循環があるのに、戻りの矢印に back: true が付いていない(配置が戻りとして扱った矢印を示す)。diagram({tocCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "graph-orphan-node": {
+          "type": "string",
+          "minLength": 1,
+          "description": "矢印でつないだ図の中に、どの矢印にもつながっていない箱がある（つなぎ忘れか、図に要らない箱。意図した注記なら id を付けない）（許容する理由を書く）"
+        },
+        "graph-disconnected": {
+          "type": "string",
+          "minLength": 1,
+          "description": "矢印でつないだ図が、互いにつながらない 2 つ以上のかたまりに分かれている（1 図 1 話なら、つなぎ忘れか、図を分ける）（許容する理由を書く）"
+        },
+        "term-variant": {
+          "type": "string",
+          "minLength": 1,
+          "description": "同じ語の表記が 1 つの図の中で揺れている（ユーザ / ユーザー、API / Api など）。1 つに揃える（許容する理由を書く）"
+        },
+        "term-avoid": {
+          "type": "string",
+          "minLength": 1,
+          "description": "用語集（.svg-diagram.json の \"terms\"）で、別の語に統一すると決めた語が使われている（許容する理由を書く）"
+        },
+        "table-sum-mismatch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "表の「合計」行・列の値が、並ぶ値の和と合わない（丸めで説明できる差は除く）（許容する理由を書く）"
+        },
+        "table-share-not-100": {
+          "type": "string",
+          "minLength": 1,
+          "description": "表の「構成比」「割合」の列が、合計 100% にならない（許容する理由を書く）"
+        },
+        "arrow-labels": {
+          "type": "string",
+          "minLength": 1,
+          "description": "一部にだけラベルがあり、ラベルのない矢印が多い（許容する理由を書く）"
+        },
+        "canvas-region-empty": {
+          "type": "string",
+          "minLength": 1,
+          "description": "canvas() の領域に内容がない（requireAll: 全領域を埋める指定）（許容する理由を書く）"
+        },
+        "one-story": {
+          "type": "string",
+          "minLength": 1,
+          "description": "1 つの図に、スイムレーンが複数ある（1 図 1 話）（許容する理由を書く）"
+        },
+        "slide-min-text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "スライド用キャンバスの最小文字サイズ(既定 24px)より小さい文字がある（許容する理由を書く）"
+        },
+        "font-floor-lowered": {
+          "type": "string",
+          "minLength": 1,
+          "description": "canvas の図が文字の下限を 14px から下げている(canvas.minText < 14。1:1 で読む前提で、投影には向かない)（許容する理由を書く）"
+        },
+        "box-size-ignored": {
+          "type": "string",
+          "minLength": 1,
+          "description": "box({size}) は効果がない(レイアウトも描画も読まない)。大きい文字は役割で書く: stat() / stat({size: \"display\"})・caption({role: \"display\"})・banner({headlineRole})・bars / plane({labelRole})。次の版で throw する（許容する理由を書く）"
+        },
+        "stat-no-source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "stat() の数字に出典(source)が無い。diagram({evidenceCheck: \"info\" | \"strict\"}) を書いた図だけで検査する(strict で warn)。stat({source, confidence}) で足す（許容する理由を書く）"
+        },
+        "stat-fit-shrunk": {
+          "type": "string",
+          "minLength": 1,
+          "description": "stat() の値が箱の幅に収まらないので、自動で小さい文字にした(隣の stat と大きさがそろわない。箱を広げるか、値を短くするとそろう)（許容する理由を書く）"
+        },
+        "slide-canvas-overflow": {
+          "type": "string",
+          "minLength": 1,
+          "description": "スライド用キャンバス(16:9)の高さに収まらない（許容する理由を書く）"
+        },
+        "aspect-tall": {
+          "type": "string",
+          "minLength": 1,
+          "description": "文書の図が縦に長い（高さが幅の 1.5 倍超。本の版面は縦横比が 1.5〜1.6 ほど）。部品に応じて、段組み（causeTree の fold、row の cols）か分割を検討する（許容する理由を書く）"
+        },
+        "doc-width": {
+          "type": "string",
+          "minLength": 1,
+          "description": "図の幅が本文の表示幅（約 930px）を超え、文字が縮む（diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）（許容する理由を書く）"
+        },
+        "flowchart-decision-edges": {
+          "type": "string",
+          "minLength": 1,
+          "description": "判断（flowchart のひし形）から出る矢印が 2 本未満、または 3 本以上、またはラベル（Yes / No など）がない（許容する理由を書く）"
+        },
+        "auto-fit-applied": {
+          "type": "string",
+          "minLength": 1,
+          "description": "幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・flowchart・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: 'auto': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する（許容する理由を書く）"
+        },
+        "density-compact-restored": {
+          "type": "string",
+          "minLength": 1,
+          "description": "diagram({density: 'compact'}) の因果ツリー・状態遷移で、詰めた図のほうが検査の問題(箱を通る矢印・ラベルの重なり)が多いので、通常の間隔で描いた（情報）（許容する理由を書く）"
+        },
+        "density": {
+          "type": "string",
+          "minLength": 1,
+          "description": "文字量・箱の数が多い（許容する理由を書く）"
+        },
+        "concentric-label-crossing": {
+          "type": "string",
+          "minLength": 1,
+          "description": "concentric の扇形（sectors）の印の見出しが、輪の線か区切り線（layout: stack では段や列の線）をまたぐ、または stack の外枠の外に出る（重ならない場所が見つからなかった。ADR 0065）（許容する理由を書く）"
+        },
+        "wf-callout-no-note": {
+          "type": "string",
+          "minLength": 1,
+          "description": "図の番号に対応する注釈がない（許容する理由を書く）"
+        },
+        "wf-note-no-callout": {
+          "type": "string",
+          "minLength": 1,
+          "description": "注釈に対応する番号が図にない（許容する理由を書く）"
+        },
+        "wf-callout-gap": {
+          "type": "string",
+          "minLength": 1,
+          "description": "図の番号が 1 からの連番になっていない（許容する理由を書く）"
+        },
+        "wf-callout-duplicate": {
+          "type": "string",
+          "minLength": 1,
+          "description": "同じ番号が複数の場所に付いている（情報）（許容する理由を書く）"
+        },
+        "wf-states-todo": {
+          "type": "string",
+          "minLength": 1,
+          "description": "状態の一覧に「未設計」の欄がある（設計するか、対象外と明示する）（許容する理由を書く）"
+        },
+        "wf-states-required": {
+          "type": "string",
+          "minLength": 1,
+          "description": "状態の一覧に、必須の状態の列がない（許容する理由を書く）"
+        },
+        "wf-states-ragged": {
+          "type": "string",
+          "minLength": 1,
+          "description": "状態の一覧の行に、列より多い欄がある（許容する理由を書く）"
+        },
+        "wf-callout-order": {
+          "type": "string",
+          "minLength": 1,
+          "description": "図の番号が、読む順（上から下、左から右）に並んでいない（情報）（許容する理由を書く）"
+        },
+        "layout-sibling-size": {
+          "type": "string",
+          "minLength": 1,
+          "description": "横に並ぶ枠の幅が 1〜4px だけ違う（等分の行で 4px の格子に丸めた結果。cols / flex で揃える）。diagram({layoutCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "layout-edge-misalign": {
+          "type": "string",
+          "minLength": 1,
+          "description": "隣り合う枠の縁（左端・右端・上端）が 1〜4px ずれている（0 は一致、5px 以上は別物として扱う）。diagram({layoutCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "layout-gutter-uneven": {
+          "type": "string",
+          "minLength": 1,
+          "description": "横に並ぶ 3 枠以上の間隔が 2px 以上不均一。diagram({layoutCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "layout-unused-space": {
+          "type": "string",
+          "minLength": 1,
+          "description": "枠の中身の下に 48px 以上かつ枠の高さの 40% 以上の空きがある（行の高さ揃え・canvas の床の結果）。diagram({layoutCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "layout-figure-offset": {
+          "type": "string",
+          "minLength": 1,
+          "description": "内容（ラベル込み、題・凡例・出典行を除く）の左右の余白が 48px 以上違う（図が片側に寄っている）。diagram({layoutCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "layout-figure-narrow": {
+          "type": "string",
+          "minLength": 1,
+          "description": "内容の幅が図の幅の 50% 未満（diagram({width}) で内容に合わせて狭められる）。diagram({layoutCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "layout-align-mixed": {
+          "type": "string",
+          "minLength": 1,
+          "description": "横に並ぶ箱で文字の揃え（左・中央）が混在している（意図なら accept で許容する）。diagram({layoutCheck: \"strict\"}) で warn（許容する理由を書く）"
+        },
+        "doc-image-missing": {
+          "type": "string",
+          "minLength": 1,
+          "description": "文書が参照している SVG がない（許容する理由を書く）"
+        },
+        "doc-alt-empty": {
+          "type": "string",
+          "minLength": 1,
+          "description": "文書の画像に代替テキストがない（許容する理由を書く）"
+        },
+        "doc-alt-long": {
+          "type": "string",
+          "minLength": 1,
+          "description": "代替テキストが長い（155 文字以内にして、詳しい説明は本文に）（許容する理由を書く）"
+        },
+        "doc-notes-missing": {
+          "type": "string",
+          "minLength": 1,
+          "description": "図に注釈があるのに、文書に番号つきの注釈のリストがない（許容する理由を書く）"
+        },
+        "doc-notes-mismatch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "文書の注釈のリストが、図の注釈と違う（片方を直し忘れている）（許容する理由を書く）"
+        },
+        "doc-png-has-svg": {
+          "type": "string",
+          "minLength": 1,
+          "description": "文書が PNG を参照しているが、同名の SVG もある（SVG への差し替え忘れ。PNG を残す意図なら許容する）（許容する理由を書く）"
+        },
+        "doc-png-no-source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "文書が参照している PNG に、同じ名前の図のソース（--src-dir）も SVG（--svg-dir）もない（手作りの絵か、図を消したあとの残り）（許容する理由を書く）"
+        },
+        "doc-orphan-png": {
+          "type": "string",
+          "minLength": 1,
+          "description": "文書が参照している PNG と同じフォルダにある、どの文書からも参照されていない PNG（許容する理由を書く）"
+        },
+        "doc-svg-no-source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "文書が参照している SVG に、対応する図のソースがない（ソースを消したあと SVG だけ残り、再生成されない古い絵になる。--src-dir か ./diagrams と、SVG に記録された生成元を探す）（許容する理由を書く）"
+        },
+        "doc-orphan-svg": {
+          "type": "string",
+          "minLength": 1,
+          "description": "どの文書からも参照されていない SVG（許容する理由を書く）"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Rules accepted for every diagram, each with the reason it is fine: {\"rule-id\": \"why\"}. An accepted finding drops to info."
+    },
+    "maxWidth": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "The widest every diagram may be, in px (a diagram's own maxWidth wins)."
+    },
+    "terms": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minItems": 1
+      },
+      "description": "Glossary for every diagram: {\"ユーザー\": [\"利用者\", \"ユザー\"]}: the word to use, and the spellings check reports as term-avoid."
+    },
+    "legend": {
+      "enum": [
+        "auto",
+        false
+      ],
+      "description": "The default for every diagram's legend (a diagram's own wins): false = no legend needed, \"auto\" = add the missing entries."
+    },
+    "legendLabels": {
+      "type": "object",
+      "properties": {
+        "line:solid": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 実線"
+        },
+        "line:dashed": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 破線"
+        },
+        "line:dotted": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 点線"
+        },
+        "line:double": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 二重線"
+        },
+        "arrow:both": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 双方向"
+        },
+        "weight:strong": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 強い流れ"
+        },
+        "tone:new": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 新規"
+        },
+        "tone:changed": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 変更・改修"
+        },
+        "tone:removed": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 対象外"
+        },
+        "tone:danger": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 異常・注意"
+        },
+        "tone:muted": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 補助・任意"
+        },
+        "tone:accent": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 強調"
+        },
+        "tone:solid": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 主役"
+        },
+        "tone:solid-danger": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 異常(強)"
+        },
+        "role:ude": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 好ましくない現象(UDE)"
+        },
+        "role:root": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 根本原因"
+        },
+        "role:de": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 望む結果(DE)"
+        },
+        "role:injection": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 施策"
+        },
+        "role:precondition": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 現状の事実"
+        },
+        "role:tipping": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 転換点"
+        },
+        "role:trim": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: トリミング(施策)"
+        },
+        "role:need": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: ニーズ"
+        },
+        "role:goal": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 目標"
+        },
+        "role:io": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 中間目標"
+        },
+        "role:obstacle": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 障害"
+        },
+        "role:action": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 行動"
+        },
+        "role:start": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 開始"
+        },
+        "role:risk": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 懸念"
+        },
+        "role:measure": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 対策"
+        },
+        "edge:and": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 合わせて原因(AND)"
+        },
+        "edge:back": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 戻り(フィードバック)"
+        },
+        "edge:blocks": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 断つ"
+        },
+        "mark:core": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 中核ドライバー"
+        },
+        "fta-event:basic": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 基本事象"
+        },
+        "fta-event:undeveloped": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 未展開の事象"
+        },
+        "fta-event:house": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 家形事象(常に起きる/起きない)"
+        },
+        "fta-event:condition": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 条件事象"
+        },
+        "fta-gate:and": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: AND ゲート"
+        },
+        "fta-gate:or": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: OR ゲート"
+        },
+        "fta-gate:vote": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 多数決ゲート(k/n)"
+        },
+        "fta-gate:inhibit": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default: 禁止ゲート"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Legend wording for every diagram, such as {\"tone:accent\": \"注意\"} (a diagram's own legendLabels win per key)."
+    },
+    "tones": {
+      "type": "object",
+      "properties": {
+        "plain": {
+          "type": "object",
+          "properties": {
+            "fill": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "ink": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "dark": {
+              "type": "object",
+              "properties": {
+                "fill": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "stroke": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "text": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "ink": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                }
+              },
+              "additionalProperties": false,
+              "description": "What each colour becomes with appearance \"dark\"."
+            }
+          },
+          "additionalProperties": false
+        },
+        "accent": {
+          "type": "object",
+          "properties": {
+            "fill": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "ink": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "dark": {
+              "type": "object",
+              "properties": {
+                "fill": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "stroke": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "text": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "ink": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                }
+              },
+              "additionalProperties": false,
+              "description": "What each colour becomes with appearance \"dark\"."
+            }
+          },
+          "additionalProperties": false
+        },
+        "new": {
+          "type": "object",
+          "properties": {
+            "fill": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "ink": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "dark": {
+              "type": "object",
+              "properties": {
+                "fill": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "stroke": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "text": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "ink": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                }
+              },
+              "additionalProperties": false,
+              "description": "What each colour becomes with appearance \"dark\"."
+            }
+          },
+          "additionalProperties": false
+        },
+        "changed": {
+          "type": "object",
+          "properties": {
+            "fill": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "ink": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "dark": {
+              "type": "object",
+              "properties": {
+                "fill": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "stroke": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "text": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "ink": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                }
+              },
+              "additionalProperties": false,
+              "description": "What each colour becomes with appearance \"dark\"."
+            }
+          },
+          "additionalProperties": false
+        },
+        "removed": {
+          "type": "object",
+          "properties": {
+            "fill": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "ink": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "dark": {
+              "type": "object",
+              "properties": {
+                "fill": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "stroke": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "text": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "ink": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                }
+              },
+              "additionalProperties": false,
+              "description": "What each colour becomes with appearance \"dark\"."
+            }
+          },
+          "additionalProperties": false
+        },
+        "muted": {
+          "type": "object",
+          "properties": {
+            "fill": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "ink": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "dark": {
+              "type": "object",
+              "properties": {
+                "fill": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "stroke": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "text": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "ink": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                }
+              },
+              "additionalProperties": false,
+              "description": "What each colour becomes with appearance \"dark\"."
+            }
+          },
+          "additionalProperties": false
+        },
+        "danger": {
+          "type": "object",
+          "properties": {
+            "fill": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "ink": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "dark": {
+              "type": "object",
+              "properties": {
+                "fill": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "stroke": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "text": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "ink": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                }
+              },
+              "additionalProperties": false,
+              "description": "What each colour becomes with appearance \"dark\"."
+            }
+          },
+          "additionalProperties": false
+        },
+        "solid": {
+          "type": "object",
+          "properties": {
+            "fill": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "ink": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "dark": {
+              "type": "object",
+              "properties": {
+                "fill": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "stroke": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "text": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "ink": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                }
+              },
+              "additionalProperties": false,
+              "description": "What each colour becomes with appearance \"dark\"."
+            }
+          },
+          "additionalProperties": false
+        },
+        "solid-danger": {
+          "type": "object",
+          "properties": {
+            "fill": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "ink": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "A #rrggbb colour."
+            },
+            "dark": {
+              "type": "object",
+              "properties": {
+                "fill": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "stroke": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "text": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                },
+                "ink": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "description": "A #rrggbb colour."
+                }
+              },
+              "additionalProperties": false,
+              "description": "What each colour becomes with appearance \"dark\"."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "description": "Tone colours for every diagram, such as {\"accent\": {\"fill\": \"#e6d3bd\"}} (a diagram's own tones win per colour)."
+    },
+    "wrap": {
+      "enum": [
+        "phrase",
+        "char",
+        "bunsetsu",
+        "bunsetsu-soft"
+      ],
+      "description": "The default for every diagram's wrap (a diagram's own wins)."
+    },
+    "keepWords": {
+      "type": "boolean",
+      "description": "The default for every diagram's keepWords: never break a katakana word across lines."
+    },
+    "measure": {
+      "enum": [
+        "font",
+        "chromium"
+      ],
+      "description": "How text is measured: \"font\" (default) from the font files, no browser (see fonts); \"chromium\" in a headless browser. SVG_DIAGRAM_MEASURE wins."
+    },
+    "fonts": {
+      "type": "object",
+      "properties": {
+        "sans": {
+          "type": "object",
+          "properties": {
+            "regular": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A font file, as \"path\" or \"path#faceIndex\"; a relative path is relative to this file's folder."
+            },
+            "bold": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A font file, as \"path\" or \"path#faceIndex\"; a relative path is relative to this file's folder."
+            }
+          },
+          "additionalProperties": false
+        },
+        "mono": {
+          "type": "object",
+          "properties": {
+            "regular": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A font file, as \"path\" or \"path#faceIndex\"; a relative path is relative to this file's folder."
+            },
+            "bold": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A font file, as \"path\" or \"path#faceIndex\"; a relative path is relative to this file's folder."
+            }
+          },
+          "additionalProperties": false
+        },
+        "emoji": {
+          "type": "object",
+          "properties": {
+            "regular": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A font file, as \"path\" or \"path#faceIndex\"; a relative path is relative to this file's folder."
+            },
+            "bold": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A font file, as \"path\" or \"path#faceIndex\"; a relative path is relative to this file's folder."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "description": "Font files to measure with when measure is \"font\": per family, the regular and the bold (weight 600 or more) one. Unset: found with fontconfig."
+    },
+    "fontFloor": {
+      "type": "number",
+      "minimum": 10,
+      "maximum": 14,
+      "description": "The lowest canvas.minText a diagram may declare (10 to 14, default 14)."
+    },
+    "today": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "The day for gantt({today: 'auto'}) when no --today or SVG_DIAGRAM_TODAY is given: YYYY-MM-DD."
+    }
+  },
+  "additionalProperties": false
+}

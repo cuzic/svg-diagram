@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "svg-diagram site.json",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The JSON Schema of this file, for the editor (such as \"./node_modules/svg-diagram/schema/deck.schema.json\"). The CLIs ignore it."
+    },
+    "title": {
+      "type": "string",
+      "description": "The site's title, on its index."
+    },
+    "decks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "deck": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The deck file, relative to this site.json."
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+            "description": "The deck's folder in the site: lower-case letters, digits and \"-\" (made from the title when left out)."
+          },
+          "title": {
+            "type": "string",
+            "description": "The title on the site's index (the deck's own when left out)."
+          }
+        },
+        "required": [
+          "deck"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "description": "The decks, in the order of the index."
+    },
+    "extra": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The file, relative to this site.json."
+      },
+      "description": "Files copied into the site: {\"where in the site\": \"the file\"}."
+    }
+  },
+  "required": [
+    "decks"
+  ],
+  "additionalProperties": false
+}
