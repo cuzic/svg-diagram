@@ -58,6 +58,16 @@ export class SpecError extends Error {
   }
 }
 
+/**
+ * A file's JSON without the `$schema` an editor reads (ADR 0071): a spec, a figure file and a deck may start with it, and the checks
+ * never see it. Only a string is taken out: anything else is left for the checks to report as an unknown field, as site.json does.
+ */
+export const withoutSchemaField = (v: unknown): unknown => {
+  if (typeof v !== 'object' || v === null || Array.isArray(v) || typeof (v as Record<string, unknown>)['$schema'] !== 'string') return v;
+  const {$schema: _schema, ...rest} = v as Record<string, unknown>;
+  return rest;
+};
+
 export type Json = Record<string, unknown>;
 export type Check = (part: Json, at: string, issues: SpecIssue[]) => void;
 

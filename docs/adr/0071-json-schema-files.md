@@ -1,6 +1,6 @@
 # ADR 0071: JSON のファイルの JSON Schema をパッケージに入れる(`schema/*.schema.json`)
 
-- 状態: 実装済み(2026-11-20。`lib/schema-files.ts`・`scripts/schema.ts`・`schema/`・`test/schema-files.test.ts`。Opus のレビュー 1 回目(`0071-opus-review-round1.md`)の Blocker 1・Minor 5 と Nit の大半を反映)
+- 状態: 実装済み(2026-11-20。`lib/schema-files.ts`・`scripts/schema.ts`・`schema/`・`test/schema-files.test.ts`。Opus のレビュー 1 回目(`0071-opus-review-round1.md`)の Blocker 1・Minor 5 と Nit の大半を反映。2 回目(`0071-opus-review-round2.md`)で Blocker・Major なしで収束し、その Minor 2 と Nit の一部を反映)
 - 基点: `main`(3fd26a2、PR #387 まで)
 - 関連: ADR 0055(デッキの JSON)、ADR 0057(spec の canvas)、ADR 0067(site.json)、svg-diagram-vscode(VS Code 拡張)
 
@@ -27,16 +27,17 @@ VS Code 拡張(svg-diagram-vscode)から補完と検査をしたい、という�
 **D3. エディタ向けの形にする。** 検査の意味は変えずに:
 - `parts` の要素は「`type` を全部品の `enum` から選び、その部品のフィールドだけを `if` / `then` で当てる」形にし、部品は `definitions` に 1 度だけ書く。`type` の各値には `partCatalog()` の説明を `enumDescriptions` で、部品ごとに例のひな形を `defaultSnippets` で付ける(VS Code だけが読むキーワード。標準の検査器には無視させる)。
 - デッキの図(スライドと段)は「`.ts` / `.json` で終わるパスか、図(`canvas` のない spec)」の `anyOf`。パスを先に置き、`patternErrorMessage` で何が違うかを言う。
-- 1 行の文字列(CLI が空白だけ・制御文字を拒むもの)には、同じことを言う `pattern` を付ける。デッキの `notes` と段の `text` は改行を書けるので付けない。
+- 1 行の文字列(CLI が空白だけ・制御文字を拒むもの)には、同じことを言う `pattern` を付ける。デッキの `notes` と段の `text` は改行とタブを書けるので、それ以外の制御文字と空白だけを拒む `pattern` にする。
 - `accept` の各規則と `legendLabels` の各キーには、`RULE_DOCS` の説明と既定の文言を `description` に入れる(ホバーで読める)。
 
-**D4. どのファイルも先頭に `"$schema"`(文字列)を書いてよい。** `loadDeck` はデッキと `.json` の図から文字列の `$schema` を読み捨て(文字列でなければ残して、知らないフィールドとして誤りにする)、`parseSite` は許す(文字列でなければ誤り)。`.svg-diagram.json` はもともと知らないフィールドを無視する。CLI が JSON のまま渡された spec(MCP の入力など)の `$schema` は今までどおり誤り(ファイルではないので要らない)。
+**D4. どのファイルも先頭に `"$schema"`(文字列)を書いてよい。** spec の検査(`validateSpec` / `specToDiagram`、つまり `renderSpec` や `renderSpecEdge` も)とデッキの検査(`validateDeck`)は、先頭の文字列の `$schema` を読み捨てる(`withoutSchemaField`、`svg-diagram/spec` から出す)。文字列でなければ残して、知らないフィールドとして誤りにする。単独の spec のファイルを公開の API で描く使い方(`renderSpecEdge` で描く図のフォルダなど)があるため、ファイルの読み込みだけでなく検査の入口で取る。`parseSite` は許す(文字列でなければ誤り)。`.svg-diagram.json` はもともと知らないフィールドを無視する。デッキの中に書いた図の `$schema` はスキーマでは書けない(ファイルではないので要らない)。
 
 **D5. スキーマは形だけを言う。** 部品ごとの規則(id の重複、表紙に書けない項目、文字数・絵文字の合計、`width` と `canvas` の併用)は書かない。エディタと CLI が食い違う所は次のとおりで、最後に決めるのは CLI:
 - 文字列の長さは、JSON Schema はコードポイント、CLI は UTF-16 で数えるので、エディタの方が少し緩い。
 - 日付(`YYYY-MM-DD` の 10 文字など)の長さは、CLI の形の検査は見ず部品の規則で見るが、エディタは長さで言う(メッセージが「最短の長さ」になる)。
 - `640.0` は CLI では整数(`JSON.parse` の後は 640)だが、VS Code は字面で整数でないと言う。
-- `svg-diagram/pptx/deck/edge` の `validateDeck` や MCP の入力は、ファイルではないので `$schema` を拒む。ファイルを読んで渡す側が取る。テストは、表せる誤りについては標準の検査器(ajv)と CLI が同じく拒むことを確かめる。
+- CLI は孤立したサロゲートと U+FFFE / U+FFFF も拒むが、スキーマは拒まない(書くことはまずない)。`minLength` のない 5 つほどの文字列(`site.json` の `title` など)も空白だけを拒まない。
+- スキーマの間の参照(`spec.schema.json#/definitions/parts`)は相対の URI で、5 つのファイルを同じ場所から読むときに解ける。VS Code 拡張がファイルを別の URI で配るなら、5 つとも同じ並びで配る(拡張の側の仕事)。テストは、表せる誤りについては標準の検査器(ajv)と CLI が同じく拒むことを確かめる。
 
 ## 考えたが採らなかったこと
 
@@ -47,5 +48,5 @@ VS Code 拡張(svg-diagram-vscode)から補完と検査をしたい、という�
 ## 結果
 
 - 手で書く JSON がエディタで補完・検査される。VS Code 拡張は、プロジェクトの `node_modules/svg-diagram/schema/` を読んで、`$schema` なしでも当てられる(拡張の側の仕事)。
-- パッケージが約 0.7 MB 大きくなる(spec とデッキのスキーマが大半)。
+- パッケージが約 0.6 MB 大きくなる(大半は全部品を持つ `spec.schema.json`)。
 - 部品を足す人は `pnpm schema` を回す。忘れるとテストが落ちる。

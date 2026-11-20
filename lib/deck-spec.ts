@@ -2,7 +2,7 @@
 // (ADR 0055), or a cover (ADR 0066). The input, its JSON Schema and its checks, with places such as `slides[2].figure.parts[0].nodes[1]`. Like lib/spec.ts, nothing
 // here touches the disk or a process.
 import {capped, specSchema, validateAgainst, validateSpec} from './spec.ts';
-import {count, list, object, oneOf, SPEC_WIDTH, text, type Json, type JsonSchema, type SpecIssue} from './spec-kit.ts';
+import {count, list, object, oneOf, SPEC_WIDTH, text, withoutSchemaField, type Json, type JsonSchema, type SpecIssue} from './spec-kit.ts';
 import {columnLayoutWidth} from './deck-layout.ts';
 
 /** Slides in one deck (ADR 0055 D1, raised from 30 to 300 on 2026-11-15: see the ADR for what the number rests on). */
@@ -73,7 +73,7 @@ export const columnFigurePath = (i: number, j: number, path: string | null): str
 
 /** Every problem with `input`, each with its place; empty when it can be drawn. At most MAX_ISSUES (the last says how many more). */
 export function validateDeck(input: unknown): SpecIssue[] {
-  const flat = withoutBreaks(input);
+  const flat = withoutBreaks(withoutSchemaField(input)); // a deck file names its schema for the editor (ADR 0071)
   const issues = validateAgainst(SHAPE, flat);
   const slides = (flat as Json | null)?.['slides'];
   if (Array.isArray(slides)) slides.forEach((s: unknown, i) => {

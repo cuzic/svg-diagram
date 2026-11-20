@@ -42,6 +42,8 @@ test('spec: every catalog example is valid, as the CLI finds it; "$schema" is al
     const spec = {$schema: './node_modules/svg-diagram/schema/spec.schema.json', version: 1, title: type, parts: [example]};
     assert.ok(valid('spec', spec), `${type}: ${JSON.stringify(validators['spec']?.errors?.slice(0, 3))}`);
   }
+  assert.deepEqual(validateSpec({$schema: './spec.schema.json', ...SPEC}), [], 'a spec file read with the public API may name its schema too');
+  assert.ok(validateSpec({$schema: 1, ...SPEC}).some(i => i.path === '$schema'));
 });
 
 test('parts are read by type first: every part type (with what it is for), then that part\'s fields alone (if / then, no oneOf)', () => {
@@ -50,7 +52,7 @@ test('parts are read by type first: every part type (with what it is for), then 
   const items = spec.definitions.parts.items, types = partCatalog().map(p => p.type);
   assert.equal(spec.properties.parts.$ref, '#/definitions/parts');
   assert.deepEqual(items.properties.type.enum, types);
-  assert.ok(items.properties.type.enumDescriptions.every(d => d.length > 0));
+  assert.deepEqual(items.properties.type.enumDescriptions, partCatalog().map(p => p.description));
   assert.equal(items.oneOf, undefined);
   assert.deepEqual(items.allOf.map(b => b.then.$ref), types.map(t => `#/definitions/part.${t}`));
   assert.deepEqual(items.defaultSnippets.map(x => x.label), types);
@@ -108,6 +110,8 @@ test('deck: a figure is a spec (without canvas) or the path of a .ts / .json fig
     {slides: [{figure: 'a.json.bak'}]},
     {slides: [{figure: 'a.ts.svg'}]},
     {slides: [{title: '一行目\n二行目'}]},
+    {slides: [{title: 'a', notes: '   '}]},
+    {slides: [{title: 'a', notes: 'ベル\u0007'}]},
     {slides: [{columns: [{figure: SPEC}, {figure: {...SPEC, theme: 'pink'}}]}]},
   ]) assert.equal(valid('deck', wrong), false, `the schema takes ${JSON.stringify(wrong)}`);
 });

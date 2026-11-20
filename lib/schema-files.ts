@@ -29,11 +29,13 @@ const withSchemaField = (schema: SchemaNode, file: string): SchemaNode => ({...s
 
 /** What the CLI refuses in a one-line text (lib/spec.ts: blank, or a control character such as a line break), as a pattern. */
 const ONE_LINE = {pattern: '^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$', patternErrorMessage: 'Write plain text on one line: not blank, no line break or other control character.'};
+/** What the CLI refuses in deck notes and a column's text, which may hold line breaks and tabs: blank, or another control character. */
+const MULTI_LINE = {pattern: '^(?=[\\s\\S]*\\S)[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f]*$', patternErrorMessage: 'Write text: not blank, and no control character other than a line break or a tab.'};
 /** `node` with ONE_LINE on every text in it (a string with minLength, which the CLI reads as "not blank"). */
 function oneLine(node: unknown): unknown {
   if (Array.isArray(node)) return node.map(oneLine);
   if (typeof node !== 'object' || node === null) return node;
-  const o = Object.fromEntries(Object.entries(node).map(([k, v]) => [k, k === 'enum' || k === 'const' ? v : oneLine(v)]));
+  const o = Object.fromEntries(Object.entries(node).map(([k, v]) => [k, k === 'enum' || k === 'const' || k === 'defaultSnippets' ? v : oneLine(v)]));
   return o['type'] === 'string' && o['minLength'] !== undefined && o['pattern'] === undefined && o['enum'] === undefined ? {...o, ...ONE_LINE} : o;
 }
 
@@ -97,9 +99,9 @@ function deckFile(): SchemaNode {
       ...deck.properties,
       slides: {...slides, items: {...slide, properties: {
         ...oneLineSlide,
-        notes: slideProps['notes'],
+        notes: {...slideProps['notes'], ...MULTI_LINE},
         figure: figure(slideProps['figure']?.description),
-        columns: {...columns, items: {...column, properties: {...oneLineColumn, text: columnProps['text'], figure: figure(columnProps['figure']?.description)}}},
+        columns: {...columns, items: {...column, properties: {...oneLineColumn, text: {...columnProps['text'], ...MULTI_LINE}, figure: figure(columnProps['figure']?.description)}}},
       }}},
     }}, 'deck.schema.json'),
     definitions: {figure: {...(specTop('spec.schema.json#/definitions/parts', false) as object), description: FIGURE_DESCRIPTION}},

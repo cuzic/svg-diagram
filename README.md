@@ -1397,7 +1397,7 @@ svg-diagram check --covers words.csv --svg-dir svg diagrams/formula.ts
 使うフォントは、`FONT_STACKS` の先頭から見て最初に入っているファミリー（fontconfig の `fc-match` で探す）。ファイルを直接指定するなら（相対パスは、`.svg-diagram.json` のあるフォルダ基準。どこから実行しても同じ） `{"fonts": {"sans": {"regular": "/path/YuGothR.ttc#0", "bold": "/path/YuGothB.ttc#0"}}}`（`#N` は .ttc の何番目か。`mono` `emoji` も同じ）。fontconfig のない環境（macOS など）や、どのマシンでも同じ値にしたいときは指定する。
 Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Gothic）は幅 1px・高さ 1px 以内、mono（Consolas など hinting の効くフォント）は Chromium が advance を整数ピクセルに丸める（切り上げることもある）ため、1 字あたり 1px 以内。例の図 3 つは、どちらの方式でも SVG がバイト単位で同じだった。フォントに無い字は emoji → sans のフォントで測り、どれにも無ければ 1em（全角）か 0.5em。`lint-svg` と `show` と `preview` は引き続き Chromium を使う。
 
-**エディタで補完・検査する（JSON Schema）**: パッケージの `schema/` に、JSON のファイルの JSON Schema がある（ADR 0071）。先頭に `"$schema"` を書くと、VS Code などがフィールドの補完・説明・誤りの表示をする（部品の `type` は全 65 種から選べ、説明と例のひな形が出る）。CLI は文字列の `$schema` を読み飛ばす（文字列でなければ知らないフィールドとして誤り）。
+**エディタで補完・検査する（JSON Schema）**: パッケージの `schema/` に、JSON のファイルの JSON Schema がある（ADR 0071）。先頭に `"$schema"` を書くと、VS Code などがフィールドの補完・説明・誤りの表示をする（部品の `type` は全種類から選べ、説明と例のひな形が出る）。CLI と `svg-diagram/spec` などの検査は、先頭の文字列の `$schema` を読み飛ばす（文字列でなければ知らないフィールドとして誤り）。
 
 | ファイル | 書く `$schema`（案件の根からの例） |
 |---|---|
@@ -1406,7 +1406,7 @@ Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Go
 | デッキが指す図の `.json`（JSON の spec。`canvas` は書けない） | `"./node_modules/svg-diagram/schema/figure.schema.json"` |
 | `site.json` | `"./node_modules/svg-diagram/schema/site.schema.json"` |
 
-パスはそのファイルからの相対なので、サブフォルダのファイルは `../node_modules/...` にする。spec・図・デッキのスキーマは CLI が検査に使うものから作り、`site.json` と `.svg-diagram.json` のものは型とテストで CLI の検査に合わせている（部品を足したら `pnpm schema` で作り直す。古いままならテストが落ちる）。図とデッキのスキーマは隣の `spec.schema.json` を参照するので、4 つのファイルは同じフォルダに置いたまま使う。形で言えることだけを言う: 部品ごとの規則（id の重複、表紙に書けない項目、文字数の合計など）は CLI が最後に検査する。パッケージの出口は `svg-diagram/schema/<名前>.schema.json`。
+パスはそのファイルからの相対なので、サブフォルダのファイルは `../node_modules/...` にする。spec・図・デッキのスキーマは CLI が検査に使うものから作り、`site.json` と `.svg-diagram.json` のものは型とテストで CLI の検査に合わせている（部品を足したら `pnpm schema` で作り直す。古いままならテストが落ちる）。図とデッキのスキーマは隣の `spec.schema.json` を参照するので、5 つのファイルは同じフォルダに置いたまま使う。形で言えることだけを言う: 部品ごとの規則（id の重複、表紙に書けない項目、文字数の合計など）は CLI が最後に検査する。パッケージの出口は `svg-diagram/schema/<名前>.schema.json`。
 
 ## check のルール（lib/rules.ts）
 `legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える。記法が少なく凡例が要らない図は `diagram({legend: false})` で「凡例は要らない」と宣言する。凡例を足すためだけに足さない）、`quadrant-empty-cell`（`quadrant()` に項目のないマスがある。意図した空きは `allowEmpty`）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、

@@ -120,7 +120,9 @@
                   "type": "string",
                   "minLength": 1,
                   "maxLength": 600,
-                  "description": "Short text for the column: lines separated by \"\\n\"; a line starting with ・ or \"- \" is a bullet. Write either figure or text."
+                  "description": "Short text for the column: lines separated by \"\\n\"; a line starting with ・ or \"- \" is a bullet. Write either figure or text.",
+                  "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f]*$",
+                  "patternErrorMessage": "Write text: not blank, and no control character other than a line break or a tab."
                 },
                 "width": {
                   "oneOf": [
@@ -205,7 +207,9 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 5000,
-            "description": "Speaker notes. Lines are separated by \"\\n\"."
+            "description": "Speaker notes. Lines are separated by \"\\n\".",
+            "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f]*$",
+            "patternErrorMessage": "Write text: not blank, and no control character other than a line break or a tab."
           }
         },
         "required": [],
