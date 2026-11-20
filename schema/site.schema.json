@@ -5,7 +5,7 @@
   "properties": {
     "$schema": {
       "type": "string",
-      "description": "The JSON Schema of this file, for the editor (such as \"./node_modules/svg-diagram/schema/deck.schema.json\"). The CLIs ignore it."
+      "description": "The JSON Schema of this file, for the editor (such as \"./node_modules/svg-diagram/schema/site.schema.json\"). The CLIs ignore it."
     },
     "title": {
       "type": "string",
@@ -24,7 +24,16 @@
           "slug": {
             "type": "string",
             "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
-            "description": "The deck's folder in the site: lower-case letters, digits and \"-\" (made from the title when left out)."
+            "not": {
+              "enum": [
+                "assets",
+                "cdn-cgi",
+                "p",
+                "api",
+                "auth"
+              ]
+            },
+            "description": "The deck's folder in the site: lower-case letters, digits and \"-\" (made from the title when left out). Not one the site keeps for itself: assets, cdn-cgi, p, api, auth."
           },
           "title": {
             "type": "string",

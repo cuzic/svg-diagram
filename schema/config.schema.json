@@ -6,7 +6,7 @@
   "properties": {
     "$schema": {
       "type": "string",
-      "description": "The JSON Schema of this file, for the editor (such as \"./node_modules/svg-diagram/schema/deck.schema.json\"). The CLIs ignore it."
+      "description": "The JSON Schema of this file, for the editor (such as \"./node_modules/svg-diagram/schema/config.schema.json\"). The CLIs ignore it."
     },
     "outDir": {
       "type": "string",

@@ -1,6 +1,6 @@
 # ADR 0071: JSON のファイルの JSON Schema をパッケージに入れる(`schema/*.schema.json`)
 
-- 状態: 実装済み(2026-11-20。`lib/schema-files.ts`・`scripts/schema.ts`・`schema/`・`test/schema-files.test.ts`)
+- 状態: 実装済み(2026-11-20。`lib/schema-files.ts`・`scripts/schema.ts`・`schema/`・`test/schema-files.test.ts`。Opus のレビュー 1 回目(`0071-opus-review-round1.md`)の Blocker 1・Minor 5 と Nit の大半を反映)
 - 基点: `main`(3fd26a2、PR #387 まで)
 - 関連: ADR 0055(デッキの JSON)、ADR 0057(spec の canvas)、ADR 0067(site.json)、svg-diagram-vscode(VS Code 拡張)
 
@@ -20,18 +20,23 @@ VS Code 拡張(svg-diagram-vscode)から補完と検査をしたい、という�
 
 ## 決定
 
-**D1. `schema/` に 4 つのファイルを置き、パッケージに入れる。** `spec.schema.json`・`deck.schema.json`・`site.schema.json`・`config.schema.json`。draft-07(エディタの対応がいちばん広い)。`package.json` の `files` に `schema` を足し、`exports` に `"./schema/*.json"` を足す。
+**D1. `schema/` に 5 つのファイルを置き、パッケージに入れる。** `spec.schema.json`(単独の spec。全部品の定義を持つ)・`figure.schema.json`(デッキが指す `.json` の図: `canvas` のない spec)・`deck.schema.json`・`site.schema.json`・`config.schema.json`。図とデッキは `spec.schema.json#/definitions/parts` を相対で参照する(部品を 1 か所にだけ書き、パッケージを小さくする)。draft-07(エディタの対応がいちばん広い)。`package.json` の `files` に `schema` を足し、`exports` に `"./schema/*.json"` を足す。
 
 **D2. ファイルは CLI が検査に使うスキーマから作る。** `lib/schema-files.ts` が作り、`pnpm schema` が書く。`test/schema-files.test.ts` が、書かれたファイルが今作るものと同じかを確かめる(部品を足して作り直し忘れると落ちる)。手で書くのは `site.json` と `.svg-diagram.json` だけで、`.svg-diagram.json` のフィールドは `satisfies Record<keyof Config, …>` で型 `Config` と合わせる。規則の id・凡例のキー・トーンの名前は `RULE_DOCS`・`DEFAULT_LEGEND_LABELS`・`TONES` から取る。
 
 **D3. エディタ向けの形にする。** 検査の意味は変えずに:
-- `parts` の要素は「`type` を全部品の `enum` から選び、その部品のフィールドだけを `if` / `then` で当てる」形にし、部品は `definitions` に 1 度だけ書く。
-- デッキの図(スライドと段)は「spec(`canvas` なし)か、`.ts` / `.json` で終わるパス」の `anyOf`。spec は `definitions.figure` に 1 度だけ書く。
+- `parts` の要素は「`type` を全部品の `enum` から選び、その部品のフィールドだけを `if` / `then` で当てる」形にし、部品は `definitions` に 1 度だけ書く。`type` の各値には `partCatalog()` の説明を `enumDescriptions` で、部品ごとに例のひな形を `defaultSnippets` で付ける(VS Code だけが読むキーワード。標準の検査器には無視させる)。
+- デッキの図(スライドと段)は「`.ts` / `.json` で終わるパスか、図(`canvas` のない spec)」の `anyOf`。パスを先に置き、`patternErrorMessage` で何が違うかを言う。
+- 1 行の文字列(CLI が空白だけ・制御文字を拒むもの)には、同じことを言う `pattern` を付ける。デッキの `notes` と段の `text` は改行を書けるので付けない。
 - `accept` の各規則と `legendLabels` の各キーには、`RULE_DOCS` の説明と既定の文言を `description` に入れる(ホバーで読める)。
 
-**D4. どのファイルも先頭に `"$schema"`(文字列)を書いてよい。** `loadDeck` はデッキと `.json` の図から読み捨て、`parseSite` は許す(文字列でなければ誤り)。`.svg-diagram.json` はもともと知らないフィールドを無視する。CLI が JSON のまま渡された spec(MCP の入力など)の `$schema` は今までどおり誤り(ファイルではないので要らない)。
+**D4. どのファイルも先頭に `"$schema"`(文字列)を書いてよい。** `loadDeck` はデッキと `.json` の図から文字列の `$schema` を読み捨て(文字列でなければ残して、知らないフィールドとして誤りにする)、`parseSite` は許す(文字列でなければ誤り)。`.svg-diagram.json` はもともと知らないフィールドを無視する。CLI が JSON のまま渡された spec(MCP の入力など)の `$schema` は今までどおり誤り(ファイルではないので要らない)。
 
-**D5. スキーマは形だけを言う。** 部品ごとの規則(id の重複、表紙に書けない項目、文字数・絵文字の合計、`width` と `canvas` の併用)は書かない。文字列の長さも、JSON Schema はコードポイント、CLI は UTF-16 で数えるので、エディタの方が少し緩い。最後に決めるのは CLI。テストは、表せる誤りについては標準の検査器(ajv)と CLI が同じく拒むことを確かめる。
+**D5. スキーマは形だけを言う。** 部品ごとの規則(id の重複、表紙に書けない項目、文字数・絵文字の合計、`width` と `canvas` の併用)は書かない。エディタと CLI が食い違う所は次のとおりで、最後に決めるのは CLI:
+- 文字列の長さは、JSON Schema はコードポイント、CLI は UTF-16 で数えるので、エディタの方が少し緩い。
+- 日付(`YYYY-MM-DD` の 10 文字など)の長さは、CLI の形の検査は見ず部品の規則で見るが、エディタは長さで言う(メッセージが「最短の長さ」になる)。
+- `640.0` は CLI では整数(`JSON.parse` の後は 640)だが、VS Code は字面で整数でないと言う。
+- `svg-diagram/pptx/deck/edge` の `validateDeck` や MCP の入力は、ファイルではないので `$schema` を拒む。ファイルを読んで渡す側が取る。テストは、表せる誤りについては標準の検査器(ajv)と CLI が同じく拒むことを確かめる。
 
 ## 考えたが採らなかったこと
 

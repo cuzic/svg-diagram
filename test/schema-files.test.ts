@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {Ajv} from 'ajv';
-import {schemaFiles, schemaText} from '../lib/schema-files.ts';
+import {EDITOR_KEYWORDS, schemaFiles, schemaText} from '../lib/schema-files.ts';
 import {partCatalog, validateSpec} from '../lib/spec.ts';
 import {validateDeck} from '../lib/deck-spec.ts';
 import {loadDeck} from '../lib/deck-load.ts';
@@ -16,7 +16,9 @@ import {readConfigFile} from '../lib/config.ts';
 const ROOT = path.join(import.meta.dirname, '..');
 const files = schemaFiles();
 const ajv = new Ajv({strict: true, allErrors: true, strictTypes: false});
-const validators = Object.fromEntries(Object.entries(files).map(([name, s]) => [name.replace('.schema.json', ''), ajv.compile(s)]));
+ajv.addVocabulary([...EDITOR_KEYWORDS]);
+for (const [name, s] of Object.entries(files)) ajv.addSchema(s as object, name); // deck and figure point at spec.schema.json, as an editor resolves them next to each other
+const validators = Object.fromEntries(Object.keys(files).map(name => [name.replace('.schema.json', ''), ajv.getSchema(name) as ReturnType<Ajv['compile']>]));
 const valid = (kind: string, value: unknown): boolean => (validators[kind] as (v: unknown) => boolean)(value);
 const tmp = (): string => fs.mkdtempSync(path.join(os.tmpdir(), 'svgd-schema-'));
 
@@ -40,6 +42,29 @@ test('spec: every catalog example is valid, as the CLI finds it; "$schema" is al
     const spec = {$schema: './node_modules/svg-diagram/schema/spec.schema.json', version: 1, title: type, parts: [example]};
     assert.ok(valid('spec', spec), `${type}: ${JSON.stringify(validators['spec']?.errors?.slice(0, 3))}`);
   }
+});
+
+test('parts are read by type first: every part type (with what it is for), then that part\'s fields alone (if / then, no oneOf)', () => {
+  type Items = {properties: {type: {enum: string[]; enumDescriptions: string[]}}; allOf: {if: unknown; then: {$ref: string}}[]; oneOf?: unknown; defaultSnippets: {label: string; body: unknown}[]};
+  const spec = files['spec.schema.json'] as {properties: {parts: {$ref: string}}; definitions: {parts: {items: Items}} & Record<string, {description?: string}>};
+  const items = spec.definitions.parts.items, types = partCatalog().map(p => p.type);
+  assert.equal(spec.properties.parts.$ref, '#/definitions/parts');
+  assert.deepEqual(items.properties.type.enum, types);
+  assert.ok(items.properties.type.enumDescriptions.every(d => d.length > 0));
+  assert.equal(items.oneOf, undefined);
+  assert.deepEqual(items.allOf.map(b => b.then.$ref), types.map(t => `#/definitions/part.${t}`));
+  assert.deepEqual(items.defaultSnippets.map(x => x.label), types);
+  for (const t of types) assert.ok(spec.definitions[`part.${t}`]?.description, t);
+  for (const name of ['figure.schema.json', 'deck.schema.json']) assert.match(JSON.stringify(files[name]), /"\$ref":"spec\.schema\.json#\/definitions\/parts"/, name);
+});
+
+test('spec: a one-line text that is blank or holds a line break is refused, as the CLI refuses it', () => {
+  for (const label of ['   ', 'a\nb', 'a\tb']) {
+    const spec = {...SPEC, parts: [{type: 'chevron', steps: [...STEPS, {label}]}]};
+    assert.ok(validateSpec(spec).length > 0, JSON.stringify(label));
+    assert.equal(valid('spec', spec), false, JSON.stringify(label));
+  }
+  assert.ok(valid('spec', {...SPEC, title: '日本語と English、記号 ①→②'}));
 });
 
 test('spec: what the schema can say, it refuses as the CLI does', () => {
@@ -69,7 +94,7 @@ test('deck: a figure is a spec (without canvas) or the path of a .ts / .json fig
       {layout: 'cover', title: '表紙', presenter: '発表者'},
       {title: '図', figure: SPEC},
       {title: 'ファイル', figure: 'flow.diagram.ts'},
-      {title: '段', columns: [{figure: 'a.json'}, {figure: SPEC, caption: '右'}, {text: '・要点'}]},
+      {title: '段', columns: [{figure: 'a.json'}, {figure: SPEC, caption: '右'}, {text: '・要点\n・次の点'}], notes: '話すこと\n\t- 補足'},
     ],
   };
   assert.ok(valid('deck', deck), JSON.stringify(validators['deck']?.errors?.slice(0, 3)));
@@ -80,8 +105,18 @@ test('deck: a figure is a spec (without canvas) or the path of a .ts / .json fig
     {slides: [{title: 'x', colour: 'red'}]},
     {slides: [{figure: {...SPEC, canvas: {width: 1920}}}]},
     {slides: [{figure: 'flow.svg'}]},
+    {slides: [{figure: 'a.json.bak'}]},
+    {slides: [{figure: 'a.ts.svg'}]},
+    {slides: [{title: '一行目\n二行目'}]},
     {slides: [{columns: [{figure: SPEC}, {figure: {...SPEC, theme: 'pink'}}]}]},
   ]) assert.equal(valid('deck', wrong), false, `the schema takes ${JSON.stringify(wrong)}`);
+});
+
+test('a .json figure of a deck: the spec without canvas', () => {
+  assert.ok(valid('figure', {$schema: './figure.schema.json', ...SPEC}));
+  assert.ok(valid('spec', {...SPEC, canvas: {width: 1920}}));
+  assert.equal(valid('figure', {...SPEC, canvas: {width: 1920}}), false);
+  assert.equal(valid('figure', {...SPEC, parts: [{type: 'chevron', steps: STEPS, colour: 'red'}]}), false);
 });
 
 test('deck: the CLIs read a deck and a .json figure that name their schema', () => {
@@ -93,6 +128,9 @@ test('deck: the CLIs read a deck and a .json figure that name their schema', () 
     assert.ok(got.ok, got.ok ? '' : got.errors.join('\n'));
     assert.equal(Object.hasOwn(got.loaded.deck, '$schema'), false);
     assert.deepEqual(got.loaded.deck.slides[0]?.figure, SPEC);
+    fs.writeFileSync(path.join(dir, 'deck.json'), JSON.stringify({$schema: 1, slides: [{title: 'a'}]}));
+    const wrong = loadDeck(path.join(dir, 'deck.json'));
+    assert.ok(!wrong.ok && wrong.errors.some(e => e.startsWith('$schema')), 'a $schema that is not a string is an unknown field, as in site.json');
   } finally { fs.rmSync(dir, {recursive: true, force: true}); }
 });
 
@@ -100,9 +138,13 @@ test('site.json: the schema and parseSite agree; "$schema" is allowed', () => {
   const site = {$schema: './node_modules/svg-diagram/schema/site.schema.json', title: '資料', decks: [{deck: 'a/deck.json', slug: 'a-1', title: 'A'}], extra: {CNAME: 'CNAME'}};
   assert.ok(valid('site', site));
   assert.ok(parseSite(site, '/p/site.json').ok);
-  for (const wrong of [{decks: []}, {decks: [{slug: 'x'}]}, {decks: [{deck: 'a.json', slug: 'Bad Slug'}]}, {decks: [{deck: 'a.json'}], colour: 'red'}, {$schema: 1, decks: [{deck: 'a.json'}]}]) {
+  // [site.json, what parseSite says]: a slug's form and the reserved names are checked later (assignSlugs), the editor says so at once
+  for (const [wrong, parsed] of [
+    [{decks: []}, false], [{decks: [{slug: 'x'}]}, false], [{decks: [{deck: 'a.json'}], colour: 'red'}, false], [{$schema: 1, decks: [{deck: 'a.json'}]}, false],
+    [{decks: [{deck: 'a.json', slug: 'Bad Slug'}]}, true], [{decks: [{deck: 'a.json', slug: 'assets'}]}, true],
+  ] as const) {
     assert.equal(valid('site', wrong), false, `the schema takes ${JSON.stringify(wrong)}`);
-    assert.equal(parseSite(wrong, '/p/site.json').ok, JSON.stringify(wrong).includes('Bad Slug'), `parseSite on ${JSON.stringify(wrong)}`); // a slug's form is checked later, by assignSlugs
+    assert.equal(parseSite(wrong, '/p/site.json').ok, parsed, `parseSite on ${JSON.stringify(wrong)}`);
   }
 });
 

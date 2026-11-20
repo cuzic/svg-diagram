@@ -31,9 +31,12 @@ export const hasSource = (sources: ReadonlyMap<string, string>, i: number): bool
 
 const message = (e: unknown): string => e instanceof Error ? e.message : String(e);
 
-/** A file's JSON without the `$schema` an editor reads (ADR 0071): the deck and a .json figure may start with it; the checks never see it. */
+/**
+ * A file's JSON without the `$schema` an editor reads (ADR 0071): the deck and a .json figure may start with it, and the checks never
+ * see it. Only a string is taken out: anything else is left for the checks to report as an unknown field, as site.json does.
+ */
 export const withoutSchemaField = (v: unknown): unknown => {
-  if (typeof v !== 'object' || v === null || Array.isArray(v) || !Object.hasOwn(v, '$schema')) return v;
+  if (typeof v !== 'object' || v === null || Array.isArray(v) || typeof (v as Record<string, unknown>)['$schema'] !== 'string') return v;
   const {$schema: _schema, ...rest} = v as Record<string, unknown>;
   return rest;
 };

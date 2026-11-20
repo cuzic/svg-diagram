@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "svg-diagram figure (a .json figure of a deck)",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The JSON Schema of this file, for the editor (such as \"./node_modules/svg-diagram/schema/figure.schema.json\"). The CLIs ignore it."
+    },
+    "version": {
+      "const": 1,
+      "description": "Always 1."
+    },
+    "lang": {
+      "type": "string",
+      "enum": [
+        "ja",
+        "en"
+      ],
+      "description": "The language of the words the figure writes by itself (legends, headings such as 'Today'): ja (default) or en. Write your own text in the same language."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "The accessible name of the figure. Drawn above it only with showTitle.",
+      "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+      "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+    },
+    "showTitle": {
+      "type": "boolean",
+      "description": "true: draw the title above the figure."
+    },
+    "desc": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 400,
+      "description": "A one-sentence description for screen readers.",
+      "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+      "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+    },
+    "sourceLine": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "Where the content comes from, printed under the figure.",
+      "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+      "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+    },
+    "theme": {
+      "type": "string",
+      "enum": [
+        "blue",
+        "teal",
+        "amber"
+      ],
+      "description": "Default blue."
+    },
+    "appearance": {
+      "type": "string",
+      "enum": [
+        "light",
+        "dark"
+      ]
+    },
+    "density": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "compact"
+      ]
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 320,
+      "maximum": 940,
+      "description": "The width the figure is laid out at, in px (320 to 940, default 940): narrower makes boxes and tables wrap their text instead of the figure being shrunk later (a column of a slide). Text sizes do not change."
+    },
+    "legend": {
+      "enum": [
+        "auto",
+        false
+      ],
+      "description": "'auto' lists the notation used; false shows no legend."
+    },
+    "parts": {
+      "$ref": "spec.schema.json#/definitions/parts"
+    }
+  },
+  "required": [
+    "version",
+    "title",
+    "parts"
+  ],
+  "additionalProperties": false,
+  "description": "A figure: the same JSON spec as a single diagram, without canvas (the slide sizes it)."
+}
