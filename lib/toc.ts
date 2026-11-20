@@ -262,7 +262,7 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
   // a cause tree's own band (not pdpc / relationDiagram / whyWhyTree, ADR 0070 D1/M1): the AND arc of D8, the room before the heads that it
   // needs (`headRun` = AND_END + 1, and the old 4px more for a last turn), and the ports of D3
   const own = band.base === undefined && band.layerFrom === undefined;
-  const {end: AND_END, peak: AND_PEAK, reach: AND_REACH} = own ? andArc() : OLD_ARC;
+  const {end: AND_END, peak: AND_PEAK, reach: AND_REACH} = own ? andArc(band.arcScale ?? 1) : OLD_ARC; // arcScale: tests only until D7 (U5)
   const headRun = AND_END + 1;
   const heads = own ? {headRun: Math.max(22, headRun), turnRun: Math.max(26, headRun + 4), andPorts: true} : undefined;
   // the last run of each arrow of an AND, when they can carry one arc (see below): the arrows arrive on one side, all heading the
@@ -293,11 +293,12 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
     // the most arrows that meet one node (each needs its own lane in the gap beside it)
     const degreeOf = (id: string): number => Math.max(arrows.filter(a => a.from === id).length, arrows.filter(a => a.to === id).length);
     const degree = Math.max(1, ...band.nodes.map(n => degreeOf(n.id)));
-    // ADR 0070 D3: the boundaries next to an AND group take one more step each. Their number depends on the order of the ports, so the most
-    // there can be: two for each group, and never more than the boundaries of the side (groups + lone arrows - 1)
+    // ADR 0070 D3: the boundaries next to an AND group take one more step each. Their number depends on the order of the ports, which the
+    // layout decides after the boxes are sized, so the box takes the most there can be: two for each group, and never more than the
+    // boundaries of the side (groups + lone arrows - 1). A declared return (`back`) arrives on the far side and is not counted
     const andSteps = (id: string): number => {
       if (!heads) return 0;
-      const into = arrows.flatMap((a, k) => a.to === id ? [k] : []), ands = new Set(into.flatMap(k => groups.flatMap((g, gi) => g.arrows.includes(k) ? [gi] : [])));
+      const into = arrows.flatMap((a, k) => a.to === id && !a.back ? [k] : []), ands = new Set(into.flatMap(k => groups.flatMap((g, gi) => g.arrows.includes(k) ? [gi] : [])));
       const lone = into.filter(k => !groups.some(g => g.arrows.includes(k))).length;
       return ands.size ? Math.min(2 * ands.size, ands.size + lone - 1) : 0;
     };

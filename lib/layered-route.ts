@@ -76,7 +76,12 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
  */
 function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true, laneShare = false, aside = false, detour = false, lonePorts = detour, space = 1, laneHeads = false, spread = true, heads: HeadRoom = {}): Map<number, Pt[]> {
   const STUB = stubOf(space), LANE = laneStepOf(space); // this figure's stub and lane step (they shadow the module's)
-  const HEAD_RUN = heads.headRun ?? 22, TURN_RUN = heads.turnRun ?? 26; // the last run into a head keeps room for the arrowhead (and an AND's arc)
+  // the last run into a head keeps room for the arrowhead (22; a long arrow's last turn 26). A head that an AND arrives at keeps the room
+  // its arc needs (`heads`, ADR 0070 D8); the other heads keep the old room
+  const andHeads = new Set<string>();
+  if (groupOf) lay.edges.forEach((e, i) => { if (!e.self && groupOf(i) !== undefined) andHeads.add(e.to); });
+  const headRunOf = (to: string): number => andHeads.has(to) ? heads.headRun ?? 22 : 22;
+  const turnRunOf = (to: string): number => andHeads.has(to) ? heads.turnRun ?? 26 : 26;
   // ports: the edges that meet one side of a state fan out along it (ordered by where the other end is, so they do not cross)
   // lanes: direct arrows through one gap between two layers take separate vertical runs
   const edgeAt = (i: number): LayeredEdgeOut => at(lay.edges, i);
@@ -152,6 +157,9 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   });
   const byKey = new Map<string, typeof ends>();
   for (const en of ends) byKey.set(en.key, [...(byKey.get(en.key) ?? []), en]);
+  // an AND whose arrows arrive on more than one side of the head draws no arc (toc.ts `andEnds`): its ports are not widened (ADR 0070 D3)
+  const groupSides = new Map<number, Set<string>>();
+  if (groupOf) for (const en of ends) { const g = en.end === 1 ? groupOf(en.edge) : undefined; if (g !== undefined) groupSides.set(g, (groupSides.get(g) ?? new Set()).add(en.key)); }
   for (const list of byKey.values()) {
     // the arrows of one group (an AND) arrive side by side: they sort by where the group as a whole comes from, then among themselves
     const mean = new Map<number, number>(), count = new Map<number, number>();
@@ -163,7 +171,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     list.sort((p, q) => key(p) - key(q) || (p.end === 1 && groupOf ? (groupOf(p.edge) ?? -1) - (groupOf(q.edge) ?? -1) : 0) || p.other - q.other || p.edge - q.edge);
     // ADR 0070 D3 (`andPorts`): the boundary between an AND group and its neighbour (another group, or an arrow of no group) is two steps
     // wide, so that the two arcs (or the arc and the lone arrow) stay apart; inside a group and between ungrouped arrows it stays one step
-    const groupAt = (en: typeof list[number]): number | undefined => en.end === 1 && groupOf ? groupOf(en.edge) : undefined;
+    const groupAt = (en: typeof list[number]): number | undefined => { const g = en.end === 1 && groupOf ? groupOf(en.edge) : undefined; return g !== undefined && groupSides.get(g)?.size === 1 ? g : undefined; };
     const units = list.map((en, k): number => {
       if (k === 0) return 0;
       const a = groupAt(must(list[k - 1])), b = groupAt(en);
@@ -227,14 +235,14 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     const l1 = layerOf(e.from), l2 = layerOf(e.to), g = Math.min(l1, l2), m = l1 < l2 ? gapFwd : gapBack;
     m.set(g, (m.get(g) ?? 0) + 1);
   });
-  const within = (g: number, x: number, head = false): number => { if (!spread) return x; const gl = layerRight.get(g), gr = layerLeft.get(g + 1); return gl === undefined || gr === undefined ? x : Math.min(gr - STUB, Math.max(gl + (head ? Math.max(STUB, HEAD_RUN) : STUB), x)); }; // a turn stays inside its gap; the last run into a head keeps room for the arrowhead
+  const within = (g: number, x: number, head?: string): number => { if (!spread) return x; const gl = layerRight.get(g), gr = layerLeft.get(g + 1); return gl === undefined || gr === undefined ? x : Math.min(gr - STUB, Math.max(gl + (head !== undefined ? Math.max(STUB, headRunOf(head)) : STUB), x)); }; // a turn stays inside its gap; the last run into a head keeps room for the arrowhead
   lay.edges.forEach((e, i) => {
     if (!e.outer) return;
     const gt = layerOf(e.from) - 1, gh = layerOf(e.to), kt = tailAt.get(gt) ?? 0, kh = headAt.get(gh) ?? 0;
     tailAt.set(gt, kt + 1); headAt.set(gh, kh + 1);
     outerTurns.set(i, {
       tail: within(gt, (layerLeft.get(gt + 1) ?? 0) - STUB - ((gapBack.get(gt) ?? 0) + kt) * laneIn(gt)),
-      head: within(gh, (layerRight.get(gh) ?? 0) + STUB + ((gapFwd.get(gh) ?? 0) + kh) * laneIn(gh), true),
+      head: within(gh, (layerRight.get(gh) ?? 0) + STUB + ((gapFwd.get(gh) ?? 0) + kh) * laneIn(gh), e.to),
     });
   });
   };
@@ -264,7 +272,9 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       let turn: number | undefined;
       if (e.points.length === 2) {
         const lo = Math.min(layerOf(e.from), layerOf(e.to)), gl = must(layerRight.get(lo)), gr = layerLeft.get(lo + 1) ?? gl + 2 * STUB, gw = gr - gl;
-        const d = Math.min(STUB + (laneOf.get(i) ?? 0), Math.max(gw / 2, gw - HEAD_RUN)); // the last run keeps room for the arrowhead
+        // the last run keeps room for the arrowhead. TODO(ADR 0070 U4b): `gw / 2` lets it shrink below the head's room in a gap under
+        // 2 x headRun; the gaps are tall enough today (`gapFor`), and the track assignment takes headRun as a constraint
+        const d = Math.min(STUB + (laneOf.get(i) ?? 0), Math.max(gw / 2, gw - headRunOf(e.to)));
         turn = turnAt.get(i) ?? (forward(i) ? gl + d : gr - d);
       }
       // a long arrow into a grouped head (an AND) makes its last turn a fixed distance before the head, clear of the lanes of the direct arrows
@@ -272,7 +282,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       let lastTurn: number | undefined;
       if (groupOf && e.points.length > 2 && forward(i)) {
         const lo = layerOf(e.to) - 1, gl = layerRight.get(lo), gr = layerLeft.get(lo + 1);
-        if (gl !== undefined && gr !== undefined) { const k = longInto.get(e.to) ?? 0; longInto.set(e.to, k + 1); lastTurn = laneShare && longLane.has(i) ? Math.min(gr - TURN_RUN, gl + STUB + must(longLane.get(i)) * laneIn(lo)) : Math.max(gl + STUB, gr - TURN_RUN - k * laneIn(lo)); }
+        if (gl !== undefined && gr !== undefined) { const k = longInto.get(e.to) ?? 0; longInto.set(e.to, k + 1); const tr = turnRunOf(e.to); lastTurn = laneShare && longLane.has(i) ? Math.min(gr - tr, gl + STUB + must(longLane.get(i)) * laneIn(lo)) : Math.max(gl + STUB, gr - tr - k * laneIn(lo)); }
       }
       const dz = shiftOf.get(i) ?? 0;
       const found = detours.get(i);
@@ -362,7 +372,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       const onBox = touches(i, r);
       if (r.length <= 4 && !onBox) continue;
       const rest = [...routes].filter(([j]) => j !== i).map(([, p]) => p);
-      const found = searchRoute(at(r, 0), at(r, r.length - 1), rects, rest, bounds, {stub: STUB, tail: TURN_RUN});
+      const found = searchRoute(at(r, 0), at(r, r.length - 1), rects, rest, bounds, {stub: STUB, tail: turnRunOf(e.to)});
       if (!found) continue;
       const route = simplify(found);
       // only this arrow changed: its crossings and bends against the rest, before and after
@@ -412,7 +422,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
           const at = lastTurnOf(routes, j);
           if (at === undefined) continue;
           // the last run keeps room for the arrowhead, on the head's side of the gap (the right for a forward arrow, the left for a return)
-          for (const x of [at - LANE, at + LANE, at - 6, at + 6]) if (forward(i) ? x > gl + 4 && x < gr - HEAD_RUN : x > gl + HEAD_RUN && x < gr - 4) tries.push(() => turnAt.set(i, x));
+          for (const x of [at - LANE, at + LANE, at - 6, at + 6]) if (forward(i) ? x > gl + 4 && x < gr - headRunOf(e.to) : x > gl + headRunOf(e.to) && x < gr - 4) tries.push(() => turnAt.set(i, x));
         }
       }
       for (const set of tries) {
@@ -587,7 +597,10 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
       const p = place({x: n.x, y: n.y}), q = place({x: n.x + n.w, y: n.y + n.h});
       rects.set(id, {x0: Math.min(p.x, q.x) + 1, x1: Math.max(p.x, q.x) - 1, y0: Math.min(p.y, q.y) + 1, y1: Math.max(p.y, q.y) - 1});
     }
-    const routes = moveApart({routes: a.routes, edges: new Map(a.lay.edges.map((e, i) => [i, {from: e.from, to: e.to, self: e.self, outer: e.outer}])), rects});
+    // the heads an AND arrives at keep the room its arc needs (ADR 0070 D8, `heads`); the others the old 22
+    const andHeads = new Set<string>(), groupOf = o.groupOf, run = o.heads?.headRun;
+    if (groupOf && run !== undefined) a.lay.edges.forEach(e => { if (!e.self && groupOf(e.index) !== undefined) andHeads.add(e.to); });
+    const routes = moveApart({routes: a.routes, edges: new Map(a.lay.edges.map((e, i) => [i, {from: e.from, to: e.to, self: e.self, outer: e.outer}])), rects, ...(run === undefined ? {} : {headRun: (i: number) => andHeads.has(at(a.lay.edges, i).to) ? run : 22})});
     if ([...routes].every(([i, r]) => r === a.routes.get(i))) return a;
     const b: Attempt = {...a, routes, score: scoreOf([...routes.values()]), loose: o.looseOf ? o.looseOf(routes, a.lay) : []};
     optsOf.set(b, must(optsOf.get(a)));

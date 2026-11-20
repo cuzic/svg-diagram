@@ -9,7 +9,7 @@ import type {Diagram} from '../lib/dsl.ts';
 import type {LaidOutCause} from '../lib/types/diagrams.ts';
 import {andArc} from '../lib/toc.ts';
 import {ARROW_L} from '../lib/cause-hop.ts';
-import {CRT_REPORT_LINKS, crtReportShape} from './fixtures/crt-report-shape.ts';
+import {CRT_REPORT_LINKS, CRT_REPORT_NODES, CRT_REPORT_OPTIONS, crtReportShape} from './fixtures/crt-report-shape.ts';
 
 test.after(() => closeMeasurer());
 
@@ -69,6 +69,8 @@ test('a head with no AND keeps its ports and its width: the same figure with ano
   assert.deepEqual(ports(withAnd, 'h'), ports(without, 'h'), 'its ports, from its left edge');
   assert.deepEqual(new Set(steps(tipsInto(without, 'h').map(e => e.x))).size, 1, 'an ordinary fan-in keeps one even step');
   assert.equal(withAnd.ands.length, 1);
+  // the plain step is the step inside a group: widening every boundary (not only those next to an AND) would make it twice that
+  assert.equal(steps(tipsInto(withAnd, 'h').map(e => e.x))[0], steps(tipsInto(withAnd, 'g').map(e => e.x))[0]);
 });
 
 test("the reported CRT's shape: every AND is drawn, its last runs hold AND_END + 1, the arc clears the arrowheads by 0.4 x minText, u4's two groups stand apart", async () => {
@@ -81,11 +83,44 @@ test("the reported CRT's shape: every AND is drawn, its last runs hold AND_END +
     const p = e.points, last = Math.hypot(p.at(-1)!.x - p.at(-2)!.x, p.at(-1)!.y - p.at(-2)!.y);
     assert.ok(last >= end + 1, `${e.from}->${e.to}: last run ${last} < AND_END + 1 = ${end + 1}`);
   }
-  const minText = 18; // the fixture's canvas
+  // the fixture's canvas. Every AND here has two arrows, which meet the arc beside its middle; the middle of a three-arrow AND is
+  // AND_PEAK from the tip, 6px at s = 1 (< 7.2): that holds in general once the lines scale with the text (U5, s = 1.29: AND_PEAK 21, gap 8)
+  const minText = 18;
   assert.ok(visibleGap(t) >= 0.4 * minText, `visible gap ${visibleGap(t)} < ${0.4 * minText}`);
   // u4: (e8, pre3) and (u3, pre4), four arrows: the step between the groups is twice the one inside, the arcs do not read as one
   const s = steps(tipsInto(t, 'u4').map(e => e.x));
   assert.equal(s[1], 2 * s[0]!);
   const [l, r] = t.ands.filter(a => a.to === 'u4').map(spanOf).sort((p, q) => p[0] - q[0]);
   assert.ok(r![0] - l![1] >= 2 * s[0]! - 2 * reach - 0.01, `u4's arcs ${l} and ${r}`);
+});
+
+/** Each arrow of each AND: its last run, and whether every AND got its arc. */
+const lastRunsOfAnds = (t: LaidOutCause): number[] => t.ands.flatMap(a => t.edges.filter(e => e.to === a.to && a.from.includes(e.from)).map(e => {
+  const p = e.points;
+  return Math.hypot(p.at(-1)!.x - p.at(-2)!.x, p.at(-1)!.y - p.at(-2)!.y);
+}));
+
+test("at arc scale 1.29 (ADR 0070 U3, a test-only band key until D7): the reported CRT's shape draws every AND, every last run holds AND_END + 1", async () => {
+  const s = 1.29, {end} = andArc(s);
+  for (const opts of [{}, {layer: 'asap' as const}]) {
+    const band = {...causeTree(CRT_REPORT_NODES, CRT_REPORT_LINKS, {...CRT_REPORT_OPTIONS, ...opts}), arcScale: s};
+    const t = await laid(diagram({theme: 'blue', canvas: {width: 2600, height: 2000, minText: 18, fit: 'content'}}).add(band));
+    assert.equal(t.ands.length, CRT_REPORT_LINKS.filter(l => typeof l.from !== 'string').length, `${JSON.stringify(opts)}: no AND loses its arc`);
+    assert.deepEqual(t.loose, []);
+    for (const r of lastRunsOfAnds(t)) assert.ok(r >= end + 1, `${JSON.stringify(opts)}: last run ${r} < AND_END + 1 = ${end + 1}`);
+    assert.ok(visibleGap(t) >= 0.4 * 18, `visible gap ${visibleGap(t)}`);
+  }
+});
+
+test('a three-arrow AND (with an ordinary arrow beside it and a long arrow in it): drawn, last runs hold AND_END + 1, the middle arrow clears the arc by 0.4 x 14', async () => {
+  for (const s of [1, 1.29]) {
+    const {end} = andArc(s);
+    const band = {...causeTree([N('h', {role: 'ude'}), N('m'), N('a'), N('b'), N('c'), N('d'), N('r', {role: 'root'})],
+      [{from: 'r', to: 'm'}, {from: ['a', 'b', 'm'], to: 'h'}, {from: 'c', to: 'h'}, {from: 'd', to: 'c'}], {tree: 'crt', dir: 'up'}), arcScale: s};
+    const t = await laid(diagram({theme: 'blue'}).add(band));
+    assert.equal(t.ands.length, 1, `s = ${s}`);
+    assert.deepEqual(t.loose, []);
+    for (const r of lastRunsOfAnds(t)) assert.ok(r >= end + 1, `s = ${s}: last run ${r} < ${end + 1}`);
+    assert.ok(visibleGap(t) >= 0.4 * 14 * s, `s = ${s}: visible gap ${visibleGap(t)}`);
+  }
 });
