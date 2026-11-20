@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {Ajv} from 'ajv';
 import {EDITOR_KEYWORDS, schemaFiles, schemaText} from '../lib/schema-files.ts';
-import {partCatalog, validateSpec} from '../lib/spec.ts';
+import {partCatalog, validateSpec, withoutSchemaField} from '../lib/spec.ts';
 import {validateDeck} from '../lib/deck-spec.ts';
 import {loadDeck} from '../lib/deck-load.ts';
 import {parseSite} from '../lib/site.ts';
@@ -24,6 +24,13 @@ const tmp = (): string => fs.mkdtempSync(path.join(os.tmpdir(), 'svgd-schema-'))
 
 const STEPS = [{label: '計画'}, {label: '実装'}, {label: '検証'}];
 const SPEC = {version: 1, title: '手順', parts: [{type: 'chevron', steps: STEPS}]};
+
+test('withoutSchemaField takes out a string $schema at the top only, and leaves anything else for the checks to name', () => {
+  assert.deepEqual(withoutSchemaField({$schema: './deck.schema.json', slides: []}), {slides: []});
+  const kept = {$schema: 1, slides: []};
+  assert.equal(withoutSchemaField(kept), kept);
+  for (const v of [null, 'x', [{$schema: 'a'}], {slides: [{$schema: 'a'}]}]) assert.equal(withoutSchemaField(v), v);
+});
 
 test('schema/ holds exactly the files lib/schema-files.ts makes (run `pnpm schema` after changing a schema)', () => {
   const dir = path.join(ROOT, 'schema');
