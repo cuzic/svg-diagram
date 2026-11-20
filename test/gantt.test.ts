@@ -254,3 +254,15 @@ test('gantt({actual: true}): a milestone\'s actual after today names its start; 
   const {t} = await laid(gantt([{label: 'A', start: '2026-01-01', end: '2026-12-20', actual: {start: '2026-12-20'}}], {today: '2026-12-20', actual: true}));
   assert.ok(t.actuals[0]!.x + t.actuals[0]!.w <= t.today!.x + 0.01);
 });
+
+test('gantt(): an arrow into a milestone on the axis\'s first day keeps its own route (an end is only clamped when it was pushed)', async () => {
+  const {t, verdict} = await laid(gantt([
+    {id: 'm', label: 'M', start: '2026-10-01', milestone: true, after: 'a'},
+    {label: 'X', start: '2026-10-03', end: '2026-10-09'},
+    {id: 'a', label: 'A', start: '2026-10-02', end: '2026-10-20'},
+  ], {today: '2026-10-05'}));
+  assert.deepEqual(verdict.problems, []);
+  const pts = t.deps[0]!.points, head = t.bars[0]!;
+  assert.equal(pts.at(-1)!.x, head.x);
+  assert.equal(pts.at(-2)!.x, head.x - 8, 'into the head from 8px before it, not from a clamped column');
+});

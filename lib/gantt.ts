@@ -259,7 +259,9 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
       let out1 = x1 + 8, in1 = x2 - 8, pushedOut = false, pushedIn = false;
       for (let b = outWay.find(covers(out1)); b; b = outWay.find(covers(out1))) { out1 = b.x + b.w + 6; pushedOut = true; }
       for (let b = inWayH.find(covers(in1)); b; b = inWayH.find(covers(in1))) { in1 = b.x - 6; pushedIn = true; }
-      out1 = Math.min(x + w - PAD - 2, out1); in1 = Math.max(out.plot.x1 - PAD, in1);
+      // a pushed end stays inside the figure (an end nothing pushed stays where it was: one-lane routes are as before)
+      if (pushedOut) out1 = Math.min(x + w - PAD - 2, out1);
+      if (pushedIn) in1 = Math.max(out.plot.x1 - PAD, in1);
       // a pushed end and a column a few px apart would make a small stair: take the pushed end as the column when it is free
       let col = must(cols[0]);
       if (pushedOut && Math.abs(out1 - col) < 6 && freeV(out1)) col = out1;
