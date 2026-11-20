@@ -61,5 +61,5 @@ export function callout(target: string, opts: CalloutOpts): ConnectBand {
 // 'elbow'). Returns an array — d.add() flattens it.
 export function branch<const F extends string, const To extends string>(from: Ok<F>, targets: (BranchInput & {to: Ok<To>})[], opts?: BranchInput): (ConnectBand & Refers<F | To>)[];
 export function branch(from: string, targets: BranchTarget[], opts: ConnectOpts = {}): ConnectBand[] {
-  return targets.map(t => connectBand(from, t.to, {route: 'elbow', ...opts, ...t}));
+  return targets.map(t => Object.assign(connectBand(from, t.to, {route: 'elbow', ...opts, ...t}), {fan: true as const})); // assign, not spread: the band keeps the options it was written with (GIVEN)
 }

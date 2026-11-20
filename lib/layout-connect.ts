@@ -53,6 +53,31 @@ function segRect(x0: number, y0: number, x1: number, y1: number): Rect {
 // left/right side (`bend`, 0..1, is where the middle leg sits between the two
 // endpoints). Collinear/duplicate points are dropped so a degenerate elbow
 // (aligned endpoints) is just a straight line.
+/** How far (px) a levelled end stays from the top and bottom of its box: clear of the rounded corners (rx 8). */
+const LEVEL_CLEAR = 12;
+
+/**
+ * a.right → b.left (or a.left → b.right) between boxes of different heights: each side's middle is at a different y, so the
+ * line would come out slightly slanted (or, as an elbow, with a tiny step). When one end's middle is well inside the other box's
+ * height, only the other end moves (to that middle; when both qualify, the end on the taller box); otherwise, when the two heights overlap enough, both ends move to the middle
+ * of the overlap. An arrow of a branch() fan moves only its target end, so the fan keeps one start. An end placed with `@` stays put.
+ */
+function levelSides(band: ConnectBand, fromSide: string, toSide: string, fromRect: Rect, toRect: Rect, from: Point, to: Point): void {
+  if (band.route !== 'straight' && band.route !== 'elbow') return;
+  const facing = (fromSide === 'right' && toSide === 'left' && to.x >= from.x) || (fromSide === 'left' && toSide === 'right' && to.x <= from.x);
+  const placed = (ref: string): boolean => /:[^:]*@/.test(ref);
+  if (!facing || placed(band.from) || placed(band.to) || from.y === to.y) return;
+  const within = (y: number, r: Rect): boolean => y >= r.y + LEVEL_CLEAR && y <= r.y + r.h - LEVEL_CLEAR;
+  // the end on the taller box moves, so the line runs at the shorter box's middle (a fan keeps its start, whatever the heights)
+  const moveFrom = !band.fan && toRect.h < fromRect.h && within(to.y, fromRect);
+  if (moveFrom) { from.y = to.y; return; }
+  if (within(from.y, toRect)) { to.y = from.y; return; }
+  if (band.fan) return;
+  if (within(to.y, fromRect)) { from.y = to.y; return; }
+  const lo = Math.max(fromRect.y, toRect.y) + LEVEL_CLEAR, hi = Math.min(fromRect.y + fromRect.h, toRect.y + toRect.h) - LEVEL_CLEAR;
+  if (hi >= lo) from.y = to.y = (lo + hi) / 2;
+}
+
 function routePoints(band: ConnectBand, from: Point, to: Point, fromSide: string): Point[] {
   let pts: Point[];
   if (band.route === 'loop-side') {
@@ -140,6 +165,7 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
   if (fromRef.side === 'bottom' && nodeBottoms.has(fromRef.id)) from.y = must(nodeBottoms.get(fromRef.id));
   if (toRef.side === 'bottom' && nodeBottoms.has(toRef.id)) to.y = must(nodeBottoms.get(toRef.id));
   if (band.plumb && (toRef.side === 'top' || toRef.side === 'bottom')) to.x = Math.min(toRect.x + toRect.w, Math.max(toRect.x, from.x));
+  levelSides(band, fromRef.side, toRef.side, fromRect, toRect, from, to);
   let points = routePoints(band, from, to, fromRef.side);
   if (band.route === 'elbow' && band.bend === 'auto') {
     // Pick the first bend whose path stays clear of every box except the two it joins.

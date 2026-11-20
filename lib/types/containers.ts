@@ -19,7 +19,7 @@ export interface GroupOpts extends RevealOpts {
   /**
    * Where the content sits when a row() stretches the frame taller than it (ADR 0014): 'center' (default) puts the content
    * below the title in the middle of the room (the gaps between its parts grow by up to 16px first); 'top' keeps it at the top;
-   * 'stretch' makes a single box fill the room. Under 16px of room nothing moves. No effect outside a row, or with `frame: false`.
+   * 'stretch' makes a single box fill the room. Under 16px of room nothing moves. No effect outside a row. With `frame: false` the default is 'top' (give `valign` to move the content).
    */
   valign?: 'top' | 'center' | 'stretch';
   /** false draws no frame (and takes no title): a plain container, so a table / plane / banner can sit in a row() without a doubled outline. */
@@ -213,6 +213,8 @@ export interface ConnectBand {
   type: 'connect';
   /** Set by the loopBack pass: this is the arrow back of a row of steps, not an edge of a graph (graph-orphan-node / graph-disconnected leave it out). */
   loopBack?: true;
+  /** Made by branch(): one of several arrows leaving the same point of the source, so levelling (layout-connect.ts) moves only the target end. */
+  fan?: true;
   /** 'id', 'id:side' or 'id:side@t'. */
   from: string;
   to: string;

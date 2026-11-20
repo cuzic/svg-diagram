@@ -80,6 +80,15 @@ export function row(rawChildren: Band[], opts: RowOpts = {}): RowBand | GroupRow
 // row({cols: [6, 6]}): one span per child, so the column count is their sum and no child carries `span` / `col`.
 // The children are copied with their span filled in (a child that also sets `span` / `col` is a contradiction, so it throws).
 function spanRow<C extends BoxBand | GroupBand>(children: C[], cols: number | number[] | undefined): {cols: number | undefined; kids: C[]} {
+  if (cols === undefined) {
+    // span / col only mean something on a grid: without cols the row shares its width by flex, and they would be dropped silently
+    const i = children.findIndex(c => c.span !== undefined || c.col !== undefined);
+    if (i >= 0) {
+      const c = children[i] as {span?: number; col?: number};
+      const what = [c.span !== undefined ? `span: ${c.span}` : '', c.col !== undefined ? `col: ${c.col}` : ''].filter(Boolean).join(', ');
+      throw new Error(`row(): child ${i} has ${what}, but the row has no cols — give the row a grid (row([...], {cols: 12})) or size the child with flex / width`);
+    }
+  }
   if (!Array.isArray(cols)) {
     // row(children, {cols: 12}) with no child placed (no `span` / `col`): the children share the grid equally (12 / n columns each,
     // the remainder going to the first ones) instead of each being one column wide. A child with an explicit `span` / `col` opts out.

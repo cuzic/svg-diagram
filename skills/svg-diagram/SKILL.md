@@ -53,9 +53,10 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 | `diagram({theme, title, sourceLine})` | 図の入れ物。`.add(...)` に部品を並べる。`sourceLine` は出典行 |
 | `caption(text, {bold, tone: 'text'})` | 図の見出し・一言。ほぼ全部の図の 1 行目 |
 | `box({title, body, icon, tone, id})` | 箱。`tone`: plain / accent / new / changed / removed / muted / danger（`solid`、`solid-danger` は強調） |
-| `row([a, b], {cols})` | 横並び。`cols: [6, 6]`（12 列）。子は `box` / `group` / `caption` / `banner` ほか |
+| `row([a, b], {cols})` | 横並び。`cols: [6, 6]`（12 列）。子は `box` / `group` / `caption` / `banner` ほか。子の `span` / `col` は `cols` のある行だけ（無いと throw） |
 | `group(children, {title, tone})` | ラベル付きの枠。入れ子可 |
 | `connect(a.right, b.left, {label, route})` | 矢印。`a` は `const a = box({id: 'a'})` のハンドル（id を打ち直さない） |
+| `branch(a.right, [{to: 'b:left', label}, …])` | 1 つから複数へ扇形に出る矢印（既定は `route: 'elbow'`）。`connect` を並べて書かない |
 | `steps([{title, body, icon}], {numbered: true, highlight: 2})` | 日付のない順序だけの出来事。番号バッジと矢印つき |
 | `table(columns, rows, {title})` / `cell(text, {mark})` | 見出し付き表。`mark: 'ok' / 'mid' / 'ng' / 'best'` で ○△×◎ |
 | `banner({text, tone})` | 帯（章の見出しや結論の 1 行） |
@@ -72,7 +73,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 - 12 列の行: `row([a, b], {cols: [6, 6]})`（`col:` を手で数えない）。`row([a, b, c], {cols: 12})` のように子に `span` を書かなければ、12/n 列ずつの等分（3 個なら 4+4+4）。
 - `row()` の子は `box()` / `group()` のほか `caption()` / `banner()` なども可（枠なし `group()` に自動で包まれる）。`versus()` の `children` は配列（縦積み）、`direction: 'row'` で横並び。共通部への接続線は垂直（矢頭なしは `connectArrow: 'none'`）。
 - 折り返しは文節単位（既定 `wrap: 'phrase'`）: カタカナ・漢字の連続は割れない。1 文字ずつ折りたいときだけ `diagram({wrap: 'char'})`。別の行の N 列目への矢印は、`row({id: 'top'})` の `top.col(5).top`。
-- 枠付きの `group` を `row` に並べて高さがそろうと、低いほうの中身は余りの中で縦中央に寄る。`group({valign: 'top'})` で上詰め、`'stretch'` で箱 1 つが余りを埋める（余りが 16px 未満なら動かない）。
+- 枠付きの `group` を `row` に並べて高さがそろうと、低いほうの中身は余りの中で縦中央に寄る。`group({valign: 'top'})` で上詰め、`'stretch'` で箱 1 つが余りを埋める（余りが 16px 未満なら動かない）。枠なしの `group({frame: false})` は既定が上詰めで、`valign` を書いたときだけ動く。
 - 接続線: `diagram({connectDefaults: {chip: true, route: 'elbow'}})` と `d.connect(from, to, {label})`。
 - 部品の組み合わせ: `styled(box, {tone: 'muted'})`（コンストラクタの既定。options が最後の帯は `styled(group, {tone: 'accent'}, {at: 1})`）、`diagram({transform: when(isType('box'), {tone: 'accent'})})`（条件で見た目だけ書き換え。`within('group')` で入れ子も指定）。
 - ワイヤーフレームの外枠: `diagram({wireframeDefaults: {appbar: {title, nav}}})` と、画面ごとの `shell: {active: '在庫'}`。
@@ -83,6 +84,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 
 | 作りたい・直したい図 | 開くファイル |
 |---|---|
+| 型の部品を使わず、箱と線で描く図（`row` / `group` / `connect` / `branch` の並べ方・揃え方・つなぎ方） | `references/freeform.md` |
 | 組織図・マインドマップ・状態遷移図・ガント・クラス図・BPMN・数値の時間軸・`tree` などの自動配置、幅に収まらない・折れが多い | `references/auto-layout.md` |
 | TOC（因果ツリー・現状/未来現実/前提条件/移行ツリー・クラウド）、故障の木・なぜなぜ分析の木・ボウタイ図、戻り矢印の交差の見せ方（`hop`） | `references/toc.md` |
 | QC 七つ道具・新 QC 七つ道具（パレート・ヒストグラム・散布図・管理図・親和図・連関図・PDPC・アロー・ダイヤグラム） | `references/qc.md` |
