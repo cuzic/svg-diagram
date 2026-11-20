@@ -174,7 +174,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 | group(children, {title, tone, titleAlign, valign, flex, width, span, col}) | ラベル付きの枠。**入れ子可**（ホスト > コンテナ > プロセス）。`row([group(...), group(...)])` で横に並べると、枠の高さは一番高いものにそろい、低いほうの中身は余りの中で縦中央に寄る（余りが 16px 未満なら動かない。`valign: 'top'` で上詰め、`'stretch'` で箱 1 つが余りを埋める。`flex` / `width` / `span` / `col` は box と同じ。`arrows: 'between'` は不可）。中の box の id も、`connect()` の参照先になる |
 | versus(left, right, {shared, connectLabels}) | 左右の `group()` を 12 列の半分ずつに並べる対比。各部は `{title, children, tone, id}`。`shared` を付けると、その共通部を下に置いて左右から接続する（3 部すべてに `id` が必要）。接続ラベルは `connectLabels.left` / `.right`、接続線は各部の中央から共通部へ垂直に降りる（`connectRoute` は `'straight'` 既定 / `'elbow'`、`connectArrow: 'none'` で矢頭なし）。各部の `children` は配列（縦積み）で、`direction: 'row'` なら横並び |
 | hero({banner, stat, flow, caption, note}) | 章の頭に置く 1 枚: 帯（任意）の下に、流れの箱（`flow: [box(...), ...]`、矢印でつなぐ）とその行き着く大きな数字（`stat: {value, label, tone}`）を 1 行に並べ、その下に一言（`caption`）と出典・注（`note`）。箱が 5 つ以上なら数字を上に置く（`layout: 'stack'`）。既存の部品を並べるだけ。下の「章の頭の 1 枚」 |
-| connect / branch | 矢印。route(straight/elbow/loop-under/loop-side)、arrow(end/both/start/none)、line(solid/dashed/dotted/double)、weight(strong)、chip、labelAt、アンカー `id:side@0.2` |
+| connect / branch | 矢印。route(straight/elbow/loop-under/loop-side)、arrow(end/both/start/none)、line(solid/dashed/dotted/double)、weight(strong)、chip、labelAt、アンカー `id:side@0.2`。`a:right` → `b:left` で 2 つの箱の高さの範囲が重なるときは、重なりの真ん中で水平に引く（`@` で位置を書いた端は動かさない） |
 | legend(items) | 線種・トーンの凡例 |
 | swimlane(lanes, steps, {flows, phases, boundaries, fit, laneOrder, labelW, focus}) | スイムレーン図。レーン=担当（人・チーム・システム）、列=時間。引き継ぎの矢印を自動で向きづけ。`col` で並行作業を揃える。列が狭くなるときは `fit: 'shrink'` でレーン名の列と列の間隔を詰める `laneOrder: 'auto'` は、`flows` の引き継ぎが最も短くなるレーン順に並べ替える（`fixed: true` のレーンはそのまま。8 本まで。同じ長さなら渡した順）。。**サービスブループリント**: `boundaries: [{between: ['cust', 'front'], label: '相互作用線'}, {between: ['front', 'back'], label: '可視線'}, …]` で、2 つのレーンの境目に太い破線を全幅に引き、`label` をラベル列のチップに書く（隣り合っていなければ throw。`{after: id}` も書ける。チップの分だけ両側のレーンが高くなり、名前が入る幅（`labelW` を書かなければ自動で広がり、書いて足りなければ throw）が要る。`fit: 'shrink'` もその幅より狭めない。失敗点・待ちは手順の `tag`。`examples/service-blueprint.ts`） `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
 | sequence(actors, steps) | シーケンス図。message / self / note / divider、自動番号 |
@@ -240,7 +240,7 @@ map・video 等は残りの高さを埋める。`overlay` / `overlayRight` で�
 
 ### 小さな制約の解消（枠なしの group、表の行高、stamp）
 
-- `group(children, {frame: false})`: 枠も title も付けない入れ物（pad 0）。row に table / plane / banner を並べるとき、group で包んでも外枠が二重にならない。`title` / `tone` / `dashed` と一緒には使えない（出ないので throw）。
+- `group(children, {frame: false})`: 枠も title も付けない入れ物（pad 0）。row に table / plane / banner を並べるとき、group で包んでも外枠が二重にならない。`title` / `tone` / `dashed` と一緒には使えない（出ないので throw）。row の中で高さがそろっても、中身は上詰めのまま（`valign: 'center'` / `'stretch'` を書けば、枠付きの group と同じく動く）。
 - `table(columns, rows, {cellH})`: 全行（見出しも）を同じ固定高にして、文字を縦中央にそろえる。足りなければ throw（伸ばさない）。未指定の表は従来どおり。`stateMatrix` の `cellH` と同じ意味。
 - 表の行ごとの高さ: 行を `{cells: [...], h: 60}` と書くと、その行だけ固定高にする。見出し行は `table(..., {headerH: 30})`。優先順は 行の `h` > `headerH`（見出し行のみ）> `cellH` > 内容に合わせた高さ。固定した行は文字を縦中央にそろえ、足りなければ `h` / `headerH` / `cellH` のどれが小さいかを書いて throw する（伸ばさない）。
 - `table(..., {dense: true})`: 行の上下の余白を 8px から 4px に詰める（文字は 14px のまま。title の帯は変えない）。`cellH` / `h` / `headerH` と併用でき、固定高が優先される。ただし「その行に必要な高さ」は dense の余白で計算するので、dense なしでは足りない高さでも dense なら通る。`h` / `headerH` / `dense` を使わない表の出力は変わらない。例は `examples/table-row-h.ts`。

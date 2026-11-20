@@ -53,6 +53,23 @@ function segRect(x0: number, y0: number, x1: number, y1: number): Rect {
 // left/right side (`bend`, 0..1, is where the middle leg sits between the two
 // endpoints). Collinear/duplicate points are dropped so a degenerate elbow
 // (aligned endpoints) is just a straight line.
+/** Least overlap (px) of two boxes' heights for a side-to-side connector to be drawn level. */
+const LEVEL_MIN_OVERLAP = 8;
+
+/**
+ * a.right → b.left (or a.left → b.right) between boxes of different heights: each side's middle is at a different y, so the
+ * line would come out slightly slanted (or, as an elbow, with a tiny step). When the two boxes' heights overlap, both ends move
+ * to the middle of the overlap and the line is level. An end placed with `@` stays where it was put.
+ */
+function levelSides(band: ConnectBand, fromSide: string, toSide: string, fromRect: Rect, toRect: Rect, from: Point, to: Point): void {
+  if (band.route !== 'straight' && band.route !== 'elbow') return;
+  const facing = (fromSide === 'right' && toSide === 'left' && to.x >= from.x) || (fromSide === 'left' && toSide === 'right' && to.x <= from.x);
+  if (!facing || band.from.includes('@') || band.to.includes('@') || from.y === to.y) return;
+  const lo = Math.max(fromRect.y, toRect.y), hi = Math.min(fromRect.y + fromRect.h, toRect.y + toRect.h);
+  if (hi - lo < LEVEL_MIN_OVERLAP) return;
+  from.y = to.y = Math.round((lo + hi) / 2);
+}
+
 function routePoints(band: ConnectBand, from: Point, to: Point, fromSide: string): Point[] {
   let pts: Point[];
   if (band.route === 'loop-side') {
@@ -140,6 +157,7 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
   if (fromRef.side === 'bottom' && nodeBottoms.has(fromRef.id)) from.y = must(nodeBottoms.get(fromRef.id));
   if (toRef.side === 'bottom' && nodeBottoms.has(toRef.id)) to.y = must(nodeBottoms.get(toRef.id));
   if (band.plumb && (toRef.side === 'top' || toRef.side === 'bottom')) to.x = Math.min(toRect.x + toRect.w, Math.max(toRect.x, from.x));
+  levelSides(band, fromRef.side, toRef.side, fromRect, toRect, from, to);
   let points = routePoints(band, from, to, fromRef.side);
   if (band.route === 'elbow' && band.bend === 'auto') {
     // Pick the first bend whose path stays clear of every box except the two it joins.

@@ -19,7 +19,7 @@ export interface GroupOpts extends RevealOpts {
   /**
    * Where the content sits when a row() stretches the frame taller than it (ADR 0014): 'center' (default) puts the content
    * below the title in the middle of the room (the gaps between its parts grow by up to 16px first); 'top' keeps it at the top;
-   * 'stretch' makes a single box fill the room. Under 16px of room nothing moves. No effect outside a row, or with `frame: false`.
+   * 'stretch' makes a single box fill the room. Under 16px of room nothing moves. No effect outside a row. With `frame: false` the default is 'top' (give `valign` to move the content).
    */
   valign?: 'top' | 'center' | 'stretch';
   /** false draws no frame (and takes no title): a plain container, so a table / plane / banner can sit in a row() without a doubled outline. */

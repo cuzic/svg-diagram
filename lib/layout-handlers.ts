@@ -420,7 +420,8 @@ function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: nu
   };
   let placed = place([]);
   const fills = band.children.map((c, i): GroupFill | undefined => {
-    if (c.type !== 'group' || c.frame === false || c.valign === 'top') return undefined;
+    // a frameless group (also what a caption / table in a row is wrapped in) stays at the top unless it asks for a valign
+    if (c.type !== 'group' || c.valign === 'top' || (c.frame === false && c.valign === undefined)) return undefined;
     const slack = placed.rowHeight - must(placed.natural[i]);
     return slack >= GROUP_FILL_MIN ? {slack, valign: c.valign ?? 'center'} : undefined;
   });
