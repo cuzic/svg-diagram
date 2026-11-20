@@ -34,14 +34,15 @@ import type {BarsBand} from './types/bars.ts';
 import type {CaptionBand} from './types/text-bands.ts';
 import type {LaidOutConnect, LegendBand, LegendItem} from './types/containers.ts';
 import type {ArrowWeight, EmphasisTone, DiagramData, LineStyle, Point, Rect, RuleId} from './types/core.ts';
-import {bendsOf, crossingsOf} from './polyline-metrics.ts';
+import {bendsOf, crossingsOf, parallelRuns} from './polyline-metrics.ts';
+import {laneStepOf} from './layered-route.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
 import type {SwimlaneBand} from './types/sequence-table-swimlane.ts';
 import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
 import type {Finding} from './types/verdicts.ts';
 import type {WfCallout} from './types/wireframe-nodes.ts';
 import type {LintTarget} from './types/verdicts.ts';
-import type {CauseRole, FtaGate, FtaKind, TreeItem} from './types/diagrams.ts';
+import type {CauseRole, FtaGate, FtaKind, LaidOutCause, TreeItem} from './types/diagrams.ts';
 import {ftaResolve} from './fta.ts';
 import {describeApplied} from './fit-width.ts';
 import {tocFindings} from './toc-rules.ts';
@@ -79,6 +80,7 @@ export const RULE_DOCS = {
   'swimlane-hand-offs': 'レーンをまたぐ引き継ぎの数（情報）',
   'edge-crossings': '線どうしの交差・重なりがある',
   'edge-bends': '自動配置の図（cause / states / bpmn / classes / semnet）で、1 本の矢印が 5 回以上折れる、または折れの合計 ÷ 矢印の数が 3 を超える。既定は情報、diagram({layoutCheck: "strict"}) で warn',
+  'edge-parallel': 'causeTree() の図で、別の矢印どうしの同じ向きの線が、レーンの間隔（14px、density: "compact" で 11px）より近くで 4px を超えて並び、その長さの合計がレーンの間隔の 2 倍を超える（端を共有する矢印どうしも数える。たどれない平行線の束になる）。pdpc・relationDiagram・whyWhyTree は対象外。既定は情報、diagram({layoutCheck: "strict"}) で warn',
   'quadrant-item-moved': 'quadrant() の項目が、重なりを避けるため指定した座標から 16px 以上動いた（座標は目安として読まれる）',
   'quadrant-size-floor': 'quadrant() の項目の size が小さすぎ、最小の円で描いた（面積が値より大きく見える）',
   'quadrant-empty-cell': 'quadrant() のマスに項目が 1 つもない（「該当なし」の空の枠が残っている。意図した空きは allowEmpty で示す）',
@@ -674,6 +676,35 @@ function edgeBendsRules(d: LintTarget, out: Finding[]): void {
   }
 }
 
+// ---- edge-parallel (ADR 0070 D2) ---------------------------------------------------------------------------------------------
+// Runs of two arrows side by side closer than the lane step, the gap the router keeps between its lanes: a bundle of such lines cannot be
+// followed. Only a cause tree's band (no `origin`): the other routed figures keep short runs at the port step by design (states / classes
+// shrink their ports on a short side, so the last run of a fan-in always counts). Arrows that share a tail or a head count too.
+function causeBandsOf(bands: LaidOutBand[], out: LaidOutCause[] = []): LaidOutCause[] {
+  for (const b of bands) {
+    if (b.type === 'cause') out.push(b);
+    else if (b.type === 'row' || b.type === 'grid') causeBandsOf(b.children, out);
+  }
+  return out;
+}
+
+function edgeParallelRules(d: LintTarget, out: Finding[]): void {
+  if (!d.laidOut) return;
+  const severity = layoutSeverity(d);
+  for (const band of causeBandsOf(d.laidOut)) {
+    if (band.origin !== undefined) continue;
+    const sep = laneStepOf(d.density === 'compact' && !band.densityRestored ? 0.75 : 1);
+    const edges = band.edges.filter(e => e.from !== e.to && e.points.length >= 2);
+    const pairs = parallelRuns(edges.map(e => e.points), sep).sort((p, q) => q.overlap - p.overlap);
+    const total = Math.round(pairs.reduce((n, p) => n + p.overlap, 0));
+    if (total <= 2 * sep) continue;
+    const name = `cause${band.id ? ` ${band.id}` : ''}`;
+    const arrow = (i: number): string => { const e = edges[i] as {from: string; to: string}; return `${e.from} → ${e.to}`; };
+    const worst = pairs.slice(0, 3).map(p => `${arrow(p.a)} と ${arrow(p.b)}（間隔 ${Math.round(p.gap)}px、${Math.round(p.overlap)}px）`).join('、');
+    out.push({rule: 'edge-parallel', severity, message: `${name}: 矢印どうしが ${sep}px より近くで並ぶ所が ${pairs.length} 組、計 ${total}px（${worst}${pairs.length > 3 ? ' ほか' : ''}）。平行線の束はたどれない`, data: {band: name, measured: total, threshold: 2 * sep, fix: "前提条件を行き先の近くに置く（causeTree({tree: 'crt'}) の既定、または layer: 'alap'）、層を飛ぶ矢印を減らす。意図した形なら accept で許容する"}});
+  }
+}
+
 /** stat-fit-shrunk (ADR 0024 D5): a stat() value drawn smaller than its role's size to fit its box. Info: shrinking is the specified behaviour. */
 function statFitFindings(d: LintTarget, out: Finding[]): void {
   const boxes: LaidOutBand[] = [];
@@ -846,6 +877,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   glyphRules(d, out);
   layoutQualityRules(d, out);
   edgeBendsRules(d, out);
+  edgeParallelRules(d, out);
   tocRules(d, out);
   rcaRules(d, out);
   fitRules(d, out);
