@@ -22,7 +22,7 @@
   <path d="M816,64 V468" fill="none" stroke="#e0d6c5" stroke-width="1"/>
   <path d="M888,64 V468" fill="none" stroke="#e0d6c5" stroke-width="1"/>
   <path d="M128,64 H900" fill="none" stroke="#6f6659" stroke-width="2"/>
-  <path d="M284,108 L336,108 L336,140 L296,140 L296,152 L300,152" fill="none" stroke="#22201b" stroke-width="1.5"/>
+  <path d="M284,108 L332,108 L332,140 L296,140 L296,152 L300,152" fill="none" stroke="#22201b" stroke-width="1.5"/>
   <path d="M304,152 L296,156 L296,148 z" fill="#22201b"/>
   <path d="M432,152 L440,152 L440,184 L440,184 L440,216 L444,216 L444,228 L444,228" fill="none" stroke="#22201b" stroke-width="1.5"/>
   <path d="M452,228 L444,232 L444,224 z" fill="#22201b"/>

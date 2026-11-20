@@ -221,3 +221,36 @@ test('gantt() actual: the mistakes', async () => {
   await bad([{...task, actual: {start: '2026-10-01', end: '2026-10-03'}}], {from: '2026-10-05', actual: true}, /"A" actual \(2026-10-01 - 2026-10-03\) is outside the axis/);
   assert.throws(() => gantt([task], {actual: 'yes' as never}), /actual must be true or false/);
 });
+
+test('gantt({actual: true}): an arrow gets past a late actual that runs to the axis end (down), and a head\'s early actual (up)', async () => {
+  // the predecessor overran up to today, the last day on the axis
+  const down = gantt([
+    {id: 'a', label: '設計', start: '2026-08-01', end: '2026-08-20', actual: {start: '2026-08-01', end: '2026-11-25'}},
+    {label: 'X', start: '2026-08-05', end: '2026-08-08'},
+    {id: 'b', label: '実装', start: '2026-10-29', end: '2026-11-10', after: 'a'},
+  ], {today: '2026-11-25', actual: true});
+  const {verdict: v1} = await laid(down);
+  assert.deepEqual(v1.problems, []);
+  for (const today of ['2026-11-20', '2026-11-23', '2026-11-24']) {
+    const open = gantt([
+      {id: 'a', label: '設計', start: '2026-08-01', end: '2026-08-20', actual: {start: '2026-08-01'}},
+      {label: 'X', start: '2026-08-05', end: '2026-08-08'},
+      {id: 'b', label: '実装', start: '2026-10-29', end: '2026-11-10', after: 'a'},
+    ], {today, actual: true, to: '2026-11-25'});
+    assert.deepEqual((await laid(open)).verdict.problems, [], `in progress up to ${today}`);
+  }
+  // the head is above its tail, and the head's actual started on the axis's first day
+  const up = gantt([
+    {id: 'b', label: '後', start: '2026-09-10', end: '2026-09-20', after: 'a', actual: {start: '2026-08-01', end: '2026-09-20'}},
+    {label: 'X', start: '2026-08-05', end: '2026-08-08'},
+    {id: 'a', label: '前', start: '2026-08-10', end: '2026-08-20'},
+  ], {today: '2026-09-20', actual: true});
+  assert.deepEqual((await laid(up)).verdict.problems, []);
+});
+
+test('gantt({actual: true}): a milestone\'s actual after today names its start; an in-progress bar starting today stays at the line', async () => {
+  await assert.rejects(laid(gantt([{label: 'M', start: '2026-10-05', milestone: true, actual: {start: '2026-10-09'}}], {today: '2026-10-07', actual: true, to: '2026-10-10'})),
+    /"M" actual.start \(2026-10-09\) is after today \(2026-10-07\)$/);
+  const {t} = await laid(gantt([{label: 'A', start: '2026-01-01', end: '2026-12-20', actual: {start: '2026-12-20'}}], {today: '2026-12-20', actual: true}));
+  assert.ok(t.actuals[0]!.x + t.actuals[0]!.w <= t.today!.x + 0.01);
+});

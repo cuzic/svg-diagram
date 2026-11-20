@@ -172,6 +172,10 @@ test('gantt dates are real days, ends follow starts, waits name tasks; a funnel 
   assert.deepEqual(pathsOf(g({...act, actual: {start: '2026-01-11', end: '2026-01-10'}}, {actual: true})), ['parts[0].rows[1].actual.end']);
   assert.deepEqual(pathsOf(g({...act, progress: 0.5}, {actual: true})), ['parts[0].rows[1].progress']);
   assert.deepEqual(pathsOf(g({...act, actual: {start: '2029-12-01', end: '2029-12-02'}}, {actual: true})), ['parts[0].rows']);
+  assert.deepEqual(pathsOf(g({...act, actual: {start: '2026-01-13'}}, {today: '2026-01-12', actual: true})), ['parts[0].rows[1].actual.start']);
+  assert.deepEqual(pathsOf(g({...act, actual: {start: '2026-01-10', end: '2026-01-13'}}, {today: '2026-01-12', actual: true})), ['parts[0].rows[1].actual.end']);
+  assert.deepEqual(pathsOf(g({...act, actual: {start: '2026-01-10', days: 4}}, {today: '2026-01-12', actual: true})), ['parts[0].rows[1].actual.days']);
+  assert.deepEqual(pathsOf(g({start: '2026-01-10', milestone: true, actual: {start: '2026-01-10', end: '2026-01-11'}}, {actual: true})), ['parts[0].rows[1].actual']);
   assert.deepEqual(pathsOf(spec({type: 'funnel', scale: 'value', stages: [{label: 'a', value: 3}, {label: 'b'}]})), ['parts[0].stages[1].value']);
   assert.deepEqual(pathsOf(spec({type: 'venn', sets: [{name: 'A'}, {name: 'B'}], overlaps: [{sets: ['A', 'C'], label: 'x'}]})), ['parts[0].overlaps[0].sets[1]']);
   assert.deepEqual(pathsOf(spec({type: 'stateDiagram', initial: 'z', states: [{id: 'a', label: 'A'}], transitions: [{from: 'a', to: 'b'}]})), ['parts[0].transitions[0].to', 'parts[0].initial']);

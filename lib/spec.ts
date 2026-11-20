@@ -320,7 +320,7 @@ const PARTS: readonly PartDef[] = [
   {
     type: 'gantt',
     anchors: 'rows',
-    description: 'A Gantt chart: tasks as bars on a calendar, grouped by sections, with milestones, progress and arrows from the tasks a task waits for. Dates are YYYY-MM-DD; give `today` to draw the line of today.',
+    description: 'A Gantt chart: tasks as bars on a calendar, grouped by sections, with milestones, progress and arrows from the tasks a task waits for. Dates are YYYY-MM-DD; give `today` to draw the line of today. With `actual: true`, each task\'s `actual` dates are drawn under its plan (plan and actual rows).',
     schema: object({
       type: {const: 'gantt'},
       rows: list({oneOf: [
@@ -367,6 +367,12 @@ const PARTS: readonly PartDef[] = [
           if (isDay(a['start']) && isDay(a['end']) && dayOf(a['end'] as string) < dayOf(a['start'] as string)) issues.push({path: `${ap}.end`, message: 'is before start'});
           if (r['milestone'] === true && (a['end'] !== undefined || a['days'] !== undefined)) issues.push({path: ap, message: 'a milestone is one day: give start only'});
           if (r['milestone'] !== true && a['end'] === undefined && a['days'] === undefined && !isDay(part['today'])) issues.push({path: ap, message: 'is in progress (no end): give the gantt today'});
+          if (isDay(part['today'])) { // no actual can be after today
+            const today = dayOf(part['today'] as string);
+            if (isDay(a['start']) && dayOf(a['start'] as string) > today) issues.push({path: `${ap}.start`, message: 'is after today'});
+            else if (isDay(a['end']) && dayOf(a['end'] as string) > today) issues.push({path: `${ap}.end`, message: 'is after today: leave the end out while it is in progress'});
+            else if (isDay(a['start']) && typeof a['days'] === 'number' && dayOf(a['start'] as string) + a['days'] - 1 > today) issues.push({path: `${ap}.days`, message: 'ends after today: leave the days out while it is in progress'});
+          }
         }
         if (part['actual'] === true && r['progress'] !== undefined) issues.push({path: `${at}.rows[${i}].progress`, message: 'a gantt with actual: true shows progress by the actual bar: drop progress'});
         const after = r['after'];

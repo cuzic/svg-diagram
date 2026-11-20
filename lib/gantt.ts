@@ -116,7 +116,9 @@ export function ganttModel(band: GanttBand): GanttModel {
       continue;
     }
     const span = spanOf({label: t.label, start: a.start, ...(a.end === undefined ? {} : {end: a.end}), ...(a.days === undefined ? {} : {days: a.days}), ...(t.milestone ? {milestone: true} : {})}, 'actual.');
-    if (today !== undefined && span[1] - 1 > today) throw new Error(`gantt(): "${t.label}" actual ends (${ymd(span[1] - 1)}) after today (${band.today}): leave the end out while it is in progress`);
+    if (today !== undefined && span[1] - 1 > today) throw new Error(t.milestone
+      ? `gantt(): "${t.label}" actual.start (${a.start}) is after today (${band.today})`
+      : `gantt(): "${t.label}" actual ends (${ymd(span[1] - 1)}) after today (${band.today}): leave the end out while it is in progress`);
     actuals.set(t, {span, open: false});
   }
   if (band.actual === true) for (const t of tasks) if (t.progress !== undefined) throw new Error(`gantt(): "${t.label}" has progress, but a gantt with actual: true shows how far a task got by its actual bar: drop progress`);
@@ -217,7 +219,9 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
       else {
         // in progress: up to today's line (the middle of today), not the end of the day the model counts to
         const end = a.open && today !== undefined ? px(today) + perDay / 2 : px(ae);
-        out.actuals.push({x: px(as), y: actCy - barH / 2, w: Math.max(4, end - px(as)), h: barH, task, tone, ...(a.open ? {open: true as const} : {}), part});
+        // at least 4px wide, but an in-progress bar never past today's line (it may start on today, half a day before the line)
+        const bw = a.open ? Math.max(1, end - px(as)) : Math.max(4, end - px(as));
+        out.actuals.push({x: px(as), y: actCy - barH / 2, w: bw, h: barH, task, tone, ...(a.open ? {open: true as const} : {}), part});
       }
     }
   });
@@ -240,15 +244,27 @@ export function layoutGantt(band: GanttBand, x: number, y: number, w: number, wi
       const edge = (k: number, below: boolean): number => { const r = must(rows[k]); return below ? r.y + r.h : r.y; };
       const bT = edge(tailRow, down), bH = edge(headRow, !down);
       const lo = out.plot.x1 + 4, hi = out.plot.x2 - 4;
-      const cols = bT === bH ? [x1 + 8] : Array.from({length: Math.floor((hi - lo) / 6) + 1}, (_, k) => lo + k * 6).filter(free).sort((u, v) => Math.abs(u - (x1 + x2) / 2) - Math.abs(v - (x1 + x2) / 2));
+      // the column between the two row lines only meets the bars of the rows between (not the tail's or the head's other lane)
+      const vLo = Math.min(bT, bH), vHi = Math.max(bT, bH);
+      const freeV = (c: number): boolean => !obstacles.some(b => !ends.has(b) && b.y + b.h > vLo && b.y < vHi && c >= b.x - 4 && c <= b.x + b.w + 4);
+      const cols = bT === bH ? [x1 + 8] : Array.from({length: Math.floor((hi - lo) / 6) + 1}, (_, k) => lo + k * 6).filter(freeV).sort((u, v) => Math.abs(u - (x1 + x2) / 2) - Math.abs(v - (x1 + x2) / 2));
       if (!cols.length) cols.push(x1 + 8); // nothing is free (verify will say which bar): still a route that ends on the head
       // out of the tail's row and into the head's in a column clear of that row's other lane (an actual that runs on past its plan,
       // ADR 0068 D4b): the first such column right of the tail, and the last left of the head
-      const clear = (c: number, ya: number, yb: number): boolean => !obstacles.some(b => b !== p && b !== q && b.y + b.h > Math.min(ya, yb) && b.y < Math.max(ya, yb) && c >= b.x - 4 && c <= b.x + b.w + 4);
-      let out1 = x1 + 8, in1 = x2 - 8;
-      while (out1 < hi && !clear(out1, y1, bT)) out1 += 6;
-      while (in1 > lo && !clear(in1, bH, y2)) in1 -= 6;
-      pts = [{x: x1, y: y1}, {x: out1, y: y1}, {x: out1, y: bT}, {x: must(cols[0]), y: bT}, {x: must(cols[0]), y: bH}, {x: in1, y: bH}, {x: in1, y: y2}, {x: x2, y: y2}];
+      // just past the right end of what lies in the way (up to the figure's right margin), and just before the left start of it
+      // (down to the gap left of the plot): an actual that ends on the axis's last day, or starts on its first, is still cleared
+      const inWay = (ya: number, yb: number) => obstacles.filter(b => !ends.has(b) && b.y + b.h > Math.min(ya, yb) && b.y < Math.max(ya, yb));
+      const covers = (c: number) => (b: {x: number; w: number}): boolean => c >= b.x - 4 && c <= b.x + b.w + 4;
+      const outWay = inWay(y1, bT), inWayH = inWay(bH, y2);
+      let out1 = x1 + 8, in1 = x2 - 8, pushedOut = false, pushedIn = false;
+      for (let b = outWay.find(covers(out1)); b; b = outWay.find(covers(out1))) { out1 = b.x + b.w + 6; pushedOut = true; }
+      for (let b = inWayH.find(covers(in1)); b; b = inWayH.find(covers(in1))) { in1 = b.x - 6; pushedIn = true; }
+      out1 = Math.min(x + w - PAD - 2, out1); in1 = Math.max(out.plot.x1 - PAD, in1);
+      // a pushed end and a column a few px apart would make a small stair: take the pushed end as the column when it is free
+      let col = must(cols[0]);
+      if (pushedOut && Math.abs(out1 - col) < 6 && freeV(out1)) col = out1;
+      else if (pushedIn && Math.abs(in1 - col) < 6 && freeV(in1)) col = in1;
+      pts = [{x: x1, y: y1}, {x: out1, y: y1}, {x: out1, y: bT}, {x: col, y: bT}, {x: col, y: bH}, {x: in1, y: bH}, {x: in1, y: y2}, {x: x2, y: y2}];
     }
     out.deps.push({from: tasks.indexOf(tail), to: tasks.indexOf(t), points: simplifyPts(pts)});
   }
