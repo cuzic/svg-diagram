@@ -60,8 +60,10 @@ test('layout: the problem is at the top, the answers go down; "why 2" is one lay
   assert.equal(verdict.problems.length, 0, verdict.problems.join('\n'));
   const y = (l: string) => boxOf(t, l).y;
   assert.ok(y('問題') < y('A1') && y('A1') < y('A2') && y('A2') < y('A3') && y('A3') < y('対策 A'));
-  assert.equal(y('A1'), y('B1'), 'why 1 is one layer');
-  assert.equal(y('A2'), y('B2'), 'why 2 is one layer, though branch B stops there (not dropped to the bottom)');
+  // one layer = the same middle: a true cause has a double outline, so its box is taller than a plain answer's (#378)
+  const mid = (l: string) => { const b = boxOf(t, l); return b.y + b.h / 2; };
+  assert.equal(mid('A1'), mid('B1'), 'why 1 is one layer');
+  assert.equal(mid('A2'), mid('B2'), 'why 2 is one layer, though branch B stops there (not dropped to the bottom)');
 });
 
 test('layout: five whys, a measure and two branches fit the default width without an error; a squeeze is only an info', async () => {
