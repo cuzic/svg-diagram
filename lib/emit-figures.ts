@@ -422,14 +422,36 @@ export function renderGantt(b: LaidOutGantt, day: Theme): string {
     pts[n - 1] = {x: tip.x - dx * (L - 1), y: tip.y - dy * (L - 1)};
     out.push(`<path d="M${pts.map(p => `${snap4(p.x)},${snap4(p.y)}`).join(' L')}" fill="none" stroke="${ink}" stroke-width="1.5"/>\n  <path d="M${snap4(tip.x)},${snap4(tip.y)} L${snap4(tip.x - dx * L - dy * W)},${snap4(tip.y - dy * L + dx * W)} L${snap4(tip.x - dx * L + dy * W)},${snap4(tip.y - dy * L - dx * W)} z" fill="${ink}"/>`);
   }
+  const diamond = (r: {x: number; y: number; w: number; h: number}, fill: string, stroke: string, part?: string): string => {
+    const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+    return `<path d="M${snap4(cx)},${snap4(r.y)} L${snap4(r.x + r.w)},${snap4(cy)} L${snap4(cx)},${snap4(r.y + r.h)} L${snap4(r.x)},${snap4(cy)} z" fill="${fill}" stroke="${stroke}" stroke-width="2"${pa(part)}/>`;
+  };
   for (const r of b.bars) {
-    if (r.milestone) { const cx = r.x + r.w / 2, cy = r.y + r.h / 2; out.push(`<path d="M${snap4(cx)},${snap4(r.y)} L${snap4(r.x + r.w)},${snap4(cy)} L${snap4(cx)},${snap4(r.y + r.h)} L${snap4(r.x)},${snap4(cy)} z" fill="${tone(r.tone)}" stroke="${PALETTE.bg}" stroke-width="2"${pa(r.part)}/>`); continue; }
+    // ADR 0068 D4b: a plan over an actual is pale, outlined in its tone (a milestone: an outlined diamond)
+    if (r.milestone) { out.push(r.plan ? diamond(r, PALETTE.bg, tone(r.tone), r.part) : diamond(r, tone(r.tone), PALETTE.bg, r.part)); continue; }
     const x = snap4(r.x), y = snap4(r.y), w = snap4(r.w);
-    if (r.progress === undefined) out.push(`<rect x="${x}" y="${y}" width="${w}" height="${r.h}" rx="4" fill="${tone(r.tone)}"${pa(r.part)}/>`);
+    if (r.plan) out.push(`<rect x="${x}" y="${y}" width="${w}" height="${r.h}" rx="4" fill="${soft(r.tone)}" stroke="${tone(r.tone)}" stroke-width="1.5"${pa(r.part)}/>`);
+    else if (r.progress === undefined) out.push(`<rect x="${x}" y="${y}" width="${w}" height="${r.h}" rx="4" fill="${tone(r.tone)}"${pa(r.part)}/>`);
     else {
       out.push(`<rect x="${x}" y="${y}" width="${w}" height="${r.h}" rx="4" fill="${soft(r.tone)}" stroke="${tone(r.tone)}" stroke-width="2"${pa(r.part)}/>`);
       if (r.progress > 0) out.push(`<rect x="${x}" y="${y}" width="${snap4(r.w * r.progress)}" height="${r.h}" rx="4" fill="${tone(r.tone)}"${pa(r.part)}/>`);
     }
+  }
+  for (const a of b.actuals) {
+    if (a.milestone) { out.push(diamond(a, tone(a.tone), PALETTE.bg, a.part)); continue; }
+    const x = snap4(a.x), y = snap4(a.y), w = snap4(a.w), h = a.h;
+    if (!a.open) { out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${tone(a.tone)}"${pa(a.part)}/>`); continue; }
+    // in progress: rounded on the left only, its last stretch faded (it goes on past today)
+    const fade = Math.min(12, a.w / 3), body = snap4(a.w - fade), r = Math.min(4, body / 2);
+    out.push(`<path d="M${snap4(a.x + r)},${y} H${snap4(a.x + body)} V${snap4(a.y + h)} H${snap4(a.x + r)} Q${x},${snap4(a.y + h)} ${x},${snap4(a.y + h - r)} V${snap4(a.y + r)} Q${x},${y} ${snap4(a.x + r)},${y} z" fill="${tone(a.tone)}"${pa(a.part)}/>`);
+    out.push(`<rect x="${snap4(a.x + body)}" y="${y}" width="${snap4(fade)}" height="${h}" fill="${tone(a.tone)}" fill-opacity="0.45"${pa(a.part)}/>`);
+  }
+  if (b.legend) {
+    const lp = pa(b.legend.part);
+    for (const s of b.legend.swatches) out.push(s.kind === 'plan'
+      ? `<rect x="${snap4(s.x)}" y="${snap4(s.y)}" width="${snap4(s.w)}" height="${s.h}" rx="4" fill="${soft('accent')}" stroke="${tone('accent')}" stroke-width="1.5"${lp}/>`
+      : `<rect x="${snap4(s.x)}" y="${snap4(s.y)}" width="${snap4(s.w)}" height="${s.h}" rx="4" fill="${tone('accent')}"${lp}/>`);
+    for (const t of b.legend.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}" font-size="${t.size}" fill="${b.dim ? PALETTE.muted : PALETTE.text}"${lp}>${emojiSpan(t.text)}</text>`);
   }
   if (b.today) out.push(`<path d="M${snap4(b.today.x)},${snap4(b.today.y1)} V${snap4(b.today.y2)}" fill="none" stroke="${b.dim ? PALETTE.muted : PALETTE.danger}" stroke-width="2"${pa(b.today.part)}/>`);
   for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}"${t.anchor === 'middle' ? ' text-anchor="middle"' : t.anchor === 'end' ? ' text-anchor="end"' : ''} font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${b.dim ? PALETTE.muted : t.tone === 'danger' ? PALETTE.danger : t.muted ? PALETTE.muted : PALETTE.text}"${pa(t.part)}>${emojiSpan(t.text)}</text>`);

@@ -165,3 +165,104 @@ test('gantt(): the outside-the-axis throw names the axis and the fixes; extendTo
   const b = await renderDiagram(diagram({theme: 'blue'}).add(gantt(rows, {today: '2026-10-10', extendToToday: true})), {name: 'g.svg', budget: 'cacheOnly'});
   assert.equal(a.svg, b.svg);
 });
+
+// ADR 0068 D4b: a plan and an actual per task
+const twoLane = (extra: Record<string, unknown> = {}) => gantt([
+  {section: '設計'},
+  {id: 'req', label: '要件', start: '2026-10-05', end: '2026-10-16', actual: {start: '2026-10-05', end: '2026-10-20'}},
+  {id: 'ui', label: '画面', start: '2026-10-19', days: 10, after: 'req', actual: {start: '2026-10-21'}},
+  {label: '実装', start: '2026-11-02', end: '2026-11-20', after: 'ui'},
+  {label: '開始', start: '2026-10-01', milestone: true, actual: {start: '2026-10-02'}},
+], {today: '2026-10-26', actual: true, ...extra});
+
+test('gantt({actual: true}): a plan lane over an actual lane, taller task rows, an in-progress bar up to today, a legend; verify passes', async () => {
+  const {t, verdict} = await laid(twoLane());
+  assert.deepEqual(verdict.problems, []);
+  assert.equal(t.bars.length, 4, 'bars stay one per task');
+  assert.ok(t.bars.every(b => b.plan));
+  assert.deepEqual(t.actuals.map(a => a.task), [0, 1, 3], 'a task with no actual has none');
+  const [req, ui, ms] = t.actuals;
+  assert.ok(req!.y > t.bars[0]!.y + t.bars[0]!.h, 'the actual is under its plan');
+  assert.ok(req!.x + req!.w > t.bars[0]!.x + t.bars[0]!.w, 'a late actual runs past its plan');
+  assert.equal(ui!.open, true);
+  assert.ok(Math.abs(ui!.x + ui!.w - t.today!.x) < 0.5, 'in progress: up to the line of today');
+  assert.equal(ms!.milestone, true);
+  assert.equal(ms!.open, undefined, 'a milestone\'s actual is its one day, never in progress');
+  assert.deepEqual(t.rows.map(r => r.h), [32, 44, 44, 44, 44]);
+  for (let i = 1; i < t.rows.length; i++) assert.equal(t.rows[i]!.y, t.rows[i - 1]!.y + t.rows[i - 1]!.h);
+  assert.equal(t.plot.y2, t.rows.at(-1)!.y + t.rows.at(-1)!.h);
+  assert.deepEqual(t.legend?.texts.map(x => x.text), ['予定', '実績']);
+  assert.ok(t.legend!.swatches.every(s => s.y > t.plot.y2 && s.y + s.h < t.y + t.h), 'the legend is under the chart');
+  const {svg} = await renderDiagram(diagram({theme: 'blue'}).add(twoLane()), {name: 'g.svg', budget: 'cacheOnly'});
+  assert.match(svg, /fill-opacity="0.45"/, 'the in-progress bar fades at its end');
+});
+
+test('gantt({actual: true}): the axis widens to the actuals; a one-lane gantt keeps its rows and has no legend', async () => {
+  const {t} = await laid(gantt([{label: 'A', start: '2026-10-05', end: '2026-10-09', actual: {start: '2026-10-01', end: '2026-10-12'}}], {today: '2026-10-12', actual: true}));
+  assert.ok(Math.abs(t.actuals[0]!.x - t.plot.x1) < 0.5, 'the axis starts at the actual\'s first day');
+  assert.ok(t.actuals[0]!.x < t.bars[0]!.x);
+  const {t: one} = await laid(plan());
+  assert.equal(one.legend, undefined);
+  assert.deepEqual(one.actuals, []);
+  assert.ok(one.rows.every(r => r.h === 32));
+});
+
+test('gantt() actual: the mistakes', async () => {
+  const bad = async (rows: unknown[], opts: Record<string, unknown>, re: RegExp) => assert.rejects(laid(gantt(rows as never, opts as never)), re);
+  const task = {label: 'A', start: '2026-10-05', end: '2026-10-09'};
+  await bad([{...task, actual: {start: '2026-10-05'}}], {today: '2026-10-07'}, /"A" has an actual: give the gantt actual: true/);
+  await bad([{...task, progress: 0.5}], {today: '2026-10-07', actual: true}, /"A" has progress, but a gantt with actual: true/);
+  await bad([{...task, actual: {start: '2026-10-05'}}], {actual: true}, /"A" is in progress .*give the gantt today/);
+  await bad([{...task, actual: {start: '2026-10-08'}}], {today: '2026-10-07', actual: true}, /"A" actual.start \(2026-10-08\) is after today/);
+  await bad([{...task, actual: {start: '2026-10-05', end: '2026-10-08'}}], {today: '2026-10-07', actual: true}, /"A" actual ends \(2026-10-08\) after today/);
+  await bad([{...task, actual: {start: '2026-10-06', end: '2026-10-05'}}], {actual: true}, /"A" actual.ends \(2026-10-05\) before it starts/);
+  await bad([{...task, actual: {start: '2026-10-05', end: '2026-10-06', days: 2}}], {actual: true}, /"A" has both actual.end and actual.days/);
+  await bad([{label: 'M', start: '2026-10-05', milestone: true, actual: {start: '2026-10-05', days: 1}}], {actual: true}, /"M" is a milestone .*drop actual.end/);
+  await bad([{...task, actual: {start: '2026-10-01', end: '2026-10-03'}}], {from: '2026-10-05', actual: true}, /"A" actual \(2026-10-01 - 2026-10-03\) is outside the axis/);
+  assert.throws(() => gantt([task], {actual: 'yes' as never}), /actual must be true or false/);
+});
+
+test('gantt({actual: true}): an arrow gets past a late actual that runs to the axis end (down), and a head\'s early actual (up)', async () => {
+  // the predecessor overran up to today, the last day on the axis
+  const down = gantt([
+    {id: 'a', label: '設計', start: '2026-08-01', end: '2026-08-20', actual: {start: '2026-08-01', end: '2026-11-25'}},
+    {label: 'X', start: '2026-08-05', end: '2026-08-08'},
+    {id: 'b', label: '実装', start: '2026-10-29', end: '2026-11-10', after: 'a'},
+  ], {today: '2026-11-25', actual: true});
+  const {verdict: v1} = await laid(down);
+  assert.deepEqual(v1.problems, []);
+  for (const today of ['2026-11-20', '2026-11-23', '2026-11-24']) {
+    const open = gantt([
+      {id: 'a', label: '設計', start: '2026-08-01', end: '2026-08-20', actual: {start: '2026-08-01'}},
+      {label: 'X', start: '2026-08-05', end: '2026-08-08'},
+      {id: 'b', label: '実装', start: '2026-10-29', end: '2026-11-10', after: 'a'},
+    ], {today, actual: true, to: '2026-11-25'});
+    assert.deepEqual((await laid(open)).verdict.problems, [], `in progress up to ${today}`);
+  }
+  // the head is above its tail, and the head's actual started on the axis's first day
+  const up = gantt([
+    {id: 'b', label: '後', start: '2026-09-10', end: '2026-09-20', after: 'a', actual: {start: '2026-08-01', end: '2026-09-20'}},
+    {label: 'X', start: '2026-08-05', end: '2026-08-08'},
+    {id: 'a', label: '前', start: '2026-08-10', end: '2026-08-20'},
+  ], {today: '2026-09-20', actual: true});
+  assert.deepEqual((await laid(up)).verdict.problems, []);
+});
+
+test('gantt({actual: true}): a milestone\'s actual after today names its start; an in-progress bar starting today stays at the line', async () => {
+  await assert.rejects(laid(gantt([{label: 'M', start: '2026-10-05', milestone: true, actual: {start: '2026-10-09'}}], {today: '2026-10-07', actual: true, to: '2026-10-10'})),
+    /"M" actual.start \(2026-10-09\) is after today \(2026-10-07\)$/);
+  const {t} = await laid(gantt([{label: 'A', start: '2026-01-01', end: '2026-12-20', actual: {start: '2026-12-20'}}], {today: '2026-12-20', actual: true}));
+  assert.ok(t.actuals[0]!.x + t.actuals[0]!.w <= t.today!.x + 0.01);
+});
+
+test('gantt(): an arrow into a milestone on the axis\'s first day keeps its own route (an end is only clamped when it was pushed)', async () => {
+  const {t, verdict} = await laid(gantt([
+    {id: 'm', label: 'M', start: '2026-10-01', milestone: true, after: 'a'},
+    {label: 'X', start: '2026-10-03', end: '2026-10-09'},
+    {id: 'a', label: 'A', start: '2026-10-02', end: '2026-10-20'},
+  ], {today: '2026-10-05'}));
+  assert.deepEqual(verdict.problems, []);
+  const pts = t.deps[0]!.points, head = t.bars[0]!;
+  assert.equal(pts.at(-1)!.x, head.x);
+  assert.equal(pts.at(-2)!.x, head.x - 8, 'into the head from 8px before it, not from a clamped column');
+});

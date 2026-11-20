@@ -78,6 +78,9 @@ const checkGantt = (band: LaidOutOf<'gantt'>, _d: LaidOutDiagram, {problems}: Ve
       if (k === d.from || k === d.to) continue;
       if (routeHits(d.points, bar)) problems.push(`gantt: the arrow "${must(band.bars[d.from]).label}" -> "${must(band.bars[d.to]).label}" runs through the bar "${bar.label}" (reorder the rows, or drop the dependency)`);
     }
+    for (const a of band.actuals) { // nor through an actual bar (ADR 0068 D4b), its own task's included: the arrow joins the plans
+      if (routeHits(d.points, a)) problems.push(`gantt: the arrow "${must(band.bars[d.from]).label}" -> "${must(band.bars[d.to]).label}" runs through the actual bar of "${must(band.bars[a.task]).label}" (reorder the rows, or drop the dependency)`);
+    }
   }
   for (const [i, b] of band.labelBoxes.entries()) {
     if (outsideX(b, band)) problems.push(`gantt: label "${b.label}" runs outside the figure (shorten it or widen the figure)`);
