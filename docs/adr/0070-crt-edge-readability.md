@@ -1,6 +1,6 @@
 # ADR 0070: CRT の辺の読みやすさ(`tree: 'crt'` の既定を ALAP に、隙間のトラック割り当て、AND の組ごとの入口、並走の検査)
 
-- 状態: 提案
+- 状態: 承認(2026-11-20、Opus のレビュー 2 回を反映)
 - 日付: 2026-11-20
 - 基点: `main`(7a95096e、PR #371 まで)
 - 関連: ADR 0015(`tree`・`cause-parallel` / `cause-crossing`。G6 の AND の並走)、ADR 0016(D3 直線化、D6 `edge-bends`、D11〜D14 の並走のずらし)、ADR 0019(D1 `layer: 'alap'` と既定、D4 交差の再探索は `cause-crossing` だけ)、ADR 0020(TOC の検査)、ADR 0028(交差の hop)。ADR 0068・0069 は別の PR で提案中のため、この ADR は 0070
@@ -63,7 +63,7 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 - `layer: 'alap'` はある(ADR 0019 D1、`lib/graph-layout.ts:369` の `alap`)。`causeTree` の既定は `alapOf`(`lib/toc.ts:223-226`)で、`tree` が `'prt'`・`'frt'`・`'tt'`・`'nbr'` なら `'alap'`、**`'crt'` を含むそれ以外は `'asap'`**。`keep` は役割 `root`・`injection`・`start` の節で、根本原因は最下段に残る。
 - `examples/` で `tree: 'crt'` を書くのは `examples/toc-compact.ts:30` だけ(`examples/toc-crt.ts` は `tree` を書かない)。`toc-compact` には `role: 'precondition'` の節が無い。入る辺の無い節は c1・c2(root)と b3(役割なし)。
 - `test/` には `tree: 'crt'` が 11 ファイルに 25 か所ある: toc・toc-fit・toc-rules・cause-hop・spec・spec-edge・keep-words・wrap-soft・diagnostics-hints・pptx-edge・pptx-groups(`*.test.ts`)。
-- ALAP の動く節は「`keep` に無く、入る辺がすべて動く節から来る節」(`lib/graph-layout.ts:369-381`)。CRT の検査は root が 1 つ以上あることしか求めない(`lib/toc-rules.ts:35`)ので、根本原因に役割を付けない入口の節(`toc-compact` の b3 など)は普通にある。
+- ALAP の動く節は「`keep` に無く、循環を切った後の DAG で、入る辺がすべて動く節から来る節」(`lib/graph-layout.ts:369-381`、`:374`)。DAG の先行節が無い節は `[].every` が真になり、`keep` に無ければ動く。CRT の検査は root が 1 つ以上あることしか求めない(`lib/toc-rules.ts:35`)ので、根本原因に役割を付けない入口の節(`toc-compact` の b3 など)は普通にある。
 
 ### 層の中の列(b)
 
@@ -127,7 +127,7 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 
 ### D1: `tree: 'crt'` の既定を `layer: 'alap'` にする(d。ADR 0019 D1 の変更)
 
-- `alapOf`(`lib/toc.ts:224`)で、`tree: 'crt'` かつ `layer` を書かないときの既定を、**前提条件だけの ALAP** にする: `keep` = 入る辺の無い節のうち `role !== 'precondition'` のもの(root・役割の無い入口の節・injection・start)。動くのは `role: 'precondition'` の節と、そこから始まる連鎖(入る辺がすべて動く節から来る節)だけ。
+- `alapOf`(`lib/toc.ts:224`)で、`tree: 'crt'` かつ `layer` を書かないときの既定を、**前提条件だけの ALAP** にする。動く節の集合 M を、**循環を切る前の link の上で**、前から不動点で求める: M は `role: 'precondition'` の節と、「入る link が 1 本以上あり、その尾がすべて M に入る節」(最小の不動点。循環の節は、循環の中の尾が M に入らないので M に入らない)。`keep` は **M の外の全節**。`graph-layout.ts` の ALAP は循環を切った後の DAG の先行節で動く節を決める(`lib/graph-layout.ts:374`、`preds.every(p => movers.has(p))`)ので、「入る辺の無い節」で `keep` を作ると、循環の切れ目で DAG の入口になった節(根本原因の側のこともある)が動いてしまう。M の補集合を `keep` にすれば、動くのは前提条件とそこから始まる連鎖だけになる。
 - CRT に前提条件が 1 つも無ければ `alap` を渡さない(層も循環の切り方も今と同じで、出力はバイト単位で同じ)。
 - **明示の `layer: 'alap'` は ADR 0019 D1 の意味のまま**(`keep` は root・injection・start)。`layer: 'asap'` と書けば今の図に戻る。`tree` を書かない `causeTree`、pdpc・relationDiagram・whyWhyTree・arrowDiagram は今のまま。
 - 理由: 実測で、折れの合計 116 → 54、最大 12 → 4、0px の並走 1175px → 0、`edge-bends` が出なくなり、図の高さの増えは 67px(4%)。報告の図の入口の節はすべて root か precondition なので、前提条件だけの ALAP でも結果は上の alap の実測と同じ。役割を付けない入口の節(タグの付け忘れた根本原因)は最下段に残るので、ADR 0019 が CRT を asap に残した理由(「根本原因は最下段」)に当たらない。動く範囲は利用者の案 (d)「前提条件を行き先の 1 つ下へ」と一致する。
@@ -142,6 +142,7 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 - `lib/polyline-metrics.ts` に `parallelRuns(routes, sep)` を足す: 別の矢印の、同じ軸の run の組のうち、間隔が `sep` 未満で、長さ方向に 4px を超えて重なるもの。組ごとに重なりの長さと間隔を返す。`runsTogether`(4px 未満)は `sep = 4` の特別な場合として残す(`cause-parallel` と D11〜D14 は今の定義のまま)。
 - `sep` は `laneStepOf(space)`(既定 14、`density: 'compact'` で 11)。フォントに依らない。
 - 規則 `edge-parallel`(`lib/rules.ts`、`edge-bends` の隣): **`causeTree` の帯だけ**(pdpc・relationDiagram・whyWhyTree、states・classes・ネットワークの図は対象にしない。states・classes は `portStep` が 14 で面が短いと縮み、fan-in の最後の run が常に該当するため)で、`parallelRuns` の重なりの合計が `2 × sep` を超える帯に出す。**端を共有する組も数える**(P4 の、同じ尾から出て重なる辺はこれで見える)。文面には、最も長い 3 組(尾 → 頭、間隔、長さ)と合計を出す。`data` に `measured`(合計の長さ)と `threshold`。
+- 帯の判別: レイアウトの後の帯(`LaidOutCause`、型は `lib/types/diagrams.ts:446`、作るのは `lib/toc.ts:320-323`)には `base`・`layerFrom` に当たる印が無く、`lib/rules.ts` の規則は `d.laidOut` だけを読む。`LaidOutCause` に `origin?: 'pdpc' | 'relation' | 'whywhy'` を足し、`causeTree` のときはキーを付けない(既存のレイアウトの JSON を比べるテストを壊さない。ADR 0028 D7 の `crossings` と同じやり方)。`edge-parallel` は `origin` の無い cause の帯だけに出す。U2 に入れる。
 - 重さは `edge-bends` と同じ `layoutSeverity`(info、`layoutCheck: 'strict'` で warn)。`cause-parallel`(warn)はそのまま残す(AND の頭への 4px 未満の並走は、どの矢印が AND かを読み違えるので、別の重さで扱う)。
 - この指標を、U3・U4 の完了の基準と、D4 の後段の処理の採否(D4)に使う。ほかの図へ広げるかは U6 の測り直しの後に決める。
 
@@ -157,7 +158,7 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 ### D4: 隙間のトラック割り当て(a・b の残り、P1・P2・P4)
 
 - **1 つの隙間の、すべての曲がりを 1 回で割り当てる**: 直接の矢印の曲がり、長い矢印の途中の曲がり(今は真ん中、`lib/layered-route.ts:32`)と最後の曲がり(`lastTurn`)、外周の戻り辺の曲がり。各曲がりは、隙間を横切る run(`dir: 'up'` で水平の線分)を持ち、その範囲(across の区間)が決まっている。
-- **D11 のレーンの共有(`laneShare`/`longLane`)と `lastTurn` は、`tracks` のときは使わず、この割り当てに吸収する**(長い矢印の最後の曲がりも 1 つの曲がりとして、縦の制約で位置が決まる)。AND の矢印の最後の曲がりは、頭から `AND_END + 1`(D8 の値)以上離れたトラックに置く(弧の置き場所。足りなければ隙間の側を広げる)。
+- **D11 のレーンの共有(`laneShare`/`longLane`)と `lastTurn` は、`tracks` のときは使わず、この割り当てに吸収する**(長い矢印の最後の曲がりも 1 つの曲がりとして、縦の制約で位置が決まる)。AND の矢印の最後の曲がりは、頭から `AND_END + 1`(D8 の値)以上離れたトラックに置く(弧の置き場所。足りなければ隙間の側を広げる)。`tracks` のとき、`sharing()`(`lib/layered-route.ts:551`)は `laneShare` の案を作らない(割り当てに吸収済みで、作っても同じ経路になる)。
 - 割り当ては、チャネル配線の左端法(left-edge)に**縦の制約**を足したもの: 同じ across の位置に、一方の曲がりの「入る側の縦の run」と、他方の「出る側の縦の run」が来る組は、交差しない上下の順を制約にする(fan-in・fan-out・頭が混じる隙間を同じ規則で扱う。今の `fanIn` の分岐(`:189-193`)を置き換える)。制約に循環があれば、その組だけ今の順に戻す(交差は残り、`cause-crossing` が出る)。
 - 範囲が重ならない曲がりは同じトラックを使ってよい(左端法)。ただし重なりの判定の前に、各区間を**両端で `laneStepOf(space)` ずつ伸ばす**(同じトラックの 2 本の run の端が近いと、1 本につながって見えるため)。重なるものは別のトラックで、トラックの間隔は `laneIn(g)`(`LANE` 以上)。
 - **後段の処理も間隔を壊さない**(割り当ての後に経路を動かす処理):
@@ -166,6 +167,7 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
   3. この 2 つの上で、**同じ軸の run が `LANE` 未満で並ぶことは、`causeTree` では起きない**(層の中の run はダミーの slot の `gap` で既に離れている)。U4 のテストは、detour が効く図(箱を避ける長い矢印)でも回す。
 - 隙間の広さ: `corridorLoad` と、`laneIn` の分母になる `crowdOf` を、**同じ**隙間ごとのトラックの数(長い矢印の曲がりを含む)で数える。`levelGap` は今どおり全隙間の最大で 1 つ(隙間ごとの `levelGap` は `graph-layout.ts` に手が入るので、この ADR ではしない)。報告の図では必要トラック数が 3 で、高さは増えない見込み。ほかの図で高くなれば、`fitLayout` の高さの予算がそのまま効く(収まらなければ今どおり狭める・折り返す)。
 - トラックの間隔の下限は、hop(ADR 0028)の「同じ向きの線が近い」の閾値(約 10.5px)より大きく保つ(`density: 'compact'` の 11px が下限)。
+- D8 で弧が頭から遠くなる(深さ 21 → 25〜29px)ので、hop を省く範囲(弧の外接矩形 ±8px、`lib/cause-hop.ts:63-66`、理由 `and-arc`)も頭から遠くまで広がる。**これは受け入れる効果とする**(弧の近くで線が飛び越すと、弧と hop の半円が重なって読みにくいので、省くこと自体は正しい)。トラックの配置で帯を避ける制約は足さない(隙間が高くなるため)。U3・U4 の PR の hop の内訳に `and-arc` を含め、`toc-hop`・`toc-hop-all` で `and-arc` の省きが増えたら、U4c で「頭の手前 `AND_END + 8` の帯に、ほかの頭へ入る矢印の水平の run を置かない」を足すかを決める。
 - `elbows` は、区間ごとの曲がりの座標(トラック)を受け取る形にする(`turn` / `lastTurn` の 2 つの引数を、区間の配列に置き換える)。
 - **`causeTree` の帯だけで有効にする**: `AttemptOpts` に `tracks?: boolean` を足し、`tryLayoutCause` が `band.base === undefined && band.layerFrom === undefined` のときだけ渡す。pdpc(外周の戻り辺が既定)・relationDiagram・whyWhyTree と states・classes・semnet は今の経路で、出力はバイト単位で同じ。
 - 案の比べ方は変えない(`pick0`・`sharing`・`apartOf` は (交差, 折れ) のまま)。D12〜D14 のずらしは上の条件つきで残し、D4 の後に何かを動かしているかを D2 で数え、何も動かさないなら別の PR で外す(未決)。
@@ -183,19 +185,42 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 
 ### D7: canvas では、cause の帯の線の間隔を文字の倍率で大きくする(P1)
 
-- `layoutCauseOrCloud`(`lib/layout-handlers.ts:606`)から `layoutCauseBand` へ `canvasGeom(ctx)`(canvas の文字の倍率、canvas が無ければ 1)を渡す。`causeTree` の帯(範囲外の条件)では、線の定数をこの倍率 `s` で大きくする: `PORT`、`LANE`・`STUB`(`layeredAttempt` に、`space` とは別の線の倍率として渡す。`space` と掛け合わせる)、`AND_END`・`AND_PEAK`・`AND_REACH`(D8)。
-- `GAP`・`LEVEL`(箱と箱の間)は大きくしない(層の中の run の間隔は `GAP = 28` で、`LANE × s` より広い。隙間の高さは `gapFor` が `STUB`・`LANE` から決めるので、線に合わせて広がる)。矢じりの大きさ(`ARROW_L`、emitter の定数)は変えない。
+- `layoutCauseOrCloud`(`lib/layout-handlers.ts:606`)から `layoutCauseBand` へ `s = max(1, canvasGeom(ctx))` を渡す(canvas が無ければ 1。**下限を 1 にする**: `minText` は 10 まで書け(`lib/types/core.ts:77`)、`canvasFontScale(10)` は 0.72 になるが、文字が小さくても線を今より詰めない)。`causeTree` の帯(範囲外の条件)では、線の定数をこの倍率で大きくする。`layeredAttempt` には `space` とは別の線の倍率として渡し、経路の中では `unit = space × s` を 1 か所で求めて使う。
+- 経路の間隔の値(レビュー第 2 巡が数えた 16 か所。`lib/layered-route.ts` の `routeOnce` と、そこから呼ぶ `lib/route-search.ts`・`lib/route-apart.ts`)と、U5 での扱い:
+
+  | # | 値 | 場所 | U5 |
+  |---|---|---|---|
+  | 1 | `STUB`(18) | `:68`(`stubOf(space)`) | `unit` を掛ける |
+  | 2 | `LANE`(14) | `:68`(`laneStepOf(space)`) | `unit` を掛ける |
+  | 3 | `laneIn` の上限 `2 × LANE` と余白 `16 × space` | `:127` | `unit` を掛ける |
+  | 4 | `gapFor` の `2 × stub + lane × (n − 1) + 16`・`chip + stub + 26` | `:19` | `unit` を掛ける |
+  | 5 | `portStep`(cause は `PORT = 22`) | `:155`、`lib/toc.ts:279` | `unit` を掛ける |
+  | 6 | 外周の戻り辺が頭へ入る最後の run `max(STUB, 22)` | `:209` | U3 で弧の深さから求める(MA)、`s` も掛かる |
+  | 7 | 直接の矢印の最後の run `gw − 22` | `:246` | 同上 |
+  | 8 | 長い矢印の `lastTurn` の `gr − 26`(2 か所) | `:254` | 同上 |
+  | 9 | D13 の候補 `±LANE`・`±6` と範囲 `4`・`22` | `:394` | `22` は U3 で弧の深さから、ほかは `unit` を掛ける |
+  | 10 | D12 のずらし `±8`・`±16` | `:386` | `unit` を掛ける |
+  | 11 | detour の `stub`(`STUB` を渡す)と `margin` 8 | `:344`、`lib/route-search.ts:54` | `unit` を掛ける |
+  | 12 | detour の最後の run `tail` 26 | `lib/route-search.ts:54` | U3 で弧の深さから求める(MA) |
+  | 13 | `moveApart` の歩幅 `STEPS` 8〜24・`CLEAR` 6・`JOG` 10 | `lib/route-apart.ts:18-21` | `unit` を掛ける |
+  | 14 | 口を箱の縁から離す `h − 12`・`h / 2 − 6`・`align` の 6 | `:155`・`:159`・`align` | **固定**(箱の縁と角の丸みからの距離で、線どうしの間隔ではない。箱の枠は倍率で太くならない) |
+  | 15 | 同じ高さとみなす許容 3px(`align`・`alongOther`) | `:289`・`:299` | **固定**(座標の一致の判定の許容で、見える間隔ではない) |
+  | 16 | `runsTogether` の 4px | `lib/polyline-metrics.ts:111-117` | **固定**(`cause-parallel` の定義。D2 の `parallelRuns` が `LANE × unit` で別に測る) |
+
+  なお、`routeOnce` の中の `STUB`・`LANE` は `stubOf(space)`・`laneStepOf(space)` で既に `space` が掛かっている(`:68` で影を作る)。`space` が届いていないのは 3〜13 のうちの素の数字で、U5 でそれらを `unit` の倍数に書き換える(`density: 'compact'` でも同じく縮む)。
+- `GAP`(箱と箱の間)は `max(GAP × space, 2 × LANE × unit)` にする(層の中のダミーの間隔 `gap` が、倍率を掛けたレーンの間隔を下回らないため。`s ≤ 1.0` では今の `GAP = 28` のまま。`2 × LANE × unit` が 28 を超えるのは `unit > 1` のとき)。それ以外の `GAP`・`LEVEL` は変えない(隙間の高さは `gapFor` が線の値から決めるので、線に合わせて広がる)。矢じりの大きさ(`ARROW_L`、emitter の定数)は変えない。
 - canvas の無い図、pdpc・relationDiagram・whyWhyTree は不変。canvas の `causeTree` だけが動く。
-- 報告の図(`minText: 18`、`s = 1.29`)では、`LANE` 14 → 18、`PORT` 22 → 28。並走の最小間隔 ÷ `minText` は 0.78 → 1.0。この比は図を縮めて見ても変わらない(文字と線が同じ倍率で縮む)ので、「縮小して見ると線が詰まって見える」の基準になる。
+- 報告の図(`minText: 18`、`s = 1.29`)では、`LANE` 14 → 18、`PORT` 22 → 28、`GAP` 28 → 36。並走の最小間隔 ÷ `minText` は 0.78 → 1.0。この比は図を縮めて見ても変わらない(文字と線が同じ倍率で縮む)ので、「縮小して見ると線が詰まって見える」の基準になる。
 
 ### D8: AND の弧を矢じりから離す(P3)
 
-- 弧が矢印の軸を横切る位置は、先端から `AND_PEAK`(組の真ん中)〜`AND_END`(両端)。矢じりの根元との**見える隙間**(弧の線幅の半分を引く)は `AND_PEAK − ARROW_L − 1` が最小になる。今は 15 − 12 − 1 = 2px(実測でも各矢印で 3.3〜4.8px)。
+- 弧が矢印の軸を横切る位置は、組の真ん中で最も先端に近く、先端から `AND_PEAK`。矢じりの根元との**見える隙間**(弧の線幅の半分を引く)は `AND_PEAK − ARROW_L − 1` が最小になる。今は 15 − 12 − 1 = 2px(実測でも各矢印で 3.3〜4.8px)。
 - 見える隙間の最小を、文字の大きさの 0.4 倍以上にする。文字の大きさは canvas では `minText`、canvas が無ければ 14(`s = 1` のときの本文)。
   - `AND_PEAK = ARROW_L + 1 + ceil(0.4 × 14 × s)`(`s = 1` で 19、`s = 1.29` で 21)
   - `AND_END = AND_PEAK + round(6 × s)`(弧の反りは今と同じ 6px を倍率で)
   - `AND_REACH = round(10 × s)`
-- 弧を描く条件(`andEnds` の `room >= AND_END + 1`、`lib/toc.ts:241`)は、`AND_END` が伸びた分だけ厳しくなる。D4 で AND の矢印の最後の曲がりを頭から `AND_END + 1` 以上に置くので、`causeTree` では弧が描けなくなる(`loose` が増える)ことはない。D4 の前に D8 を入れる場合は、`loose` が増えないことを U3 の完了の条件にする。
+- 弧を描く条件(`andEnds` の `room >= AND_END + 1`、`lib/toc.ts:241`)は、`AND_END` が伸びた分だけ厳しくなる(`AND_END + 1` は `s = 1` で 26、`s = 1.29` で 30)。今これを守っているのは、`AND_END = 21` に合わせた経路の側の 5 つの長さ: 直接の矢印の最後の run 22(`lib/layered-route.ts:246`)、長い矢印の `lastTurn` の 26(`:254`)、頭へ入る外周の戻り辺の 22(`:209`)、D13 の候補の範囲 22(`:394`)、detour の最後の run `tail = 26`(`lib/route-search.ts:54`)。
+- **U3 で、この 5 つを弧の深さから求める**: `headRun = AND_END + 1` とし、22 の 3 か所は `max(22, headRun)`、26 の 2 か所(`lastTurn` と detour の `tail`)は `max(26, headRun + 4)`(今の 4px の差を保つ)。値は `AttemptOpts` で渡し、渡さない図(states・classes・semnet、pdpc・relationDiagram・whyWhyTree)は今の 22・26 のまま。D8 は U3 に置いたままにする(U4b の後に回さない)。D4 の後は、AND の矢印の最後の曲がりを頭から `headRun` 以上のトラックに置くことで同じ下限を守る。
 - 「2 つの弧が触れる」の検査(`lib/verify-handlers.ts:151`、8px 未満で error)は変えない。D3 で切れ目は `2 × PORT × s − 2 × AND_REACH`(報告の図で 56 − 26 = 30px)になる。
 
 ## 代替案
@@ -223,7 +248,7 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
   - D8: AND を持つ `causeTree` の図の、弧の位置。
   - D2: 新しい規則 `edge-parallel`(info、`causeTree` の帯だけ)。
 - **変わらない出力(バイト単位)**: pdpc・relationDiagram・whyWhyTree(`examples/qc-pdpc`・`qc-relation`・`why-why`)、states・classes・semnet・bpmn。`tree` を書かない `causeTree` の層。D3・D4・D7・D8 は `causeTree` の帯の条件の外で何もしない。
-- **触るファイル**: `lib/toc.ts`(D1 の既定、D3 の `need`、D4 の `tracks` を渡す、D7 の倍率、D8 の定数)、`lib/layout-handlers.ts`(D7 の `canvasGeom` を渡す)、`lib/layered-route.ts`(D3 の口、D4 の割り当て・`elbows`・`corridorLoad`)、`lib/polyline-metrics.ts`(D2 の `parallelRuns`)、`lib/rules.ts`(D2 の規則と `RULE_DOCS`)、ADR 0019(D1 の既定の書き換えの注記)、README・`skills/svg-diagram/SKILL.md`(運用どおり PR 本文に書き、最後にまとめて反映)。
+- **触るファイル**: `lib/toc.ts`(D1 の既定、D3 の `need`、D4 の `tracks` を渡す、D7 の倍率、D8 の定数)、`lib/layout-handlers.ts`(D7 の `canvasGeom` を渡す)、`lib/layered-route.ts`(D3 の口、D4 の割り当て・`elbows`・`corridorLoad`)、`lib/route-search.ts`(U3 の `tail` を弧の深さから、U5 の `stub`・`margin` の倍率)、`lib/route-apart.ts`(U5 の歩幅の倍率)、`lib/polyline-metrics.ts`(D2 の `parallelRuns`)、`lib/rules.ts`(D2 の規則と `RULE_DOCS`)、`lib/types/diagrams.ts`(`LaidOutCause` の `origin`)、ADR 0019(D1 の既定の書き換えの注記)、README・`skills/svg-diagram/SKILL.md`(運用どおり PR 本文に書き、最後にまとめて反映)。
 - **費用**: D4 の割り当ては隙間ごとに、曲がりの数 n で O(n log n + 制約の数)。今の `assignLanes` と同程度。
 - **リスク**: D4・D7 で隙間が高くなり、高さの予算に収まらない図が `fold` や狭めに回る。U4c・U5 の PR で、`examples/` の `toc-*` の高さの増え方を表で出す。D4 で hop の組が変わるので、U4 の PR で `toc-hop`・`toc-hop-all` の hop の数と省いた理由ごとの内訳を before / after で出す。
 
@@ -231,14 +256,14 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 
 | 単位 | 内容 | 依存 | 大きさ |
 |---|---|---|---|
-| U0 | 報告の図の構造だけを写した fixture(`test/fixtures/crt-report-shape.ts`: 24 節・同じ link と AND・同じ役割、ラベルは同じ文字数のダミー)と、pdpc・relationDiagram・whyWhyTree の出力がバイト単位で変わらないことを見るテスト(今の出力を固定) | なし | 小 |
-| U1 | D1: CRT の既定を前提条件だけの ALAP に(`keep` の作り方、前提条件が無ければ渡さない)。ADR 0019 への注記。`test/` の `tree: 'crt'` の見直し。`pnpm golden`(差分 0) | U0 | 小 |
-| U2 | D2: `parallelRuns` と `edge-parallel`(info、`causeTree` の帯だけ)。`RULE_DOCS`・`check --explain` | なし(U1 と並行可) | 小 |
-| U3 | D3 と D8: AND の組の隣の口の間隔、`need`、弧の定数 | U2(物差し) | 中 |
+| U0 | 報告の図の構造だけを写した fixture(`test/fixtures/crt-report-shape.ts`: 24 節・同じ link と AND・同じ役割、ラベルは同じ文字数のダミー)。pdpc・relationDiagram・whyWhyTree の不変は、各 PR で golden(`pnpm golden`)の `qc-pdpc`・`qc-relation`・`why-why` の差分 0 で示す | なし | 小 |
+| U1 | D1: CRT の既定を前提条件だけの ALAP に(link の上の不動点 M、`keep` = M の外、前提条件が無ければ渡さない)。ADR 0019 への注記。`test/` の `tree: 'crt'` の見直し。`pnpm golden`(差分 0) | U0 | 小 |
+| U2 | D2: `parallelRuns` と `edge-parallel`(info、`causeTree` の帯だけ)。`LaidOutCause` の `origin`。`RULE_DOCS`・`check --explain` | なし(U1 と並行可) | 小 |
+| U3 | D3 と D8: AND の組の隣の口の間隔、`need`、弧の定数、**頭の手前の最後の run の 5 つの下限を弧の深さから求める**(`layered-route.ts:209`・`:246`・`:254`・`:394`、`route-search.ts:54`) | U2(物差し) | 中 |
 | U4a | D4 の一部: 長い矢印の途中の曲がりにトラックを割り当てる(真ん中の重なりを消す。P1 の主因)。区間の両端の伸ばし、`elbows` の区間ごとの曲がり、`tracks` の口 | U2 | 中 |
 | U4b | D4 の一部: 縦の制約で `fanIn` の分岐と D11 の `laneShare`/`lastTurn` を置き換える。最初のテストは u4・e2 の再現(交差 0) | U4a | 中 |
 | U4c | D4 の一部: `corridorLoad`・`crowdOf` を同じトラック数で数える。detour をトラックに合わせる。後段(align・D12〜D14)の採否に `parallelRuns(·, LANE)` を足す | U4b | 中 |
-| U5 | D7: canvas の倍率を cause の帯の線の定数に掛ける | U4c | 小 |
+| U5 | D7: `s = max(1, canvas の倍率)`、表の 1〜13 に `unit` を掛ける、`GAP` の下限 | U4c | 中 |
 | U6 | 測り直し: D12〜D14 のずらしが何かを動かすか、`pick0` の比べ方(D5 の記録)、`edge-parallel` をほかの図へ広げるか。結果をこの ADR に戻す | U5 | 小(測定と ADR) |
 
 最も安く効果が大きいのは U1(数行で、報告の図の折れが半分、0px の並走が 0)。U0 は U1 以降の基準を、利用者のファイルに頼らずに確かめるために先に入れる。U2 は、U3・U4 の効果を数えるために先に入れる。
@@ -246,14 +271,14 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 ### テスト方針
 
 - **フォントに依存する絶対値を使わない**。箱の大きさや座標の px を固定しない。比べるのは、数(交差・並走の組・折れ)、順序(口の並び、トラックの順)、間隔と定数(`laneStepOf(space)`・`portStep`)の大小、asap と alap の比較。
-- U0: pdpc・relationDiagram・whyWhyTree の小さな図の SVG が、この ADR の各単位の前後でバイト単位で同じ(テストで今の出力のハッシュを固定するか、golden の `qc-pdpc`・`qc-relation`・`why-why` の差分 0 を各 PR で示す)。
-- U1: 前提条件 → 結果 ← 根本原因 の小さな図で、`tree: 'crt'` の前提条件が行き先の層 - 1 にあり、root は層 0 のまま。**役割の無い入口の節は CRT の既定で asap の層のまま**(行き先が深い図で)。明示の `layer: 'alap'` では ADR 0019 どおり動く。前提条件の無い CRT の SVG が今と同じ。`layer: 'asap'` で今の層に戻る。`tree` を書かない図の層が変わらない。
-- U2: 合成した経路(数値の点列)で、間隔 `sep` 未満の重なりを数える。端を共有する組も数える。`runsTogether` の結果が変わらない。
-- U3: AND 2 組(4 本)が 1 つの頭に入る図で、組の間の口の間隔が組の中の間隔の 2 倍。2 つの弧の範囲の間が `2 × portStep - 2 × AND_REACH` 以上。**AND の無い頭の口と箱の幅が変わらない**。弧の見える隙間 `AND_PEAK − ARROW_L − 1` が 0.4 × 文字の大きさ以上。`loose` が増えない。折れの合計が増えない。
+- U0: pdpc・relationDiagram・whyWhyTree は、各 PR の golden(`test/helpers/strict-width.ts` を使う `pnpm golden`)で `qc-pdpc`・`qc-relation`・`why-why` の差分 0 を示す。出力のハッシュは固定しない(フォントの測り方に依存するため)。
+- U1: 前提条件 → 結果 ← 根本原因 の小さな図で、`tree: 'crt'` の前提条件が行き先の層 - 1 にあり、root は層 0 のまま。**役割の無い入口の節は CRT の既定で asap の層のまま**(行き先が深い図で)。明示の `layer: 'alap'` では ADR 0019 どおり動く。前提条件の無い CRT の SVG が今と同じ。`layer: 'asap'` で今の層に戻る。`tree` を書かない図の層が変わらない。**前提条件と循環(`back: true` の負のループ)の両方を持つ CRT で、動くのは M の節だけで、ほかの節(循環の節を含む)の層は asap と同じ。反転した link の集合(`breakCycles` の結果)が asap と同じ**。
+- U2: 合成した経路(数値の点列)で、間隔 `sep` 未満の重なりを数える。端を共有する組も数える。`runsTogether` の結果が変わらない。 `origin` の付いた cause の帯(pdpc など)には `edge-parallel` が出ない。
+- U3: AND 2 組(4 本)が 1 つの頭に入る図で、組の間の口の間隔が組の中の間隔の 2 倍。2 つの弧の範囲の間が `2 × portStep - 2 × AND_REACH` 以上。**AND の無い頭の口と箱の幅が変わらない**。弧の見える隙間 `AND_PEAK − ARROW_L − 1` が 0.4 × 文字の大きさ以上。`loose` が増えない。折れの合計が増えない。 **すべての AND の弧が描ける: 各 AND の矢印の最後の run ≥ `AND_END + 1`(`loose` = 0)を、倍率 1 と 1.29 の両方で**(1.29 は U5 の前は `AND_*` だけに倍率を掛けたテスト用の指定で確かめる)。
 - U4a: 同じ隙間を通る長い矢印 2 本が、`LANE` 以上離れて曲がる(`parallelRuns(routes, laneStepOf())` が 0)。同じトラックに並ぶ 2 本の run の端が `laneStepOf()` 以上離れる。
 - U4b: u4 の再現(1 つの頭へ入る AND の組の 2 本と、別の頭へ入る矢印が同じ隙間を通る)と e2 の再現(長い矢印と直接の矢印が 1 つの AND に入る)で、組の中の交差が 0。
 - U4c: detour が効く図(箱を避ける長い矢印)でも `parallelRuns(routes, laneStepOf())` が 0。`tracks` を渡さない `layeredAttempt`(states など)の経路が、今と同じ点列。
-- U5: canvas の有無だけが違う 2 つの図で、並走の最小間隔 ÷ 文字の大きさが同じ(倍率が線に掛かる)。canvas の無い図の SVG が変わらない。
+- U5: canvas の有無だけが違う 2 つの図で、並走の最小間隔 ÷ 文字の大きさが同じ。表の 1〜13 の値が倍率どおり(例: 隙間の中の隣り合うレーンの間隔が `LANE × unit`)。`minText` が 14 未満の図で、間隔が今より狭くならない(`s` の下限 1)。canvas の無い図の SVG が変わらない。
 - 実行は対象のファイルだけ(`node --test test/<file>.test.ts`)。golden は U1・U3・U4 の PR で 1 回ずつ。
 
 ### 完了の基準
@@ -281,3 +306,4 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 ## 改訂履歴
 
 - 2026-11-20 第 1 巡(Opus レビュー `docs/adr/0070-opus-review-round1.md`、Major 6・Minor 8・Nit 3)を反映: M1 D3・D4 の範囲を `causeTree` の帯に限り、pdpc・relationDiagram・whyWhyTree のバイト単位の不変をテストに(U0)。M2 D11 を D4 に吸収、detour をトラックに合わせる、後段の採否に `LANE` 未満の並走を増やさない条件。M3 D3 は AND の組の隣だけ広げる。M4 D7(canvas の倍率)と、並走の間隔 ÷ `minText` の完了の基準。M5 弧と矢じりの隙間を実測し D8 と完了の基準に。M6 CRT の既定は前提条件だけの ALAP。Minor: 11 ファイル、`crowdOf`、区間の両端の伸ばし、hop、fixture、U4 の 3 分割、`edge-parallel` を `causeTree` だけに、D3 の広げ幅の固定。Nit: 「同じ軸」、toc-compact の a3、`pick0` の記録の手順。alap の 2 つの交差は、レビューの経路の確認で D4 で解けると分かったので未決から外した。
+- 2026-11-20 第 2 巡(Opus レビュー `docs/adr/0070-opus-review-round2.md`、Major 2・Minor 6・Nit 2、条件付き承認)を反映し、状態を承認にした: MA 頭の手前の最後の run の 5 つの下限を U3 で弧の深さから求め、弧が描けることを倍率 1・1.29 でテスト。MB `keep` を link の上の不動点 M の補集合にし、循環つきの CRT のテストを足す。Minor: D7 の倍率の下限 1、経路の間隔 16 か所の表と U5 での扱い、`GAP` を倍率つきレーンの 2 倍以上に、U0 は golden の差分で、`LaidOutCause` の `origin`(U2)、hop の `and-arc` の範囲の広がりは受け入れる効果とする。Nit: D8 の弧の位置の書き方、`tracks` のとき `sharing()` の `laneShare` の案を作らない。
