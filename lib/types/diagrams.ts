@@ -243,7 +243,11 @@ export interface CauseBand extends Omit<CauseOpts, 'focus'> {
   layerFrom?: 'effect';
   /** Entities that are not anchors (no connect() / spotlight / reveal can name them, and two figures may use the same ids). Set by whyWhyTree() for the entities it named itself, not by the author. */
   unanchored?: readonly string[];
+  /** Which maker built this band, when it is not causeTree() (ADR 0070 D2): pdpc(), relationDiagram() or whyWhyTree(). Set by the DSL, not by the author; carried to `LaidOutCause.origin`. */
+  origin?: CauseOrigin;
 }
+/** The makers of a cause band other than causeTree() (ADR 0070 D2). */
+export type CauseOrigin = 'pdpc' | 'relation' | 'whywhy';
 /** An answer to "なぜ?" in whyWhyTree(): what explains the node above it. `trueCause: true` marks the root cause; `measure` is what is done about it. */
 export interface WhyNode {id?: string; why: string; because?: readonly WhyNode[]; trueCause?: true; measure?: string}
 /** A threat or a consequence of a bow-tie, with the barriers between it and the top event, in the order the flow meets them. */
@@ -457,6 +461,8 @@ export interface LaidOutCause extends Rect, Dimmed {
   unanchored?: readonly string[];
   /** What the layout changed on its own to fit the width (none: the figure is as written). */
   fitApplied?: FitApplied[];
+  /** Which maker built the band, when it is not causeTree() (ADR 0070 D2); absent for a cause tree. The checks that only a cause tree gets (`edge-parallel`) read it. */
+  origin?: CauseOrigin;
   /** A negative branch tree (`tree: 'nbr'`): whether its layers run top-bottom (false: left-right, `dir: 'right'`). Read by the crossing hint (ADR 0037). */
   nbr?: {vertical: boolean};
   id?: string;

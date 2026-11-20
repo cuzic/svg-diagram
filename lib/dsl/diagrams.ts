@@ -345,6 +345,7 @@ export function whyWhyTree(problem: string, whys: readonly WhyNode[], opts: WhyW
   whys.forEach((w, i) => walk(w, String(i + 1), problemId));
   const own = userIds(whys), unanchored = opts.id === undefined ? nodes.filter(n => !own.has(n.id)).map(n => n.id) : [];
   const band = causeBand(nodes, links, {dir: 'auto', ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...revealOf(opts), ...scopeOpt(opts, 'whyWhyTree()')}, undefined, unanchored);
+  band.origin = 'whywhy';
   band.layerFrom = 'effect'; // also: never folded (a layer cut into rows would put one "why n" on two levels)
   band.rca = {kind: 'whywhy-tree', findings: whyWhyTreeFindings(whys)};
   if (opts.readingNote === false) return [band];
@@ -469,6 +470,7 @@ export function pdpc(nodes: readonly PdpcNode[], links: readonly PdpcLink[], opt
   const side = new Set((Array.isArray(nodes) ? nodes : []).filter(n => n.role === 'risk' || n.role === 'measure').map(n => n.id));
   for (const n of nodes ?? []) if (n.role !== undefined && !['start', 'step', 'risk', 'measure', 'goal'].includes(n.role)) throw new Error(`pdpc(): node "${n.id}" has role ${String(n.role)} (use start, step, risk, measure or goal)`);
   const band = causeBand(nodes.map(n => ({...n, role: n.role ?? 'step'})), (links ?? []).map(l => ({...l, line: l.line ?? (side.has(l.from) || side.has(l.to) ? 'dashed' : 'solid')} as CauseLink)), opts, 'down');
+  band.origin = 'pdpc';
   return opts.returns === undefined ? Object.assign(band, {returnsDefault: 'outer' as const}) : band;
 }
 export interface RelationNode extends CauseNode {}
@@ -493,11 +495,11 @@ export function relationDiagram(nodes: readonly RelationNode[], links: readonly 
   const out = new Map(nodes.map(n => [n.id, (links ?? []).filter(l => l.kind !== 'blocks' && l.from === n.id).length])), into = new Map(nodes.map(n => [n.id, (links ?? []).filter(l => l.kind !== 'blocks' && l.to === n.id).length]));
   const top = Math.max(0, ...nodes.filter(n => !problems.has(n.id) && n.role === undefined).map(n => out.get(n.id) ?? 0));
   const {problem: _p, counts, ...rest} = opts;
-  return causeBand(nodes.map(n => ({
+  return Object.assign(causeBand(nodes.map(n => ({
     ...n,
     role: n.role ?? (problems.has(n.id) ? 'ude' : top >= 2 && out.get(n.id) === top ? 'root' : 'effect'),
     ...(counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}出 ${out.get(n.id)}・入 ${into.get(n.id)}`}),
-  })), (links ?? []).map(l => ({...l})), rest, 'down');
+  })), (links ?? []).map(l => ({...l})), rest, 'down'), {origin: 'relation' as const});
 }
 type CloudIds<B> = B extends {id: infer I extends string} ? I : never;
 /**

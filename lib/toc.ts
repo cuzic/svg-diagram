@@ -342,7 +342,7 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
   };
 
   const out: LaidOutCause = {
-    type: 'cause', ...(band.coreBadge === undefined ? {} : {coreBadge: band.coreBadge}), id: band.id, reveal: band.reveal, ...(band.unanchored ? {unanchored: band.unanchored} : {}), ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + 2 * pad.y,
+    type: 'cause', ...(band.coreBadge === undefined ? {} : {coreBadge: band.coreBadge}), id: band.id, reveal: band.reveal, ...(band.unanchored ? {unanchored: band.unanchored} : {}), ...(band.origin ? {origin: band.origin} : {}), ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: total.h + 2 * pad.y,
     nodes: [], edges: [], ands: [], loose: attempt.loose, texts: [], anchors: [], labelBoxes: [],
     ...(fitApplied.length ? {fitApplied} : {}), ...(band.tree === 'nbr' ? {nbr: {vertical}} : {}), ...(band.focused ? {focused: band.focused} : {}),
   };

@@ -711,6 +711,7 @@ bpmn(
 - **高さの重なる箱への矢印は 1 本の直線にする**: 隣り合う層の 2 つの箱が高さ（`dir: 'right'` なら縦、`'down'` なら横）で重なるとき、端点を同じ高さにそろえて折れずに引く。条件は、箱の辺から 6px 内側、同じ辺のほかの矢印と間隔を保つ、（交差, 折れ）が増えない、ほかの矢印の線と 1 本に見えない。円（`shape: 'circle'`）・六角形（`obstacle` / `risk`）の端と AND の矢印は動かさない。満たせないときは従来どおり肘。
 - 層を 2 つ以上飛ぶ戻りの矢印は `returns: 'outer'` で外周の専用レーンに回せる（`causeTree` / `relationDiagram` / `pdpc` / `stateDiagram`。既定は部品ごとに違う。上の「TOC の思考プロセス」）。層を 1 つだけ戻る矢印は、今までどおり同じ層の間で別の帯を通る。
 - `check` の `edge-bends`（info）が、折れの多い図を知らせる。条件は、1 本の矢印が 5 回以上折れる、または帯ごとの「折れの合計 ÷ 矢印の数」が 3 を超える（閾値は原則から固定で、図に合わせて動かさない）。数える対象は上の層状の帯と `bpmn`（`causalLoop` の `layout: 'ring'` は曲線なので数えない）。`connect()` の線・自己ループ・曲線は数えない。`check --verbose` で出て、`diagram({layoutCheck: 'strict'})` の図だけ warn になる。`accept: {'edge-bends': '理由'}` で許容できる。直し方は、層を飛ぶ矢印・戻る矢印を減らす（節の分け方・辺の向きを見直す）。SVG は変わらない。
+- `check` の `edge-parallel`（info、ADR 0070 D2）は、`causeTree` の図で、別の矢印どうしの同じ向きの線がレーンの間隔（14px、`density: 'compact'` で 11px）より近くで 4px を超えて並ぶ所の長さの合計が、レーンの間隔の 2 倍を超えると出る。端を共有する矢印どうしも数える。`pdpc`・`relationDiagram`・`whyWhyTree` と、`states`・`classes` などほかの図は対象外。`diagram({layoutCheck: 'strict'})` で warn、`accept: {'edge-parallel': '理由'}` で許容できる。SVG は変わらない。
 
 ### 同じ id を別の帯で使う（`scope`）
 

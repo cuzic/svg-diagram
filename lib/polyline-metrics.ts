@@ -114,3 +114,35 @@ export function runsTogether(a: {p: P; q: P}, b: {p: P; q: P}): boolean {
   const [c, d] = aH ? ['x', 'y'] as const : ['y', 'x'] as const;
   return Math.abs(a.p[d] - b.p[d]) < 4 && Math.min(Math.max(a.p[c], a.q[c]), Math.max(b.p[c], b.q[c])) - Math.max(Math.min(a.p[c], a.q[c]), Math.min(b.p[c], b.q[c])) > 4;
 }
+
+/** One pair of side-by-side runs (`parallelRuns`): the routes by index, how far apart the runs are and how long they go together. */
+export interface ParallelRun {a: number; b: number; gap: number; overlap: number}
+
+/**
+ * The runs of two different routes on one axis (level with level, plumb with plumb; either direction) that are under `sep` apart and
+ * over 4px long together (ADR 0070 D2). Routes that share an end count too. Each route's corners are taken first (`simplify`), so a
+ * straight run is one run however many points it has; a slanted segment is not a run. `runsTogether` is the case `sep = 4` for two
+ * single runs, and keeps its own definition (the verifier's `cause-parallel` and the router's ADR 0016 D11 read it).
+ */
+export function parallelRuns(routes: readonly P[][], sep: number): ParallelRun[] {
+  type R = {level: boolean; at: number; lo: number; hi: number};
+  const runsOf = (pts: P[]): R[] => {
+    const s = simplify(pts), out: R[] = [];
+    for (let i = 1; i < s.length; i++) {
+      const p = s[i - 1] as P, q = s[i] as P;
+      const level = Math.abs(p.y - q.y) < 0.5, plumb = Math.abs(p.x - q.x) < 0.5;
+      if (level === plumb) continue; // a point, or a slanted segment
+      out.push(level ? {level, at: p.y, lo: Math.min(p.x, q.x), hi: Math.max(p.x, q.x)} : {level, at: p.x, lo: Math.min(p.y, q.y), hi: Math.max(p.y, q.y)});
+    }
+    return out;
+  };
+  const runs = routes.map(runsOf), out: ParallelRun[] = [];
+  for (let i = 0; i < runs.length; i++) for (let j = i + 1; j < runs.length; j++) {
+    for (const r of runs[i] ?? []) for (const s of runs[j] ?? []) {
+      if (r.level !== s.level) continue;
+      const gap = Math.abs(r.at - s.at), overlap = Math.min(r.hi, s.hi) - Math.max(r.lo, s.lo);
+      if (gap < sep && overlap > 4) out.push({a: i, b: j, gap, overlap});
+    }
+  }
+  return out;
+}
