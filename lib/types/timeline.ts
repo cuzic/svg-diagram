@@ -76,6 +76,9 @@ export interface GanttTask {
   /** An arrow from the end of these tasks (ids) to the start of this one. */
   after?: string | string[];
   tone?: 'accent' | 'danger' | 'muted';
+  /** ADR 0068 D4b: what happened, drawn under the plan when the gantt has `actual: true` ('YYYY-MM-DD', like start / end / days).
+   * No end and no days: in progress, up to `today`. A milestone's actual is its one day (`{start}` only). */
+  actual?: {start: string; end?: string; days?: number};
 }
 export type GanttRow = GanttTask | {section: string};
 export interface GanttOpts extends RevealOpts, ScopeOpts {
@@ -87,6 +90,8 @@ export interface GanttOpts extends RevealOpts, ScopeOpts {
   todayLabel?: string;
   /** Widen the axis to include `today` when it is outside (only a side that `from` / `to` did not fix). Default false. */
   extendToToday?: boolean;
+  /** ADR 0068 D4b: two rows per task, the plan (pale) over the actual (solid), with a legend under the chart. */
+  actual?: boolean;
   id?: string;
 }
 export interface GanttBand extends GanttOpts {
@@ -128,8 +133,14 @@ export interface LaidOutGantt extends Rect, Dimmed {
   ticks: {x: number}[];
   /** Section heading rows (a pale band across the figure). */
   sections: (Rect & {/** ADR 0054 */ part?: string})[];
-  /** One per task, in order (a milestone is a diamond; `progress` is the done part of a bar). */
-  bars: (Rect & {label: string; tone: 'accent' | 'danger' | 'muted'; progress?: number; milestone?: boolean; /** ADR 0054: its task's part (with the row's name) */ part?: string})[];
+  /** One per row of the band, top to bottom (rows differ in height when the gantt has `actual: true`). */
+  rows: {y: number; h: number}[];
+  /** One per task, in order (a milestone is a diamond; `progress` is the done part of a bar; `plan`: the pale plan bar over an actual). */
+  bars: (Rect & {label: string; tone: 'accent' | 'danger' | 'muted'; progress?: number; milestone?: boolean; plan?: true; /** ADR 0054: its task's part (with the row's name) */ part?: string})[];
+  /** ADR 0068 D4b: the actual bars (`task` indexes `bars`; a task with no actual has none). `open`: in progress, up to today. */
+  actuals: (Rect & {task: number; tone: 'accent' | 'danger' | 'muted'; milestone?: true; open?: true; part?: string})[];
+  /** ADR 0068 D4b: the legend under the chart (a pale plan swatch and a solid actual swatch, each with its word). */
+  legend?: {swatches: (Rect & {kind: 'plan' | 'actual'})[]; texts: GanttText[]; part: string};
   /** `from` / `to`: indexes into `bars` (the task it comes after, and the task). */
   deps: {from: number; to: number; points: {x: number; y: number}[]}[];
   today?: {x: number; y1: number; y2: number; /** ADR 0054 */ part?: string};

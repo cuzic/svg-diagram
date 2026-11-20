@@ -22,9 +22,9 @@ const isRowLabel = (b: LaidOutGantt, t: LaidOutGantt['texts'][number]): boolean 
  * section's cells grey) and the padding under the plot.
  */
 export function ganttTable(b: LaidOutGantt, roles: Roles): ChartTable {
-  const {x1, x2, y1, y2} = b.plot, X = b.x + b.w;
+  const {x1, x2, y1, y2} = b.plot, X = b.x + b.w; // the legend (ADR 0068 D4b) sits in the padding row under the plot, drawn over the table
   const edges = edgesOf([b.x, x1, x2, X, ...b.ticks.map(t => t.x).filter(x => x > x1 - 1 && x < x2 + 1)]);
-  const n = edges.length - 1, nRows = b.sections.length + b.bars.length, rowH = nRows ? (y2 - y1) / nRows : 0, PAD = b.y + b.h - y2;
+  const n = edges.length - 1, PAD = b.y + b.h - y2;
   const AXIS: TableRule = {stroke: 'muted', sw: 2}, TICK: TableRule = {stroke: 'border', sw: 1};
   const inPlot = (j: number): boolean => (edges[j] as number) >= x1 - 1 && (edges[j + 1] as number) <= x2 + 1;
   const tickAt = (x: number): boolean => b.ticks.some(t => near(t.x, x));
@@ -32,8 +32,9 @@ export function ganttTable(b: LaidOutGantt, roles: Roles): ChartTable {
   const cells: (TableCell | null)[][] = [], heights: number[] = [];
   const blank = (extra: Partial<TableCell> = {}): TableCell => ({lines: [], align: 'start', valign: 'top', ink: 'text', ...extra});
   cells.push(Array.from({length: n}, (_, j) => blank(inPlot(j) ? {b: AXIS} : {}))); heights.push(y1 - b.y);
-  for (let i = 0; i < nRows; i++) {
-    const ry = y1 + i * rowH, section = b.sections.some(s => near(s.y, ry));
+  // a row of the table per row of the chart, as tall as the layout made it (a task with a plan and an actual lane is taller: ADR 0068 D4b)
+  for (const [i, {y: ry, h: rowH}] of b.rows.entries()) {
+    const section = b.sections.some(s => near(s.y, ry));
     const label = b.texts.find(t => isRowLabel(b, t) && t.y > ry && t.y <= ry + rowH);
     const fill = section ? {fill: {key: 'code' as const}} : {};
     cells.push(Array.from({length: n}, (_, j): TableCell => {

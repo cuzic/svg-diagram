@@ -335,8 +335,14 @@ const PARTS: readonly PartDef[] = [
           progress: {type: 'number', minimum: 0, maximum: 1, description: 'How much is done, 0 to 1.'},
           after: {oneOf: [id('A task id.'), {type: 'array', items: id('A task id.'), minItems: 1, maxItems: 5}], description: 'The tasks this one waits for.'},
           tone: oneOf('danger', 'accent', 'muted'),
+          actual: {...object({
+            start: DATE,
+            end: {...DATE, description: 'The last day it took (inclusive). Leave end and days out while it is in progress (drawn up to today).'},
+            days: {type: 'integer', minimum: 1, maximum: 730, description: 'How many days it took, instead of end.'},
+          }, ['start']), description: 'What actually happened (only with actual: true on the gantt). A milestone gives start only.'},
         }, ['label', 'start']),
       ]}, 30, 1),
+      actual: {type: 'boolean', description: 'true: two rows per task, the plan (pale) over the actual (solid, from each task\'s actual), with a legend; progress is not used then.'},
       today: {...DATE, description: 'Today, for the line of today (YYYY-MM-DD).'},
       todayLabel: text('The word on the line of today.', 20),
       from: {...DATE, description: 'Where the calendar starts (default: the first start).'},
@@ -352,11 +358,23 @@ const PARTS: readonly PartDef[] = [
         if (r['end'] !== undefined && r['days'] !== undefined) issues.push({path: `${at}.rows[${i}].days`, message: 'give end or days, not both'});
         if (isDay(r['start']) && isDay(r['end']) && dayOf(r['end'] as string) < dayOf(r['start'] as string)) issues.push({path: `${at}.rows[${i}].end`, message: 'is before start'});
         if (r['milestone'] !== true && r['end'] === undefined && r['days'] === undefined) issues.push({path: `${at}.rows[${i}]`, message: 'needs end, days, or milestone: true'});
+        const act = r['actual'];
+        if (act !== undefined && act !== null && typeof act === 'object' && !Array.isArray(act)) {
+          const a = act as Record<string, unknown>, ap = `${at}.rows[${i}].actual`;
+          if (part['actual'] !== true) issues.push({path: ap, message: 'needs actual: true on the gantt'});
+          for (const k of ['start', 'end']) if (a[k] !== undefined && !isDay(a[k])) issues.push({path: `${ap}.${k}`, message: `"${String(a[k])}" is not a day written YYYY-MM-DD`});
+          if (a['end'] !== undefined && a['days'] !== undefined) issues.push({path: `${ap}.days`, message: 'give end or days, not both'});
+          if (isDay(a['start']) && isDay(a['end']) && dayOf(a['end'] as string) < dayOf(a['start'] as string)) issues.push({path: `${ap}.end`, message: 'is before start'});
+          if (r['milestone'] === true && (a['end'] !== undefined || a['days'] !== undefined)) issues.push({path: ap, message: 'a milestone is one day: give start only'});
+          if (r['milestone'] !== true && a['end'] === undefined && a['days'] === undefined && !isDay(part['today'])) issues.push({path: ap, message: 'is in progress (no end): give the gantt today'});
+        }
+        if (part['actual'] === true && r['progress'] !== undefined) issues.push({path: `${at}.rows[${i}].progress`, message: 'a gantt with actual: true shows progress by the actual bar: drop progress'});
         const after = r['after'];
         (Array.isArray(after) ? after : after === undefined ? [] : [after]).forEach((a, j) => mustExist(a, ids, Array.isArray(after) ? `${at}.rows[${i}].after[${j}]` : `${at}.rows[${i}].after`, 'task id', issues));
       });
       for (const k of ['today', 'from', 'to']) if (part[k] !== undefined && !isDay(part[k])) issues.push({path: `${at}.${k}`, message: `"${String(part[k])}" is not a day written YYYY-MM-DD`});
-      const days = tasks.flatMap(t => [t['start'], t['end']]).filter(isDay).map(v => dayOf(v as string));
+      const actualOf = (t: Record<string, unknown>): unknown[] => { const a = t['actual']; return a !== null && typeof a === 'object' ? [(a as Record<string, unknown>)['start'], (a as Record<string, unknown>)['end']] : []; };
+      const days = tasks.flatMap(t => [t['start'], t['end'], ...actualOf(t)]).filter(isDay).map(v => dayOf(v as string));
       if (days.length && Math.max(...days) - Math.min(...days) > 1100) issues.push({path: `${at}.rows`, message: 'span more than three years: split the plan, or give it in larger steps'});
     },
     build(part) {

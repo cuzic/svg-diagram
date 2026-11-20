@@ -144,7 +144,7 @@ test('swimlaneTable: the label column, body columns cut at the phases, a row per
 test('ganttTable: a column per stretch between ticks, a row per task or section; ganttMarks: the chart without its frame', () => {
   const text = (t: string, x: number, y: number, anchor: 'start' | 'middle', bold = false) => ({text: t, x, y, size: 14, bold, muted: false, anchor});
   const b = {type: 'gantt' as const, x: 0, y: 0, w: 400, h: 108, plot: {x1: 80, x2: 380, y1: 36, y2: 100}, ticks: [{x: 80}, {x: 230}],
-    sections: [{x: 0, y: 36, w: 400, h: 32}], bars: [{x: 90, y: 75, w: 100, h: 18, label: 'T', tone: 'accent' as const}], deps: [],
+    rows: [{y: 36, h: 32}, {y: 68, h: 32}], sections: [{x: 0, y: 36, w: 400, h: 32}], bars: [{x: 90, y: 75, w: 100, h: 18, label: 'T', tone: 'accent' as const}], actuals: [], deps: [],
     texts: [text('11/3', 80, 16, 'middle'), text('S', 8, 56, 'start', true), text('T', 8, 88, 'start')], anchors: [], labelBoxes: []};
   const t = ganttTable(b, ROLES);
   // edges 0 | 80 | 230 | 380 | 400: the tick at the plot's left is its edge, the one at 230 a rule
@@ -156,6 +156,11 @@ test('ganttTable: a column per stretch between ticks, a row per task or section;
   assert.deepEqual([task?.[0]?.lines, task?.[0]?.fill, task?.[2]?.l?.stroke, task?.[1]?.r?.stroke, task?.[3]?.l], [['T'], undefined, 'border', 'border', undefined]);
   const m = ganttMarks(b);
   assert.deepEqual([m.frame, m.sections, m.ticks, m.texts.map(x => x.text)], [false, [], [], ['11/3']]);
+  // rows of their own heights (a task with a plan and an actual lane is taller: ADR 0068 D4b); the legend strip goes in the padding row
+  const two = {...b, h: 140, plot: {...b.plot, y2: 112}, rows: [{y: 36, h: 32}, {y: 68, h: 44}], texts: [text('11/3', 80, 16, 'middle'), text('S', 8, 56, 'start', true), text('T', 8, 94, 'start')]};
+  const t2 = ganttTable(two, ROLES);
+  assert.deepEqual(t2.rowH, [36, 32, 44, 28]);
+  assert.deepEqual(t2.cells[2]?.[0]?.lines, ['T']);
 });
 
 test('bpmnTable: a row per lane (a column, vertical) with its name cell; bpmnMarks: the figure without lanes; lanes with a gap make no table', () => {
