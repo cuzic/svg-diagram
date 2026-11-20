@@ -112,7 +112,9 @@ test('density compact: a state diagram that the check finds more wrong at the co
 
 test('density compact: a band that was drawn at the normal gaps says so (info density-compact-restored); a normal figure and a kept compact figure do not', async () => {
   const {causeTree, diagram, checkDiagram} = await import('../lib/dsl.ts');
-  const found = async (density: 'normal' | 'compact', c = C43) => (await checkDiagram(diagram({theme: 'blue', width: 1800, density}).add(causeTree(c.nodes, c.links, {dir: 'left'}) as never))).verdict.findings.filter(f => f.rule === 'density-compact-restored');
+  // c43 is drawn with the old routes (`straighten: false`): since the long arrows' turns have tracks (ADR 0070 U4a), its compact figure by
+  // default no longer runs n0 -> n4 through n1, and stays compact (the test above)
+  const found = async (density: 'normal' | 'compact', c = C43) => (await checkDiagram(diagram({theme: 'blue', width: 1800, density}).add(causeTree(c.nodes, c.links, {dir: 'left', ...(c === C43 ? {straighten: false} : {})}) as never))).verdict.findings.filter(f => f.rule === 'density-compact-restored');
   const restored = await found('compact');
   assert.equal(restored.length, 1);
   assert.equal(restored[0]!.severity, 'info');

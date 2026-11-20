@@ -21,15 +21,16 @@ export const gapFor = (n: number, chip = 0, space = 1): number => Math.max(2 * s
 export const stubOf = (space = 1): number => Math.round(STUB * space);
 export const laneStepOf = (space = 1): number => Math.round(LANE * space);
 /**
- * Horizontal-vertical-horizontal elbows through the points (the layer axis is x here). A direct arrow turns at `turn` (an x in the gap
- * between its two layers, from routeLayered); the others turn half-way between their points.
+ * Horizontal-vertical-horizontal elbows through the points (the layer axis is x here). `turns[k]` is the x where the run from point k to
+ * point k + 1 turns (a direct arrow's lane, a long arrow's last turn or its track in a gap, from routeLayered); a run with none turns
+ * half-way between its points.
  */
-export function elbows(pts: Pt[], turn?: number, lastTurn?: number): Pt[] {
+export function elbows(pts: Pt[], turns: readonly (number | undefined)[] = []): Pt[] {
   const out: Pt[] = pts.slice(0, 1);
   for (let i = 0; i + 1 < pts.length; i++) {
     const p = must(pts[i]), q = must(pts[i + 1]);
     if (p.y !== q.y) {
-      const mx = pts.length === 2 && turn !== undefined ? turn : i + 2 === pts.length && lastTurn !== undefined ? lastTurn : (p.x + q.x) / 2;
+      const mx = turns[i] ?? (p.x + q.x) / 2;
       out.push({x: mx, y: p.y}, {x: mx, y: q.y});
     }
     out.push(q);
@@ -60,9 +61,9 @@ export interface HeadRoom {
  * routeOnce twice: with the lanes of a gap at the fixed step, and spread over the room the gap has (`laneIn`). The spread routes are kept
  * only when (crossings, bends) is no worse: the order of the lanes is the same, but where they sit decides which runs cross.
  */
-export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true, laneShare = false, aside = false, detour = false, lonePorts = detour, space = 1, laneHeads = false, heads: HeadRoom = {}): Map<number, Pt[]> {
-  const fixed = routeOnce(lay, place, portStep, groupOf, round, straighten, laneShare, aside, detour, lonePorts, space, laneHeads, false, heads);
-  const spread = routeOnce(lay, place, portStep, groupOf, round, straighten, laneShare, aside, detour, lonePorts, space, laneHeads, true, heads);
+export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true, laneShare = false, aside = false, detour = false, lonePorts = detour, space = 1, laneHeads = false, heads: HeadRoom = {}, tracks = false): Map<number, Pt[]> {
+  const fixed = routeOnce(lay, place, portStep, groupOf, round, straighten, laneShare, aside, detour, lonePorts, space, laneHeads, false, heads, tracks);
+  const spread = routeOnce(lay, place, portStep, groupOf, round, straighten, laneShare, aside, detour, lonePorts, space, laneHeads, true, heads, tracks);
   const a = scoreOf([...fixed.values()]), b = scoreOf([...spread.values()]);
   return b.crossings <= a.crossings && b.bends <= a.bends && alongEach(spread) <= alongEach(fixed) ? spread : fixed;
 }
@@ -74,7 +75,7 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
  * straightening (ADR 0016 D3): a direct arrow whose two boxes overlap across the layer axis becomes one straight line when that does not make
  * the drawing worse; `round` names the nodes that are not rectangles (a circle, a hexagon), whose arrows keep to the middle of the side.
  */
-function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true, laneShare = false, aside = false, detour = false, lonePorts = detour, space = 1, laneHeads = false, spread = true, heads: HeadRoom = {}): Map<number, Pt[]> {
+function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, groupOf?: (edge: number) => number | undefined, round?: (id: string) => boolean, straighten = true, laneShare = false, aside = false, detour = false, lonePorts = detour, space = 1, laneHeads = false, spread = true, heads: HeadRoom = {}, tracks = false): Map<number, Pt[]> {
   const STUB = stubOf(space), LANE = laneStepOf(space); // this figure's stub and lane step (they shadow the module's)
   // the last run into a head keeps room for the arrowhead (22; a long arrow's last turn 26). A head that an AND arrives at keeps the room
   // its arc needs (`heads`, ADR 0070 D8); the other heads keep the old room
@@ -251,8 +252,92 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   const shiftOf = new Map<number, number>(); // a long arrow's way points moved across the layers (ADR 0016 D12)
   const turnAt = new Map<number, number>(); // a direct arrow's turn moved to another x in its gap (ADR 0016 D13)
   const detours = new Map<number, Pt[]>(); // a long arrow's route found by searching around the boxes (`detour`): kept when the routes are built again
+  type Pending = {i: number; pts: Pt[]; turns: (number | undefined)[]};
+  /**
+   * ADR 0070 D4 (U4a, `tracks`): the turns of the long arrows that no one placed (they turned half-way across their gap, so long arrows
+   * through one gap turned on one line and lay along each other) get a track each. In each gap, the runs across it of the turns already
+   * placed (the direct arrows' lanes, the long arrows' last turns into an AND, the returns' turns in an outer lane, the routes found around
+   * the boxes) stay where they are. The long arrows' turns whose spans, each made longer by a lane step at both ends, overlap form a
+   * cluster: its turns take tracks a lane apart (`laneIn`, else LANE), in the order that does not cross two of them that can be uncrossed
+   * (left-edge: turns that do not overlap share a track), the cluster centred where its turns were and shifted along the gap by the least
+   * that keeps every track inside its gap and a lane step from the runs already there, on the side of each it was on (else on either side:
+   * it may then cross that run, U4b's constraints order them). A turn that overlaps nothing and is clear stays half-way, so a figure with
+   * no such turns is unchanged. A cluster that finds no place keeps its old turns (the gap is too short for them: U4c sizes the gaps).
+   */
+  const placeTracks = (pending: Pending[], out: Map<number, Pt[]>): void => {
+    type Run = {x: number; lo: number; hi: number};
+    type Ask = {p: Pt; q: Pt; lo: number; hi: number; min: number; max: number; set: (x: number) => void};
+    const fixed = new Map<number, Run[]>(), asks = new Map<number, Ask[]>();
+    const add = <T>(m: Map<number, T[]>, g: number, v: T): void => { m.set(g, [...(m.get(g) ?? []), v]); };
+    const gapAt = (x: number): number | undefined => { for (const [g, gl] of layerRight) { const gr = layerLeft.get(g + 1); if (gr !== undefined && x > gl - 0.5 && x < gr + 0.5) return g; } return undefined; };
+    // the runs across the gaps that are already placed: every vertical run of a route already made, and the turns given to the pending ones
+    for (const r of out.values()) { // the pending arrows hold an empty place here
+      for (let k = 1; k < r.length; k++) {
+        const a = at(r, k - 1), b = at(r, k), g = Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) >= 0.5 ? gapAt(a.x) : undefined;
+        if (g !== undefined) add(fixed, g, {x: a.x, lo: Math.min(a.y, b.y), hi: Math.max(a.y, b.y)});
+      }
+    }
+    for (const {i, pts, turns} of pending) {
+      const e = edgeAt(i), l0 = layerOf(e.from), sgn = forward(i) ? 1 : -1;
+      const long = pts.length > 2 && pts.length - 1 === Math.abs(layerOf(e.to) - l0); // one way point per layer passed
+      for (let k = 0; k + 1 < pts.length; k++) {
+        const p = at(pts, k), q = at(pts, k + 1);
+        if (Math.abs(p.y - q.y) < 0.5) continue;
+        const g = long ? Math.min(l0 + k * sgn, l0 + (k + 1) * sgn) : Math.min(l0, layerOf(e.to));
+        const gl = layerRight.get(g), gr = layerLeft.get(g + 1);
+        const lo = Math.min(p.y, q.y), hi = Math.max(p.y, q.y), x = turns[k];
+        if (x !== undefined || !long || gl === undefined || gr === undefined) { if (x !== undefined) add(fixed, g, {x, lo, hi}); continue; }
+        // inside the gap, a stub from its sides; the last run into the head keeps the head's room
+        const last = k + 2 === pts.length, room = last ? Math.max(STUB, headRunOf(e.to)) : STUB;
+        const min = gl + (last && sgn < 0 ? room : STUB), max = gr - (last && sgn > 0 ? room : STUB);
+        add(asks, g, {p, q, lo, hi, min, max, set: v => { turns[k] = v; }});
+      }
+    }
+    const near = (a: {lo: number; hi: number}, b: {lo: number; hi: number}): boolean => a.lo - LANE < b.hi + LANE && b.lo - LANE < a.hi + LANE;
+    for (const [g, list] of asks) {
+      const step = laneIn(g), runs = fixed.get(g) ?? [];
+      // the clusters: turns whose spans (a lane step longer at both ends) overlap, directly or through others
+      const seen = new Set<Ask>();
+      for (const a0 of list) {
+        if (seen.has(a0)) continue;
+        const c = [a0];
+        seen.add(a0);
+        for (let n = 0; n < c.length; n++) for (const b of list) if (!seen.has(b) && near(at(c, n), b)) { seen.add(b); c.push(b); }
+        if (c.length < 2 && !runs.some(r => near(r, a0) && Math.abs(r.x - (a0.p.x + a0.q.x) / 2) < LANE)) continue; // alone and clear: half-way, as before
+        // the order along the gap: of two runs that go down (y grows toward the later layer), the one that comes in higher turns later; of two
+        // that go up, the one that comes in higher turns first. Then neither crosses the other's runs (a pair that swaps sides crosses once anyway)
+        const inY = (a: Ask): number => (a.p.x <= a.q.x ? a.p : a.q).y, outY = (a: Ask): number => (a.p.x <= a.q.x ? a.q : a.p).y;
+        const down = (a: Ask): boolean => outY(a) > inY(a);
+        const order = c.toSorted((a, b) => Number(down(a)) - Number(down(b)) || (down(a) ? inY(b) - inY(a) : inY(a) - inY(b)) || outY(a) - outY(b));
+        // left-edge: a turn takes the track after those of the turns before it in that order whose spans it overlaps; turns that do not
+        // overlap share a track (their ends stay two lane steps apart)
+        const track: number[] = [];
+        order.forEach((a, k) => { track.push(Math.max(-1, ...order.slice(0, k).flatMap((b, m) => near(a, b) ? [at(track, m)] : [])) + 1); });
+        const tracksN = Math.max(...track) + 1;
+        const centre = order.reduce((s, a) => s + (a.p.x + a.q.x) / 2, 0) / order.length;
+        // the shift of the whole cluster from its centre nearest 0 that keeps every track inside its turn's bounds and a lane step from
+        // the runs already there (each such run rules out an interval of shifts); the gap's own step first, then the plain lane step.
+        // keepSide: a turn stays on the side of each such run it was on (half-way across), as going past it would cross the run's ends
+        const shiftFor = (step: number, keepSide: boolean): number[] | undefined => {
+          const xs = order.map((_a, k) => centre + (at(track, k) - (tracksN - 1) / 2) * step);
+          const lo = Math.max(...order.map((a, k) => a.min - at(xs, k))), hi = Math.min(...order.map((a, k) => a.max - at(xs, k)));
+          if (lo > hi + 0.01) return undefined;
+          const banned = order.flatMap((a, k) => runs.filter(r => near(r, a)).map(r => {
+            const was = (a.p.x + a.q.x) / 2, u = r.x - at(xs, k) - LANE, v = r.x - at(xs, k) + LANE;
+            return keepSide ? (was >= r.x ? [-Infinity, v] as const : [u, Infinity] as const) : [u, v] as const;
+          }));
+          const ok = (d: number): boolean => d >= lo - 0.01 && d <= hi + 0.01 && banned.every(([u, v]) => d <= u + 0.01 || d >= v - 0.01);
+          const d = [0, lo, hi, ...banned.flat()].filter(d => Number.isFinite(d) && ok(d)).sort((u, v) => Math.abs(u) - Math.abs(v) || u - v)[0];
+          return d === undefined ? undefined : xs.map(x => x + d);
+        };
+        const chosen = shiftFor(step, true) ?? (step > LANE ? shiftFor(LANE, true) : undefined) ?? shiftFor(step, false) ?? (step > LANE ? shiftFor(LANE, false) : undefined);
+        if (chosen) order.forEach((a, k) => a.set(at(must(chosen), k)));
+      }
+    }
+  };
   const build = (): Map<number, Pt[]> => {
     const out = new Map<number, Pt[]>();
+    const pending: Pending[] = []; // with `tracks`: the arrows routed by elbows, whose turns are completed by placeTracks
     const longInto = new Map<string, number>(); // long arrows into one head, each with its own last turn
     lay.edges.forEach((e, i) => {
       if (e.self) return;
@@ -286,8 +371,18 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       }
       const dz = shiftOf.get(i) ?? 0;
       const found = detours.get(i);
-      out.set(i, found ? [start, ...found.slice(1, -1), end] : elbows([start, ...e.points.slice(1, -1).map(p => dz ? {x: p.x, y: p.y + dz} : p), end], turn, lastTurn));
+      if (found) { out.set(i, [start, ...found.slice(1, -1), end]); return; }
+      const pts = [start, ...e.points.slice(1, -1).map(p => dz ? {x: p.x, y: p.y + dz} : p), end];
+      const turnsOf: (number | undefined)[] = pts.length === 2 ? [turn] : [];
+      if (lastTurn !== undefined) turnsOf[pts.length - 2] = lastTurn;
+      if (!tracks) { out.set(i, elbows(pts, turnsOf)); return; }
+      out.set(i, []); // a place in the map's order; the route is made once the gaps' tracks are known
+      pending.push({i, pts, turns: turnsOf});
     });
+    if (tracks) {
+      placeTracks(pending, out);
+      for (const {i, pts, turns} of pending) out.set(i, elbows(pts, turns));
+    }
     return out;
   };
 
@@ -500,6 +595,8 @@ export interface AttemptOpts {
   returns?: 'all' | 'declared';
   /** Room before the heads and the ports next to an AND (routeLayered's `heads`, ADR 0070 D3・D8). Default: the old 22 / 26, even ports. */
   heads?: HeadRoom;
+  /** ADR 0070 D4 (U4a): each turn of a long arrow across a gap gets a track of its own (routeLayered's `tracks`; a cause tree's own band only). Default false: half-way across the gap. */
+  tracks?: boolean;
 }
 
 export interface Attempt {
@@ -550,7 +647,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     const lay = layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: stubOf(o.space), step: laneStepOf(o.space), ...(near === 'far' ? {} : {side: near})}} : opts, 0, o.space);
     const size = {w: o.transpose ? lay.h : lay.w, h: o.transpose ? lay.w : lay.h};
     const groupOf = o.groupOf;
-    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(at(lay.edges, i).index)), o.round, o.straighten !== false, laneShare, aside, o.detour === true && opts.coord === 'bk', o.detour === true, o.space, laneHeads, o.heads); // the search for a way around the boxes only in the straightened candidate (it competes with the plain one on bends); a lone port is straightened in both
+    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(at(lay.edges, i).index)), o.round, o.straighten !== false, laneShare, aside, o.detour === true && opts.coord === 'bk', o.detour === true, o.space, laneHeads, o.heads, o.tracks === true); // the search for a way around the boxes only in the straightened candidate (it competes with the plain one on bends); a lone port is straightened in both
     const made = {lay, routes, score: scoreOf([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
     optsOf.set(made, {opts, laneShare, near});
     return made;
