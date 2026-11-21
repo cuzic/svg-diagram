@@ -13,6 +13,7 @@
 			"examples/**",
 			"scripts/**",
 			"!examples/out",
+			"!scripts/crt-u6-measure",
 			"!**/*.svg"
 		]
 	},

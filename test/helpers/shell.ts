@@ -41,6 +41,7 @@ export const SHELL: Record<string, Shell> = {
   'slide-budget': {reason: 'asks a Slidev dev server (fs, net, child_process)'},
   'slide-index': {reason: 'reads slide files (fs)'},
   'source-deps': {reason: 'scans a source for its imports on disk (fs)'},
+  'source-location-io': {reason: 'captures CLI CallSites, reads source maps and source files, and resolves symlinks'},
   'terminal': {reason: 'the terminal: tty, fs, process'},
   'today': {reason: 'the one place that reads the clock'},
   // shells because of what they import; each leaves with the stage that cuts the dependency

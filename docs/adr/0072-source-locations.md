@@ -1,6 +1,6 @@
 # ADR 0072: 指摘と図の部品に、ソースの位置(ファイル・行・桁)を持たせる
 
-- 状態: 決定(2026-11-21。実装は U1 から別の PR で。Opus のレビュー 1 回目(`0072-opus-review-round1.md`)の Blocker 1・Major 5・Minor 10・Nit 7 を反映。2 回目(`0072-opus-review-round2.md`)は Blocker なし、D2 の運び方は全例で動くと確かめた上で、Major 3・Minor 5・Nit 6 を反映。3 回目(`0072-opus-review-round3.md`)は Blocker なし・Major 1(D7 の path が粗くなる)で、Major・Minor 5・Nit 6 を反映。4 回目(`0072-opus-review-round4.md`)で Blocker・Major なしで収束し、その Minor 4・Nit 4 を反映。U2a 実装済み)
+- 状態: 決定・U1・U2a 実装済み(2026-11-21。Opus のレビュー 1 回目(`0072-opus-review-round1.md`)の Blocker 1・Major 5・Minor 10・Nit 7 を反映。2 回目(`0072-opus-review-round2.md`)は Blocker なし、D2 の運び方は全例で動くと確かめた上で、Major 3・Minor 5・Nit 6 を反映。3 回目(`0072-opus-review-round3.md`)は Blocker なし・Major 1(D7 の path が粗くなる)で、Major・Minor 5・Nit 6 を反映。4 回目(`0072-opus-review-round4.md`)で Blocker・Major なしで収束し、その Minor 4・Nit 4 を反映)
 - 基点: `main`(950584b、PR #398 まで)
 - 関連: ADR 0013(失敗の伝え方)、ADR 0025/0026(検査の重大度)、ADR 0034(SVG の `data-node`)、ADR 0038(ドリフトの検査)、ADR 0045(ブラウザの入口)、ADR 0071(JSON Schema)、svg-diagram-vscode(VS Code 拡張。Phase 2)
 
@@ -79,7 +79,7 @@ VS Code 拡張は `check --format json` の指摘をエディタの波線にし�
 - `--format json`: 指摘に `line` / `column` を足す(位置が `file` の中のとき)。位置が別のファイルのときは `location: {file, line, column}` を足し、`file` は検査したソースのまま。外側の呼び出しは `via: [{line, column}]`、重なりの相手は `related: [{file, line, column}]`。`--baseline` の指紋(`file`・`rule`・`message`)は変えない。行がずれても、ベースラインは外れない。
 - `--format github`: `line=` / `col=` を足す。位置が別のファイルなら、そのファイルに付ける(PR でその差分に出る)。
 - `--format sarif`: `region` と `relatedLocations` を足す。`region` が増えると、GitHub の code scanning は一度だけ古い警告を閉じて新しく開く。そこで、`partialFingerprints` にベースラインと同じ指紋を入れて、それ以降は行が動いても同じ警告にする。
-- `--format text`: `✗ src/a.ts:12:5: …`(ターミナルでクリックできる形)。行の書き方が変わるので、互換の注意として CHANGELOG に書く。
+- `--format text`: `✗ src/a.ts:12:5: …`(ターミナルでクリックできる形)。位置が別のファイルにあるときは、`check` と `build` のどちらも `✗ src/a.ts: src/_parts.ts:12:5: …` の形で検査したソースの名前を先頭に付ける。行の書き方が変わるので、互換の注意として CHANGELOG に書く。
 - `--worker` の子が返すのは、解いたあとの普通の値だけにする(`SourceRef` は渡さない)。
 
 **D6. 図からソースへ: SVG は変えず、別のファイルに地図を書く。** `build --locations FILE`(`--locations-dir DIR`)は、次を JSON で書く。
