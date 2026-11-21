@@ -40,7 +40,7 @@ const {loadDiagram} = await import('./lib/load-source.ts');
 const {depsSha256, depsOf} = await import('./lib/source-deps.ts');
 const {readProvenance, ownsOutput, sha256: sha} = await import('./lib/freshness.ts');
 const {prefixSvgIds, idPrefixFor} = await import('./lib/svg-ids.ts');
-const {formatBuildError} = await import('./lib/error-format.ts');
+const {buildErrorSite, formatBuildError} = await import('./lib/error-format.ts');
 const config = loadConfig();
 
 // --fit: ソースを書き換えずに、この図を使っているスライドを pages/*.md から探し、
@@ -110,7 +110,7 @@ try {
     const outPath = outOverride ?? path.join(outDir ?? svgDirOf(config), path.parse(modPath).name + '.svg');
     // ADR 0013: a failed build never touches the old SVG, but says so when that file is this source's own output (it is now out of date)
     const failedBuild = (err: unknown) => {
-      console.error(formatBuildError(locateError(err, modPath).loc ?? modPath, err));
+      console.error(formatBuildError(buildErrorSite(modPath, locateError(err, modPath).loc), err));
       if (ownsOutput(outPath, abs)) console.error(`  ⚠ 前回の ${outPath} が残っている(ソースと一致しない古い絵)`);
       failed = true;
     };

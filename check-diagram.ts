@@ -67,7 +67,7 @@ const {loadConfig, svgDirOf} = await import('./lib/config.ts');
 const {checkToday} = await import('./lib/today.ts');
 const {loadDiagram, importDefine} = await import('./lib/load-source.ts');
 const {readTable, figureText, checkCovers, checkFidelity} = await import('./lib/covers.ts');
-const {formatBuildError, errorMessage} = await import('./lib/error-format.ts');
+const {buildErrorSite, formatBuildError, errorMessage} = await import('./lib/error-format.ts');
 const {readProvenance, sha256File: sha} = await import('./lib/freshness.ts');
 
 const args = process.argv.slice(2);
@@ -182,7 +182,7 @@ const reportBuildError = (file: string, err: unknown) => {
     file, rule: 'build-error', severity: 'error', message: errorMessage(err), ...at,
     ...(via.length ? {via: via.map(({line, column}) => ({line, column}))} : {}),
   });
-  complain(formatBuildError(loc ?? file, err));
+  complain(formatBuildError(buildErrorSite(file, loc), err));
 };
 // --baseline: warnings recorded in the baseline file become info (errors never do), so --strict fails only on new ones
 const fingerprint = (f: {file: string; rule: string; message: string}) => `${f.file}\u0000${f.rule}\u0000${f.message}`;
@@ -484,8 +484,9 @@ if (format === 'sarif') {
       tool: {driver: {name: 'svg-diagram check', rules: ruleIds.map(id => ({id, shortDescription: {text: docs[id] ?? id}}))}},
       results: findings.map(f => {
         const {file, line, column} = f.location ?? f;
+        const message = f.location ? `${f.file}: ${f.message}` : f.message;
         return {
-          ruleId: f.rule, level: f.severity === 'error' ? 'error' : f.severity === 'warn' ? 'warning' : 'note', message: {text: f.message},
+          ruleId: f.rule, level: f.severity === 'error' ? 'error' : f.severity === 'warn' ? 'warning' : 'note', message: {text: message},
           locations: [{physicalLocation: {
             artifactLocation: {uri: file.split(path.sep).join('/')},
             ...(line ? {region: {startLine: line, ...(column ? {startColumn: column} : {})}} : {}),
@@ -501,7 +502,8 @@ if (format === 'github') {
   for (const f of findings.filter(f => f.severity !== 'info')) {
     const lvl = f.severity === 'error' ? 'error' : 'warning';
     const {file, line, column} = f.location ?? f;
-    console.log(`::${lvl} file=${file}${line ? `,line=${line}` : ''}${column ? `,col=${column}` : ''},title=${f.rule}::${f.message.replace(/\n/g, ' ')}`);
+    const message = f.location ? `${f.file}: ${f.message}` : f.message;
+    console.log(`::${lvl} file=${file}${line ? `,line=${line}` : ''}${column ? `,col=${column}` : ''},title=${f.rule}::${message.replace(/\n/g, ' ')}`);
   }
 }
 if (verbose && !drift && format === 'text') console.log('\nルール:\n' + Object.entries(RULE_DOCS).map(([k, v]) => `  ${k}: ${v}`).join('\n'));

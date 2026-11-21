@@ -8,8 +8,7 @@ type ErrorStack = {stack?: string; frames?: readonly SourceLoc[]; code?: unknown
 type SourceContext = {
   source: string;
   cwd: string;
-  libDir: string;
-  cliFiles: readonly string[];
+  packageDir: string;
   realpath: (file: string) => string;
   readSource?: (file: string) => string | undefined;
 };
@@ -91,7 +90,7 @@ function headerLocation(lines: string[], error: ErrorStack, {cwd, readSource}: S
 }
 
 // Skip comments and other strings so their text cannot point earlier than the actual import.
-const IMPORT_SPECIFIERS = /\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|\b(?:from\s*|import\s*\(\s*)(?<quote>['"])(?<specifier>(?:\\.|(?!\k<quote>)[^\\\r\n])*)\k<quote>|"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|`(?:\\[\s\S]|[^`\\])*`/g;
+const IMPORT_SPECIFIERS = /\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|\b(?:from\s*|import\s*(?:\(\s*)?)(?<quote>['"])(?<specifier>(?:\\.|(?!\k<quote>)[^\\\r\n])*)\k<quote>|"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|`(?:\\[\s\S]|[^`\\])*`/g;
 
 function missingImport(error: ErrorStack, source: string, context: SourceContext): SourceLoc | undefined {
   if (error.code !== 'ERR_MODULE_NOT_FOUND') return undefined;
@@ -134,8 +133,9 @@ export function resolveErrorLocation(error: ErrorStack, context: SourceContext):
   const specifier = missingImport(error, checked, context);
   if (specifier) return {loc: specifier, via: []};
 
-  const lib = realpath(context.libDir);
-  const cli = context.cliFiles.map(realpath);
+  const packageDir = realpath(context.packageDir);
+  const lib = realpath(path.join(packageDir, 'lib'));
+  const dist = realpath(path.join(packageDir, 'dist'));
   const select = (frames: Iterable<SourceLoc>): ResolvedLocation => {
     let fallback: SourceLoc | undefined;
     const inSource: SourceLoc[] = [];
@@ -143,11 +143,14 @@ export function resolveErrorLocation(error: ErrorStack, context: SourceContext):
       const file = filePath(frame.file);
       if (!file || !frame.line || !frame.column) continue;
       const canonical = realpath(file);
-      if (inside(lib, canonical) || cli.includes(canonical)) continue;
       if (canonical === checked) {
         inSource.push({...frame, file: source});
         if (inSource.length === 6) break;
-      } else fallback ??= {...frame, file: displayFile(canonical)};
+        continue;
+      }
+      if (inside(lib, canonical) || inside(dist, canonical)) continue;
+      if (path.dirname(canonical) === packageDir && /\.(?:ts|js)$/.test(canonical)) continue;
+      fallback ??= {...frame, file: displayFile(canonical)};
     }
     const [loc = fallback, ...via] = inSource;
     return {loc, via};

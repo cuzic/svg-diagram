@@ -5,7 +5,7 @@ import {resolveErrorLocation} from '../lib/source-location.ts';
 
 const source = 'src/日本 語/図.ts';
 const absoluteSource = `/project/${source}`;
-const logical = {source, cwd: '/project', libDir: '/package/lib', cliFiles: ['/package/check-diagram.ts'], realpath: (file: string) => file};
+const logical = {source, cwd: '/project', packageDir: '/package', realpath: (file: string) => file};
 const at = (file: string, line: number, column: number) => ({file, line, column});
 
 test('source location: a stack header needs a caret, even if an error message ends in 16:9', () => {
@@ -50,11 +50,23 @@ test('source location: a same-file helper keeps the throw and up to five callers
 
 test('source location: another file is a fallback after the checked source has had priority', () => {
   const helper = at('/project/src/_parts.ts', 3, 14);
-  const frames = [at('/package/lib/dsl.ts', 100, 10), at('/package/check-diagram.ts', 101, 9), at('node:internal/esm', 2, 3), helper];
+  const toolFrames = [
+    at('/package/lib/dsl.ts', 100, 10), at('/package/check-diagram.ts', 101, 9), at('/package/drift-pool.js', 20, 5),
+    at('/package/dist/drift-cache-io.js', 84, 22), at('/package/dist/lib/source-location-io.js', 10, 2), at('node:internal/esm', 2, 3),
+  ];
+  const frames = [...toolFrames, helper];
   assert.deepEqual(resolveErrorLocation({frames: [...frames, at(absoluteSource, 8, 4)]}, logical), {loc: at(source, 8, 4), via: []});
   assert.deepEqual(resolveErrorLocation({frames}, logical), {loc: at('src/_parts.ts', 3, 14), via: []});
-  assert.deepEqual(resolveErrorLocation({frames: frames.slice(0, 3)}, logical), {via: []});
-  assert.deepEqual(resolveErrorLocation({frames: [at('/package/library.ts', 1, 1)]}, logical), {loc: at('../package/library.ts', 1, 1), via: []});
+  assert.deepEqual(resolveErrorLocation({frames: toolFrames}, logical), {via: []});
+  for (const file of ['/package/examples/_parts.ts', '/package/test/_parts.ts']) {
+    assert.deepEqual(resolveErrorLocation({frames: [...toolFrames, at(file, 1, 1)]}, logical), {loc: at(`..${file}`, 1, 1), via: []});
+  }
+});
+
+test('source location: the checked source is kept even at the package root', () => {
+  const source = 'figure.ts';
+  const frames = [at('/package/figure.ts', 4, 9)];
+  assert.deepEqual(resolveErrorLocation({frames}, {...logical, cwd: '/package', source}), {loc: at(source, 4, 9), via: []});
 });
 
 test('source location: text frames strip the fresh query and compare paths via realpath', () => {
