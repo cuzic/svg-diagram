@@ -25,11 +25,16 @@ d="$work/cx-$label"
 report="$work/codex-$label.report.json"; log="$work/codex-$label.log"
 mkdir -p "$work"
 
-# an earlier clone with the same label: never throw away commits that are not on origin
+# one run per label at a time
+lock="$work/cx-$label.lock"
+mkdir "$lock" 2>/dev/null || { echo "a run with label $label is in progress ($lock); use another label" >&2; exit 2; }
+trap 'rmdir "$lock" 2>/dev/null' EXIT
+# an earlier clone with the same label: never throw away work that is not on origin
 if [ -d "$d/.git" ]; then
   git -C "$d" fetch -q origin 2>/dev/null || true
-  if [ -n "$(git -C "$d" log --oneline HEAD --not --remotes=origin 2>/dev/null | head -1)" ]; then
-    echo "$d has commits that are not on origin; push or remove them, or use another label" >&2; exit 2
+  if [ -n "$(git -C "$d" status --porcelain 2>/dev/null | head -1)" ] ||
+     [ -n "$(git -C "$d" log --oneline --branches --not --remotes=origin 2>/dev/null | head -1)" ]; then
+    echo "$d has uncommitted changes or commits that are not on origin; push or remove them, or use another label" >&2; exit 2
   fi
 fi
 rm -rf "$d" "$report" "$log"
@@ -42,16 +47,15 @@ else
   git -C "$d" checkout -q -b "$br" "origin/$base"
 fi
 
-# Writable roots besides the clone (workspace-write makes .git read-only unless it is named):
-#   the clone's .git (commit, fetch, push), pnpm's store and the pinned pnpm (package-manager-store) — not all of pnpm's
-#   data dir, which also holds globally installed binaries — and pnpm's locks in $XDG_RUNTIME_DIR.
+# pnpm: Codex gets its own store under $work (the user's store is hard-linked into every checkout's node_modules, so writing it
+# from the sandbox would change files that run outside it), and the pinned pnpm is installed here, outside the sandbox, so that
+# Codex never needs to write the package-manager store (whose pnpm also runs outside the sandbox).
+export pnpm_config_store_dir="$work/pnpm-store"
+(cd "$d" && pnpm --version >/dev/null 2>&1) || true
+# Writable roots besides the clone and $work's /tmp: the clone's .git (workspace-write keeps .git read-only unless it is named),
+# and pnpm's locks in $XDG_RUNTIME_DIR.
 set -- --add-dir "$d/.git"
-store=$(pnpm store path 2>/dev/null || true)
-if [ -n "$store" ]; then
-  set -- "$@" --add-dir "$store"
-  pms="$(dirname "$(dirname "$store")")/package-manager-store"
-  [ -d "$pms" ] && set -- "$@" --add-dir "$pms"
-fi
+case $work in /tmp/*|"${TMPDIR:-/tmp}"/*) ;; *) set -- "$@" --add-dir "$work" ;; esac
 if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
   uid=$(id -u)
   for l in "$XDG_RUNTIME_DIR/pnpm-store-operation-locks-$uid" "$XDG_RUNTIME_DIR/pnpm-dir-locks-$uid"; do
@@ -60,6 +64,8 @@ if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
 fi
 # npm (a test fixture's `npm install`) writes its cache under $HOME, which is read-only: keep it beside the clone
 export npm_config_cache="$work/npm-cache-$label"
+# Playwright's install script would download browsers into ~/.cache/ms-playwright (read-only here); the installed ones are only read
+export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 set +e
 codex exec -s workspace-write \

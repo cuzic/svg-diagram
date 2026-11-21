@@ -38,7 +38,7 @@ AGENTS.md の規則(完了の定義・コードの約束・Git の約束)が前�
 - 小さなコミットに分ける。メッセージは日本語、`feat(area): …(ADR NNNN U1)`。指摘を直すコミットには指摘 ID。
   末尾に `Co-Authored-By: Codex <noreply@openai.com>`。
 - push: 新しいブランチは `git push -u origin <branch>`、既存は `git push origin <branch>`。force-push しない。
-- PR: 新しければ `gh pr create --base main --title … --body-file …`、既存なら本文を `gh pr edit` で更新。
+- PR: 新しければ `gh pr create --base <仕様のブランチの元。積み上げなら下のブランチ、ほかは main> --title … --body-file …`、既存なら本文を `gh pr edit` で更新。
   本文: 目的と ADR の節、変更の要点、テスト、変異(変えた所 → 落ちたテスト)、golden、指摘 → 修正の表(修正のとき)、Open questions。
 - **マージしない。** レビューとマージは Claude が行う。
 

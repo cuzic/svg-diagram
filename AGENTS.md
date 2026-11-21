@@ -38,7 +38,7 @@ node check-diagram.ts --strict examples/*.ts
   作り直さず、PR 本文に「golden の再生成が要る(理由)」と書き、**作業は続けて**完了とする(作り直しは Claude がする)。
   手元の `pnpm golden` や `--drift --rebuild` はフォントが違うので正にしない(clean な main でも `examples/icons.ts` が違って出る)。
 - PPTX の出力(`lib/pptx*.ts`)を変えたら、PR 本文に書く。PPTX の golden(`examples/out/pptx-golden.json`)は手で起動する
-  workflow(`pptx-golden.yml`)だけが見るので、Claude が `gh workflow run pptx-golden.yml --ref <branch> -f update=true` を回す。
+  workflow(`pptx-golden.yml`)だけが見るので、Claude が `gh workflow run pptx-golden.yml --ref <branch> -f update=true` を回し、artifact の `pptx-golden.json` をコミットする。
 - 公開の振る舞い(CLI の出力・オプション・公開 API・メッセージ)を変えたら README と、該当 ADR の状態の行を直す。
 
 ## コードの約束

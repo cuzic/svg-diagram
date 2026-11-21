@@ -79,4 +79,5 @@ CODEX_WORK=<scratchpad>/codex sh .claude/skills/codex-task/scripts/run-codex.sh 
 Codex の sandbox では Docker が使えない。描画が変わる PR で CI の `golden (examples/out)` が落ちたら、
 Claude がその PR の worktree で作り直してコミットする(機械的な作業なので Claude がしてよい):
 `sg docker -c 'scripts/golden-docker.sh --write'`。差分が仕様どおりの変化だけかを `git diff --stat` と数枚の SVG で確かめる。
-PPTX の出力が変わる PR では `gh workflow run pptx-golden.yml --ref <branch> -f update=true` を回す。
+PPTX の出力が変わる PR では `gh workflow run pptx-golden.yml --ref <branch> -f update=true` を回す。この workflow は結果を artifact に上げるだけなので、
+`gh run download <run-id> -n pptx-golden` で取り、`examples/out/pptx-golden.json` を差し替えて PR ブランチにコミットする(差分が仕様どおりかを見てから)。
