@@ -175,6 +175,17 @@ function findingLocation(file: string, {loc, via}: ReturnType<typeof locateError
   const at = loc && (loc.file === file ? {line: loc.line, column: loc.column} : {location: loc});
   return {...at, ...(via.length ? {via: via.map(({line, column}) => ({line, column}))} : {})};
 }
+function issueLocation(file: string, issue: Issue): Pick<CheckFinding, 'line' | 'column' | 'location' | 'via' | 'related'> {
+  const related = issue.related?.flatMap(ref => {
+    const {loc} = locateSource(ref, file);
+    return loc ? [loc] : [];
+  });
+  return {...findingLocation(file, locateSource(issue.loc, file)), ...(related?.length ? {related} : {})};
+}
+function textLocation(f: CheckFinding): string {
+  const {file, line, column} = f.location ?? f;
+  return line === undefined ? '' : `${file}:${line}:${column}: `;
+}
 const findings: CheckFinding[] = [];
 let bad = 0, warned = 0;
 // a source that does not load is one finding, however many times it is reached (named as an argument and behind a figure): counted once
@@ -439,14 +450,8 @@ try {
     if (!verdict.ok) {
       const issues: Issue[] = verdict.issues ?? verdict.problems.map(message => ({message}));
       const lines = issues.map(issue => {
-        const at = locateSource(issue.loc, src);
-        const related = issue.related?.flatMap(ref => {
-          const {loc} = locateSource(ref, src);
-          return loc ? [loc] : [];
-        });
-        add({file: src, rule: 'layout', severity: 'error', message: issue.message, ...findingLocation(src, at), ...(related?.length ? {related} : {})});
-        const loc = at.loc;
-        return loc ? `${loc.file}:${loc.line}:${loc.column}: ${issue.message}` : issue.message;
+        const f = add({file: src, rule: 'layout', severity: 'error', message: issue.message, ...issueLocation(src, issue)});
+        return `${textLocation(f)}${f.message}`;
       });
       complain(`✗ ${src}:\n  ${lines.join('\n  ')}`);
       return;
@@ -454,10 +459,10 @@ try {
     // --forbid-draft (a publishing job): a figure still marked as a draft is a warning (an accepted one stays info)
     const shown = verdict.findings
       .map(f => forbidDraft && f.rule === 'draft-status' && !f.message.includes('（許容:') ? {...f, severity: 'warn' as const, message: `${f.message}（--forbid-draft）`} : f)
-      .map(f => add({file: src, rule: f.rule, severity: f.severity, message: f.message, ...(f.data ? {data: f.data} : {})}));
+      .map(f => add({file: src, rule: f.rule, severity: f.severity, message: f.message, ...(f.data ? {data: f.data} : {}), ...issueLocation(src, f)}));
     const w = shown.filter(f => f.severity === 'warn').length;
     say(`${w ? '△' : '✓'} ${src}${w ? `（警告 ${w}）` : ''}`);
-    for (const f of shown.filter(f => verbose || f.severity === 'warn')) say(`   ${f.severity === 'warn' ? '⚠' : 'ℹ'} [${f.rule}] ${f.message}${f.severity === 'warn' && acceptHint(f.rule) ? `\n       → ${acceptHint(f.rule)}` : ''}`);
+    for (const f of shown.filter(f => verbose || f.severity === 'warn')) say(`   ${f.severity === 'warn' ? '⚠' : 'ℹ'} ${textLocation(f)}[${f.rule}] ${f.message}${f.severity === 'warn' && acceptHint(f.rule) ? `\n       → ${acceptHint(f.rule)}` : ''}`);
   };
   const runOne = async (src: string) => {
     try { await checkOne(src); }

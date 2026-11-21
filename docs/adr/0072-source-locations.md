@@ -1,6 +1,6 @@
 # ADR 0072: 指摘と図の部品に、ソースの位置(ファイル・行・桁)を持たせる
 
-- 状態: 決定・U1・U2a・U2b 実装済み・U3a 実装済み・U4b 実装済み(2026-11-21。Opus のレビュー 1 回目(`0072-opus-review-round1.md`)の Blocker 1・Major 5・Minor 10・Nit 7 を反映。2 回目(`0072-opus-review-round2.md`)は Blocker なし、D2 の運び方は全例で動くと確かめた上で、Major 3・Minor 5・Nit 6 を反映。3 回目(`0072-opus-review-round3.md`)は Blocker なし・Major 1(D7 の path が粗くなる)で、Major・Minor 5・Nit 6 を反映。4 回目(`0072-opus-review-round4.md`)で Blocker・Major なしで収束し、その Minor 4・Nit 4 を反映。PR #415 のレビュー 1 回目の m1・m2・n1・n2、PR #422 のレビュー 1 回目の M1・m2・n1 を反映)
+- 状態: 決定・U1・U2a・U2b 実装済み・U3a・U3b 実装済み・U4b 実装済み(2026-11-21。Opus のレビュー 1 回目(`0072-opus-review-round1.md`)の Blocker 1・Major 5・Minor 10・Nit 7 を反映。2 回目(`0072-opus-review-round2.md`)は Blocker なし、D2 の運び方は全例で動くと確かめた上で、Major 3・Minor 5・Nit 6 を反映。3 回目(`0072-opus-review-round3.md`)は Blocker なし・Major 1(D7 の path が粗くなる)で、Major・Minor 5・Nit 6 を反映。4 回目(`0072-opus-review-round4.md`)で Blocker・Major なしで収束し、その Minor 4・Nit 4 を反映。PR #415 のレビュー 1 回目の m1・m2・n1・n2、PR #419 のレビュー 1 回目、同 PR のレビュー 2 回目の m1・n1、PR #422 のレビュー 1 回目の M1・m2・n1 を反映)
 - 基点: `main`(950584b、PR #398 まで)
 - 関連: ADR 0013(失敗の伝え方)、ADR 0025/0026(検査の重大度)、ADR 0034(SVG の `data-node`)、ADR 0038(ドリフトの検査)、ADR 0045(ブラウザの入口)、ADR 0071(JSON Schema)、svg-diagram-vscode(VS Code 拡張。Phase 2)
 
@@ -72,8 +72,8 @@ VS Code 拡張は `check --format json` の指摘をエディタの波線にし�
   - どれにも当たらない、図の設定の誤り(`spotlight` の知らない id、`slide` のない `fill`、測る所の誤り)は、`renderDiagram` / `checkDiagram` が受け止めて、`diagram()` の印を別のキー(`DIAGRAM_SOURCE`)で付ける。これは**最後の手**で、部品の `SOURCE` も利用者のフレームも解けないときだけ使う。`raw({draw})` の `draw` で投げた誤りは、利用者のフレームがあるので、その行になる。
 - **中の受け渡しを、文字列から構造にする。** `Verdict.issues: {message, loc?, related?}[]` をただ 1 つの元にする。`verdict.problems` の文字列は、`verifyDiagram` の最後で `issues` から作る(`problems` を読む今の利用者 `check`・`show`・`serve`・spec・Worker のため)。各処理の `out.problems.push(文字列)`(`lib/verify-handlers.ts` に 53 か所)は直さない。`runCheckPhase` / `contrastProblems` が部品ごとの `out` を渡し、そこに入れた文字列を `{message, loc: band[SOURCE]}` にする。`loc` はプロセスの中では `SourceRef` のまま持ち、CLI で解く。`build()` が検査に落ちて投げる誤りにも `issues` と `laidOut` を付ける(`build --locations` が地図を書けるように。D6)。`--drift --rebuild` は捕捉しないので、`drift-rebuild-failed` は今のとおり位置なし。文字列と構造を 2 本並べて持つことはしない(順番や重複の除き方がずれる)。最初に、四角を集める 1 か所(`collectRects`。重なり・はみ出し・接続)を直す。四角(`CheckRect`)は元の部品の `loc` を持つ。`row` / `grid` の中の箱は `d.laidOut` の要素でなく、その処理が中を歩く(`childRects`・`checkNoWrap`・`contrastFor`)。そこでは中の箱の `SOURCE` を使い(なければ外の部品の)、中の箱ごとの `out` に入れる。「元の部品」は、四角が中の箱のものなら中の箱のこと。2 つの部品の重なりは、1 つ目を `loc`、2 つ目を `related` にする。
 - 規則の指摘: `Finding` に `loc?: SourceLoc` を足す。部品を見る規則は、`at(band)` で位置を付ける。図全体を見る規則(幅・密度など)は `diagram()` の位置を使う。規則ごとに位置の付いた割合を `examples/*.ts` で数えるテストを置き、下がったら分かるようにする。
-- 重複を除く所(`headlineLength` の `seen`、`appearance: 'auto'` の `mergeSides`)は、文言だけでなく位置もキーに入れる。同じ文言の別の部品が、1 つにまとめられないように。
-- 位置を解けないとき(`SOURCE` がない、スタックにソースのフレームがない)は、位置を付けない。今と同じに戻るだけで、誤った位置は出さない。
+- 部品ごとに出す規則では、重複を除く所(`headlineLength` の `seen`、`appearance: 'auto'` の `mergeSides`)のキーに位置も入れる。色の対・トーンなどで図全体をまとめる規則は、従来の件数と文言を保ち、`mergeSides` では規則と文言で照合する。最初の部品を `loc` に、ほかの部品を `related` に最大 10 件入れる。
+- 規則の指摘に部品の印がなければ `diagram()` の印を使う。使える印やソースのフレームがなく位置を解けないときは、位置を付けない。
 
 **D5. 出力の形。**
 

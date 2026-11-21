@@ -35,23 +35,28 @@ function charts(band: Band, out: Band[] = []): Band[] {
  * with the value axis up the page; (2) charts that follow one another in the same list with no other chart between them (one under the other: a reader
  * compares lengths), with the value axis along the page. Always the same unit, neither marked `axisGroup: false`.
  */
-export function axisMismatches(bands: readonly Band[]): string[] {
-  const out: string[] = [];
-  const pair = (a: ValueAxis | undefined, b: ValueAxis | undefined, vertical: boolean): void => {
+export function axisMismatches(bands: readonly Band[]): Map<string, Set<Band>> {
+  const out = new Map<string, Set<Band>>();
+  const pair = (left: Band, right: Band, vertical: boolean): void => {
+    const a = valueAxisOf(left), b = valueAxisOf(right);
     if (!a || !b || a.own || b.own || a.vertical !== vertical || b.vertical !== vertical || a.unit !== b.unit || !differ(a, b)) return;
-    out.push(`${describe(a)}、${describe(b)}（単位 ${a.unit}）`);
+    const message = `${describe(a)}、${describe(b)}（単位 ${a.unit}）`;
+    const parts = out.get(message) ?? new Set<Band>();
+    parts.add(left);
+    parts.add(right);
+    out.set(message, parts);
   };
   const visit = (list: readonly Band[]): void => {
     let prev: Band | undefined; // the chart just before, with nothing chart-like in between
     for (const b of list) {
-      if (isChartLike(b)) { if (prev) pair(valueAxisOf(prev), valueAxisOf(b), false); prev = b; } else if (charts(b).length) prev = undefined;
+      if (isChartLike(b)) { if (prev) pair(prev, b, false); prev = b; } else if (charts(b).length) prev = undefined;
       if (b.type === 'grouprow') {
-        const groups = b.children.map(g => g.type === 'group' ? charts(g).map(valueAxisOf) : []);
+        const groups = b.children.map(g => g.type === 'group' ? charts(g) : []);
         for (const [i, gi] of groups.entries()) for (const gj of groups.slice(i + 1)) for (const x of gi) for (const y of gj) pair(x, y, true);
       }
       visit(nestedBandsOf(b));
     }
   };
   visit(bands);
-  return [...new Set(out)];
+  return out;
 }

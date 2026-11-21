@@ -75,8 +75,8 @@ export function parseItem(raw: string): {title: string; text: string} {
 }
 
 // notes: the figure's own  [string | {title?, text, n?}]
-export function compareNotes(items: DocNoteItem[], notes: WfNote[], where: string): Finding[] {
-  const out: Finding[] = [];
+export function compareNotes(items: DocNoteItem[], notes: WfNote[], where: string): DocFinding[] {
+  const out: DocFinding[] = [];
   const want = notes.map((nt, i) => (typeof nt === 'string' ? {n: i + 1, title: '', text: nt} : {n: nt.n ?? i + 1, title: nt.title ?? '', text: nt.text ?? ''}));
   if (!items.length) return [{rule: 'doc-notes-missing', severity: 'warn', message: `${where}: 図に注釈が ${want.length} 件あるが、直後に番号つきの注釈のリストがない（スクリーンリーダー向けの説明にもなる）`}];
   if (items.length !== want.length) out.push({rule: 'doc-notes-mismatch', severity: 'warn', message: `${where}: 注釈の数が違う（文書 ${items.length} 件 / 図 ${want.length} 件）`});
@@ -112,7 +112,7 @@ export function chapterOf(file: string): number | null {
 }
 
 const PLACEHOLDER_ALT = /^(image|img|diagram|figure|fig\d*|picture|図|画像|図表|図解)$/i;
-export interface DocFinding extends Finding {line?: number}
+export interface DocFinding extends Omit<Finding, 'loc' | 'related'> {line?: number}
 // figure numbering and prose in one page: captions 図N-M in order, a real alt text, and body references that point at a figure that exists
 export function checkFigures(text: string, figs: DocImage[], chapter: number | null): DocFinding[] {
   const out: DocFinding[] = [];
