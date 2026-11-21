@@ -1050,6 +1050,8 @@ export interface AttemptOpts {
   heads?: HeadRoom;
   /** ADR 0070 D4 (U4a): each turn of a long arrow across a gap gets a track of its own (routeLayered's `tracks`; a cause tree's own band only). Default false: half-way across the gap. */
   tracks?: boolean;
+  /** ADR 0073 D1-2: the figure's height (`Attempt.size.h`, rounded) is the last key when two attempts are compared. A cause tree's own band only. */
+  heightKey?: boolean;
 }
 
 export interface Attempt {
@@ -1094,6 +1096,7 @@ function piercings(a: Attempt, place: (p: Pt) => Pt): number {
  */
 export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layoutOpts: LayeredOpts & {start?: string[]; back?: readonly number[]}, o: AttemptOpts): Attempt {
   const unit = (o.space ?? 1) * (o.scale ?? 1); // ADR 0070 D7
+  const better = (a: Attempt, b: Attempt): boolean => betterAttempt(a, b, o.heightKey);
   type Side = 'far' | 'near' | 'low';
   let laneHeads = false; // the returns end on the face of their head that looks at the lane (routeLayered's `laneHeads`); set only for the last try below
   const optsOf = new WeakMap<Attempt, {opts: typeof layoutOpts; laneShare: boolean; near: Side}>();
@@ -1117,7 +1120,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     for (const [x, sx] of segs.entries()) for (const sy of segs.slice(x + 1)) if (sx.to === sy.to && sx.s.some(p => sy.s.some(q => runsTogether(p, q)))) n++;
     return n;
   };
-  const worse = (a: Attempt, b: Attempt): boolean => b.loose.length > a.loose.length || (a.fits && !b.fits) || better(a.score, b.score) || piercings(b, o.place(b.size)) > piercings(a, o.place(a.size));
+  const worse = (a: Attempt, b: Attempt): boolean => b.loose.length > a.loose.length || (a.fits && !b.fits) || better(a, b) || piercings(b, o.place(b.size)) > piercings(a, o.place(a.size));
   // the AND-bound arrows that cross each other
   const andCrossings = (a: Attempt): number => {
     const heads = new Set<string>(), groupOf = must(o.groupOf);
@@ -1173,9 +1176,9 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
   const cand = build({...layoutOpts, coord: 'bk', transpose: true, ...(o.tighten ? {tighten: true} : {})}, false, false, near);
   if (cand.loose.length > plain.loose.length) return sharing(plain);
   if (piercings(cand, o.place(cand.size)) > piercings(plain, o.place(plain.size))) return sharing(plain);
-  if (!plain.fits) return sharing(cand.fits || cand.size.w < plain.size.w && better(cand.score, plain.score) ? cand : plain);
+  if (!plain.fits) return sharing(cand.fits || cand.size.w < plain.size.w && better(cand, plain) ? cand : plain);
   if (!cand.fits) return sharing(plain);
-  return sharing(better(cand.score, plain.score) ? cand : plain);
+  return sharing(better(cand, plain) ? cand : plain);
   };
   // a return's lane goes to the side its ends are nearer to, only when that is strictly better in (crossings, bends) and nothing else gets worse (the far side is the way it always was)
   const far = pick('far');
@@ -1184,7 +1187,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
   let result = far;
   for (const side of ['near', 'low'] as const) {
     const c = pick(side);
-    if (c.lay.edges.some(e => e.outer) && c.lay.w <= far.lay.w + 0.01 && c.lay.h <= far.lay.h + 0.01 && !worse(result, c) && better(c.score, result.score)) result = c;
+    if (c.lay.edges.some(e => e.outer) && c.lay.w <= far.lay.w + 0.01 && c.lay.h <= far.lay.h + 0.01 && !worse(result, c) && better(c, result)) result = c;
   }
   // a return that enters its head's face instead of its right side, only when that takes crossings away (fewer bends alone moves nothing) and nothing else gets worse
   laneHeads = true;
@@ -1194,4 +1197,6 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
 }
 
 /** (crossings, bends) in lexicographic order: strictly better only. */
-const better = (a: {crossings: number; bends: number}, b: {crossings: number; bends: number}): boolean => a.crossings < b.crossings || (a.crossings === b.crossings && a.bends < b.bends);
+const betterScore = (a: {crossings: number; bends: number}, b: {crossings: number; bends: number}): boolean => a.crossings < b.crossings || (a.crossings === b.crossings && a.bends < b.bends);
+/** (crossings, bends, height) in lexicographic order, strictly better only: the height (`size.h`, rounded) is the last key when `heightKey` (ADR 0073 D1-2). */
+const betterAttempt = (a: Attempt, b: Attempt, heightKey: boolean | undefined): boolean => betterScore(a.score, b.score) || (heightKey === true && a.score.crossings === b.score.crossings && a.score.bends === b.score.bends && Math.round(a.size.h) < Math.round(b.size.h));

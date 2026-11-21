@@ -57,21 +57,26 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
  * The cause bands are dropped one more at a time in the order they are laid out (top to bottom) until the figure fits; if it never fits, the first layout is kept
  * (the overflow is then not the scale's, and `slide-canvas-overflow` says it). A dropped band is `lineScaleDropped` (the `cause-line-scale-dropped` finding).
  */
-function fitLineScale(data: DiagramData, layout: (lines: {seen: number; drop: number}) => LaidOutDiagram): LaidOutDiagram {
-  const first = {seen: 0, drop: 0}, out = layout(first);
+export function fitLineScale(data: DiagramData, layout: (lines: {seen: number; drop: number; exchange: boolean; taller: boolean}) => LaidOutDiagram): LaidOutDiagram {
+  const first = {seen: 0, drop: 0, exchange: true, taller: false}, out = layout(first);
   if (!data.canvas || out.contentHeight === undefined || out.contentHeight <= data.canvas.height) return out;
-  for (let drop = 1; drop <= first.seen; drop++) {
+  // ADR 0073 D1 (g): when a band took a taller order (they cross less), the figure that overflows is laid out again without that, with the scaled lines, before any line scale is dropped
+  // (so a taller order never costs a band its scale), then the bands are dropped one at a time (with no taller orders either). With no taller order the first layout is that layout: no retry (2).
+  // If nothing fits, the figure is the first one laid without taller orders (the one main keeps), not the taller one.
+  let fallback: LaidOutDiagram | undefined;
+  for (let drop = first.taller ? 0 : 1; drop <= first.seen; drop++) {
     let again: LaidOutDiagram;
-    try { again = layout({seen: 0, drop}); } catch { return out; } // a retry that cannot be laid out keeps the figure that was (the retry never turns a drawn figure into an error)
+    try { again = layout({seen: 0, drop, exchange: false, taller: false}); } catch { return fallback ?? out; } // a retry that cannot be laid out keeps the figure that was (the retry never turns a drawn figure into an error)
     if (again.contentHeight !== undefined && again.contentHeight <= data.canvas.height) return again;
+    if (drop === 0) fallback = again;
   }
-  return out;
+  return fallback ?? out;
 }
 
 /** The scale of the gaps of the layered figures (`WrapEnv.space`): 'compact' closes them by a quarter. */
 const spaceOf = (density: 'normal' | 'compact' | undefined): number => density === 'compact' ? 0.75 : 1;
 
-function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean, space = 1, lines = {seen: 0, drop: 0}): LaidOutDiagram {
+function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean, space = 1, lines = {seen: 0, drop: 0, exchange: true, taller: false}): LaidOutDiagram {
   const d = withStatus(withSourceLine(withTitleLine(data)));
   const contentWidth = d.width - 2 * d.pad;
 
