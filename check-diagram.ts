@@ -50,7 +50,7 @@ import os from 'node:os';
 import {execFileSync, spawnSync} from 'node:child_process';
 import type {DriftCache} from './drift-cache-io.ts';
 import type {WorkerResult} from './drift-pool.ts';
-import type {FindingData} from './lib/types/verdicts.ts';
+import type {FindingData, Issue} from './lib/types/verdicts.ts';
 import type {MapRow} from './lib/docs-check.ts';
 import type {SourceLoc} from './lib/source-location.ts';
 import {installResolveHook} from './lib/resolve-hook.ts';
@@ -437,7 +437,8 @@ try {
     const d = await loadDiagram(abs, config);
     const {verdict} = await checkDiagram(d);
     if (!verdict.ok) {
-      const lines = verdict.issues.map(issue => {
+      const issues: Issue[] = verdict.issues ?? verdict.problems.map(message => ({message}));
+      const lines = issues.map(issue => {
         const at = locateSource(issue.loc, src);
         const related = issue.related?.flatMap(ref => {
           const {loc} = locateSource(ref, src);

@@ -476,8 +476,7 @@ test('locateMessage reads only quoted text, and says nothing when the text is am
 });
 
 test('locateVerdict keeps each message, its rule and its fix, and adds the place', () => {
-  const issues = [{message: '"開始" overflows'}];
-  const v = {ok: false, issues, problems: issues.map(i => i.message), warnings: [], findings: [{rule: 'r', severity: 'warn' as const, message: '"終了" is far', data: {measured: 1, threshold: 0, fix: 'move it'}}]};
+  const v = {ok: false, problems: ['"開始" overflows'], warnings: [], findings: [{rule: 'r', severity: 'warn' as const, message: '"終了" is far', data: {measured: 1, threshold: 0, fix: 'move it'}}]};
   assert.deepEqual(locateVerdict(spec(flow), v), {
     problems: [{path: 'parts[0].nodes[0].label', message: '"開始" overflows', severity: 'problem'}],
     findings: [{path: 'parts[0].nodes[1].label', message: '"終了" is far', rule: 'r', severity: 'warn', fix: 'move it'}],

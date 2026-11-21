@@ -89,9 +89,11 @@ export async function build(d: Diagram, outPath: string, opts: {lint?: boolean; 
 async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Promise<BuildResult> {
   const {verdict} = r;
   if (!verdict.ok) {
-    throw Object.assign(new Error(`build(${outPath}): layout verification failed before any SVG was written:\n  ${verdict.problems.join('\n  ')}`), {
-      issues: verdict.issues, laidOut: r.laidOut,
-    });
+    const err = new Error(`build(${outPath}): layout verification failed before any SVG was written:\n  ${verdict.problems.join('\n  ')}`);
+    const issues = verdict.issues ?? verdict.problems.map(message => ({message}));
+    Object.defineProperty(err, 'issues', {value: issues, enumerable: false});
+    Object.defineProperty(err, 'laidOut', {value: r.laidOut, enumerable: false});
+    throw err;
   }
   if (r.xml.length) throw new Error(`build(${outPath}): the emitted SVG is not well-formed XML (an <img> would fail to load it):\n  ${r.xml.join('\n  ')}`);
   fs.mkdirSync(path.dirname(outPath), {recursive: true});

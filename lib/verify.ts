@@ -143,7 +143,7 @@ export function verifyDiagram(d: LaidOutDiagram): Verdict {
   return {ok: verified.issues.length === 0, problems: verified.issues.map(i => i.message), ...verified};
 }
 
-type Verification = Pick<Verdict, 'issues' | 'warnings' | 'findings'>;
+type Verification = Required<Pick<Verdict, 'issues' | 'warnings' | 'findings'>>;
 
 // ADR 0023 D4: both colour schemes share the same laid-out parts and their source references.
 function verifyAuto(d: LaidOutDiagram, tones: ToneEnv): Verification {

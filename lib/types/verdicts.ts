@@ -22,7 +22,7 @@ export interface Issue {message: string; loc?: SourceRef; related?: SourceRef[]}
 /** verifyDiagram() result: `problems` fail the build, `warnings` never do. */
 export interface Verdict {
   ok: boolean;
-  issues: Issue[];
+  issues?: Issue[];
   problems: string[];
   warnings: string[];
   findings: Finding[];
