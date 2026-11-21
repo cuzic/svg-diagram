@@ -8,7 +8,7 @@ import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {register} from 'node:module';
 import {corridorLoad, laneStepOf, layeredAttempt, layoutWithLanes, routeLayered} from '../lib/layered-route.ts';
-import {crossingsOf, crossingsWith, gainsRunPairs, parallelRuns, runPairGain, runPairWays, runsOfPath, runsOfRoute, scoreOf} from '../lib/polyline-metrics.ts';
+import {crossingsOf, crossingsWith, gainsRunPairs, parallelRuns, runPairGain, runPairWays, type runsOfPath, runsOfRoute, scoreOf} from '../lib/polyline-metrics.ts';
 import type {RoutedRuns} from '../lib/polyline-metrics.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import type {Pt} from '../lib/graph-layout.ts';
