@@ -28,6 +28,40 @@ const nonBuilders = {
   wf: 'wireframe node helpers',
 };
 
+const internalExports = {
+  './located.ts': {
+    located: 'wraps the public builders',
+  },
+  './dsl/diagram.ts': {
+    detachData: 'copies diagram data for the renderer',
+    layoutFitted: 'lays out a diagram for the renderer',
+  },
+  './wireframe.ts': {
+    collectTextRequests: 'collects text measurement requests for layout',
+    layoutScreens: 'lays out a collection of screens for rendering',
+    layoutWireframe: 'lays out a wireframe for rendering',
+  },
+  './icon-registry.ts': {
+    findManifest: 'looks up installed icon collections',
+    glyphOf: 'looks up icon geometry for rendering',
+    resolveIcon: 'resolves icon names for rendering',
+  },
+  './rich.ts': {
+    RICH: 'marks rich text values internally',
+    assertSolidText: 'validates band text options',
+    assertSpans: 'validates rich text spans',
+    richBoxFields: 'normalizes rich text options for boxes',
+    richField: 'normalizes a rich text field',
+    richOf: 'extracts rich text data for rendering',
+  },
+  './qc-table.ts': {
+    checkSheetParts: 'assembles the bands of a check sheet',
+    markOf: 'normalizes a matrix mark',
+    matrixParts: 'assembles the bands of a matrix',
+    matrixScores: 'calculates matrix scores for the matrix builder',
+  },
+};
+
 test('located: capture is off by default and the original return value is preserved', t => {
   const capture = t.mock.method(Error, 'captureStackTrace', () => {});
   const value = {type: 'box'};
@@ -55,6 +89,25 @@ test('located: rewrite preserves the source of unchanged parts', () => {
     assert.ok(sourceOf(outer));
     assert.notEqual(sourceOf(outer), ref);
     assert.equal(sourceOf(outer.children[0]!), ref);
+  } finally {
+    captureSourceLocations(false);
+  }
+});
+
+test('located: a tagged child keeps its untagged descendants outside the outer capture', () => {
+  const grandchild = dsl.box({title: 'Added later'});
+  captureSourceLocations(true);
+  try {
+    const child = dsl.group(dsl.box({title: 'Original'}));
+    const childSource = sourceOf(child);
+    assert.ok(childSource);
+    child.children.push(grandchild);
+
+    const outer = dsl.group(child);
+    assert.ok(sourceOf(outer));
+    assert.notEqual(sourceOf(outer), childSource);
+    assert.equal(sourceOf(child), childSource);
+    assert.equal(sourceOf(grandchild), undefined);
   } finally {
     captureSourceLocations(false);
   }
@@ -116,6 +169,23 @@ test('source locations: every public DSL function is in the builder table or has
     return [name, ...methods.map(key => `${name}.${String(key)}`)];
   });
   assert.deepEqual([...listed].sort(), exported.sort());
+});
+
+test('source locations: every DSL module value is publicly exported or has an exclusion', async () => {
+  const entry = new URL('../lib/dsl-pure.ts', import.meta.url);
+  const source = fs.readFileSync(entry, 'utf8');
+  // Read the module paths from the entry so a new builder module is checked automatically.
+  const valueDeclarations = /^(?:import (?:\* as \w+|\{[^}]*\})|export \{[^}]*\}) from ['"](\.\/[^'"]+\.ts)['"]/gm;
+  const modules = new Set(Array.from(source.matchAll(valueDeclarations), m => m[1]!));
+  const missing = [];
+  for (const path of modules) {
+    const values = await import(new URL(path, entry).href);
+    for (const name of Object.keys(values)) {
+      if (!Object.hasOwn(dsl, name)) missing.push(`${path}:${name}`);
+    }
+  }
+  const excluded = Object.entries(internalExports).flatMap(([path, values]) => Object.keys(values).map(name => `${path}:${name}`));
+  assert.deepEqual(missing.sort(), excluded.sort(), 're-export each value through the DSL or document why it is internal');
 });
 
 test('source locations: steps, swimlane and versus give generated descendants the outer call source', async () => {

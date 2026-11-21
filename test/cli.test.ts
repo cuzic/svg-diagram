@@ -728,6 +728,39 @@ test('check: build errors point to the part call or the diagram call and include
   } finally { fs.rmSync(p.root, {recursive: true}); }
 });
 
+test('check: only diagram checks capture part sources', async t => {
+  const p = stalePrj();
+  try {
+    const source = 'src/flow.ts';
+    p.put(source, GOOD_TS);
+    p.put('page.md', '# P\n\n![試験図](svg/flow.svg)\n');
+    p.put('words.csv', '入口\n');
+    const build = node(p.root, BUILD, '--no-lint', source);
+    assert.equal(build.status, 0, out(build));
+
+    // --covers only reads SVG. Probe the part produced by a public builder in the CLI process at exit.
+    const entry = pathToFileURL(path.join(ROOT, 'lib', 'dsl.ts')).href;
+    const probe = p.put('capture-probe.mjs', `import {box} from ${JSON.stringify(entry)};
+process.on('exit', () => {
+  const part = box({title: 'Capture probe'});
+  console.log('SOURCE capture: ' + (Object.hasOwn(part, Symbol.for('svg-diagram.source')) ? 'on' : 'off'));
+});
+`);
+    const cases = [
+      {name: 'diagram check', args: [source], capture: 'on'},
+      {name: '--drift', args: ['--drift', source], capture: 'off'},
+      {name: '--drift --rebuild', args: ['--drift', '--rebuild', '--no-cache', source], capture: 'off'},
+      {name: '--covers', args: ['--covers', 'words.csv', source], capture: 'off'},
+      {name: '--docs without positional sources', args: ['--docs', 'page.md', '--src-dir', 'src'], capture: 'off'},
+    ];
+    for (const {name, args, capture} of cases) await t.test(name, () => {
+      const result = spawnSync(process.execPath, ['--import', pathToFileURL(probe).href, CHECK, '--strict', ...args], {cwd: p.root, encoding: 'utf8'});
+      assert.equal(result.status, 0, out(result));
+      assert.equal(result.stdout.trimEnd().split('\n').at(-1), `SOURCE capture: ${capture}`, out(result));
+    });
+  } finally { fs.rmSync(p.root, {recursive: true}); }
+});
+
 test('check --drift --rebuild: a source that no longer loads is reported and the rest are still compared', () => {
   const p = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-chk-'));
   fs.mkdirSync(path.join(p, 'src'));

@@ -1304,7 +1304,7 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 
 ## ルールの説明・ベースライン・SARIF（`check`）
 - **ソースが読み込めない・`define()` やレイアウトで例外が出るとき**: 失敗したファイルの `✗` の行を出し、**残りのファイルも検査して**、最後に `N 件中 M 件が検査できなかった` を出す。exit は 1（`--strict` なしでも）。位置が検査したソース内なら `✗ src/a.ts:12:5: <メッセージ>`、別ファイル内なら `✗ src/a.ts: src/_parts.ts:12:5: <メッセージ>`、位置が分からなければ `✗ src/a.ts: <メッセージ>` になる。スタックも見るには `SVG_DIAGRAM_DEBUG=1` を使う。`--drift --rebuild` と `--docs --src-dir` の中で読み込めないソースも同じ扱い。
-  知らない接続先や見つからない画像など、部品に起因する例外は、その部品を作った呼び出しの行・桁を示す。
+  知らない接続先や見つからない画像など、部品に起因する例外は、その部品を作った呼び出しの行・桁を示す。`spotlight` に知らない id を指定した場合など、部品にひも付かずスタックからも位置が分からない例外は、`diagram()` を呼んだ行・桁を示す。
   `throw 'x'` のように `Error` 以外の値を `define()` やレイアウトで投げると `check` と `build` の `✗` の行に、`raw({draw})` の `draw` 内で投げると `build` の `✗` の行にメッセージが出る。ライブラリから呼ぶ場合は `Error` に包まれて届く。
 - **`build-error` の位置**: `--format json` では `findings` の `error` に、検査したファイル内の位置なら 1 始まりの `line` / `column` が入る。別ファイル内の位置なら `location: {file, line, column}` が入り、指摘の `file` は検査したファイルを指す。同じソース内の外側の呼び出しは `via: [{line, column}]` に内側から最大 5 件入る。`--format github` は `line=` / `col=` を、`--format sarif` は `region.startLine` / `region.startColumn` を、誤りがあるファイルに付ける。どちらも位置が別ファイルにあるときは、メッセージの先頭に `src/a.ts: ` のように検査したソースの名前を付ける。
 - `svg-diagram check --rules` はルール ID の一覧、`svg-diagram check --explain edge-crossings` は 1 つのルールの意味と、`accept`（案件全体は `.svg-diagram.json`、1 つの図は `diagram({accept})`）の書き方を出す。

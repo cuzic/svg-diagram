@@ -1,11 +1,12 @@
 import {CHILD_BANDS, nestedBandsOf} from './band-children.ts';
 import {sourceCaptureEnabled} from './source-capture.ts';
-import {captureHere, withSource} from './source-ref.ts';
+import {captureHere, sourceOf, withSource} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
 import type {Band} from './types/index.ts';
 
 function markPart(value: unknown, ref: SourceRef, seen: Set<object>): void {
   if (typeof value !== 'object' || value === null || !('type' in value) || typeof value.type !== 'string' || seen.has(value)) return;
+  if (sourceOf(value) !== undefined) return;
   seen.add(value);
   withSource(value, ref);
   if (Object.hasOwn(CHILD_BANDS, value.type)) {
