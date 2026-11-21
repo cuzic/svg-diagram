@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import {resolveErrorLocation} from '../lib/source-location.ts';
-import {locateError} from '../lib/source-location-io.ts';
+import {locateError, locateSource} from '../lib/source-location-io.ts';
 import {DIAGRAM_SOURCE, SourceRef, withSource} from '../lib/source-ref.ts';
 
 const source = 'src/日本 語/図.ts';
@@ -19,6 +19,14 @@ test('locateError: resolve the part, error stack and diagram in that order', () 
   assert.deepEqual(locateError(atPart, file), {loc: at(file, 10, 5), via: []});
   assert.deepEqual(locateError(unresolvedPart, file), {loc: at(file, 20, 5), via: []});
   assert.deepEqual(locateError(error(''), file), {loc: at(file, 30, 5), via: []});
+});
+
+test('CLI source resolution has no line or column for a spec-only source', () => {
+  const file = 'test/source-location.test.ts';
+  const ref = new SourceRef(undefined, 'parts[0]');
+  const error = withSource(Object.assign(new Error(), {stack: `Error\n    at ${import.meta.url}:10:5`}), ref);
+  assert.deepEqual(locateSource(ref, file), {via: []});
+  assert.deepEqual(locateError(error, file), {via: []});
 });
 
 test('source location: a stack header needs a caret, even if an error message ends in 16:9', () => {

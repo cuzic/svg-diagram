@@ -59,8 +59,9 @@ export function locateSource(ref: SourceRef | undefined, source: string): Return
 export function locateError(thrown: unknown, source: string): ReturnType<typeof resolveErrorLocation> {
   const holder = Object(thrown) as StackHolder;
   const context = sourceContext(source);
-  const part = sourceOf(holder)?.stackHolder;
-  const atPart = part && resolveStack(part, context);
+  const part = sourceOf(holder);
+  if (part?.specPath !== undefined && !part.stackHolder) return {via: []};
+  const atPart = part?.stackHolder && resolveStack(part.stackHolder, context);
   if (atPart?.loc) return atPart;
 
   const err: CapturedError = thrown instanceof Error ? thrown : new Error(String(thrown), {cause: thrown});
