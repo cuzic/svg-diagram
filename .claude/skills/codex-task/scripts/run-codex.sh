@@ -16,6 +16,8 @@
 set -eu
 label=$1; br=$2; spec=$3; base=${4:-main}
 case $label in *[!A-Za-z0-9-]*|'') echo "bad label: $label" >&2; exit 2 ;; esac
+# the label is part of TMPDIR, where Chromium makes Unix sockets (path limit ~107 bytes): keep it short
+[ ${#label} -le 24 ] || { echo "label too long (24 at most): $label" >&2; exit 2; }
 [ -r "$spec" ] || { echo "no spec file: $spec" >&2; exit 2; }
 here=$(cd "$(dirname "$0")" && pwd)
 repo_git=$(git -C "$here" rev-parse --path-format=absolute --git-common-dir)
@@ -48,7 +50,8 @@ else
   git -C "$d" checkout -q -b "$br" "origin/$base"
 fi
 
-# A branch that carries Codex or pnpm configuration would run it: refuse (Codex trusts the clone path, and pnpm runs .pnpmfile.cjs).
+# A branch that carries Codex or pnpm configuration is refused: Codex trusts the clone path and would load .codex/, and
+# .pnpmfile.cjs runs on every pnpm command (inside the sandbox for Codex, but outside it for anyone who later runs pnpm there).
 for f in .codex .pnpmfile.cjs; do
   [ -e "$d/$f" ] && { echo "the branch has $f: refusing to run Codex on it (review and remove it first)" >&2; exit 2; }
 done
@@ -57,6 +60,7 @@ done
 # directory that holds only the packageManager field (not the branch's files), so Codex never writes the package-manager store.
 export pnpm_config_store_dir="$work/pnpm-store"
 pm=$(node -e 'process.stdout.write(require(process.argv[1]).packageManager ?? "")' "$d/package.json" 2>/dev/null || true)
+case $pm in pnpm@[0-9]*.[0-9]*.[0-9]*) case $pm in *[!A-Za-z0-9@.+-]*) pm= ;; esac ;; *) pm= ;; esac  # only a plain pnpm@x.y.z[+sha...] goes into the warm-up
 if [ -n "$pm" ]; then
   warm="$work/pm-warm"; mkdir -p "$warm"
   printf '{"packageManager":"%s"}\n' "$pm" >"$warm/package.json"

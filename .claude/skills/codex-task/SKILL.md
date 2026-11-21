@@ -57,7 +57,10 @@ CODEX_WORK=<scratchpad>/codex sh .claude/skills/codex-task/scripts/run-codex.sh 
 ```
 
 - `base` は新しいブランチの元(既定 main)。積み上げの PR は下のブランチを渡す。ローカルにしかないブランチは断る(先に push する)。
-- 同じ label の前の clone は `cx-<label>.old-<時刻>` に移す(消さない。git も走らせない)。中を見て、要らなければ手で消す。
+- 同じ label の前の clone は `cx-<label>.old-<時刻>` に移す(消さない。git も走らせない)。
+- **Codex の clone(`cx-*`、`cx-*.old-*`)の中で git・gh・pnpm・node を走らせない**(sandbox がその `.git/config` やファイルを書けたので、
+  走らせると sandbox の外で任意のコマンドが動きうる)。Codex は blocked でも途中の作業を push するので、結果は origin のブランチと PR で見る。
+  `.old` の clone は、読まずに `rm -rf` で消す(origin に無いものが要るときだけ、`cat` で ref のファイルを読んで `git ls-remote` と比べる)。
 - 同じ label が走っている間は断る。ブランチに `.codex/` か `.pnpmfile.cjs` があれば断る(sandbox の外で走るため)。
 - sandbox で書けるのは clone、その `.git`、run ごとの TMPDIR(`/tmp/cx-<label>.*`)、Codex 専用の pnpm ストアと npm のキャッシュ、pnpm のロックだけ。`/tmp` 全体と利用者の pnpm ストアは書けない。
 - 終了コードが 0 でも報告が無ければ失敗として扱う(スクリプトが 1 を返す)。
@@ -80,7 +83,7 @@ CODEX_WORK=<scratchpad>/codex sh .claude/skills/codex-task/scripts/run-codex.sh 
 ## golden と PPTX の golden
 
 Codex の sandbox では Docker が使えない。描画が変わる PR で CI の `golden (examples/out)` が落ちたら、
-Claude がその PR の worktree で作り直してコミットする(機械的な作業なので Claude がしてよい):
+Claude が自分の worktree(`git worktree add` でその PR のブランチ。Codex の clone ではない)で作り直してコミットする(機械的な作業なので Claude がしてよい):
 `sg docker -c 'scripts/golden-docker.sh --write'`。差分が仕様どおりの変化だけかを `git diff --stat` と数枚の SVG で確かめる。
 PPTX の出力が変わる PR では `gh workflow run pptx-golden.yml --ref <branch> -f update=true` を回す。この workflow は結果を artifact に上げるだけなので、
 `gh run download <run-id> -n pptx-golden` で取り、`examples/out/pptx-golden.json` を差し替えて PR ブランチにコミットする(差分が仕様どおりかを見てから)。
