@@ -17,7 +17,7 @@ import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {nestedBandsOf} from './band-children.ts';
 import {minTextSize} from './fit.ts';
 import {IMAGE_WARN_BYTES} from './image.ts';
-import {PALETTE, MIN_FONT_SIZE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv} from './tokens.ts';
+import {PALETTE, MIN_FONT_SIZE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv, canvasFontScale} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 
 // contrast is judged on the colours as drawn: in a dark diagram the light tokens are looked up in the dark set first
@@ -80,7 +80,7 @@ export const RULE_DOCS = {
   'swimlane-hand-offs': 'レーンをまたぐ引き継ぎの数（情報）',
   'edge-crossings': '線どうしの交差・重なりがある',
   'edge-bends': '自動配置の図（cause / states / bpmn / classes / semnet）で、1 本の矢印が 5 回以上折れる、または折れの合計 ÷ 矢印の数が 3 を超える。既定は情報、diagram({layoutCheck: "strict"}) で warn',
-  'edge-parallel': 'causeTree() の図で、別の矢印どうしの同じ向きの線が、レーンの間隔（14px、density: "compact" で 11px）より近くで 4px を超えて並び、その長さの合計がレーンの間隔の 2 倍を超える（端を共有する矢印どうしも数える。たどれない平行線の束になる）。pdpc・relationDiagram・whyWhyTree は対象外。既定は情報、diagram({layoutCheck: "strict"}) で warn',
+  'edge-parallel': 'causeTree() の図で、別の矢印どうしの同じ向きの線が、レーンの間隔（14px、density: "compact" で 11px。canvas の図は文字の倍率 `max(1, minText の倍率)` を掛けた値、minText: 18 で 18px）より近くで 4px を超えて並び、その長さの合計がレーンの間隔の 2 倍を超える（端を共有する矢印どうしも数える。たどれない平行線の束になる）。pdpc・relationDiagram・whyWhyTree は対象外。既定は情報、diagram({layoutCheck: "strict"}) で warn',
   'quadrant-item-moved': 'quadrant() の項目が、重なりを避けるため指定した座標から 16px 以上動いた（座標は目安として読まれる）',
   'quadrant-size-floor': 'quadrant() の項目の size が小さすぎ、最小の円で描いた（面積が値より大きく見える）',
   'quadrant-empty-cell': 'quadrant() のマスに項目が 1 つもない（「該当なし」の空の枠が残っている。意図した空きは allowEmpty で示す）',
@@ -137,6 +137,7 @@ export const RULE_DOCS = {
   'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む（diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）',
   'flowchart-decision-edges': '判断（flowchart のひし形）から出る矢印が 2 本未満、または 3 本以上、またはラベル（Yes / No など）がない',
   'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・flowchart・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
+  'cause-line-scale-dropped': "canvas の causeTree で、線の間隔を文字の倍率で広げた図が canvas の高さ・幅に収まらず、広げない間隔で描いた（情報）。canvas を高くする・minText を下げる・図を分けると広げられる（許容する理由を書く）",
   'density-compact-restored': "diagram({density: 'compact'}) の因果ツリー・状態遷移で、詰めた図のほうが検査の問題(箱を通る矢印・ラベルの重なり)が多いので、通常の間隔で描いた（情報）",
   'density': '文字量・箱の数が多い',
   'concentric-label-crossing': 'concentric の扇形（sectors）の印の見出しが、輪の線か区切り線（layout: stack では段や列の線）をまたぐ、または stack の外枠の外に出る（重ならない場所が見つからなかった。ADR 0065）',
@@ -693,7 +694,8 @@ function edgeParallelRules(d: LintTarget, out: Finding[]): void {
   const severity = layoutSeverity(d);
   for (const band of causeBandsOf(d.laidOut)) {
     if (band.origin !== undefined) continue;
-    const sep = laneStepOf(d.density === 'compact' && !band.densityRestored ? 0.75 : 1);
+    // ADR 0070 D7 (U5): on a canvas the lines scale with the text (`WrapEnv.lineScale`), so the lane step does too; a band drawn with the old lines (`lineScaleDropped`) is measured at the scaled step as well, and is reported when it is crowded
+    const sep = laneStepOf((d.density === 'compact' && !band.densityRestored ? 0.75 : 1) * (d.canvas ? Math.max(1, canvasFontScale(d.canvas.minText)) : 1));
     const edges = band.edges.filter(e => e.from !== e.to && e.points.length >= 2);
     const pairs = parallelRuns(edges.map(e => e.points), sep).sort((p, q) => q.overlap - p.overlap);
     const total = Math.round(pairs.reduce((n, p) => n + p.overlap, 0));
@@ -811,6 +813,8 @@ function flowRules(d: LintTarget, out: Finding[]): void {
 }
 // `density: 'compact'` that was not applied to a band (ADR 0036 D6): the compact figure had an arrow through a box or a label on another one
 function densityRules(d: LintTarget, out: Finding[]): void {
+  // ADR 0070 D7 (U5): the canvas asked for lines scaled with the text, but the scaled figure did not fit; it is drawn with the old lines
+  if (causeBandsOf(d.laidOut ?? []).some(b => b.lineScaleDropped)) out.push({rule: 'cause-line-scale-dropped', severity: 'info', message: 'causeTree(): 線の間隔を文字の倍率で広げると canvas に収まらないので、この図は広げない間隔で描いた（線の間隔 ÷ 文字が小さい）。canvas を高くする・minText を下げる・図を分けると広げられる'});
   const who = (d.laidOut ?? []).flatMap(b => (b.type === 'cause' || b.type === 'states') && b.densityRestored ? [b.type === 'cause' ? 'causeTree()' : b.flavor === 'flowchart' ? 'flowchart()' : 'stateDiagram()'] : []);
   if (who.length) out.push({rule: 'density-compact-restored', severity: 'info', message: `${[...new Set(who)].join('・')}: density: 'compact' にすると箱を通る矢印・重なるラベルが増えるので、この図は通常の間隔で描いた（高さは詰まっていない）`});
 }

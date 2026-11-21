@@ -131,3 +131,23 @@ test('a figure that fits only with the old lines is drawn with them: the scale n
   assert.deepEqual(squeezed.edges, old.edges);
   assert.throws(() => draw(undefined, old.h - 20), /does not fit/, 'a canvas too short for the old lines still says so');
 });
+
+import {lintDiagram} from '../lib/rules.ts';
+
+test('a figure drawn with the old lines is told so (cause-line-scale-dropped, info), and edge-parallel measures at the scaled lane step', async () => {
+  const mk = (height: number) => diagram({theme: 'blue', canvas: {width: 2600, height, minText: 18, fit: 'content'}}).add(causeTree(CRT_REPORT_NODES, CRT_REPORT_LINKS, CRT_REPORT_OPTIONS));
+  const tall = (await checked(mk(2000))).t;
+  assert.ok(!tall.lineScaleDropped, 'room enough: the scaled lines');
+  assert.deepEqual(lintDiagram((await checkDiagram(mk(2000))).laidOut).filter(f => f.rule === 'cause-line-scale-dropped'), []);
+  // a canvas too short for the scaled figure (1818 + the title), tall enough for the old one (1584)
+  const short = await checkDiagram(mk(1700));
+  const band = short.laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause;
+  assert.equal(band.lineScaleDropped, true);
+  const found = lintDiagram(short.laidOut);
+  assert.equal(found.filter(f => f.rule === 'cause-line-scale-dropped').length, 1);
+  assert.equal(found.find(f => f.rule === 'cause-line-scale-dropped')!.severity, 'info');
+  assert.ok(minSpacing(band) < laneStepOf(S18), 'the old lines are 14px apart');
+  // edge-parallel: measured at 18px on a canvas, so the fallback figure's 14px lanes are reported; the scaled figure's are not
+  assert.ok(found.some(f => f.rule === 'edge-parallel'), 'the fallback figure is reported by edge-parallel');
+  assert.deepEqual(lintDiagram((await checkDiagram(mk(2000))).laidOut).filter(f => f.rule === 'edge-parallel'), []);
+});

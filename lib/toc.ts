@@ -85,7 +85,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
   if (isNoFit(laid) && env.lineScale !== undefined) {
     const {lineScale: _scale, ...old} = env;
     const plain = layoutCauseBandAt(band, x, y, w, widthOf, roles, old, heightBudget, canvasBound);
-    if (!isNoFit(plain)) laid = plain;
+    if (!isNoFit(plain)) { laid = plain; plain.lineScaleDropped = true; }
   }
   const out = fitOrThrow(laid);
   if (env.space === undefined || env.space === 1) return out;

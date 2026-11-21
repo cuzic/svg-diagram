@@ -222,12 +222,15 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
   | 15 | 同じ高さとみなす許容 3px(`align`・`alongOther`) | `:289`・`:299` | **固定**(座標の一致の判定の許容で、見える間隔ではない) |
   | 16 | `runsTogether` の 4px | `lib/polyline-metrics.ts:111-117` | **固定**(`cause-parallel` の定義。D2 の `parallelRuns` が `LANE × unit` で別に測る) |
 
-  なお、`routeOnce` の中の `STUB`・`LANE` は `stubOf(space)`・`laneStepOf(space)` で既に `space` が掛かっている(`:68` で影を作る)。`space` が届いていないのは 3〜13 のうちの素の数字で、U5 でそれらを `unit` の倍数に書き換える(`density: 'compact'` でも同じく縮む)。
-- `GAP`(箱と箱の間)は `max(GAP × space, 2 × LANE × unit)` にする(層の中のダミーの間隔 `gap` が、倍率を掛けたレーンの間隔を下回らないため。`s ≤ 1.0` では今の `GAP = 28` のまま。`2 × LANE × unit` が 28 を超えるのは `unit > 1` のとき)。それ以外の `GAP`・`LEVEL` は変えない(隙間の高さは `gapFor` が線の値から決めるので、線に合わせて広がる)。矢じりの大きさ(`ARROW_L`、emitter の定数)は変えない。
-- **U5 の実装メモ**(U5 で追記):
+  なお、`routeOnce` の中の `STUB`・`LANE` は `stubOf(space)`・`laneStepOf(space)` で既に `space` が掛かっている(`:68` で影を作る)。`space` が届いていないのは 3〜13 のうちの素の数字で、U5 でそれらを倍率の倍数に書き換える(**U5 の実装: `space` がもともと掛かっていない素の数字は `s` だけを掛ける。`density: 'compact'` の canvas の無い図の出力を変えないため、`space` は掛けない**。下の U5 の実装メモ)。
+- `GAP`(箱と箱の間)は `max(GAP × space, LANE × unit)` にする(**U5 で `2 × LANE × unit` から直した**。層の中のダミーの間隔 `gap` が、倍率を掛けたレーン 1 本分を下回らないため。保証するのは「隙間にダミー(長い矢印の通り道)が 1 本」の場合で、2 本が並ぶ層の隙間は保証しない。`s ≤ 2` では今の `GAP = 28` のまま。`2 × LANE × unit` = 36 にすると報告の図が canvas の幅を超えて BK の案が `fits` で落ちる(交差 5 → 8)ので外した。**この幅の崖(34 まで可、36 から不可)は、canvas の幅が数 px 狭い図でも同じ形で起きうる脆さ**)。`LEVEL`(隙間の高さの下限 64)は倍率を掛けない(隙間の高さは `gapFor` の `unit` の部分が決める)。それ以外の `GAP`・`LEVEL` は変えない(隙間の高さは `gapFor` が線の値から決めるので、線に合わせて広がる)。矢じりの大きさ(`ARROW_L`、emitter の定数)は変えない。
+- **U5 の実装メモ**(U5 で追記。完了の基準の「図ごとに」は、U5 では fixture と報告の図で満たし、canvas の乱数の CRT の #0・#4・#75 などは U6 に回す):
   - 倍率 `s` は `WrapEnv.lineScale`(`layoutCauseOrCloud` が canvas のとき `max(1, canvasFontScale)` を入れる)で `layoutCauseBand` に届き、`layeredAttempt` の `AttemptOpts.scale` として `space` と別に渡る。経路の中の `unit = space × scale`。表の 1・2・3・4(`gapFor` の `16`)は `unit`、`space` がもともと掛かっていなかった素の数字(4 の `26`、9 の `±6`・`4`、10、11 の `margin`、13)は **`scale` だけ**を掛ける(`density: 'compact'` で canvas の無い図の出力を変えないため。表の「compact でも縮む」は取り下げ)。5 は `PORT × s`(箱の幅 `need` も同じ)。6〜8 の AND の頭の手前の run は D8 の `andArc(s)` 由来で `s` が掛かり、AND の無い頭の `22`・`26`(矢じりの置き場)は固定。12 の detour `tail` も同じ。テスト専用の `arcScale` は外した。
   - **`GAP` の下限は `2 × LANE × unit` ではなく `LANE × unit` にした**。報告の図そのもの(canvas・`minText: 18`)で、`2 × LANE × unit` = 36 にすると層の幅が canvas を 1 px 余らせ、交差の少ない BK の案が `fits` で落ちて素の案になり、交差 5 → 8・折れ 56 → 76・並走 4.5px になった(GAP 34 までは 5/56、36 以上は 8/76。幅の探索の閾値にあたる)。ダミー(長い矢印の通り道)の間隔の保証に要るのは 1 レーン分で、28 のままで最小間隔 ÷ `minText` = 1.0 を満たす。`s ≤ 2` では `GAP` は今のまま 28。
   - 倍率を掛けた図が、古い間隔なら収まるのに収まらない(`NoFit`)ときは、倍率なしで描き直す(`layoutCauseBand`。`toc.test.ts` の `tt` の図が 1080px の canvas に収まらなくなった)。倍率が「描けていた図をエラーにする」ことは無い。
+  - 完了の基準の「図ごとに」は、**倍率のレーン(`laneStepOf(unit)`、18px)で測る**。canvas の乱数の CRT 80 枚で、18px 未満の組は合計 143 → 30(増える図は #0 と #4 の 2 枚)。倍率なしの 14px 未満の組は、main に無かった図が 7 枚(#1・#16・#29・#34・#53・#70・#75、いずれも 0 → 1。口が 22 → 28 に動き、`better()`/`worse()` は (交差, 折れ) だけで比べるため)。**U6 の入力: 並走の組を `better()` の第 3 のキーにする**(または `placeTracks` の `near` に隙間の端の口の run を足す)。`edge-parallel` の `sep` も canvas では倍率を掛けるので、canvas の乱数の CRT 80 枚のうち 9 枚(#0・#1・#4・#6・#16・#29・#34・#70・#75)が info を新しく出す(出る図は 6 → 14 枚)。canvas の無い `examples/toc-*` は変わらない。
+  - #4 の交差 2 → 3 は、main の経路が退化していたため。main では `n2→n9` のレーンが頭の箱の左の縁より 0.8px 内側(`pierces` の許容 1px)を通って、交差を隠していた。倍率のレーンでは縁から離れるので、交差が見える(強いられた交差)。#75 の 2 → 4 は順序探索の問題(U6): 探索が試す並びが 5 通りで、main の 11 通りより少なく、どれも (0, 0, 4, 64) から改善しない。
+  - 倍率を掛けて収まらず、倍率なしで描いた図は、帯に `lineScaleDropped` が付き、info `cause-line-scale-dropped`(`check` が出す。canvas を高くする・`minText` を下げる・図を分けると広げられる)を出す。`edge-parallel` は canvas の倍率をかけた間隔で測るので、この図の 14px のレーンも報告する。
   - `trackLoad` の `crowdOf`・`corridorLoad` は U5 でも入れない(U6)。canvas 1.29 の乱数の CRT 80 枚で、倍率のレーン(18px)の組は合計 143 → 30 だが、2 枚(#0・#4)で増え、交差が増える図が 2 枚(#4・#75)ある。順序は同じでも経路の座標が動くため。図ごとの単調性は U6 に回す。
 - canvas の無い図、pdpc・relationDiagram・whyWhyTree は不変。canvas の `causeTree` だけが動く。
 - 報告の図(`minText: 18`、`s = 1.29`)では、`LANE` 14 → 18、`PORT` 22 → 28、`GAP` 28 → 36。並走の最小間隔 ÷ `minText` は 0.78 → 1.0。この比は図を縮めて見ても変わらない(文字と線が同じ倍率で縮む)ので、「縮小して見ると線が詰まって見える」の基準になる。
@@ -310,6 +313,7 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
   - **並走の最小間隔 ÷ `minText` ≥ 0.9**(`density: 'compact'` では ≥ 0.7)。SVG の座標で測る(図を縮めて表示しても、文字と線が同じ倍率で縮むので、表示の px での比と同じ)
   - **AND の矢印のそれぞれで、矢じりの根元から弧までの見える隙間 ≥ 0.4 × `minText`**(今は最小 3.3px = 0.18 倍)
   - 2 つの AND の弧の切れ目 ≥ `2 × portStep − 2 × AND_REACH`(倍率込み)
+- **U5 の注記**: 「図ごとに」は fixture と報告の図で満たす。canvas の乱数の CRT では #0・#4・#75 などが main より悪い(交差・倍率のレーンの組)ままで、U6 の入力(上の U5 の実装メモ)。
 - 報告の図そのもの(利用者のファイル)でも同じ値を測り、PR 本文に載せる(テストには入れない)。
 - `edge-parallel` が、`examples/` の `toc-*` で 0 件(出るものは、PR で理由を書く)。
 - pdpc・relationDiagram・whyWhyTree、states・classes・semnet・bpmn の golden の差分が 0。

@@ -159,7 +159,7 @@ function verifyWith(d: LaidOutDiagram, tones: ToneEnv): Verdict {
   ];
   // Rule findings (WCAG contrast, legend, lane order, crossings, density ...). Doc-medium diagrams
   // get the full set; legacy slide diagrams keep their existing text-volume warning only.
-  const findings = d.medium === 'doc' ? lintDiagram(d) : lintDiagram(d).filter(f => f.rule === 'density' || f.rule === 'auto-fit-applied' || f.rule === 'density-compact-restored' || f.rule === 'concentric-label-crossing');
+  const findings = d.medium === 'doc' ? lintDiagram(d) : lintDiagram(d).filter(f => f.rule === 'density' || f.rule === 'auto-fit-applied' || f.rule === 'density-compact-restored' || f.rule === 'cause-line-scale-dropped' || f.rule === 'concentric-label-crossing');
   const warnings = [...(d.revealWarnings ?? []), ...causeWarnings, ...findings.filter(f => f.severity === 'warn').map(f => { const h = acceptHint(f.rule); return `[${f.rule}] ${f.message}${h ? `  → ${h}` : ''}`; })];
   if (d.spotlight && !(typeof d.spotlight === 'object' && d.spotlight.mutedOk) && walkBands(d.bands).some(b => b.type === 'box' && b.tone === 'muted')) warnings.push('[spotlight-muted] spotlight と muted トーンの箱を併用しているため、dim との違いを形でも確認する');
   return {ok: problems.length === 0, problems, warnings, findings};
