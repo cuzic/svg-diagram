@@ -5,7 +5,7 @@
   "additionalProperties": false,
   "required": ["status", "summary", "branch", "head_sha", "pr_url", "checks", "mutations", "open_questions"],
   "properties": {
-    "status": {"type": "string", "enum": ["done", "blocked", "failed"], "description": "done: PR pushed and the definition of done passed; blocked: stopped on an open question; failed: could not finish"},
+    "status": {"type": "string", "enum": ["done", "blocked", "failed"], "description": "done: the work is pushed and the PR opened or updated; checks lists every result (a fail is allowed only with its reason in note); blocked: stopped on an open question; failed: could not finish"},
     "summary": {"type": "string", "description": "2-4 sentences: what changed and why"},
     "branch": {"type": "string"},
     "head_sha": {"type": "string", "description": "the pushed head commit, or empty"},

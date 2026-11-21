@@ -3,20 +3,22 @@
 TypeScript の DSL(と JSON の spec)で図を書き、SVG・PPTX・HTML に描くライブラリと CLI
 (`build` / `check` / `show` / `serve` / `deck` / `site` …)。読みやすさの規則(`lib/rules.ts`)と
 重なりの検査(`lib/verify*.ts`)が、図を「通る/通らない」で判定する。設計は `docs/adr/` にある。
-作業の前に、担当する ADR(状態が「決定」か「実装済み」のもの)と、その `*-opus-review-round*.md` を読む。
+作業の前に、担当する ADR と、その `*-opus-review-round*.md` を読む。実装してよい ADR は、状態が 決定・承認・採用・実装中・一部実装済み・実装済み のもの(提案・起草・起票は、まだ実装しない)。
 
 ## 役割分担
 
 | 担当 | 仕事 |
 | --- | --- |
 | Claude | ADR の設計と試し(spike)、owner への質問の整理、タスク仕様を書く、PR の敵対的レビュー、マージ |
-| Codex | 決定済みの ADR に沿った実装、レビュー指摘の修正、main の取り込みと衝突解消、テストの追加 |
+| Codex | 実装してよい状態の ADR に沿った実装、レビュー指摘の修正、main の取り込みと衝突解消、テストの追加 |
 | CI | typecheck・lint・テスト(3 分割)・`examples` の検査・golden の再生成の一致 |
 
 - 仕事は「タスク仕様」(目的・根拠・スコープ・触ってよいファイル・受け入れ条件)で渡す。
   新しい作業は `[codex] …` の Issue、既存 PR への修正や main の取り込みはその PR の `## [codex] タスク仕様` コメント。
 - レビュー指摘の根拠は、PR ブランチにコミットされた `docs/reviews/prNN-roundK.md`(ADR は `docs/adr/NNNN-opus-review-roundK.md`)。
 - **仕様に無い判断が要るときは、実装で決めない。** PR 本文の「Open questions」に書いて、そこで止める。
+- Codex は `run-codex.sh`(`.claude/skills/codex-task/scripts/`)が作った clone の中で、仕様のブランチに切り替わった状態で始まる。
+  別の clone や worktree は作らない。
 
 ## 完了の定義(どの PR も)
 
@@ -28,12 +30,15 @@ node check-diagram.ts --strict examples/*.ts
 ```
 
 - 4 つとも通ること。CI(`.github/workflows/test.yml`)も同じことをする。
-- **先に再現テストを書く**(ADR 0031)。直す前の main で落ちることを確かめてから直す。
+- **先に再現テストを書く**。直す前の main で落ちることを確かめてから直す。
 - 新しいコードには、それを壊す変異(手書きでよい)を最低 1 つ当て、テストが落ちることを確かめる。PR 本文に書く。
 - 部品・spec・設定の形を変えたら `pnpm schema` で `schema/*.schema.json` を作り直す(忘れると `test/schema-files.test.ts` が落ちる)。
 - 描画(レイアウト・emit・文字幅)を変えたら golden が変わる。CI の `golden (examples/out)` が比べる。
-  作り直しは固定したフォントの Docker で行う: `scripts/golden-docker.sh --write`(Docker が要る。無い環境では作り直さず、
-  PR 本文に「golden の再生成が要る」と書いて止める)。手元の `pnpm golden` はフォントが違うので正にしない。
+  作り直しは固定したフォントの Docker で行う: `scripts/golden-docker.sh --write`。Docker が無い環境(Codex の sandbox)では
+  作り直さず、PR 本文に「golden の再生成が要る(理由)」と書き、**作業は続けて**完了とする(作り直しは Claude がする)。
+  手元の `pnpm golden` や `--drift --rebuild` はフォントが違うので正にしない(clean な main でも `examples/icons.ts` が違って出る)。
+- PPTX の出力(`lib/pptx*.ts`)を変えたら、PR 本文に書く。PPTX の golden(`examples/out/pptx-golden.json`)は手で起動する
+  workflow(`pptx-golden.yml`)だけが見るので、Claude が `gh workflow run pptx-golden.yml --ref <branch> -f update=true` を回す。
 - 公開の振る舞い(CLI の出力・オプション・公開 API・メッセージ)を変えたら README と、該当 ADR の状態の行を直す。
 
 ## コードの約束
@@ -46,7 +51,7 @@ node check-diagram.ts --strict examples/*.ts
   ブラウザの入口(`lib/web.ts` から届く所)は `node:*` を使わない(`test/web-entry.test.ts`)。
 - CLI の入口はリポジトリの直下(`build-diagram.ts`、`check-diagram.ts` …)。`--help` の文と、ファイル先頭のコメントの使い方を合わせる。
 - 利用者に見せる文(CLI のメッセージ・エラー・README・ADR)は日本語。コードのコメントは英語。
-  エラーは「何が悪いか」と「どう直すか」を 1 行で言う(ADR 0013)。
+  エラーは「何が悪いか」と「どう直すか」を 1 行で言う。
 - 既存の文体と書き方に合わせる。周りに無い抽象化・依存を足さない。
 
 ## 安全の約束
@@ -79,5 +84,5 @@ node check-diagram.ts --strict examples/*.ts
 | `*-diagram.ts`(直下) | CLI の入口。`bin/` が振り分ける |
 | `test/` | `node --test`。`test/helpers/` に共通の道具 |
 | `examples/`, `examples/out/` | 例と、その golden |
-| `docs/adr/`, `docs/reviews/` | 設計とそのレビュー記録 |
+| `docs/adr/`, `docs/reviews/` | 設計とそのレビュー記録(`docs/reviews/` は最初のレビューで作られる) |
 | `skills/svg-diagram/` | **利用者向け**の skill(図を書く AI 向けの説明)。開発用ではない |

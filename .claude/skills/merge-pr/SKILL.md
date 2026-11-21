@@ -12,7 +12,8 @@ Claude(または owner)が行う。main の取り込みや衝突解消は自分�
 
 - 最新ラウンドのレビュー(PR ブランチにコミット済みの `docs/reviews/prNN-roundK.md`)が converged: yes で、`Target: <branch> @ <sha>` がある。
   ADR だけの PR は `docs/adr/NNNN-opus-review-roundK.md`。
-- PR の base が main(`gh pr view NN --json baseRefName --jq .baseRefName`)。
+- PR の base が main(`gh pr view NN --json baseRefName --jq .baseRefName`)。積み上げ PR は、下の PR がマージされて付け替わってから扱う。
+- レビュアーが「マージ前に直して」と書いた項目があれば、直っている。
 
 ## 手順
 
@@ -43,7 +44,18 @@ Claude(または owner)が行う。main の取り込みや衝突解消は自分�
    ```
 
    `n -ge 4` は今の CI のジョブ数(test 3 分割と golden)。ジョブを増減したらここも直す。
+   checks が 0 件(push の直後)・取れない・pending・`UNKNOWN` は、どれも止まる側に倒れる。少し置いてやり直す。
    CONFLICTING なら Codex に main の取り込みを頼み、手順 1 からやり直す。
+   **main が動いていないかも見る**: CI はブランチを最後に push した時点の main と合わせて回っている。衝突が無くても、その後に main が
+   同じ所を変えていれば、マージ後の main で golden や schema が落ちうる。
+
+   ```sh
+   PR=NN; SHA=<手順 1 の SHA>
+   mb=$(git merge-base origin/main "$SHA"); git diff --stat "$mb" origin/main -- lib examples schema '*.ts' | tail -3
+   ```
+
+   何か出たら、Codex に main の取り込みを頼み(`codex-task`)、CI が回り直してから手順 1 からやり直す。
+   CI が PR と関係ない理由(flaky など)で落ちたら、マージせずに、その原因を直す PR を別に作る。
 3. **固定した head でマージする**:
 
    ```sh

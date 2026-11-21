@@ -9,7 +9,8 @@
 - **設計に集中する**: ADR と試し(spike)。数値と「コードがこうなっている」は、試しか `ファイル:行` から書く。
   owner が決めることは AskUserQuestion でまとめて聞く。ADR も Opus のレビューを収束(Blocker・Major なし)まで回す。
 - **実装と修正は Codex に渡す**: `.claude/skills/codex-task` でタスク仕様を書き、同じ skill のスクリプトで `codex exec` を走らせる。
-  Claude が自分で書くのは、仕様に落とせない判断を含む数行の変更と、ADR・レビュー記録・このガイドだけ。
+  Claude が自分で書くのは、仕様に落とせない判断を含む数行の変更と、ADR・レビュー記録・このガイド、
+  それに Codex の sandbox ではできない機械的な作業(Docker での golden の作り直し、`pptx-golden.yml` の起動)だけ。
 - **レビュー**: `.claude/skills/review-pr`。目的は Blocker と Major を見つけること。
   レビューはサブエージェント(Opus)に任せ、著者(Codex)とは別の目で見る。
 - **マージ**: `.claude/skills/merge-pr`(head の固定、収束後のコミットの確認、CI 全緑)。

@@ -14,6 +14,7 @@ Claude 本体はレビューしない。**Opus のサブエージェント(Agent
 
 1. **独立したコピーで作業する**: スクラッチ領域に `git clone --reference <共有の checkout の .git> https://github.com/cuzic/svg-diagram <dir>`、
    `gh pr checkout NN`。レビューする head の SHA(`git rev-parse HEAD`)を控える。共有の checkout や他の worktree を触らない。
+   作業中の worktree を `cp -a` しない(git のメタデータを共有して他の作業を壊す)。他のエージェントのプロセスを `pkill` で止めない。
 2. **前ラウンドの解消を確かめる**: 指摘ごとに、説明文ではなく挙動で判定する。
 3. **壊しにいく**: ADR の決定ごとに、決定を破る入力を作る。svg-diagram での重点:
    - 黙って違う図を描く(部品が消える・重なる・はみ出す、のに `check` が通る)

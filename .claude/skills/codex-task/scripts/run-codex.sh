@@ -1,17 +1,18 @@
 #!/bin/sh
-# Run one Codex task non-interactively, in its own clone (Codex's sandbox keeps .git read-only in a shared worktree).
+# Run one Codex task non-interactively, in its own clone of the repository.
 #
 #   run-codex.sh <label> <branch> <spec-file> [base]
 #
 #   label      short name for the run (letters, digits, -): the clone is $CODEX_WORK/cx-<label>
-#   branch     the branch Codex works on. It is checked out when it exists on origin; otherwise it is created from origin/<base>
+#   branch     the branch Codex works on. Checked out when it exists on origin; otherwise created from origin/<base>.
+#              A branch that exists only locally (not pushed) is refused: push it first.
 #   spec-file  the prompt (the task spec, or a one-line pointer to an Issue / PR comment)
-#   base       default main
+#   base       the base for a new branch (default main; a stacked PR names the branch below it)
 #
 # CODEX_WORK   where clones, logs and reports go (default: ${TMPDIR:-/tmp}/codex-work). Give Claude's scratchpad.
-# CODEX_EFFORT reasoning effort (default high; the CLI default is none, too little for implementation).
-# Output: $CODEX_WORK/codex-<label>.report.json (the final report, report.schema.json), codex-<label>.log (progress).
-# Exit status is Codex's. Run it in the background and read the report when it ends.
+# CODEX_EFFORT reasoning effort (default high; without it this host's Codex runs at "none", as its log header shows).
+# Output: $CODEX_WORK/codex-<label>.report.json (the final report, report.schema.json) and codex-<label>.log (progress).
+# Exit 0 only when Codex exited 0 and wrote a report. Run it in the background and read the report when it ends.
 set -eu
 label=$1; br=$2; spec=$3; base=${4:-main}
 case $label in *[!A-Za-z0-9-]*|'') echo "bad label: $label" >&2; exit 2 ;; esac
@@ -21,34 +22,57 @@ repo_git=$(git -C "$here" rev-parse --path-format=absolute --git-common-dir)
 url=$(git -C "$here" remote get-url origin)
 work=${CODEX_WORK:-${TMPDIR:-/tmp}/codex-work}
 d="$work/cx-$label"
+report="$work/codex-$label.report.json"; log="$work/codex-$label.log"
 mkdir -p "$work"
-rm -rf "$d"
+
+# an earlier clone with the same label: never throw away commits that are not on origin
+if [ -d "$d/.git" ]; then
+  git -C "$d" fetch -q origin 2>/dev/null || true
+  if [ -n "$(git -C "$d" log --oneline HEAD --not --remotes=origin 2>/dev/null | head -1)" ]; then
+    echo "$d has commits that are not on origin; push or remove them, or use another label" >&2; exit 2
+  fi
+fi
+rm -rf "$d" "$report" "$log"
 git clone -q --reference "$repo_git" "$url" "$d"
-if git -C "$d" ls-remote --exit-code --heads origin "$br" >/dev/null 2>&1; then
+if git -C "$d" ls-remote --exit-code origin "refs/heads/$br" >/dev/null 2>&1; then
   git -C "$d" checkout -q "$br"
+elif git -C "$here" rev-parse --verify -q "refs/heads/$br" >/dev/null; then
+  echo "branch $br exists locally but not on origin: push it first" >&2; exit 2
 else
   git -C "$d" checkout -q -b "$br" "origin/$base"
 fi
-# pnpm writes its store and the pinned pnpm itself (package-manager-store) under its data dir: give the whole dir
+
+# Writable roots besides the clone (workspace-write makes .git read-only unless it is named):
+#   the clone's .git (commit, fetch, push), pnpm's store and the pinned pnpm (package-manager-store) — not all of pnpm's
+#   data dir, which also holds globally installed binaries — and pnpm's locks in $XDG_RUNTIME_DIR.
+set -- --add-dir "$d/.git"
 store=$(pnpm store path 2>/dev/null || true)
-pnpm_home=${store:+$(dirname "$(dirname "$store")")}
-# ... and takes its locks in $XDG_RUNTIME_DIR (pnpm-store-operation-locks-<uid>, pnpm-dir-locks-<uid>)
-locks=""
+if [ -n "$store" ]; then
+  set -- "$@" --add-dir "$store"
+  pms="$(dirname "$(dirname "$store")")/package-manager-store"
+  [ -d "$pms" ] && set -- "$@" --add-dir "$pms"
+fi
 if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
   uid=$(id -u)
   for l in "$XDG_RUNTIME_DIR/pnpm-store-operation-locks-$uid" "$XDG_RUNTIME_DIR/pnpm-dir-locks-$uid"; do
-    mkdir -p "$l" && locks="$locks --add-dir $l"
+    mkdir -p "$l" && set -- "$@" --add-dir "$l"
   done
 fi
+# npm (a test fixture's `npm install`) writes its cache under $HOME, which is read-only: keep it beside the clone
+export npm_config_cache="$work/npm-cache-$label"
+
 set +e
 codex exec -s workspace-write \
   -c sandbox_workspace_write.network_access=true \
   -c model_reasoning_effort="${CODEX_EFFORT:-high}" \
-  ${pnpm_home:+--add-dir "$pnpm_home"} $locks \
+  "$@" \
   --output-schema "$here/report.schema.json" \
-  -o "$work/codex-$label.report.json" \
-  -C "$d" - <"$spec" >"$work/codex-$label.log" 2>&1
+  -o "$report" \
+  -C "$d" - <"$spec" >"$log" 2>&1
 rc=$?
+set -e
 echo "exit=$rc label=$label clone=$d"
-cat "$work/codex-$label.report.json" 2>/dev/null || tail -c 3000 "$work/codex-$label.log"
-exit $rc
+if [ "$rc" -eq 0 ] && [ -s "$report" ]; then cat "$report"; exit 0; fi
+echo "FAILED: codex exited $rc$( [ -s "$report" ] || echo ', no report' ). Last lines of $log:"
+tail -c 3000 "$log"
+exit $(( rc == 0 ? 1 : rc ))

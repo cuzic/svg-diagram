@@ -1,6 +1,6 @@
 ---
 name: codex-task
-description: svg-diagram の実装・レビュー指摘の修正・main の取り込みを Codex に渡す。タスク仕様(Issue か PR コメント)を書き、scripts/run-codex.sh で codex exec を走らせ、報告を読む。「実装して」「直して」「Codex に任せて」と言われたとき、決定済みの ADR の段階(U1 など)に着手するときに使う。
+description: svg-diagram の実装・レビュー指摘の修正・main の取り込みを Codex に渡す。タスク仕様(Issue か PR コメント)を書き、scripts/run-codex.sh で codex exec を走らせ、報告を読む。「実装して」「Codex に直させて」「Codex に任せて」と言われたとき、実装してよい状態の ADR の段階(U1 など)に着手するとき、レビュー指摘の修正を渡すときに使う。
 argument-hint: "[ADR の段階 | PR 番号]"
 ---
 
@@ -26,7 +26,7 @@ Codex は AGENTS.md と `.agents/skills/implement-task` を読むが、この会
 - レビュー: docs/reviews/prNN-roundK.md の M1, m2(修正のとき)
 
 ### ブランチ
-- 新規: `<prefix>/<name>` を origin/main から。PR のタイトル: `<…>(ADR NNNN U1)`
+- 新規: `<prefix>/<name>`(run-codex.sh が origin/main から作って切り替えてある。積み上げなら下のブランチから)。PR のタイトル: `<…>(ADR NNNN U1)`、積み上げなら `stacked on #NN` を足す
 - 既存 PR: `<branch>` に追加コミット。merge で追従し、force-push しない
 
 ### スコープ
@@ -52,8 +52,12 @@ PR 本文に、ADR のどの決定を実装したか、テスト、変異、Open
 **バックグラウンドで**走らせる(Bash の `run_in_background: true`。数十分かかる):
 
 ```sh
-CODEX_WORK=<scratchpad>/codex sh .claude/skills/codex-task/scripts/run-codex.sh <label> <branch> <spec-file>
+CODEX_WORK=<scratchpad>/codex sh .claude/skills/codex-task/scripts/run-codex.sh <label> <branch> <spec-file> [base]
 ```
+
+- `base` は新しいブランチの元(既定 main)。積み上げの PR は下のブランチを渡す。ローカルにしかないブランチは断る(先に push する)。
+- 同じ label の前の clone に、origin に無いコミットがあれば断る(消さない)。
+- 終了コードが 0 でも報告が無ければ失敗として扱う(スクリプトが 1 を返す)。
 
 - Codex はスクラッチの clone(`cx-<label>`)で動き、push と `gh pr create` まで自分で行う。
 - 同時に走らせるのは 2 つまで。同じブランチに 2 つ走らせない。
@@ -70,8 +74,9 @@ CODEX_WORK=<scratchpad>/codex sh .claude/skills/codex-task/scripts/run-codex.sh 
   owner が決めることなら AskUserQuestion でまとめて聞く。
 - `status: failed` / 報告がない: `codex-<label>.log` の最後を読む。環境の問題(ネットワーク・Docker)なら Claude が片付けるか、仕様を直す。
 
-## golden の作り直し
+## golden と PPTX の golden
 
 Codex の sandbox では Docker が使えない。描画が変わる PR で CI の `golden (examples/out)` が落ちたら、
 Claude がその PR の worktree で作り直してコミットする(機械的な作業なので Claude がしてよい):
 `sg docker -c 'scripts/golden-docker.sh --write'`。差分が仕様どおりの変化だけかを `git diff --stat` と数枚の SVG で確かめる。
+PPTX の出力が変わる PR では `gh workflow run pptx-golden.yml --ref <branch> -f update=true` を回す。

@@ -17,7 +17,7 @@ AGENTS.md の規則(完了の定義・コードの約束・Git の約束)が前�
 
 ## 2. ブランチ
 
-- いまの checkout が仕様のブランチになっている(`git branch --show-current` で確かめる)。違えば止める。
+- いまの checkout が仕様のブランチになっている(`git branch --show-current` で確かめる)。違えば止める。別の clone や worktree は作らない。
 - 既存 PR のブランチなら、始める前に `git pull --no-rebase origin <branch>`。
 - main の取り込み: `git merge origin/main`。手で衝突を解いたら、マージコミットのメッセージに「どのファイルを、どう解いたか」を書く。
   生成物(`schema/`)の衝突は `pnpm schema` で作り直す。
@@ -30,8 +30,8 @@ AGENTS.md の規則(完了の定義・コードの約束・Git の約束)が前�
 4. 完了の定義を回す(`pnpm typecheck` / `pnpm lint` / `pnpm test` / `node check-diagram.ts --strict examples/*.ts`)。
    `pnpm test` は全体で数分かかる。途中は `node --test test/<file>.test.ts` で絞る。
 5. 変異を当てる: 新しいコードの要の 1〜3 か所を手で壊し、テストが落ちることを確かめて、元に戻す(変異はコミットしない)。
-6. 描画が変わったか: `node check-diagram.ts --drift --rebuild --svg-dir examples/out examples/<関係する例>.ts`。
-   変わるなら golden の作り直しが要る。Docker が無ければ作り直さず、PR 本文に書く。
+6. 描画(レイアウト・emit・文字幅)や PPTX の出力に触ったなら、PR 本文に「golden の作り直しが要る(理由)」と書く。
+   手元の `--drift --rebuild` はフォントが違って clean な main でも差が出るので、判定には使わない。作り直しは Claude がする。
 
 ## 4. コミットと PR
 
