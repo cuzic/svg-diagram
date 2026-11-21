@@ -190,9 +190,11 @@ test('constrainedOrder: a run along the layers within the span of another turn p
   // a pair that crosses whichever way (one span inside the other with its runs on both sides) keeps the rank
   assert.deepEqual(ord([[0, 100], [40, 60]], [0, 1]), [0, 1]);
   assert.deepEqual(ord([[0, 100], [40, 60]], [1, 0]), [1, 0]);
-  // a cycle of three: the constraint that closes it (the last by rank) is left out, the others hold
+  // three turns that ask for an order among themselves (1 within 0's span: 1 before 0; the other two pairs ask both ways, so they are free):
+  // the one constraint holds, and the order is complete (a loop of constraints is closed by leaving out the last by rank, never by dropping a turn)
   const three = ord([[0, 20], [10, 30], [25, 5]]);
-  assert.equal(three.length, 3);
+  assert.deepEqual([...three].sort(), [0, 1, 2]);
+  assert.ok(three.indexOf(1) < three.indexOf(0), `${three}`);
 });
 
 /** The fixed-size layered layout of a cause tree's routes: AND arrows (`and`, by edge index) into one head, the room before a head of D8. */
@@ -236,4 +238,68 @@ test("U4b, the reported CRT's u4 in a smaller figure: the two ANDs into u4 and t
   assert.equal(crossing, 0);
   assert.deepEqual(inAnd(t), [0, 0, 0]);
   assert.deepEqual(t.loose, []);
+});
+
+// ADR 0070 D4 (U4b), the review's round 1 (M1): with `tracks` a long arrow's last turn into an AND was placed from half-way across its gap and
+// squeezed in a narrow one. The routes are judged against where it turned before (`lastTurn`), so no figure gets a crossing more than it had.
+/** A layered graph of fixed boxes (id, w, h), the arrows `es`, the first two arrows into every head with two or more being one AND (the review's RG distribution). */
+const andGraph = (boxes: [string, number, number][], es: [string, string][], scale: number) => {
+  const l = layoutWithLanes(boxes.map(([id, w, h]) => ({id, size: {w, h}})), es.map(([from, to]) => ({from, to})), {dir: 'right', gap: 24, levelGap: 64});
+  const byTo = new Map<string, number[]>();
+  l.edges.forEach((e, i) => { if (!e.reversed) byTo.set(e.to, [...(byTo.get(e.to) ?? []), i]); });
+  const groupOf = new Map<number, number>();
+  let gi = 0;
+  for (const is of byTo.values()) if (is.length >= 2) { groupOf.set(is[0]!, gi); groupOf.set(is[1]!, gi); gi++; }
+  const heads = scale === 1 ? {headRun: 26, turnRun: 30, andPorts: true} : {headRun: 30, turnRun: 34, andPorts: true};
+  const at = (tracks: boolean) => routeLayered(l, p => p, 22, i => groupOf.get(i), undefined, true, false, false, false, false, 1, false, heads, tracks);
+  const lastRun = (r: Map<number, Pt[]>): number => Math.min(...[...groupOf.keys()].map(i => { const p = r.get(i)!; return Math.abs(p.at(-1)!.x - p.at(-2)!.x) + Math.abs(p.at(-1)!.y - p.at(-2)!.y); }));
+  const andPairs = (r: Map<number, Pt[]>): number => [...new Set(groupOf.values())].reduce((n, g) => n + crossingsOf([...groupOf].filter(([, k]) => k === g).map(([i]) => r.get(i)!)), 0);
+  return {l, at, lastRun, andPairs, headRun: heads.headRun};
+};
+
+test("U4b M1, the review's RG #8 in fixed boxes: a long arrow's last turn into an AND stays where main put it, so the AND's two arrows do not cross", () => {
+  const boxes: [string, number, number][] = [['n0_0', 83, 77], ['n0_1', 86, 77], ['n0_2', 64, 54], ['n1_0', 83, 69], ['n1_1', 100, 73], ['n1_2', 97, 52], ['n2_0', 87, 69], ['n2_1', 68, 59], ['n2_2', 92, 73], ['n3_0', 112, 65], ['n3_1', 63, 41], ['n3_2', 76, 74], ['n4_0', 97, 66], ['n4_1', 114, 52], ['n4_2', 93, 67]];
+  const es: [string, string][] = [['n1_1', 'n2_2'], ['n3_2', 'n4_0'], ['n2_2', 'n4_0'], ['n0_0', 'n1_2'], ['n1_2', 'n3_0'], ['n3_1', 'n4_1'], ['n1_2', 'n2_0'], ['n3_1', 'n4_2'], ['n0_1', 'n1_1'], ['n3_2', 'n4_1'], ['n3_1', 'n4_0'], ['n1_1', 'n4_1'], ['n1_1', 'n3_2'], ['n3_0', 'n4_0'], ['n0_1', 'n3_1'], ['n3_0', 'n4_1']];
+  const g = andGraph(boxes, es, 1), now = g.at(true);
+  assert.equal(g.andPairs(now), 0, 'no crossing inside an AND');
+  assert.ok(g.lastRun(now) >= g.headRun, `the last runs into the ANDs keep the arc: ${g.lastRun(now)}`);
+  // main (U4a) drew this figure with 12 crossings and 36 bends; the first U4b drew 14 (the long arrow turned at 547, not 592, and crossed the direct one twice)
+  const s = scoreOf([...now.values()]);
+  assert.ok(s.crossings <= 12 && s.bends <= 36, JSON.stringify(s));
+});
+
+for (const scale of [1, 1.29]) {
+  test(`U4b M1, random layered graphs with ANDs at scale ${scale} (400, fixed seed): no more crossings than with the turns half-way, none more inside an AND, the last runs keep headRun`, () => {
+    let seed = 999;
+    const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    for (let n = 0; n < 400; n++) {
+      const L = 3 + Math.floor(rnd() * 3), per = 2 + Math.floor(rnd() * 3), boxes: [string, number, number][] = [], layer: string[][] = [];
+      for (let l = 0; l < L; l++) { layer.push([]); for (let k = 0; k < per; k++) { const id = `n${l}_${k}`; boxes.push([id, 60 + Math.floor(rnd() * 60), 40 + Math.floor(rnd() * 40)]); layer[l]!.push(id); } }
+      const es: [string, string][] = [], seen = new Set<string>(), m = Math.floor(boxes.length * (1 + rnd()));
+      for (let k = 0; k < m; k++) {
+        const a = Math.floor(rnd() * (L - 1)), b = a + 1 + Math.floor(rnd() * (L - 1 - a)), from = layer[a]![Math.floor(rnd() * per)]!, to = layer[b]![Math.floor(rnd() * per)]!;
+        if (seen.has(from + to)) continue;
+        seen.add(from + to); es.push([from, to]);
+      }
+      rnd();
+      const g = andGraph(boxes, es, scale), old = g.at(false), now = g.at(true), a = scoreOf([...old.values()]), b = scoreOf([...now.values()]);
+      assert.ok(b.crossings <= a.crossings, `#${n}: crossings ${a.crossings} -> ${b.crossings}`);
+      assert.ok(g.andPairs(now) <= g.andPairs(old), `#${n}: crossings inside an AND ${g.andPairs(old)} -> ${g.andPairs(now)}`);
+      assert.ok(g.lastRun(now) >= g.headRun, `#${n}: the last run into an AND ${g.lastRun(now)} < ${g.headRun}`);
+    }
+  });
+}
+
+// The order search (toc.ts) picks its figure by (crossings among the arrows into an AND's head, ..., crossings, bends) and its path differs with the routes it
+// is given: main drew these two with 15 and 3 crossings. The arrows into one AND's head that cross each other are the search's to settle (U6); the totals do not grow.
+test("U4b M1, the review's random CRTs #48 and #70: no more crossings than main drew (15 and 3)", async () => {
+  const cases = [
+    {limit: 15, dir: 'up' as const, nodes: [{id: 'n0', label: 'n0 ああああああああ'}, {id: 'n1', label: 'n1 ああああああああ'}, {id: 'n2', label: 'n2 ああああああああああ'}, {id: 'n3', label: 'n3 ああああああ'}, {id: 'n4', label: 'n4 あああああああああああ'}, {id: 'n5', label: 'n5 あああああああああ'}, {id: 'n6', label: 'n6 あああああああああ'}, {id: 'n7', label: 'n7 ああああああああああ'}, {id: 'n8', label: 'n8 あああああ'}, {id: 'n9', label: 'n9 あああああああああ'}, {id: 'n10', label: 'n10 あああああ'}, {id: 'n11', label: 'n11 ああああああ'}, {id: 'n12', label: 'n12 あああああああああ'}, {id: 'n13', label: 'n13 ああああ'}, {id: 'n14', label: 'n14 あああああ'}], links: [{from: 'n0', to: 'n1'}, {from: 'n1', to: 'n2'}, {from: 'n2', to: 'n3'}, {from: 'n2', to: 'n4'}, {from: 'n4', to: 'n5'}, {from: 'n4', to: 'n6'}, {from: 'n6', to: 'n7'}, {from: 'n0', to: 'n8'}, {from: 'n0', to: 'n9'}, {from: 'n6', to: 'n10'}, {from: 'n2', to: 'n11'}, {from: 'n3', to: 'n12'}, {from: 'n3', to: 'n13'}, {from: 'n9', to: 'n14'}, {from: 'n10', to: 'n11'}, {from: 'n13', to: 'n14'}, {from: 'n7', to: 'n12'}, {from: 'n6', to: 'n8'}, {from: 'n8', to: 'n9'}, {from: ['n3', 'n1'], to: 'n5'}, {from: ['n0', 'n4'], to: 'n7'}]},
+    {limit: 3, dir: 'left' as const, nodes: [{id: 'n0', label: 'n0 ああああああああ'}, {id: 'n1', label: 'n1 あああああ'}, {id: 'n2', label: 'n2 あああああ'}, {id: 'n3', label: 'n3 あああああ'}, {id: 'n4', label: 'n4 あああ'}, {id: 'n5', label: 'n5 あああああああ'}, {id: 'n6', label: 'n6 ああああああああああああ'}, {id: 'n7', label: 'n7 あああああああああ'}], links: [{from: 'n0', to: 'n1'}, {from: 'n1', to: 'n2'}, {from: 'n1', to: 'n3'}, {from: 'n0', to: 'n4'}, {from: 'n0', to: 'n5'}, {from: 'n3', to: 'n6'}, {from: 'n2', to: 'n7'}, {from: 'n5', to: 'n6'}, {from: 'n4', to: 'n6'}, {from: ['n0', 'n2'], to: 'n6'}]},
+  ];
+  for (const {limit, dir, nodes: ns, links} of cases) {
+    const {t} = await laid(diagram({theme: 'blue', width: 1800}).add(causeTree(ns, links as never, {tree: 'crt', dir})));
+    const c = crossingsOf(t.edges.map(e => e.points));
+    assert.ok(c <= limit, `${dir}: ${c} crossings, main drew ${limit}`);
+  }
 });

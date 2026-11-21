@@ -49,7 +49,7 @@ export interface Legs {left: number; right: number}
  * the two runs along the layers lie side by side, under `sep` apart).
  * Likewise a run on the right side asks the other turn to take a track to its left. These are the vertical constraints of channel routing;
  * fan-in, fan-out and gaps with arrows into different heads all follow from them. A pair that asks both ways crosses whichever way it
- * goes (it keeps `rank`'s order), and so does a pair whose constraint would close a cycle (the constraints are taken in `rank`'s order
+ * goes (no constraint is added for it; other constraints may still put it in either order), and so does a pair whose constraint would close a cycle (the constraints are taken in `rank`'s order
  * of their pairs, and one that closes a cycle is left out). The rest goes by `rank` (the order as it was).
  */
 export function constrainedOrder<T>(items: readonly T[], legsOf: (t: T) => Legs, rank: (t: T) => number, sep = 1): T[] {
@@ -281,9 +281,10 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     const ya = A.y + A.h / 2 + (portOf.get(`${i}:0`) ?? 0), yb = B.y + B.h / 2 + (portOf.get(`${i}:1`) ?? 0);
     return A.x < B.x ? {left: ya, right: yb} : {left: yb, right: ya};
   };
+  let reordered = false; // a gap's lanes took another order than the old one
   let constrainLanes = true; // with tracks: the lanes in the order of the vertical constraints (else the old order)
   const assignLanes = (): void => {
-  laneOf.clear();
+  laneOf.clear(); reordered = false;
   for (const all0 of corridors.values()) {
     const all = all0.filter(i => !level(i));
     if (!all.length) continue;
@@ -298,6 +299,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       // heads), the order above where it is free. A forward arrow's lanes count from the gap's left side, a return's from its right side
       const back = group.length > 0 && !forward(at(group, 0));
       const order = !tracks || !constrainLanes ? old : back ? constrainedOrder(old, legsOf, i => -old.indexOf(i), LANE).reverse() : constrainedOrder(old, legsOf, i => old.indexOf(i), LANE);
+      if (order.some((v, m) => v !== old[m])) reordered = true;
       for (const i of order) laneOf.set(i, k++ * laneIn(gapOf));
     }
   }
@@ -442,6 +444,13 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       return {x0, x1, h};
     };
     const signs = new Map([...routeNow].map(([o, r]) => [o, signOf(r)]));
+    // the routes by the strips of x they reach, so that a cluster finds the routes near it without walking every route of the figure
+    const STRIP = 128, seqOf = new Map<Pending | number, number>(), strips = new Map<number, Set<Pending | number>>();
+    const inStrips = (o: Pending | number, sg: {x0: number; x1: number}, add: boolean): void => {
+      if (!Number.isFinite(sg.x0) || !Number.isFinite(sg.x1)) return;
+      for (let k = Math.floor(sg.x0 / STRIP); k <= Math.floor(sg.x1 / STRIP); k++) { let set = strips.get(k); if (!set) strips.set(k, set = new Set()); if (add) set.add(o); else set.delete(o); }
+    };
+    for (const [o, sg] of signs) { seqOf.set(o, seqOf.size); inStrips(o, sg, true); }
     const legs = (a: Ask): Legs => a.p.x <= a.q.x ? {left: a.p.y, right: a.q.y} : {left: a.q.y, right: a.p.y};
     /** The clusters of a gap's turns: those whose spans (a lane step longer at both ends) overlap, directly or through others. */
     const clustersOf = (list: Ask[]): Ask[][] => {
@@ -503,7 +512,9 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
         return out;
       };
       const near0: [Pending | number, {x0: number; x1: number; h: number}][] = [];
-      for (const e of signs) { const sg = e[1]; if (sg.x1 >= x0 && sg.x0 <= x1 && (typeof e[0] === 'number' || !mine.has(e[0]))) near0.push(e); }
+      const found = new Set<Pending | number>();
+      for (let k = Math.floor(x0 / STRIP); k <= Math.floor(x1 / STRIP); k++) for (const o of strips.get(k) ?? []) found.add(o);
+      for (const o of [...found].sort((u, v) => must(seqOf.get(u)) - must(seqOf.get(v)))) { const sg = must(signs.get(o)); if (sg.x1 >= x0 && sg.x0 <= x1 && (typeof o === 'number' || !mine.has(o))) near0.push([o, sg]); }
       const key = JSON.stringify([strict, step, order.map(a => [a.p.x, a.p.y, a.q.x, a.q.y, a.min, a.max, a.home ?? null]), strict ? was : [], track, runs.map(r => [r.x, r.lo, r.hi]), near0.map(([, sg]) => sg.h)]);
       let picked = trackMemo.get(key);
       if (picked === undefined) {
@@ -536,7 +547,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       const chosen = picked;
       if (chosen) order.forEach((a, k) => { const x = at(chosen, k); a.set(Number.isNaN(x) ? undefined : x); });
       else if (!strict) order.forEach(a => a.set(a.home));
-      for (const o of mine) { const r = elbows(o.pts, o.turns); routeNow.set(o, r); signs.set(o, signOf(r)); }
+      for (const o of mine) { const r = elbows(o.pts, o.turns), sg = signOf(r); inStrips(o, must(signs.get(o)), false); routeNow.set(o, r); signs.set(o, sg); inStrips(o, sg, true); }
       // false: nothing placed (none fits, or the homes won: the turns with none stay half-way)
       return chosen !== null && !chosen.every((x, k) => Number.isNaN(x) || x === at(order, k).home);
     };
@@ -600,8 +611,9 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       let turn: number | undefined;
       if (e.points.length === 2) {
         const lo = Math.min(layerOf(e.from), layerOf(e.to)), gl = must(layerRight.get(lo)), gr = layerLeft.get(lo + 1) ?? gl + 2 * STUB, gw = gr - gl;
-        // the last run keeps room for the arrowhead. TODO(ADR 0070 U4b): `gw / 2` lets it shrink below the head's room in a gap under
-        // 2 x headRun; the gaps are tall enough today (`gapFor`), and the track assignment takes headRun as a constraint
+        // the last run keeps room for the arrowhead. TODO(ADR 0070 U4c): `gw / 2` lets it shrink below the head's room in a gap under
+        // 2 x headRun. Only a direct arrow the tracks did not move is left to it (U4b's `strict` pass keeps headRun for the ones it moves); the
+        // gaps are tall enough today (`gapFor`), and no figure of the reviews had a `loose` AND from it. U4c widens such a gap
         const d = Math.min(STUB + (laneOf.get(i) ?? 0), Math.max(gw / 2, gw - headRunOf(e.to)));
         turn = turnAt.get(i) ?? (forward(i) ? gl + d : gr - d);
       }
@@ -676,7 +688,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   let routes = build();
   // ADR 0070 D4 (U4b): the lanes in the order of the vertical constraints are kept only when the figure is no worse in (crossings, pairs on
   // one line, bends) than with the lanes in the old order (the direct arrows' order does not see the long arrows' turns)
-  if (tracks) {
+  if (tracks && reordered) {
     constrainLanes = false; assignLanes(); turnOuter();
     const plain = build(), a = scoreOf([...routes.values()]), b = scoreOf([...plain.values()]), oa = alongEach(routes), ob = alongEach(plain);
     if (b.crossings < a.crossings || (b.crossings === a.crossings && (ob < oa || (ob === oa && b.bends < a.bends)))) routes = plain;

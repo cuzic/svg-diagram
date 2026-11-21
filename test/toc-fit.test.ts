@@ -265,13 +265,13 @@ test('causeTree(): a direct arrow into an AND turns beside the other, so its fir
 });
 
 // ADR 0016 D13: the order search is entered by the AND crossings of the figure as first laid out, before the side-by-side runs are moved aside (CRT left, 10 nodes: it was 40px taller without that).
-test('causeTree(): clearing an AND crossing by moving a run aside does not keep the order search from finding a lower figure', () => {
+test('causeTree(): clearing an AND crossing by moving a run aside does not keep the order search from finding a figure with no crossing, no taller and no more bent than the first', () => {
   const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":["n0","n1"],"to":"n2"},{"from":"n0","to":"n3"},{"from":"n2","to":"n4"},{"from":"n2","to":"n5"},{"from":["n1","n3","n4"],"to":"n6"},{"from":"n4","to":"n7"},{"from":"n6","to":"n8"},{"from":"n5","to":"n9"},{"from":["n9","n6","n2"],"to":"n10"}]');
   const band = (): CauseBand => causeTree(Array.from({length: 11}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'crt', dir: 'left'});
   const t = place(band(), 1800), once = layoutCauseBandOnce(band(), 0, 0, 1800, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false});
-  // the search found the order that crosses nothing. Before ADR 0070 U4b that figure was 217px high with 30 bends (the first, 257.5px);
-  // with the gap's turns in the order of the vertical constraints, an order of the same height as the first crosses nothing with 26
-  // bends, and (crossings, bends) decides: no lower and no taller than the first
+  // This test used to ask for a LOWER figure (t.h < 230: main finds 217px, 30 bends, the first being 257.5px). With the gap's turns in the order of
+  // the vertical constraints (ADR 0070 U4b) the search finds an order as tall as the first (257.5px) that crosses nothing with 26 bends, and its
+  // (crossings, bends) comparison takes it: the search ignores the height (Issue #397), so the 40px it used to find are not asked for here
   assert.equal(scoreOf(t.edges.map(e => e.points)).crossings, 0);
   assert.ok(scoreOf(once.edges.map(e => e.points)).crossings > 0, 'the written order crosses: the search is entered');
   assert.ok(t.h <= once.h + 0.5 && scoreOf(t.edges.map(e => e.points)).bends <= scoreOf(once.edges.map(e => e.points)).bends, `height ${t.h}`);
@@ -305,8 +305,9 @@ test('causeTree(): the arrows of a current reality tree bend little: the figure 
   const now = place(causeTree(nodes, links, {tree: 'crt'}), 1800);
   const sum = (a: number[]): number => a.reduce((x, y) => x + y, 0);
   assert.ok(sum(bends(now)) <= 20, `${sum(bends(now))} bends: ${bends(now)}`);
-  // no arrow bent more than twice before ADR 0070 U4b (16 bends, 2 crossings); the search now finds an order of 1 crossing (18 bends),
-  // where a3 -> u1 passes u2's layer off the line of its ports (4 bends)
+  // the limit of 2 bends an arrow (before ADR 0070 U4b: 16 bends, 2 crossings) is 4 here, for one arrow: the search now finds an order of 1 crossing
+  // (18 bends), where a3 -> u1 passes u2's layer off the line of its ports (4 bends); every other arrow keeps to 2
+  assert.equal(bends(now).filter(b => b > 2).length, 1, `${bends(now)}`);
   assert.ok(Math.max(...bends(now)) <= 4, `${bends(now)}`);
   assert.ok(scoreOf(now.edges.map(e => e.points)).crossings <= 1);
   assert.equal(now.loose.length, 0);
