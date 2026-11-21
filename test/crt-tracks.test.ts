@@ -117,7 +117,7 @@ test('the review\'s graphs #133 and #320: no more crossings with tracks (the fix
 });
 
 /** The review's graphs where the figure with tracks has bends more and no crossing less (measured with U4c). */
-const GATE_TRADES: number[] = [301, 304, 357, 373];
+const GATE_TRADES: number[] = [301, 304, 373];
 test('the review\'s graphs (400, boxes 40 to 80 high): crossings + pairs on one line never grow; a crossing grows only where a pair on one line went (#35 at most), bends only where crossings went', () => {
   const traded: number[] = [], gateTrades: number[] = [];
   reviewGraphs(400).forEach((l, g) => {

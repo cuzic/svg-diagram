@@ -248,13 +248,15 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   const crowdOf = (): Map<number, number> => {
     if (crowded) return crowded;
     // with tracks, the tracks a gap needs, counted as corridorLoad counts them for the gap's size (ADR 0070 D4, U4c)
-    if (tracks) return crowded = trackLoad(lay, LANE, (i, end) => portOf.get((i * 2 + end)) ?? 0, level);
     const crowd = crowded = new Map<number, number>();
     lay.edges.forEach((e, i) => {
       if (e.self) return;
       const l1 = layerOf(e.from), l2 = layerOf(e.to);
       for (const g of e.outer ? [l1 - 1, l2] : e.points.length === 2 ? (level(i) ? [] : [Math.min(l1, l2)]) : l1 < l2 && groupOf ? [l2 - 1] : []) crowd.set(g, (crowd.get(g) ?? 0) + 1);
     });
+    // ADR 0070 D4 (U4c, `tracks`): the tracks a gap needs (`trackLoad`, as `corridorLoad` counts them for the gap's size), but not more than the arrows that must each have a lane
+    // there (the count above): the lanes' step never gets narrower than it was, which let the long arrows' turns between them (a narrower step crossed more arrows in graphs with no AND)
+    if (tracks) for (const [g, n] of trackLoad(lay, LANE, (i, end) => portOf.get((i * 2 + end)) ?? 0, level)) crowd.set(g, Math.min(n, crowd.get(g) ?? n));
     return crowd;
   };
   const laneIn = (g: number): number => {
