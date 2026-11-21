@@ -151,3 +151,27 @@ test('a figure drawn with the old lines is told so (cause-line-scale-dropped, in
   assert.ok(found.some(f => f.rule === 'edge-parallel'), 'the fallback figure is reported by edge-parallel');
   assert.deepEqual(lintDiagram((await checkDiagram(mk(2000))).laidOut).filter(f => f.rule === 'edge-parallel'), []);
 });
+
+test('canvas の高さ: 広げた線で内容が canvas を超えるが、広げない線なら収まる図は、広げない線で描く (cause-line-scale-dropped)、十分高い canvas なら出ない', async () => {
+  const mk = (height: number) => crtReportShape(undefined, 2600, height);
+  const bandOf = (r: Awaited<ReturnType<typeof checkDiagram>>) => r.laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause;
+  const tryHeight = async (h: number) => { try { return await checkDiagram(mk(h)); } catch { return undefined; } };
+  // 高さは測った値から決める (CI のフォントで px が違う): 広げた図の内容の高さ、広げない図の内容の高さ (これが入る最小の canvas の高さから測る)
+  const roomy = (await tryHeight(100000))!, scaledC = roomy.laidOut.contentHeight!;
+  assert.equal(bandOf(roomy).lineScaleDropped, undefined);
+  let lo = 1, hi = scaledC;
+  while (hi - lo > 4) { const mid = Math.floor((lo + hi) / 2); if (await tryHeight(mid)) hi = mid; else lo = mid; }
+  const oldC = (await tryHeight(hi))!.laidOut.contentHeight!;
+  assert.ok(oldC < scaledC, `old ${oldC} < scaled ${scaledC}`);
+  const between = Math.floor((oldC + scaledC) / 2) + 1;
+  const r = await checkDiagram(mk(between));
+  assert.equal(bandOf(r).lineScaleDropped, true);
+  assert.ok(r.laidOut.contentHeight! <= between);
+  assert.ok(!r.verdict.warnings.some(w => w.includes('slide-canvas-overflow')), r.verdict.warnings.join('\n'));
+  assert.equal(lintDiagram(r.laidOut).filter(f => f.rule === 'cause-line-scale-dropped').length, 1);
+  assert.ok(!lintDiagram(r.laidOut).some(f => f.rule === 'slide-canvas-overflow'));
+  const enough = await checkDiagram(mk(scaledC));
+  assert.equal(bandOf(enough).lineScaleDropped, undefined);
+  assert.deepEqual(lintDiagram(enough.laidOut).filter(f => f.rule === 'cause-line-scale-dropped'), []);
+  assert.ok(!lintDiagram(enough.laidOut).some(f => f.rule === 'slide-canvas-overflow'));
+});
