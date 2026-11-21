@@ -28,6 +28,34 @@ test('lint findings keep their messages, severities and order without capture', 
   ]);
 });
 
+test('arrow contrast locates only arrows of the first failing colour', async t => {
+  t.after(() => { captureSourceLocations(false); closeMeasurer(); });
+
+  async function checkArrows() {
+    const first = connect('a:right', 'b:left', {tone: 'muted'});
+    const sameColour = connect('c:right', 'd:left', {tone: 'muted'});
+    const d = diagram({theme: 'blue', legend: false, tones: {muted: {ink: '#c8c8c8'}, danger: {ink: '#d0d0d0'}}}).add(
+      row([box({id: 'a', title: 'A'}), box({id: 'b', title: 'B'}), box({id: 'c', title: 'C'}), box({id: 'd', title: 'D'}), box({id: 'e', title: 'E'})]),
+      first, connect('b:right', 'c:left', {tone: 'danger'}), sameColour, connect('d:right', 'e:left', {tone: 'danger'}));
+    const {laidOut} = await checkDiagram(d);
+    const hits = lintDiagram(laidOut).filter(f => f.rule === 'a11y-nontext-contrast');
+    return {first, sameColour, hits};
+  }
+
+  // main (bda4684) reports this single finding for the same diagram.
+  const expected = [{rule: 'a11y-nontext-contrast', severity: 'warn', message: '矢印の色 #c8c8c8 のコントラスト比が 1.7:1'}];
+  assert.deepEqual((await checkArrows()).hits, expected);
+
+  captureSourceLocations(true);
+  const {first, sameColour, hits} = await checkArrows();
+  assert.deepEqual(hits.map(({loc, related, ...finding}) => finding), expected);
+  const [hit] = hits;
+  assert.ok(hit?.loc);
+  assert.equal(hit.loc, sourceOf(first));
+  assert.equal(hit.related?.length, 1);
+  assert.equal(hit.related?.[0], sourceOf(sameColour));
+});
+
 test('at and fromSources keep the first distinct source and its related parts', () => {
   const first = new SourceRef(), second = new SourceRef();
   assert.deepEqual(at({}), {});

@@ -510,6 +510,7 @@ function nonTextContrast(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
     const r = wcagRatio(col, PALETTE.bg);
     if (r < 3) {
       firstArrow ??= {col, r};
+      if (col !== firstArrow.col) continue;
       const ref = sourceOf(c);
       if (ref) arrowRefs.push(ref);
     }
