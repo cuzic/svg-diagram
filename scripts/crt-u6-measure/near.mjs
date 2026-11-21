@@ -1,3 +1,4 @@
+// usage: node near.mjs   (reads fx-dump.json in the current directory)   vertical runs close to each other or to a box side
 import fs from 'node:fs';
 const r = JSON.parse(fs.readFileSync('fx-dump.json')).find(x => x.name === 'fix-default'); const N = r.nodes;
 const vs = []; r.P.forEach(e => e.p.slice(1).forEach((q, k) => { const p = e.p[k]; if (p.x === q.x && p.y !== q.y) vs.push({e: e.f + '>' + e.t, x: p.x, lo: Math.min(p.y, q.y), hi: Math.max(p.y, q.y)}); }));

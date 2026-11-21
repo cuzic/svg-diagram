@@ -1,5 +1,7 @@
 import {createRequire} from 'node:module'; const require = createRequire(import.meta.url);
-// usage: node crt6.ts <root> N [scale]  random CRTs with ANDs, through checkDiagram
+// usage: node random-crt.ts <root> N [canvas]   (env U6 = JSON toggles of probe.patch; run.sh calls this)
+// Random CRTs with 1-3 ANDs, 8-19 nodes, 4 directions, through checkDiagram. Fixed seed 4711: the figure #g is the same on every run, so a result can be pinned per figure.
+// Output (JSON): per figure c = crossings, b = bends, pw = run pairs at the figure's lane step (14px; 18px on the canvas), h = height, cc = cause-crossing findings, inAnd = crossings among one AND's arrows, loose, lsd = 1 when the canvas retry dropped the line scale, ms.
 const root = process.argv[2], N = Number(process.argv[3] ?? 120), canvas = process.argv[4] === 'canvas';
 await import(root + '/test/helpers/strict-width.ts');
 const {checkDiagram, closeMeasurer, diagram, causeTree} = await import(root + '/lib/dsl.ts');
@@ -25,7 +27,7 @@ for (let g = 0; g < N; g++) {
     const t = r.laidOut.laidOut.find((b: any) => b.type === 'cause');
     const P = t.edges.map((e: any) => e.points);
     const inAnd = t.ands.map((a: any) => crossingsOf(t.edges.filter((e: any) => e.to === a.to && a.from.includes(e.from)).map((e: any) => e.points))).reduce((s: number, x: number) => s + x, 0);
-    out.push({ms: Math.round(performance.now() - t0), u6c: {...G.__u6c}, lg: G.__u6log.length ? G.__u6log[G.__u6log.length - 1] : null, pw: pairsOf(P, canvas ? 18 : 14), pw14: pairsOf(P, 14), pw18: pairsOf(P, 18), pw23: pairsOf(P, 23), H: require('node:crypto').createHash('md5').update(JSON.stringify(P)).digest('hex').slice(0,10), g, dir, c: crossingsOf(P), b: P.reduce((s: number, p: any) => s + bendsOf(p), 0), par: parallelRuns(P, 14).length, ov: new Set(parallelRuns(P, 4).map((p: any) => p.a + ':' + p.b)).size, h: Math.round(t.h ?? 0), inAnd, loose: t.loose.length, ands: t.ands.length, cc: r.verdict.warnings.filter((w: string) => w.startsWith('[cause-crossing]')).length});
+    out.push({ms: Math.round(performance.now() - t0), u6c: {...G.__u6c}, lg: G.__u6log.length ? G.__u6log[G.__u6log.length - 1] : null, pw: pairsOf(P, canvas ? 18 : 14), pw14: pairsOf(P, 14), pw18: pairsOf(P, 18), pw23: pairsOf(P, 23), H: require('node:crypto').createHash('md5').update(JSON.stringify(P)).digest('hex').slice(0,10), g, dir, c: crossingsOf(P), b: P.reduce((s: number, p: any) => s + bendsOf(p), 0), par: parallelRuns(P, 14).length, ov: new Set(parallelRuns(P, 4).map((p: any) => p.a + ':' + p.b)).size, h: Math.round(t.h ?? 0), inAnd, loose: t.loose.length, lsd: t.lineScaleDropped ? 1 : 0, ands: t.ands.length, cc: r.verdict.warnings.filter((w: string) => w.startsWith('[cause-crossing]')).length});
   } catch (e) { out.push({g, err: String(e).slice(0, 80)}); }
 }
 console.log(JSON.stringify({ms: Math.round(performance.now() - T), out}));

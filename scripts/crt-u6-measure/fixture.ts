@@ -1,4 +1,5 @@
-// node fx2.ts <root> : the U0 fixture (default / asap / compact / no-canvas), the peer's real figure (numbers only), examples toc-*; metrics incl. AND jogs
+// usage: [REPORT_CRT=<the user's own file, never committed>] [DUMP=1] U6='<json>' node fixture.ts <root> > out.json
+// The U0 fixture (default / asap / compact / no-canvas / minText 14, 24), the real report figure when REPORT_CRT is set (it prints ids and numbers only, never labels), examples/toc-*. Metrics incl. AND jogs (jogsAnd: id>id:px). show.mjs prints a result.
 import {createRequire} from 'node:module'; const require_ = createRequire(import.meta.url);
 const root = process.argv[2]!;
 await import(root + '/test/helpers/strict-width.ts');

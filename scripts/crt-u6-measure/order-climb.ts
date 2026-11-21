@@ -1,4 +1,4 @@
-// node order.ts <root> <seed> <evals> : hill-climb over the written order of the fixture's nodes (numbers only). env U6 as usual (e.g. noSearch)
+// usage: U6='<json>' node order-climb.ts <root> <seed> <evals> : hill-climb over the written order of the fixture's nodes (numbers only). env U6 as usual (e.g. noSearch)
 const root = process.argv[2]!, seed0 = Number(process.argv[3]), evals = Number(process.argv[4]);
 await import(root + '/test/helpers/strict-width.ts');
 const {checkDiagram, closeMeasurer, diagram, causeTree} = await import(root + '/lib/dsl.ts');

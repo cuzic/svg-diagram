@@ -1,4 +1,4 @@
-// node ep.ts <root> N : edge-parallel findings (the origin gate lifted with U6={"epAll":1}) on random pdpc / relationDiagram / whyWhyTree, plus the examples that use them
+// usage: U6='{"epAll":1}' node edge-parallel-origins.ts <root> N : edge-parallel findings (the origin gate lifted with U6={"epAll":1}) on random pdpc / relationDiagram / whyWhyTree, plus the examples that use them
 const root = process.argv[2]!, N = Number(process.argv[3] ?? 100);
 await import(root + '/test/helpers/strict-width.ts');
 const {register} = await import('node:module'); register(new URL('file://' + root + '/lib/resolve-hook.ts'));

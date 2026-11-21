@@ -22,7 +22,7 @@ index 27f06e23..7834c84c 100644
  
    // 5. coordinates: layers along one axis, each layer centred on the widest, then relaxed toward the neighbours without overlap
 diff --git a/lib/layered-route.ts b/lib/layered-route.ts
-index cff68d36..ee6bbae4 100644
+index cff68d36..ad5dc1af 100644
 --- a/lib/layered-route.ts
 +++ b/lib/layered-route.ts
 @@ -3,10 +3,11 @@
@@ -102,7 +102,7 @@ index cff68d36..ee6bbae4 100644
 +    const undo = align(i, true);
 +    if (!undo) continue;
 +    const trial = build(), score = rescore(routes, best, trial, crossCache);
-+    if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i) && !gains(trial, score.crossings) && groupCrossings(trial, groupOf) <= groupCrossings(routes, groupOf)) { bump('andTailOK'); routes = trial; best = score; } else undo();
++    if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i) && !(T.tailSep ? (tracks && score.crossings >= best.crossings && gainsRunPairs(routes, trial, laneStepOf(unit), runCache)) : gains(trial, score.crossings)) && groupCrossings(trial, groupOf) <= groupCrossings(routes, groupOf)) { bump('andTailOK'); routes = trial; best = score; } else undo();
    }
    // the arrows that became straight lines no longer take a lane: the others take their lanes again, over the room that is left
    if (spread) {
@@ -241,7 +241,7 @@ index 70cffc70..cda19a9a 100644
      const sep = laneStepOf((d.density === 'compact' && !band.densityRestored ? 0.75 : 1) * (d.canvas ? Math.max(1, canvasFontScale(d.canvas.minText)) : 1));
      const edges = band.edges.filter(e => e.from !== e.to && e.points.length >= 2);
 diff --git a/lib/toc.ts b/lib/toc.ts
-index d49b7155..9dfe9554 100644
+index d49b7155..979abb12 100644
 --- a/lib/toc.ts
 +++ b/lib/toc.ts
 @@ -4,6 +4,8 @@
@@ -264,7 +264,7 @@ index d49b7155..9dfe9554 100644
    // the search is for a figure whose AND arrows cross as first laid out: judged before the side-by-side runs are moved aside (ADR 0016 D12/D13), which also clears crossings
    // a crossing of any two arrows also starts it: the order only wins when it is strictly better in (AND crossings, AND side-by-side, crossings, bends)
    if (band.base !== undefined) return first;
-@@ -124,7 +128,13 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+@@ -124,7 +128,14 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
    // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
    const orders = [ids.toReversed(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
    const axisOf = (t: LaidOutCause): number[] => t.nodes.map(n => band.dir === 'left' || band.dir === 'right' ? n.x : n.y);
@@ -274,12 +274,13 @@ index d49b7155..9dfe9554 100644
 +  const fig = {n: ids.length, tried: 0, exit: '', queued: 0, bestIdx: -1} as any; LOG.push(fig);
 +  const tall = (t: LaidOutCause, sc?: number[], bs?: number[]): boolean => {
 +    if (T.height === 'off' || T.height === 'key') return false;
++    if (T.height === 'xcross') { if (t.h <= base.h + 0.5) return false; const cap = Math.min(base.h * (1 + (T.cap ?? 0.25)), T.capBudget && heightBudget !== undefined ? heightBudget - y : Infinity); if (t.h > cap) return true; if (!sc || !bs) return false; return !(sc[2]! < bs[2]! && lexLess(sc, bs)); }
 +    if (T.height === 'xdrop') { if (t.h <= base.h + 0.5) return false; if (t.h > base.h * (1 + (T.cap ?? 0.25))) return true; if (!sc || !bs) return false; return !lexLess(sc.slice(0, 3), bs.slice(0, 3)); }
 +    return t.h > base.h + (T.height === 'soft' ? 0.1 * base.h : 0.5); };
    // the orders are ranked by how many links cross between the layers before any is laid out: an order whose layers cross more than the best one's is not laid out (ADR 0053).
    // It is a forecast: the routes, the lanes and the AND arcs come only with the whole layout, which still decides
    const declaredBack = prep.arrows.flatMap((a, k) => a.back ? [k] : []), alapOpt = alapOf(band);
-@@ -135,6 +145,13 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+@@ -135,6 +146,13 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
    const baseWidth = base.fitApplied?.find(a => a.what === 'maxNodeW')?.to;
    const sameFit = {width: typeof baseWidth === 'number' ? baseWidth : (band.maxNodeW === undefined || band.maxNodeW === 'auto' ? NARROWING[0] as number : band.maxNodeW), folded: !!base.fitApplied?.some(a => a.what === 'fold')};
    let best = base, bestScore = scoreOfCause(base), bestOrder: string[] | undefined;
@@ -293,7 +294,7 @@ index d49b7155..9dfe9554 100644
    // then more orders when the fixed ones left a crossing: shuffles from a fixed seed (the same figure always gets the same answer), then swaps of two neighbours of the best order so far.
    // `straighten: false` keeps to the fixed ones (it is the way back to the old figure)
    const queue = [...orders], seen = new Set<string>([ids.join('\u0000'), ...orders.map(o => o.join('\u0000'))]);
-@@ -153,30 +170,42 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+@@ -153,30 +171,42 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
        continue;
      }
      // give up when nothing has got better for a while (counted in the orders tried, the ones set aside too: each is a layout): sooner once no AND arrows cross
@@ -344,7 +345,7 @@ index d49b7155..9dfe9554 100644
      if (lexLess(sc, pickScore)) { pick = t; pickScore = sc; }
    }
    return pick;
-@@ -188,7 +217,14 @@ const MAX_ORDERS = 60;
+@@ -188,7 +218,15 @@ const MAX_ORDERS = 60;
  const PATIENCE = 30, PATIENCE_QUIET = 14;
  const crossingsOf_ = (t: LaidOutCause): number => andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length;
  /** (arrows of an AND that cross, arrows of an AND that run side by side, crossings, bends): smaller is better, in this order. */
@@ -352,11 +353,12 @@ index d49b7155..9dfe9554 100644
 +let curSep = 14;
 +const scoreOfCause = (t: LaidOutCause): number[] => { const s = scoreOf(t.edges.map(e => e.points)); const base = [crossingsOf_(t), andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses').length];
 +  const pr = T.sPairs ? pairsAt(t.edges.map(e => e.points), curSep) : 0;
-+  const h = T.height === 'key' ? [Math.round(t.h ?? 0)] : [];
++  const h = T.height === 'key' || T.tieH ? [Math.round(t.h ?? 0)] : [];
 +  if (T.sPairs === 'mid') return [...base, s.crossings, pr, s.bends, ...h];
 +  if (T.sPairs === 'last') return [...base, s.crossings, s.bends, pr, ...h];
 +  return [...base, s.crossings, s.bends, ...h]; };
-+const rankOf = (a: number[]): number[] => { const u = [...new Set(a.map(v => Math.round(v * 2) / 2))].sort((x, y) => x - y); return a.map(v => u.indexOf(Math.round(v * 2) / 2)); };
++const rankEps = (a: number[]): number[] => { const u = [...new Set(a)].sort((x, y) => x - y), r = new Map<number, number>(); let k = -1, prev = -Infinity; for (const v of u) { if (v - prev > 0.5) k++; r.set(v, k); prev = v; } return a.map(v => r.get(v)!); };
++const rankOf = (a: number[]): number[] => { if (T.rankEps) return rankEps(a); const u = [...new Set(a.map(v => Math.round(v * 2) / 2))].sort((x, y) => x - y); return a.map(v => u.indexOf(Math.round(v * 2) / 2)); };
  const lexLess = (a: number[], b: number[]): boolean => { for (let i = 0; i < a.length; i++) { const x = a[i], y = b[i]; if (x !== y) return x !== undefined && y !== undefined && x < y; } return false; };
  
  export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false): LaidOutCause {

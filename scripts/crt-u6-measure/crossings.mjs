@@ -1,3 +1,4 @@
+// usage: DUMP=1 node fixture.ts <root> > fx-dump.json; node crossings.mjs fx-dump.json [figure name]   the crossing points of the figure's routes (ids and coordinates)
 import fs from 'node:fs';
 const r = JSON.parse(fs.readFileSync(process.argv[2])).find(x => x.name === (process.argv[3] ?? 'fix-default'));
 const segs = p => p.slice(1).map((q, k) => [p[k], q]);

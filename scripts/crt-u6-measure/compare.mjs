@@ -1,3 +1,4 @@
+// usage: node compare.mjs <tagA> <tagB>  (in the directory run.sh wrote res/ to): sums per metric, and the figures whose metric went up / down. c crossings, b bends, pw pairs, h height, inAnd AND crossings, cc cause-crossing findings.
 import fs from 'node:fs';
 const D = new URL('.', import.meta.url).pathname; void D;
 const [,, A, B] = process.argv;

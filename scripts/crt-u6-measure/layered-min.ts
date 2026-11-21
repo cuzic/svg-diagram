@@ -1,5 +1,5 @@
 // the layered graph of the fixture (layers taken from the drawn figure): the fewest crossings any per-layer order gives (annealing), vs the drawn order
-const root = process.argv[2]!; // node layered-min.ts <root> (reads fx-dump.json from DUMP=1 fixture.ts, writes force-rows.json)
+const root = process.argv[2]!; // usage: node layered-min.ts <root> (reads fx-dump.json = the output of `DUMP=1 node fixture.ts <root>`; writes force-rows.json; run it in a scratch directory)
 const {CRT_REPORT_LINKS} = await import(root + '/test/fixtures/crt-report-shape.ts');
 import fs from 'node:fs';
 const r = JSON.parse(fs.readFileSync('fx-dump.json', 'utf8')).find((x: any) => x.name === 'fix-default');

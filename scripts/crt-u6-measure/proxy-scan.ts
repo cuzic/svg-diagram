@@ -1,3 +1,4 @@
+// usage: U6='{"proxyScan":3000}' node proxy-scan.ts <root>   the order search's log for the fixture (needs the probe: lib/u6-probe.ts)
 const root = process.argv[2]!;
 await import(root + '/test/helpers/strict-width.ts');
 const {checkDiagram, closeMeasurer} = await import(root + '/lib/dsl.ts');
