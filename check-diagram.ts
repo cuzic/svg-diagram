@@ -53,6 +53,7 @@ import type {WorkerResult} from './drift-pool.ts';
 import type {FindingData, Issue} from './lib/types/verdicts.ts';
 import type {MapRow} from './lib/docs-check.ts';
 import type {SourceLoc} from './lib/source-location.ts';
+import {findingLocation, layoutFinding} from './lib/layout-issues.ts';
 import {installResolveHook} from './lib/resolve-hook.ts';
 import {installStackCapture, locateError, locateSource} from './lib/source-location-io.ts';
 import {captureSourceLocations} from './lib/source-capture.ts';
@@ -171,10 +172,6 @@ type CheckFinding = {
   /** What was measured against which threshold, and how to fix it (JSON only). */
   data?: FindingData;
 };
-function findingLocation(file: string, {loc, via}: ReturnType<typeof locateError>): Pick<CheckFinding, 'line' | 'column' | 'location' | 'via'> {
-  const at = loc && (loc.file === file ? {line: loc.line, column: loc.column} : {location: loc});
-  return {...at, ...(via.length ? {via: via.map(({line, column}) => ({line, column}))} : {})};
-}
 const findings: CheckFinding[] = [];
 let bad = 0, warned = 0;
 // a source that does not load is one finding, however many times it is reached (named as an argument and behind a figure): counted once
@@ -439,14 +436,10 @@ try {
     if (!verdict.ok) {
       const issues: Issue[] = verdict.issues ?? verdict.problems.map(message => ({message}));
       const lines = issues.map(issue => {
-        const at = locateSource(issue.loc, src);
-        const related = issue.related?.flatMap(ref => {
-          const {loc} = locateSource(ref, src);
-          return loc ? [loc] : [];
-        });
-        add({file: src, rule: 'layout', severity: 'error', message: issue.message, ...findingLocation(src, at), ...(related?.length ? {related} : {})});
-        const loc = at.loc;
-        return loc ? `${loc.file}:${loc.line}:${loc.column}: ${issue.message}` : issue.message;
+        const f: CheckFinding = layoutFinding(src, issue, ref => locateSource(ref, src));
+        add(f);
+        const {file, line, column} = f.location ?? f;
+        return line === undefined ? issue.message : `${file}:${line}:${column}: ${issue.message}`;
       });
       complain(`✗ ${src}:\n  ${lines.join('\n  ')}`);
       return;

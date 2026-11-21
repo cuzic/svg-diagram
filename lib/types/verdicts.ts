@@ -53,6 +53,8 @@ export interface SlideBudget {
 /** build() result. */
 export interface BuildResult {
   outPath: string;
+  /** The layout used to write the SVG. Non-enumerable. */
+  readonly laidOut: LaidOutDiagram;
   /** The .html written beside the SVG (build(..., {html: true})). */
   htmlPath?: string;
   revealPaths: string[];

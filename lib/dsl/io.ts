@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import {execFileSync} from 'child_process';
+import {assertBuildOutput} from '../build-verdict.ts';
 import {readDataImage} from '../image-sniff.ts';
 import {located} from '../located.ts';
 import {texToSvg} from '../math-tex.ts';
@@ -88,14 +89,7 @@ export async function build(d: Diagram, outPath: string, opts: {lint?: boolean; 
 }
 async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Promise<BuildResult> {
   const {verdict} = r;
-  if (!verdict.ok) {
-    const err = new Error(`build(${outPath}): layout verification failed before any SVG was written:\n  ${verdict.problems.join('\n  ')}`);
-    const issues = verdict.issues ?? verdict.problems.map(message => ({message}));
-    Object.defineProperty(err, 'issues', {value: issues, enumerable: false});
-    Object.defineProperty(err, 'laidOut', {value: r.laidOut, enumerable: false});
-    throw err;
-  }
-  if (r.xml.length) throw new Error(`build(${outPath}): the emitted SVG is not well-formed XML (an <img> would fail to load it):\n  ${r.xml.join('\n  ')}`);
+  assertBuildOutput(r, outPath);
   fs.mkdirSync(path.dirname(outPath), {recursive: true});
   fs.writeFileSync(outPath, r.svg);
   let htmlPath: string | undefined;
@@ -126,7 +120,8 @@ async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Pro
     const out = (e.stdout || '') + (e.stderr || '');
     throw new Error(`build(${outPath}) produced an SVG that fails lint-svg.ts --strict:\n${out}`);
   }
-  return {outPath, ...(htmlPath ? {htmlPath} : {}), revealPaths, width: r.width, height: r.height, fit: r.fit, budget: r.budget, fontScale: r.fontScale, warnings: verdict.warnings, findings: verdict.findings};
+  const result: Omit<BuildResult, 'laidOut'> = {outPath, ...(htmlPath ? {htmlPath} : {}), revealPaths, width: r.width, height: r.height, fit: r.fit, budget: r.budget, fontScale: r.fontScale, warnings: verdict.warnings, findings: verdict.findings};
+  return Object.defineProperty(result, 'laidOut', {value: r.laidOut}) as BuildResult;
 }
 
 // A TeX formula, drawn as outlines (MathJax): math(String.raw`\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}`). Use String.raw so the
