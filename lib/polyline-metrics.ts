@@ -93,7 +93,8 @@ export function crossingsOfRuns(a: Runs, b: Runs, o: CrossOpts = {}): number {
 
 /** The crossings of one polyline with each of the others (the same count as `crossingsOf`, for a figure in which only this one changed). Only its own pairs are compared: the others are not counted against each other. */
 export function crossingsWith(path: P[], others: readonly P[][], o: CrossOpts = {}, cache?: WeakMap<P[], Runs>): number {
-  const runsIn = (r: P[]): Runs => { let x = cache?.get(r); if (!x) { x = runsOfPath(r, o); cache?.set(r, x); } return x; }; // `cache`: the runs of a route by its array, the caller's (the others are the same routes try after try)
+  const useCache = cache !== undefined && o.tol === undefined && o.margin === undefined; // the cache holds the runs for the default options only
+  const runsIn = (r: P[]): Runs => { let x = useCache ? cache?.get(r) : undefined; if (!x) { x = runsOfPath(r, o); if (useCache) cache?.set(r, x); } return x; }; // `cache`: the runs of a route by its array, the caller's (the others are the same routes try after try)
   const mine = runsIn(path);
   let n = 0;
   for (const other of others) n += crossingsOfRuns(mine, runsIn(other), o);

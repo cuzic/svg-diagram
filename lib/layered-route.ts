@@ -440,7 +440,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   };
   const lastInit = new Map<number, {pts: Pt[]; turns: (number | undefined)[]; route: Pt[]; sg: {x0: number; x1: number; h: number}}>(); // each pending arrow's route as it was made at the start of the last placing
   const crossCache = new WeakMap<Pt[], Runs>(); // the runs of the routes by their arrays, for the crossings of one route against the others (the same routes try after try)
-  const stageMemo = new Map<string, {raw: (number | undefined)[]; touched: number[]}>(); // a gap's turns after one stage, by everything the stage reads (a gap with the same inputs is placed the same: the figure is routed again for every trial)
+  const stageMemo = new Map<string, {raw: (number | undefined)[]; touched: number[]; input: Float64Array}>(); // a gap's turns after one stage, by everything the stage reads (a gap with the same inputs is placed the same: the figure is routed again for every trial)
   const trackMemo = new Map<string, number[] | null>(); // a cluster's place, by everything it was chosen from (build() runs again and again)
   /**
    * ADR 0070 D4 (`tracks`): the turns of each gap get tracks, in two passes over the same placing.
@@ -544,21 +544,23 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       for (const a of list) { x0 = Math.min(x0, a.p.x, a.q.x); x1 = Math.max(x1, a.p.x, a.q.x); }
       const stamp = ++stamps;
       for (const a of list) a.own.mark = stamp; // its arrows: the routes of them in the key are told apart from the others'
-      // the key is two 32-bit hashes of the doubles' bits, one each side of a pair (a collision would play back another gap's answer: 2^-64 for any two)
+      // the key is two 32-bit hashes of the doubles' bits; a hit is checked against the numbers themselves (`input`), so a collision plays back nothing
       let h1 = 2166136261, h2 = 5381;
-      const num = (v: number): void => { f64[0] = v; const lo = u32[0] as number, hi = u32[1] as number; h1 = Math.imul(h1 ^ lo, 16777619); h1 = Math.imul(h1 ^ hi, 16777619); h2 = Math.imul(h2 ^ lo, 33) + hi | 0; };
+      const input: number[] = [];
+      const num = (v: number): void => { input.push(v); f64[0] = v; const lo = u32[0] as number, hi = u32[1] as number; h1 = Math.imul(h1 ^ lo, 16777619); h1 = Math.imul(h1 ^ hi, 16777619); h2 = Math.imul(h2 ^ lo, 33) + hi | 0; };
       num(name === 'a' ? 1 : 2); num(g); num(laneIn(g)); num(list.length);
       for (const a of list) { num(a.p.x); num(a.p.y); num(a.q.x); num(a.q.y); num(a.lo); num(a.hi); num(a.min); num(a.max); num(a.home ?? NaN); num(a.cur()); }
       num(runs.length);
       for (const r of runs) { num(r.x); num(r.lo); num(r.hi); }
       for (let k = 0; k < routeAt.length; k++) if ((ext1[k] as number) >= x0 - 1 && (ext0[k] as number) <= x1 + 1) { const o = at(routeAt, k); num(extH[k] as number); num(typeof o !== 'number' && o.mark === stamp ? 1 : 0); }
       const key = `${h1}:${h2}`;
-      const hit = stageMemo.get(key);
+      let hit = stageMemo.get(key);
+      if (hit && !(hit.input.length === input.length && hit.input.every((v, k) => Object.is(v, input[k])))) hit = undefined; // a collision: placed afresh (and kept in its place)
       if (hit) { list.forEach((a, k) => a.set(hit.raw[k])); for (const k of hit.touched) refresh(at(list, k).own); return; }
       const outer = touchedNow;
       touchedNow = new Set();
       body();
-      stageMemo.set(key, {raw: list.map(a => a.raw()), touched: list.flatMap((a, k) => touchedNow?.has(a.own) ? [k] : [])});
+      if (!stageMemo.has(key)) stageMemo.set(key, {raw: list.map(a => a.raw()), touched: list.flatMap((a, k) => touchedNow?.has(a.own) ? [k] : []), input: Float64Array.from(input)});
       touchedNow = outer;
     };
     /** The clusters of a gap's turns: those whose spans (a lane step longer at both ends) overlap, directly or through others. */
@@ -959,8 +961,9 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       for (const set of tries) {
         set();
         const trial = build(), s = rescore(routes, best, trial, crossCache), t = beside(trial, i);
-        // (with tracks) the arrows into the heads of ANDs do not cross each other more than they did: a move that trades a crossing there for another is no gain (an AND's arc reads wrongly over crossing arrows, ADR 0015)
-        if (t.head < now.head && t.all <= now.all && s.crossings <= best.crossings && s.bends <= best.bends && inside(must(trial.get(i))) && !pierces(must(trial.get(i)), i) && !gains(trial, s.crossings) && (!tracks || groupCrossings(trial, groupOf) <= groupCrossings(routes, groupOf))) { routes = trial; best = s; break; }
+        // (with tracks) a move that gets two arrows off one line (under 4px: `beside`) may leave a pair of runs under a lane step, which that line was one of: an overlap reads worse (PR #398 #93).
+        // The arrows into the heads of ANDs do not cross each other more than they did: a move that trades a crossing there for another is no gain (an AND's arc reads wrongly over crossing arrows, ADR 0015)
+        if (t.head < now.head && t.all <= now.all && s.crossings <= best.crossings && s.bends <= best.bends && inside(must(trial.get(i))) && !pierces(must(trial.get(i)), i) && (!gains(trial, s.crossings) || t.all < now.all) && (!tracks || groupCrossings(trial, groupOf) <= groupCrossings(routes, groupOf))) { routes = trial; best = s; break; }
         shiftOf.delete(i); turnAt.delete(i);
       }
     }

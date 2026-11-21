@@ -12,7 +12,7 @@ import {crossingsOf, gainsRunPairs, parallelRuns, runPairWays, runsOfRoute, scor
 import type {RoutedRuns} from '../lib/polyline-metrics.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import type {Pt} from '../lib/graph-layout.ts';
-import {checkDiagram, closeMeasurer} from '../lib/dsl.ts';
+import {causeTree, checkDiagram, closeMeasurer, diagram} from '../lib/dsl.ts';
 import {loadDiagram} from '../lib/load-source.ts';
 import {loadConfig} from '../lib/config.ts';
 import type {LaidOutCause} from '../lib/types/diagrams.ts';
@@ -114,6 +114,17 @@ test('a figure where a long arrow takes the way around a box (detour): the route
   }
 });
 
+test('the detour on the arrow\'s tracks (`snapToTracks`): a detour that would leave a pair of runs is taken with its runs across the gaps on the arrow\'s tracks, for fewer bends and pairs', () => {
+  // measured with the runs across the gaps as found (no snapping): seed 54 gives 20 bends and 9 pairs, seed 52 gives 34 bends and 20 pairs
+  const want: [number, number, number][] = [[54, 18, 8], [52, 30, 18]];
+  for (const [seed, bends, pairs] of want) {
+    const {boxes, es} = randomGraph(seed);
+    const lay = layoutWithLanes(boxes, es, {dir: 'right', gap: 24, levelGap: 60, coord: 'bk', transpose: true} as never);
+    const r = [...routeLayered(lay, p => p, 22, undefined, undefined, true, false, false, true, true, 1, false, {}, true).values()];
+    assert.ok(scoreOf(r).bends <= bends && parallelRuns(r, LANE).length <= pairs, `seed ${seed}: ${scoreOf(r).bends} bends, ${parallelRuns(r, LANE).length} pairs`);
+  }
+});
+
 test('random figures with the detour: no crossing more than without it, and fewer figures where it leaves more pairs of runs under a lane step (28 of 250 in origin/main)', () => {
   let n = 0, added = 0;
   for (let seed = 1; seed <= 400; seed++) {
@@ -166,6 +177,39 @@ test("the reported CRT's shape at layer: 'asap' (reported, not required): no run
   // can (the order search, U6).
   assert.equal(cc, 2);
 });
+
+
+// ---- real CRTs the review found (PR #398): the same figures as origin/main, no two arrows on one line ----------------------------------------------
+
+/** The random CRT of the review's generator (8 to 19 boxes, ANDs, one of 4 directions), by its number. */
+const randomCrt = (want: number) => {
+  let seed = 4711;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  for (let g = 0; ; g++) {
+    const n = 8 + Math.floor(rnd() * 12);
+    const nodes = Array.from({length: n}, (_, k) => ({id: `n${k}`, label: `n${k} ` + 'あ'.repeat(3 + Math.floor(rnd() * 10))}));
+    const links: ({from: string | string[]; to: string})[] = [], seen = new Set<string>();
+    for (let k = 1; k < n; k++) { const f = Math.floor(rnd() * k); links.push({from: `n${f}`, to: `n${k}`}); seen.add(f + ':' + k); }
+    const extra = Math.floor(n * (0.3 + rnd() * 0.6));
+    for (let m = 0; m < extra; m++) { const a = Math.floor(rnd() * n), b = Math.floor(rnd() * n); if (a >= b || seen.has(a + ':' + b)) continue; seen.add(a + ':' + b); links.push({from: `n${a}`, to: `n${b}`}); }
+    const nand = 1 + Math.floor(rnd() * 3);
+    for (let q = 0; q < nand; q++) { const b = 3 + Math.floor(rnd() * (n - 3)), a1 = Math.floor(rnd() * b), a2 = Math.floor(rnd() * b); if (a1 !== a2 && !seen.has(a1 + ':' + b) && !seen.has(a2 + ':' + b)) { seen.add(a1 + ':' + b); seen.add(a2 + ':' + b); links.push({from: [`n${a1}`, `n${a2}`], to: `n${b}`}); } }
+    const dir = (['up', 'left', 'down', 'right'] as const)[Math.floor(rnd() * 4)]!;
+    if (g === want) return {nodes, links, dir};
+  }
+};
+
+// origin/main drew #7 (down) with 1 crossing, #33 (left) with 7, #93 (down) with no two arrows on one line (under 4px). With the gaps sized by `trackLoad` the order
+// search's "same layers" check dropped the better orders (#7: 5 crossings, #33: 16), and a move that got two arrows off one line was kept out by the pairs gate (#93)
+for (const [g, crossings] of [[7, 1], [33, 7], [93, 0]] as const) {
+  test(`the review's random CRT #${g}: at most ${crossings} crossings as origin/main, no two arrows on one line`, async () => {
+    const {nodes, links, dir} = randomCrt(g);
+    const {t} = await causeOf(diagram({theme: 'blue', width: 1800}).add(causeTree(nodes, links as never, {tree: 'crt', dir})));
+    const routes = t.edges.map(e => e.points);
+    assert.ok(crossingsOf(routes) <= crossings, `${crossingsOf(routes)} crossings`);
+    assert.deepEqual(parallelRuns(routes, 4), []);
+  });
+}
 
 // ---- the examples: edge-parallel in examples/toc-* ----------------------------------------------------------------------------------------------------
 
