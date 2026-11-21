@@ -261,6 +261,45 @@ export default () => { const d = diagram({theme: 'blue', title: 't'}); d.add(wir
 // ---- bin/svg-diagram ----------------------------------------------------------------------------------
 const bin = (cwd: string, ...args: string[]) => spawnSync('bash', [BIN, ...args], {cwd, encoding: 'utf8'});
 
+for (const layout of ['source', 'dist']) {
+  test(`bin/svg-diagram (${layout}): requires Node 22.18`, t => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-node-floor-'));
+    t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+    const binDir = path.join(root, 'bin');
+    fs.mkdirSync(binDir);
+    const launcher = path.join(binDir, 'svg-diagram');
+    fs.copyFileSync(BIN, launcher);
+    if (layout === 'dist') {
+      fs.mkdirSync(path.join(root, 'dist'));
+      fs.writeFileSync(path.join(root, 'dist', 'build-diagram.js'), '');
+    }
+
+    const run = (minor: number) => {
+      fs.writeFileSync(path.join(binDir, 'node'), `#!/bin/sh
+case "$1" in
+  -p) echo '22 ${minor}' ;;
+  -v) echo 'v22.${minor}.0' ;;
+  *) printf '%s\\n' "$@" ;;
+esac
+`, {mode: 0o755});
+      return spawnSync('bash', [launcher, 'check', '--strict', 'src/flow.ts'], {
+        cwd: root, encoding: 'utf8', env: {...process.env, PATH: `${binDir}${path.delimiter}${process.env['PATH']}`},
+      });
+    };
+
+    const old = run(17);
+    assert.equal(old.status, 2, out(old));
+    assert.equal(old.stdout, '');
+    assert.equal(old.stderr, 'svg-diagram: Node 22.18 以上が要る(今は v22.17.0)\n');
+
+    const supported = run(18);
+    assert.equal(supported.status, 0, out(supported));
+    assert.equal(supported.stderr, '');
+    const script = layout === 'dist' ? 'dist/check-diagram.js' : 'check-diagram.ts';
+    assert.equal(supported.stdout, `${path.join(root, script)}\n--strict\nsrc/flow.ts\n`);
+  });
+}
+
 test('bin/svg-diagram: no arguments or an unknown command prints the usage and exits 2', () => {
   for (const args of [[], ['frobnicate']]) {
     const r = bin(proj, ...args);
