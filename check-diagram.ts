@@ -52,8 +52,11 @@ import type {DriftCache} from './drift-cache-io.ts';
 import type {WorkerResult} from './drift-pool.ts';
 import type {FindingData} from './lib/types/verdicts.ts';
 import type {MapRow} from './lib/docs-check.ts';
+import type {SourceLoc} from './lib/source-location.ts';
 import {installResolveHook} from './lib/resolve-hook.ts';
+import {installStackCapture, locateError} from './lib/source-location-io.ts';
 installResolveHook();
+installStackCapture();
 const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.ts');
 const {depsSha256} = await import('./lib/source-deps.ts');
 const {RULE_DOCS, acceptHint} = await import('./lib/rules.ts');
@@ -159,7 +162,12 @@ if (changedArg) {
   sources.splice(0, sources.length, ...selected);
   if (!sources.length && !docsDir) { if (format === 'json') console.log(JSON.stringify({errors: 0, warnings: 0, findings: []}, null, 2)); if (format === 'sarif') console.log(JSON.stringify({version: '2.1.0', runs: [{tool: {driver: {name: 'svg-diagram check'}}, results: []}]})); process.exit(0); }
 }
-type CheckFinding = {file: string; line?: number; rule: string; severity: 'error' | 'warn' | 'info'; message: string; /* --format json only: what was measured against which threshold, and how to fix it */ data?: FindingData};
+type CheckFinding = {
+  file: string; line?: number; column?: number; location?: SourceLoc; via?: Omit<SourceLoc, 'file'>[];
+  rule: string; severity: 'error' | 'warn' | 'info'; message: string;
+  /** What was measured against which threshold, and how to fix it (JSON only). */
+  data?: FindingData;
+};
 const findings: CheckFinding[] = [];
 let bad = 0, warned = 0;
 // a source that does not load is one finding, however many times it is reached (named as an argument and behind a figure): counted once
@@ -168,8 +176,13 @@ const reportBuildError = (file: string, err: unknown) => {
   const key = path.resolve(file);
   if (failedSources.has(key)) return;
   failedSources.add(key);
-  add({file, rule: 'build-error', severity: 'error', message: errorMessage(err)});
-  complain(formatBuildError(file, err));
+  const {loc, via} = locateError(err, file);
+  const at = loc && (loc.file === file ? {line: loc.line, column: loc.column} : {location: loc});
+  add({
+    file, rule: 'build-error', severity: 'error', message: errorMessage(err), ...at,
+    ...(via.length ? {via: via.map(({line, column}) => ({line, column}))} : {}),
+  });
+  complain(formatBuildError(loc ?? file, err));
 };
 // --baseline: warnings recorded in the baseline file become info (errors never do), so --strict fails only on new ones
 const fingerprint = (f: {file: string; rule: string; message: string}) => `${f.file}\u0000${f.rule}\u0000${f.message}`;
@@ -181,9 +194,19 @@ if (baselineFile) {
   try { for (const e of JSON.parse(fs.readFileSync(baselineFile, 'utf8')).warnings as {file: string; rule: string; message: string}[]) baselined.add(fingerprint(e)); }
   catch { console.error(`--baseline: ${baselineFile} を読めない（--write-baseline で作ったJSONではない）`); process.exit(2); }
 }
-const applyBaseline = <T extends {rule: string; severity: string; message: string}>(file: string, f: T): T =>
-  f.severity === 'warn' && baselined.has(fingerprint({file, rule: f.rule, message: f.message})) ? {...f, severity: 'info', message: `${f.message}（ベースライン済み）`} : f;
-const add = (f0: CheckFinding) => { const f = applyBaseline(f0.file, f0); findings.push(f); if (f.severity === 'error') bad++; else if (f.severity === 'warn') warned++; };
+const baselineFingerprints = new WeakMap<CheckFinding, string>();
+const add = (f: CheckFinding): CheckFinding => {
+  if (f.severity === 'warn') {
+    const id = fingerprint(f);
+    if (baselined.has(id)) {
+      f = {...f, severity: 'info', message: `${f.message}（ベースライン済み）`};
+      baselineFingerprints.set(f, id);
+    }
+  }
+  findings.push(f);
+  if (f.severity === 'error') bad++; else if (f.severity === 'warn') warned++;
+  return f;
+};
 
 function walkMd(dir: string, out: string[] = []): string[] {
   for (const e of fs.readdirSync(dir, {withFileTypes: true})) {
@@ -410,8 +433,9 @@ try {
     const {verdict} = await checkDiagram(d);
     if (!verdict.ok) { for (const p of verdict.problems) add({file: src, rule: 'layout', severity: 'error', message: p}); complain(`✗ ${src}:\n  ${verdict.problems.join('\n  ')}`); return; }
     // --forbid-draft (a publishing job): a figure still marked as a draft is a warning (an accepted one stays info)
-    const shown = verdict.findings.map(f => forbidDraft && f.rule === 'draft-status' && !f.message.includes('（許容:') ? {...f, severity: 'warn' as const, message: `${f.message}（--forbid-draft）`} : f).map(f => applyBaseline(src, f));
-    for (const f of shown) add({file: src, rule: f.rule, severity: f.severity, message: f.message, ...(f.data ? {data: f.data} : {})});
+    const shown = verdict.findings
+      .map(f => forbidDraft && f.rule === 'draft-status' && !f.message.includes('（許容:') ? {...f, severity: 'warn' as const, message: `${f.message}（--forbid-draft）`} : f)
+      .map(f => add({file: src, rule: f.rule, severity: f.severity, message: f.message, ...(f.data ? {data: f.data} : {})}));
     const w = shown.filter(f => f.severity === 'warn').length;
     say(`${w ? '△' : '✓'} ${src}${w ? `（警告 ${w}）` : ''}`);
     for (const f of shown.filter(f => verbose || f.severity === 'warn')) say(`   ${f.severity === 'warn' ? '⚠' : 'ℹ'} [${f.rule}] ${f.message}${f.severity === 'warn' && acceptHint(f.rule) ? `\n       → ${acceptHint(f.rule)}` : ''}`);
@@ -458,10 +482,17 @@ if (format === 'sarif') {
     $schema: 'https://json.schemastore.org/sarif-2.1.0.json', version: '2.1.0',
     runs: [{
       tool: {driver: {name: 'svg-diagram check', rules: ruleIds.map(id => ({id, shortDescription: {text: docs[id] ?? id}}))}},
-      results: findings.map(f => ({
-        ruleId: f.rule, level: f.severity === 'error' ? 'error' : f.severity === 'warn' ? 'warning' : 'note', message: {text: f.message},
-        locations: [{physicalLocation: {artifactLocation: {uri: f.file.split(path.sep).join('/')}, ...(f.line ? {region: {startLine: f.line}} : {})}}],
-      })),
+      results: findings.map(f => {
+        const {file, line, column} = f.location ?? f;
+        return {
+          ruleId: f.rule, level: f.severity === 'error' ? 'error' : f.severity === 'warn' ? 'warning' : 'note', message: {text: f.message},
+          locations: [{physicalLocation: {
+            artifactLocation: {uri: file.split(path.sep).join('/')},
+            ...(line ? {region: {startLine: line, ...(column ? {startColumn: column} : {})}} : {}),
+          }}],
+          partialFingerprints: {'svg-diagram/v1': baselineFingerprints.get(f) ?? fingerprint(f)},
+        };
+      }),
     }],
   }, null, 2));
 }
@@ -469,7 +500,8 @@ if (format === 'json') console.log(JSON.stringify({errors: bad, warnings: warned
 if (format === 'github') {
   for (const f of findings.filter(f => f.severity !== 'info')) {
     const lvl = f.severity === 'error' ? 'error' : 'warning';
-    console.log(`::${lvl} file=${f.file}${f.line ? `,line=${f.line}` : ''},title=${f.rule}::${f.message.replace(/\n/g, ' ')}`);
+    const {file, line, column} = f.location ?? f;
+    console.log(`::${lvl} file=${file}${line ? `,line=${line}` : ''}${column ? `,col=${column}` : ''},title=${f.rule}::${f.message.replace(/\n/g, ' ')}`);
   }
 }
 if (verbose && !drift && format === 'text') console.log('\nルール:\n' + Object.entries(RULE_DOCS).map(([k, v]) => `  ${k}: ${v}`).join('\n'));

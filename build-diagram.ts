@@ -28,9 +28,11 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {installResolveHook} from './lib/resolve-hook.ts';
 import {must} from './lib/must.ts';
+import {installStackCapture, locateError} from './lib/source-location-io.ts';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 installResolveHook();
+installStackCapture();
 const {build, closeMeasurer} = await import('./lib/dsl.ts');
 const {loadConfig, svgDirOf} = await import('./lib/config.ts');
 const {MIN_FONT_SIZE} = await import('./lib/tokens.ts');
@@ -107,8 +109,8 @@ try {
     const abs = path.resolve(modPath);
     const outPath = outOverride ?? path.join(outDir ?? svgDirOf(config), path.parse(modPath).name + '.svg');
     // ADR 0013: a failed build never touches the old SVG, but says so when that file is this source's own output (it is now out of date)
-    const failedBuild = (message: unknown) => {
-      console.error(formatBuildError(modPath, message));
+    const failedBuild = (err: unknown) => {
+      console.error(formatBuildError(locateError(err, modPath).loc ?? modPath, err));
       if (ownsOutput(outPath, abs)) console.error(`  ⚠ 前回の ${outPath} が残っている(ソースと一致しない古い絵)`);
       failed = true;
     };
