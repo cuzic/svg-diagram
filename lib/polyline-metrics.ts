@@ -65,24 +65,33 @@ export function crossingsOf(paths: P[][], o: CrossOpts = {}): number {
   return n;
 }
 
+/** A polyline's level and plumb runs, as `crossingsWith` reads them (worked out once for a polyline that is compared with many). */
+export interface Runs {h: {at: number; lo: number; hi: number}[]; v: {at: number; lo: number; hi: number}[]}
+
+export function runsOfPath(p: P[], o: CrossOpts = {}): Runs {
+  const tol = o.tol ?? 0;
+  const h: Runs['h'] = [], v: Runs['v'] = [];
+  for (let i = 1; i < p.length; i++) {
+    const a = p[i - 1], b = p[i];
+    if (!a || !b) continue;
+    if (a.y === b.y || Math.abs(a.y - b.y) < tol) h.push({at: a.y, lo: Math.min(a.x, b.x), hi: Math.max(a.x, b.x)});
+    if (a.x === b.x || Math.abs(a.x - b.x) < tol) v.push({at: a.x, lo: Math.min(a.y, b.y), hi: Math.max(a.y, b.y)});
+  }
+  return {h, v};
+}
+
+/** The crossings of two polylines from their runs (what `crossingsWith(a, [b])` counts). */
+export function crossingsOfRuns(a: Runs, b: Runs, o: CrossOpts = {}): number {
+  const m = o.margin ?? 0;
+  const cross = (h: Runs['h'], v: Runs['v']): number => { let n = 0; for (const x of h) for (const y of v) if (y.at > x.lo + m && y.at < x.hi - m && x.at > y.lo + m && x.at < y.hi - m) n++; return n; };
+  return cross(a.h, b.v) + cross(b.h, a.v);
+}
+
 /** The crossings of one polyline with each of the others (the same count as `crossingsOf`, for a figure in which only this one changed). Only its own pairs are compared: the others are not counted against each other. */
 export function crossingsWith(path: P[], others: readonly P[][], o: CrossOpts = {}): number {
-  const m = o.margin ?? 0, tol = o.tol ?? 0;
-  type R = {at: number; lo: number; hi: number};
-  const runsOf = (p: P[]): {h: R[]; v: R[]} => {
-    const h: R[] = [], v: R[] = [];
-    for (let i = 1; i < p.length; i++) {
-      const a = p[i - 1], b = p[i];
-      if (!a || !b) continue;
-      if (a.y === b.y || Math.abs(a.y - b.y) < tol) h.push({at: a.y, lo: Math.min(a.x, b.x), hi: Math.max(a.x, b.x)});
-      if (a.x === b.x || Math.abs(a.x - b.x) < tol) v.push({at: a.x, lo: Math.min(a.y, b.y), hi: Math.max(a.y, b.y)});
-    }
-    return {h, v};
-  };
-  const cross = (h: R[], v: R[]): number => { let n = 0; for (const a of h) for (const b of v) if (b.at > a.lo + m && b.at < a.hi - m && a.at > b.lo + m && a.at < b.hi - m) n++; return n; };
-  const mine = runsOf(path);
+  const mine = runsOfPath(path, o);
   let n = 0;
-  for (const other of others) { const r = runsOf(other); n += cross(mine.h, r.v) + cross(r.h, mine.v); }
+  for (const other of others) n += crossingsOfRuns(mine, runsOfPath(other, o), o);
   return n;
 }
 

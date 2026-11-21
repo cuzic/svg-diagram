@@ -64,13 +64,15 @@ export function searchRoute(start: P, end: P, boxes: readonly Rect[], others: re
   // the grid lines lie on the sides of every box widened by the margin, so a step between two neighbouring points is wholly inside a widened box or wholly outside it: a point
   // and a step are blocked when the point / the middle of the step is inside one (worked out once: the search asks for them again and again)
   const nx = X.length, ny = Y.length;
-  const inBox = (x: number, y: number): boolean => boxes.some(b => x > b.x - m + 0.01 && x < b.x + b.w + m - 0.01 && y > b.y - m + 0.01 && y < b.y + b.h + m - 0.01);
+  // each widened box blocks the points and the steps (their middles) that lie inside it: the grid lines it covers are found once per box (not asked of every box at every point)
+  const inside = (vals: readonly number[], lo: number, hi: number): [number, number] => { let a = 0; while (a < vals.length && !(must(vals[a]) > lo)) a++; let b = a; while (b < vals.length && must(vals[b]) < hi) b++; return [a, b]; }; // vals ascending: the indexes a..b-1 have lo < v < hi
+  const midX = X.slice(1).map((x, i) => (must(X[i]) + x) / 2), midY = Y.slice(1).map((y, j) => (must(Y[j]) + y) / 2);
   const blockedPt = new Uint8Array(nx * ny), blockedRight = new Uint8Array(nx * ny), blockedDown = new Uint8Array(nx * ny);
-  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-    const xv = must(X[i]), yv = must(Y[j]); // i < nx, j < ny
-    blockedPt[j * nx + i] = inBox(xv, yv) ? 1 : 0;
-    if (i + 1 < nx) blockedRight[j * nx + i] = inBox((xv + must(X[i + 1])) / 2, yv) ? 1 : 0;
-    if (j + 1 < ny) blockedDown[j * nx + i] = inBox(xv, (yv + must(Y[j + 1])) / 2) ? 1 : 0;
+  for (const b of boxes) {
+    const xl = b.x - m + 0.01, xr = b.x + b.w + m - 0.01, yl = b.y - m + 0.01, yr = b.y + b.h + m - 0.01;
+    const [px0, px1] = inside(X, xl, xr), [mx0, mx1] = inside(midX, xl, xr), [py0, py1] = inside(Y, yl, yr), [my0, my1] = inside(midY, yl, yr);
+    for (let j = py0; j < py1; j++) { for (let i = px0; i < px1; i++) blockedPt[j * nx + i] = 1; for (let i = mx0; i < mx1; i++) blockedRight[j * nx + i] = 1; }
+    for (let j = my0; j < my1; j++) for (let i = px0; i < px1; i++) blockedDown[j * nx + i] = 1;
   }
   const stepBlocked = (i: number, j: number, nd: number): boolean => nd === 0 ? blockedRight[j * nx + i] === 1 : nd === 1 ? blockedRight[j * nx + i - 1] === 1 : nd === 2 ? blockedDown[j * nx + i] === 1 : blockedDown[(j - 1) * nx + i] === 1;
   // the other arrows' runs, by direction; the last run of each (its tip) for the arrowheads
@@ -80,16 +82,21 @@ export function searchRoute(start: P, end: P, boxes: readonly Rect[], others: re
     const tip = p[p.length - 1], before = p[p.length - 2];
     if (tip && before && tip.y === before.y) tips.push(tip);
   }
+  // the runs by where they lie across (a level run by its height, a plumb one by its x), ascending: a step asks only for the runs near its line and those it crosses
+  const byAt = (runs: [P, P][], key: (r: [P, P]) => number): {runs: [P, P][]; at: number[]} => { const sorted = runs.map(r => ({r, k: key(r)})).sort((u, v) => u.k - v.k); return {runs: sorted.map(e => e.r), at: sorted.map(e => e.k)}; };
+  const horAt = byAt(hor, r => r[0].y), verAt = byAt(ver, r => r[0].x);
+  const from = (list: {at: number[]}, v: number): number => { let lo = 0, hi = list.at.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (must(list.at[mid]) < v) lo = mid + 1; else hi = mid; } return lo; }; // the first run at or past v
   /** The cost of the step a -> b (one grid step, along an axis): length, and the crossings of other arrows and the runs along them. A crossing at the step's far end counts (the near end belongs to the step before). */
   const stepCost = (a: P, b: P): number => {
     let c = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-    const h = a.y === b.y, along = h ? hor : ver, across = h ? ver : hor;
+    const h = a.y === b.y, along = h ? horAt : verAt, across = h ? verAt : horAt;
     const t0 = h ? a.x : a.y, t1 = h ? b.x : b.y, lo = Math.min(t0, t1), hi = Math.max(t0, t1), up = t1 > t0, fixed = h ? a.y : a.x;
-    for (const [p, q] of along) { // along: the same line (within 4px), overlapping
-      const [u, v] = h ? ['x', 'y'] as const : ['y', 'x'] as const;
+    for (let n = from(along, fixed - 4); n < along.runs.length && must(along.at[n]) < fixed + 4; n++) { // along: the same line (within 4px), overlapping
+      const [p, q] = must(along.runs[n]), [u, v] = h ? ['x', 'y'] as const : ['y', 'x'] as const;
       if (Math.abs(p[v] - fixed) < 4 && Math.min(hi, Math.max(p[u], q[u])) - Math.max(lo, Math.min(p[u], q[u])) > 1) c += ALONG;
     }
-    for (const [p, q] of across) { // a crossing: strictly inside the other run, and in this step (the far end counts, the near end does not)
+    for (let n = from(across, lo - 0.02); n < across.runs.length && must(across.at[n]) <= hi + 0.02; n++) { // a crossing: strictly inside the other run, and in this step (the far end counts, the near end does not)
+      const [p, q] = must(across.runs[n]);
       const pos = h ? p.x : p.y, f0 = h ? Math.min(p.y, q.y) : Math.min(p.x, q.x), f1 = h ? Math.max(p.y, q.y) : Math.max(p.x, q.x);
       if (!(fixed > f0 + 0.5 && fixed < f1 - 0.5)) continue;
       if (!(up ? pos > lo + 0.01 && pos <= hi + 0.01 : pos >= lo - 0.01 && pos < hi - 0.01)) continue;
