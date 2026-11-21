@@ -9,6 +9,7 @@
 #   base       default main
 #
 # CODEX_WORK   where clones, logs and reports go (default: ${TMPDIR:-/tmp}/codex-work). Give Claude's scratchpad.
+# CODEX_EFFORT reasoning effort (default high; the CLI default is none, too little for implementation).
 # Output: $CODEX_WORK/codex-<label>.report.json (the final report, report.schema.json), codex-<label>.log (progress).
 # Exit status is Codex's. Run it in the background and read the report when it ends.
 set -eu
@@ -28,11 +29,22 @@ if git -C "$d" ls-remote --exit-code --heads origin "$br" >/dev/null 2>&1; then
 else
   git -C "$d" checkout -q -b "$br" "origin/$base"
 fi
+# pnpm writes its store and the pinned pnpm itself (package-manager-store) under its data dir: give the whole dir
 store=$(pnpm store path 2>/dev/null || true)
+pnpm_home=${store:+$(dirname "$(dirname "$store")")}
+# ... and takes its locks in $XDG_RUNTIME_DIR (pnpm-store-operation-locks-<uid>, pnpm-dir-locks-<uid>)
+locks=""
+if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+  uid=$(id -u)
+  for l in "$XDG_RUNTIME_DIR/pnpm-store-operation-locks-$uid" "$XDG_RUNTIME_DIR/pnpm-dir-locks-$uid"; do
+    mkdir -p "$l" && locks="$locks --add-dir $l"
+  done
+fi
 set +e
 codex exec -s workspace-write \
   -c sandbox_workspace_write.network_access=true \
-  ${store:+--add-dir "$store"} \
+  -c model_reasoning_effort="${CODEX_EFFORT:-high}" \
+  ${pnpm_home:+--add-dir "$pnpm_home"} $locks \
   --output-schema "$here/report.schema.json" \
   -o "$work/codex-$label.report.json" \
   -C "$d" - <"$spec" >"$work/codex-$label.log" 2>&1
