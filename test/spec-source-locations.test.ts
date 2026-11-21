@@ -72,6 +72,22 @@ test('a grouped spec warning locates a field in a related part', async t => {
   }
 });
 
+test('a grouped spec warning skips a part with multiple field matches', async t => {
+  // The glyph matches two titles in the first board and one in the second.
+  const figure = spec(
+    {type: 'board', nodes: [{id: 'a', title: '✅'}, {id: 'b', title: '✅'}]},
+    {type: 'board', nodes: [{id: 'c', title: '✅'}]},
+  );
+  const node = await renderSpec(figure, {config});
+  const edge = await renderSpecEdge(figure, realEngine());
+  for (const [engine, result] of Object.entries({node, edge})) {
+    await t.test(engine, () => {
+      assert.deepEqual(result.issues, []);
+      assert.deepEqual(result.findings.filter(f => f.rule === 'glyph-missing').map(f => f.path), ['parts[1].nodes[0].title']);
+    });
+  }
+});
+
 test('a grouped spec warning falls back to the first affected part when it names no field', async () => {
   const chain = (...ids: string[]) => ({
     type: 'board', nodes: ids.map(id => ({id, title: id})), links: ids.slice(1).map((to, i) => ({from: ids[i], to})),
