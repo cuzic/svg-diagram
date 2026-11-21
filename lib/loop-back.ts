@@ -3,6 +3,7 @@
 // lanes stepped so that no two loops cross or run at one height (hand-written loop-under connects keep the `dip` the author wrote).
 import {connectBand} from './dsl/defaults.ts';
 import {must} from './must.ts';
+import {sourceOf, withSource} from './source-ref.ts';
 import type {LoopBack} from './types/containers.ts';
 import type {Band} from './types/index.ts';
 
@@ -56,9 +57,10 @@ export function expandLoopBacks(bands: Band[]): Band[] {
     };
     // the shorter the span, the nearer the boxes: loops inside another one sit above it, so no vertical leg crosses another loop's run
     const byLane = loops.toSorted((x, y) => ((x.from as number) - (x.to as number)) - ((y.from as number) - (y.to as number)));
-    const connects = byLane.map((l, lane) => Object.assign(connectBand(`${anchor(l.from as number)}:bottom`, `${anchor(l.to as number)}:bottom`, {
+    const ref = sourceOf(b);
+    const connects = byLane.map((l, lane) => withSource(Object.assign(connectBand(`${anchor(l.from as number)}:bottom`, `${anchor(l.to as number)}:bottom`, {
       route: 'loop-under', dip: DIP + lane * LANE, ...(l.label === undefined ? {} : {label: l.label}), ...(l.chip === undefined ? {} : {chip: l.chip}), ...(l.tone === undefined ? {} : {tone: l.tone}), ...(l.line === undefined ? {} : {line: l.line}),
-    }, false), {loopBack: true as const}));
+    }, false), {loopBack: true as const}), ref));
     return [b, ...connects];
   });
   return visit(bands);

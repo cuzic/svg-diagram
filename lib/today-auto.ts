@@ -1,5 +1,6 @@
 // gantt({today: 'auto'}) filled in with the day the caller gave. Split from today.ts, which reads the environment, so the browser entry can use it.
 import type {Band} from './types/index.ts';
+import {atBand} from './source-ref.ts';
 
 /** 'YYYY-MM-DD' of a real date, else a message that names where the value came from. */
 export function checkToday(v: unknown, what: string): string {
@@ -11,8 +12,11 @@ export function checkToday(v: unknown, what: string): string {
 export function fillAutoToday(bands: Band[], today: string | undefined): boolean {
   let used = false;
   for (const b of bands) if (b.type === 'gantt' && b.today === 'auto') {
-    if (today === undefined) throw new Error("gantt(): today: 'auto' needs a date: pass --today YYYY-MM-DD (build / check), set SVG_DIAGRAM_TODAY, or put \"today\" in .svg-diagram.json");
-    b.today = today; used = true;
+    atBand(b, () => {
+      if (today === undefined) throw new Error("gantt(): today: 'auto' needs a date: pass --today YYYY-MM-DD (build / check), set SVG_DIAGRAM_TODAY, or put \"today\" in .svg-diagram.json");
+      b.today = today;
+    });
+    used = true;
   }
   return used;
 }

@@ -12,6 +12,7 @@ import {fillScaleLimit} from './text-bands.ts';
 import {MathTooWideError} from '../math.ts';
 import {walkBands} from '../rules.ts';
 import {detachData, layoutFitted} from './diagram.ts';
+import {throwAtDiagram} from '../source-ref.ts';
 
 /** detachData() plus the pictures image() left unread, read from the source's folder. */
 function detach<D extends DiagramData>(d: D): D {
@@ -19,12 +20,17 @@ function detach<D extends DiagramData>(d: D): D {
   resolveImages(walkBands(out.bands), out.sourceDir ?? process.cwd());
   return out;
 }
+type RenderOptions = {name: string; budget: 'measure' | 'cacheOnly'; html?: boolean; /** `data-node="id"` on the outline of each author-named node (ADR 0034) */ nodeIds?: boolean};
+
 // Everything build() does short of the disk: layout (with the slide budget and the fill / font scale search), verification,
 // the SVG, its XML well-formedness. It does not throw for a failed verification or a malformed SVG — it reports them in
 // `verdict` and `xml`, so build() can refuse to write while `svg-diagram show` can still draw the picture and say what is wrong.
 // (A define()/constructor/layout error still throws.) budget: 'measure' measures a slide that has no cached budget (starts the
 // dev server, writes the cache); 'cacheOnly' reads the cache and falls back to the default sizes with a note.
-export async function renderDiagram(input: Diagram, opts: {name: string; budget: 'measure' | 'cacheOnly'; html?: boolean; /** `data-node="id"` on the outline of each author-named node (ADR 0034) */ nodeIds?: boolean}): Promise<RenderResult> {
+export async function renderDiagram(input: Diagram, opts: RenderOptions): Promise<RenderResult> {
+  return render(input, opts).catch(e => throwAtDiagram(e, input));
+}
+async function render(input: Diagram, opts: RenderOptions): Promise<RenderResult> {
   const d = detach(input); // the passes below write into bands (reveal, legend items) and into d (width, ...): never into the caller's
   const notes: string[] = [];
   let budget: SlideBudget | null = null;
@@ -90,10 +96,12 @@ export async function renderDiagram(input: Diagram, opts: {name: string; budget:
 }
 // Layout + verification + rules, without writing any file: the engine behind `svg-diagram check`.
 export async function checkDiagram(input: DiagramData): Promise<CheckResult> {
-  // same stages as renderDiagram (lib/pipeline.ts), minus the slide budget and the fill search
-  return runChecked(detach(input), prepared => {
-    // a canvas diagram is drawn at its font scale, so it is checked at that scale too
-    const s = prepared.canvas ? canvasFontScale(prepared.canvas.minText) : 1;
-    return layoutFitted(prepared, () => layoutDiagram(prepared.canvas ? {...prepared, pad: Math.round(prepared.pad * s), gap: Math.round(prepared.gap * s)} : prepared, prepared.canvas ? {roles: canvasRoles(s)} : {}));
-  });
+  try {
+    // same stages as renderDiagram (lib/pipeline.ts), minus the slide budget and the fill search
+    return await runChecked(detach(input), prepared => {
+      // a canvas diagram is drawn at its font scale, so it is checked at that scale too
+      const s = prepared.canvas ? canvasFontScale(prepared.canvas.minText) : 1;
+      return layoutFitted(prepared, () => layoutDiagram(prepared.canvas ? {...prepared, pad: Math.round(prepared.pad * s), gap: Math.round(prepared.gap * s)} : prepared, prepared.canvas ? {roles: canvasRoles(s)} : {}));
+    });
+  } catch (e) { throwAtDiagram(e, input); }
 }

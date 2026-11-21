@@ -16,6 +16,8 @@
 // anchor (any box/child with an explicit `id`) has a known rect.
 
 import {withStatus} from './status.ts';
+import {atBand, sourceOf, withSource} from './source-ref.ts';
+import type {SourceRef} from './source-ref.ts';
 import {textWidth} from './atoms.ts';
 import {layoutHandlerFor} from './layout-handlers.ts';
 import type {LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
@@ -243,7 +245,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
     let grids = new Map<string, {need: number; rows: {cw: number; spans: number[]}[]}>();
     const walk = (bs: Band[], cw: number, over = false): void => {
       if (labelled.length && !over) verticalGaps(bs); // the parts over a picture: the picture's height is fixed, there is no room to add
-      for (const b of bs) {
+      for (const b of bs) atBand(b, () => {
         const inner = stackWidthOf(b, cw);
         if (inner !== null) walk(childrenOf(b), inner, over || b.type === 'image');
         else if (b.type === 'areas') { // the gaps first, then the widths of its cells at those gaps (what the real pass uses)
@@ -263,7 +265,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
           const {widths} = rowChildGeometry({...b, gap: gapForLabels(b as RowLike, cw)}, cw); // the same gap the real pass will use
           b.children.forEach((c, i) => { if (c.type === 'group') walk(c.children, must(widths[i]) - 2 * (c.pad ?? 16), over); });
         }
-      }
+      });
     };
     // A row inside a group of a `cols` grouprow is as wide as the shared gap leaves it, and the shared gap depends on what the rows need:
     // walk again with the shared gaps of the previous round until they stay the same (a few rounds at most). A grid whose widened gap
@@ -354,21 +356,55 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
     d, roles, widthOf, tones, wrap, keepWords, space, lines, y: d.pad, laidOut, anchors, nodeBottoms, areaIds, connects, deferred, scopes,
     setBox, claimed, register, placeBoxLike, gapForLabels, areasGapFor,
     stack: (bands, padX, cw) => {
-      for (const band of bands) {
+      for (const band of bands) atBand(band, () => {
+        const start = laidOut.length, firstConnect = connects.length;
         layoutHandlerFor(band.type)(band as never, ctx, padX, cw);
+        carryLayoutSources(band, laidOut, start);
+        const ref = sourceOf(band);
+        if (ref) for (let i = firstConnect; i < connects.length; i++) withSource(must(connects[i]), ref);
         const extra = bandGaps.get(band); // room for a label on the arrow down to the next band (ADR 0069 D1)
         if (extra) ctx.y += extra;
-      }
+      });
     },
   };
   ctx.stack(d.bands, d.pad, contentWidth);
   // the framed groups, for connect({via}) (ADR 0069 D2): their final rectangles (a row / areas() has stretched them by now)
   const frames = laidOut.flatMap(b => b.type === 'group' && b.frame !== false ? [{x: b.x, y: b.y, w: b.w, h: b.h, id: b.id}] : []);
-  for (const band of deferred) connects.push(resolveConnect(band, anchors, areaIds, widthOf, roles, nodeBottoms, scopes, frames)); // throws "unknown anchor id" if it never appears
+  for (const band of deferred) atBand(band, () => {
+    const resolved = resolveConnect(band, anchors, areaIds, widthOf, roles, nodeBottoms, scopes, frames);
+    connects.push(withSource(resolved, sourceOf(band)));
+  });
 
   const contentHeight = Math.round(ctx.y - d.gap + d.pad);
   // canvas: at least its height, unless fit: 'content' (then as tall as the content; an overflow is still drawn and warned)
   const canvasHeight = d.canvas && d.canvas.fit !== 'content' ? Math.max(contentHeight, d.canvas.height) : contentHeight;
 
   return {...data, laidOut, canvasHeight, ...(data.canvas ? {contentHeight} : {}), connects, roles};
+}
+
+/** Fill the parts a handler created, preserving more specific marks from nested stack calls. */
+function carryLayoutSources(band: Band, laidOut: LaidOutBand[], start: number): void {
+  // A row of groups and areas can re-lay a group with extra height, directly rather than through stack.
+  // Each cell emits one row or one group frame followed by its span. Give these groups their own marks first.
+  if ((band.type === 'grouprow' || band.type === 'areas') && band.children.some(c => c.type === 'group' && sourceOf(c))) {
+    let cell = start;
+    for (const child of band.children) {
+      const frame = must(laidOut[cell]);
+      const end = cell + 1 + (frame.type === 'group' ? frame.span ?? 0 : 0);
+      if (child.type === 'group') markLayoutRange(laidOut, cell, end, sourceOf(child));
+      cell = end;
+    }
+  }
+  markLayoutRange(laidOut, start, laidOut.length, sourceOf(band));
+}
+
+function markLayoutRange(laidOut: LaidOutBand[], start: number, end: number, ref: SourceRef | undefined): void {
+  if (!ref) return;
+  for (let i = start; i < end; i++) {
+    const placed = must(laidOut[i]);
+    withSource(placed, ref);
+    if (placed.type === 'row' || placed.type === 'grid') {
+      for (const child of placed.children) withSource(child, ref);
+    }
+  }
 }
