@@ -262,7 +262,7 @@ export default () => { const d = diagram({theme: 'blue', title: 't'}); d.add(wir
 const bin = (cwd: string, ...args: string[]) => spawnSync('bash', [BIN, ...args], {cwd, encoding: 'utf8'});
 
 for (const layout of ['source', 'dist']) {
-  test(`bin/svg-diagram (${layout}): requires Node 22.18`, t => {
+  test(`bin/svg-diagram (${layout}): requires Node 22.18`, async t => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-node-floor-'));
     t.after(() => fs.rmSync(root, {recursive: true, force: true}));
     const binDir = path.join(root, 'bin');
@@ -274,11 +274,11 @@ for (const layout of ['source', 'dist']) {
       fs.writeFileSync(path.join(root, 'dist', 'build-diagram.js'), '');
     }
 
-    const run = (minor: number) => {
+    const run = (major: number, minor: number) => {
       fs.writeFileSync(path.join(binDir, 'node'), `#!/bin/sh
 case "$1" in
-  -p) echo '22 ${minor}' ;;
-  -v) echo 'v22.${minor}.0' ;;
+  -p) echo '${major} ${minor}' ;;
+  -v) echo 'v${major}.${minor}.0' ;;
   *) printf '%s\\n' "$@" ;;
 esac
 `, {mode: 0o755});
@@ -287,16 +287,24 @@ esac
       });
     };
 
-    const old = run(17);
-    assert.equal(old.status, 2, out(old));
-    assert.equal(old.stdout, '');
-    assert.equal(old.stderr, 'svg-diagram: Node 22.18 以上が要る(今は v22.17.0)\n');
+    for (const [major, minor] of [[21, 99], [22, 17]] as const) {
+      await t.test(`rejects Node ${major}.${minor}`, () => {
+        const r = run(major, minor);
+        assert.equal(r.status, 2, out(r));
+        assert.equal(r.stdout, '');
+        assert.equal(r.stderr, `svg-diagram: Node 22.18 以上が要る(今は v${major}.${minor}.0)。Node を 22.18 以上に上げる\n`);
+      });
+    }
 
-    const supported = run(18);
-    assert.equal(supported.status, 0, out(supported));
-    assert.equal(supported.stderr, '');
     const script = layout === 'dist' ? 'dist/check-diagram.js' : 'check-diagram.ts';
-    assert.equal(supported.stdout, `${path.join(root, script)}\n--strict\nsrc/flow.ts\n`);
+    for (const [major, minor] of [[22, 18], [23, 0], [24, 0]] as const) {
+      await t.test(`accepts Node ${major}.${minor}`, () => {
+        const r = run(major, minor);
+        assert.equal(r.status, 0, out(r));
+        assert.equal(r.stderr, '');
+        assert.equal(r.stdout, `${path.join(root, script)}\n--strict\nsrc/flow.ts\n`);
+      });
+    }
   });
 }
 
