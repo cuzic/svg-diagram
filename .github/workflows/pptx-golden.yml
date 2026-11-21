@@ -1,6 +1,6 @@
 name: pptx-golden
 # Run by hand (Actions → pptx-golden → Run workflow, or `gh workflow run pptx-golden.yml --ref <branch> -f update=true`).
-# The PowerPoint golden (examples/out/pptx-golden.json) holds for the CI fonts, so it is compared and rewritten here, not on a laptop.
+# The PowerPoint golden (examples/out/pptx-golden.json) holds for the golden jobs' fonts (pinned Noto Sans JP), so it is compared and rewritten here, not on a laptop.
 # With update, the rewritten manifest is uploaded as the artifact "pptx-golden"; commit it yourself after reading which names changed.
 on:
   workflow_dispatch:
@@ -13,14 +13,14 @@ permissions:
   contents: read
 jobs:
   golden:
-    runs-on: ubuntu-latest
+    # the same environment as test.yml's golden job and scripts/golden-docker/Dockerfile (release, Node, fonts), so the hashes match there
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      # the same setup as test.yml, so the hashes match what the tests see
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.23.5
           cache: pnpm
       - name: Japanese fonts
         run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
@@ -28,10 +28,7 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       # the text is measured with the pinned Noto Sans JP, as in test.yml's golden job (scripts/golden-docker/Dockerfile has the same fonts)
       - name: Noto Sans JP (pinned) in fontconfig
-        run: |
-          sudo scripts/golden-docker/install-noto-sans-jp.sh
-          fc-match -f '%{file} (%{family})\n' 'Noto Sans JP'
-          fc-match -f '%{family}\n' 'Noto Sans JP' | grep -q 'Noto Sans JP'
+        run: sudo scripts/golden-docker/install-noto-sans-jp.sh
       - name: compare
         id: compare
         continue-on-error: ${{ inputs.update }}

@@ -15,3 +15,9 @@ dff723ba59d57d136764a04b9b2d03205544f7cd785a711442d6d2d085ac5073  NotoSansJP-Reg
 SUMS
 )
 fc-cache -f "$d" >/dev/null
+# 'Noto Sans JP' must now resolve to these files (fc-match always answers with something, so the file is checked)
+for w in 80 200; do
+  f=$(fc-match -f '%{file}' "Noto Sans JP:weight=$w")
+  echo "Noto Sans JP:weight=$w -> $f"
+  case "$f" in "$d"/NotoSansJP-*.otf) ;; *) echo "error: 'Noto Sans JP' resolves to $f, not to $d" >&2; exit 1;; esac
+done
