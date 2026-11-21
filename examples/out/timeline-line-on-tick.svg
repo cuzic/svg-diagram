@@ -26,22 +26,22 @@
   <circle cx="572" cy="76" r="12" fill="#b91c1c" stroke="#ffffff" stroke-width="4"/>
   <circle cx="364" cy="76" r="8" fill="#6f6659" stroke="#ffffff" stroke-width="4"/>
   <path d="M72,112 V116 H572 V112" fill="none" stroke="#1d5fa8" stroke-width="2"/>
-  <text x="109" y="35" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">現在</text>
-  <text x="109" y="55" text-anchor="middle" font-size="14" fill="#6f6659">2026-10-12</text>
+  <text x="108" y="35" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">現在</text>
+  <text x="108" y="55" text-anchor="middle" font-size="14" fill="#6f6659">2026-10-12</text>
   <text x="660" y="35" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">Extended Support 終了</text>
   <text x="660" y="55" text-anchor="middle" font-size="14" fill="#6f6659">2027-02-28</text>
   <text x="413" y="35" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">移行リハーサル</text>
   <text x="413" y="55" text-anchor="middle" font-size="14" fill="#6f6659">2027-01</text>
   <text x="20" y="102" font-size="14" fill="#6f6659">2026/10</text>
-  <text x="117" y="102" font-size="14" fill="#6f6659">2026/11</text>
-  <text x="225" y="102" font-size="14" fill="#6f6659">2026/12</text>
+  <text x="118" y="102" font-size="14" fill="#6f6659">2026/11</text>
+  <text x="226" y="102" font-size="14" fill="#6f6659">2026/12</text>
   <text x="348" y="102" font-size="14" fill="#6f6659">2027</text>
   <text x="453" y="102" font-size="14" fill="#6f6659">2027/2</text>
   <text x="579" y="102" font-size="14" fill="#6f6659">2027/3</text>
-  <text x="665" y="102" font-size="14" fill="#6f6659">2027/4</text>
-  <text x="773" y="102" font-size="14" fill="#6f6659">2027/5</text>
-  <text x="874" y="102" font-size="14" fill="#6f6659">2027/6</text>
-  <text x="286" y="134" font-size="14" font-weight="700" fill="#1d5fa8">あと 4 か月</text>
+  <text x="666" y="102" font-size="14" fill="#6f6659">2027/4</text>
+  <text x="774" y="102" font-size="14" fill="#6f6659">2027/5</text>
+  <text x="876" y="102" font-size="14" fill="#6f6659">2027/6</text>
+  <text x="287" y="134" font-size="14" font-weight="700" fill="#1d5fa8">あと 4 か月</text>
 
   <text x="20" y="170" font-size="14" font-weight="400" fill="#6f6659">出典: AWS 公式ドキュメント</text>
 </svg>

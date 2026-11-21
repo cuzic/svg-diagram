@@ -12,24 +12,24 @@
   <text x="470" y="136.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">導入前 76% から導入後 31% へ</text>
 
   <path d="M134,184 L134,304" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M275,184 L275,304" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M417,184 L417,304" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M558,184 L558,304" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M699,184 L699,304" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M840,184 L840,304" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M134,298 L840,298" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M134,184 H670.86 V232 H134 Z" fill="#6f6659"/>
-  <path d="M134,250 H352.98 V298 H134 Z" fill="#1d5fa8"/>
+  <path d="M274,184 L274,304" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M414,184 L414,304" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M555,184 L555,304" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M695,184 L695,304" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M835,184 L835,304" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M134,298 L835,298" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M134,184 H666.86 V232 H134 Z" fill="#6f6659"/>
+  <path d="M134,250 H351.35 V298 H134 Z" fill="#1d5fa8"/>
   <text x="134" y="340" text-anchor="middle" font-size="34" fill="#6f6659">0</text>
-  <text x="275" y="340" text-anchor="middle" font-size="34" fill="#6f6659">20</text>
-  <text x="417" y="340" text-anchor="middle" font-size="34" fill="#6f6659">40</text>
-  <text x="558" y="340" text-anchor="middle" font-size="34" fill="#6f6659">60</text>
-  <text x="699" y="340" text-anchor="middle" font-size="34" fill="#6f6659">80</text>
-  <text x="840" y="340" text-anchor="middle" font-size="34" fill="#6f6659">100</text>
+  <text x="274" y="340" text-anchor="middle" font-size="34" fill="#6f6659">20</text>
+  <text x="414" y="340" text-anchor="middle" font-size="34" fill="#6f6659">40</text>
+  <text x="555" y="340" text-anchor="middle" font-size="34" fill="#6f6659">60</text>
+  <text x="695" y="340" text-anchor="middle" font-size="34" fill="#6f6659">80</text>
+  <text x="835" y="340" text-anchor="middle" font-size="34" fill="#6f6659">100</text>
   <text x="126" y="220" text-anchor="end" font-size="34" fill="#22201b">導入前</text>
-  <text x="665" y="220" text-anchor="end" font-size="34" font-weight="700" fill="#ffffff">76%</text>
+  <text x="661" y="220" text-anchor="end" font-size="34" font-weight="700" fill="#ffffff">76%</text>
   <text x="126" y="286" text-anchor="end" font-size="34" fill="#22201b">導入後</text>
-  <text x="347" y="286" text-anchor="end" font-size="34" font-weight="700" fill="#ffffff">31%</text>
+  <text x="345" y="286" text-anchor="end" font-size="34" font-weight="700" fill="#ffffff">31%</text>
 
   <text x="470" y="390" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">plane の labelRole: 軸・目盛り・点・寸法の文字を 1 段大きく</text>
 

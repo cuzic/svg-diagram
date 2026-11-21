@@ -34,20 +34,20 @@
   <text x="499" y="313" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">成果</text>
   <path d="M469.5,156 H585.5 V204 H469.5 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
   <text x="528" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">疲労</text>
-  <path d="M437.8,74 H452.2 V92 H437.8 Z" fill="#ffffff"/>
+  <path d="M438.87,74 H451.13 V92 H438.87 Z" fill="#ffffff"/>
   <text x="445" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
-  <path d="M433.8,230 H448.2 V248 H433.8 Z" fill="#ffffff"/>
+  <path d="M434.87,230 H447.13 V248 H434.87 Z" fill="#ffffff"/>
   <text x="441" y="244" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
-  <path d="M606.8,160 H621.2 V178 H606.8 Z" fill="#ffffff"/>
+  <path d="M607.87,160 H620.13 V178 H607.87 Z" fill="#ffffff"/>
   <text x="614" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
-  <path d="M513.8,96 H528.2 V114 H513.8 Z" fill="#ffffff"/>
+  <path d="M514.87,96 H527.13 V114 H514.87 Z" fill="#ffffff"/>
   <text x="521" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">+</text>
-  <path d="M529.99,96 H540.01 V114 H529.99 Z" fill="#ffffff"/>
+  <path d="M530.41,96 H539.59 V114 H530.41 Z" fill="#ffffff"/>
   <text x="535" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
-  <path d="M606.35,188 H621.65 V206 H606.35 Z" fill="#ffffff"/>
+  <path d="M607.86,188 H620.14 V206 H607.86 Z" fill="#ffffff"/>
   <text x="614" y="202" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
-  <path d="M459.09,338 H480.91 V356 H459.09 Z" fill="#ffffff"/>
+  <path d="M459.1,338 H480.9 V356 H459.1 Z" fill="#ffffff"/>
   <text x="470" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#a8632b">R1</text>
-  <path d="M517.02,210 H538.98 V228 H517.02 Z" fill="#ffffff"/>
+  <path d="M517.1,210 H538.9 V228 H517.1 Z" fill="#ffffff"/>
   <text x="528" y="224" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B1</text>
 </svg>

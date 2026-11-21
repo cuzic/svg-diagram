@@ -50,12 +50,12 @@
   <text x="550" y="356" font-size="14" font-weight="700" fill="#22201b">7</text>
   <text x="390" y="356" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">7</text>
   <text x="381" y="224" font-size="14" font-weight="700" fill="#22201b">6</text>
-  <path d="M361.1,462 L391.1,462" fill="none" stroke="#1d5fa8" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M371.1,462 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
-  <text x="399" y="467" font-size="14" fill="#22201b">今</text>
-  <path d="M441.1,462 L471.1,462" fill="none" stroke="#22201b" stroke-width="3" stroke-linejoin="round" stroke-dasharray="8,5"/>
-  <path d="M451.1,457 H461.1 V467 H451.1 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
-  <text x="479" y="467" font-size="14" fill="#22201b">3 か月後の目標</text>
+  <path d="M361.5,462 L391.5,462" fill="none" stroke="#1d5fa8" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M371.5,462 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="400" y="467" font-size="14" fill="#22201b">今</text>
+  <path d="M441.5,462 L471.5,462" fill="none" stroke="#22201b" stroke-width="3" stroke-linejoin="round" stroke-dasharray="8,5"/>
+  <path d="M451.5,457 H461.5 V467 H451.5 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="480" y="467" font-size="14" fill="#22201b">3 か月後の目標</text>
 
   <text x="20" y="510" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
 </svg>
