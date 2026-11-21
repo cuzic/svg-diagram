@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import {execFileSync} from 'child_process';
 import {readDataImage} from '../image-sniff.ts';
+import {located} from '../located.ts';
 import {texToSvg} from '../math-tex.ts';
 import {emitRevealStage} from '../pipeline.ts';
 import {LABEL_ROLES, ROLES} from '../tokens.ts';
@@ -21,8 +22,8 @@ const IMAGE_TONES = ['plain', 'accent', 'danger', 'muted', 'new', 'changed', 're
  * (spotlight and connect() can point at their ids); `labels` put words on opaque plates. Positions are fractions of the picture.
  * `src`: a path (relative: next to the diagram source), `new URL('./a.png', import.meta.url)`, or a data URI.
  */
-export function image<const M extends readonly ImageMark[] = [], const Id extends string = never, C extends Band | Band[] = []>(src: string | URL, opts: Omit<ImageOpts, 'over'> & {id?: Id; marks?: M; over?: C}): ImageBand & Declares<Id | MarkIds<M> | IdsOf<C>> & Refers<RefsOf<C>> & HandleOf<Id> & AnchorsOf<MarkIds<M>>;
-export function image(src: string | URL, opts: ImageOpts = {}): ImageBand {
+function image<const M extends readonly ImageMark[] = [], const Id extends string = never, C extends Band | Band[] = []>(src: string | URL, opts: Omit<ImageOpts, 'over'> & {id?: Id; marks?: M; over?: C}): ImageBand & Declares<Id | MarkIds<M> | IdsOf<C>> & Refers<RefsOf<C>> & HandleOf<Id> & AnchorsOf<MarkIds<M>>;
+function image(src: string | URL, opts: ImageOpts = {}): ImageBand {
   if (opts.pad !== undefined && !(opts.pad >= 0 && Number.isFinite(opts.pad))) throw new Error(`image(): pad must be a finite number >= 0 (got ${opts.pad})`);
   const over = opts.over === undefined ? [] : [opts.over].flat() as Band[];
   for (const [i, c] of over.entries()) if (c?.type === 'connect') throw new Error(`image(): over[${i}] is a connect() — add connectors at the top level of the diagram (they may point at ids inside the picture)`);
@@ -64,6 +65,8 @@ export function image(src: string | URL, opts: ImageOpts = {}): ImageBand {
   };
   return withHandle(withAnchors(band, (opts.marks ?? []).map(m => m.id)), opts.id);
 }
+const locatedImage = located(image);
+export {locatedImage as image};
 // Lays out, verifies, renders, writes, and lints a diagram in one call.
 // build(d, 'public/svg/day2-11-example.svg')
 //
@@ -125,8 +128,8 @@ async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Pro
 // A TeX formula, drawn as outlines (MathJax): math(String.raw`\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}`). Use String.raw so the
 // backslashes stay. Display style by default; `inline: true` sets it as it would be inside a sentence. No reveal (it is one picture).
 // Here, not with the pure builders: the formula is converted now (MathJax is loaded on the first call).
-export function math<const Id extends string = never>(tex: string, opts?: MathOpts & {id?: Id}): MathBand & Declares<Id> & HandleOf<Id>;
-export function math(tex: string, opts: MathOpts = {}): MathBand {
+function math<const Id extends string = never>(tex: string, opts?: MathOpts & {id?: Id}): MathBand & Declares<Id> & HandleOf<Id>;
+function math(tex: string, opts: MathOpts = {}): MathBand {
   assertNoReveal(opts, 'math()');
   if (typeof tex !== 'string' || !tex.trim()) throw new Error('math(tex) needs the TeX source of the formula (a non-empty string)');
   if (opts.align !== undefined && !['left', 'center', 'right'].includes(opts.align)) throw new Error(`math(): align must be 'left', 'center' or 'right' (got ${opts.align})`);
@@ -134,3 +137,5 @@ export function math(tex: string, opts: MathOpts = {}): MathBand {
   if (opts.role !== undefined && !(opts.role in ROLES)) throw new Error(`math(): role must be one of ${Object.keys(ROLES).join(', ')} (got ${opts.role})`);
   return withHandle({type: 'math', tex, drawing: texToSvg(tex, !opts.inline), role: opts.role ?? 'body', align: opts.align ?? 'center', tone: opts.tone ?? 'text', alt: opts.alt?.trim() || tex, ...(opts.id === undefined ? {} : {id: opts.id})}, opts.id);
 }
+const locatedMath = located(math);
+export {locatedMath as math};

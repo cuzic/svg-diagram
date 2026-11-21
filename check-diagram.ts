@@ -55,6 +55,7 @@ import type {MapRow} from './lib/docs-check.ts';
 import type {SourceLoc} from './lib/source-location.ts';
 import {installResolveHook} from './lib/resolve-hook.ts';
 import {installStackCapture, locateError} from './lib/source-location-io.ts';
+import {captureSourceLocations} from './lib/source-capture.ts';
 installResolveHook();
 installStackCapture();
 const {checkDiagram, build, closeMeasurer} = await import('./lib/dsl.ts');
@@ -133,6 +134,7 @@ for (const s of sources) {
 }
 if (!['text', 'json', 'github', 'sarif'].includes(format)) { console.error(`--format must be text, json, github or sarif (got "${format}")`); process.exit(2); }
 if (!sources.length && !docsDir && !flag('--worker')) { console.error('Usage: svg-diagram check [--strict] [--forbid-draft] [--verbose] [--drift [--svg-dir DIR] [--rebuild]] [--today YYYY-MM-DD] [--docs PATH... [--only GLOB]... [--svg-dir DIR] [--src-dir DIR] [--map]] [--covers TABLE.md|TABLE.csv [--svg-dir DIR]] [--format text|json|github|sarif] [--baseline FILE | --write-baseline FILE] <source.ts>...\n       svg-diagram check --rules | --explain RULE'); process.exit(2); }
+if (sources.length && !drift && !coversFile) captureSourceLocations(true);
 const config = loadConfig();
 try { const t = val('--today'); if (args.includes('--today') && (t == null || t.startsWith('--'))) throw new Error('--today needs a date (YYYY-MM-DD)'); if (t) config._today = checkToday(t, '--today'); } catch (e) { console.error(`✗ ${(e as Error).message}`); process.exit(2); } // the day for gantt({today: 'auto'}) (ADR 0022)
 let coverCells: ReturnType<typeof readTable> = [];

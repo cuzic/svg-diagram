@@ -2,11 +2,24 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import {resolveErrorLocation} from '../lib/source-location.ts';
+import {locateError} from '../lib/source-location-io.ts';
+import {DIAGRAM_SOURCE, SourceRef, withSource} from '../lib/source-ref.ts';
 
 const source = 'src/日本 語/図.ts';
 const absoluteSource = `/project/${source}`;
 const logical = {source, cwd: '/project', packageDir: '/package', realpath: (file: string) => file};
 const at = (file: string, line: number, column: number) => ({file, line, column});
+
+test('locateError: resolve the part, error stack and diagram in that order', () => {
+  const file = 'test/source-location.test.ts';
+  const stackAt = (line: number) => `Error\n    at ${import.meta.url}:${line}:5`;
+  const error = (stack: string) => withSource(Object.assign(new Error(), {stack}), new SourceRef({stack: stackAt(30)}), DIAGRAM_SOURCE);
+  const atPart = withSource(error(stackAt(20)), new SourceRef({stack: stackAt(10)}));
+  const unresolvedPart = withSource(error(stackAt(20)), new SourceRef({stack: ''}));
+  assert.deepEqual(locateError(atPart, file), {loc: at(file, 10, 5), via: []});
+  assert.deepEqual(locateError(unresolvedPart, file), {loc: at(file, 20, 5), via: []});
+  assert.deepEqual(locateError(error(''), file), {loc: at(file, 30, 5), via: []});
+});
 
 test('source location: a stack header needs a caret, even if an error message ends in 16:9', () => {
   const stack = `Error: aspect must be 16:9\n    at define (${absoluteSource}:7:4)`;

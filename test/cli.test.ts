@@ -673,7 +673,7 @@ test('check: a throw during layout is formatted too, and --format json / github 
   fs.writeFileSync(path.join(p, 'src/throws.ts'), `export default () => { throw new Error('boom from define'); };\n`);
   const t = node(p, CHECK, 'src/layout.ts', 'src/flow.ts');
   assert.equal(t.status, 1, out(t));
-  assert.match(t.stderr, /✗ src\/layout\.ts: /);
+  assert.match(t.stderr, /✗ src\/layout\.ts:6:41: /);
   assert.doesNotMatch(t.stderr, STACK_LINE);
   assert.match(t.stdout, /✓ src\/flow\.ts/);
   // the throw comes from the layout (checkDiagram), not from define(): the source file is not in the stack, the tool's layout code is
@@ -685,6 +685,47 @@ test('check: a throw during layout is formatted too, and --format json / github 
   assert.deepEqual(j.findings.filter((f: {rule: string}) => f.rule === 'build-error').map((f: {file: string; message: string}) => [f.file, f.message]), [['src/throws.ts', 'boom from define']]);
   assert.match(node(p, CHECK, '--format', 'github', 'src/throws.ts').stdout, /^::error file=src\/throws\.ts,line=1,col=30,title=build-error::boom from define/m);
   fs.rmSync(p, {recursive: true});
+});
+
+test('check: build errors point to the part call or the diagram call and include same-file callers', () => {
+  const p = stalePrj();
+  const cases = [
+    {name: 'anchor', part: "  d.add(box({id: 'a', title: 'A'}), connect('a', 'missing'));", line: 5, token: 'connect(', message: 'unknown anchor id'},
+    {name: 'image', part: "  d.add(image('missing.png', {alt: 'A'}));", line: 5, token: 'image(', message: 'missing.png'},
+    {name: 'until', part: "  d.add(box({title: 'A', reveal: 2, until: 1}));", line: 5, token: 'box(', message: 'until 1 must be later'},
+    {name: 'spotlight', opts: ", spotlight: 'missing'", part: "  d.add(box({title: 'A'}));", line: 4, token: 'diagram(', message: 'unknown anchor id'},
+    {name: 'helper', helper: "const make = () => box({title: 'A', reveal: 2, until: 1});", part: '  d.add(make());', line: 2, token: 'box(', via: [{line: 5, column: 9}], message: 'until 1 must be later'},
+  ].map(c => {
+    const file = `src/${c.name}.ts`;
+    const lines = [
+      "import {box, connect, diagram, image} from 'svg-diagram';",
+      c.helper ?? '',
+      'export default function define() {',
+      `  const d = diagram({theme: 'blue', title: 'A'${c.opts ?? ''}});`,
+      c.part,
+      '  return d;',
+      '}',
+    ];
+    p.put(file, lines.join('\n'));
+    return {...c, file, column: lines[c.line - 1]!.indexOf(c.token) + 1};
+  });
+  try {
+    const sources = cases.map(c => c.file);
+    const json = node(p.root, CHECK, '--format', 'json', ...sources);
+    assert.equal(json.status, 1, out(json));
+    const {findings} = JSON.parse(json.stdout);
+    assert.deepEqual(findings.map(({message: _message, ...f}: {message: string}) => f),
+      cases.map(({file, line, column, via}) => ({file, rule: 'build-error', severity: 'error', line, column, ...(via ? {via} : {})})));
+    const result = node(p.root, CHECK, '--format', 'text', ...sources);
+    assert.equal(result.status, 1, out(result));
+    for (const {file, line, column, message} of cases) {
+      const prefix = `✗ ${file}:${line}:${column}: `;
+      assert.ok(result.stderr.split('\n').some(text => text.startsWith(prefix) && text.includes(message)), out(result));
+    }
+    const build = node(p.root, BUILD, '--no-lint', 'src/anchor.ts');
+    assert.equal(build.status, 1, out(build));
+    assert.match(build.stderr, /✗ src\/anchor\.ts: .*unknown anchor id/);
+  } finally { fs.rmSync(p.root, {recursive: true}); }
 });
 
 test('check --drift --rebuild: a source that no longer loads is reported and the rest are still compared', () => {
