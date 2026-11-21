@@ -59,7 +59,8 @@ function fitLineScale(data: DiagramData, layout: (lines: {seen: number; drop: nu
   const first = {seen: 0, drop: 0}, out = layout(first);
   if (!data.canvas || out.contentHeight === undefined || out.contentHeight <= data.canvas.height) return out;
   for (let drop = 1; drop <= first.seen; drop++) {
-    const again = layout({seen: 0, drop});
+    let again: LaidOutDiagram;
+    try { again = layout({seen: 0, drop}); } catch { return out; } // a retry that cannot be laid out keeps the figure that was (the retry never turns a drawn figure into an error)
     if (again.contentHeight !== undefined && again.contentHeight <= data.canvas.height) return again;
   }
   return out;
