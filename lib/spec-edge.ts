@@ -71,7 +71,7 @@ export async function renderSpecEdge(spec: unknown, givenEngine: TextEngine, opt
   try { r = await renderInBrowser(d, {measure: engine.measure}); }
   catch (e) {
     if (e instanceof TextEngineError) throw e;
-    return nothing([layoutIssue(spec, messageOf(e))]);
+    return nothing([layoutIssue(spec, e)]);
   }
   const maxHeight = opts.maxHeight ?? MAX_EDGE_HEIGHT;
   if (r.height > maxHeight) return nothing([{path: '', message: `the figure is ${r.height}px tall; the limit is ${maxHeight}px. Use fewer steps or parts, or shorter text`}]);

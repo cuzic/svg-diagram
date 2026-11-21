@@ -5,9 +5,11 @@
 // Nothing here touches the disk or a process: this file imports only dsl-pure (and modules as pure as it, such as quadrant.ts). Left out on purpose: image() and math() (files, MathJax),
 // `slide` / `fill` (a measured slide), `today: 'auto'` (the build's date) and `icon` (a process-wide manifest).
 import {causeTree, chevron, cloud, cycle, diagram, flowchart, funnel, gantt, journeyMap, mindmap, pyramid, quadrant, raci, sequence, stateDiagram, swimlane, table, valueChain, venn, whyWhyTree} from './dsl-pure.ts';
+import {walkBands} from './rules.ts';
+import {SOURCE, SourceRef, sourceOf} from './source-ref.ts';
 import type {RenderChecks} from './svg-lint.ts';
 import {EMOJI_RE, SLIDE_CANVAS} from './tokens.ts';
-import type {Diagram, Verdict} from './types/index.ts';
+import type {BandInput, Diagram, Issue, Verdict} from './types/index.ts';
 import {quadrantDefaults} from './quadrant.ts';
 
 import {ARROW, BOX_TONE, CANVAS_LIMITS, CELL, DATE, SPEC_WIDTH, EMPHASIS_TONE, LEGEND_EN, LINE, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_NODE_WIDTH, MAX_QUOTED, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, MAX_TREE_NODES, PART_EN, QUADRANT_GRID, SPEC_VERSION, STEP_REF, SpecError, TEXT_TONE, axis, checkFlowEnd, count, dayOf, flowSteps, id, isDay, items, list, mustExist, object, oneOf, pair, refIssue, text, treeItem, treeSize, uniqueIds, whyNode, whySize, withoutSchemaField, withoutType} from './spec-kit.ts';
@@ -782,7 +784,20 @@ function assemble(written: unknown): {diagram: Diagram | null; issues: SpecIssue
   catch (e) { return {diagram: null, issues: [{path: '', message: messageOf(e)}]}; }
   list.forEach((part, i) => {
     const at = `parts[${i}]`;
-    try { d.add((partOf(part['type']) as PartDef).build(part, at) as never); }
+    try {
+      const built = (partOf(part['type']) as PartDef).build(part, at) as BandInput;
+      const refs = new Map<SourceRef['stackHolder'], SourceRef>();
+      for (const band of walkBands([built].flat())) {
+        const stack = sourceOf(band)?.stackHolder;
+        let ref = refs.get(stack);
+        if (!ref) {
+          ref = new SourceRef(stack, at);
+          refs.set(stack, ref);
+        }
+        (band as typeof band & {[SOURCE]?: SourceRef})[SOURCE] = ref;
+      }
+      d.add(built);
+    }
     catch (e) {
       if (e instanceof SpecError) issues.push(...e.issues);
       else issues.push({path: locateIn(part, at, messageOf(e)) ?? at, message: messageOf(e)});
@@ -851,9 +866,15 @@ export interface LocatedMessage {
   fix?: string;
 }
 
-/** Where in `spec` a message is about: the text that it quotes, the only part there is, or the only part of the kind it names. */
-export function locateMessage(spec: unknown, message: string): string | null {
+/** The field a message names, searching within its source part when marked. */
+export function locateMessage(spec: unknown, message: string, loc?: SourceRef): string | null {
   const parts = (spec as Json)['parts'] as unknown[];
+  const at = loc?.specPath;
+  if (at !== undefined) {
+    const index = Number(/^parts\[(\d+)\]$/.exec(at)?.[1]);
+    const part = parts[index];
+    return part === undefined ? at : linkOf([part], message, index) ?? locateIn(part, at, message) ?? at;
+  }
   const link = linkOf(parts, message);
   if (link) return link;
   const quoted = locateIn(spec, '', message);
@@ -867,10 +888,10 @@ export function locateMessage(spec: unknown, message: string): string | null {
 
 /** A message about `connect(a:side -> b:side)`: the board link (ADR 0069 D4) that made it, when exactly one link joins a to b. */
 const CONNECT_OF = /^connect\(([^\s:@]+)(?::\w+)?(?:@[\d.]+)? -> ([^\s:@)]+)/;
-function linkOf(parts: readonly unknown[], message: string): string | null {
+function linkOf(parts: readonly unknown[], message: string, firstIndex = 0): string | null {
   const m = CONNECT_OF.exec(message);
   if (!m) return null;
-  const hits = parts.flatMap((p, i) => (p as Json)['type'] !== 'board' ? [] : items(p as Json, 'links').flatMap((l, j) => l['from'] === m[1] && l['to'] === m[2] ? [`parts[${i}].links[${j}]`] : []));
+  const hits = parts.flatMap((p, i) => (p as Json)['type'] !== 'board' ? [] : items(p as Json, 'links').flatMap((l, j) => l['from'] === m[1] && l['to'] === m[2] ? [`parts[${firstIndex + i}].links[${j}]`] : []));
   return hits.length === 1 ? hits[0] as string : null;
 }
 
@@ -893,9 +914,10 @@ function inSpecTerms(message: string): {message: string; fix?: string} {
 }
 
 /** Why a figure could not be laid out, at its place and in the fields a spec has. */
-export function layoutIssue(spec: unknown, raw: string): SpecIssue {
+export function layoutIssue(spec: unknown, error: unknown): SpecIssue {
+  const raw = messageOf(error), loc = error instanceof Error ? sourceOf(error) : undefined;
   const {message, fix} = inSpecTerms(raw);
-  return {path: locateMessage(spec, raw) ?? '', message: fix ? `${message}. ${fix}` : message};
+  return {path: locateMessage(spec, raw, loc) ?? '', message: fix ? `${message}. ${fix}` : message};
 }
 
 /** Every text field that holds `char`. */
@@ -912,8 +934,9 @@ export function cappedMessages(list: LocatedMessage[]): LocatedMessage[] {
 
 /** A renderDiagram() verdict in the spec's terms: what failed (`problems`) and what was noticed (`findings`), each with its place. */
 export function locateVerdict(spec: unknown, verdict: Verdict): {problems: LocatedMessage[]; findings: LocatedMessage[]} {
+  const issues: Issue[] = verdict.issues ?? verdict.problems.map(message => ({message}));
   return {
-    problems: verdict.problems.map(raw => ({path: locateMessage(spec, raw), ...inSpecTerms(raw), severity: 'problem' as const})),
+    problems: issues.map(({message, loc}) => ({path: locateMessage(spec, message, loc), ...inSpecTerms(message), severity: 'problem' as const})),
     findings: verdict.findings.map(f => ({path: locateMessage(spec, f.message), message: f.message, rule: f.rule, severity: f.severity, ...(f.data?.fix ? {fix: f.data.fix} : {})})),
   };
 }

@@ -35,7 +35,6 @@ export interface PptxEdgeResult {
   pictures: number;
 }
 
-const messageOf = (e: unknown): string => e instanceof Error ? e.message : String(e);
 const none = (issues: SpecIssue[]): PptxEdgeResult => ({pptx: null, issues, native: 0, pictures: 0});
 
 /** Raw deflate where the runtime has CompressionStream (Workers, browsers, Node 18+); stored otherwise. */
@@ -60,7 +59,7 @@ export async function planFigureEdge(spec: unknown, engine: TextEngine, opts: {f
   try { r = await renderInBrowser(d, {measure: engine.measure}); }
   catch (e) {
     if (e instanceof TextEngineError) throw e;
-    return {issues: [layoutIssue(spec, messageOf(e))]};
+    return {issues: [layoutIssue(spec, e)]};
   }
   const maxHeight = opts.maxHeight ?? MAX_EDGE_HEIGHT;
   if (r.height > maxHeight) return {issues: [{path: '', message: `the figure is ${r.height}px tall; the limit is ${maxHeight}px`}]};
