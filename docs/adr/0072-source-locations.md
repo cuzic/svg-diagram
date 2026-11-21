@@ -1,6 +1,6 @@
 # ADR 0072: 指摘と図の部品に、ソースの位置(ファイル・行・桁)を持たせる
 
-- 状態: 決定・U1・U2a・U2b 実装済み・U3a・U3b 実装済み・U4a・U4b 実装済み(2026-11-21。Opus のレビュー 1 回目(`0072-opus-review-round1.md`)の Blocker 1・Major 5・Minor 10・Nit 7 を反映。2 回目(`0072-opus-review-round2.md`)は Blocker なし、D2 の運び方は全例で動くと確かめた上で、Major 3・Minor 5・Nit 6 を反映。3 回目(`0072-opus-review-round3.md`)は Blocker なし・Major 1(D7 の path が粗くなる)で、Major・Minor 5・Nit 6 を反映。4 回目(`0072-opus-review-round4.md`)で Blocker・Major なしで収束し、その Minor 4・Nit 4 を反映。PR #415 のレビュー 1 回目の m1・m2・n1・n2、PR #419 のレビュー 1 回目、同 PR のレビュー 2 回目の m1・n1、PR #422 のレビュー 1 回目の M1・m2・n1、PR #423 のレビュー 1 回目の M1・m1・m2・m3・n1・n2 と 2 回目の M1・m1・m2・n1 を反映)
+- 状態: 決定・U1・U2a・U2b 実装済み・U3a・U3b 実装済み・U4a・U4b 実装済み(2026-11-21。Opus のレビュー 1 回目(`0072-opus-review-round1.md`)の Blocker 1・Major 5・Minor 10・Nit 7 を反映。2 回目(`0072-opus-review-round2.md`)は Blocker なし、D2 の運び方は全例で動くと確かめた上で、Major 3・Minor 5・Nit 6 を反映。3 回目(`0072-opus-review-round3.md`)は Blocker なし・Major 1(D7 の path が粗くなる)で、Major・Minor 5・Nit 6 を反映。4 回目(`0072-opus-review-round4.md`)で Blocker・Major なしで収束し、その Minor 4・Nit 4 を反映。PR #415 のレビュー 1 回目の m1・m2・n1・n2、PR #419 のレビュー 1 回目、同 PR のレビュー 2 回目の m1・n1、PR #422 のレビュー 1 回目の M1・m2・n1、PR #423 のレビュー 1 回目の M1・m1・m2・m3・n1・n2 と 2 回目の M1・m1・m2・n1、PR #425 のレビュー 1 回目の M1 を反映)
 - 基点: `main`(950584b、PR #398 まで)
 - 関連: ADR 0013(失敗の伝え方)、ADR 0025/0026(検査の重大度)、ADR 0034(SVG の `data-node`)、ADR 0038(ドリフトの検査)、ADR 0045(ブラウザの入口)、ADR 0071(JSON Schema)、svg-diagram-vscode(VS Code 拡張。Phase 2)
 
@@ -106,8 +106,9 @@ VS Code 拡張は `check --format json` の指摘をエディタの波線にし�
 
 - 印は `SOURCE` に乗せる(ほかのシンボルは `cloneData` で消える)。`SourceRef` の `specPath` に持たせる。
 - `assemble()` は `partDef.build(part, at)` のあと、返った部品とその中の部品に `{specPath: 'parts[3]'}` を付ける。spec の部品は包んだ入口の関数で作るので、捕捉が有効なら先にスタックの印が付いている。部品ごとにそのスタックを保ったまま `specPath` を足す。スタックを捕捉していなければ `specPath` だけを持つ。
-- 印は、今の文言の推測を**置き換えず、狭める**。今の推測はフィールドまで言う(`parts[0].nodes[0].label`、ボードの線は `parts[2].links[1]`。`test/spec.test.ts` が固定し、MCP が返している)。部品の中の部品はどれも同じ `parts[i]` の印を持つので、印だけにすると粗くなる。`locateMessage` / `locateVerdict` は、`loc` に spec の印があれば、その部品の中だけで今の推測(`linkOf`・`locateIn`)をし、見つからなければ印の `parts[i]` を返す。印がなければ、今のとおり全体を探す。レイアウトで投げた誤りを位置にする `layoutIssue(spec, error)` も、誤りの `SOURCE` に spec の印があれば同じく狭める(知らない anchor が、同じ文言の 2 つの部品の片方にあるときに効く)。良くなるのは、同じ文言が 2 つの部品にあるとき(今は場所を言えない)。それを確かめるテストと、1 か所にしかない文言が `.label` までの path のままであるテストを置く。
+- 印は、今の文言の推測を**置き換えず、狭める**。今の推測はフィールドまで言う(`parts[0].nodes[0].label`、ボードの線は `parts[2].links[1]`。`test/spec.test.ts` が固定し、MCP が返している)。部品の中の部品はどれも同じ `parts[i]` の印を持つので、印だけにすると粗くなる。レイアウトの誤りは、`loc` に spec の印があれば、その部品の中だけで今の推測(`linkOf`・`locateIn`)をし、見つからなければ印の `parts[i]` を返す。印がなければ、今のとおり全体を探す。レイアウトで投げた誤りを位置にする `layoutIssue(spec, error)` も、誤りの `SOURCE` に spec の印があれば同じく狭める(知らない anchor が、同じ文言の 2 つの部品の片方にあるときに効く)。良くなるのは、同じ文言が 2 つの部品にあるとき(今は場所を言えない)。それを確かめるテストと、1 か所にしかない文言が `.label` までの path のままであるテストを置く。
 - スタックは要らないので、**いつも付ける**(ライブラリの道でも)。
+- 規則の指摘は、指摘の部品(`loc`、次に `related` の順)のうち、印が付いた部品の中で文言を探し、最初に見つかったフィールドの path を返す。どの部品にもフィールドが見つからなければ、最初の部品(`loc`)の印の `parts[i]` を返し、その印がなければ従来どおり spec 全体を探す。
 - `issues` の構造が要るので、U3 の後(U4)にする。
 - MCP・`spec-edge`・デッキの検査は `specPath` を使う。`.ts` が `specToDiagram()` を呼ぶときも、`check` や `build --locations` はスタックからソースの行・桁を出す。投げた誤りに `specPath` だけがあれば、誤りのスタック、図全体の印の順に位置を探す(D4)。
 
