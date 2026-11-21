@@ -176,15 +176,15 @@ export function runPairWays(a: readonly RouteRun[], b: readonly RouteRun[], sep:
 }
 
 /** A route's runs with the box it lies in (a pair of runs under `sep` apart needs the two boxes within `sep` of each other). */
-export interface RoutedRuns {runs: RouteRun[]; x0: number; x1: number; y0: number; y1: number}
+export interface RoutedRuns {pts: P[]; runs?: RouteRun[]; x0: number; x1: number; y0: number; y1: number}
 
-/** The runs of a route and its box, worked out once per array in `cache` (the caller's, so no module holds state). */
+/** The box of a route, worked out once per array in `cache` (the caller's, so no module holds state); its runs are worked out when they are first asked for (`runsIn`). */
 export function routedRuns(r: P[], cache: WeakMap<P[], RoutedRuns>): RoutedRuns {
   let e = cache.get(r);
   if (!e) {
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (const p of r) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
-    e = {runs: runsOfRoute(r), x0, x1, y0, y1};
+    e = {pts: r, x0, x1, y0, y1};
     cache.set(r, e);
   }
   return e;
@@ -206,11 +206,12 @@ export function gainsRunPairs<K>(prev: ReadonlyMap<K, P[]>, next: ReadonlyMap<K,
     for (const [o, ro] of next) {
       if (o === k) continue;
       const oldO = prev.get(o) ?? ro, other = routedRuns(samePath(oldO, ro) ? oldO : ro, cache), otherWas = routedRuns(oldO, cache); // an unchanged route's runs are those of its old array
-      const was = near(was0, otherWas) ? runPairWays(was0.runs, otherWas.runs, sep) : NONE, now = near(now0, other) ? runPairWays(now0.runs, other.runs, sep) : NONE;
+      const was = near(was0, otherWas) ? runPairWays(runsIn(was0), runsIn(otherWas), sep) : NONE, now = near(now0, other) ? runPairWays(runsIn(now0), runsIn(other), sep) : NONE;
       if ((now.level > 0 && was.level === 0) || (now.plumb > 0 && was.plumb === 0)) return true;
       before += was.level + was.plumb; after += now.level + now.plumb;
     }
   }
   return after > before;
 }
+const runsIn = (e: RoutedRuns): RouteRun[] => e.runs ??= runsOfRoute(e.pts);
 const NONE = {level: 0, plumb: 0};

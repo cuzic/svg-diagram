@@ -387,7 +387,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   const turnAt = new Map<number, number>(); // a direct arrow's turn moved to another x in its gap (ADR 0016 D13)
   const detours = new Map<number, Pt[]>(); // a long arrow's route found by searching around the boxes (`detour`): kept when the routes are built again
   /** homes: where main put a turn that placeTracks may move (a long arrow's last turn into an AND, `lastTurn`): the place to beat. */
-  type Pending = {i: number; pts: Pt[]; turns: (number | undefined)[]; homes: (number | undefined)[]};
+  type Pending = {i: number; pts: Pt[]; turns: (number | undefined)[]; homes: (number | undefined)[]; mark: number};
   /** One arrow's stretches of runs near a cluster, with their box (4px wider) and their runs. */
   type Arrow = {st: Pt[][]; box: {x0: number; x1: number; y0: number; y1: number}; segs: {p: Pt; q: Pt}[]; runs?: Runs[]};
   const arrowOf = (st: Pt[][]): Arrow => {
@@ -435,6 +435,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     });
     return {cross, par, real, touch};
   };
+  const stageMemo = new Map<string, {raw: (number | undefined)[]; touched: number[]}>(); // a gap's turns after one stage, by everything the stage reads (a gap with the same inputs is placed the same: the figure is routed again for every trial)
   const trackMemo = new Map<string, number[] | null>(); // a cluster's place, by everything it was chosen from (build() runs again and again)
   /**
    * ADR 0070 D4 (`tracks`): the turns of each gap get tracks, in two passes over the same placing.
@@ -456,7 +457,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
    */
   const placeTracks = (pending: Pending[], out: Map<number, Pt[]>): void => {
     type Run = {x: number; lo: number; hi: number};
-    type Ask = {own: Pending; p: Pt; q: Pt; lo: number; hi: number; min: number; max: number; home: number | undefined; cur: () => number; set: (x: number | undefined) => void};
+    type Ask = {own: Pending; p: Pt; q: Pt; lo: number; hi: number; min: number; max: number; home: number | undefined; cur: () => number; raw: () => number | undefined; set: (x: number | undefined) => void};
     const madeRuns = new Map<number, Run[]>(), given = new Map<number, Run[]>(), held = new Map<number, Run[]>();
     const asks = new Map<number, Ask[]>(), all = new Map<number, Ask[]>();
     const add = <T>(m: Map<number, T[]>, g: number, v: T): void => { const l = m.get(g); if (l) l.push(v); else m.set(g, [v]); };
@@ -485,7 +486,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
         // the AND's arc, ADR 0070 D8)
         const last = k + 2 === pts.length, room = last ? Math.max(STUB, headRunOf(e.to)) : STUB;
         const min = gl + (last && sgn < 0 ? room : STUB), max = gr - (last && sgn > 0 ? room : STUB);
-        const ask: Ask = {own, p, q, lo, hi, min, max, home: own.homes[k], cur: () => turns[k] ?? (p.x + q.x) / 2, set: v => { turns[k] = v; }};
+        const ask: Ask = {own, p, q, lo, hi, min, max, home: own.homes[k], cur: () => turns[k] ?? (p.x + q.x) / 2, raw: () => turns[k], set: v => { turns[k] = v; }};
         add(all, g, ask);
         if (x === undefined && long) add(asks, g, ask);
       }
@@ -502,9 +503,46 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     const signs = new Map([...routeNow].map(([o, r]) => [o, signOf(r)]));
     const turnsSeen = new Map(pending.map((o): [Pending, (number | undefined)[]] => [o, [...o.turns]])); // the turns each pending route in `routeNow` was made from
     // each route's extent along the layers by its place in `routeNow`'s order, so that a cluster finds the routes near it by a pass over two number arrays (a route that is not finite is never near)
-    const seqOf = new Map<Pending | number, number>(), routeAt: (Pending | number)[] = [], ext0 = new Float64Array(signs.size), ext1 = new Float64Array(signs.size);
-    for (const [o, sg] of signs) { const k = seqOf.size; seqOf.set(o, k); routeAt.push(o); ext0[k] = sg.x0; ext1[k] = sg.x1; }
+    const seqOf = new Map<Pending | number, number>(), routeAt: (Pending | number)[] = [], ext0 = new Float64Array(signs.size), ext1 = new Float64Array(signs.size), extH = new Float64Array(signs.size);
+    for (const [o, sg] of signs) { const k = seqOf.size; seqOf.set(o, k); routeAt.push(o); ext0[k] = sg.x0; ext1[k] = sg.x1; extH[k] = sg.h; }
     const legs = (a: Ask): Legs => a.p.x <= a.q.x ? {left: a.p.y, right: a.q.y} : {left: a.q.y, right: a.p.y};
+    /** A place that moved nothing (most: the memo's answer is the turns as they were) leaves a route as it was made; else it is made again from the turns. */
+    const refresh = (o: Pending): void => {
+      const seen = must(turnsSeen.get(o));
+      if (seen.length === o.turns.length && seen.every((x, k) => x === o.turns[k])) return;
+      const r = elbows(o.pts, o.turns), sg = signOf(r);
+      routeNow.set(o, r); signs.set(o, sg); const k = must(seqOf.get(o)); ext0[k] = sg.x0; ext1[k] = sg.x1; extH[k] = sg.h; turnsSeen.set(o, [...o.turns]);
+    };
+    const f64 = new Float64Array(1), u32 = new Uint32Array(f64.buffer);
+    let stamps = 0;
+    let touchedNow: Set<Pending> | undefined; // the arrows a stage of a gap made a route of again (placeCluster's post)
+    /**
+     * One stage of one gap, by what it reads: the gap's turns (spans, bounds, homes, where they are now), the runs that stay, the step of its lanes and
+     * the routes along the layers it reaches (which of them are its own). The same inputs place the same: the turns it ends with (and the arrows whose
+     * route it made again) are kept, and played back.
+     */
+    const stage = (name: string, g: number, list: Ask[], runs: Run[], body: () => void): void => {
+      let x0 = Infinity, x1 = -Infinity;
+      for (const a of list) { x0 = Math.min(x0, a.p.x, a.q.x); x1 = Math.max(x1, a.p.x, a.q.x); }
+      const stamp = ++stamps;
+      for (const a of list) a.own.mark = stamp; // its arrows: the routes of them in the key are told apart from the others'
+      // the key is two 32-bit hashes of the doubles' bits, one each side of a pair (a collision would play back another gap's answer: 2^-64 for any two)
+      let h1 = 2166136261, h2 = 5381;
+      const num = (v: number): void => { f64[0] = v; const lo = u32[0] as number, hi = u32[1] as number; h1 = Math.imul(h1 ^ lo, 16777619); h1 = Math.imul(h1 ^ hi, 16777619); h2 = Math.imul(h2 ^ lo, 33) + hi | 0; };
+      num(name === 'a' ? 1 : 2); num(g); num(laneIn(g)); num(list.length);
+      for (const a of list) { num(a.p.x); num(a.p.y); num(a.q.x); num(a.q.y); num(a.lo); num(a.hi); num(a.min); num(a.max); num(a.home ?? NaN); num(a.cur()); }
+      num(runs.length);
+      for (const r of runs) { num(r.x); num(r.lo); num(r.hi); }
+      for (let k = 0; k < routeAt.length; k++) if ((ext1[k] as number) >= x0 - 1 && (ext0[k] as number) <= x1 + 1) { const o = at(routeAt, k); num(extH[k] as number); num(typeof o !== 'number' && o.mark === stamp ? 1 : 0); }
+      const key = `${h1}:${h2}`;
+      const hit = stageMemo.get(key);
+      if (hit) { list.forEach((a, k) => a.set(hit.raw[k])); for (const k of hit.touched) refresh(at(list, k).own); return; }
+      const outer = touchedNow;
+      touchedNow = new Set();
+      body();
+      stageMemo.set(key, {raw: list.map(a => a.raw()), touched: list.flatMap((a, k) => touchedNow?.has(a.own) ? [k] : [])});
+      touchedNow = outer;
+    };
     /** The clusters of a gap's turns: those whose spans (a lane step longer at both ends) overlap, directly or through others. */
     const clustersOf = (list: Ask[]): Ask[][] => {
       const seen = new Set<Ask>(), out: Ask[][] = [];
@@ -598,12 +636,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       const chosen = picked;
       if (chosen) order.forEach((a, k) => { const x = at(chosen, k); a.set(Number.isNaN(x) ? undefined : x); });
       else if (!strict) order.forEach(a => a.set(a.home));
-      for (const o of mine) {
-        // a place that moved nothing (most: the memo's answer is the turns as they were) leaves the route as it was made
-        const seen = must(turnsSeen.get(o));
-        if (seen.length === o.turns.length && seen.every((x, k) => x === o.turns[k])) continue;
-        const r = elbows(o.pts, o.turns), sg = signOf(r); routeNow.set(o, r); signs.set(o, sg); const k = must(seqOf.get(o)); ext0[k] = sg.x0; ext1[k] = sg.x1; turnsSeen.set(o, [...o.turns]);
-      }
+      for (const o of mine) { touchedNow?.add(o); refresh(o); }
       // false: nothing placed (none fits, or the homes won: the turns with none stay half-way)
       return chosen !== null && !chosen.every((x, k) => Number.isNaN(x) || x === at(order, k).home);
     };
@@ -612,37 +645,41 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     // U4a: the long arrows' turns that no one placed
     for (const [g, list] of asks) {
       const runs = [...madeRuns.get(g) ?? [], ...given.get(g) ?? [], ...held.get(g) ?? []];
-      for (const c of clustersOf(list)) {
-        const a0 = at(c, 0);
-        if (c.length < 2 && !runs.some(r => near(r, a0) && Math.abs(r.x - (a0.p.x + a0.q.x) / 2) < LANE)) { a0.set(a0.home); continue; } // alone and clear: half-way (or its home), as before
-        // the order along the gap before the constraints: of two runs that go down (y grows toward the later layer), the one that comes in
-        // higher turns later (and of two that come in at one height, the one that goes out lower turns first); of two that go up, the one
-        // that comes in higher turns first. Then neither crosses the other's runs (a pair that swaps sides crosses once anyway)
-        const plain = c.toSorted((a, b) => Number(down(a)) - Number(down(b)) || (down(a) ? inY(b) - inY(a) || outY(b) - outY(a) : inY(a) - inY(b) || outY(a) - outY(b)));
-        if (placeCluster(g, constrainedOrder(plain, legs, a => plain.indexOf(a), LANE, orders), runs, false) || !c.some(a => a.home !== undefined) || c.every(a => a.home !== undefined)) continue;
-        // no place for the whole cluster: the last turns into an AND stay at their homes (as in main) and the other turns are placed
-        // around them, as U4a placed them around the fixed last turns
-        const homes = c.filter(a => a.home !== undefined), rest = c.filter(a => a.home === undefined);
-        const around = [...runs, ...homes.map(a => ({x: must(a.home), lo: a.lo, hi: a.hi}))];
-        for (const d of clustersOf(rest)) {
-          const d0 = at(d, 0);
-          if (d.length < 2 && !around.some(r => near(r, d0) && Math.abs(r.x - (d0.p.x + d0.q.x) / 2) < LANE)) continue;
-          const sorted = d.toSorted((a, b) => Number(down(a)) - Number(down(b)) || (down(a) ? inY(b) - inY(a) || outY(b) - outY(a) : inY(a) - inY(b) || outY(a) - outY(b)));
-          placeCluster(g, constrainedOrder(sorted, legs, a => sorted.indexOf(a), LANE, orders), around, false);
+      stage('a', g, list, runs, () => {
+        for (const c of clustersOf(list)) {
+          const a0 = at(c, 0);
+          if (c.length < 2 && !runs.some(r => near(r, a0) && Math.abs(r.x - (a0.p.x + a0.q.x) / 2) < LANE)) { a0.set(a0.home); continue; } // alone and clear: half-way (or its home), as before
+          // the order along the gap before the constraints: of two runs that go down (y grows toward the later layer), the one that comes in
+          // higher turns later (and of two that come in at one height, the one that goes out lower turns first); of two that go up, the one
+          // that comes in higher turns first. Then neither crosses the other's runs (a pair that swaps sides crosses once anyway)
+          const plain = c.toSorted((a, b) => Number(down(a)) - Number(down(b)) || (down(a) ? inY(b) - inY(a) || outY(b) - outY(a) : inY(a) - inY(b) || outY(a) - outY(b)));
+          if (placeCluster(g, constrainedOrder(plain, legs, a => plain.indexOf(a), LANE, orders), runs, false) || !c.some(a => a.home !== undefined) || c.every(a => a.home !== undefined)) continue;
+          // no place for the whole cluster: the last turns into an AND stay at their homes (as in main) and the other turns are placed
+          // around them, as U4a placed them around the fixed last turns
+          const homes = c.filter(a => a.home !== undefined), rest = c.filter(a => a.home === undefined);
+          const around = [...runs, ...homes.map(a => ({x: must(a.home), lo: a.lo, hi: a.hi}))];
+          for (const d of clustersOf(rest)) {
+            const d0 = at(d, 0);
+            if (d.length < 2 && !around.some(r => near(r, d0) && Math.abs(r.x - (d0.p.x + d0.q.x) / 2) < LANE)) continue;
+            const sorted = d.toSorted((a, b) => Number(down(a)) - Number(down(b)) || (down(a) ? inY(b) - inY(a) || outY(b) - outY(a) : inY(a) - inY(b) || outY(a) - outY(b)));
+            placeCluster(g, constrainedOrder(sorted, legs, a => sorted.indexOf(a), LANE, orders), around, false);
+          }
         }
-      }
+      });
     }
     // U4b: every turn of a gap, where their order across it breaks a vertical constraint
     for (const [g, list] of all) {
       const runs = [...madeRuns.get(g) ?? [], ...held.get(g) ?? []];
-      for (const c of clustersOf(list)) {
-        if (c.length < 2) continue;
-        const now = c.toSorted((a, b) => a.cur() - b.cur());
-        const order = constrainedOrder(now, legs, a => now.indexOf(a), LANE, orders);
-        // no constraint broken, and no two of them on one track where their spans overlap
-        if ((order.every((a, k) => a === at(now, k)) && !now.some((a, k) => k > 0 && Math.abs(a.cur() - at(now, k - 1).cur()) < 0.5 && near(a, at(now, k - 1))))) continue;
-        placeCluster(g, order, runs, true);
-      }
+      stage('b', g, list, runs, () => {
+        for (const c of clustersOf(list)) {
+          if (c.length < 2) continue;
+          const now = c.toSorted((a, b) => a.cur() - b.cur());
+          const order = constrainedOrder(now, legs, a => now.indexOf(a), LANE, orders);
+          // no constraint broken, and no two of them on one track where their spans overlap
+          if ((order.every((a, k) => a === at(now, k)) && !now.some((a, k) => k > 0 && Math.abs(a.cur() - at(now, k - 1).cur()) < 0.5 && near(a, at(now, k - 1))))) continue;
+          placeCluster(g, order, runs, true);
+        }
+      });
     }
   };
   const build = (): Map<number, Pt[]> => {
@@ -689,7 +726,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       if (lastTurn !== undefined) (tracks ? homes : turnsOf)[pts.length - 2] = lastTurn;
       if (!tracks) { out.set(i, elbows(pts, turnsOf)); return; }
       out.set(i, []); // a place in the map's order; the route is made once the gaps' tracks are known
-      pending.push({i, pts, turns: turnsOf, homes});
+      pending.push({i, pts, turns: turnsOf, homes, mark: 0});
     });
     if (tracks) {
       placeTracks(pending, out);
