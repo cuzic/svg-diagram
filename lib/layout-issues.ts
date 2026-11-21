@@ -9,11 +9,15 @@ export function findingLocation(file: string, {loc, via}: ReturnType<ResolveSour
   return {...at, ...(via.length ? {via: via.map(({line, column}) => ({line, column}))} : {})};
 }
 
-/** The JSON form shared by check and the build source map. */
-export function layoutFinding(file: string, issue: Issue, resolve: ResolveSource) {
+export function issueLocation(file: string, issue: Issue, resolve: ResolveSource) {
   const related = issue.related?.flatMap(ref => {
     const {loc} = resolve(ref);
     return loc ? [loc] : [];
   });
-  return {file, rule: 'layout', severity: 'error' as const, message: issue.message, ...findingLocation(file, resolve(issue.loc)), ...(related?.length ? {related} : {})};
+  return {...findingLocation(file, resolve(issue.loc)), ...(related?.length ? {related} : {})};
+}
+
+/** The JSON form shared by check and the build source map. */
+export function layoutFinding(file: string, issue: Issue, resolve: ResolveSource) {
+  return {file, rule: 'layout', severity: 'error' as const, message: issue.message, ...issueLocation(file, issue, resolve)};
 }

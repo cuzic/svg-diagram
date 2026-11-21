@@ -1,6 +1,9 @@
 // Consistency rules that read the words and numbers a diagram's author typed: spelling variants of one term
 // (ユーザ / ユーザー, API / Api), project-glossary terms to avoid (.svg-diagram.json "terms"), and tables whose
 // 合計 row / column does not add up. Pure: bands in, findings out.
+import {at, fromSources} from './finding-rules.ts';
+import {sourceOf} from './source-ref.ts';
+import type {SourceRef} from './source-ref.ts';
 import type {Band} from './types/index.ts';
 import type {TableBand, TableCell, TableRow} from './types/sequence-table-swimlane.ts';
 import type {Finding} from './types/verdicts.ts';
@@ -8,19 +11,24 @@ import type {Finding} from './types/verdicts.ts';
 // string fields that are text a reader sees (a connect()'s from / to and every id are not)
 const TEXT_KEYS: ReadonlySet<string> = new Set(['title', 'body', 'label', 'text', 'caption', 'note', 'name', 'headline', 'sub', 'subtitle', 'tag', 'heading', 'lead', 'stamp', 'sourceLine', 'items', 'cells', 'rows', 'detail', 'desc']);
 
-/** The strings of a diagram's bands that are meant to be read (labels, titles, bodies, table cells). */
-export function textsOf(bands: readonly Band[]): string[] {
-  const out: string[] = [];
+function locatedTexts(bands: readonly Band[]): {text: string; loc?: SourceRef}[] {
+  const out: {text: string; loc?: SourceRef}[] = [];
   const seen = new Set<unknown>();
-  const walk = (v: unknown, text: boolean): void => {
-    if (typeof v === 'string') { if (text && v.trim()) out.push(v); return; }
+  const walk = (v: unknown, text: boolean, parent?: SourceRef): void => {
+    if (typeof v === 'string') { if (text && v.trim()) out.push({text: v, loc: parent}); return; }
     if (typeof v !== 'object' || v === null || seen.has(v)) return;
     seen.add(v);
-    if (Array.isArray(v)) { for (const x of v) walk(x, text); return; }
-    for (const [k, x] of Object.entries(v)) walk(x, TEXT_KEYS.has(k));
+    const loc = sourceOf(v) ?? parent;
+    if (Array.isArray(v)) { for (const x of v) walk(x, text, loc); return; }
+    for (const [k, x] of Object.entries(v)) walk(x, TEXT_KEYS.has(k), loc);
   };
   walk(bands, false);
   return out;
+}
+
+/** The strings of a diagram's bands that are meant to be read (labels, titles, bodies, table cells). */
+export function textsOf(bands: readonly Band[]): string[] {
+  return locatedTexts(bands).map(t => t.text);
 }
 
 const KATAKANA = /[ァ-ヴー]{3,}/g;
@@ -40,12 +48,27 @@ export function termVariants(texts: readonly string[]): string[][] {
 
 /** `terms`: {"ユーザー": ["利用者", "ユーザ"]} — the preferred word and the spellings that should not appear. */
 export function termFindings(bands: readonly Band[], terms: Readonly<Record<string, readonly string[]>> | undefined): Finding[] {
-  const texts = textsOf(bands), out: Finding[] = [];
-  const variants = termVariants(texts).filter(v => !terms || !Object.entries(terms).some(([p, avoid]) => v.every(w => w === p || avoid.includes(w)))); // the glossary says it better
-  for (const v of variants) out.push({rule: 'term-variant', severity: 'warn', message: `同じ語の表記が揺れている: ${v.map(w => `「${w}」`).join(' と ')}。どちらかに揃える（揃える語を .svg-diagram.json の "terms" に書くと、全ての図で見張る）`});
+  const texts = locatedTexts(bands), out: Finding[] = [];
+  const variants = termVariants(texts.map(t => t.text)).filter(v => !terms || !Object.entries(terms).some(([p, avoid]) => v.every(w => w === p || avoid.includes(w)))); // the glossary says it better
+  const wordRefs = new Map<string, Set<SourceRef>>();
+  if (variants.length) for (const {text, loc} of texts) {
+    if (!loc) continue;
+    for (const [word] of [...text.matchAll(KATAKANA), ...text.matchAll(LATIN)]) {
+      const refs = wordRefs.get(word) ?? new Set();
+      refs.add(loc);
+      wordRefs.set(word, refs);
+    }
+  }
+  for (const v of variants) out.push({...fromSources(v.flatMap(word => [...(wordRefs.get(word) ?? [])])), rule: 'term-variant', severity: 'warn', message: `同じ語の表記が揺れている: ${v.map(w => `「${w}」`).join(' と ')}。どちらかに揃える（揃える語を .svg-diagram.json の "terms" に書くと、全ての図で見張る）`});
   for (const [prefer, avoid] of Object.entries(terms ?? {})) {
-    const hit = avoid.filter(a => a && texts.some(t => t.toLowerCase().includes(a.toLowerCase())));
-    if (hit.length) out.push({rule: 'term-avoid', severity: 'warn', message: `${hit.map(a => `「${a}」`).join('、')} は用語集で「${prefer}」に統一する語`});
+    const refs = new Set<SourceRef | undefined>();
+    const hit = avoid.filter(a => {
+      if (!a) return false;
+      const matches = texts.filter(t => t.text.toLowerCase().includes(a.toLowerCase()));
+      for (const {loc} of matches) refs.add(loc);
+      return matches.length > 0;
+    });
+    if (hit.length) out.push({...fromSources(refs), rule: 'term-avoid', severity: 'warn', message: `${hit.map(a => `「${a}」`).join('、')} は用語集で「${prefer}」に統一する語`});
   }
   return out;
 }
@@ -97,7 +120,7 @@ export function tableFindings(bands: readonly Band[]): Finding[] {
           const n = parseNum(gj[c] ?? ''); if (n) above.push(n);
         }
         const bad = mismatch(above, total);
-        if (bad !== null && (sub || mismatch(subs, total) !== null || !subs.length)) out.push({rule: 'table-sum-mismatch', severity: 'warn', message: `${name}の「${(row[0] ?? '').trim()}」行 ${c + 1} 列目が ${show(total.value, total.unit, total.decimals)} だが、上の値の和は ${show(bad, total.unit, Math.max(total.decimals, ...above.map(n => n.decimals)))}`});
+        if (bad !== null && (sub || mismatch(subs, total) !== null || !subs.length)) out.push({...at(t), rule: 'table-sum-mismatch', severity: 'warn', message: `${name}の「${(row[0] ?? '').trim()}」行 ${c + 1} 列目が ${show(total.value, total.unit, total.decimals)} だが、上の値の和は ${show(bad, total.unit, Math.max(total.decimals, ...above.map(n => n.decimals)))}`});
       }
     });
     // a 合計 column: the numbers to its left in each row add up to it
@@ -108,7 +131,7 @@ export function tableFindings(bands: readonly Band[]): Finding[] {
         const total = parseNum(row[c] ?? '');
         const left = row.slice(1, c).map(parseNum).filter((n): n is Num => n !== null);
         const bad = total ? mismatch(left, total) : null;
-        if (total && bad !== null) out.push({rule: 'table-sum-mismatch', severity: 'warn', message: `${name}の「${(row[0] ?? '').trim()}」行の「${col.label}」が ${show(total.value, total.unit, total.decimals)} だが、左の値の和は ${show(bad, total.unit, Math.max(total.decimals, ...left.map(n => n.decimals)))}`});
+        if (total && bad !== null) out.push({...at(t), rule: 'table-sum-mismatch', severity: 'warn', message: `${name}の「${(row[0] ?? '').trim()}」行の「${col.label}」が ${show(total.value, total.unit, total.decimals)} だが、左の値の和は ${show(bad, total.unit, Math.max(total.decimals, ...left.map(n => n.decimals)))}`});
       });
     });
     // a share column (構成比 / 割合) with no 合計 row should add up to 100%
@@ -117,7 +140,7 @@ export function tableFindings(bands: readonly Band[]): Finding[] {
       const nums = grid.map(r => parseNum(r[c] ?? '')).filter((n): n is Num => n !== null);
       if (nums.length < 2 || nums.some(n => n.unit !== '%')) return;
       const bad = mismatch(nums, {value: 100, decimals: 0, unit: '%'});
-      if (bad !== null) out.push({rule: 'table-share-not-100', severity: 'warn', message: `${name}の「${col.label}」列の合計が ${show(bad, '%', Math.max(...nums.map(n => n.decimals)))}（100% にならない。割合の取りこぼしか、複数選択なら見出しで断る）`});
+      if (bad !== null) out.push({...at(t), rule: 'table-share-not-100', severity: 'warn', message: `${name}の「${col.label}」列の合計が ${show(bad, '%', Math.max(...nums.map(n => n.decimals)))}（100% にならない。割合の取りこぼしか、複数選択なら見出しで断る）`});
     });
   }
   return out;

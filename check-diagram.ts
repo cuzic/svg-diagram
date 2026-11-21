@@ -53,7 +53,7 @@ import type {WorkerResult} from './drift-pool.ts';
 import type {FindingData, Issue} from './lib/types/verdicts.ts';
 import type {MapRow} from './lib/docs-check.ts';
 import type {SourceLoc} from './lib/source-location.ts';
-import {findingLocation, layoutFinding} from './lib/layout-issues.ts';
+import {findingLocation, issueLocation, layoutFinding} from './lib/layout-issues.ts';
 import {installResolveHook} from './lib/resolve-hook.ts';
 import {installStackCapture, locateError, locateSource} from './lib/source-location-io.ts';
 import {captureSourceLocations} from './lib/source-capture.ts';
@@ -172,6 +172,10 @@ type CheckFinding = {
   /** What was measured against which threshold, and how to fix it (JSON only). */
   data?: FindingData;
 };
+function textLocation(f: CheckFinding): string {
+  const {file, line, column} = f.location ?? f;
+  return line === undefined ? '' : `${file}:${line}:${column}: `;
+}
 const findings: CheckFinding[] = [];
 let bad = 0, warned = 0;
 // a source that does not load is one finding, however many times it is reached (named as an argument and behind a figure): counted once
@@ -433,13 +437,12 @@ try {
     }
     const d = await loadDiagram(abs, config);
     const {verdict} = await checkDiagram(d);
+    const resolveSource = (ref: Parameters<typeof locateSource>[0]) => locateSource(ref, src);
     if (!verdict.ok) {
       const issues: Issue[] = verdict.issues ?? verdict.problems.map(message => ({message}));
       const lines = issues.map(issue => {
-        const f: CheckFinding = layoutFinding(src, issue, ref => locateSource(ref, src));
-        add(f);
-        const {file, line, column} = f.location ?? f;
-        return line === undefined ? issue.message : `${file}:${line}:${column}: ${issue.message}`;
+        const f = add(layoutFinding(src, issue, resolveSource));
+        return `${textLocation(f)}${f.message}`;
       });
       complain(`✗ ${src}:\n  ${lines.join('\n  ')}`);
       return;
@@ -447,10 +450,10 @@ try {
     // --forbid-draft (a publishing job): a figure still marked as a draft is a warning (an accepted one stays info)
     const shown = verdict.findings
       .map(f => forbidDraft && f.rule === 'draft-status' && !f.message.includes('（許容:') ? {...f, severity: 'warn' as const, message: `${f.message}（--forbid-draft）`} : f)
-      .map(f => add({file: src, rule: f.rule, severity: f.severity, message: f.message, ...(f.data ? {data: f.data} : {})}));
+      .map(f => add({file: src, rule: f.rule, severity: f.severity, message: f.message, ...(f.data ? {data: f.data} : {}), ...issueLocation(src, f, resolveSource)}));
     const w = shown.filter(f => f.severity === 'warn').length;
     say(`${w ? '△' : '✓'} ${src}${w ? `（警告 ${w}）` : ''}`);
-    for (const f of shown.filter(f => verbose || f.severity === 'warn')) say(`   ${f.severity === 'warn' ? '⚠' : 'ℹ'} [${f.rule}] ${f.message}${f.severity === 'warn' && acceptHint(f.rule) ? `\n       → ${acceptHint(f.rule)}` : ''}`);
+    for (const f of shown.filter(f => verbose || f.severity === 'warn')) say(`   ${f.severity === 'warn' ? '⚠' : 'ℹ'} ${textLocation(f)}[${f.rule}] ${f.message}${f.severity === 'warn' && acceptHint(f.rule) ? `\n       → ${acceptHint(f.rule)}` : ''}`);
   };
   const runOne = async (src: string) => {
     try { await checkOne(src); }

@@ -14,7 +14,10 @@ import {ceil4, connectRoom, labelCover, hidesArrow} from './connect-rules.ts';
 import {axisMismatches} from './axis-rules.ts';
 import {qualify, scopeOf} from './anchor-scope.ts';
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
+import {at, fromSources} from './finding-rules.ts';
+import type {SourceRef} from './source-ref.ts';
 import {nestedBandsOf} from './band-children.ts';
+import {itemIdsOf} from './band-ids.ts';
 import {sourceOf, withSource} from './source-ref.ts';
 import {minTextSize} from './fit.ts';
 import {IMAGE_WARN_BYTES} from './image.ts';
@@ -169,6 +172,125 @@ export const RULE_DOCS = {
   'doc-orphan-svg': 'どの文書からも参照されていない SVG',
 };
 
+/** Per-part findings keep their location in auto appearance; grouped findings use their original wording to match across sides.
+ * Document rules use the document as their scope and provide lines in --docs.
+ */
+export const RULE_LOCATION = {
+  'a11y-text-contrast': 'band-grouped',
+  'a11y-color-only-emphasis': 'band-grouped',
+  'a11y-nontext-contrast': 'band-grouped',
+  'title-duplicated': 'band',
+  'a11y-no-title': 'diagram',
+  'bars-values-hidden': 'diagram',
+  'bars-thin-bar': 'band',
+  'image-large': 'band',
+  'cjk-line-long': 'band',
+  'draft-status': 'diagram',
+  'source-wraps': 'diagram',
+  'legend-missing': 'diagram',
+  'legend-incomplete': 'band-grouped',
+  'swimlane-lane-order': 'band',
+  'text-mid-word-break': 'band-grouped',
+  'glyph-missing': 'band-grouped',
+  'connect-label-covers-arrow': 'band-grouped',
+  'chart-axis-mismatch': 'band-grouped',
+  'wrap-fell-back': 'diagram',
+  'shrink-narrow-text': 'band',
+  'gray-tone-collision': 'band-grouped',
+  'rowheader-tone-collides': 'band',
+  'semantic-table-warning': 'band',
+  'swimlane-lanes': 'band',
+  'swimlane-hand-offs': 'band',
+  'edge-crossings': 'band-grouped',
+  'edge-bends': 'band',
+  'edge-parallel': 'band',
+  'quadrant-item-moved': 'band',
+  'quadrant-size-floor': 'band',
+  'quadrant-empty-cell': 'band',
+  'quadrant-tone-only': 'band',
+  'funnel-values-rise': 'band',
+  'toc-ude-count': 'band',
+  'toc-no-desired-result': 'band',
+  'toc-parts': 'band',
+  'toc-nbr-parts': 'band',
+  'toc-nbr-no-tipping': 'band',
+  'toc-nbr-tipping-not-and': 'band',
+  'toc-nbr-trim-too-late': 'band',
+  'toc-tt-unit': 'band',
+  'toc-prt-bottom-not-action': 'band',
+  'toc-prt-one-to-one': 'band',
+  'toc-obstacle-phrase': 'band',
+  'toc-injection-to-obstacle': 'band',
+  'toc-role-indistinct': 'band',
+  'toc-legend-suggested': 'diagram',
+  'toc-mirror': 'band',
+  'fta-gate-one-input': 'band',
+  'fta-vote-degenerate': 'band',
+  'fta-top-is-leaf': 'band',
+  'fta-undeveloped-left': 'band',
+  'isisnot-no-isnot': 'band',
+  'isisnot-no-distinct-at-all': 'band',
+  'isisnot-no-hypothesis-stands': 'band',
+  'whywhy-no-root': 'band',
+  'whywhy-measure-without-root': 'band',
+  'whywhy-single-chain': 'band',
+  'whywhy-dig-below-root': 'band',
+  'bowtie-barrier-missing': 'band',
+  'fta-single-point': 'band',
+  'toc-source-has-cause': 'band',
+  'toc-chain-only': 'band',
+  'toc-orphan': 'band',
+  'toc-cycle-undeclared': 'band',
+  'graph-orphan-node': 'band-grouped',
+  'graph-disconnected': 'band-grouped',
+  'term-variant': 'band-grouped',
+  'term-avoid': 'band-grouped',
+  'table-sum-mismatch': 'band',
+  'table-share-not-100': 'band',
+  'arrow-labels': 'diagram',
+  'canvas-region-empty': 'band',
+  'one-story': 'diagram',
+  'slide-min-text': 'diagram',
+  'font-floor-lowered': 'diagram',
+  'box-size-ignored': 'band-grouped',
+  'stat-no-source': 'band',
+  'stat-fit-shrunk': 'band',
+  'slide-canvas-overflow': 'diagram',
+  'aspect-tall': 'diagram',
+  'doc-width': 'diagram',
+  'flowchart-decision-edges': 'band',
+  'auto-fit-applied': 'band',
+  'cause-line-scale-dropped': 'band-grouped',
+  'density-compact-restored': 'band-grouped',
+  'density': 'diagram',
+  'concentric-label-crossing': 'band',
+  'wf-callout-no-note': 'band',
+  'wf-note-no-callout': 'band',
+  'wf-callout-gap': 'band',
+  'wf-callout-duplicate': 'band',
+  'wf-states-todo': 'band',
+  'wf-states-required': 'band',
+  'wf-states-ragged': 'band',
+  'wf-callout-order': 'band',
+  'layout-sibling-size': 'band',
+  'layout-edge-misalign': 'band',
+  'layout-gutter-uneven': 'band',
+  'layout-unused-space': 'band',
+  'layout-figure-offset': 'diagram',
+  'layout-figure-narrow': 'diagram',
+  'layout-align-mixed': 'band',
+  'doc-image-missing': 'diagram',
+  'doc-alt-empty': 'diagram',
+  'doc-alt-long': 'diagram',
+  'doc-notes-missing': 'diagram',
+  'doc-notes-mismatch': 'diagram',
+  'doc-png-has-svg': 'diagram',
+  'doc-png-no-source': 'diagram',
+  'doc-orphan-png': 'diagram',
+  'doc-svg-no-source': 'diagram',
+  'doc-orphan-svg': 'diagram',
+} satisfies Record<RuleId, 'band' | 'band-grouped' | 'diagram'>;
+
 export const DEFAULT_LEGEND_LABELS = {
   'line:solid': '実線', 'line:dashed': '破線', 'line:dotted': '点線', 'line:double': '二重線', 'arrow:both': '双方向', 'weight:strong': '強い流れ',
   'tone:new': '新規', 'tone:changed': '変更・改修', 'tone:removed': '対象外', 'tone:danger': '異常・注意',
@@ -203,12 +325,17 @@ function bandTones(bands: Band[]): string[] {
   return out;
 }
 
+// A canvas region with a pill says its tone in words.
+function wordedCanvasBands(all: Band[]): Set<Band> {
+  return new Set(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => must(b.canvas).worded[i]) : []));
+}
+
 // notation keys a diagram uses: 'line:dashed', 'arrow:both', 'weight:strong', 'tone:new', ...
 export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause = false): Set<string> {
   const all = walkBands(bands);
   const used = new Set<string>(), lines = new Set<string>();
   // a canvas() region with a pill (重点 / 中心 / ソフト) says its tone in words: that tone needs no legend entry
-  const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => must(b.canvas).worded[i]) : []));
+  const worded = wordedCanvasBands(all);
   for (const b of all) {
     if (dimmed.has(b) || worded.has(b)) continue;
     if (b.type === 'connect') {
@@ -307,14 +434,19 @@ const ASPECT_TALL = 1.5;
 
 function textContrast(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   const paint = paintOf(tones, d.appearance);
-  const seen = new Set<string>();
-  const check = (fg: string | undefined, bg: string | undefined, what: string): void => {
+  const pairs = new Map<string, {finding: Finding; refs: Set<SourceRef>}>();
+  const check = (band: LaidOutBand, fg: string | undefined, bg: string | undefined, what: string): void => {
     if (!fg || !bg) return;
     fg = paint(fg); bg = paint(bg);
     const need = 4.5, r = lightWcag(fg, bg), key = `${fg}|${bg}`;
-    if (r < need && !seen.has(key)) {
-      seen.add(key);
-      out.push({rule: 'a11y-text-contrast', severity: 'warn', message: `${what} の文字 ${fg} と背景 ${bg} のコントラスト比が ${ratioText(r)}:1（4.5:1 以上が目安）`});
+    if (r < need) {
+      let pair = pairs.get(key);
+      if (!pair) {
+        pair = {refs: new Set(), finding: {rule: 'a11y-text-contrast', severity: 'warn', message: `${what} の文字 ${fg} と背景 ${bg} のコントラスト比が ${ratioText(r)}:1（4.5:1 以上が目安）`}};
+        pairs.set(key, pair);
+      }
+      const ref = sourceOf(band);
+      if (ref) pair.refs.add(ref);
     }
   };
   const boxes: (LaidOutBand | LaidOutBox)[] = [];
@@ -323,81 +455,97 @@ function textContrast(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
     if (b.type === 'box' || b.type === 'banner') {
       const bg = b.dim ? PALETTE.bg : resolveBoxStyle(tones, b.tone ?? ((b.type as string) === 'banner' ? 'accent' : 'plain'), d.day) /* banner() always sets tone; the fallback is defensive */.fill;
       const boxTone = b.tone ?? ((b.type as string) === 'banner' ? 'accent' : 'plain');
-      for (const run of b.wrappedRuns ?? []) check(b.dim ? PALETTE.muted : runColorOf(tones, run.tone, boxTone, d.day), bg, `「${String(run.text).slice(0, 14)}」`);
-      if (!b.dim) for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if (sp.tone) check(resolveTextColor(tones, sp.tone, d.day), bg, `「${sp.text.slice(0, 14)}」`);
-      if (b.tag) check(PALETTE.bg, colorOf(toneStyle(tones, b.tagTone === 'danger' || b.tagTone === 'muted' ? b.tagTone : 'accent').ink, d.day), `タグ「${b.tag}」`);
+      for (const run of b.wrappedRuns ?? []) check(b, b.dim ? PALETTE.muted : runColorOf(tones, run.tone, boxTone, d.day), bg, `「${String(run.text).slice(0, 14)}」`);
+      if (!b.dim) for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if (sp.tone) check(b, resolveTextColor(tones, sp.tone, d.day), bg, `「${sp.text.slice(0, 14)}」`);
+      if (b.tag) check(b, PALETTE.bg, colorOf(toneStyle(tones, b.tagTone === 'danger' || b.tagTone === 'muted' ? b.tagTone : 'accent').ink, d.day), `タグ「${b.tag}」`);
     } else if (b.type === 'caption') {
-      for (const run of b.wrappedRuns ?? []) check(resolveTextColor(tones, run.tone, d.day), PALETTE.bg, `「${String(run.text).slice(0, 14)}」`);
-      for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if (sp.tone) check(resolveTextColor(tones, sp.tone, d.day), PALETTE.bg, `「${sp.text.slice(0, 14)}」`);
+      for (const run of b.wrappedRuns ?? []) check(b, resolveTextColor(tones, run.tone, d.day), PALETTE.bg, `「${String(run.text).slice(0, 14)}」`);
+      for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if (sp.tone) check(b, resolveTextColor(tones, sp.tone, d.day), PALETTE.bg, `「${sp.text.slice(0, 14)}」`);
     } else if (b.type === 'table') {
-      if (b.titleBar) check(PALETTE.bg, PALETTE[d.day].accent, 'テーブルの題名帯');
+      if (b.titleBar) check(b, PALETTE.bg, PALETTE[d.day].accent, 'テーブルの題名帯');
       for (const row of b.rows) for (const c of row.cells) {
         const bg = row.header || (b.rowHeader && c === row.cells[0]) ? PALETTE[d.day].soft : row.tone ? resolveBoxStyle(tones, row.tone, d.day).fill : PALETTE.bg;
-        if (c.lines.length) check(resolveTextColor(tones, c.tone, d.day), bg, `表のセル「${must(c.lines[0]).slice(0, 12)}」`);
+        if (c.lines.length) check(b, resolveTextColor(tones, c.tone, d.day), bg, `表のセル「${must(c.lines[0]).slice(0, 12)}」`);
       }
     }
   }
+  for (const {finding, refs} of pairs.values()) out.push({...finding, ...fromSources(refs)});
 }
 
 // em.danger() / em.accent() without em.b(): the emphasis is the colour alone (WCAG 1.4.1). em.muted() softens, so it is not one.
 function colourOnlyEmphasis(d: LintTarget, out: Finding[]): void {
   if (d.medium !== 'doc') return;
-  const words: string[] = [];
+  const words: string[] = [], parts = new Set<LaidOutBand>();
   const boxes: (LaidOutBand | LaidOutBox)[] = [];
   for (const b of d.laidOut ?? []) { if (b.type === 'row' || b.type === 'grid') boxes.push(...b.children); else boxes.push(b); }
   for (const b of boxes) {
     if (b.type !== 'box' && b.type !== 'banner' && b.type !== 'caption') continue;
     if (b.dim) continue;
-    for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if ((sp.tone === 'danger' || sp.tone === 'accent') && !sp.bold) words.push(`「${sp.text.slice(0, 14)}」`);
+    for (const run of b.wrappedRuns ?? []) for (const sp of run.spans ?? []) if ((sp.tone === 'danger' || sp.tone === 'accent') && !sp.bold) { words.push(`「${sp.text.slice(0, 14)}」`); parts.add(b); }
   }
-  if (words.length) out.push({rule: 'a11y-color-only-emphasis', severity: 'warn', message: `色だけで強調した語: ${words.slice(0, 6).join('')}${words.length > 6 ? ` ほか ${words.length - 6} 件` : ''}。em.b() も併用する`});
+  if (words.length) out.push({...fromSources([...parts].map(b => sourceOf(b))), rule: 'a11y-color-only-emphasis', severity: 'warn', message: `色だけで強調した語: ${words.slice(0, 6).join('')}${words.length > 6 ? ` ほか ${words.length - 6} 件` : ''}。em.b() も併用する`});
 }
 
 function nonTextContrast(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   const wcagRatio = wcagIn(d, tones);
-  const used = new Set<EmphasisTone>();
+  const used = new Map<EmphasisTone, BoxBand[]>();
   const dimmed = dimmedBands(d);
-  for (const b of walkBands(d.bands)) if (b.type === 'box' && !dimmed.has(b)) used.add(b.tone ?? 'plain');
-  for (const t of used) {
+  for (const b of walkBands(d.bands)) if (b.type === 'box' && !dimmed.has(b)) {
+    const tone = b.tone ?? 'plain', parts = used.get(tone) ?? [];
+    parts.push(b);
+    used.set(tone, parts);
+  }
+  for (const [t, parts] of used) {
     const st = resolveBoxStyle(tones, t, d.day);
     // a tone with no border of its own (solid) is drawn with its fill as the stroke: the fill against the page is what delimits it
     const ts = toneStyle(tones, t), own = typeof d.day === 'string' ? ts.stroke : ts.slideStroke ?? ts.stroke;
     const r = own == null ? wcagRatio(st.fill, PALETTE.bg) : Math.min(wcagRatio(st.stroke, st.fill), wcagRatio(st.stroke, PALETTE.bg));
-    if (r < 3) out.push({rule: 'a11y-nontext-contrast', severity: 'warn', message: `トーン「${t}」の枠線 ${st.stroke} が、背景に対して ${ratioText(r)}:1（3:1 以上が目安）。タグや文言など、色以外の手がかりを必ず併用する`});
+    if (r < 3) out.push({...at(parts[0], ...parts.slice(1)), rule: 'a11y-nontext-contrast', severity: 'warn', message: `トーン「${t}」の枠線 ${st.stroke} が、背景に対して ${ratioText(r)}:1（3:1 以上が目安）。タグや文言など、色以外の手がかりを必ず併用する`});
   }
+  let firstArrow: {col: string; r: number} | undefined;
+  const arrowRefs: SourceRef[] = [];
   for (const c of d.connects ?? []) {
     // connector colours are resolved the same way emit does
     const col = c.dim ? PALETTE.muted : c.tone === 'muted' || c.tone === 'danger' || c.tone === 'accent' ? colorOf(toneStyle(tones, c.tone).ink, d.day) : PALETTE.text;
     const r = wcagRatio(col, PALETTE.bg);
-    if (r < 3) { out.push({rule: 'a11y-nontext-contrast', severity: 'warn', message: `矢印の色 ${col} のコントラスト比が ${ratioText(r)}:1`}); break; }
+    if (r < 3) {
+      firstArrow ??= {col, r};
+      if (col !== firstArrow.col) continue;
+      const ref = sourceOf(c);
+      if (ref) arrowRefs.push(ref);
+    }
   }
+  if (firstArrow) out.push({...fromSources(arrowRefs), rule: 'a11y-nontext-contrast', severity: 'warn', message: `矢印の色 ${firstArrow.col} のコントラスト比が ${ratioText(firstArrow.r)}:1`});
 }
 
 function legendRules(d: LintTarget, out: Finding[]): void {
   if (d.legend === false) return; // the author declared that this diagram needs no legend
-  const used = usedNotation(d.bands, dimmedBands(d)), have = legendKeys(d.bands);
+  const dim = dimmedBands(d), used = usedNotation(d.bands, dim), have = legendKeys(d.bands);
   if (!used.size) return;
-  const hasLegend = walkBands(d.bands).some(b => b.type === 'legend');
   const missing = [...used].filter(k => !have.has(k));
   if (!missing.length) return;
   const labels = legendLabelsFor(used, d.legendLabels);
   // say WHICH element uses each missing notation (a tone: the boxes drawn in it; a line / arrow: the connectors), not just the key
   const all = walkBands(d.bands), quote = (t: string | undefined): string => { const s = (t ?? '').replace(/\s+/g, ' ').trim(); return s ? `「${[...s].length > 14 ? `${[...s].slice(0, 14).join('')}…` : s}」` : ''; };
-  const dim = dimmedBands(d);
+  const hasLegend = all.some(b => b.type === 'legend');
+  const worded = wordedCanvasBands(all), parts = new Set<Band>();
   const where = (k: string): string => {
     if (k.startsWith('tone:')) {
       const boxes = all.filter((b): b is BoxBand => b.type === 'box' && `tone:${b.tone}` === k && !dim.has(b));
+      for (const b of boxes) if (!worded.has(b)) parts.add(b);
       const ex = boxes.slice(0, 3).map(b => quote(b.title ?? b.body)).filter(Boolean).join('');
       return boxes.length ? `${k.slice(5)} の色の箱 ${boxes.length} 枚${ex ? `: ${ex}${boxes.length > 3 ? ' ほか' : ''}` : ''}` : '';
     }
     if (k.startsWith('line:') || k.startsWith('weight:') || k === 'arrow:both') {
-      const n = all.filter(b => b.type === 'connect' && (k === 'arrow:both' ? b.arrow === 'both' : k.startsWith('weight:') ? `weight:${b.weight}` === k : `line:${b.line ?? 'solid'}` === k)).length;
-      return n ? `該当する矢印・線 ${n} 本` : '';
+      const lines = all.filter(b => b.type === 'connect' && (k === 'arrow:both' ? b.arrow === 'both' : k.startsWith('weight:') ? `weight:${b.weight}` === k : `line:${b.line ?? 'solid'}` === k));
+      for (const b of lines) if (!dim.has(b)) parts.add(b);
+      return lines.length ? `該当する矢印・線 ${lines.length} 本` : '';
     }
     return '';
   };
   const names = missing.map(k => { const w = where(k); return `${k}（${w ? `${w}。` : ''}凡例の例: ${labels[k] ?? k}）`; }).join('、');
-  out.push({rule: hasLegend ? 'legend-incomplete' : 'legend-missing', severity: 'warn', message: `凡例にない記法: ${names}。凡例に項目を足す（legend: 'auto' なら自動）か、凡例が要らない図なら legend: false`});
+  const location = hasLegend ? fromSources(all.filter(b => parts.has(b)).map(b => sourceOf(b))) : {};
+  out.push({...location, rule: hasLegend ? 'legend-incomplete' : 'legend-missing', severity: 'warn', message: `凡例にない記法: ${names}。凡例に項目を足す（legend: 'auto' なら自動）か、凡例が要らない図なら legend: false`});
 }
 
 // segments of every connector, for crossing / overlap counting
@@ -468,13 +616,13 @@ function loopUnderHints(connects: LaidOutConnect[]): string[] {
 
 // rowHeader: true paints the row-heading cell `soft`; a row whose own tone also fills `soft` (accent / new) loses the difference.
 function rowHeaderRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
-  for (const b of walkBands(d.bands)) if (b.type === 'table') for (const message of b.semanticWarnings ?? []) out.push({rule: 'semantic-table-warning', severity: 'warn', message});
+  for (const b of walkBands(d.bands)) if (b.type === 'table') for (const message of b.semanticWarnings ?? []) out.push({...at(b), rule: 'semantic-table-warning', severity: 'warn', message});
   for (const b of d.laidOut ?? []) {
     if (b.type !== 'table' || !b.rowHeader) continue;
     const rows = b.rows.filter(r => !r.header && toneStyle(tones, r.tone).fill === 'soft');
     if (!rows.length) continue;
     const names = rows.slice(0, 4).map(r => `「${(r.cells[0]?.lines[0] ?? '').slice(0, 12)}」`).join('');
-    out.push({rule: 'rowheader-tone-collides', severity: 'warn', message: `表の行ラベルは soft で塗るが、${names}${rows.length > 4 ? ` ほか ${rows.length - 4} 行` : ''}は行のトーン（${[...new Set(rows.map(r => r.tone))].join('・')}）も soft なので、行ラベルと本文の塗りが同じになる。muted / changed / 太字の文字などに変えるか、行のトーンを外す`});
+    out.push({...at(b), rule: 'rowheader-tone-collides', severity: 'warn', message: `表の行ラベルは soft で塗るが、${names}${rows.length > 4 ? ` ほか ${rows.length - 4} 行` : ''}は行のトーン（${[...new Set(rows.map(r => r.tone))].join('・')}）も soft なので、行ラベルと本文の塗りが同じになる。muted / changed / 太字の文字などに変えるか、行のトーンを外す`});
   }
 }
 
@@ -486,32 +634,38 @@ export const GRAY_MIN_DL = 10;
 const lightnessOf = (hex: string): number => { const y = relativeLuminance(hex); return y > 0.008856 ? 116 * Math.cbrt(y) - 16 : 903.3 * y; };
 
 function grayToneRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
-  const used = new Set<string>(), all = walkBands(d.bands);
+  const used = new Map<string, Set<Band | LaidOutBand>>(), all = walkBands(d.bands);
+  const use = (name: string, band: Band | LaidOutBand): void => {
+    const parts = used.get(name) ?? new Set();
+    parts.add(band);
+    used.set(name, parts);
+  };
   // a canvas() region with a pill (重点 / 中心 / 結論) says its tone in words, as for the legend (usedNotation): not a grayscale matter
-  const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => must(b.canvas).worded[i]) : []));
-  for (const b of all) if (b.type === 'box' && !worded.has(b)) used.add(b.tone ?? 'plain');
-  for (const b of all) if (b.type === 'emblem') for (const i of b.items) used.add(i.tone ?? 'plain');
-  for (const b of d.laidOut ?? []) if (b.type === 'table') for (const r of b.rows) if (!r.header && r.tone) used.add(r.tone);
+  const worded = wordedCanvasBands(all);
+  for (const b of all) if (b.type === 'box' && !worded.has(b)) use(b.tone ?? 'plain', b);
+  for (const b of all) if (b.type === 'emblem') for (const i of b.items) use(i.tone ?? 'plain', b);
+  for (const b of d.laidOut ?? []) if (b.type === 'table') for (const r of b.rows) if (!r.header && r.tone) use(r.tone, b);
   const p = paintOf(tones, d.appearance);
-  const fills = [...used].map(name => {
+  const fills = [...used].map(([name, parts]) => {
     const t = toneStyle(tones, name), box = resolveBoxStyle(tones, name as EmphasisTone, d.day);
-    return {name, fill: p(box.fill).toLowerCase(), dashed: box.dashed, l: lightnessOf(p(box.fill)), quiet: t.fill === 'code'};
+    return {name, parts, fill: p(box.fill).toLowerCase(), dashed: box.dashed, l: lightnessOf(p(box.fill)), quiet: t.fill === 'code'};
   });
-  const seen = new Set<string>(), hits: string[] = [];
+  const hits = new Map<string, string>(), parts = new Set<Band | LaidOutBand>();
   for (let i = 0; i < fills.length; i++) for (let j = i + 1; j < fills.length; j++) {
     const a = must(fills[i]), b = must(fills[j]);
     if (a.fill === b.fill || a.quiet || b.quiet || a.dashed !== b.dashed || Math.abs(a.l - b.l) >= GRAY_MIN_DL) continue;
     const pair = `${a.name}・${b.name}`;
-    if (!seen.has(pair)) { seen.add(pair); hits.push(`${pair}（L* ${Math.round(a.l)} と ${Math.round(b.l)}）`); }
+    if (!hits.has(pair)) hits.set(pair, `${pair}（L* ${Math.round(a.l)} と ${Math.round(b.l)}）`);
+    for (const part of [...a.parts, ...b.parts]) parts.add(part);
   }
-  if (hits.length) out.push({rule: 'gray-tone-collision', severity: 'warn', message: `白黒にすると塗りの明度が近く、見分けにくいトーンの組: ${hits.join('、')}。直し方は 2 つ: (1) トーンの塗りの明度差を L* 10 以上にする（diagram({tones: {accent: {fill: '#…'}}}) か .svg-diagram.json の "tones" で色を変える。または片方を solid / muted にする）、(2) 破線・太字・ラベルなど色以外の手がかりを足し、accept: {'gray-tone-collision': '理由'} で許容する（確認は preview --gray）`});
+  if (hits.size) out.push({...fromSources([...parts].map(b => sourceOf(b))), rule: 'gray-tone-collision', severity: 'warn', message: `白黒にすると塗りの明度が近く、見分けにくいトーンの組: ${[...hits.values()].join('、')}。直し方は 2 つ: (1) トーンの塗りの明度差を L* 10 以上にする（diagram({tones: {accent: {fill: '#…'}}}) か .svg-diagram.json の "tones" で色を変える。または片方を solid / muted にする）、(2) 破線・太字・ラベルなど色以外の手がかりを足し、accept: {'gray-tone-collision': '理由'} で許容する（確認は preview --gray）`});
 }
 
 function shrinkRules(d: LintTarget, out: Finding[]): void {
   for (const b of d.laidOut ?? []) {
     if ((b.type !== 'bpmn' && b.type !== 'swimlane') || !b.narrow?.length) continue;
     const what = b.type === 'bpmn' ? 'task' : 'step';
-    out.push({rule: 'shrink-narrow-text', severity: 'warn', message: `fit: 'shrink' で詰めた結果、${what} の本文が 2〜3 字ずつ折れている（${b.narrow.slice(0, 3).map(t => `「${t}」`).join('')}${b.narrow.length > 3 ? ` ほか ${b.narrow.length - 3} 件` : ''}）。直し方: 図を縦向きにする、列の多い図を 2 つに分ける、文言を短くする、図の幅（maxWidth）を広げる`});
+    out.push({...at(b), rule: 'shrink-narrow-text', severity: 'warn', message: `fit: 'shrink' で詰めた結果、${what} の本文が 2〜3 字ずつ折れている（${b.narrow.slice(0, 3).map(t => `「${t}」`).join('')}${b.narrow.length > 3 ? ` ほか ${b.narrow.length - 3} 件` : ''}）。直し方: 図を縦向きにする、列の多い図を 2 つに分ける、文言を短くする、図の幅（maxWidth）を広げる`});
   }
 }
 
@@ -520,7 +674,7 @@ function swimlaneRules(d: LintTarget, out: Finding[]): void {
   if (lanesBands.length > 1) out.push({rule: 'one-story', severity: 'warn', message: `スイムレーンが ${lanesBands.length} つある。1 図 1 話にして、図を分けることを検討する`});
   for (const sl of lanesBands) {
     const n = sl.lanes.length;
-    if (n > 6) out.push({rule: 'swimlane-lanes', severity: 'warn', message: `レーンが ${n} 本ある（6 本までが目安）`});
+    if (n > 6) out.push({...at(sl), rule: 'swimlane-lanes', severity: 'warn', message: `レーンが ${n} 本ある（6 本までが目安）`});
     const ids = new Map<string, number>(sl.steps.filter(s => s.id).map((s): [string, number] => [qualify(scopeOf(sl), s.id as string), sl.lanes.findIndex(l => l.id === s.lane)]));
     const flows = (d.connects ?? []).filter(c => ids.has(c.fromId) && ids.has(c.toId));
     if (!flows.length) continue;
@@ -528,12 +682,12 @@ function swimlaneRules(d: LintTarget, out: Finding[]): void {
     const cur = [...Array(n).keys()];
     const curD = laneDistance(cur, pairs);
     const handOffs = flows.filter(c => ids.get(c.fromId) !== ids.get(c.toId)).length;
-    out.push({rule: 'swimlane-hand-offs', severity: 'info', message: `引き継ぎ ${handOffs} 件 / 矢印 ${flows.length} 本。レーン間の距離の合計 ${curD}`});
+    out.push({...at(sl), rule: 'swimlane-hand-offs', severity: 'info', message: `引き継ぎ ${handOffs} 件 / 矢印 ${flows.length} 本。レーン間の距離の合計 ${curD}`});
     if (n >= 2 && n <= MAX_LANES_TO_ORDER) {
       // lanes marked {fixed: true} keep their place (e.g. a collecting 'PM' lane at the bottom)
       const best = bestLaneOrder(n, new Set(cur.filter(i => must(sl.lanes[i]).fixed)), pairs);
       const bestD = laneDistance(best, pairs);
-      if (bestD < curD) out.push({rule: 'swimlane-lane-order', severity: 'warn', message: `レーンを「${best.map(i => must(sl.lanes[i]).label.replace(/\n/g, '')).join(' → ')}」の順にすると、レーン間の距離が ${curD} → ${bestD} に減る`});
+      if (bestD < curD) out.push({...at(sl), rule: 'swimlane-lane-order', severity: 'warn', message: `レーンを「${best.map(i => must(sl.lanes[i]).label.replace(/\n/g, '')).join(' → ')}」の順にすると、レーン間の距離が ${curD} → ${bestD} に減る`});
     }
   }
 }
@@ -571,7 +725,7 @@ function calloutOrder(d: LintTarget, out: Finding[]): void {
       const aboveIt = c.y < a.y - ORDER_ROW && c.x < a.x + ORDER_COL;        // higher up, and not in a column further right
       if (leftOfIt || aboveIt) bad.push(`${nums[i]}→${nums[i + 1]}`);
     }
-    if (bad.length) out.push({rule: 'wf-callout-order', severity: 'info', message: `${b.title ? `「${b.title}」` : 'ワイヤーフレーム'}: 番号が読む順でない所: ${bad.join('、')}`});
+    if (bad.length) out.push({...at(b), rule: 'wf-callout-order', severity: 'info', message: `${b.title ? `「${b.title}」` : 'ワイヤーフレーム'}: 番号が読む順でない所: ${bad.join('、')}`});
   }
 }
 
@@ -584,23 +738,23 @@ function wireframeRules(d: LintTarget, out: Finding[]): void {
       const where = b.title ? `「${b.title}」` : 'ワイヤーフレーム';
       const uniq = [...new Set(calls)].sort((x, y) => x - y);
       const noNote = uniq.filter(c => !noteNums.includes(c));
-      if (noNote.length) out.push({rule: 'wf-callout-no-note', severity: 'warn', message: `${where}: 番号 ${noNote.join('・')} に対応する注釈がない`});
+      if (noNote.length) out.push({...at(b), rule: 'wf-callout-no-note', severity: 'warn', message: `${where}: 番号 ${noNote.join('・')} に対応する注釈がない`});
       const noCall = noteNums.filter(nn => !calls.includes(nn));
-      if (b.notes?.length && noCall.length) out.push({rule: 'wf-note-no-callout', severity: 'warn', message: `${where}: 注釈 ${noCall.join('・')} に対応する番号が図にない`});
-      if (uniq.length && uniq.some((c, i) => c !== i + 1)) out.push({rule: 'wf-callout-gap', severity: 'warn', message: `${where}: 番号が 1 からの連番でない（${uniq.join('・')}）`});
+      if (b.notes?.length && noCall.length) out.push({...at(b), rule: 'wf-note-no-callout', severity: 'warn', message: `${where}: 注釈 ${noCall.join('・')} に対応する番号が図にない`});
+      if (uniq.length && uniq.some((c, i) => c !== i + 1)) out.push({...at(b), rule: 'wf-callout-gap', severity: 'warn', message: `${where}: 番号が 1 からの連番でない（${uniq.join('・')}）`});
       const dup = uniq.filter(c => calls.filter(x => x === c).length > 1);
-      if (dup.length) out.push({rule: 'wf-callout-duplicate', severity: 'info', message: `${where}: 番号 ${dup.join('・')} が複数の場所に付いている（1 つの注釈を共有）`});
+      if (dup.length) out.push({...at(b), rule: 'wf-callout-duplicate', severity: 'info', message: `${where}: 番号 ${dup.join('・')} が複数の場所に付いている（1 つの注釈を共有）`});
     }
     if (b.type === 'screens' && b.matrix) {
       const m = b.matrix;
       const miss = (m.required ?? []).filter(c => !m.cols.includes(c));
-      if (miss.length) out.push({rule: 'wf-states-required', severity: 'warn', message: `状態の一覧に、必須の状態「${miss.join('」「')}」の列がない`});
+      if (miss.length) out.push({...at(b), rule: 'wf-states-required', severity: 'warn', message: `状態の一覧に、必須の状態「${miss.join('」「')}」の列がない`});
       const todo: string[] = [];
       for (const row of m.rows) {
-        if (row.cells.length > m.cols.length) out.push({rule: 'wf-states-ragged', severity: 'warn', message: `行「${row.label}」の欄が ${row.cells.length} 個で、列（${m.cols.length}）より多い`});
+        if (row.cells.length > m.cols.length) out.push({...at(b), rule: 'wf-states-ragged', severity: 'warn', message: `行「${row.label}」の欄が ${row.cells.length} 個で、列（${m.cols.length}）より多い`});
         m.cols.forEach((col, i) => { const c = row.cells[i]; if (c == null || c === 'todo') todo.push(`${row.label}×${col}`); }); // a row shorter than the columns leaves "未設計" cells
       }
-      if (todo.length) out.push({rule: 'wf-states-todo', severity: 'warn', message: `「未設計」の欄: ${todo.join('、')}`});
+      if (todo.length) out.push({...at(b), rule: 'wf-states-todo', severity: 'warn', message: `「未設計」の欄: ${todo.join('、')}`});
     }
   }
 }
@@ -618,9 +772,9 @@ export const rcaSeverity = (d: Pick<DiagramData, 'rcaCheck'>): 'warn' | 'info' =
 function rcaRules(d: LintTarget, out: Finding[]): void {
   const severity = rcaSeverity(d);
   for (const b of walkBands(d.bands)) {
-    if (b.type === 'fta') for (const f of ftaFindings(b)) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
-    if (b.type === 'bowtie') for (const f of bowtieFindings(b)) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
-    if ((b.type === 'table' || b.type === 'cause') && b.rca) for (const f of b.rca.findings) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
+    if (b.type === 'fta') for (const f of ftaFindings(b)) out.push({...at(b), rule: f.rule, severity: f.severity ?? severity, message: f.message});
+    if (b.type === 'bowtie') for (const f of bowtieFindings(b)) out.push({...at(b), rule: f.rule, severity: f.severity ?? severity, message: f.message});
+    if ((b.type === 'table' || b.type === 'cause') && b.rca) for (const f of b.rca.findings) out.push({...at(b), rule: f.rule, severity: f.severity ?? severity, message: f.message});
   }
 }
 
@@ -628,21 +782,23 @@ function rcaRules(d: LintTarget, out: Finding[]): void {
 function evidenceRules(d: LintTarget, out: Finding[]): void {
   if (d.evidenceCheck === undefined) return;
   const severity = d.evidenceCheck === 'strict' ? 'warn' : 'info';
-  for (const b of walkBands(d.bands)) if (b.type === 'box' && b.statValue !== undefined && !b.evidence) out.push({rule: 'stat-no-source', severity, message: `数字 ${b.statValue} に出典がない(stat の source を足す)`});
+  for (const b of walkBands(d.bands)) if (b.type === 'box' && b.statValue !== undefined && !b.evidence) out.push({...at(b), rule: 'stat-no-source', severity, message: `数字 ${b.statValue} に出典がない(stat の source を足す)`});
 }
 
 function tocRules(d: LintTarget, out: Finding[]): void {
   const severity = tocSeverity(d);
   // a TOC tree on a diagram that says nothing about its legend: the roles are told apart only by a legend (ADR 0029 D1)
   if (d.legend === undefined && walkBands(d.bands).some(b => b.type === 'cause' && b.tree !== undefined)) out.push({rule: 'toc-legend-suggested', severity: 'info', message: "TOC の図に凡例が無い。役割（根本原因・施策・障害など）は色と枠でしか区別されない。diagram({legend: 'auto'}) を付けるか、causeTree({roleTags: true}) で役割を文字にする"});
-  for (const b of walkBands(d.bands)) if (b.type === 'cause') for (const f of tocFindings(b)) out.push({rule: f.rule, severity: f.severity ?? severity, message: f.message});
+  for (const b of walkBands(d.bands)) if (b.type === 'cause') for (const f of tocFindings(b)) out.push({...at(b), rule: f.rule, severity: f.severity ?? severity, message: f.message});
 }
 
 // Alignment and whitespace (ADR 0014): measured on the laid-out bands (lib/layout-metrics.ts), reported at layoutSeverity(d).
 function layoutQualityRules(d: LintTarget, out: Finding[]): void {
   if (!d.laidOut) return;
   const severity = layoutSeverity(d);
-  for (const m of layoutMetrics(d.laidOut, {width: d.width, slideCanvas: !!d.canvas})) out.push({rule: m.rule, severity, message: m.message, data: m.data});
+  for (const {rule, message, data, ...location} of layoutMetrics(d.laidOut, {width: d.width, slideCanvas: !!d.canvas})) {
+    out.push({rule, severity, message, data, ...location});
+  }
 }
 
 // ---- edge-bends (ADR 0016 D6) ------------------------------------------------------------------------------------------------
@@ -652,11 +808,11 @@ function layoutQualityRules(d: LintTarget, out: Finding[]): void {
 // (two layers skipped at a bend each) and an average over 3 are what a reader sees as tangled.
 export const EDGE_BENDS_MAX = 5, EDGE_BENDS_MEAN = 3;
 
-interface RoutedEdges {name: string; edges: {from: string; to: string; points: {x: number; y: number}[]}[]}
+interface RoutedEdges {band: LaidOutBand; name: string; edges: {from: string; to: string; points: {x: number; y: number}[]}[]}
 function routedBands(bands: LaidOutBand[], out: RoutedEdges[] = []): RoutedEdges[] {
   for (const b of bands) {
-    if (b.type === 'cause' || b.type === 'states' || b.type === 'bpmn' || b.type === 'classes') out.push({name: `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart' : b.type}${b.id ? ` ${b.id}` : ''}`, edges: b.edges});
-    else if (b.type === 'chart' && b.edges) out.push({name: `${b.kind}${b.id ? ` ${b.id}` : ''}`, edges: b.edges});
+    if (b.type === 'cause' || b.type === 'states' || b.type === 'bpmn' || b.type === 'classes') out.push({band: b, name: `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart' : b.type}${b.id ? ` ${b.id}` : ''}`, edges: b.edges});
+    else if (b.type === 'chart' && b.edges) out.push({band: b, name: `${b.kind}${b.id ? ` ${b.id}` : ''}`, edges: b.edges});
     else if (b.type === 'row' || b.type === 'grid') routedBands(b.children, out);
   }
   return out;
@@ -674,7 +830,7 @@ function edgeBendsRules(d: LintTarget, out: Finding[]): void {
     if (worst.length) parts.push(`${worst.length} 本が ${EDGE_BENDS_MAX} 回以上折れる（${worst.slice(0, 3).map(c => `${c.e.from} → ${c.e.to} が ${c.bends} 回`).join('、')}${worst.length > 3 ? ' ほか' : ''}）`);
     if (mean > EDGE_BENDS_MEAN) parts.push(`矢印 ${counted.length} 本の折れの合計 ${total}（平均 ${mean.toFixed(1)} 回、${EDGE_BENDS_MEAN} 回以下が目安）`);
     if (!parts.length) continue;
-    out.push({rule: 'edge-bends', severity, message: `${band.name}: ${parts.join('。')}。層を飛ぶ矢印・戻る矢印を減らす（辺の向き・節の分け方を見直す）`, data: {band: band.name, measured: worst[0]?.bends ?? Math.round(mean * 10) / 10, threshold: worst.length ? EDGE_BENDS_MAX : EDGE_BENDS_MEAN, fix: '層を飛ぶ辺・戻る辺を減らす（節の分け方・辺の向きを見直す）。意図した形なら accept で許容する'}});
+    out.push({...at(band.band), rule: 'edge-bends', severity, message: `${band.name}: ${parts.join('。')}。層を飛ぶ矢印・戻る矢印を減らす（辺の向き・節の分け方を見直す）`, data: {band: band.name, measured: worst[0]?.bends ?? Math.round(mean * 10) / 10, threshold: worst.length ? EDGE_BENDS_MAX : EDGE_BENDS_MEAN, fix: '層を飛ぶ辺・戻る辺を減らす（節の分け方・辺の向きを見直す）。意図した形なら accept で許容する'}});
   }
 }
 
@@ -704,7 +860,7 @@ function edgeParallelRules(d: LintTarget, out: Finding[]): void {
     const name = `cause${band.id ? ` ${band.id}` : ''}`;
     const arrow = (i: number): string => { const e = edges[i] as {from: string; to: string}; return `${e.from} → ${e.to}`; };
     const worst = pairs.slice(0, 3).map(p => `${arrow(p.a)} と ${arrow(p.b)}（間隔 ${Math.round(p.gap)}px、${Math.round(p.overlap)}px）`).join('、');
-    out.push({rule: 'edge-parallel', severity, message: `${name}: 矢印どうしが ${sep}px より近くで並ぶ所が ${pairs.length} 組、計 ${total}px（${worst}${pairs.length > 3 ? ' ほか' : ''}）。平行線の束はたどれない`, data: {band: name, measured: total, threshold: 2 * sep, fix: "前提条件を行き先の近くに置く（causeTree({tree: 'crt'}) の既定、または layer: 'alap'）、層を飛ぶ矢印を減らす。意図した形なら accept で許容する"}});
+    out.push({...at(band), rule: 'edge-parallel', severity, message: `${name}: 矢印どうしが ${sep}px より近くで並ぶ所が ${pairs.length} 組、計 ${total}px（${worst}${pairs.length > 3 ? ' ほか' : ''}）。平行線の束はたどれない`, data: {band: name, measured: total, threshold: 2 * sep, fix: "前提条件を行き先の近くに置く（causeTree({tree: 'crt'}) の既定、または layer: 'alap'）、層を飛ぶ矢印を減らす。意図した形なら accept で許容する"}});
   }
 }
 
@@ -713,7 +869,7 @@ function statFitFindings(d: LintTarget, out: Finding[]): void {
   const boxes: LaidOutBand[] = [];
   for (const b of d.laidOut ?? []) { if (b.type === 'row' || b.type === 'grid') boxes.push(...b.children); else boxes.push(b); }
   for (const b of boxes) if (b.type === 'box') for (const s of b.statShrunk ?? []) {
-    out.push({rule: 'stat-fit-shrunk', severity: 'info', message: `stat の値 "${s.value}" を ${s.from}px から ${s.to}px に縮めた(箱の幅 ${Math.round(b.w)}px に収めるため)。同じ列の stat と大きさがそろわない。箱を広げるか、値を短くすると、そろう`});
+    out.push({...at(b), rule: 'stat-fit-shrunk', severity: 'info', message: `stat の値 "${s.value}" を ${s.from}px から ${s.to}px に縮めた(箱の幅 ${Math.round(b.w)}px に収めるため)。同じ列の stat と大きさがそろわない。箱を広げるか、値を短くすると、そろう`});
   }
 }
 
@@ -722,15 +878,38 @@ export function acceptHint(rule: string): string {
   return Object.hasOwn(RULE_DOCS, rule) ? `許容するなら diagram({accept: {'${rule}': '理由'}}) か .svg-diagram.json の {"accept": {"${rule}": "理由"}}（詳しくは check --explain ${rule}）` : '';
 }
 
+/** Layout copies share SourceRefs across appearances, including refs from the same helper's different calls. */
+export function mergeFindingSides(light: readonly Finding[], dark: readonly Finding[]): Finding[] {
+  const refs = new Map<SourceRef, number>();
+  const id = (ref: SourceRef): number => {
+    const existing = refs.get(ref);
+    if (existing !== undefined) return existing;
+    const next = refs.size + 1;
+    refs.set(ref, next);
+    return next;
+  };
+  return mergeSides(light, dark, f => {
+    const wording = `${f.rule}\0${f.message}`;
+    if (RULE_LOCATION[f.rule as RuleId] === 'band-grouped') return wording;
+    const locations = [f.loc, ...(f.related ?? [])].map(ref => ref ? id(ref) : 0);
+    return `${wording}\0${locations.join(',')}`;
+  }, f => ({...f, message: `${f.message} (${DARK_NOTE})`}));
+}
+
 export function lintDiagram(d: LintTarget): Finding[] {
   if (d.appearance === 'auto') { // ADR 0023 D4: both colour sides, the same finding once, a dark-only one marked
     const side = (appearance: 'light' | 'dark') => lintDiagram({...d, appearance});
-    return mergeSides(side('light'), side('dark'), f => `${f.rule}\0${f.message}`, f => ({...f, message: `${f.message} (${DARK_NOTE})`}));
+    return mergeFindingSides(side('light'), side('dark'));
   }
   const out = lintAll(d, toneEnv(d.tones));
+  const diagramLocation = at(d);
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
   const reasonOf = (rule: string): string | undefined => d.accept?.[rule as RuleId] ?? (rule === 'toc-no-desired-result' ? d.accept?.['toc-parts'] : undefined); // before ADR 0037 the missing desired result was toc-parts
-  return out.map(f => { const why = reasonOf(f.rule); return why ? {...f, severity: 'info' as const, message: `${f.message}（許容: ${why}）`} : f; });
+  return out.map(f => {
+    const located = RULE_LOCATION[f.rule as RuleId] === 'diagram' || !f.loc ? {...f, ...diagramLocation} : f;
+    const why = reasonOf(f.rule);
+    return why ? {...located, severity: 'info' as const, message: `${f.message}（許容: ${why}）`} : located;
+  });
 }
 
 // the width of a line in full-width characters (CJK, kana, hangul, fullwidth forms and pictographs count 1, everything else
@@ -747,19 +926,28 @@ export const HEADLINE_PX: Readonly<Record<'title' | 'banner' | 'stat' | 'display
 const isHeadlineRole = (r: string | undefined): r is keyof typeof HEADLINE_PX => r != null && r in HEADLINE_PX;
 // a headline line over the budget (a guide in full-width characters: what fits a 600px text column), or one the layout had to wrap
 function headlineLength(d: LintTarget, out: Finding[]): void {
-  const seen = new Set<string>();
-  const flag = (line: string, message: string): void => { if (!seen.has(line)) { seen.add(line); out.push({rule: 'cjk-line-long', severity: 'warn', message}); } };
+  const seen = new Map<SourceRef | undefined, Set<string>>();
+  const seenFor = (band: Band | LaidOutBand): Set<string> => {
+    const loc = sourceOf(band);
+    let lines = seen.get(loc);
+    if (!lines) { lines = new Set(); seen.set(loc, lines); }
+    return lines;
+  };
+  const flag = (band: Band | LaidOutBand, line: string, message: string): void => {
+    const lines = seenFor(band);
+    if (!lines.has(line)) { lines.add(line); out.push({...at(band), rule: 'cjk-line-long', severity: 'warn', message}); }
+  };
   const quote = (line: string): string => { const t = line.trim(); return [...t].length > 16 ? `${[...t].slice(0, 16).join('')}…` : t; };
-  const check = (text: string, role: keyof typeof HEADLINE_PX): void => {
+  const check = (band: Band, text: string, role: keyof typeof HEADLINE_PX): void => {
     const budget = Math.floor(HEADLINE_BUDGET_PX / HEADLINE_PX[role]);
     for (const line of text.split('\n')) {
       const u = fullWidthUnits(line.trim());
-      if (u > budget) flag(line, `見出しの 1 行が全角 ${Math.ceil(u)} 字ぶんで、${budget} 字の目安（${role}。本文幅 ${HEADLINE_BUDGET_PX}px に収まる字数）を超える: 「${quote(line)}」。短くするか、改行して分ける`);
+      if (u > budget) flag(band, line, `見出しの 1 行が全角 ${Math.ceil(u)} 字ぶんで、${budget} 字の目安（${role}。本文幅 ${HEADLINE_BUDGET_PX}px に収まる字数）を超える: 「${quote(line)}」。短くするか、改行して分ける`);
     }
   };
   for (const b of walkBands(d.bands)) {
-    if (b.type === 'caption' && !b.sourceLine && isHeadlineRole(b.role)) check(b.text, b.role);
-    else if (b.type === 'banner') check(b.headline, b.headlineRole ?? 'banner');
+    if (b.type === 'caption' && !b.sourceLine && isHeadlineRole(b.role)) check(b, b.text, b.role);
+    else if (b.type === 'banner') check(b, b.headline, b.headlineRole ?? 'banner');
   }
   // under the budget but still wrapped by the layout (a narrow diagram, a banner in a row): the break falls anywhere, even inside a word
   const laid = (d.laidOut ?? []).flatMap(b => b.type === 'row' || b.type === 'grid' ? b.children : [b]);
@@ -768,7 +956,7 @@ function headlineLength(d: LintTarget, out: Finding[]): void {
     const run = head != null ? (b as {wrappedRuns: {text: string; lines: string[]}[]}).wrappedRuns[0] : undefined;
     if (head == null || !run) continue;
     const given = head.split('\n');
-    if (run.lines.length > given.length && !given.some(l => seen.has(l))) flag(head, `見出しが幅に収まらず、${run.lines.length} 行に自動で折り返している: 「${quote(must(given[0]))}」。短くするか、区切りのよいところで改行する`);
+    if (run.lines.length > given.length && !given.some(l => seenFor(b).has(l))) flag(b, head, `見出しが幅に収まらず、${run.lines.length} 行に自動で折り返している: 「${quote(must(given[0]))}」。短くするか、区切りのよいところで改行する`);
   }
 }
 
@@ -790,12 +978,21 @@ function graphRules(d: LintTarget, out: Finding[]): void {
     for (const id of ids) add(id);
     for (const id of ids) parent.set(find(id), find(must(ids[0])));
   }
-  const boxes = walkBands(d.bands).filter((b): b is BoxBand => b.type === 'box' && !!b.id && !!b.title);
+  const all = walkBands(d.bands);
+  const boxes = all.filter((b): b is BoxBand => b.type === 'box' && !!b.id && !!b.title);
   const orphans = boxes.filter(b => !parent.has(must(b.id)));
-  if (orphans.length) out.push({rule: 'graph-orphan-node', severity: 'warn', message: `どの矢印にもつながっていない箱: ${orphans.map(b => `「${oneLine(b.title)}」(${b.id})`).join('、')}。矢印を足すか、箱を消す（注記なら id を付けない）`});
+  if (orphans.length) out.push({...at(orphans[0], ...orphans.slice(1)), rule: 'graph-orphan-node', severity: 'warn', message: `どの矢印にもつながっていない箱: ${orphans.map(b => `「${oneLine(b.title)}」(${b.id})`).join('、')}。矢印を足すか、箱を消す（注記なら id を付けない）`});
   const groups = new Map<string, string[]>();
   for (const id of parent.keys()) { const r = find(id); groups.set(r, [...(groups.get(r) ?? []), id]); }
-  if (groups.size > 1) out.push({rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${[...groups.values()].map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
+  if (groups.size > 1) {
+    const components = [...groups.values()];
+    // Point at the components outside the largest one; keep the first component on a tie.
+    const largest = components.reduce((a, b) => a.length >= b.length ? a : b);
+    const disconnected = new Set(components.filter(g => g !== largest).flat());
+    const refs = all.filter(b => ('id' in b && b.id && disconnected.has(b.id))
+      || itemIdsOf(b).some(id => disconnected.has(qualify(scopeOf(b), id)))).map(b => sourceOf(b));
+    out.push({...fromSources(refs), rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${components.map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
+  }
 }
 // A decision (a diamond) is a fork: it needs two or more arrows out, and each says which answer it is (ADR 0041 D5)
 function flowRules(d: LintTarget, out: Finding[]): void {
@@ -805,19 +1002,21 @@ function flowRules(d: LintTarget, out: Finding[]): void {
       const id = b.anchors[i]?.id;
       if (n.shape !== 'diamond' || id === undefined) return;
       const leaving = b.edges.flatMap((e, k) => e.from === id && e.to !== id ? [{e, k}] : []);
-      if (leaving.length < 2) out.push({rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印が ${leaving.length} 本。判断は分岐なので、2 本以上（Yes / No など）にする`});
-      else if (leaving.length > 2) out.push({rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印が ${leaving.length} 本。3 本以上の分岐は読みにくいので、2 つの判断に分ける`});
+      if (leaving.length < 2) out.push({...at(b), rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印が ${leaving.length} 本。判断は分岐なので、2 本以上（Yes / No など）にする`});
+      else if (leaving.length > 2) out.push({...at(b), rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印が ${leaving.length} 本。3 本以上の分岐は読みにくいので、2 つの判断に分ける`});
       const bare = leaving.filter(({k}) => !b.labels.some(l => l.edge === k)).map(({e}) => `${e.from} → ${e.to}`);
-      if (bare.length && leaving.length >= 2) out.push({rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印にラベルがない（${bare.join('、')}）。どの答えの矢印か分かるよう、Yes / No などを付ける`});
+      if (bare.length && leaving.length >= 2) out.push({...at(b), rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印にラベルがない（${bare.join('、')}）。どの答えの矢印か分かるよう、Yes / No などを付ける`});
     });
   }
 }
 // `density: 'compact'` that was not applied to a band (ADR 0036 D6): the compact figure had an arrow through a box or a label on another one
 function densityRules(d: LintTarget, out: Finding[]): void {
   // ADR 0070 D7 (U5): the canvas asked for lines scaled with the text, but the scaled figure did not fit; it is drawn with the old lines
-  if (causeBandsOf(d.laidOut ?? []).some(b => b.lineScaleDropped)) out.push({rule: 'cause-line-scale-dropped', severity: 'info', message: 'causeTree(): 線の間隔を文字の倍率で広げると canvas に収まらないので、この図は広げない間隔で描いた（線の間隔 ÷ 文字が小さい）。canvas を高くする・minText を下げる・図を分けると広げられる'});
-  const who = (d.laidOut ?? []).flatMap(b => (b.type === 'cause' || b.type === 'states') && b.densityRestored ? [b.type === 'cause' ? 'causeTree()' : b.flavor === 'flowchart' ? 'flowchart()' : 'stateDiagram()'] : []);
-  if (who.length) out.push({rule: 'density-compact-restored', severity: 'info', message: `${[...new Set(who)].join('・')}: density: 'compact' にすると箱を通る矢印・重なるラベルが増えるので、この図は通常の間隔で描いた（高さは詰まっていない）`});
+  const dropped = causeBandsOf(d.laidOut ?? []).filter(b => b.lineScaleDropped);
+  if (dropped.length) out.push({...at(dropped[0], ...dropped.slice(1)), rule: 'cause-line-scale-dropped', severity: 'info', message: 'causeTree(): 線の間隔を文字の倍率で広げると canvas に収まらないので、この図は広げない間隔で描いた（線の間隔 ÷ 文字が小さい）。canvas を高くする・minText を下げる・図を分けると広げられる'});
+  const restored = (d.laidOut ?? []).filter(b => b.type === 'cause' && b.densityRestored || b.type === 'states' && b.densityRestored);
+  const who = restored.map(b => b.type === 'cause' ? 'causeTree()' : b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart()' : 'stateDiagram()');
+  if (who.length) out.push({...at(restored[0], ...restored.slice(1)), rule: 'density-compact-restored', severity: 'info', message: `${[...new Set(who)].join('・')}: density: 'compact' にすると箱を通る矢印・重なるラベルが増えるので、この図は通常の間隔で描いた（高さは詰まっていない）`});
 }
 const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()', fta: 'faultTree()', bowtie: 'bowtie()'} as const;
 // what the layout changed on its own to make a figure fit its width (ADR 0010 D3): left out is a warning, `dir: 'auto'` is the author's own choice
@@ -827,7 +1026,7 @@ function fitRules(d: LintTarget, out: Finding[]): void {
     const what = b.fitApplied.map(describeApplied).join('、'), auto = b.fitApplied.every(a => a.mode === 'auto');
     const noDir = b.type === 'fta' || b.type === 'bowtie'; // a fault tree and a bow-tie have no `dir`
     const knobs = noDir ? 'maxNodeW' : 'dir / maxNodeW', say = noDir ? "maxNodeW: 'auto'" : "dir: 'auto'";
-    out.push({rule: 'auto-fit-applied', severity: auto ? 'info' : 'warn', message: auto
+    out.push({...at(b), rule: 'auto-fit-applied', severity: auto ? 'info' : 'warn', message: auto
       ? `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart()' : FIT_WHO[b.type]}: ${knobs} を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`
       : `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart()' : FIT_WHO[b.type]}: ${knobs} を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら ${say} と書く（info になる）。固定したいなら ${knobs} を明示する（収まらなければ試した案つきで止まる）`});
   }
@@ -842,18 +1041,20 @@ const MID_WORD_FIX: Record<string, string> = {
 };
 function midWordRules(d: LintTarget, out: Finding[]): void {
   const source = sourceText(d.bands);
-  const found = (d.laidOut ?? []).flatMap(b => midWordBreaksIn(b, source).map(br => ({type: String(b.type), ...br})));
+  const refs = new Set<SourceRef | undefined>();
+  const found = (d.laidOut ?? []).flatMap(b => midWordBreaksIn(b, source, ref => refs.add(ref)).map(br => ({type: String(b.type), ...br})));
   if (!found.length) return;
   const shown = [...new Set(found.map(b => `「${b.before}/${b.after}」`))];
   // the word that was cut, and how wide a line has to be for it (full-width characters): the box must be at least that wide
   const words = [...new Map(found.filter(b => b.word).map(b => [b.word, fullWidthUnits(b.word)] as const))].sort((p, q) => q[1] - p[1]);
   const wordNote = words.length ? ` 割れた語: ${words.slice(0, 3).map(([w, u]) => `「${w}」（全角で約 ${Math.ceil(u)} 字分）`).join('')}。その語が 1 行に入る幅（文字の大きさ × ${Math.ceil(must(words[0])[1])} 字分以上）が箱に要る。` : '';
   const fixes = [...new Set(found.flatMap(b => MID_WORD_FIX[b.type] ? [`${b.type}: ${MID_WORD_FIX[b.type]}`] : []))];
-  out.push({rule: 'text-mid-word-break', severity: 'warn', message: `語の途中で行が割れている（${shown.slice(0, 4).join('')}${shown.length > 4 ? ` ほか ${shown.length - 4} 件` : ''}）。${wordNote}直し方: ${fixes.length ? fixes.join('。') : 'diagram({keepWords: true}) で語を割らない、箱の幅を広げる、dir や maxNodeW を変える、文言を短くする、語の前後で改行する'}`});
+  out.push({...fromSources(refs), rule: 'text-mid-word-break', severity: 'warn', message: `語の途中で行が割れている（${shown.slice(0, 4).join('')}${shown.length > 4 ? ` ほか ${shown.length - 4} 件` : ''}）。${wordNote}直し方: ${fixes.length ? fixes.join('。') : 'diagram({keepWords: true}) で語を割らない、箱の幅を広げる、dir や maxNodeW を変える、文言を短くする、語の前後で改行する'}`});
 }
 function glyphRules(d: LintTarget, out: Finding[]): void {
-  const glyphs = missingGlyphs(d.laidOut);
-  if (glyphs.length) out.push({rule: 'glyph-missing', severity: 'warn', message: `絵文字として扱われない絵記号がある（${glyphs.map(g => `「${g}」`).join('')}）。通常の文字のフォントで描かれ、字形が無いと空白になる。直し方: icon.emoji() か SVG アイコン（box({icon})）を使う、または ✓ ✗ などの字に置き換える`});
+  const refs = new Set<SourceRef | undefined>();
+  const glyphs = missingGlyphs(d.laidOut, ref => refs.add(ref));
+  if (glyphs.length) out.push({...fromSources(refs), rule: 'glyph-missing', severity: 'warn', message: `絵文字として扱われない絵記号がある（${glyphs.map(g => `「${g}」`).join('')}）。通常の文字のフォントで描かれ、字形が無いと空白になる。直し方: icon.emoji() か SVG アイコン（box({icon})）を使う、または ✓ ✗ などの字に置き換える`});
 }
 function labelCoverRules(d: LintTarget, out: Finding[]): void {
   // the room each hidden label needs (labelRoom(), the basis the layout widens gaps by: ADR 0069 D1), on straight connects
@@ -861,21 +1062,22 @@ function labelCoverRules(d: LintTarget, out: Finding[]): void {
   const hits = hidden.map(c => { const cover = must(labelCover(c)), need = connectRoom(c); return `「${c.label}」(${c.fromId}→${c.toId}、見える部分 ${Math.round(cover.visible)}px${need !== undefined && Number.isFinite(need) ? `、要る間隔 ${ceil4(need)}px` : ''})`; });
   const needs = hidden.map(c => connectRoom(c)).filter((n): n is number => n !== undefined && Number.isFinite(n));
   const widen = needs.length === 1 && hidden.length === 1 ? `箱の間隔を ${ceil4(must(needs[0]))}px 以上に広げる` : needs.length ? '箱の間隔を、それぞれの要る間隔以上に広げる' : '箱の間隔を広げる';
-  if (hits.length) out.push({rule: 'connect-label-covers-arrow', severity: 'warn', message: `矢印のラベルが矢印のほとんどを覆っていて、向きが読めない: ${hits.slice(0, 4).join('、')}${hits.length > 4 ? ` ほか ${hits.length - 4} 件` : ''}。直し方: ${widen}、ラベルを短くする、ラベルを箱の中に書く`});
+  if (hits.length) out.push({...at(hidden[0], ...hidden.slice(1)), rule: 'connect-label-covers-arrow', severity: 'warn', message: `矢印のラベルが矢印のほとんどを覆っていて、向きが読めない: ${hits.slice(0, 4).join('、')}${hits.length > 4 ? ` ほか ${hits.length - 4} 件` : ''}。直し方: ${widen}、ラベルを短くする、ラベルを箱の中に書く`});
 }
 function axisRules(d: LintTarget, out: Finding[]): void {
-  const found = axisMismatches(d.bands);
-  if (found.length) out.push({rule: 'chart-axis-mismatch', severity: 'warn', message: `比べて読む 2 つのチャートの値の軸が違う: ${found.slice(0, 3).join('。')}${found.length > 3 ? ` ほか ${found.length - 3} 組` : ''}。同じ長さが別の値に見える。直し方: 両方に同じ domain を書く（bars は max）。横向きのチャートは、ラベルの列の幅が違うと同じ値が別の長さに見えるので、plotInset もそろえる。意図して別の軸なら axisGroup: false か accept`});
+  const pairs = axisMismatches(d.bands), found = [...pairs.keys()];
+  const refs = [...pairs.values()].flatMap(parts => [...parts].map(b => sourceOf(b)));
+  if (found.length) out.push({...fromSources(refs), rule: 'chart-axis-mismatch', severity: 'warn', message: `比べて読む 2 つのチャートの値の軸が違う: ${found.slice(0, 3).join('。')}${found.length > 3 ? ` ほか ${found.length - 3} 組` : ''}。同じ長さが別の値に見える。直し方: 両方に同じ domain を書く（bars は max）。横向きのチャートは、ラベルの列の幅が違うと同じ値が別の長さに見えるので、plotInset もそろえる。意図して別の軸なら axisGroup: false か accept`});
 }
 /** box-size-ignored: box({size}) is read by neither layout nor emit (said once per figure; the band keeps what the author wrote). */
 function boxSizeRules(d: LintTarget, out: Finding[]): void {
   const hit = walkBands(d.bands).filter(b => b.type === 'box' && b.size !== undefined);
-  if (hit.length) out.push({rule: 'box-size-ignored', severity: 'warn', message: `box({size}) は効果がない(${hit.length} 個の箱)。大きい文字は役割を使う: stat() / stat({size: 'display'})・caption({role: 'display'})・banner({headlineRole})・bars / plane({labelRole})。次の版で throw する`});
+  if (hit.length) out.push({...at(hit[0], ...hit.slice(1)), rule: 'box-size-ignored', severity: 'warn', message: `box({size}) は効果がない(${hit.length} 個の箱)。大きい文字は役割を使う: stat() / stat({size: 'display'})・caption({role: 'display'})・banner({headlineRole})・bars / plane({labelRole})。次の版で throw する`});
 }
 /** ADR 0065: a mark of a concentric with sectors whose label found no spot clear of the ring and sector lines. */
 function crossingRules(d: LintTarget, out: Finding[]): void {
   for (const b of d.laidOut ?? []) if (b.type === 'concentric') for (const label of b.crossings ?? [])
-    out.push({rule: 'concentric-label-crossing', severity: 'warn', message: `concentric: 印 "${label}" の見出しが輪の線か区切り線（stack では段・列の線）をまたぐか、stack の外枠の外に出る（近くに重ならない場所がない）。見出しを短くする、印を別の輪・扇形に移す、輪を減らす`});
+    out.push({...at(b), rule: 'concentric-label-crossing', severity: 'warn', message: `concentric: 印 "${label}" の見出しが輪の線か区切り線（stack では段・列の線）をまたぐか、stack の外枠の外に出る（近くに重ならない場所がない）。見出しを短くする、印を別の輪・扇形に移す、輪を減らす`});
 }
 function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   const out: Finding[] = [];
@@ -908,7 +1110,12 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   const connects = d.connects ?? [];
   if (connects.length) {
     const {crossings, overlaps} = edgeStats(connects);
-    if (crossings || overlaps) { const hints = loopUnderHints(connects); out.push({rule: 'edge-crossings', severity: 'warn', message: `線の交差 ${crossings} 箇所、重なり ${overlaps} 箇所。${hints.length ? hints.slice(0, 3).join('。') : '箱や線の配置・レーンの順を見直す'}`}); }
+    if (crossings || overlaps) {
+      const hints = loopUnderHints(connects);
+      const pairs = connects.some(c => sourceOf(c)) ? edgePairs(connects) : undefined;
+      const refs = pairs ? [...pairs.crossings, ...pairs.overlaps].flatMap(pair => pair.map(i => sourceOf(must(connects[i])))) : [];
+      out.push({...fromSources(refs), rule: 'edge-crossings', severity: 'warn', message: `線の交差 ${crossings} 箇所、重なり ${overlaps} 箇所。${hints.length ? hints.slice(0, 3).join('。') : '箱や線の配置・レーンの順を見直す'}`});
+    }
     const unlabeled = connects.filter(c => !c.label).length;
     // no label at all is a convention (the arrows only mean "depends on" / "next"); some labelled and most not is the inconsistency to flag
     if (connects.length >= 4 && unlabeled < connects.length && unlabeled / connects.length > 0.6) out.push({rule: 'arrow-labels', severity: 'info', message: `矢印 ${connects.length} 本のうち ${unlabeled} 本にラベルがない。何が流れるか（成果物・プロトコル）を短く添える`});
@@ -936,8 +1143,8 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   for (const w of budgetWarnings({laidOut: d.laidOut ?? []}, d.medium === 'doc' ? {boxBody: 100, total: 700, boxes: 30} : undefined)) out.push({rule: 'density', severity: 'warn', message: w});
   const allBars = walkBands(d.bands).filter((b): b is BarsBand => b.type === 'bars');
   if (d.medium === 'doc' && !diagramTitle(d) && allBars.some(barsValuesHidden)) out.push({rule: 'bars-values-hidden', severity: 'warn', message: '値を隠した bars があるが、図に題名がなく <desc> も出ない。diagram({title}) を指定する（値の列は自動で <desc> に入る）'});
-  for (const b of walkBands(d.bands)) if (b.type === 'image' && b.bytes > IMAGE_WARN_BYTES) out.push({rule: 'image-large', severity: 'warn', message: `画像（${Math.round(b.bytes / 1024)} KB）が大きい。SVG に埋め込まれ、段階表示の各ファイルにも入る。解像度を下げるか圧縮する（${IMAGE_WARN_BYTES / 1024} KB 以下が目安）`});
-  for (const b of d.laidOut ?? []) if (b.type === 'bars' && b.bars.some(r => (r.w > 0 && r.w <= 1 && r.h > 0) || (r.h > 0 && r.h <= 1 && r.w > 0))) { out.push({rule: 'bars-thin-bar', severity: 'warn', message: '棒が 1px 以下になっている。図の高さ・幅を上げるか max を見直す'}); break; }
+  for (const b of walkBands(d.bands)) if (b.type === 'image' && b.bytes > IMAGE_WARN_BYTES) out.push({...at(b), rule: 'image-large', severity: 'warn', message: `画像（${Math.round(b.bytes / 1024)} KB）が大きい。SVG に埋め込まれ、段階表示の各ファイルにも入る。解像度を下げるか圧縮する（${IMAGE_WARN_BYTES / 1024} KB 以下が目安）`});
+  for (const b of d.laidOut ?? []) if (b.type === 'bars' && b.bars.some(r => (r.w > 0 && r.w <= 1 && r.h > 0) || (r.h > 0 && r.h <= 1 && r.w > 0))) { out.push({...at(b), rule: 'bars-thin-bar', severity: 'warn', message: '棒が 1px 以下になっている。図の高さ・幅を上げるか max を見直す'}); break; }
   headlineLength(d, out);
   if (d.status !== undefined) out.push({rule: 'draft-status', severity: 'info', message: `この図は下書き(status: '${d.status}')。公開前に外す`});
   for (const b of d.laidOut ?? []) if (b.type === 'caption' && b.sourceLine) {
@@ -949,16 +1156,16 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   }
   for (const b of d.laidOut ?? []) if (b.type === 'quadrant') {
     const far = b.moved.filter(m => m.px >= 16);
-    if (far.length) out.push({rule: 'quadrant-item-moved', severity: 'warn', message: `quadrant() の項目 ${far.map(m => `「${m.label}」(${Math.round(m.px)}px)`).join('、')} が、他の項目やラベルを避けて座標から離れた。座標を離すか、図を大きくする`});
-    if (b.emptyCells.length) out.push({rule: 'quadrant-empty-cell', severity: 'warn', message: `quadrant() のマス ${b.emptyCells.map(l => `「${l}」`).join('、')} に項目がない（空の枠が残っている）。項目を入れるか、マスを減らす。意図した空きなら quadrant({allowEmpty: [[col, row]]}) （全部なら true）`});
-    if (b.floored.length) out.push({rule: 'quadrant-size-floor', severity: 'warn', message: `quadrant() の項目 ${b.floored.map(l => `「${l}」`).join('、')} の size が最大の値に比べて小さすぎ、最小の円で描いた（面積が値より大きく見える）。値の差が大きすぎるなら、大きさではなく文字で示す`});
+    if (far.length) out.push({...at(b), rule: 'quadrant-item-moved', severity: 'warn', message: `quadrant() の項目 ${far.map(m => `「${m.label}」(${Math.round(m.px)}px)`).join('、')} が、他の項目やラベルを避けて座標から離れた。座標を離すか、図を大きくする`});
+    if (b.emptyCells.length) out.push({...at(b), rule: 'quadrant-empty-cell', severity: 'warn', message: `quadrant() のマス ${b.emptyCells.map(l => `「${l}」`).join('、')} に項目がない（空の枠が残っている）。項目を入れるか、マスを減らす。意図した空きなら quadrant({allowEmpty: [[col, row]]}) （全部なら true）`});
+    if (b.floored.length) out.push({...at(b), rule: 'quadrant-size-floor', severity: 'warn', message: `quadrant() の項目 ${b.floored.map(l => `「${l}」`).join('、')} の size が最大の値に比べて小さすぎ、最小の円で描いた（面積が値より大きく見える）。値の差が大きすぎるなら、大きさではなく文字で示す`});
   }
-  for (const b of walkBands(d.bands)) if (b.type === 'quadrant' && !b.groups.length && new Set(b.items.flatMap(i => i.tone ? [i.tone] : [])).size >= 2) out.push({rule: 'quadrant-tone-only', severity: 'warn', message: 'quadrant() の項目を tone（色）だけで分けている。色だけでは意味が伝わらない。group を指定する（形と凡例が付く）'});
-  for (const b of walkBands(d.bands)) if (b.type === 'funnel' && b.scale === 'value' && b.stages.some((s, i) => i > 0 && (s.value ?? 0) > (must(b.stages[i - 1]).value ?? 0))) out.push({rule: 'funnel-values-rise', severity: 'warn', message: 'funnel() の value が下の段で増えている。漏斗の減少として読ませるなら、値または段の順を見直す'});
-  for (const b of walkBands(d.bands)) if (b.type === 'grid' && b.canvas?.requireAll && b.canvas.empty.length) out.push({rule: 'canvas-region-empty', severity: 'warn', message: `canvas("${b.canvas.template}") の領域 ${b.canvas.empty.join('、')} に内容がない。書くか、requireAll を外す`});
+  for (const b of walkBands(d.bands)) if (b.type === 'quadrant' && !b.groups.length && new Set(b.items.flatMap(i => i.tone ? [i.tone] : [])).size >= 2) out.push({...at(b), rule: 'quadrant-tone-only', severity: 'warn', message: 'quadrant() の項目を tone（色）だけで分けている。色だけでは意味が伝わらない。group を指定する（形と凡例が付く）'});
+  for (const b of walkBands(d.bands)) if (b.type === 'funnel' && b.scale === 'value' && b.stages.some((s, i) => i > 0 && (s.value ?? 0) > (must(b.stages[i - 1]).value ?? 0))) out.push({...at(b), rule: 'funnel-values-rise', severity: 'warn', message: 'funnel() の value が下の段で増えている。漏斗の減少として読ませるなら、値または段の順を見直す'});
+  for (const b of walkBands(d.bands)) if (b.type === 'grid' && b.canvas?.requireAll && b.canvas.empty.length) out.push({...at(b), rule: 'canvas-region-empty', severity: 'warn', message: `canvas("${b.canvas.template}") の領域 ${b.canvas.empty.join('、')} に内容がない。書くか、requireAll を外す`});
   if (d.medium === 'doc' && d.title && !d.showTitle) {
     const first = walkBands(d.bands).find((b): b is CaptionBand => b.type === 'caption' && !b.sourceLine);
-    if (first && first.text.trim() === d.title.trim()) out.push({rule: 'title-duplicated', severity: 'info', message: `題名と先頭の caption が同じ文字列「${first.text.trim().slice(0, 20)}」。diagram({title, showTitle: true}) に寄せて、caption を消せる`});
+    if (first && first.text.trim() === d.title.trim()) out.push({...at(first), rule: 'title-duplicated', severity: 'info', message: `題名と先頭の caption が同じ文字列「${first.text.trim().slice(0, 20)}」。diagram({title, showTitle: true}) に寄せて、caption を消せる`});
   }
   if (d.medium === 'doc' && !diagramTitle(d)) out.push({rule: 'a11y-no-title', severity: 'warn', message: 'SVG の題名にできるテキストがない。diagram({title}) を指定する'});
   return out;
