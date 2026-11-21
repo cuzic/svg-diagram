@@ -1,6 +1,6 @@
 # ADR 0072: 指摘と図の部品に、ソースの位置(ファイル・行・桁)を持たせる
 
-- 状態: 決定・U1・U2a・U2b 実装済み・U3a 実装済み・U4a 実装済み(2026-11-21。Opus のレビュー 1 回目(`0072-opus-review-round1.md`)の Blocker 1・Major 5・Minor 10・Nit 7 を反映。2 回目(`0072-opus-review-round2.md`)は Blocker なし、D2 の運び方は全例で動くと確かめた上で、Major 3・Minor 5・Nit 6 を反映。3 回目(`0072-opus-review-round3.md`)は Blocker なし・Major 1(D7 の path が粗くなる)で、Major・Minor 5・Nit 6 を反映。4 回目(`0072-opus-review-round4.md`)で Blocker・Major なしで収束し、その Minor 4・Nit 4 を反映。PR #415 のレビュー 1 回目の m1・m2・n1・n2 と PR #423 のレビュー 1 回目の M1・m1・m2・m3・n1・n2 を反映)
+- 状態: 決定・U1・U2a・U2b 実装済み・U3a 実装済み・U4a・U4b 実装済み(2026-11-21。Opus のレビュー 1 回目(`0072-opus-review-round1.md`)の Blocker 1・Major 5・Minor 10・Nit 7 を反映。2 回目(`0072-opus-review-round2.md`)は Blocker なし、D2 の運び方は全例で動くと確かめた上で、Major 3・Minor 5・Nit 6 を反映。3 回目(`0072-opus-review-round3.md`)は Blocker なし・Major 1(D7 の path が粗くなる)で、Major・Minor 5・Nit 6 を反映。4 回目(`0072-opus-review-round4.md`)で Blocker・Major なしで収束し、その Minor 4・Nit 4 を反映。PR #415 のレビュー 1 回目の m1・m2・n1・n2、PR #422 のレビュー 1 回目の M1・m2・n1、PR #423 のレビュー 1 回目の M1・m1・m2・m3・n1・n2 を反映)
 - 基点: `main`(950584b、PR #398 まで)
 - 関連: ADR 0013(失敗の伝え方)、ADR 0025/0026(検査の重大度)、ADR 0034(SVG の `data-node`)、ADR 0038(ドリフトの検査)、ADR 0045(ブラウザの入口)、ADR 0071(JSON Schema)、svg-diagram-vscode(VS Code 拡張。Phase 2)
 
@@ -32,7 +32,7 @@ VS Code 拡張は `check --format json` の指摘をエディタの波線にし�
 
 **D2. 位置を取り、描くまで運ぶ。** 取る所と、運ぶ所の両方を決める。運ぶ所の方が漏れやすい(背景)。
 
-- **持ち方**: 部品に、**列挙できるシンボルのキー** `SOURCE`(`Symbol.for('svg-diagram.source')`。`svg-diagram/spec` などの入口が `node_modules` から別の写しで読まれても同じキーになる)で、小さなクラスのインスタンス `SourceRef` を置く(型の取り除きで動くよう、引数のプロパティでなく普通のフィールドで書く)。中身は `captureStackTrace` を受けた物。そのスタックは列挙できない性質なので、深い写しで中まで写すと消える。だから `SourceRef` はどこでも**参照のまま**渡す。シンボルなので、JSON・`Object.keys`・SVG・PPTX には出ない。描いた結果は 1 バイトも変わらない。`SourceRef` と `located` はブラウザの入口からも届くので `node:*` を使わない。行と桁に解く所(D3。`fileURLToPath`・`realpath`)は CLI だけの別のモジュールに置く。
+- **持ち方**: 部品に、**列挙できるシンボルのキー** `SOURCE`(`Symbol.for('svg-diagram.source')`。`svg-diagram/spec` などの入口が `node_modules` から別の写しで読まれても同じキーになる)で、小さなクラスのインスタンス `SourceRef` を置く(型の取り除きで動くよう、引数のプロパティでなく普通のフィールドで書く)。中身は `captureStackTrace` を受けた物、spec の部品のパス(D7)、またはその両方。そのスタックは列挙できない性質なので、深い写しで中まで写すと消える。だから `SourceRef` はどこでも**参照のまま**渡す。シンボルなので、JSON・`Object.keys`・SVG・PPTX には出ない。描いた結果は 1 バイトも変わらない。`SourceRef` と `located` はブラウザの入口からも届くので `node:*` を使わない。行と桁に解く所(D3。`fileURLToPath`・`realpath`)は CLI だけの別のモジュールに置く。
 - **取る所 1: 公開の入口。** `lib/dsl-pure.ts` は、関数を `export *` でなく名前を並べて出し、部品を返すものを `located(fn)` で包む。`lib/dsl/io.ts` の部品を返す関数(`image`・`math`)も包む。包みの規則は次のとおり。
   - 文字列の `type` を持つ物(と、それを並べた配列の各要素)にだけ付ける。関数(`styled`)と部品でない物は素通しにする。
   - **すでに `SOURCE` があれば上書きしない**(`rewrite` が返す、変わらなかった部品は元の位置のまま)。
@@ -103,12 +103,12 @@ VS Code 拡張は `check --format json` の指摘をエディタの波線にし�
 
 **D7. JSON の spec は、今ある `path`(`parts[3].links[1]`)を、文言の推測でなく部品の印から出す。** spec にはすでに位置の仕組みがある。`locateMessage` / `locateVerdict`(`lib/spec.ts`)が、メッセージの中の引用された文言から部品を探し、`LocatedMessage.path` に `parts[3]` の形で入れる。MCP の `check_diagram` / `render_diagram`、`spec-edge`、`pptx-edge` がそれを返し、デッキは前に `slides[i].figure.` / `slides[i].columns[j].figure.` を付ける。この形と欄の名前は変えない。
 
-- 印は `SOURCE` に乗せる(ほかのシンボルは `cloneData` で消える)。`SourceRef` の一種 `{specPath}` とする。
-- `assemble()` は `partDef.build(part, at)` のあと、返った部品とその中の部品に `{specPath: 'parts[3]'}` を付ける。spec の部品は包んだ入口の関数で作るので、捕捉が有効なら先にスタックの印が付いている。spec の印は、スタックの印より強い(上書きしてよい)とする。
-- 印は、今の文言の推測を**置き換えず、狭める**。今の推測はフィールドまで言う(`parts[0].nodes[0].label`、ボードの線は `parts[2].links[1]`。`test/spec.test.ts` が固定し、MCP が返している)。部品の中の部品はどれも同じ `parts[i]` の印を持つので、印だけにすると粗くなる。`locateMessage` / `locateVerdict` は、`loc` に spec の印があれば、その部品の中だけで今の推測(`linkOf`・`locateIn`)をし、見つからなければ印の `parts[i]` を返す。印がなければ、今のとおり全体を探す。レイアウトで投げた誤りを位置にする `layoutIssue(spec, message)` も、誤りの `SOURCE` に spec の印があれば同じく狭める(知らない anchor が、同じ文言の 2 つの部品の片方にあるときに効く)。良くなるのは、同じ文言が 2 つの部品にあるとき(今は場所を言えない)。それを確かめるテストと、1 か所にしかない文言が `.label` までの path のままであるテストを置く。
+- 印は `SOURCE` に乗せる(ほかのシンボルは `cloneData` で消える)。`SourceRef` の `specPath` に持たせる。
+- `assemble()` は `partDef.build(part, at)` のあと、返った部品とその中の部品に `{specPath: 'parts[3]'}` を付ける。spec の部品は包んだ入口の関数で作るので、捕捉が有効なら先にスタックの印が付いている。部品ごとにそのスタックを保ったまま `specPath` を足す。スタックを捕捉していなければ `specPath` だけを持つ。
+- 印は、今の文言の推測を**置き換えず、狭める**。今の推測はフィールドまで言う(`parts[0].nodes[0].label`、ボードの線は `parts[2].links[1]`。`test/spec.test.ts` が固定し、MCP が返している)。部品の中の部品はどれも同じ `parts[i]` の印を持つので、印だけにすると粗くなる。`locateMessage` / `locateVerdict` は、`loc` に spec の印があれば、その部品の中だけで今の推測(`linkOf`・`locateIn`)をし、見つからなければ印の `parts[i]` を返す。印がなければ、今のとおり全体を探す。レイアウトで投げた誤りを位置にする `layoutIssue(spec, error)` も、誤りの `SOURCE` に spec の印があれば同じく狭める(知らない anchor が、同じ文言の 2 つの部品の片方にあるときに効く)。良くなるのは、同じ文言が 2 つの部品にあるとき(今は場所を言えない)。それを確かめるテストと、1 か所にしかない文言が `.label` までの path のままであるテストを置く。
 - スタックは要らないので、**いつも付ける**(ライブラリの道でも)。
 - `issues` の構造が要るので、U3 の後(U4)にする。
-- 使うのは MCP・`spec-edge`・デッキの検査。`check` は `.ts` しか受け取らないので、VS Code 拡張の波線はこれを使わない(JSON の誤りは ADR 0071 のスキーマで出る)。
+- MCP・`spec-edge`・デッキの検査は `specPath` を使う。`.ts` が `specToDiagram()` を呼ぶときも、`check` や `build --locations` はスタックからソースの行・桁を出す。投げた誤りに `specPath` だけがあれば、誤りのスタック、図全体の印の順に位置を探す(D4)。
 
 ## 実装の順
 

@@ -80,6 +80,41 @@ test('layout overlap reports both boxes and the first box’s caller', t => {
   assert.equal(result.partialFingerprints['svg-diagram/v1'], `overlap.ts\0layout\0${finding!.message}`);
 });
 
+test('check reports the specToDiagram call for a thrown layout error and an overlap', async t => {
+  const figure = (col: number, colGap: number) => `import {specToDiagram} from 'svg-diagram/spec';
+const lane = (prefix: string, col: number, colGap = 28) => ({
+  type: 'swimlane',
+  lanes: [{id: 'a', label: '担当'}],
+  steps: [{id: prefix + '1', lane: 'a', title: '共有', col: 1}, {id: prefix + '2', lane: 'a', title: '確認', col}],
+  colGap,
+});
+export default function define() {
+  return specToDiagram({version: 1, title: '例', parts: [lane('a', 2), lane('b', ${col}, ${colGap})]});
+}
+`;
+  const run = fixture(t, {
+    // Expose the source entry under its published name without building dist.
+    'package.json': JSON.stringify({name: 'svg-diagram', type: 'module', exports: {'./spec': './spec-entry.ts'}}),
+    'spec-entry.ts': `export {specToDiagram} from ${JSON.stringify(path.join(root, 'lib', 'spec.ts'))};`,
+    'specfig.ts': figure(8, 96),
+    'specfig-overlap.ts': figure(1, 28),
+  });
+
+  for (const [file, rule, message] of [
+    ['specfig.ts', 'build-error', 'swimlane(): 8 columns leave only'],
+    ['specfig-overlap.ts', 'layout', '"共有" overlaps "確認"'],
+  ] as const) {
+    await t.test(rule, () => {
+      const json = run('json', file).stdout;
+      const {findings} = JSON.parse(json) as {findings: (LayoutFinding & {rule: string})[]};
+      const finding = findings.find(f => f.rule === rule && f.message.startsWith(message));
+      assert.deepEqual([finding?.file, finding?.line, finding?.column], [file, 9, 10], json);
+      const {stderr} = run('text', file);
+      assert.ok(stderr.includes(`${file}:9:10: ${message}`), stderr);
+    });
+  }
+});
+
 test('layout positions from imported parts are reported in that file', t => {
   const run = fixture(t, {
     'parts.ts': `${imports}\nexport const first = box({title: 'First'});\n`,

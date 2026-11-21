@@ -79,7 +79,7 @@ export async function renderSpec(spec: unknown, opts: RenderSpecOptions = {}): P
     r = await renderDiagram(d, {name: opts.name ?? 'diagram.svg', budget: 'cacheOnly'});
   } catch (e) {
     if (isInfrastructure(e)) throw e;
-    return nothing([layoutIssue(spec, messageOf(e))]);
+    return nothing([layoutIssue(spec, e)]);
   }
   const maxHeight = opts.maxHeight ?? MAX_FIGURE_HEIGHT;
   if (r.height > maxHeight) return nothing([{path: '', message: `the figure is ${r.height}px tall; the limit is ${maxHeight}px. Use fewer steps or parts, or shorter text`}]);
