@@ -40,24 +40,24 @@
   <text x="303" y="57" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">標準の合意</text>
   <path d="M302.6,76 L302.6,116" fill="none" stroke="#1d5fa8" stroke-width="2" stroke-linejoin="round" stroke-dasharray="6,4"/>
   <path d="M302.6,116 L297.7,107 L307.6,107 Z" fill="#1d5fa8"/>
-  <path d="M202.13,129 H217.87 V147 H202.13 Z" fill="#ffffff"/>
+  <path d="M203.87,129 H216.13 V147 H203.87 Z" fill="#ffffff"/>
   <text x="210" y="143" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M388.13,119 H403.87 V137 H388.13 Z" fill="#ffffff"/>
+  <path d="M389.87,119 H402.13 V137 H389.87 Z" fill="#ffffff"/>
   <text x="396" y="133" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M573.13,119 H588.87 V137 H573.13 Z" fill="#ffffff"/>
+  <path d="M574.87,119 H587.13 V137 H574.87 Z" fill="#ffffff"/>
   <text x="581" y="133" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M759.13,132 H774.87 V150 H759.13 Z" fill="#ffffff"/>
+  <path d="M760.87,132 H773.13 V150 H760.87 Z" fill="#ffffff"/>
   <text x="767" y="146" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M480.13,170 H495.87 V188 H480.13 Z" fill="#ffffff"/>
+  <path d="M481.87,170 H494.13 V188 H481.87 Z" fill="#ffffff"/>
   <text x="488" y="184" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M388.89,147 H403.11 V165 H388.89 Z" fill="#ffffff"/>
+  <path d="M389.86,147 H402.14 V165 H389.86 Z" fill="#ffffff"/>
   <text x="396" y="161" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
-  <path d="M93.09,89 H102.91 V107 H93.09 Z" fill="#ffffff"/>
+  <path d="M93.41,89 H102.59 V107 H93.41 Z" fill="#ffffff"/>
   <text x="98" y="103" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
-  <path d="M298.09,76 H307.91 V94 H298.09 Z" fill="#ffffff"/>
+  <path d="M298.41,76 H307.59 V94 H298.41 Z" fill="#ffffff"/>
   <text x="303" y="90" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
-  <path d="M110,117 H124.23 V135 H110 Z" fill="#ffffff"/>
+  <path d="M110,117 H122.29 V135 H110 Z" fill="#ffffff"/>
   <text x="112" y="131" font-size="14" font-weight="700" fill="#6f6659">||</text>
-  <path d="M472.74,194 H497.26 V212 H472.74 Z" fill="#ffffff"/>
+  <path d="M474.1,194 H495.9 V212 H474.1 Z" fill="#ffffff"/>
   <text x="485" y="208" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">R1</text>
 </svg>

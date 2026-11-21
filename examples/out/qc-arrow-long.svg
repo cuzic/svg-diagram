@@ -51,22 +51,22 @@
   <text x="470" y="902" text-anchor="middle" font-size="14" fill="#6f6659">31/31</text>
   <text x="470" y="1026" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">8</text>
   <text x="470" y="1046" text-anchor="middle" font-size="14" fill="#6f6659">32/32</text>
-  <rect x="476" y="96" width="84" height="22" fill="#ffffff"/>
-  <text x="517" y="112" text-anchor="middle" font-size="14" fill="#22201b">要件定義 5</text>
-  <rect x="376" y="232" width="56" height="22" fill="#ffffff"/>
-  <text x="405" y="248" text-anchor="middle" font-size="14" fill="#22201b">設計 8</text>
-  <rect x="524" y="376" width="172" height="22" fill="#ffffff"/>
-  <text x="607" y="392" text-anchor="middle" font-size="14" fill="#22201b">契約手続き 6（余裕10）</text>
-  <rect x="368" y="536" width="64" height="22" fill="#ffffff"/>
-  <text x="400" y="552" text-anchor="middle" font-size="14" fill="#22201b">開発 12</text>
-  <rect x="508" y="512" width="148" height="22" fill="#ffffff"/>
-  <text x="582" y="528" text-anchor="middle" font-size="14" fill="#22201b">環境準備 4（余裕8）</text>
-  <rect x="396" y="808" width="68" height="22" fill="#ffffff"/>
-  <text x="430" y="824" text-anchor="middle" font-size="14" fill="#22201b">テスト 6</text>
-  <rect x="492" y="808" width="156" height="22" fill="#ffffff"/>
-  <text x="568" y="824" text-anchor="middle" font-size="14" fill="#22201b">教育資料 3（余裕11）</text>
-  <rect x="476" y="944" width="56" height="22" fill="#ffffff"/>
-  <text x="503" y="960" text-anchor="middle" font-size="14" fill="#22201b">公開 1</text>
+  <rect x="476" y="96" width="80" height="22" fill="#ffffff"/>
+  <text x="516" y="112" text-anchor="middle" font-size="14" fill="#22201b">要件定義 5</text>
+  <rect x="380" y="232" width="52" height="22" fill="#ffffff"/>
+  <text x="406" y="248" text-anchor="middle" font-size="14" fill="#22201b">設計 8</text>
+  <rect x="524" y="376" width="164" height="22" fill="#ffffff"/>
+  <text x="605" y="392" text-anchor="middle" font-size="14" fill="#22201b">契約手続き 6（余裕10）</text>
+  <rect x="372" y="536" width="60" height="22" fill="#ffffff"/>
+  <text x="402" y="552" text-anchor="middle" font-size="14" fill="#22201b">開発 12</text>
+  <rect x="508" y="512" width="144" height="22" fill="#ffffff"/>
+  <text x="580" y="528" text-anchor="middle" font-size="14" fill="#22201b">環境準備 4（余裕8）</text>
+  <rect x="400" y="808" width="64" height="22" fill="#ffffff"/>
+  <text x="432" y="824" text-anchor="middle" font-size="14" fill="#22201b">テスト 6</text>
+  <rect x="492" y="808" width="152" height="22" fill="#ffffff"/>
+  <text x="566" y="824" text-anchor="middle" font-size="14" fill="#22201b">教育資料 3（余裕11）</text>
+  <rect x="476" y="944" width="52" height="22" fill="#ffffff"/>
+  <text x="502" y="960" text-anchor="middle" font-size="14" fill="#22201b">公開 1</text>
 
   <text x="20" y="1098" font-size="14" font-weight="400" fill="#6f6659">全体で 32日　クリティカルパス: 要件定義 → 設計 → 開発 → テスト → 公開</text>
 

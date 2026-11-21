@@ -27,11 +27,11 @@
   <text x="566" y="123" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">認証</text>
   <path d="M700,119.25 H816 V171.25 H700 Z" fill="#ffffff" stroke="#6f6659" stroke-width="2"/>
   <text x="758" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">顧客 DB</text>
-  <path d="M255.32,125 H300.68 V143 H255.32 Z" fill="#ffffff"/>
+  <path d="M256.55,125 H299.45 V143 H256.55 Z" fill="#ffffff"/>
   <text x="278" y="139" text-anchor="middle" font-size="14" fill="#22201b">利用 3</text>
-  <path d="M447.32,108 H492.68 V126 H447.32 Z" fill="#ffffff"/>
+  <path d="M448.55,108 H491.45 V126 H448.55 Z" fill="#ffffff"/>
   <text x="470" y="122" text-anchor="middle" font-size="14" fill="#22201b">依存 2</text>
-  <path d="M543.32,153 H588.68 V171 H543.32 Z" fill="#ffffff"/>
+  <path d="M544.55,153 H587.45 V171 H544.55 Z" fill="#ffffff"/>
   <text x="566" y="167" text-anchor="middle" font-size="14" fill="#22201b">依存 5</text>
   <path d="M646,112 H678 V130 H646 Z" fill="#ffffff"/>
   <text x="662" y="126" text-anchor="middle" font-size="14" fill="#22201b">関連</text>

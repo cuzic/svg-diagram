@@ -33,18 +33,18 @@
   <text x="153" y="99" text-anchor="middle" font-size="14" fill="#6f6659">44ms</text>
   <text x="563" y="79" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">再初期化</text>
   <text x="563" y="99" text-anchor="middle" font-size="14" fill="#6f6659">388ms</text>
-  <text x="304" y="156" font-size="14" font-weight="700" fill="#1d5fa8">344ms</text>
+  <text x="307" y="156" font-size="14" font-weight="700" fill="#1d5fa8">344ms</text>
   <text x="32" y="119" font-size="14" font-weight="700" fill="#6f6659">UI</text>
-  <text x="239" y="195" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">要求</text>
-  <text x="239" y="215" text-anchor="middle" font-size="14" fill="#6f6659">120ms</text>
+  <text x="237" y="195" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">要求</text>
+  <text x="237" y="215" text-anchor="middle" font-size="14" fill="#6f6659">120ms</text>
   <text x="450" y="271" font-size="14" fill="#22201b">応答待ち</text>
   <text x="32" y="236" font-size="14" font-weight="700" fill="#6f6659">通信</text>
-  <text x="57" y="316" font-size="14" fill="#6f6659">0ms</text>
-  <text x="168" y="316" font-size="14" fill="#6f6659">100ms</text>
-  <text x="287" y="316" font-size="14" fill="#6f6659">200ms</text>
-  <text x="406" y="316" font-size="14" fill="#6f6659">300ms</text>
-  <text x="526" y="316" font-size="14" fill="#6f6659">400ms</text>
-  <text x="645" y="316" font-size="14" fill="#6f6659">500ms</text>
-  <text x="765" y="316" font-size="14" fill="#6f6659">600ms</text>
-  <text x="872" y="316" font-size="14" fill="#6f6659">700ms</text>
+  <text x="58" y="316" font-size="14" fill="#6f6659">0ms</text>
+  <text x="170" y="316" font-size="14" fill="#6f6659">100ms</text>
+  <text x="289" y="316" font-size="14" fill="#6f6659">200ms</text>
+  <text x="409" y="316" font-size="14" fill="#6f6659">300ms</text>
+  <text x="528" y="316" font-size="14" fill="#6f6659">400ms</text>
+  <text x="648" y="316" font-size="14" fill="#6f6659">500ms</text>
+  <text x="767" y="316" font-size="14" fill="#6f6659">600ms</text>
+  <text x="877" y="316" font-size="14" fill="#6f6659">700ms</text>
 </svg>

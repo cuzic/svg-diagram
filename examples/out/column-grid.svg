@@ -57,7 +57,7 @@
   <text x="472" y="169" text-anchor="middle" font-size="14" fill="#22201b">UDP</text>
 
   <path d="M792,149 L792,162 L549,162 L549,176" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
-  <rect x="640" y="152" width="56" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <rect x="644" y="152" width="56" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
   <text x="670" y="169" text-anchor="middle" font-size="14" fill="#22201b">NMEA</text>
 
   <path d="M280,216 L344,216" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>

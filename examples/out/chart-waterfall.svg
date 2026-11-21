@@ -8,90 +8,90 @@
   </style>
   <rect x="0" y="0" width="940" height="658" fill="#ffffff"/>
 
-  <path d="M72.1,286 L912,286" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <text x="68" y="291" text-anchor="end" font-size="14" fill="#6f6659">0</text>
-  <path d="M72.1,252.3 L912,252.3" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
-  <text x="68" y="257" text-anchor="end" font-size="14" fill="#6f6659">200</text>
-  <path d="M72.1,218.6 L912,218.6" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
-  <text x="68" y="224" text-anchor="end" font-size="14" fill="#6f6659">400</text>
-  <path d="M72.1,184.9 L912,184.9" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
-  <text x="68" y="190" text-anchor="end" font-size="14" fill="#6f6659">600</text>
-  <path d="M72.1,151.1 L912,151.1" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
-  <text x="68" y="156" text-anchor="end" font-size="14" fill="#6f6659">800</text>
-  <path d="M72.1,117.4 L912,117.4" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
-  <text x="68" y="122" text-anchor="end" font-size="14" fill="#6f6659">1,000</text>
-  <path d="M72.1,83.7 L912,83.7" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
-  <text x="68" y="89" text-anchor="end" font-size="14" fill="#6f6659">1,200</text>
-  <path d="M72.1,50 L912,50" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
-  <text x="68" y="55" text-anchor="end" font-size="14" fill="#6f6659">1,400</text>
-  <path d="M78.1,50 L78.1,286" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M98.2,117.4 H162.2 V286 H98.2 Z" fill="#22201b"/>
-  <path d="M202.4,80.3 H266.4 V117.4 H202.4 Z" fill="#1d5fa8"/>
-  <path d="M306.7,80.3 H370.7 V102.2 H306.7 Z" fill="#b91c1c"/>
-  <path d="M410.9,102.3 H474.9 V154.6 H410.9 Z" fill="#b91c1c"/>
-  <path d="M515.2,154.5 H579.2 V286 H515.2 Z" fill="#6f6659"/>
-  <path d="M619.4,139.3 H683.4 V154.5 H619.4 Z" fill="#1d5fa8"/>
-  <path d="M723.6,132.6 H787.6 V139.3 H723.6 Z" fill="#1d5fa8"/>
-  <path d="M827.9,132.6 H891.9 V286 H827.9 Z" fill="#22201b"/>
-  <path d="M162.2,117.4 L202.4,117.4" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
-  <path d="M266.4,80.3 L306.7,80.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
-  <path d="M370.7,102.3 L410.9,102.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
-  <path d="M474.9,154.5 L515.2,154.5" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
-  <path d="M579.2,154.5 L619.4,154.5" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
-  <path d="M683.4,139.3 L723.6,139.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
-  <path d="M787.6,132.6 L827.9,132.6" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
-  <text x="130" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">1,000百万円</text>
-  <text x="234" y="73" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+220百万円</text>
-  <text x="339" y="121" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-130百万円</text>
-  <text x="443" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-310百万円</text>
-  <text x="547" y="148" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">780百万円</text>
-  <text x="651" y="132" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+90百万円</text>
-  <text x="756" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+40百万円</text>
+  <path d="M67,286 L912,286" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="291" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <path d="M67,252.3 L912,252.3" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="257" text-anchor="end" font-size="14" fill="#6f6659">200</text>
+  <path d="M67,218.6 L912,218.6" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="224" text-anchor="end" font-size="14" fill="#6f6659">400</text>
+  <path d="M67,184.9 L912,184.9" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="190" text-anchor="end" font-size="14" fill="#6f6659">600</text>
+  <path d="M67,151.1 L912,151.1" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="156" text-anchor="end" font-size="14" fill="#6f6659">800</text>
+  <path d="M67,117.4 L912,117.4" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="122" text-anchor="end" font-size="14" fill="#6f6659">1,000</text>
+  <path d="M67,83.7 L912,83.7" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="89" text-anchor="end" font-size="14" fill="#6f6659">1,200</text>
+  <path d="M67,50 L912,50" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="63" y="55" text-anchor="end" font-size="14" fill="#6f6659">1,400</text>
+  <path d="M73,50 L73,286" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M92.9,117.4 H157.9 V286 H92.9 Z" fill="#22201b"/>
+  <path d="M197.8,80.3 H262.8 V117.4 H197.8 Z" fill="#1d5fa8"/>
+  <path d="M302.7,80.3 H367.7 V102.2 H302.7 Z" fill="#b91c1c"/>
+  <path d="M407.5,102.3 H472.5 V154.6 H407.5 Z" fill="#b91c1c"/>
+  <path d="M512.4,154.5 H577.4 V286 H512.4 Z" fill="#6f6659"/>
+  <path d="M617.3,139.3 H682.3 V154.5 H617.3 Z" fill="#1d5fa8"/>
+  <path d="M722.2,132.6 H787.2 V139.3 H722.2 Z" fill="#1d5fa8"/>
+  <path d="M827.1,132.6 H892.1 V286 H827.1 Z" fill="#22201b"/>
+  <path d="M157.9,117.4 L197.8,117.4" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M262.8,80.3 L302.7,80.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M367.7,102.3 L407.5,102.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M472.5,154.5 L512.4,154.5" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M577.4,154.5 L617.3,154.5" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M682.3,139.3 L722.2,139.3" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M787.2,132.6 L827.1,132.6" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <text x="125" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">1,000百万円</text>
+  <text x="230" y="73" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+220百万円</text>
+  <text x="335" y="121" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-130百万円</text>
+  <text x="440" y="174" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-310百万円</text>
+  <text x="545" y="148" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">780百万円</text>
+  <text x="650" y="132" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+90百万円</text>
+  <text x="755" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+40百万円</text>
   <text x="860" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">910百万円</text>
-  <text x="130" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">前期の</text>
-  <text x="130" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">営業利益</text>
-  <text x="234" y="334" text-anchor="middle" font-size="14" fill="#22201b">価格改定</text>
-  <text x="339" y="334" text-anchor="middle" font-size="14" fill="#22201b">販売数量</text>
-  <text x="443" y="334" text-anchor="middle" font-size="14" fill="#22201b">原材料費</text>
-  <text x="547" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">小計</text>
-  <text x="651" y="334" text-anchor="middle" font-size="14" fill="#22201b">販促費の削減</text>
-  <text x="756" y="334" text-anchor="middle" font-size="14" fill="#22201b">為替</text>
+  <text x="125" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">前期の</text>
+  <text x="125" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">営業利益</text>
+  <text x="230" y="334" text-anchor="middle" font-size="14" fill="#22201b">価格改定</text>
+  <text x="335" y="334" text-anchor="middle" font-size="14" fill="#22201b">販売数量</text>
+  <text x="440" y="334" text-anchor="middle" font-size="14" fill="#22201b">原材料費</text>
+  <text x="545" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">小計</text>
+  <text x="650" y="334" text-anchor="middle" font-size="14" fill="#22201b">販促費の削減</text>
+  <text x="755" y="334" text-anchor="middle" font-size="14" fill="#22201b">為替</text>
   <text x="860" y="334" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">今期の</text>
   <text x="860" y="352" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">営業利益</text>
 
-  <path d="M339,380 L339,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
-  <text x="339" y="594" text-anchor="middle" font-size="14" fill="#6f6659">-100</text>
-  <path d="M418.6,380 L418.6,576" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
-  <text x="419" y="594" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
-  <path d="M498.3,380 L498.3,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
-  <text x="498" y="594" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
+  <path d="M331,380 L331,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="331" y="594" text-anchor="middle" font-size="14" fill="#6f6659">-100</text>
+  <path d="M413.4,380 L413.4,576" fill="none" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="413" y="594" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
+  <path d="M495.7,380 L495.7,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="496" y="594" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
   <path d="M578,380 L578,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
   <text x="578" y="594" text-anchor="middle" font-size="14" fill="#6f6659">200</text>
-  <path d="M657.7,380 L657.7,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
-  <text x="658" y="594" text-anchor="middle" font-size="14" fill="#6f6659">300</text>
-  <path d="M737.4,380 L737.4,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
-  <text x="737" y="594" text-anchor="middle" font-size="14" fill="#6f6659">400</text>
-  <path d="M817,380 L817,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
-  <text x="817" y="594" text-anchor="middle" font-size="14" fill="#6f6659">500</text>
-  <path d="M418.6,387 H514.2 V411 H418.6 Z" fill="#22201b"/>
+  <path d="M660.3,380 L660.3,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="660" y="594" text-anchor="middle" font-size="14" fill="#6f6659">300</text>
+  <path d="M742.6,380 L742.6,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="743" y="594" text-anchor="middle" font-size="14" fill="#6f6659">400</text>
+  <path d="M825,380 L825,576" fill="none" stroke="#e0d6c5" stroke-width="2" stroke-linejoin="round"/>
+  <text x="825" y="594" text-anchor="middle" font-size="14" fill="#6f6659">500</text>
+  <path d="M413.4,387 H512.2 V411 H413.4 Z" fill="#22201b"/>
   <text x="234" y="404" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">期首の現金</text>
-  <path d="M514.3,425 H785.2 V449 H514.3 Z" fill="#1d5fa8"/>
+  <path d="M512.1,425 H792 V449 H512.1 Z" fill="#1d5fa8"/>
   <text x="234" y="442" text-anchor="end" font-size="14" fill="#22201b">営業活動によるキャッシュフロー</text>
-  <path d="M562.1,463 H785.2 V487 H562.1 Z" fill="#b91c1c"/>
+  <path d="M561.5,463 H792 V487 H561.5 Z" fill="#b91c1c"/>
   <text x="234" y="480" text-anchor="end" font-size="14" fill="#22201b">設備投資</text>
-  <path d="M370.8,501 H562 V525 H370.8 Z" fill="#b91c1c"/>
+  <path d="M364,501 H561.6 V525 H364 Z" fill="#b91c1c"/>
   <text x="234" y="518" text-anchor="end" font-size="14" fill="#22201b">借入金の返済</text>
-  <path d="M370.8,539 H418.6 V563 H370.8 Z" fill="#22201b"/>
+  <path d="M364,539 H413.4 V563 H364 Z" fill="#22201b"/>
   <text x="234" y="556" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">期末の現金</text>
-  <path d="M514.3,411 L514.3,425" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
-  <path d="M785.2,449 L785.2,463" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
-  <path d="M562.1,487 L562.1,501" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
-  <path d="M370.8,525 L370.8,539" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
-  <text x="521" y="404" font-size="14" font-weight="700" fill="#22201b">120百万円</text>
-  <text x="792" y="442" font-size="14" font-weight="700" fill="#1d5fa8">+340百万円</text>
+  <path d="M512.1,411 L512.1,425" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M792,449 L792,463" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M561.5,487 L561.5,501" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <path d="M364,525 L364,539" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,3"/>
+  <text x="519" y="404" font-size="14" font-weight="700" fill="#22201b">120百万円</text>
+  <text x="799" y="442" font-size="14" font-weight="700" fill="#1d5fa8">+340百万円</text>
   <text x="555" y="480" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">-280百万円</text>
-  <text x="364" y="518" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">-240百万円</text>
-  <text x="364" y="556" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">-60百万円</text>
+  <text x="357" y="518" text-anchor="end" font-size="14" font-weight="700" fill="#b91c1c">-240百万円</text>
+  <text x="357" y="556" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">-60百万円</text>
 
   <text x="20" y="634" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
 </svg>

@@ -26,13 +26,13 @@
   <text x="489" y="157" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">失敗を見られない力</text>
   <path d="M642,154.25 H758 V202.25 H642 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
   <text x="700" y="183" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">自分で直す</text>
-  <path d="M366.13,142 H381.87 V160 H366.13 Z" fill="#ffffff"/>
+  <path d="M367.87,142 H380.13 V160 H367.87 Z" fill="#ffffff"/>
   <text x="374" y="156" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M596.13,145 H611.87 V163 H596.13 Z" fill="#ffffff"/>
+  <path d="M597.87,145 H610.13 V163 H597.87 Z" fill="#ffffff"/>
   <text x="604" y="159" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M484.09,185 H493.91 V203 H484.09 Z" fill="#ffffff"/>
+  <path d="M484.41,185 H493.59 V203 H484.41 Z" fill="#ffffff"/>
   <text x="489" y="199" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
-  <path d="M470.79,208 H495.21 V226 H470.79 Z" fill="#ffffff"/>
+  <path d="M472.1,208 H493.9 V226 H472.1 Z" fill="#ffffff"/>
   <text x="483" y="222" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B1</text>
 
   <text x="20" y="334" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>

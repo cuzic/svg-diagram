@@ -15,22 +15,22 @@
   <text x="500" y="123" font-size="15" font-weight="700" fill="#6f6659">許可を待つ</text>
 
   <path d="M102,160 L102,240" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M256,160 L256,240" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M411,160 L411,240" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M565,160 L565,240" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M720,160 L720,240" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M874,160 L874,240" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M102,234 L874,234" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M102,160 H341.47 V188 H102 Z" fill="#22201b"/>
-  <path d="M102,206 H194.7 V234 H102 Z" fill="#6f6659"/>
+  <path d="M257,160 L257,240" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M412,160 L412,240" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M568,160 L568,240" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M723,160 L723,240" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M878,160 L878,240" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M102,234 L878,234" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M102,160 H342.56 V188 H102 Z" fill="#22201b"/>
+  <path d="M102,206 H195.12 V234 H102 Z" fill="#6f6659"/>
   <text x="102" y="256" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
-  <text x="256" y="256" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
-  <text x="411" y="256" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
-  <text x="565" y="256" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
-  <text x="720" y="256" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
-  <text x="874" y="256" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
+  <text x="257" y="256" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
+  <text x="412" y="256" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
+  <text x="568" y="256" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
+  <text x="723" y="256" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
+  <text x="878" y="256" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
   <text x="94" y="179" text-anchor="end" font-size="14" fill="#22201b">許可</text>
-  <text x="335" y="179" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">31%</text>
+  <text x="337" y="179" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">31%</text>
   <text x="94" y="225" text-anchor="end" font-size="14" fill="#22201b">自分で判断</text>
   <text x="189" y="225" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">12%</text>
 </svg>

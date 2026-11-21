@@ -49,8 +49,9 @@ jobs:
         if: matrix.shard == 1
         run: node check-diagram.ts --strict examples/*.ts
   # the goldens (examples/out/*.svg) are rebuilt and compared byte for byte (pnpm golden without writing anything).
-  # Text widths come from the font files fontconfig picks, so this job has the test job's fonts: fonts-noto-cjk and what
-  # `playwright install --with-deps chromium` installs (install-deps: the same apt packages, without downloading the browser).
+  # Text widths come from the font files fontconfig picks. The text is measured with the pinned Noto Sans JP (the font the Worker bundles),
+  # installed into fontconfig here (not in the test job, whose browser comparisons keep their fonts); the rest is the test job's fonts:
+  # fonts-noto-cjk and what `playwright install --with-deps chromium` installs (install-deps: the same apt packages, without the browser).
   # scripts/golden-docker/Dockerfile has the same fonts for regenerating the goldens on any machine: change the two together.
   golden:
     name: golden (examples/out)
@@ -67,11 +68,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: the browser's system packages and fonts (as in the test job)
         run: pnpm exec playwright install-deps chromium
+      - name: Noto Sans JP (pinned) in fontconfig, so the text is measured with it
+        run: sudo scripts/golden-docker/install-noto-sans-jp.sh
       - name: which font files the widths are read from
         run: |
           for f in 'Hiragino Sans' 'Noto Sans JP' sans-serif 'Liberation Mono' monospace 'Noto Color Emoji'; do
             for w in 80 200; do echo "$f:weight=$w -> $(fc-match -f '%{file} (%{family})' "$f:weight=$w")"; done
           done
+          fc-match -f '%{family}\n' 'Noto Sans JP' | grep -q 'Noto Sans JP' || { echo "::error::'Noto Sans JP' does not resolve to the pinned font"; exit 1; }
       # about 5 seconds on a runner, so the drift cache (ADR 0038) is not used: every source is rebuilt each time
       - name: the goldens match a rebuild
         id: golden

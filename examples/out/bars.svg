@@ -10,54 +10,54 @@
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">横棒：導入前後</text>
 
   <path d="M74,68 L74,148" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M234,68 L234,148" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M394,68 L394,148" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M554,68 L554,148" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M714,68 L714,148" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M874,68 L874,148" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M74,142 L874,142" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M74,68 H682.37 V96 H74 Z" fill="#1f6e73"/>
-  <path d="M74,114 H322.15 V142 H74 Z" fill="#22201b"/>
+  <path d="M235,68 L235,148" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M396,68 L396,148" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M556,68 L556,148" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M717,68 L717,148" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M878,68 L878,148" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M74,142 L878,142" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M74,68 H685.04 V96 H74 Z" fill="#1f6e73"/>
+  <path d="M74,114 H323.24 V142 H74 Z" fill="#22201b"/>
   <text x="74" y="164" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
-  <text x="234" y="164" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
-  <text x="394" y="164" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
-  <text x="554" y="164" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
-  <text x="714" y="164" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
-  <text x="874" y="164" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
+  <text x="235" y="164" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
+  <text x="396" y="164" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
+  <text x="556" y="164" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
+  <text x="717" y="164" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
+  <text x="878" y="164" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
   <text x="66" y="87" text-anchor="end" font-size="14" fill="#22201b">導入前</text>
-  <text x="676" y="87" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">76%</text>
+  <text x="679" y="87" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">76%</text>
   <text x="66" y="133" text-anchor="end" font-size="14" fill="#22201b">導入後</text>
-  <text x="316" y="133" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">31%</text>
+  <text x="317" y="133" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">31%</text>
 
   <text x="470" y="218" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">縦棒：四半期ごとの件数</text>
 
-  <path d="M48,458 L912,458" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,435 L912,435" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,412 L912,412" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,389 L912,389" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,366 L912,366" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,343 L912,343" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,320 L912,320" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,297 L912,297" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,274 L912,274" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M54,274 L54,458" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M54,458 L912,458" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M164.85,361.59 H228.85 V458.4 H164.85 Z" fill="#1f6e73"/>
-  <path d="M450.91,301.66 H514.91 V458.4 H450.91 Z" fill="#22201b"/>
-  <path d="M736.97,340.85 H800.97 V458.4 H736.97 Z" fill="#6f6659"/>
-  <text x="44" y="463" text-anchor="end" font-size="14" fill="#6f6659">0</text>
-  <text x="44" y="440" text-anchor="end" font-size="14" fill="#6f6659">10</text>
-  <text x="44" y="417" text-anchor="end" font-size="14" fill="#6f6659">20</text>
-  <text x="44" y="394" text-anchor="end" font-size="14" fill="#6f6659">30</text>
-  <text x="44" y="371" text-anchor="end" font-size="14" fill="#6f6659">40</text>
-  <text x="44" y="348" text-anchor="end" font-size="14" fill="#6f6659">50</text>
-  <text x="44" y="325" text-anchor="end" font-size="14" fill="#6f6659">60</text>
-  <text x="44" y="302" text-anchor="end" font-size="14" fill="#6f6659">70</text>
-  <text x="44" y="279" text-anchor="end" font-size="14" fill="#6f6659">80</text>
-  <text x="197" y="482" text-anchor="middle" font-size="14" fill="#22201b">Q1</text>
-  <text x="197" y="380" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">42</text>
-  <text x="483" y="482" text-anchor="middle" font-size="14" fill="#22201b">Q2</text>
-  <text x="483" y="320" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">68</text>
+  <path d="M46,458 L912,458" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,435 L912,435" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,412 L912,412" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,389 L912,389" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,366 L912,366" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,343 L912,343" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,320 L912,320" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,297 L912,297" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,274 L912,274" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M52,274 L52,458" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M52,458 L912,458" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M162.95,361.59 H226.95 V458.4 H162.95 Z" fill="#1f6e73"/>
+  <path d="M449.77,301.66 H513.77 V458.4 H449.77 Z" fill="#22201b"/>
+  <path d="M736.59,340.85 H800.59 V458.4 H736.59 Z" fill="#6f6659"/>
+  <text x="42" y="463" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <text x="42" y="440" text-anchor="end" font-size="14" fill="#6f6659">10</text>
+  <text x="42" y="417" text-anchor="end" font-size="14" fill="#6f6659">20</text>
+  <text x="42" y="394" text-anchor="end" font-size="14" fill="#6f6659">30</text>
+  <text x="42" y="371" text-anchor="end" font-size="14" fill="#6f6659">40</text>
+  <text x="42" y="348" text-anchor="end" font-size="14" fill="#6f6659">50</text>
+  <text x="42" y="325" text-anchor="end" font-size="14" fill="#6f6659">60</text>
+  <text x="42" y="302" text-anchor="end" font-size="14" fill="#6f6659">70</text>
+  <text x="42" y="279" text-anchor="end" font-size="14" fill="#6f6659">80</text>
+  <text x="195" y="482" text-anchor="middle" font-size="14" fill="#22201b">Q1</text>
+  <text x="195" y="380" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">42</text>
+  <text x="482" y="482" text-anchor="middle" font-size="14" fill="#22201b">Q2</text>
+  <text x="482" y="320" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">68</text>
   <text x="769" y="482" text-anchor="middle" font-size="14" fill="#22201b">Q3</text>
   <text x="769" y="359" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">51</text>
 
@@ -65,23 +65,23 @@
 
   <path d="M24,568 L24,602" fill="none" stroke="#e0d6c5" stroke-width="2"/>
   <path d="M201,568 L201,602" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M377,568 L377,602" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M554,568 L554,602" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M730,568 L730,602" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M907,568 L907,602" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M24,596 L907,596" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M24.45,568 H163.6 V596 H24.45 Z" fill="#1f6e73"/>
-  <path d="M165.6,568 H463.55 V596 H165.6 Z" fill="#22201b"/>
-  <path d="M465.55,568 H763.49 V596 H465.55 Z" fill="#6f6659"/>
-  <path d="M765.49,568 H906.64 V596 H765.49 Z" fill="#1f6e73"/>
+  <path d="M378,568 L378,602" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M555,568 L555,602" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M731,568 L731,602" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M908,568 L908,602" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M24,596 L908,596" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M23.89,568 H163.4 V596 H23.89 Z" fill="#1f6e73"/>
+  <path d="M165.4,568 H464.12 V596 H165.4 Z" fill="#22201b"/>
+  <path d="M466.12,568 H764.83 V596 H466.12 Z" fill="#6f6659"/>
+  <path d="M766.83,568 H908.35 V596 H766.83 Z" fill="#1f6e73"/>
   <text x="24" y="618" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
   <text x="201" y="618" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
-  <text x="377" y="618" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
-  <text x="554" y="618" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
-  <text x="730" y="618" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
-  <text x="907" y="618" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
+  <text x="378" y="618" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
+  <text x="555" y="618" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
+  <text x="731" y="618" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
+  <text x="908" y="618" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
   <text x="94" y="587" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">企画 16%</text>
   <text x="315" y="587" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">実装 34%</text>
   <text x="615" y="587" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">検証 34%</text>
-  <text x="836" y="587" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">運用 16%</text>
+  <text x="838" y="587" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">運用 16%</text>
 </svg>

@@ -27,22 +27,22 @@
   <circle cx="396" cy="112" r="8" fill="#6f6659" stroke="#ffffff" stroke-width="4"/>
   <circle cx="540" cy="112" r="8" fill="#1d5fa8" stroke="#ffffff" stroke-width="4"/>
   <path d="M252,140 V144 H688 V140" fill="none" stroke="#1d5fa8" stroke-width="2"/>
-  <text x="279" y="71" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">今</text>
-  <text x="279" y="91" text-anchor="middle" font-size="14" fill="#6f6659">2026-10</text>
+  <text x="276" y="71" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">今</text>
+  <text x="276" y="91" text-anchor="middle" font-size="14" fill="#6f6659">2026-10</text>
   <text x="729" y="71" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">サポート終了</text>
   <text x="729" y="91" text-anchor="middle" font-size="14" fill="#6f6659">2028-03-31</text>
-  <text x="425" y="71" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">予算申請</text>
-  <text x="425" y="91" text-anchor="middle" font-size="14" fill="#6f6659">2027-04</text>
+  <text x="424" y="71" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">予算申請</text>
+  <text x="424" y="91" text-anchor="middle" font-size="14" fill="#6f6659">2027-04</text>
   <text x="591" y="71" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">移行開始の期限</text>
   <text x="591" y="91" text-anchor="middle" font-size="14" fill="#6f6659">2027-10</text>
   <text x="20" y="134" font-size="14" fill="#6f6659">2026</text>
-  <text x="152" y="134" font-size="14" fill="#6f6659">2026/7</text>
-  <text x="306" y="134" font-size="14" fill="#6f6659">2027</text>
-  <text x="444" y="134" font-size="14" fill="#6f6659">2027/7</text>
-  <text x="598" y="134" font-size="14" fill="#6f6659">2028</text>
-  <text x="736" y="134" font-size="14" fill="#6f6659">2028/7</text>
-  <text x="884" y="134" font-size="14" fill="#6f6659">2029</text>
-  <text x="414" y="166" font-size="14" font-weight="700" fill="#1d5fa8">あと 1 年 5 か月</text>
+  <text x="154" y="134" font-size="14" fill="#6f6659">2026/7</text>
+  <text x="308" y="134" font-size="14" fill="#6f6659">2027</text>
+  <text x="446" y="134" font-size="14" fill="#6f6659">2027/7</text>
+  <text x="600" y="134" font-size="14" fill="#6f6659">2028</text>
+  <text x="739" y="134" font-size="14" fill="#6f6659">2028/7</text>
+  <text x="889" y="134" font-size="14" fill="#6f6659">2029</text>
+  <text x="419" y="166" font-size="14" font-weight="700" fill="#1d5fa8">あと 1 年 5 か月</text>
 
   <text x="20" y="198" font-size="14" font-weight="400" fill="#6f6659">出典: ベンダー公開のサポート終了予告(2026-04)</text>
 </svg>

@@ -9,22 +9,22 @@
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">必要な電力と、使える電力</text>
 
   <path d="M74,56 L74,136" fill="none" stroke="#4a443a" stroke-width="2"/>
-  <path d="M232,56 L232,136" fill="none" stroke="#4a443a" stroke-width="2"/>
-  <path d="M390,56 L390,136" fill="none" stroke="#4a443a" stroke-width="2"/>
-  <path d="M548,56 L548,136" fill="none" stroke="#4a443a" stroke-width="2"/>
-  <path d="M707,56 L707,136" fill="none" stroke="#4a443a" stroke-width="2"/>
-  <path d="M865,56 L865,136" fill="none" stroke="#4a443a" stroke-width="2"/>
-  <path d="M74,130 L865,130" fill="none" stroke="#4a443a" stroke-width="2"/>
-  <path d="M74,56 H390.3 V84 H74 Z" fill="#60a5fa"/>
-  <path d="M74,102 H864.75 V130 H74 Z" fill="#dc2626"/>
+  <path d="M233,56 L233,136" fill="none" stroke="#4a443a" stroke-width="2"/>
+  <path d="M392,56 L392,136" fill="none" stroke="#4a443a" stroke-width="2"/>
+  <path d="M551,56 L551,136" fill="none" stroke="#4a443a" stroke-width="2"/>
+  <path d="M711,56 L711,136" fill="none" stroke="#4a443a" stroke-width="2"/>
+  <path d="M870,56 L870,136" fill="none" stroke="#4a443a" stroke-width="2"/>
+  <path d="M74,130 L870,130" fill="none" stroke="#4a443a" stroke-width="2"/>
+  <path d="M74,56 H392.3 V84 H74 Z" fill="#60a5fa"/>
+  <path d="M74,102 H869.74 V130 H74 Z" fill="#dc2626"/>
   <text x="74" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">0</text>
-  <text x="232" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">20</text>
-  <text x="390" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">40</text>
-  <text x="548" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">60</text>
-  <text x="707" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">80</text>
-  <text x="865" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">100</text>
+  <text x="233" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">20</text>
+  <text x="392" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">40</text>
+  <text x="551" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">60</text>
+  <text x="711" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">80</text>
+  <text x="870" y="152" text-anchor="middle" font-size="14" fill="#94a3b8">100</text>
   <text x="66" y="75" text-anchor="end" font-size="14" fill="#ffffff">使える</text>
-  <text x="384" y="75" text-anchor="end" font-size="14" font-weight="700" fill="#0b1220">40%</text>
+  <text x="386" y="75" text-anchor="end" font-size="14" font-weight="700" fill="#0b1220">40%</text>
   <text x="66" y="121" text-anchor="end" font-size="14" fill="#ffffff">必要</text>
-  <text x="859" y="121" text-anchor="end" font-size="14" font-weight="700" fill="#0b1220">100%</text>
+  <text x="864" y="121" text-anchor="end" font-size="14" font-weight="700" fill="#0b1220">100%</text>
 </svg>

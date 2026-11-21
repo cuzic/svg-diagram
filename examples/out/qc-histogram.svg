@@ -7,62 +7,62 @@
   </style>
   <rect x="0" y="0" width="940" height="376" fill="#ffffff"/>
 
-  <path d="M48,286 L902,286" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,262 L902,262" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,238 L902,238" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,213 L902,213" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,189 L902,189" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,164 L902,164" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,140 L902,140" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,115 L902,115" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,91 L902,91" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,66 L902,66" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M48,42 L902,42" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M54,42 L54,286" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M54,286 L902,286" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M53.81,261.96 H159.89 V286.4 H53.81 Z" fill="#1d5fa8"/>
-  <path d="M159.89,200.86 H265.96 V286.4 H159.89 Z" fill="#1d5fa8"/>
-  <path d="M265.96,54.22 H372.04 V286.4 H265.96 Z" fill="#1d5fa8"/>
-  <path d="M372.04,151.98 H478.11 V286.4 H372.04 Z" fill="#1d5fa8"/>
-  <path d="M478.11,213.08 H584.19 V286.4 H478.11 Z" fill="#1d5fa8"/>
-  <path d="M584.19,249.74 H690.26 V286.4 H584.19 Z" fill="#1d5fa8"/>
-  <path d="M690.26,274.18 H796.34 V286.4 H690.26 Z" fill="#b91c1c"/>
-  <path d="M796.34,274.18 H902.41 V286.4 H796.34 Z" fill="#b91c1c"/>
-  <path d="M54,38 L54,286" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4"/>
-  <path d="M373,38 L373,286" fill="none" stroke="#1d5fa8" stroke-width="2" stroke-dasharray="6,4"/>
-  <path d="M690,38 L690,286" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4"/>
-  <path d="M53.8,268.5 L75,262.5 L96.2,255 L117.5,246 L138.7,235.5 L159.9,223.5 L181.1,210.2 L202.3,196 L223.5,181.2 L244.7,166.5 L266,152.4 L287.2,139.7 L308.4,128.9 L329.6,120.7 L350.8,115.5 L372,113.7 L393.3,115.3 L414.5,120.3 L435.7,128.3 L456.9,139 L478.1,151.6 L499.3,165.6 L520.5,180.4 L541.8,195.1 L563,209.4 L584.2,222.7 L605.4,234.8 L626.6,245.4 L647.8,254.5 L669,262.1 L690.3,268.2 L711.5,273.1 L732.7,276.8 L753.9,279.7 L775.1,281.7 L796.3,283.2 L817.6,284.3 L838.8,285 L860,285.5 L881.2,285.9 L902.4,286.1" fill="none" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
-  <text x="44" y="291" text-anchor="end" font-size="14" fill="#6f6659">0</text>
-  <text x="44" y="267" text-anchor="end" font-size="14" fill="#6f6659">2</text>
-  <text x="44" y="243" text-anchor="end" font-size="14" fill="#6f6659">4</text>
-  <text x="44" y="218" text-anchor="end" font-size="14" fill="#6f6659">6</text>
-  <text x="44" y="194" text-anchor="end" font-size="14" fill="#6f6659">8</text>
-  <text x="44" y="169" text-anchor="end" font-size="14" fill="#6f6659">10</text>
-  <text x="44" y="145" text-anchor="end" font-size="14" fill="#6f6659">12</text>
-  <text x="44" y="120" text-anchor="end" font-size="14" fill="#6f6659">14</text>
-  <text x="44" y="96" text-anchor="end" font-size="14" fill="#6f6659">16</text>
-  <text x="44" y="71" text-anchor="end" font-size="14" fill="#6f6659">18</text>
-  <text x="44" y="47" text-anchor="end" font-size="14" fill="#6f6659">20</text>
-  <text x="107" y="280" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2個</text>
-  <text x="213" y="219" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">7個</text>
-  <text x="319" y="72" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">19個</text>
+  <path d="M46,286 L904,286" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,262 L904,262" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,238 L904,238" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,213 L904,213" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,189 L904,189" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,164 L904,164" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,140 L904,140" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,115 L904,115" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,91 L904,91" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,66 L904,66" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M46,42 L904,42" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M52,42 L52,286" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M52,286 L904,286" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M51.54,261.96 H158.15 V286.4 H51.54 Z" fill="#1d5fa8"/>
+  <path d="M158.15,200.86 H264.75 V286.4 H158.15 Z" fill="#1d5fa8"/>
+  <path d="M264.75,54.22 H371.36 V286.4 H264.75 Z" fill="#1d5fa8"/>
+  <path d="M371.36,151.98 H477.97 V286.4 H371.36 Z" fill="#1d5fa8"/>
+  <path d="M477.97,213.08 H584.58 V286.4 H477.97 Z" fill="#1d5fa8"/>
+  <path d="M584.58,249.74 H691.18 V286.4 H584.58 Z" fill="#1d5fa8"/>
+  <path d="M691.18,274.18 H797.79 V286.4 H691.18 Z" fill="#b91c1c"/>
+  <path d="M797.79,274.18 H904.4 V286.4 H797.79 Z" fill="#b91c1c"/>
+  <path d="M52,38 L52,286" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M372,38 L372,286" fill="none" stroke="#1d5fa8" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M691,38 L691,286" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M51.5,268.5 L72.9,262.5 L94.2,255 L115.5,246 L136.8,235.5 L158.1,223.5 L179.5,210.2 L200.8,196 L222.1,181.2 L243.4,166.5 L264.8,152.4 L286.1,139.7 L307.4,128.9 L328.7,120.7 L350,115.5 L371.4,113.7 L392.7,115.3 L414,120.3 L435.3,128.3 L456.6,139 L478,151.6 L499.3,165.6 L520.6,180.4 L541.9,195.1 L563.3,209.4 L584.6,222.7 L605.9,234.8 L627.2,245.4 L648.5,254.5 L669.9,262.1 L691.2,268.2 L712.5,273.1 L733.8,276.8 L755.1,279.7 L776.5,281.7 L797.8,283.2 L819.1,284.3 L840.4,285 L861.8,285.5 L883.1,285.9 L904.4,286.1" fill="none" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="42" y="291" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <text x="42" y="267" text-anchor="end" font-size="14" fill="#6f6659">2</text>
+  <text x="42" y="243" text-anchor="end" font-size="14" fill="#6f6659">4</text>
+  <text x="42" y="218" text-anchor="end" font-size="14" fill="#6f6659">6</text>
+  <text x="42" y="194" text-anchor="end" font-size="14" fill="#6f6659">8</text>
+  <text x="42" y="169" text-anchor="end" font-size="14" fill="#6f6659">10</text>
+  <text x="42" y="145" text-anchor="end" font-size="14" fill="#6f6659">12</text>
+  <text x="42" y="120" text-anchor="end" font-size="14" fill="#6f6659">14</text>
+  <text x="42" y="96" text-anchor="end" font-size="14" fill="#6f6659">16</text>
+  <text x="42" y="71" text-anchor="end" font-size="14" fill="#6f6659">18</text>
+  <text x="42" y="47" text-anchor="end" font-size="14" fill="#6f6659">20</text>
+  <text x="105" y="280" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">2個</text>
+  <text x="211" y="219" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">7個</text>
+  <text x="318" y="72" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">19個</text>
   <text x="425" y="170" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">11個</text>
   <text x="531" y="231" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">6個</text>
-  <text x="637" y="268" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3個</text>
-  <text x="743" y="268" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">1個</text>
-  <text x="849" y="268" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">1個</text>
-  <text x="58" y="34" font-size="14" font-weight="700" fill="#b91c1c">下限 9.8</text>
-  <text x="373" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">平均 10.10</text>
-  <text x="690" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">上限 10.4</text>
-  <text x="54" y="310" text-anchor="middle" font-size="14" fill="#22201b">9.8</text>
-  <text x="160" y="310" text-anchor="middle" font-size="14" fill="#22201b">9.9</text>
-  <text x="266" y="310" text-anchor="middle" font-size="14" fill="#22201b">10</text>
-  <text x="372" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.1</text>
+  <text x="638" y="268" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">3個</text>
+  <text x="744" y="268" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">1個</text>
+  <text x="851" y="268" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">1個</text>
+  <text x="56" y="34" font-size="14" font-weight="700" fill="#b91c1c">下限 9.8</text>
+  <text x="372" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">平均 10.10</text>
+  <text x="691" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">上限 10.4</text>
+  <text x="52" y="310" text-anchor="middle" font-size="14" fill="#22201b">9.8</text>
+  <text x="158" y="310" text-anchor="middle" font-size="14" fill="#22201b">9.9</text>
+  <text x="265" y="310" text-anchor="middle" font-size="14" fill="#22201b">10</text>
+  <text x="371" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.1</text>
   <text x="478" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.2</text>
-  <text x="584" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.3</text>
-  <text x="690" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.4</text>
-  <text x="796" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.5</text>
-  <text x="902" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.6</text>
+  <text x="585" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.3</text>
+  <text x="691" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.4</text>
+  <text x="798" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.5</text>
+  <text x="904" y="310" text-anchor="middle" font-size="14" fill="#22201b">10.6</text>
 
   <text x="20" y="350" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
 </svg>

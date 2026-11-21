@@ -10,27 +10,27 @@
 
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">spotlight（bars の band を id で指す。棒もまとめて主役）</text>
 
-  <path d="M57,302 L912,302" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M57,258 L912,258" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M57,213 L912,213" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M57,168 L912,168" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M57,123 L912,123" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M57,78 L912,78" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M63,78 L63,302" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M63,302 L912,302" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M172.27,194.69 H236.27 V302.4 H172.27 Z" fill="#1d5fa8"/>
-  <path d="M455.36,167.76 H519.36 V302.4 H455.36 Z" fill="#1d5fa8"/>
-  <path d="M738.45,113.9 H802.45 V302.4 H738.45 Z" fill="#1d5fa8"/>
-  <text x="53" y="307" text-anchor="end" font-size="14" fill="#6f6659">0</text>
-  <text x="53" y="263" text-anchor="end" font-size="14" fill="#6f6659">50</text>
-  <text x="53" y="218" text-anchor="end" font-size="14" fill="#6f6659">100</text>
-  <text x="53" y="173" text-anchor="end" font-size="14" fill="#6f6659">150</text>
-  <text x="53" y="128" text-anchor="end" font-size="14" fill="#6f6659">200</text>
-  <text x="53" y="83" text-anchor="end" font-size="14" fill="#6f6659">250</text>
-  <text x="204" y="326" text-anchor="middle" font-size="14" fill="#22201b">第1四半期</text>
-  <text x="204" y="213" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">120件</text>
-  <text x="487" y="326" text-anchor="middle" font-size="14" fill="#22201b">第2四半期</text>
-  <text x="487" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">150件</text>
+  <path d="M53,302 L912,302" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M53,258 L912,258" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M53,213 L912,213" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M53,168 L912,168" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M53,123 L912,123" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M53,78 L912,78" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M59,78 L59,302" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M59,302 L912,302" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M169.43,194.69 H233.43 V302.4 H169.43 Z" fill="#1d5fa8"/>
+  <path d="M453.66,167.76 H517.66 V302.4 H453.66 Z" fill="#1d5fa8"/>
+  <path d="M737.89,113.9 H801.89 V302.4 H737.89 Z" fill="#1d5fa8"/>
+  <text x="49" y="307" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <text x="49" y="263" text-anchor="end" font-size="14" fill="#6f6659">50</text>
+  <text x="49" y="218" text-anchor="end" font-size="14" fill="#6f6659">100</text>
+  <text x="49" y="173" text-anchor="end" font-size="14" fill="#6f6659">150</text>
+  <text x="49" y="128" text-anchor="end" font-size="14" fill="#6f6659">200</text>
+  <text x="49" y="83" text-anchor="end" font-size="14" fill="#6f6659">250</text>
+  <text x="201" y="326" text-anchor="middle" font-size="14" fill="#22201b">第1四半期</text>
+  <text x="201" y="213" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">120件</text>
+  <text x="486" y="326" text-anchor="middle" font-size="14" fill="#22201b">第2四半期</text>
+  <text x="486" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">150件</text>
   <text x="770" y="326" text-anchor="middle" font-size="14" fill="#22201b">第3四半期</text>
   <text x="770" y="132" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">210件</text>
 

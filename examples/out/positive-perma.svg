@@ -38,7 +38,7 @@
   <text x="479" y="65" font-size="14" fill="#6f6659">10</text>
   <text x="479" y="100" font-size="14" fill="#6f6659">8</text>
   <text x="479" y="125" font-size="14" fill="#6f6659">6</text>
-  <text x="479" y="179" font-size="14" fill="#6f6659">4</text>
+  <text x="479" y="169" font-size="14" fill="#6f6659">4</text>
   <text x="479" y="204" font-size="14" fill="#6f6659">2</text>
   <text x="470" y="113" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">5</text>
   <text x="599" y="190" font-size="14" font-weight="700" fill="#1d5fa8">7</text>
@@ -50,12 +50,12 @@
   <text x="550" y="356" font-size="14" font-weight="700" fill="#22201b">7</text>
   <text x="390" y="356" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">7</text>
   <text x="381" y="224" font-size="14" font-weight="700" fill="#22201b">6</text>
-  <path d="M360.3,462 L390.3,462" fill="none" stroke="#1d5fa8" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M370.3,462 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
-  <text x="398" y="467" font-size="14" fill="#22201b">今</text>
-  <path d="M440.3,462 L470.3,462" fill="none" stroke="#22201b" stroke-width="3" stroke-linejoin="round" stroke-dasharray="8,5"/>
-  <path d="M450.3,457 H460.3 V467 H450.3 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
-  <text x="478" y="467" font-size="14" fill="#22201b">3 か月後の目標</text>
+  <path d="M361.5,462 L391.5,462" fill="none" stroke="#1d5fa8" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M371.5,462 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0 Z" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="400" y="467" font-size="14" fill="#22201b">今</text>
+  <path d="M441.5,462 L471.5,462" fill="none" stroke="#22201b" stroke-width="3" stroke-linejoin="round" stroke-dasharray="8,5"/>
+  <path d="M451.5,457 H461.5 V467 H451.5 Z" fill="#ffffff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/>
+  <text x="480" y="467" font-size="14" fill="#22201b">3 か月後の目標</text>
 
   <text x="20" y="510" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
 </svg>

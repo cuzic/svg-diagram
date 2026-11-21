@@ -9,76 +9,76 @@
 
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">地図（メートル、y は上向き）</text>
 
-  <path d="M58,98 L58,344 M216,98 L216,344 M374,98 L374,344 M532,98 L532,344 M690,98 L690,344 M848,98 L848,344 M58,344 L848,344 M58,303 L848,303 M58,262 L848,262 M58,221 L848,221 M58,180 L848,180 M58,139 L848,139 M58,98 L848,98" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M58,344 L848,344 M58,344 L58,98" fill="none" stroke="#22201b" stroke-width="2"/>
-  <polygon points="848,344 838,349 838,339" fill="#22201b"/>
-  <polygon points="58,98 63,108 53,108" fill="#22201b"/>
-  <path d="M58,344 L58,350 M216,344 L216,350 M374,344 L374,350 M532,344 L532,350 M690,344 L690,350 M848,344 L848,350 M58,344 L52,344 M58,303 L52,303 M58,262 L52,262 M58,221 L52,221 M58,180 L52,180 M58,139 L52,139 M58,98 L52,98" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M295,262 L295,344" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
-  <path d="M295,262 L58,262" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
-  <path d="M295,262 L302,287" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
-  <path d="M690,159 L697,184" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
-  <path d="M302,287 L697,184" fill="none" stroke="#22201b" stroke-width="2"/>
-  <polygon points="302,287 310,279 312,289" fill="#22201b"/>
-  <polygon points="697,184 688,192 686,182" fill="#22201b"/>
-  <rect x="468" y="224" width="64" height="24" rx="12" fill="#ffffff"/>
-  <path d="M295,344 L295,330" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
-  <path d="M690,344 L690,330" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
-  <path d="M295,330 L690,330" fill="none" stroke="#22201b" stroke-width="2"/>
-  <polygon points="295,330 305,325 305,335" fill="#22201b"/>
-  <polygon points="690,330 680,335 680,325" fill="#22201b"/>
-  <rect x="468" y="316" width="48" height="24" rx="12" fill="#ffffff"/>
-  <circle cx="60" cy="344" r="6" fill="#ffffff" stroke="#6f6659" stroke-width="2.5"/>
+  <path d="M56,98 L56,344 M216,98 L216,344 M376,98 L376,344 M536,98 L536,344 M696,98 L696,344 M856,98 L856,344 M56,344 L856,344 M56,303 L856,303 M56,262 L856,262 M56,221 L856,221 M56,180 L856,180 M56,139 L856,139 M56,98 L856,98" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M56,344 L856,344 M56,344 L56,98" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="856,344 846,349 846,339" fill="#22201b"/>
+  <polygon points="56,98 61,108 51,108" fill="#22201b"/>
+  <path d="M56,344 L56,350 M216,344 L216,350 M376,344 L376,350 M536,344 L536,350 M696,344 L696,350 M856,344 L856,350 M56,344 L50,344 M56,303 L50,303 M56,262 L50,262 M56,221 L50,221 M56,180 L50,180 M56,139 L50,139 M56,98 L50,98" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M296,262 L296,344" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M296,262 L56,262" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M296,262 L302,287" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
+  <path d="M696,159 L702,184" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
+  <path d="M302,287 L702,184" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="302,287 311,279 313,289" fill="#22201b"/>
+  <polygon points="702,184 694,192 692,182" fill="#22201b"/>
+  <rect x="472" y="224" width="60" height="24" rx="12" fill="#ffffff"/>
+  <path d="M296,344 L296,330" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
+  <path d="M696,344 L696,330" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
+  <path d="M296,330 L696,330" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="296,330 306,325 306,335" fill="#22201b"/>
+  <polygon points="696,330 686,335 686,325" fill="#22201b"/>
+  <rect x="472" y="316" width="48" height="24" rx="12" fill="#ffffff"/>
+  <circle cx="56" cy="344" r="6" fill="#ffffff" stroke="#6f6659" stroke-width="2.5"/>
   <circle cx="296" cy="260" r="6" fill="#1d5fa8"/>
-  <circle cx="692" cy="160" r="6" fill="#b91c1c"/>
-  <text x="58" y="366" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
+  <circle cx="696" cy="160" r="6" fill="#b91c1c"/>
+  <text x="56" y="366" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
   <text x="216" y="366" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
-  <text x="374" y="366" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
-  <text x="532" y="366" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
-  <text x="690" y="366" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
-  <text x="848" y="366" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
-  <text x="46" y="349" text-anchor="end" font-size="14" fill="#6f6659">0</text>
-  <text x="46" y="308" text-anchor="end" font-size="14" fill="#6f6659">10</text>
-  <text x="46" y="267" text-anchor="end" font-size="14" fill="#6f6659">20</text>
-  <text x="46" y="226" text-anchor="end" font-size="14" fill="#6f6659">30</text>
-  <text x="46" y="185" text-anchor="end" font-size="14" fill="#6f6659">40</text>
-  <text x="46" y="144" text-anchor="end" font-size="14" fill="#6f6659">50</text>
-  <text x="46" y="103" text-anchor="end" font-size="14" fill="#6f6659">60</text>
-  <text x="870" y="349" font-size="14" font-weight="700" fill="#6f6659">x [m]</text>
-  <text x="54" y="84" font-size="14" font-weight="700" fill="#6f6659">y [m]</text>
-  <text x="295" y="248" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">A (30, 20)</text>
-  <text x="690" y="145" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B (80, 45)</text>
-  <text x="499" y="241" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">58.3 m</text>
-  <text x="493" y="335" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">50 m</text>
-  <text x="611" y="123" text-anchor="middle" font-size="14" fill="#6f6659">地図の枠</text>
+  <text x="376" y="366" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
+  <text x="536" y="366" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
+  <text x="696" y="366" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
+  <text x="856" y="366" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
+  <text x="44" y="349" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <text x="44" y="308" text-anchor="end" font-size="14" fill="#6f6659">10</text>
+  <text x="44" y="267" text-anchor="end" font-size="14" fill="#6f6659">20</text>
+  <text x="44" y="226" text-anchor="end" font-size="14" fill="#6f6659">30</text>
+  <text x="44" y="185" text-anchor="end" font-size="14" fill="#6f6659">40</text>
+  <text x="44" y="144" text-anchor="end" font-size="14" fill="#6f6659">50</text>
+  <text x="44" y="103" text-anchor="end" font-size="14" fill="#6f6659">60</text>
+  <text x="876" y="349" font-size="14" font-weight="700" fill="#6f6659">x [m]</text>
+  <text x="52" y="84" font-size="14" font-weight="700" fill="#6f6659">y [m]</text>
+  <text x="296" y="248" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">A (30, 20)</text>
+  <text x="696" y="145" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B (80, 45)</text>
+  <text x="502" y="241" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">58.3 m</text>
+  <text x="496" y="335" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">50 m</text>
+  <text x="616" y="123" text-anchor="middle" font-size="14" fill="#6f6659">地図の枠</text>
 
   <text x="470" y="422" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">画像（画素、v は下向き）</text>
 
-  <path d="M67,491 L843,491 M67,491 L67,735" fill="none" stroke="#22201b" stroke-width="2"/>
-  <polygon points="843,491 833,496 833,486" fill="#22201b"/>
-  <polygon points="67,735 62,725 72,725" fill="#22201b"/>
-  <path d="M67,491 L67,485 M261,491 L261,485 M455,491 L455,485 M649,491 L649,485 M843,491 L843,485 M67,491 L61,491 M67,552 L61,552 M67,613 L61,613 M67,674 L61,674 M67,735 L61,735" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M310,573 L316,547" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
-  <path d="M649,667 L656,642" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
-  <path d="M316,547 L656,642" fill="none" stroke="#22201b" stroke-width="2"/>
-  <polygon points="316,547 327,545 325,555" fill="#22201b"/>
-  <polygon points="656,642 645,645 648,635" fill="#22201b"/>
-  <rect x="452" y="584" width="68" height="24" rx="12" fill="#ffffff"/>
-  <path d="M302,566 L314,578 M302,578 L314,566" fill="none" stroke="#1d5fa8" stroke-width="3" stroke-linecap="round"/>
-  <circle cx="648" cy="668" r="6" fill="#1d5fa8"/>
-  <text x="67" y="477" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
+  <path d="M64,491 L852,491 M64,491 L64,735" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="852,491 842,496 842,486" fill="#22201b"/>
+  <polygon points="64,735 59,725 69,725" fill="#22201b"/>
+  <path d="M64,491 L64,485 M261,491 L261,485 M458,491 L458,485 M655,491 L655,485 M852,491 L852,485 M64,491 L58,491 M64,552 L58,552 M64,613 L58,613 M64,674 L58,674 M64,735 L58,735" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M310,573 L317,547" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
+  <path d="M655,667 L662,642" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
+  <path d="M317,547 L662,642" fill="none" stroke="#22201b" stroke-width="2"/>
+  <polygon points="317,547 328,545 325,555" fill="#22201b"/>
+  <polygon points="662,642 651,645 654,635" fill="#22201b"/>
+  <rect x="460" y="584" width="56" height="24" rx="12" fill="#ffffff"/>
+  <path d="M306,566 L318,578 M306,578 L318,566" fill="none" stroke="#1d5fa8" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="656" cy="668" r="6" fill="#1d5fa8"/>
+  <text x="64" y="477" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
   <text x="261" y="477" text-anchor="middle" font-size="14" fill="#6f6659">160</text>
-  <text x="455" y="477" text-anchor="middle" font-size="14" fill="#6f6659">320</text>
-  <text x="649" y="477" text-anchor="middle" font-size="14" fill="#6f6659">480</text>
-  <text x="843" y="477" text-anchor="middle" font-size="14" fill="#6f6659">640</text>
-  <text x="55" y="496" text-anchor="end" font-size="14" fill="#6f6659">0</text>
-  <text x="55" y="557" text-anchor="end" font-size="14" fill="#6f6659">90</text>
-  <text x="55" y="618" text-anchor="end" font-size="14" fill="#6f6659">180</text>
-  <text x="55" y="679" text-anchor="end" font-size="14" fill="#6f6659">270</text>
-  <text x="55" y="740" text-anchor="end" font-size="14" fill="#6f6659">360</text>
-  <text x="865" y="496" font-size="14" font-weight="700" fill="#6f6659">u [px]</text>
-  <text x="63" y="763" font-size="14" font-weight="700" fill="#6f6659">v [px]</text>
+  <text x="458" y="477" text-anchor="middle" font-size="14" fill="#6f6659">320</text>
+  <text x="655" y="477" text-anchor="middle" font-size="14" fill="#6f6659">480</text>
+  <text x="852" y="477" text-anchor="middle" font-size="14" fill="#6f6659">640</text>
+  <text x="52" y="496" text-anchor="end" font-size="14" fill="#6f6659">0</text>
+  <text x="52" y="557" text-anchor="end" font-size="14" fill="#6f6659">90</text>
+  <text x="52" y="618" text-anchor="end" font-size="14" fill="#6f6659">180</text>
+  <text x="52" y="679" text-anchor="end" font-size="14" fill="#6f6659">270</text>
+  <text x="52" y="740" text-anchor="end" font-size="14" fill="#6f6659">360</text>
+  <text x="872" y="496" font-size="14" font-weight="700" fill="#6f6659">u [px]</text>
+  <text x="60" y="763" font-size="14" font-weight="700" fill="#6f6659">v [px]</text>
   <text x="322" y="578" font-size="14" font-weight="700" fill="#1d5fa8">P</text>
-  <text x="661" y="672" font-size="14" font-weight="700" fill="#1d5fa8">Q</text>
-  <text x="486" y="600" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">312 px</text>
+  <text x="667" y="672" font-size="14" font-weight="700" fill="#1d5fa8">Q</text>
+  <text x="490" y="600" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">312 px</text>
 </svg>
