@@ -261,6 +261,53 @@ export default () => { const d = diagram({theme: 'blue', title: 't'}); d.add(wir
 // ---- bin/svg-diagram ----------------------------------------------------------------------------------
 const bin = (cwd: string, ...args: string[]) => spawnSync('bash', [BIN, ...args], {cwd, encoding: 'utf8'});
 
+for (const layout of ['source', 'dist']) {
+  test(`bin/svg-diagram (${layout}): requires Node 22.18`, async t => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-node-floor-'));
+    t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+    const binDir = path.join(root, 'bin');
+    fs.mkdirSync(binDir);
+    const launcher = path.join(binDir, 'svg-diagram');
+    fs.copyFileSync(BIN, launcher);
+    if (layout === 'dist') {
+      fs.mkdirSync(path.join(root, 'dist'));
+      fs.writeFileSync(path.join(root, 'dist', 'build-diagram.js'), '');
+    }
+
+    const run = (major: number, minor: number) => {
+      fs.writeFileSync(path.join(binDir, 'node'), `#!/bin/sh
+case "$1" in
+  -p) echo '${major} ${minor}' ;;
+  -v) echo 'v${major}.${minor}.0' ;;
+  *) printf '%s\\n' "$@" ;;
+esac
+`, {mode: 0o755});
+      return spawnSync('bash', [launcher, 'check', '--strict', 'src/flow.ts'], {
+        cwd: root, encoding: 'utf8', env: {...process.env, PATH: `${binDir}${path.delimiter}${process.env['PATH']}`},
+      });
+    };
+
+    for (const [major, minor] of [[21, 99], [22, 17]] as const) {
+      await t.test(`rejects Node ${major}.${minor}`, () => {
+        const r = run(major, minor);
+        assert.equal(r.status, 2, out(r));
+        assert.equal(r.stdout, '');
+        assert.equal(r.stderr, `svg-diagram: Node 22.18 以上が要る(今は v${major}.${minor}.0)。Node を 22.18 以上に上げる\n`);
+      });
+    }
+
+    const script = layout === 'dist' ? 'dist/check-diagram.js' : 'check-diagram.ts';
+    for (const [major, minor] of [[22, 18], [23, 0], [24, 0]] as const) {
+      await t.test(`accepts Node ${major}.${minor}`, () => {
+        const r = run(major, minor);
+        assert.equal(r.status, 0, out(r));
+        assert.equal(r.stderr, '');
+        assert.equal(r.stdout, `${path.join(root, script)}\n--strict\nsrc/flow.ts\n`);
+      });
+    }
+  });
+}
+
 test('bin/svg-diagram: no arguments or an unknown command prints the usage and exits 2', () => {
   for (const args of [[], ['frobnicate']]) {
     const r = bin(proj, ...args);

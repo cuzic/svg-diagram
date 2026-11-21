@@ -6,7 +6,7 @@ Node と Chromium だけがある環境(Python の playwright が Chromium を�
 
 | 要らないもの | 代わりに |
 |---|---|
-| `tsc` / `dist/` | `.ts` をそのまま `node` で実行する(型は Node が剥がす。22.18 以上は無指定、22.6〜22.17 は `bin/svg-diagram` が `--experimental-strip-types` を足す) |
+| `tsc` / `dist/` | `.ts` を Node 22.18 以上でそのまま実行する(既定で型を剥がす) |
 | `playwright-chromium`(npm) | `lib/cdp-browser.ts` が Chromium を DevTools プロトコルで直接動かす |
 | `harfbuzzjs`(文字幅をフォントから読む) | 文字幅は Chromium で測る(`SVG_DIAGRAM_MEASURE=chromium`。入っていなければ自動でこちらになる) |
 | `@resvg/resvg-js`(SVG→PNG) | `--engine chromium`(入っていなければ自動でこちら) |
