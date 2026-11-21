@@ -28,16 +28,17 @@ mkdir -p "$work"
 # one run per label at a time
 lock="$work/cx-$label.lock"
 mkdir "$lock" 2>/dev/null || { echo "a run with label $label is in progress ($lock); use another label" >&2; exit 2; }
-trap 'rmdir "$lock" 2>/dev/null' EXIT
-# an earlier clone with the same label: never throw away work that is not on origin
-if [ -d "$d/.git" ]; then
-  git -C "$d" fetch -q origin 2>/dev/null || true
-  if [ -n "$(git -C "$d" status --porcelain 2>/dev/null | head -1)" ] ||
-     [ -n "$(git -C "$d" log --oneline --branches --not --remotes=origin 2>/dev/null | head -1)" ]; then
-    echo "$d has uncommitted changes or commits that are not on origin; push or remove them, or use another label" >&2; exit 2
-  fi
+tmp=""
+trap 'rmdir "$lock" 2>/dev/null; [ -n "$tmp" ] && rm -rf "$tmp"' EXIT
+trap 'exit 130' INT TERM
+# An earlier clone with the same label is moved aside, never deleted and never touched by git here: the sandbox could write its
+# .git/config (core.fsmonitor, an ext:: remote ...), which git would run outside the sandbox. Look into it, then delete it by hand.
+if [ -e "$d" ]; then
+  old="$d.old-$(date +%Y%m%d%H%M%S)"
+  mv "$d" "$old"
+  echo "moved the previous clone to $old (it may hold unpushed work; delete it when done)" >&2
 fi
-rm -rf "$d" "$report" "$log"
+rm -f "$report" "$log"
 git clone -q --reference "$repo_git" "$url" "$d"
 if git -C "$d" ls-remote --exit-code origin "refs/heads/$br" >/dev/null 2>&1; then
   git -C "$d" checkout -q "$br"
@@ -47,15 +48,26 @@ else
   git -C "$d" checkout -q -b "$br" "origin/$base"
 fi
 
+# A branch that carries Codex or pnpm configuration would run it: refuse (Codex trusts the clone path, and pnpm runs .pnpmfile.cjs).
+for f in .codex .pnpmfile.cjs; do
+  [ -e "$d/$f" ] && { echo "the branch has $f: refusing to run Codex on it (review and remove it first)" >&2; exit 2; }
+done
 # pnpm: Codex gets its own store under $work (the user's store is hard-linked into every checkout's node_modules, so writing it
-# from the sandbox would change files that run outside it), and the pinned pnpm is installed here, outside the sandbox, so that
-# Codex never needs to write the package-manager store (whose pnpm also runs outside the sandbox).
+# from the sandbox would change files that run outside it). The pinned pnpm is installed here, outside the sandbox, from a
+# directory that holds only the packageManager field (not the branch's files), so Codex never writes the package-manager store.
 export pnpm_config_store_dir="$work/pnpm-store"
-(cd "$d" && pnpm --version >/dev/null 2>&1) || true
-# Writable roots besides the clone and $work's /tmp: the clone's .git (workspace-write keeps .git read-only unless it is named),
-# and pnpm's locks in $XDG_RUNTIME_DIR.
-set -- --add-dir "$d/.git"
-case $work in /tmp/*|"${TMPDIR:-/tmp}"/*) ;; *) set -- "$@" --add-dir "$work" ;; esac
+pm=$(node -e 'process.stdout.write(require(process.argv[1]).packageManager ?? "")' "$d/package.json" 2>/dev/null || true)
+if [ -n "$pm" ]; then
+  warm="$work/pm-warm"; mkdir -p "$warm"
+  printf '{"packageManager":"%s"}\n' "$pm" >"$warm/package.json"
+  (cd "$warm" && pnpm --version >/dev/null 2>&1) || true
+fi
+# Writable roots: the clone (the workdir), and only these besides it. /tmp and $TMPDIR are NOT writable (old clones there hold
+# hard links into the user's pnpm store and other checkouts), so each run gets its own TMPDIR.
+# (a short path: Chromium puts Unix sockets in it, and a socket path longer than ~107 bytes makes it crash)
+tmp=$(mktemp -d "/tmp/cx-$label.XXXXXX"); mkdir -p "$work/pnpm-store" "$work/npm-cache-$label"
+export TMPDIR="$tmp"
+set -- --add-dir "$d/.git" --add-dir "$tmp" --add-dir "$work/pnpm-store" --add-dir "$work/npm-cache-$label"
 if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
   uid=$(id -u)
   for l in "$XDG_RUNTIME_DIR/pnpm-store-operation-locks-$uid" "$XDG_RUNTIME_DIR/pnpm-dir-locks-$uid"; do
@@ -70,6 +82,9 @@ export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 set +e
 codex exec -s workspace-write \
   -c sandbox_workspace_write.network_access=true \
+  -c sandbox_workspace_write.exclude_slash_tmp=true \
+  -c sandbox_workspace_write.exclude_tmpdir_env_var=true \
+  -c shell_environment_policy.set.TMPDIR="\"$tmp\"" \
   -c model_reasoning_effort="${CODEX_EFFORT:-high}" \
   "$@" \
   --output-schema "$here/report.schema.json" \

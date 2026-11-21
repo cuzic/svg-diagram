@@ -58,6 +58,7 @@ node check-diagram.ts --strict examples/*.ts
 
 - 試しのファイルや一時ファイルはリポジトリの外に置く。コミットに残さない。
 - コミット・コメント・PR に、マシン固有の情報(ユーザー名・絶対パス・トークン)を書かない。
+- `.codex/` と `.pnpmfile.cjs` をコミットしない(Codex の実行スクリプトが、それらを持つブランチを断る)。
 - `examples/out/` は golden。手で直さない。`schema/` は `pnpm schema` の生成物。手で直さない。
 
 ## Git の約束

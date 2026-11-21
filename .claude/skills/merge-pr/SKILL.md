@@ -52,7 +52,7 @@ Claude(または owner)が行う。main の取り込みや衝突解消は自分�
    ```sh
    PR=NN; SHA=<手順 1 の SHA>
    git fetch -q origin   # CI を待つ間に main が進んでいるかもしれない
-   mb=$(git merge-base origin/main "$SHA"); git diff --stat "$mb" origin/main -- lib examples schema '*.ts' | tail -3
+   mb=$(git merge-base origin/main "$SHA"); git diff --stat "$mb" origin/main -- . ':!docs' ':!*.md' | tail -3
    ```
 
    何か出たら、Codex に main の取り込みを頼み(`codex-task`)、CI が回り直してから手順 1 からやり直す。

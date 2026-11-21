@@ -33,7 +33,7 @@
         "required": ["change", "caught_by"],
         "properties": {
           "change": {"type": "string"},
-          "caught_by": {"type": "string", "description": "the failing test, or 'NOT CAUGHT'"}
+          "caught_by": {"type": "string", "description": "the failing test, or 'NOT CAUGHT', or 'NOT RUN (integration)' when only a test that cannot run in the sandbox would catch it (name that test in change)"}
         }
       }
     },
