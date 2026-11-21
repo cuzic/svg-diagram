@@ -6,7 +6,7 @@ import {walkBands} from '../lib/rules.ts';
 import {captureSourceLocations, sourceOf} from '../lib/source-ref.ts';
 import {renderSpecEdge} from '../lib/spec-edge.ts';
 import {renderSpec} from '../lib/spec-render.ts';
-import {layoutIssue, specToDiagram, validateSpec} from '../lib/spec.ts';
+import {layoutIssue, partCatalog, specToDiagram, validateSpec} from '../lib/spec.ts';
 import {JA_FONTS, realEngine} from './helpers/text-engine.ts';
 
 test.after(() => closeMeasurer());
@@ -57,6 +57,19 @@ test('a stamped spec warning keeps the field path of a unique heading', async ()
   const figure = {...spec(boardWithHeading('a', '短い見出し'), boardWithHeading('b', longHeading)), width: 320};
   const result = await renderSpec(figure, {config});
   assert.deepEqual(result.findings.filter(f => f.rule === 'cjk-line-long').map(f => f.path), ['parts[1].nodes[0].title']);
+});
+
+test('a grouped spec warning locates a field in a related part', async t => {
+  const examples = new Map(partCatalog().map(({type, example}) => [type, example]));
+  const figure = {...spec(examples.get('matrix'), examples.get('table')), width: 320};
+  const node = await renderSpec(figure, {config});
+  const edge = await renderSpecEdge(figure, realEngine());
+  for (const [engine, result] of Object.entries({node, edge})) {
+    await t.test(engine, () => {
+      assert.deepEqual(result.issues, []);
+      assert.deepEqual(result.findings.filter(f => f.rule === 'text-mid-word-break').map(f => f.path), ['parts[1].columns[2].label']);
+    });
+  }
 });
 
 test('a grouped spec warning falls back to the first affected part when it names no field', async () => {

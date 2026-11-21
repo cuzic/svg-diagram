@@ -868,13 +868,22 @@ export interface LocatedMessage {
 
 /** The field a message names, searching within its source part when marked. */
 export function locateMessage(spec: unknown, message: string, loc?: SourceRef): string | null {
+  return locateMessageWithSources(spec, message, loc);
+}
+
+function locateMessageWithSources(spec: unknown, message: string, loc?: SourceRef, related: readonly SourceRef[] = []): string | null {
   const parts = (spec as Json)['parts'] as unknown[];
-  const at = loc?.specPath;
-  if (at !== undefined) {
+  for (const ref of [loc, ...related]) {
+    const at = ref?.specPath;
+    if (at === undefined) continue;
     const index = Number(/^parts\[(\d+)\]$/.exec(at)?.[1]);
     const part = parts[index];
-    return part === undefined ? at : linkOf([part], message, index) ?? locateIn(part, at, message) ?? at;
+    if (part === undefined) continue;
+    const path = linkOf([part], message, index) ?? locateIn(part, at, message);
+    // Several matching fields can resolve to the part itself. Keep looking for a field.
+    if (path !== null && path !== at) return path;
   }
+  if (loc?.specPath !== undefined) return loc.specPath;
   const link = linkOf(parts, message);
   if (link) return link;
   const quoted = locateIn(spec, '', message);
@@ -937,7 +946,7 @@ export function locateVerdict(spec: unknown, verdict: Verdict): {problems: Locat
   const issues: Issue[] = verdict.issues ?? verdict.problems.map(message => ({message}));
   return {
     problems: issues.map(({message, loc}) => ({path: locateMessage(spec, message, loc), ...inSpecTerms(message), severity: 'problem' as const})),
-    findings: verdict.findings.map(f => ({path: locateMessage(spec, f.message, f.loc), message: f.message, rule: f.rule, severity: f.severity, ...(f.data?.fix ? {fix: f.data.fix} : {})})),
+    findings: verdict.findings.map(f => ({path: locateMessageWithSources(spec, f.message, f.loc, f.related), message: f.message, rule: f.rule, severity: f.severity, ...(f.data?.fix ? {fix: f.data.fix} : {})})),
   };
 }
 
