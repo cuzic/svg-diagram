@@ -439,7 +439,7 @@
         "cause-line-scale-dropped": {
           "type": "string",
           "minLength": 1,
-          "description": "canvas の causeTree で、線の間隔を文字の倍率で広げた図が canvas の高さ・幅に収まらず、広げない間隔で描いた（情報）。canvas を高くする・minText を下げる・図を分けると広げられる（許容する理由を書く）（許容する理由を書く）"
+          "description": "canvas の causeTree で、線の間隔を文字の倍率で広げた図が canvas の高さ・幅に収まらず、広げない間隔で描いた（情報）。canvas を高くする・minText を下げる・図を分けると広げられる（許容する理由を書く）"
         },
         "density-compact-restored": {
           "type": "string",
