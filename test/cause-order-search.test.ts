@@ -9,7 +9,8 @@ import {causeTree, checkDiagram, closeMeasurer, diagram} from '../lib/dsl.ts';
 import type {Diagram} from '../lib/dsl.ts';
 import {fitLineScale} from '../lib/layout.ts';
 import {crossingsOf} from '../lib/polyline-metrics.ts';
-import {adopts, layerRank, layoutCauseBand, layoutCauseBandOnce, lexLess, mayBeTaller} from '../lib/toc.ts';
+import {adopts, layerRank, layoutCauseBand, layoutCauseBandOnce, lexLess, mayBeTaller, pickFinal, searchStats} from '../lib/toc.ts';
+import type {Judged} from '../lib/toc.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import type {CauseBand, LaidOutCause} from '../lib/types/diagrams.ts';
 import type {DiagramData} from '../lib/types/core.ts';
@@ -88,9 +89,10 @@ for (const g of [70, 86, 101, 106, 132]) {
 }
 
 test('whyWhyTree の帯は探索の規則 (交換・高さの key) の外: 旗に依らず同じ (ADR 0073 は causeTree の帯だけ)', () => {
-  const why = (env: object): LaidOutCause => layoutCauseBand({...bandOf(70), layerFrom: 'effect'} as CauseBand, 0, 0, 1800, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false, ...env});
-  assert.ok(crossings(lay(bandOf(70))) !== crossings(lay(bandOf(70), {exchange: false})), '前提: causeTree の帯では旗で図が変わる');
-  assert.deepEqual(why({}).edges, why({exchange: false}).edges);
+  // #53: causeTree の帯では旗で図が変わる (交換あり 0 交差、なし 3 交差)。規則の外の宣言 (`own`) を外すと whyWhyTree の帯もこの 13 枚 (#28 #37 #42 #50 #53 #90 #92 #101 #108 #124 #130 #137 #149) で変わる
+  const g = 53, why = (env: object): LaidOutCause => layoutCauseBand({...bandOf(g), layerFrom: 'effect'} as CauseBand, 0, 0, 1800, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false, ...env});
+  assert.ok(crossings(lay(bandOf(g))) < crossings(lay(bandOf(g), {exchange: false})), '前提: causeTree の帯では旗で交差が変わる');
+  assert.deepEqual(why({}).edges, why({exchange: false}).edges, 'whyWhyTree の帯は、交換ありでもなしでも同じ');
 });
 
 test('予算 (heightBudget) を超える並びは落ちる: 帯の高さの予算が高い並びに足りなければ、交換なしと同じ図 (D1 (7))', () => {
@@ -148,14 +150,31 @@ test('canvas #42: 交換なしでも収まらなければ、今までどおり�
   assert.equal(lintDiagram(r.laidOut).filter(f => f.rule === 'cause-line-scale-dropped').length, 1);
 });
 
-test('fitLineScale (旗の単体): はみ出す配置に対して、交換あり → 交換なし・倍率つき → 倍率を 1 つずつ外す、の順に呼ぶ', () => {
+test('canvas #70: 何をしても収まらない図は、交換なしで描いた図のまま (交換ありの高い図にしない)。main と同じ', async () => {
+  const g = 70;
+  const roomy = (await tryCanvas(g, 100000))!, cOn = roomy.laidOut.contentHeight!;
+  const cOff = (await tryCanvas(g, cOn - 1))!.laidOut.contentHeight!;
+  let lo = 1, hi = cOn;
+  while (hi - lo > 4) { const mid = Math.floor((lo + hi) / 2); if (await tryCanvas(g, mid)) hi = mid; else lo = mid; }
+  const cOld = (await tryCanvas(g, hi))!.laidOut.contentHeight!;
+  const H = Math.floor(cOld / 2) + 100; // 倍率なしでも収まらない高さ (前提を下で確かめる)
+  assert.ok(cOff < cOn && cOld < cOff && H < cOld, `前提: 交換あり ${cOn} > 交換なし ${cOff} > 倍率なし ${cOld} > H ${H}`);
+  const r = await tryCanvas(g, H);
+  assert.ok(r, '描ける (帯の予算は通る)');
+  assert.ok(r.laidOut.contentHeight! > H, '前提: 収まらない');
+  assert.equal(r.laidOut.contentHeight, cOff, '交換なしの図 (main が残す図) のまま。交換ありの図 ' + cOn + ' ではない');
+});
+
+test('fitLineScale (旗の単体): はみ出す配置に対して、交換あり → 交換なし・倍率つき → 倍率を 1 つずつ外す、の順に呼ぶ。収まらなければ交換なしの最初の図', () => {
   const data = {canvas: {width: 100, height: 100}} as unknown as DiagramData;
   const calls: string[] = [];
-  const stub = (fits: (call: number) => boolean) => (lines: {seen: number; drop: number; exchange: boolean}): LaidOutDiagram => {
+  let taller = true;
+  const stub = (fits: (call: number) => boolean) => (lines: {seen: number; drop: number; exchange: boolean; taller: boolean}): LaidOutDiagram => {
     calls.push(`${lines.exchange}/${lines.drop}`); lines.seen = 3; // 倍率を受ける帯が 3 つ
-    return {contentHeight: fits(calls.length) ? 90 : 200} as unknown as LaidOutDiagram;
+    if (lines.exchange) lines.taller = taller;
+    return {contentHeight: fits(calls.length) ? 90 : 100 + (lines.exchange ? 100 : 10 * calls.length)} as unknown as LaidOutDiagram;
   };
-  assert.equal(fitLineScale(data, stub(() => false)).contentHeight, 200);
+  assert.equal(fitLineScale(data, stub(() => false)).contentHeight, 120, '収まらなければ、交換なし・倍率つきの最初の図 (2 回目の呼び出し)。交換ありの図 (200) ではない');
   assert.deepEqual(calls, ['true/0', 'false/0', 'false/1', 'false/2', 'false/3'], '収まらなければ 1 + 1 + 帯の数 回');
   calls.length = 0;
   assert.equal(fitLineScale(data, stub(n => n === 2)).contentHeight, 90);
@@ -166,6 +185,14 @@ test('fitLineScale (旗の単体): はみ出す配置に対して、交換あり
   calls.length = 0;
   assert.equal(fitLineScale(data, stub(n => n === 4)).contentHeight, 90);
   assert.deepEqual(calls, ['true/0', 'false/0', 'false/1', 'false/2']);
+  // どの帯も高い並びを採っていなければ、最初の配置が交換なしと同じなので、(2) を省く (main と同じ呼び方)
+  calls.length = 0; taller = false;
+  assert.equal(fitLineScale(data, stub(() => false)).contentHeight, 200, '最初の図のまま (main と同じ)');
+  assert.deepEqual(calls, ['true/0', 'false/1', 'false/2', 'false/3']);
+  calls.length = 0;
+  const none = (lines: {seen: number}): LaidOutDiagram => { calls.push('x'); lines.seen = 0; return {contentHeight: 200} as unknown as LaidOutDiagram; };
+  fitLineScale(data, none as never);
+  assert.deepEqual(calls, ['x'], '倍率を受ける帯が無い図は、再配置しない');
 });
 
 // ---- #397: toc-hop-all の高さ、高さの最後の key -------------------------------------------------------------------------------------------
@@ -182,3 +209,45 @@ test('高さの最後の key: 乱数の幅 1800 の #99 は、採った高い候
   const t = r.laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause;
   assert.ok(Math.round(t.h) <= 631, `高さ ${Math.round(t.h)}`);
 });
+
+// ---- 最終の選び (D1 (d))、打ち切りの待ち (D1 (f)) --------------------------------------------------------------------------------------
+
+const J = (h: number, score: number[], over: Partial<Judged> = {}): Judged => ({h, score, layers: [0, 1, 2], loose: 0, fits: 0, ...over});
+const BASE = {h: 400, layers: [0, 1, 2], loose: 0, fits: 0};
+const choose = (first: Judged, cands: (Judged | undefined)[], exchange = true): Judged => pickFinal(first, cands, BASE, exchange, t => t);
+
+test('最終の選び pickFinal: first から、found・best の順に、枠の中で adopts の通る案へ (同点は先)', () => {
+  const first = J(400, [0, 0, 4, 20, 400]), better = J(420, [0, 0, 2, 22, 420]), low = J(400, [0, 0, 4, 18, 400]);
+  assert.equal(choose(first, [undefined, undefined]), first);
+  assert.equal(choose(first, [better, undefined]), better, '高い案でも交差が減れば採る');
+  assert.equal(choose(first, [low, better]), better, 'found の次の best が、さらに良ければ替わる');
+  assert.equal(choose(first, [low, J(400, [0, 0, 4, 18, 400])]), low, '同じ採点は先の案');
+  // 高い案は adopts の規則: 交差が同じ・多いなら、lexLess だけでは勝つ場合でも採らない
+  assert.equal(choose(first, [J(430, [0, 0, 4, 10, 430])]), first, '高く (base + 0.5px 超)、交差が同じ: 採らない');
+  assert.equal(choose(first, [J(430, [0, 0, 5, 10, 430])]), first, '高く、交差が多い (AND の交差が 0 でも): 採らない');
+  assert.equal(choose(first, [J(430, [0, 0, 5, 10, 430])], false) === first, true);
+  assert.equal(choose(first, [J(500.1, [0, 0, 0, 10, 501])]), first, '1.25 倍超は、交差が減っても採らない');
+  assert.equal(choose(first, [J(500, [0, 0, 0, 10, 500])]).h, 500, '1.25 倍ちょうどは採る');
+  assert.equal(choose(first, [better], false), first, '交換なしでは高い案は採らない');
+  assert.equal(choose(J(400, [1, 0, 4, 9, 400]), [J(400, [0, 0, 6, 9, 400])]).score[0], 0, '高さが base 以下なら、AND を先に比べる今の順 (交差が増えてもよい)');
+});
+
+test('最終の選び pickFinal: 枠の外の案は採らない (層の順位が違う・AND の取りこぼしが増える・当てはめが違う)', () => {
+  const first = J(400, [0, 0, 4, 20, 400]), win = (over: Partial<Judged>) => J(400, [0, 0, 1, 10, 400], over);
+  assert.equal(choose(first, [win({})]).score[2], 1, '前提: 枠の中なら採る');
+  assert.equal(choose(first, [win({layers: [0, 1, 3]})]), first, '層の順位が違う');
+  assert.equal(choose(first, [win({layers: [0, 1]})]), first, '層の数が違う');
+  assert.equal(choose(first, [win({loose: 1})]), first, '描けない AND が増える');
+  assert.equal(choose(first, [win({fits: 1})]), first, '当てはめの数が違う');
+});
+
+// 打ち切りの待ち (D1 (f)): 採った高い候補・高さだけの改善は lastBetter を更新する。更新しないと探索が早く切れて、配置した並びの数が減る。
+// 数は、その行を外した版で測った値との差 (#37・#70: 高い候補、#84・#108: 高さだけの改善)
+for (const [g, laid] of [[37, 19], [70, 15], [84, 15], [108, 16]] as const) {
+  test(`打ち切り: #${g} の探索が配置する並びの数は ${laid} (採った高い候補・高さだけの改善が待ちを延ばす)`, async () => {
+    const f = figures[g]!;
+    searchStats.laid = 0;
+    await checkDiagram(diagram({theme: 'blue', width: 1800}).add(causeTree(f.nodes, f.links, {tree: 'crt', dir: f.dir}) as never));
+    assert.equal(searchStats.laid, laid);
+  });
+}

@@ -169,18 +169,32 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
     const score = scoreOfCause(t, own);
     if (adopts(t.h, score, base, bestScore, exchange)) { best = t; bestScore = score; bestOrder = order; lastBetter = tried; bestProxy = proxy; if (polished) { queue.length = 0; polished = false; } }
   }
-  if (band.straighten === false) return best;
+  if (band.straighten === false) { if (best.h > base.h + 0.5) env.tallerSeen?.(); return best; }
   const withDetours = bestOrder ? once(bestOrder) : undefined;
   const found = withDetours && !isNoFit(withDetours) ? withDetours : undefined;
   // the best of: the first figure, the best order with the detours, the best figure without them (the one the search judged; the base itself when no order beat it): the first one wins a tie.
   // The detours can make AND arrows cross (they are judged by the whole figure's crossings), so the figure without them must stay a candidate
   // the same frame as the figures the search compared (the plain ones: the detours may have made `first` lower than any order would be without them)
-  const sameFrame = (t: LaidOutCause): boolean => sameLayers(t) && t.loose.length <= base.loose.length && t.fitApplied?.length === base.fitApplied?.length;
-  let pick = first, pickScore = scoreOfCause(first, own);
-  for (const t of [found, best]) {
-    if (!t || !sameFrame(t)) continue;
-    const sc = scoreOfCause(t, own);
-    if (adopts(t.h, sc, base, pickScore, exchange)) { pick = t; pickScore = sc; }
+  const viewOf = (t: LaidOutCause): Judged => ({h: t.h, score: scoreOfCause(t, own), layers: layerRank(axisOf(t)), loose: t.loose.length, fits: t.fitApplied?.length});
+  const picked = pickFinal(first, [found, best], {h: base.h, layers: baseRank, loose: base.loose.length, fits: base.fitApplied?.length}, exchange, viewOf);
+  if (picked.h > base.h + 0.5) env.tallerSeen?.();
+  return picked;
+}
+
+/** What the final pick reads of a figure: its height, its score, the ranks of its layers, how many ANDs were left undrawn and how many size limits were applied. */
+export interface Judged {h: number; score: readonly number[]; layers: readonly number[]; loose: number; fits: number | undefined}
+/**
+ * The final pick (ADR 0073 D1 (d)): of the first figure (with the detours), the best order with the detours and the best figure without them, in this order, the one that is in the frame of the figures
+ * the search compared (the same layers by rank, no more ANDs left undrawn, the same number of size limits) and `adopts`-better than the running pick (a tie keeps the earlier). The detours may have made
+ * `first` lower than any order would be without them, and may make AND arrows cross, so the figure without them stays a candidate.
+ */
+export function pickFinal<T>(first: T, candidates: readonly (T | undefined)[], base: {h: number; layers: readonly number[]; loose: number; fits: number | undefined}, exchange: boolean, view: (t: T) => Judged): T {
+  let pick = first, pickScore = view(first).score;
+  for (const t of candidates) {
+    if (t === undefined) continue;
+    const v = view(t);
+    if (v.layers.length !== base.layers.length || v.layers.some((r, i) => r !== base.layers[i]) || v.loose > base.loose || v.fits !== base.fits) continue;
+    if (adopts(v.h, v.score, base, pickScore, exchange)) { pick = t; pickScore = v.score; }
   }
   return pick;
 }
