@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import {resolveErrorLocation} from '../lib/source-location.ts';
-import {locateError} from '../lib/source-location-io.ts';
+import {locateError, locateSource} from '../lib/source-location-io.ts';
 import {DIAGRAM_SOURCE, SourceRef, withSource} from '../lib/source-ref.ts';
 
 const source = 'src/日本 語/図.ts';
@@ -19,6 +19,17 @@ test('locateError: resolve the part, error stack and diagram in that order', () 
   assert.deepEqual(locateError(atPart, file), {loc: at(file, 10, 5), via: []});
   assert.deepEqual(locateError(unresolvedPart, file), {loc: at(file, 20, 5), via: []});
   assert.deepEqual(locateError(error(''), file), {loc: at(file, 30, 5), via: []});
+});
+
+test('locateError: a spec-only mark falls through to the error stack and diagram', () => {
+  const file = 'test/source-location.test.ts';
+  const ref = new SourceRef(undefined, 'parts[0]');
+  const stackAt = (line: number) => `Error\n    at ${import.meta.url}:${line}:5`;
+  const error = (stack: string) => withSource(withSource(Object.assign(new Error(), {stack}), ref),
+    new SourceRef({stack: stackAt(20)}), DIAGRAM_SOURCE);
+  assert.deepEqual(locateSource(ref, file), {via: []});
+  assert.deepEqual(locateError(error(stackAt(10)), file), {loc: at(file, 10, 5), via: []});
+  assert.deepEqual(locateError(error(''), file), {loc: at(file, 20, 5), via: []});
 });
 
 test('source location: a stack header needs a caret, even if an error message ends in 16:9', () => {
