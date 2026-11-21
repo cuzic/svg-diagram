@@ -1,0 +1,115 @@
+// Markdown that points at diagram sources: `![alt](./flow.diagram.ts)` becomes the figure.
+//   expandMarkdown(text, {file, ...})  →  the Markdown with each figure replaced, plus the SVGs it drew
+// An image whose target ends in `.diagram.ts` is a diagram source (the module `svg-diagram build` takes, path relative to the
+// Markdown file; it is imported and run, so it must be inside `root`, default the working folder — never use this on a page you do
+// not trust). Text a Markdown renderer would not read as an image is left alone: fenced and indented code blocks, code spans on one
+// line, HTML comments, `\!`. Reference-style images (`![alt][ref]`) and code spans across lines are not recognised.
+//   mode 'file'   (default)  the SVG is returned in `files` and the image points at it — the Markdown stays portable
+//   mode 'inline'            the <svg> itself replaces the image (as an HTML block), for renderers that cannot load files
+//   render 'html'            the figure as HTML/CSS (what `build --html` writes) replaces the image; it is always inline
+// `![alt](flow.diagram.ts#html)` / `#svg` picks the output for that one figure. An inline figure needs a line of its own: inside a
+// list item, a quote or a table cell an <svg> falls back to a file image (see `notes`) and the HTML form is a problem.
+// Nothing is written here; the CLI (`svg-diagram md`) writes `files` and the Markdown. A figure that fails verification
+// is reported in `problems` and its image is left as written.
+import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { renderSource } from './render-source.js';
+import { diagramTarget, decodeTarget, figureName, inlineSvg, htmlFigure, plainText } from './markdown-target.js';
+import { resolveSource } from './source-path.js';
+import { scanFigures } from './markdown-scan.js';
+export async function expandMarkdown(text, opts) {
+    const dir = path.dirname(path.resolve(opts.file));
+    const svgDir = (opts.svgDir ?? 'svg').replace(/\/+$/, '');
+    const mode = opts.mode ?? 'file';
+    const figures = new Map();
+    const problems = [];
+    const notes = [];
+    const failed = new Set();
+    const seen = new Map();
+    const root = opts.root ?? process.cwd();
+    const draw = async (rel) => {
+        let src;
+        try {
+            src = resolveSource(decodeTarget(rel), dir, opts.root);
+        }
+        catch (e) {
+            problems.push(e.message);
+            return undefined;
+        }
+        if (figures.has(src))
+            return figures.get(src);
+        if (failed.has(src))
+            return undefined;
+        const label = path.relative(dir, src) || src;
+        try {
+            const r = await renderSource(src, { fresh: opts.fresh, html: true });
+            if (!r.ok) {
+                for (const p of r.problems)
+                    problems.push(`${label}: ${p}`);
+                failed.add(src);
+                return undefined;
+            }
+            // the hash is of the path from root, so a checkout anywhere writes the same names
+            const name = `${figureName(src)}-${createHash('sha1').update(path.relative(root, src).split(path.sep).join('/')).digest('hex').slice(0, 8)}.svg`;
+            const f = { source: src, name, svg: r.svg, html: r.html ?? '', warnings: r.warnings };
+            figures.set(src, f);
+            return f;
+        }
+        catch (e) {
+            problems.push(`${label}: ${e.message}`);
+            failed.add(src);
+            return undefined;
+        }
+    };
+    const { lines, found } = scanFigures(text);
+    for (const { i, raw, ln, inList, hits } of found) {
+        let out = '';
+        let at = 0;
+        for (const h of hits) {
+            out += ln.slice(at, h.index);
+            at = h.end;
+            if (h.escaped) {
+                out += h.real;
+                continue;
+            } // `\!` is escaped, `\\!` is not
+            const alt = h.alt;
+            const label = plainText(alt) || undefined; // the text a screen reader gets
+            const t = diagramTarget(h.target);
+            if (!t) {
+                out += h.real;
+                continue;
+            }
+            const title = h.title;
+            const f = await draw(t.file);
+            if (!f) {
+                out += h.real;
+                continue;
+            }
+            const render = t.render ?? opts.render ?? 'svg';
+            const file = `![${alt}](${svgDir}/${f.name}${title !== undefined ? ` "${title}"` : ''})`;
+            // an HTML block must start a line: not inside a list item, a quote or a table row, and nothing else on its line
+            const alone = !ln.slice(0, h.index).trim() && !ln.slice(at).trim() && !/^\s*(?:[>|]|(?:[-*+]|\d+[.)])\s)/.test(ln) && !inList;
+            if (render === 'html') {
+                if (!alone) {
+                    problems.push(`${path.relative(dir, f.source)}: the HTML form needs a line of its own (not in a list, a quote or a table, and no text beside it)`);
+                    out += h.real;
+                    continue;
+                }
+                out += `\n\n${htmlFigure(f.html, label, seen)}\n\n`;
+            }
+            else if (mode === 'inline') {
+                if (!alone) {
+                    notes.push(`${path.relative(dir, f.source)}: line ${i + 1} is in a list, a quote or a table, or has text beside the figure — kept as an image of ${f.name}`);
+                    out += file;
+                    continue;
+                }
+                out += `\n\n${inlineSvg(f.svg, label, seen)}\n\n`;
+            }
+            else
+                out += file;
+        }
+        // a CRLF document keeps its line ends in what is inserted
+        lines[i] = raw.endsWith('\r') ? out.replace(/\n/g, '\r\n') + ln.slice(at) + '\r' : out + ln.slice(at);
+    }
+    return { markdown: lines.join('\n'), figures: [...figures.values()], problems, notes };
+}
