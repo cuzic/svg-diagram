@@ -41,7 +41,7 @@ import type {ToneEnv} from './tokens.ts';
 import {must} from './must.ts';
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
 export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
-  const lay = (mode: WrapMode): LaidOutDiagram => layoutBands(data, roles, widthOf, toneEnv(data.tones), mode, data.keepWords === true, spaceOf(data.density));
+  const lay = (mode: WrapMode): LaidOutDiagram => fitLineScale(data, lines => layoutBands(data, roles, widthOf, toneEnv(data.tones), mode, data.keepWords === true, spaceOf(data.density), lines));
   const setting = data.wrap ?? 'phrase';
   if (setting !== 'bunsetsu-soft') return lay(setting);
   // 'bunsetsu-soft': break at phrase boundaries (hiragana kept with the character before it); a figure that does not fit that way is laid out as 'phrase' instead of failing.
@@ -49,10 +49,26 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
   try { return lay('bunsetsu'); } catch { return {...lay('phrase'), wrapFellBack: true}; }
 }
 
+/**
+ * ADR 0070 D7 (U5): on a canvas, the cause bands' lines scale with the text and make the figure taller. When that is what pushes the whole figure (the bands above and below
+ * the cause band, the legend, the source line and the padding included) over the canvas height, and the old lines would fit, the figure is laid out again with the old lines.
+ * The cause bands are dropped one more at a time in the order they are laid out (top to bottom) until the figure fits; if it never fits, the first layout is kept
+ * (the overflow is then not the scale's, and `slide-canvas-overflow` says it). A dropped band is `lineScaleDropped` (the `cause-line-scale-dropped` finding).
+ */
+function fitLineScale(data: DiagramData, layout: (lines: {seen: number; drop: number}) => LaidOutDiagram): LaidOutDiagram {
+  const first = {seen: 0, drop: 0}, out = layout(first);
+  if (!data.canvas || out.contentHeight === undefined || out.contentHeight <= data.canvas.height) return out;
+  for (let drop = 1; drop <= first.seen; drop++) {
+    const again = layout({seen: 0, drop});
+    if (again.contentHeight !== undefined && again.contentHeight <= data.canvas.height) return again;
+  }
+  return out;
+}
+
 /** The scale of the gaps of the layered figures (`WrapEnv.space`): 'compact' closes them by a quarter. */
 const spaceOf = (density: 'normal' | 'compact' | undefined): number => density === 'compact' ? 0.75 : 1;
 
-function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean, space = 1): LaidOutDiagram {
+function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean, space = 1, lines = {seen: 0, drop: 0}): LaidOutDiagram {
   const d = withStatus(withSourceLine(withTitleLine(data)));
   const contentWidth = d.width - 2 * d.pad;
 
@@ -334,7 +350,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
     if (scope) addScoped(scopes, scope, id);
   };
   const ctx: LayoutCtx = {
-    d, roles, widthOf, tones, wrap, keepWords, space, y: d.pad, laidOut, anchors, nodeBottoms, areaIds, connects, deferred, scopes,
+    d, roles, widthOf, tones, wrap, keepWords, space, lines, y: d.pad, laidOut, anchors, nodeBottoms, areaIds, connects, deferred, scopes,
     setBox, claimed, register, placeBoxLike, gapForLabels, areasGapFor,
     stack: (bands, padX, cw) => {
       for (const band of bands) {

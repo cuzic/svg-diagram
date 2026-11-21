@@ -25,6 +25,8 @@ export interface LayoutCtx extends WrapEnv {
   readonly widthOf: WidthOf;
   /** The diagram's tone overrides, resolved once by layoutWith (ADR 0031 §2). */
   readonly tones: ToneEnv;
+  /** ADR 0070 D7 (U5): the cause bands that took the scaled lines (`seen`, in the order they are laid out); the first `drop` of them are laid with the old lines (see `fitLineScale`). */
+  readonly lines: {seen: number; drop: number};
   /** The cursor: the y the next band is placed at. */
   y: number;
   readonly laidOut: LaidOutBand[];

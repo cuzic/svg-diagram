@@ -660,17 +660,29 @@ const canvasGeom = (ctx: LayoutCtx): number => ctx.d.canvas ? canvasFontScale(ct
 const scaledGeometry = <B extends {labelRole?: LabelRole}>(band: B, ctx: LayoutCtx): B => ctx.d.canvas && band.labelRole === undefined ? {...band, labelRole: 'note'} : band;
 const layoutGanttBand = placedBand((band: BandOf<'gantt'>, x, y, w, ctx) => layoutGantt(band, x, y, w, ctx.widthOf, ctx.roles, canvasGeom(ctx)), 'a gantt takes an id that another anchor already has', 'a gantt task takes an id that another anchor already has');
 /** ADR 0070 D7: a cause tree's own band (not pdpc / relationDiagram / whyWhyTree) has its lines scale with the canvas's text (never below 1: a canvas with small text keeps today's spacing); `WrapEnv.lineScale`. */
-const lineEnv = (ctx: LayoutCtx, band: {base?: unknown; layerFrom?: unknown}): LayoutCtx => { const s = Math.max(1, canvasGeom(ctx)); return s > 1 && band.base === undefined && band.layerFrom === undefined ? {...ctx, lineScale: s} : ctx; };
-const layoutCauseOrCloud = placedBand((band: Band & {type: 'cause' | 'cloud'}, x, y, w, ctx) => band.type === 'cause' ? layoutCauseBand(band, x, y, w, ctx.widthOf, ctx.roles, lineEnv(ctx, band), ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight, ctx.d.canvas?.height !== undefined, ctx.d.pad) : layoutCloudBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx),
+const scaledLines = (ctx: LayoutCtx, band: {base?: unknown; layerFrom?: unknown}): number | undefined => { const s = Math.max(1, canvasGeom(ctx)); return s > 1 && band.base === undefined && band.layerFrom === undefined ? s : undefined; };
+/** The band's lines: the canvas's scale, or none for a band that `fitLineScale` (the whole-figure retry) drops it from. `retried`: it was dropped by the retry (told like the band's own fallback does). */
+const lineEnv = (ctx: LayoutCtx, band: {base?: unknown; layerFrom?: unknown}): {env: LayoutCtx; retried: boolean} => {
+  const s = scaledLines(ctx, band);
+  if (s === undefined) return {env: ctx, retried: false};
+  return ctx.lines.seen++ < ctx.lines.drop ? {env: ctx, retried: true} : {env: {...ctx, lineScale: s}, retried: false};
+};
+const layoutCauseBandHere = (band: Band & {type: 'cause'}, x: number, y: number, w: number, ctx: LayoutCtx) => {
+  const {env, retried} = lineEnv(ctx, band);
+  const laid = layoutCauseBand(band, x, y, w, ctx.widthOf, ctx.roles, env, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight, ctx.d.canvas?.height !== undefined);
+  if (retried) laid.lineScaleDropped = true;
+  return laid;
+};
+const layoutCauseOrCloud = placedBand((band: Band & {type: 'cause' | 'cloud'}, x, y, w, ctx) => band.type === 'cause' ? layoutCauseBandHere(band, x, y, w, ctx) : layoutCloudBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx),
   band => `${band.type === 'cause' ? 'a cause tree' : 'a cloud'} takes an id that another anchor already has`,
   band => `${band.type === 'cause' ? 'a cause tree node' : 'a cloud box'} takes an id that another anchor already has`);
 const layoutStates = placedBand((band: BandOf<'states'>, x, y, w, ctx) => layoutStatesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), band => `${statesWords(band.flavor).diagram} takes an id that another anchor already has`, band => `a ${statesWords(band.flavor).node} takes an id that another anchor already has`);
 /** What laying bands out writes into the layout context, copied so that a layout can be taken back (ADR 0049; layoutGroupRow does the same). A new piece of state in LayoutCtx belongs here. */
 function snapshotCtx(ctx: LayoutCtx) {
-  return {n: ctx.laidOut.length, y: ctx.y, anchors: new Map(ctx.anchors), nodeBottoms: new Map(ctx.nodeBottoms), areaIds: new Set(ctx.areaIds), connects: ctx.connects.length, deferred: ctx.deferred.length, scopes: new Map([...ctx.scopes.byBare].map(([k, v]) => [k, [...v]]))};
+  return {n: ctx.laidOut.length, y: ctx.y, seen: ctx.lines.seen, anchors: new Map(ctx.anchors), nodeBottoms: new Map(ctx.nodeBottoms), areaIds: new Set(ctx.areaIds), connects: ctx.connects.length, deferred: ctx.deferred.length, scopes: new Map([...ctx.scopes.byBare].map(([k, v]) => [k, [...v]]))};
 }
 function restoreCtx(ctx: LayoutCtx, s: ReturnType<typeof snapshotCtx>): void {
-  ctx.laidOut.length = s.n; ctx.y = s.y;
+  ctx.laidOut.length = s.n; ctx.y = s.y; ctx.lines.seen = s.seen;
   ctx.anchors.clear(); for (const [k, v] of s.anchors) ctx.anchors.set(k, v);
   ctx.nodeBottoms.clear(); for (const [k, v] of s.nodeBottoms) ctx.nodeBottoms.set(k, v);
   ctx.areaIds.clear(); for (const k of s.areaIds) ctx.areaIds.add(k);
