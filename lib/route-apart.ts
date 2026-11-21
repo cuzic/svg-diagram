@@ -2,7 +2,8 @@
 // read as one line: the layout puts the turns of the long arrows (and the runs through the layers) on shared lines, one per gap or layer.
 // This moves one run of one arrow across, a few px at a time, and keeps a move only when that leaves the arrow beside fewer others and makes nothing worse
 // (crossings, bends, a box pierced, leaving the figure, an arrow's neighbouring runs too short). Pure: placed routes in, placed routes out.
-import {bendsOf, crossingsWith, runsTogether} from './polyline-metrics.ts';
+import {bendsOf, crossingsWith, gainsRunPairs, runsTogether} from './polyline-metrics.ts';
+import type {RoutedRuns} from './polyline-metrics.ts';
 import type {Pt} from './graph-layout.ts';
 import {must} from './must.ts';
 
@@ -14,6 +15,8 @@ export interface ApartIn {
   rects: ReadonlyMap<string, {x0: number; x1: number; y0: number; y1: number}>;
   /** The shortest last run into the head of an arrow (by its key in `routes`): room for the arrowhead, and for an AND's arc (ADR 0070 D8). Default 22. */
   headRun?: (edge: number) => number;
+  /** ADR 0070 D4 (U4c): a move may not add a pair of runs under this far apart, nor two runs on one line whose ends are under it apart (`runPairs`). Default: not asked. */
+  sep?: number;
 }
 
 /** A moved run keeps this clear of every box that is not an end of its arrow (the pierce test then counts a run that comes nearer). */
@@ -25,8 +28,11 @@ const STEPS = [8, -8, 16, -16, 24, -24];
 /** Arrows from one tail or into one head merge on purpose (the ones into an AND are D11-D13's): only arrows with no end in common are counted as beside. An AND's arrow may move, but never next to another arrow (`near`). */
 const related = (a: ApartEdge, b: ApartEdge): boolean => a.from === b.from || a.to === b.to;
 
-export function moveApart({routes, edges, rects, headRun}: ApartIn): Map<number, Pt[]> {
+export function moveApart({routes, edges, rects, headRun, sep}: ApartIn): Map<number, Pt[]> {
   const out = new Map(routes);
+  const runCache = new WeakMap<Pt[], RoutedRuns>();
+  /** Would route `t` instead of the one `out` holds (arrow `i`) lie against another route in a way `r` did not (`gainsRunPairs`)? */
+  const gains = (i: number, t: Pt[], step: number): boolean => gainsRunPairs(out, new Map(out).set(i, t), step, runCache);
   const cache = new WeakMap<Pt[], {p: Pt; q: Pt}[]>(); // per call: the rendering core holds no module-level state
   const segs = (r: Pt[]): {p: Pt; q: Pt}[] => {
     let s = cache.get(r);
@@ -109,6 +115,7 @@ export function moveApart({routes, edges, rects, headRun}: ApartIn): Map<number,
           // the moved run and its neighbours may not come nearer to a box than CLEAR unless they were that near before (counting the boxes alone lets a run onto the outline of a box another run already passes)
           if (crowds(i, r, t, k - 1, k + 1)) continue;
           if (beside(i, t).length >= now.length) continue;
+          if (sep !== undefined && gains(i, t, sep) && crossingsWith(t, rest) >= baseX) continue;
           file(i, r, false); file(i, t, true);
           out.set(i, t); done = moved = true;
           break;

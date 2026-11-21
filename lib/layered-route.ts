@@ -3,8 +3,8 @@
 // it for a 'down' diagram).
 import {layoutLayered} from './graph-layout.ts';
 import type {LayeredEdge, LayeredEdgeOut, LayeredLayout, LayeredNode, LayeredOpts, Placed, Pt} from './graph-layout.ts';
-import {bendsOf, crossingsOf, crossingsOfRuns, crossingsWith, rescore, runsOfPath, runsTogether, scoreOf, simplify} from './polyline-metrics.ts';
-import type {Runs} from './polyline-metrics.ts';
+import {bendsOf, crossingsOf, crossingsOfRuns, crossingsWith, gainsRunPairs, rescore, runsOfPath, runsTogether, scoreOf, simplify} from './polyline-metrics.ts';
+import type {RoutedRuns, Runs} from './polyline-metrics.ts';
 import {headCrossings, searchRoute} from './route-search.ts';
 import {moveApart} from './route-apart.ts';
 import {must} from './must.ts';
@@ -115,6 +115,16 @@ function orderOf(legs: readonly Legs[], ranks: readonly number[], sep: number): 
   return out;
 }
 
+/** The crossings among the arrows of each AND (the arrows of one group into one head), summed: the AND's arc reads wrongly over arrows that cross (ADR 0015). */
+function groupCrossings(routes: Map<number, Pt[]>, groupOf?: (edge: number) => number | undefined): number {
+  if (!groupOf) return 0;
+  const groups = new Map<number, Pt[][]>();
+  for (const [i, r] of routes) { const g = groupOf(i); if (g !== undefined) groups.set(g, [...groups.get(g) ?? [], r]); }
+  let n = 0;
+  for (const rs of groups.values()) n += crossingsOf(rs);
+  return n;
+}
+
 /** The pairs of arrows with runs along one line (they read as one): what spreading the lanes is for, so it may not make more. */
 function alongEach(routes: Map<number, Pt[]>): number {
   const segs = [...routes.values()].map(r => r.slice(1).map((q, k) => ({p: at(r, k), q})));
@@ -156,7 +166,13 @@ export function routeLayered(lay: LayeredLayout, place: (p: Pt) => Pt, portStep 
   const a = scoreOf([...fixed.values()]), b = scoreOf([...spread.values()]);
   // with tracks (ADR 0070 D4), by the placing's own measure: a pair of arrows on one line weighs as one crossing, then the bends. Without, as
   // it always was (the overlaps decide alone, before the crossings)
-  if (tracks) { const ca = a.crossings + alongEach(fixed), cb = b.crossings + alongEach(spread); return cb < ca || (cb === ca && b.bends <= a.bends) ? spread : fixed; }
+  if (tracks) {
+    // the arrows into the heads of ANDs first (ADR 0070 D4, U4c): the lanes' step moves tracks by a few px, and the AND arrows must not cross each other more than they did
+    const xa = groupCrossings(fixed, groupOf), xb = groupCrossings(spread, groupOf);
+    if (xa !== xb) return xb < xa ? spread : fixed;
+    const ca = a.crossings + alongEach(fixed), cb = b.crossings + alongEach(spread);
+    return cb < ca || (cb === ca && b.bends <= a.bends) ? spread : fixed;
+  }
   return b.crossings <= a.crossings && b.bends <= a.bends && alongEach(spread) <= alongEach(fixed) ? spread : fixed;
 }
 
@@ -191,6 +207,15 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     layerRight.set(l, Math.max(layerRight.get(l) ?? -Infinity, n.x + n.w));
     layerLeft.set(l, Math.min(layerLeft.get(l) ?? Infinity, n.x));
   }
+  // the gap (the one after layer g) an x along the layers lies in, if any
+  const gapMemo = new Map<number, number | undefined>();
+  const gapAt = (x: number): number | undefined => {
+    if (gapMemo.has(x)) return gapMemo.get(x);
+    let found: number | undefined;
+    for (const [g, gl] of layerRight) { const gr = layerLeft.get(g + 1); if (gr !== undefined && x > gl - 0.5 && x < gr + 0.5) { found = g; break; } }
+    gapMemo.set(x, found);
+    return found;
+  };
   // laneHeads: a return in an outer lane ends on the face of its head that looks at the lane (the bottom or the top), not on the head's right side,
   // where it would cross the arrows that leave that side. Only where the run from the lane to the face passes no other box.
   const faceOf = new Map<number, {x: number; y: number}>();
@@ -222,6 +247,8 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   let crowded: Map<number, number> | undefined; // the lanes that meet in a gap (the gap after layer g); counted at the first use, when the ports are set
   const crowdOf = (): Map<number, number> => {
     if (crowded) return crowded;
+    // with tracks, the tracks a gap needs, counted as corridorLoad counts them for the gap's size (ADR 0070 D4, U4c)
+    if (tracks) return crowded = trackLoad(lay, LANE, (i, end) => portOf.get(`${i}:${end}`) ?? 0, level);
     const crowd = crowded = new Map<number, number>();
     lay.edges.forEach((e, i) => {
       if (e.self) return;
@@ -433,7 +460,6 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     const madeRuns = new Map<number, Run[]>(), given = new Map<number, Run[]>(), held = new Map<number, Run[]>();
     const asks = new Map<number, Ask[]>(), all = new Map<number, Ask[]>();
     const add = <T>(m: Map<number, T[]>, g: number, v: T): void => { const l = m.get(g); if (l) l.push(v); else m.set(g, [v]); };
-    const gapAt = (x: number): number | undefined => { for (const [g, gl] of layerRight) { const gr = layerLeft.get(g + 1); if (gr !== undefined && x > gl - 0.5 && x < gr + 0.5) return g; } return undefined; };
     const made = [...out.values()].filter(r => r.length); // the routes already made (the pending arrows hold an empty place in `out`)
     // the runs across the gaps that are already placed: every vertical run of a route already made
     for (const r of made) {
@@ -727,11 +753,16 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   }
   const direct = lay.edges.map((_e, i) => i).filter(i => { const e = edgeAt(i); return straighten && !e.self && !e.outer && e.points.length === 2 && groupOf?.(i) === undefined && !round?.(e.from) && !round?.(e.to) && (lonePorts || must(slotOf.get(`${i}:0`)).list.length > 1 || must(slotOf.get(`${i}:1`)).list.length > 1); });
   let best = scoreOf([...routes.values()]);
+  // ADR 0070 D4 (U4c, `tracks`): a move after the tracks are placed (this one, the routes around the boxes, D12-D14) may not add a pair of runs under a lane step
+  // apart, nor two runs on one line whose ends are under a lane step apart (the tracks' own spacing: what a move must not take away)
+  const runCache = new WeakMap<Pt[], RoutedRuns>();
+  /** `trial` lies against a route in a way `routes` did not, and takes no crossing away (a crossing is worse than a pair: the move that removes one may add one) */
+  const gains = (trial: Map<number, Pt[]>, crossings = Infinity): boolean => tracks && crossings >= best.crossings && gainsRunPairs(routes, trial, LANE, runCache);
   for (const i of direct) {
     const undo = align(i);
     if (!undo) continue;
     const trial = build(), score = rescore(routes, best, trial);
-    if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i)) { routes = trial; best = score; } else undo();
+    if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i) && !gains(trial, score.crossings)) { routes = trial; best = score; } else undo();
   }
   // the arrows that became straight lines no longer take a lane: the others take their lanes again, over the room that is left
   if (spread) {
@@ -746,14 +777,47 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   }
   // a long arrow (it passes a layer between its two ends) takes the way around the boxes with the fewest bends when that is strictly better in (crossings, bends):
   // its way points are the middle of each layer's gap, which can send it far out and back
+  /** Does a run of the route lie on a box that is not one of the arrow's two ends? */
+  const touches = (i: number, r: Pt[]): boolean => [...lay.nodes].some(([id, n]) => id !== edgeAt(i).from && id !== edgeAt(i).to && r.slice(1).some((q, k) => { const p = at(r, k); return Math.max(p.x, q.x) > n.x - 0.5 && Math.min(p.x, q.x) < n.x + n.w + 0.5 && Math.max(p.y, q.y) > n.y - 0.5 && Math.min(p.y, q.y) < n.y + n.h + 0.5; }));
+  /** The vertical runs of a route that lie in a gap, with their place in the route: `[index of the run's first point, x]`, by gap. */
+  const verticalsIn = (r: Pt[]): Map<number, [number, number][]> => {
+    const m = new Map<number, [number, number][]>();
+    for (let k = 0; k + 1 < r.length; k++) {
+      const a = at(r, k), b = at(r, k + 1);
+      if (Math.abs(a.x - b.x) >= 0.5 || Math.abs(a.y - b.y) < 0.5) continue;
+      const g = gapAt(a.x);
+      if (g !== undefined) m.set(g, [...m.get(g) ?? [], [k, a.x]]);
+    }
+    return m;
+  };
+  /**
+   * ADR 0070 D4 (U4c): a route found around the boxes (`detour`) with each run across a gap moved to the track the arrow had there (`was`: the route
+   * the tracks gave it, with one run across the gap). A gap where either has no such run, or more than one, is left as it is. Undefined when moving
+   * a run makes a stretch turn back on itself (a run on either side of it would have to go the other way), or puts the route on a box.
+   */
+  const snapToTracks = (i: number, was: Pt[], route: Pt[]): Pt[] | undefined => {
+    const mine = verticalsIn(route), given = verticalsIn(was), moved = route.map(p => ({...p}));
+    for (const [g, list] of mine) {
+      const own = given.get(g);
+      if (list.length !== 1 || own?.length !== 1) continue;
+      const [k] = at(list, 0), x = at(own, 0)[1];
+      if (Math.abs(at(route, k).x - x) < 0.01) continue;
+      at(moved, k).x = x; at(moved, k + 1).x = x;
+      // the stretches beside it keep their way (or vanish), and each run along the layers still reaches the new place without turning back
+      for (const [m, n] of [[k - 1, k], [k + 1, k + 2]] as const) {
+        const p = route[m], q = route[n], p2 = moved[m], q2 = moved[n];
+        if (p && q && p2 && q2 && Math.sign(q.x - p.x) * Math.sign(q2.x - p2.x) < 0) return undefined;
+      }
+    }
+    const out = simplify(moved);
+    return touches(i, out) ? undefined : out;
+  };
   if (detour) {
     const rects = [...lay.nodes.values()].map(n => ({x: n.x, y: n.y, w: n.w, h: n.h})), bounds = {x: 0, y: 0, w: lay.w, h: lay.h};
     // the arrows into a grouped head (an AND) must not cross each other more than they did (an AND arc over crossing arrows reads wrongly: ADR 0015)
     const heads = new Set<string>();
     lay.edges.forEach((e, i) => { if (!e.self && groupOf?.(i) !== undefined) heads.add(e.to); });
     const andCross = (m: Map<number, Pt[]>): number => heads.size ? crossingsOf([...m].filter(([i]) => heads.has(edgeAt(i).to)).map(([, p]) => p)) : 0;
-    /** Does a run of the route lie on a box that is not one of the arrow's two ends? */
-    const touches = (i: number, r: Pt[]): boolean => [...lay.nodes].some(([id, n]) => id !== edgeAt(i).from && id !== edgeAt(i).to && r.slice(1).some((q, k) => { const p = at(r, k); return Math.max(p.x, q.x) > n.x - 0.5 && Math.min(p.x, q.x) < n.x + n.w + 0.5 && Math.max(p.y, q.y) > n.y - 0.5 && Math.min(p.y, q.y) < n.y + n.h + 0.5; }));
     let headCross = headCrossings([...routes.values()]), andNow = andCross(routes);
     for (const [i, e] of lay.edges.entries()) {
       const r = routes.get(i);
@@ -764,15 +828,19 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       const rest = [...routes].filter(([j]) => j !== i).map(([, p]) => p);
       const found = searchRoute(at(r, 0), at(r, r.length - 1), rects, rest, bounds, {stub: STUB, tail: turnRunOf(e.to)});
       if (!found) continue;
-      const route = simplify(found);
-      // only this arrow changed: its crossings and bends against the rest, before and after
-      const score = {crossings: best.crossings - crossingsWith(r, rest) + crossingsWith(route, rest), bends: best.bends - bendsOf(r) + bendsOf(route)};
-      // strictly better in (crossings, bends); or it gets the arrow off a box it ran along or through, with no more crossings (the bends may grow: a figure that draws an arrow through a box is wrong)
-      if (!(score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends) || (onBox && !touches(i, route) && score.crossings <= best.crossings))) continue;
-      const trial = new Map(routes); trial.set(i, route);
-      // and no more crossings of another arrow's head (they read as joins), no more crossings among the arrows of an AND
-      const heads2 = headCrossings([...trial.values()]), and2 = andCross(trial);
-      if (heads2 <= headCross && and2 <= andNow) { detours.set(i, route); routes = trial; best = score; headCross = heads2; andNow = and2; }
+      // ADR 0070 D4 (U4c, `tracks`): the route as found, when it lies against no route in a way the figure did not have (`gains`); else with each run across a gap moved
+      // to the track the arrow was given there; where that cannot be (it would run onto a box), or it too adds a pair, the detour is not taken
+      const found2 = simplify(found), snapped = tracks ? snapToTracks(i, r, found2) : undefined;
+      for (const route of tracks ? [found2, ...(snapped ? [snapped] : [])] : [found2]) {
+        // only this arrow changed: its crossings and bends against the rest, before and after
+        const score = {crossings: best.crossings - crossingsWith(r, rest) + crossingsWith(route, rest), bends: best.bends - bendsOf(r) + bendsOf(route)};
+        // strictly better in (crossings, bends); or it gets the arrow off a box it ran along or through, with no more crossings (the bends may grow: a figure that draws an arrow through a box is wrong)
+        if (!(score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends) || (onBox && !touches(i, route) && score.crossings <= best.crossings))) continue;
+        const trial = new Map(routes); trial.set(i, route);
+        // and no more crossings of another arrow's head (they read as joins), no more crossings among the arrows of an AND
+        const heads2 = headCrossings([...trial.values()]), and2 = andCross(trial);
+        if (heads2 <= headCross && and2 <= andNow && !gains(trial, score.crossings)) { detours.set(i, route); routes = trial; best = score; headCross = heads2; andNow = and2; break; }
+      }
     }
   }
   // ADR 0016 D12 (only when asked, after the candidate is chosen; D13 for a direct arrow, below): a long arrow into a grouped head (an AND) whose run through the layers lies along another
@@ -818,7 +886,8 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       for (const set of tries) {
         set();
         const trial = build(), s = rescore(routes, best, trial), t = beside(trial, i);
-        if (t.head < now.head && t.all <= now.all && s.crossings <= best.crossings && s.bends <= best.bends && inside(must(trial.get(i))) && !pierces(must(trial.get(i)), i)) { routes = trial; best = s; break; }
+        // (with tracks) the arrows into the heads of ANDs do not cross each other more than they did: a move that trades a crossing there for another is no gain (an AND's arc reads wrongly over crossing arrows, ADR 0015)
+        if (t.head < now.head && t.all <= now.all && s.crossings <= best.crossings && s.bends <= best.bends && inside(must(trial.get(i))) && !pierces(must(trial.get(i)), i) && !gains(trial, s.crossings) && (!tracks || groupCrossings(trial, groupOf) <= groupCrossings(routes, groupOf))) { routes = trial; best = s; break; }
         shiftOf.delete(i); turnAt.delete(i);
       }
     }
@@ -826,8 +895,42 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   return new Map([...routes].map(([i, pts]) => [i, pts.map(place)]));
 }
 
-/** The most direct arrows that pass through one gap between two layers (each needs its own lane there). */
-export function corridorLoad(lay: LayeredLayout): number {
+/**
+ * ADR 0070 D4 (U4c; `tracks` only): the tracks each gap between two layers needs (the gap after layer g, by g), for the gap's size (`corridorLoad`) and for the
+ * step between its lanes (`crowdOf`, whose denominator it is), so that both count the same turns.
+ * The turns across a gap are the direct arrows' lanes (each takes its own lane), the long arrows' turns (a long arrow turns once in each gap it passes; two whose spans, each
+ * made a lane step longer at both ends, do not overlap share a track: the left-edge rule of `placeTracks`) and the returns' turns in an outer lane (one each). The
+ * tracks a gap needs are the most turns whose spans overlap, but not fewer than the direct arrows' lanes and the outer turns.
+ * `portOf` is how far an arrow's port is from the middle of its box (0 before the routes know), `skip` the arrows that take no turn (a straight line).
+ */
+export function trackLoad(lay: LayeredLayout, lane = LANE, portOf: (edge: number, end: 0 | 1) => number = () => 0, skip: (edge: number) => boolean = () => false): Map<number, number> {
+  const direct = new Map<number, number>(), outer = new Map<number, number>(), spans = new Map<number, {lo: number; hi: number}[]>();
+  const bump = (m: Map<number, number>, g: number): void => { m.set(g, (m.get(g) ?? 0) + 1); };
+  const span = (g: number, a: number, b: number): void => { if (Math.abs(a - b) < 0.5) return; const l = spans.get(g) ?? []; l.push({lo: Math.min(a, b) - lane, hi: Math.max(a, b) + lane}); spans.set(g, l); };
+  const centre = (id: string): number => { const n = must(lay.nodes.get(id)); return n.y + n.h / 2; };
+  lay.edges.forEach((e, i) => {
+    if (e.self) return;
+    const l1 = must(lay.layers.get(e.from)), l2 = must(lay.layers.get(e.to));
+    if (e.outer) { for (const g of [l1 - 1, l2]) bump(outer, g); return; }
+    const ys = [centre(e.from) + portOf(i, 0), ...e.points.slice(1, -1).map(p => p.y), centre(e.to) + portOf(i, 1)];
+    if (e.points.length === 2) { if (skip(i)) return; bump(direct, Math.min(l1, l2)); span(Math.min(l1, l2), at(ys, 0), at(ys, 1)); return; }
+    if (ys.length - 1 !== Math.abs(l2 - l1)) return; // one way point per layer passed: else the arrow is not one placeTracks places
+    for (let k = 0; k + 1 < ys.length; k++) span(l2 > l1 ? l1 + k : l1 - 1 - k, at(ys, k), at(ys, k + 1));
+  });
+  const out = new Map<number, number>();
+  for (const g of new Set([...direct.keys(), ...outer.keys(), ...spans.keys()])) {
+    // the most spans over one point: the sweep over their ends (a span's end sorts before another's start at the same place)
+    const ends = (spans.get(g) ?? []).flatMap(({lo, hi}) => [[lo, 1], [hi, -1]] as const).sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+    let depth = 0, most = 0;
+    for (const [, d] of ends) { depth += d; most = Math.max(most, depth); }
+    out.set(g, (outer.get(g) ?? 0) + Math.max(direct.get(g) ?? 0, most));
+  }
+  return out;
+}
+
+/** The most direct arrows that pass through one gap between two layers (each needs its own lane there); with `tracks`, the most tracks any gap needs (`trackLoad`). */
+export function corridorLoad(lay: LayeredLayout, tracks = false, lane = LANE): number {
+  if (tracks) return Math.max(1, ...trackLoad(lay, lane).values());
   const load = new Map<string, number>();
   for (const e of lay.edges) {
     if (e.self || e.points.length !== 2) continue;
@@ -850,9 +953,9 @@ export function corridorLoad(lay: LayeredLayout): number {
  * layoutLayered, with the gap between layers wide enough for the arrows that share it: laid out once to see how many arrows go
  * through each gap (layers do not depend on the gap), then again with a gap that gives each its own lane.
  */
-export function layoutWithLanes(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]; back?: readonly number[]}, chip = 0, space = 1): LayeredLayout {
+export function layoutWithLanes(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]; back?: readonly number[]}, chip = 0, space = 1, tracks = false): LayeredLayout {
   const first = layoutLayered(nodes, edges, opts);
-  const need = gapFor(corridorLoad(first), chip, space);
+  const need = gapFor(corridorLoad(first, tracks, laneStepOf(space)), chip, space);
   return need > (opts.levelGap ?? 0) ? layoutLayered(nodes, edges, {...opts, levelGap: need}) : first;
 }
 
@@ -939,8 +1042,12 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
   let laneHeads = false; // the returns end on the face of their head that looks at the lane (routeLayered's `laneHeads`); set only for the last try below
   const optsOf = new WeakMap<Attempt, {opts: typeof layoutOpts; laneShare: boolean; near: Side}>();
   const build = (opts: typeof layoutOpts, laneShare = false, aside = false, near: Side = 'far'): Attempt => {
-    const lay = layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: stubOf(o.space), step: laneStepOf(o.space), ...(near === 'far' ? {} : {side: near})}} : opts, 0, o.space);
-    const size = {w: o.transpose ? lay.h : lay.w, h: o.transpose ? lay.w : lay.h};
+    const laid = (tracks: boolean): LayeredLayout => layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: stubOf(o.space), step: laneStepOf(o.space), ...(near === 'far' ? {} : {side: near})}} : opts, 0, o.space, tracks);
+    const sizeOf = (l: LayeredLayout): {w: number; h: number} => ({w: o.transpose ? l.h : l.w, h: o.transpose ? l.w : l.h});
+    // ADR 0070 D4 (U4c): the gaps are sized for the tracks (`trackLoad`); a figure that then no longer fits the width keeps the gaps it had (the tracks crowd, as before)
+    let lay = laid(o.tracks === true);
+    if (o.tracks && o.maxAcross !== undefined && sizeOf(lay).w > o.maxAcross) { const old = laid(false); if (sizeOf(old).w < sizeOf(lay).w) lay = old; }
+    const size = sizeOf(lay);
     const groupOf = o.groupOf;
     const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(at(lay.edges, i).index)), o.round, o.straighten !== false, laneShare, aside, o.detour === true && opts.coord === 'bk', o.detour === true, o.space, laneHeads, o.heads, o.tracks === true); // the search for a way around the boxes only in the straightened candidate (it competes with the plain one on bends); a lone port is straightened in both
     const made = {lay, routes, score: scoreOf([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
@@ -994,7 +1101,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     // the heads an AND arrives at keep the room its arc needs (ADR 0070 D8, `heads`); the others the old 22
     const andHeads = new Set<string>(), groupOf = o.groupOf, run = o.heads?.headRun;
     if (groupOf && run !== undefined) a.lay.edges.forEach(e => { if (!e.self && groupOf(e.index) !== undefined) andHeads.add(e.to); });
-    const routes = moveApart({routes: a.routes, edges: new Map(a.lay.edges.map((e, i) => [i, {from: e.from, to: e.to, self: e.self, outer: e.outer}])), rects, ...(run === undefined ? {} : {headRun: (i: number) => andHeads.has(at(a.lay.edges, i).to) ? run : 22})});
+    const routes = moveApart({routes: a.routes, edges: new Map(a.lay.edges.map((e, i) => [i, {from: e.from, to: e.to, self: e.self, outer: e.outer}])), rects, ...(run === undefined ? {} : {headRun: (i: number) => andHeads.has(at(a.lay.edges, i).to) ? run : 22}), ...(o.tracks ? {sep: laneStepOf(o.space)} : {})});
     if ([...routes].every(([i, r]) => r === a.routes.get(i))) return a;
     const b: Attempt = {...a, routes, score: scoreOf([...routes.values()]), loose: o.looseOf ? o.looseOf(routes, a.lay) : []};
     optsOf.set(b, must(optsOf.get(a)));

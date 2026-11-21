@@ -134,18 +134,7 @@ export interface ParallelRun {a: number; b: number; gap: number; overlap: number
  * single runs, and keeps its own definition (the verifier's `cause-parallel` and the router's ADR 0016 D11 read it).
  */
 export function parallelRuns(routes: readonly P[][], sep: number): ParallelRun[] {
-  type R = {level: boolean; at: number; lo: number; hi: number};
-  const runsOf = (pts: P[]): R[] => {
-    const s = simplify(pts), out: R[] = [];
-    for (let i = 1; i < s.length; i++) {
-      const p = s[i - 1] as P, q = s[i] as P;
-      const level = Math.abs(p.y - q.y) < 0.5, plumb = Math.abs(p.x - q.x) < 0.5;
-      if (level === plumb) continue; // a point, or a slanted segment
-      out.push(level ? {level, at: p.y, lo: Math.min(p.x, q.x), hi: Math.max(p.x, q.x)} : {level, at: p.x, lo: Math.min(p.y, q.y), hi: Math.max(p.y, q.y)});
-    }
-    return out;
-  };
-  const runs = routes.map(runsOf), out: ParallelRun[] = [];
+  const runs = routes.map(r => runsOfRoute(r)), out: ParallelRun[] = [];
   for (let i = 0; i < runs.length; i++) for (let j = i + 1; j < runs.length; j++) {
     for (const r of runs[i] ?? []) for (const s of runs[j] ?? []) {
       if (r.level !== s.level) continue;
@@ -155,3 +144,70 @@ export function parallelRuns(routes: readonly P[][], sep: number): ParallelRun[]
   }
   return out;
 }
+
+/** One run of a route (`parallelRuns`): level or plumb, where it lies across, and its span. */
+export interface RouteRun {level: boolean; at: number; lo: number; hi: number}
+
+/** A route's runs, its corners first (`simplify`): a straight run is one however many points it has; a point and a slanted segment are not runs. */
+export function runsOfRoute(pts: P[]): RouteRun[] {
+  const s = simplify(pts), out: RouteRun[] = [];
+  for (let i = 1; i < s.length; i++) {
+    const p = s[i - 1] as P, q = s[i] as P;
+    const level = Math.abs(p.y - q.y) < 0.5, plumb = Math.abs(p.x - q.x) < 0.5;
+    if (level === plumb) continue;
+    out.push(level ? {level, at: p.y, lo: Math.min(p.x, q.x), hi: Math.max(p.x, q.x)} : {level, at: p.x, lo: Math.min(p.y, q.y), hi: Math.max(p.y, q.y)});
+  }
+  return out;
+}
+
+/**
+ * The ways two routes lie against each other (ADR 0070 U4c): `level` / `plumb` is in the set when a run of one and a run of the other, both level
+ * (or both plumb), are side by side (on one axis under `sep` apart, over 4px long together: `parallelRuns`' pair) or on one line with their ends
+ * under `sep` apart (a pair `parallelRuns` leaves out: two runs that read as one, ADR 0070 U4b's `touch`).
+ */
+export function runPairWays(a: readonly RouteRun[], b: readonly RouteRun[], sep: number): {level: boolean; plumb: boolean} {
+  let level = false, plumb = false;
+  for (const r of a) for (const s of b) {
+    if (r.level !== s.level || (r.level ? level : plumb)) continue;
+    const gap = Math.abs(r.at - s.at), overlap = Math.min(r.hi, s.hi) - Math.max(r.lo, s.lo);
+    if (overlap > 4 ? gap < sep : gap < 0.5 && overlap > -sep) { if (r.level) level = true; else plumb = true; }
+  }
+  return {level, plumb};
+}
+
+/** A route's runs with the box it lies in (a pair of runs under `sep` apart needs the two boxes within `sep` of each other). */
+export interface RoutedRuns {runs: RouteRun[]; x0: number; x1: number; y0: number; y1: number}
+
+/** The runs of a route and its box, worked out once per array in `cache` (the caller's, so no module holds state). */
+export function routedRuns(r: P[], cache: WeakMap<P[], RoutedRuns>): RoutedRuns {
+  let e = cache.get(r);
+  if (!e) {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const p of r) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+    e = {runs: runsOfRoute(r), x0, x1, y0, y1};
+    cache.set(r, e);
+  }
+  return e;
+}
+
+/**
+ * Does `next` lie against another route in a way `prev` did not (`runPairWays`)? Only the routes that differ are asked: for each, the other routes
+ * it lies against, level or plumb. A pair that was there stays allowed (it may be a bit nearer); a new pair, or the same two routes the other
+ * way (a plumb pair for a level one), is a gain. `cache` holds the runs of the routes by their arrays.
+ */
+export function gainsRunPairs<K>(prev: ReadonlyMap<K, P[]>, next: ReadonlyMap<K, P[]>, sep: number, cache: WeakMap<P[], RoutedRuns>): boolean {
+  const near = (a: RoutedRuns, b: RoutedRuns): boolean => a.x0 - sep - 1 <= b.x1 && b.x0 - sep - 1 <= a.x1 && a.y0 - sep - 1 <= b.y1 && b.y0 - sep - 1 <= a.y1;
+  for (const [k, r] of next) {
+    const old = prev.get(k);
+    if (!old || samePath(old, r)) continue;
+    const was0 = routedRuns(old, cache), now0 = routedRuns(r, cache);
+    for (const [o, ro] of next) {
+      if (o === k) continue;
+      const oldO = prev.get(o) ?? ro, other = routedRuns(samePath(oldO, ro) ? oldO : ro, cache), otherWas = routedRuns(oldO, cache); // an unchanged route's runs are those of its old array
+      const was = near(was0, otherWas) ? runPairWays(was0.runs, otherWas.runs, sep) : NONE, now = near(now0, other) ? runPairWays(now0.runs, other.runs, sep) : NONE;
+      if ((now.level && !was.level) || (now.plumb && !was.plumb)) return true;
+    }
+  }
+  return false;
+}
+const NONE = {level: false, plumb: false};
