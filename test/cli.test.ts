@@ -128,7 +128,7 @@ test('build: a source without a default export function fails with exit 1 and a 
 test('build: an error thrown while defining the diagram is reported per file with exit 1', () => {
   const r = node(proj, BUILD, 'src/throws.ts');
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /✗ src\/throws\.ts: boom from define/);
+  assert.match(r.stderr, /✗ src\/throws\.ts:1:30: boom from define/);
   const missing = node(proj, BUILD, 'src/does-not-exist.ts');
   assert.notEqual(missing.status, 0);
 });
@@ -463,7 +463,7 @@ test('build failure: the previous SVG stays unchanged, and a notice says it is o
   p.put('src/flow.ts', THROWS);
   const r = node(p.root, BUILD, 'src/flow.ts');
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /✗ src\/flow\.ts: boom from define/);
+  assert.match(r.stderr, /✗ src\/flow\.ts:1:30: boom from define/);
   assert.match(r.stderr, STALE_NOTICE);
   assert.equal(p.read('svg/flow.svg'), before, 'the old SVG is untouched');
   assert.deepEqual(fs.readdirSync(path.join(p.root, 'svg')), ['flow.svg'], 'no marker file next to it');
@@ -520,10 +520,10 @@ const STACK_LINE = /^\s+at /m;
 // layout throws (checkDiagram, not define): a connector to an id that is not in the diagram
 const BAD_LAYOUT_TS = GOOD_TS.replace("connect(a.right, b.left)", "connect(a.right, 'nowhere:left')");
 
-test('check: a source that throws is one "✗ source: message" line without a stack, the rest are checked, exit 1', () => {
+test('check: a source that throws is one located "✗" line without a stack, the rest are checked, exit 1', () => {
   const r = node(proj, CHECK, '--strict', 'src/throws.ts', 'src/flow.ts');
   assert.equal(r.status, 1, out(r));
-  assert.match(r.stderr, /✗ src\/throws\.ts: boom from define/);
+  assert.match(r.stderr, /✗ src\/throws\.ts:1:30: boom from define/);
   assert.doesNotMatch(r.stderr, STACK_LINE);
   assert.match(r.stdout, /✓ src\/flow\.ts/, 'the next file was still checked');
   assert.match(r.stderr, /2 件中 1 件が検査できなかった/);
@@ -534,8 +534,135 @@ test('check: the "✗" line is the same text as build prints for the same source
   const b = node(proj, BUILD, 'src/throws.ts', '--out', path.join(os.tmpdir(), 'unused-throws.svg'));
   const c = node(proj, CHECK, 'src/throws.ts');
   const line = (s: string) => s.split('\n').find(l => l.startsWith('✗ src/throws.ts'));
-  assert.ok(line(b.stderr));
+  assert.equal(line(b.stderr), '✗ src/throws.ts:1:30: boom from define');
   assert.equal(line(c.stderr), line(b.stderr));
+});
+
+test('check and build name both figures that import the same broken helper', () => {
+  const p = stalePrj();
+  const sources = ['src/a.ts', 'src/b.ts'];
+  p.put('src/_bad.ts', 'export const x = 1 +;\n');
+  for (const source of sources) p.put(source, "import {x} from './_bad.ts';\nexport default () => x;\n");
+  try {
+    const failures = (r: ReturnType<typeof node>) => r.stderr.split('\n').filter(line => line.startsWith('✗ '));
+    const check = node(p.root, CHECK, '--format', 'text', ...sources);
+    const build = node(p.root, BUILD, ...sources);
+    assert.equal(check.status, 1, out(check));
+    assert.equal(build.status, 1, out(build));
+    const expected = sources.map(source => `✗ ${source}: src/_bad.ts:1:21: Expression expected`);
+    assert.deepEqual(failures(check), expected);
+    assert.deepEqual(failures(build), expected);
+  } finally { fs.rmSync(p.root, {recursive: true}); }
+});
+
+test('check: JSON locates runtime and module-loading errors at their source spans', () => {
+  const p = stalePrj();
+  p.put('src/_parts.ts', 'export const exists = 1;\n');
+  const withTab = '  const 日本 = 1;\treturn 日本 +;';
+  const namedImport = "const s = '日本語';\timport {missing} from './_parts.ts';";
+  const typo = "import {a} from './nope-typo.ts';";
+  const sideEffect = "import './nope-side-effect.ts';";
+  const missingPackage = "await import('package-does-not-exist-405');";
+  const cases = [
+    {file: 'src/throws.ts', body: "export default function define() {\n  throw new Error('aspect must be 16:9');\n}", line: 2, column: 9},
+    {file: 'src/tone.ts', body: "import {box} from 'svg-diagram';\nexport default function define() {\n  return box({title: 'a', tone: 'not-a-tone'});\n}", line: 3, column: 10},
+    {file: 'src/syntax.ts', body: 'export default function define() {\n  return a +;\n}', line: 2, column: 13},
+    {file: 'src/enum.ts', body: '// before\nenum Color { Red }\nexport default () => Color.Red;', line: 2, column: 1},
+    {file: 'src/named.ts', body: `// before\n${namedImport}\nexport default () => missing;`, line: 2, column: namedImport.indexOf('missing') + 1},
+    {file: 'src/typo.ts', body: `// before\n${typo}\nexport default () => a;`, line: 2, column: typo.indexOf('./nope-typo.ts') + 1},
+    {file: 'src/side-effect.ts', body: `// before\n${sideEffect}\nexport default () => {};`, line: 2, column: sideEffect.indexOf('./nope-side-effect.ts') + 1},
+    {file: 'src/package.ts', body: `// before\n${missingPackage}\nexport default () => {};`, line: 2, column: missingPackage.indexOf('package-does-not-exist-405') + 1},
+    {file: './日本 語 (図)/syntax.ts', body: `export default function define() {\n${withTab}\n}`, line: 2, column: withTab.lastIndexOf(';') + 1},
+    {file: './日本 語 (図)/runtime.ts', body: "\nexport default () => { throw new Error('boom'); };", line: 2, column: 30},
+  ];
+  for (const {file, body} of cases) p.put(file, body + '\n');
+  try {
+    const r = node(p.root, CHECK, '--format', 'json', ...cases.map(c => c.file));
+    assert.equal(r.status, 1, out(r));
+    const {errors, findings} = JSON.parse(r.stdout);
+    assert.equal(errors, cases.length);
+    assert.deepEqual(findings.map(({file, rule, severity, line, column}: {file: string; rule: string; severity: string; line?: number; column?: number}) =>
+      ({file, rule, severity, line, column})),
+    cases.map(({file, line, column}) => ({file, rule: 'build-error', severity: 'error', line, column})));
+  } finally { fs.rmSync(p.root, {recursive: true}); }
+});
+
+test('check: a thrown string keeps its message without a synthetic CLI location', () => {
+  const p = stalePrj();
+  p.put('src/fail.ts', "export default () => { throw 'boom'; };\n");
+  try {
+    const r = node(p.root, CHECK, '--format', 'json', 'src/fail.ts');
+    assert.equal(r.status, 1, out(r));
+    assert.deepEqual(JSON.parse(r.stdout).findings, [{
+      file: 'src/fail.ts', rule: 'build-error', severity: 'error', message: 'boom',
+    }]);
+  } finally { fs.rmSync(p.root, {recursive: true}); }
+});
+
+test('check: a thrown non-Error object with a stack keeps its location', () => {
+  const p = stalePrj();
+  p.put('src/fail.ts', 'export default function define() {\n  const thrown = {};\n  Error.captureStackTrace(thrown);\n  throw thrown;\n}\n');
+  try {
+    const r = node(p.root, CHECK, '--format', 'json', 'src/fail.ts');
+    assert.equal(r.status, 1, out(r));
+    assert.deepEqual(JSON.parse(r.stdout).findings, [{
+      file: 'src/fail.ts', rule: 'build-error', severity: 'error', message: '[object Object]', line: 3, column: 9,
+    }]);
+  } finally { fs.rmSync(p.root, {recursive: true}); }
+});
+
+test('check: captured CallSites survive a read and replacement of the error stack', () => {
+  const p = stalePrj();
+  p.put('src/fail.ts', "function fail() {\n  const err = new Error('boom');\n  if (err.stack) err.stack = 'custom stack';\n  throw err;\n}\nexport default () => fail();\n");
+  try {
+    const r = node(p.root, CHECK, '--format', 'json', 'src/fail.ts');
+    assert.equal(r.status, 1, out(r));
+    assert.deepEqual(JSON.parse(r.stdout).findings, [{
+      file: 'src/fail.ts', rule: 'build-error', severity: 'error', message: 'boom', line: 2, column: 15, via: [{line: 6, column: 22}],
+    }]);
+  } finally { fs.rmSync(p.root, {recursive: true}); }
+});
+
+test('check: source maps move captured CallSites to the original helper location', () => {
+  const p = stalePrj();
+  p.put('src/entry.ts', "export {default} from './helper.mjs';\n");
+  p.put('src/helper.mjs', "export default () => {\n  throw new Error('boom');\n};\n//# sourceMappingURL=helper.mjs.map\n");
+  p.put('src/helper.mjs.map', JSON.stringify({version: 3, sources: ['original.ts'], names: [], mappings: ';QAGE'}));
+  try {
+    const r = spawnSync(process.execPath, ['--enable-source-maps', CHECK, '--format', 'json', 'src/entry.ts'], {cwd: p.root, encoding: 'utf8'});
+    assert.equal(r.status, 1, out(r));
+    assert.deepEqual(JSON.parse(r.stdout).findings, [{
+      file: 'src/entry.ts', rule: 'build-error', severity: 'error', message: 'boom', location: {file: 'src/original.ts', line: 4, column: 3},
+    }]);
+  } finally { fs.rmSync(p.root, {recursive: true}); }
+});
+
+test('check: github and SARIF annotate the file that threw and SARIF fingerprints use the checked source', () => {
+  const p = stalePrj();
+  p.put('src/entry.ts', "export {default} from './_parts.ts';\n");
+  p.put('src/_parts.ts', "\nexport default () => { throw new Error('helper failed'); };\n");
+  p.put('src/wide.ts', WIDE_TS);
+  try {
+    const github = node(p.root, CHECK, '--format', 'github', 'src/entry.ts');
+    assert.equal(github.status, 1, out(github));
+    assert.equal(github.stdout.trim(), '::error file=src/_parts.ts,line=2,col=30,title=build-error::src/entry.ts: helper failed');
+    const sarif = node(p.root, CHECK, '--format', 'sarif', '--write-baseline', 'baseline.json', 'src/entry.ts', 'src/wide.ts');
+    assert.equal(sarif.status, 1, out(sarif));
+    const {results} = JSON.parse(sarif.stdout).runs[0];
+    assert.equal(results[0].message.text, 'src/entry.ts: helper failed');
+    assert.deepEqual(results[0].locations, [{physicalLocation: {artifactLocation: {uri: 'src/_parts.ts'}, region: {startLine: 2, startColumn: 30}}}]);
+    assert.equal(results[0].partialFingerprints['svg-diagram/v1'], 'src/entry.ts\u0000build-error\u0000helper failed');
+    assert.ok(results.length > 1);
+    for (const result of results.slice(1)) {
+      assert.equal(result.partialFingerprints['svg-diagram/v1'], `src/wide.ts\u0000${result.ruleId}\u0000${result.message.text}`);
+    }
+    const withBaseline = node(p.root, CHECK, '--format', 'sarif', '--baseline', 'baseline.json', 'src/entry.ts', 'src/wide.ts');
+    assert.equal(withBaseline.status, 1, out(withBaseline));
+    assert.match(withBaseline.stdout, /（ベースライン済み）/);
+    const updated: typeof results = JSON.parse(withBaseline.stdout).runs[0].results;
+    const fingerprints = (entries: {partialFingerprints: Record<string, string>}[]) => entries.map(result => result.partialFingerprints);
+    assert.deepEqual(fingerprints(updated), fingerprints(results));
+  } finally { fs.rmSync(p.root, {recursive: true}); }
 });
 
 test('check: a throw during layout is formatted too, and --format json / github carry it as build-error', () => {
@@ -556,7 +683,7 @@ test('check: a throw during layout is formatted too, and --format json / github 
   const j = JSON.parse(node(p, CHECK, '--format', 'json', 'src/throws.ts', 'src/flow.ts').stdout);
   assert.equal(j.errors, 1);
   assert.deepEqual(j.findings.filter((f: {rule: string}) => f.rule === 'build-error').map((f: {file: string; message: string}) => [f.file, f.message]), [['src/throws.ts', 'boom from define']]);
-  assert.match(node(p, CHECK, '--format', 'github', 'src/throws.ts').stdout, /^::error file=src\/throws\.ts,title=build-error::boom from define/m);
+  assert.match(node(p, CHECK, '--format', 'github', 'src/throws.ts').stdout, /^::error file=src\/throws\.ts,line=1,col=30,title=build-error::boom from define/m);
   fs.rmSync(p, {recursive: true});
 });
 
@@ -575,7 +702,7 @@ test('check --drift --rebuild: a source that no longer loads is reported and the
   fs.writeFileSync(path.join(p, 'svg/b.svg'), patched);
   const r = node(p, CHECK, '--drift', '--rebuild', 'src/b.ts', 'src/a.ts');
   assert.equal(r.status, 1, out(r));
-  assert.match(r.stderr, /✗ src\/b\.ts: boom from define/);
+  assert.match(r.stderr, /✗ src\/b\.ts:1:30: boom from define/);
   assert.doesNotMatch(r.stderr, STACK_LINE);
   assert.match(r.stdout, /✓ src\/a\.ts: svg\/a\.svg は最新/);
   fs.rmSync(p, {recursive: true});
@@ -587,6 +714,40 @@ test('check: SVG_DIAGRAM_DEBUG=1 adds the stack', () => {
   assert.match(r.stderr, STACK_LINE);
 });
 
+test('check --drift --rebuild: import failures do not point to package files with or without the cache', () => {
+  const p = stalePrj();
+  const sources = ['src/nested.ts', 'src/uses-json.ts'] as const;
+  p.put(sources[0], "import './_mid.ts';\n");
+  p.put('src/_mid.ts', "import './_missing.ts';\n");
+  p.put(sources[1], "import './_data.json' with {type: 'json'};\n");
+  p.put('src/_data.json', '{');
+  try {
+    for (const cache of [[], ['--no-cache']]) {
+      const r = node(p.root, CHECK, '--drift', '--rebuild', '--format', 'json', ...cache, ...sources);
+      assert.equal(r.status, 1, out(r));
+      const {findings} = JSON.parse(r.stdout);
+      assert.deepEqual(findings.map(({message, ...finding}: {message: string}) => finding),
+        sources.map(file => ({file, rule: 'build-error', severity: 'error'})), out(r));
+      assert.match(findings[0]?.message ?? '', /Cannot find module .*_missing\.ts/);
+      assert.match(findings[1]?.message ?? '', /_data\.json/);
+    }
+  } finally { fs.rmSync(p.root, {recursive: true}); }
+});
+
+test('check: SVG_DIAGRAM_DEBUG=1 keeps reporting errors when toString throws', () => {
+  const p = stalePrj();
+  p.put('src/custom.ts', "class CustomError extends Error { toString() { throw new Error('broken toString'); } }\nexport default () => { throw new CustomError('boom'); };\n");
+  p.put('src/flow.ts', GOOD_TS);
+  try {
+    const r = spawnSync(process.execPath, [CHECK, 'src/custom.ts', 'src/flow.ts'], {cwd: p.root, encoding: 'utf8', env: {...process.env, SVG_DIAGRAM_DEBUG: '1'}});
+    assert.equal(r.status, 1, out(r));
+    assert.match(r.stderr, /✗ src\/custom\.ts:2:30: boom\nError: boom\n/);
+    assert.match(r.stderr, STACK_LINE);
+    assert.doesNotMatch(r.stderr, /broken toString/);
+    assert.match(r.stdout, /✓ src\/flow\.ts/);
+  } finally { fs.rmSync(p.root, {recursive: true}); }
+});
+
 test('check --docs: a source behind a figure that does not load is reported and the other pages are still read', () => {
   const p = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-chk-'));
   fs.mkdirSync(path.join(p, 'src')); fs.mkdirSync(path.join(p, 'svg'));
@@ -596,7 +757,7 @@ test('check --docs: a source behind a figure that does not load is reported and 
   fs.writeFileSync(path.join(p, 'B.md'), '# b\n\n![x](svg/gone.svg)\n');
   const r = node(p, CHECK, '--docs', 'A.md', 'B.md', '--src-dir', 'src');
   assert.equal(r.status, 1, out(r));
-  assert.match(r.stderr, /✗ src\/throws\.ts: boom from define/);
+  assert.match(r.stderr, /✗ src\/throws\.ts:1:30: boom from define/);
   assert.doesNotMatch(r.stderr, STACK_LINE);
   assert.match(out(r), /B\.md:3 \[doc-image-missing\]/);
   fs.rmSync(p, {recursive: true});

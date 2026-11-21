@@ -28,9 +28,11 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {installResolveHook} from './lib/resolve-hook.ts';
 import {must} from './lib/must.ts';
+import {installStackCapture, locateError} from './lib/source-location-io.ts';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 installResolveHook();
+installStackCapture();
 const {build, closeMeasurer} = await import('./lib/dsl.ts');
 const {loadConfig, svgDirOf} = await import('./lib/config.ts');
 const {MIN_FONT_SIZE} = await import('./lib/tokens.ts');
@@ -38,7 +40,7 @@ const {loadDiagram} = await import('./lib/load-source.ts');
 const {depsSha256, depsOf} = await import('./lib/source-deps.ts');
 const {readProvenance, ownsOutput, sha256: sha} = await import('./lib/freshness.ts');
 const {prefixSvgIds, idPrefixFor} = await import('./lib/svg-ids.ts');
-const {formatBuildError} = await import('./lib/error-format.ts');
+const {buildErrorSite, formatBuildError} = await import('./lib/error-format.ts');
 const config = loadConfig();
 
 // --fit: ソースを書き換えずに、この図を使っているスライドを pages/*.md から探し、
@@ -107,8 +109,8 @@ try {
     const abs = path.resolve(modPath);
     const outPath = outOverride ?? path.join(outDir ?? svgDirOf(config), path.parse(modPath).name + '.svg');
     // ADR 0013: a failed build never touches the old SVG, but says so when that file is this source's own output (it is now out of date)
-    const failedBuild = (message: unknown) => {
-      console.error(formatBuildError(modPath, message));
+    const failedBuild = (err: unknown) => {
+      console.error(formatBuildError(buildErrorSite(modPath, locateError(err, modPath).loc), err));
       if (ownsOutput(outPath, abs)) console.error(`  ⚠ 前回の ${outPath} が残っている(ソースと一致しない古い絵)`);
       failed = true;
     };
