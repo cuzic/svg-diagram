@@ -169,17 +169,17 @@
   <path d="M673,84 L673,75.8 M799,84 L799,75.8 M673,75.8 L799,75.8 M169,84 L169,73.5 M295,84 L295,73.5 M169,73.5 L295,73.5 M547,84 L547,72.1 M736,75.8 L736,72.1 M547,72.1 L736,72.1 M421,84 L421,49.8 M232,73.5 L232,49.8 M421,49.8 L232,49.8 M641.5,72.1 L641.5,24 M326.5,49.8 L326.5,24 M641.5,24 L326.5,24" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
   <path d="M100,101 L96.4,101 M100,123 L96.4,123 M96.4,101 L96.4,123 M100,189 L95.5,189 M100,211 L95.5,211 M95.5,189 L95.5,211 M100,233 L93.7,233 M95.5,200 L93.7,200 M93.7,233 L93.7,200 M100,145 L93.5,145 M96.4,112 L93.5,112 M93.5,145 L93.5,112 M100,255 L91.2,255 M93.7,216.5 L91.2,216.5 M91.2,255 L91.2,216.5 M100,167 L60,167 M93.5,128.5 L60,128.5 M60,167 L60,128.5 M91.2,235.8 L28,235.8 M60,147.8 L28,147.8 M28,235.8 L28,147.8" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
   <text x="20" y="314" font-size="14" fill="#6f6659">最小 10個</text>
-  <path d="M89.56,302 H107.56 V316 H89.56 Z" fill="#ffffff"/>
-  <path d="M89.56,302 H107.56 V316 H89.56 Z" fill="#1d5fa8" fill-opacity="0.1" stroke="#e0d6c5" stroke-width="1"/>
-  <path d="M107.56,302 H125.56 V316 H107.56 Z" fill="#ffffff"/>
-  <path d="M107.56,302 H125.56 V316 H107.56 Z" fill="#1d5fa8" fill-opacity="0.3" stroke="#e0d6c5" stroke-width="1"/>
-  <path d="M125.56,302 H143.56 V316 H125.56 Z" fill="#ffffff"/>
-  <path d="M125.56,302 H143.56 V316 H125.56 Z" fill="#1d5fa8" fill-opacity="0.5" stroke="#e0d6c5" stroke-width="1"/>
-  <path d="M143.56,302 H161.56 V316 H143.56 Z" fill="#ffffff"/>
-  <path d="M143.56,302 H161.56 V316 H143.56 Z" fill="#1d5fa8" fill-opacity="0.7" stroke="#e0d6c5" stroke-width="1"/>
-  <path d="M161.56,302 H179.56 V316 H161.56 Z" fill="#ffffff"/>
-  <path d="M161.56,302 H179.56 V316 H161.56 Z" fill="#1d5fa8" fill-opacity="0.9" stroke="#e0d6c5" stroke-width="1"/>
-  <text x="188" y="314" font-size="14" fill="#6f6659">最大 90個</text>
+  <path d="M92.26,302 H110.26 V316 H92.26 Z" fill="#ffffff"/>
+  <path d="M92.26,302 H110.26 V316 H92.26 Z" fill="#1d5fa8" fill-opacity="0.1" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M110.26,302 H128.26 V316 H110.26 Z" fill="#ffffff"/>
+  <path d="M110.26,302 H128.26 V316 H110.26 Z" fill="#1d5fa8" fill-opacity="0.3" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M128.26,302 H146.26 V316 H128.26 Z" fill="#ffffff"/>
+  <path d="M128.26,302 H146.26 V316 H128.26 Z" fill="#1d5fa8" fill-opacity="0.5" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M146.26,302 H164.26 V316 H146.26 Z" fill="#ffffff"/>
+  <path d="M146.26,302 H164.26 V316 H146.26 Z" fill="#1d5fa8" fill-opacity="0.7" stroke="#e0d6c5" stroke-width="1"/>
+  <path d="M164.26,302 H182.26 V316 H164.26 Z" fill="#ffffff"/>
+  <path d="M164.26,302 H182.26 V316 H164.26 Z" fill="#1d5fa8" fill-opacity="0.9" stroke="#e0d6c5" stroke-width="1"/>
+  <text x="190" y="314" font-size="14" fill="#6f6659">最大 90個</text>
 
   <text x="20" y="370" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
 </svg>

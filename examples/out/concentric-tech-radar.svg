@@ -29,7 +29,7 @@
   <circle cx="504" cy="332" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
   <circle cx="532" cy="396" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
   <circle cx="412" cy="396" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
-  <circle cx="460" cy="508" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="376" cy="508" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
   <circle cx="448" cy="264" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
   <circle cx="392" cy="144" r="6" fill="#1d5fa8" fill-opacity="1" stroke="#1d5fa8" stroke-width="2"/>
   <circle cx="408" cy="592" r="5" fill="#6f6659" fill-opacity="0.15" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,2"/>
@@ -48,7 +48,7 @@
   <text x="504" y="319.2" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">Biome</text>
   <text x="522" y="401.6" text-anchor="end" font-size="14" font-weight="400" fill="#22201b">Bun</text>
   <text x="422" y="401.6" font-size="14" font-weight="400" fill="#22201b">Fly.io</text>
-  <text x="450" y="513.6" text-anchor="end" font-size="14" font-weight="400" fill="#22201b">Kubernetes</text>
+  <text x="386" y="513.6" font-size="14" font-weight="400" fill="#22201b">Kubernetes</text>
   <text x="448" y="251.2" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">ADR</text>
   <text x="402" y="149.6" font-size="14" font-weight="400" fill="#22201b">モブプロ</text>
   <text x="419" y="597.6" font-size="14" font-weight="400" fill="#6f6659">前回</text>

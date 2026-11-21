@@ -21,8 +21,8 @@
   <circle cx="260" cy="356" r="23.6" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
   <circle cx="756" cy="368" r="10.6" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
   <circle cx="796" cy="220" r="7.5" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
-  <circle cx="276" cy="476" r="19.3" fill="none" stroke="#6f6659" stroke-width="2"/>
-  <circle cx="384" cy="476" r="6.1" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <circle cx="280" cy="476" r="19.3" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <circle cx="388" cy="476" r="6.1" fill="none" stroke="#6f6659" stroke-width="2"/>
   <text x="130" y="91" font-size="15" font-weight="700" fill="#1d5fa8">花形</text>
   <text x="130" y="110" font-size="14" fill="#6f6659">投資して地位を守る</text>
   <text x="530" y="91" font-size="15" font-weight="700" fill="#22201b">問題児</text>
@@ -44,6 +44,6 @@
   <text x="912" y="438" text-anchor="end" font-size="14" fill="#6f6659">低</text>
   <text x="516" y="438" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">相対市場シェア</text>
   <text x="120" y="480" font-size="14" fill="#22201b">円の面積 = 売上高</text>
-  <text x="305" y="480" font-size="14" fill="#22201b">200億円</text>
-  <text x="398" y="480" font-size="14" fill="#22201b">20億円</text>
+  <text x="307" y="480" font-size="14" fill="#22201b">200億円</text>
+  <text x="404" y="480" font-size="14" fill="#22201b">20億円</text>
 </svg>

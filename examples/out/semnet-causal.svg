@@ -28,16 +28,16 @@
   <text x="566" y="121" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">受注量</text>
   <path d="M700,118.25 H816 V166.25 H700 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
   <text x="758" y="147" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">業務負荷</text>
-  <path d="M270.8,106 H285.2 V124 H270.8 Z" fill="#ffffff"/>
+  <path d="M270.13,106 H285.87 V124 H270.13 Z" fill="#ffffff"/>
   <text x="278" y="120" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M462.8,96 H477.2 V114 H462.8 Z" fill="#ffffff"/>
+  <path d="M462.13,96 H477.87 V114 H462.13 Z" fill="#ffffff"/>
   <text x="470" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M654.8,109 H669.2 V127 H654.8 Z" fill="#ffffff"/>
+  <path d="M654.13,109 H669.87 V127 H654.13 Z" fill="#ffffff"/>
   <text x="662" y="123" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M464.99,149 H475.01 V167 H464.99 Z" fill="#ffffff"/>
+  <path d="M465.09,149 H474.91 V167 H465.09 Z" fill="#ffffff"/>
   <text x="470" y="163" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">-</text>
-  <path d="M462.35,124 H477.65 V142 H462.35 Z" fill="#ffffff"/>
+  <path d="M462.89,124 H477.11 V142 H462.89 Z" fill="#ffffff"/>
   <text x="470" y="138" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
-  <path d="M459.02,172 H480.98 V190 H459.02 Z" fill="#ffffff"/>
+  <path d="M457.79,172 H482.21 V190 H457.79 Z" fill="#ffffff"/>
   <text x="470" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">B1</text>
 </svg>

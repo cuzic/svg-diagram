@@ -39,24 +39,24 @@
   <path d="M44,232 H896 A8,8 0 0 1 904,240 V295 A8,8 0 0 1 896,303 H44 A8,8 0 0 1 36,295 V240 A8,8 0 0 1 44,232 Z" fill="none" stroke="#22201b" stroke-width="2.5"/>
 
   <path d="M90,320 L90,400" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M245,320 L245,400" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M400,320 L400,400" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M554,320 L554,400" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M709,320 L709,400" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M864,320 L864,400" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M90,394 L864,394" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M90,320 H678.36 V348 H90 Z" fill="#1d5fa8"/>
-  <path d="M90,366 H329.99 V394 H90 Z" fill="#22201b"/>
+  <path d="M244,320 L244,400" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M397,320 L397,400" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M551,320 L551,400" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M705,320 L705,400" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M858,320 L858,400" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M90,394 L858,394" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M90,320 H674.05 V348 H90 Z" fill="#1d5fa8"/>
+  <path d="M90,366 H328.23 V394 H90 Z" fill="#22201b"/>
   <text x="90" y="416" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
-  <text x="245" y="416" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
-  <text x="400" y="416" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
-  <text x="554" y="416" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
-  <text x="709" y="416" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
-  <text x="864" y="416" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
+  <text x="244" y="416" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
+  <text x="397" y="416" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
+  <text x="551" y="416" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
+  <text x="705" y="416" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
+  <text x="858" y="416" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
   <text x="82" y="339" text-anchor="end" font-size="14" fill="#22201b">導入前</text>
-  <text x="672" y="339" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">76%</text>
+  <text x="668" y="339" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">76%</text>
   <text x="82" y="385" text-anchor="end" font-size="14" fill="#22201b">導入後</text>
-  <text x="324" y="385" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">31%</text>
+  <text x="322" y="385" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">31%</text>
 
   <path d="M460,132 L480,132" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
 </svg>

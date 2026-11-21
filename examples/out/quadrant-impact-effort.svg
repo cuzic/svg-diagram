@@ -23,8 +23,8 @@
   <circle cx="756" cy="356" r="8.3" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
   <circle cx="832" cy="384" r="7.5" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
   <circle cx="236" cy="368" r="7.5" fill="#1d5fa8" stroke="#ffffff" stroke-width="1.5"/>
-  <circle cx="288" cy="476" r="16.7" fill="none" stroke="#6f6659" stroke-width="2"/>
-  <circle cx="404" cy="476" r="5.3" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <circle cx="292" cy="476" r="16.7" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <circle cx="412" cy="476" r="5.3" fill="none" stroke="#6f6659" stroke-width="2"/>
   <text x="130" y="91" font-size="15" font-weight="700" fill="#22201b">大型案件</text>
   <text x="130" y="110" font-size="14" fill="#6f6659">効果は大きいが難しい。計画して挑む</text>
   <text x="530" y="91" font-size="15" font-weight="700" fill="#1d5fa8">クイックウィン</text>
@@ -48,6 +48,6 @@
   <text x="912" y="438" text-anchor="end" font-size="14" fill="#6f6659">易しい</text>
   <text x="516" y="438" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">実行容易性</text>
   <text x="120" y="480" font-size="14" fill="#22201b">円の面積 = 削減工数</text>
-  <text x="313" y="480" font-size="14" fill="#22201b">2,000時間</text>
-  <text x="417" y="480" font-size="14" fill="#22201b">200時間</text>
+  <text x="316" y="480" font-size="14" fill="#22201b">2,000時間</text>
+  <text x="425" y="480" font-size="14" fill="#22201b">200時間</text>
 </svg>

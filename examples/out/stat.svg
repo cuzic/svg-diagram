@@ -18,6 +18,6 @@
   <text x="558" y="172.39999999999998" text-anchor="middle" font-size="14" font-weight="400" fill="#22201b">導入後</text>
 
   <rect x="748" y="56" width="172" height="140" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <text x="834" y="109" text-anchor="middle" font-size="37" font-weight="700" fill="#22201b">3割未満</text>
-  <text x="834" y="145.8" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">目標</text>
+  <text x="834" y="107" text-anchor="middle" font-size="35" font-weight="700" fill="#22201b">3割未満</text>
+  <text x="834" y="143" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">目標</text>
 </svg>

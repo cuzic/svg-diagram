@@ -9,41 +9,41 @@
 
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">状態遷移図: focus の状態を塗り、前後の状態と矢印を強調色に</text>
 
-  <path d="M256,128 L368,128" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M252,128 L368,128" fill="none" stroke="#1d5fa8" stroke-width="2"/>
   <path d="M380,128 L368,132 L368,124 z" fill="#1d5fa8"/>
-  <path d="M468,104 L580,104" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M468,104 L584,104" fill="none" stroke="#1d5fa8" stroke-width="2"/>
   <path d="M592,104 L580,108 L580,100 z" fill="#1d5fa8"/>
-  <path d="M692,84 L804,84" fill="none" stroke="#6f6659" stroke-width="2"/>
-  <path d="M816,84 L804,88 L804,80 z" fill="#6f6659"/>
+  <path d="M696,84 L812,84" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M820,84 L808,88 L808,80 z" fill="#6f6659"/>
   <path d="M468,124 L484,124 L484,156 L588,156" fill="none" stroke="#1d5fa8" stroke-width="2"/>
-  <path d="M596,156 L584,160 L584,152 z" fill="#1d5fa8"/>
-  <path d="M596,172 L512,172 L512,164 L340,164 L340,148 L264,148" fill="none" stroke="#6f6659" stroke-width="2"/>
-  <path d="M256,148 L268,140 L268,152 z" fill="#6f6659"/>
-  <path d="M44,140 L156,140" fill="none" stroke="#6f6659" stroke-width="2"/>
-  <path d="M168,140 L156,144 L156,136 z" fill="#6f6659"/>
-  <circle cx="36" cy="140" r="8" fill="#22201b"/>
-  <rect x="168" y="120" width="88" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <path d="M600,156 L588,160 L588,152 z" fill="#1d5fa8"/>
+  <path d="M600,172 L512,172 L512,164 L336,164 L336,148 L264,148" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M252,148 L264,140 L264,152 z" fill="#6f6659"/>
+  <path d="M40,140 L156,140" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M164,140 L152,144 L152,136 z" fill="#6f6659"/>
+  <circle cx="32" cy="140" r="8" fill="#22201b"/>
+  <rect x="164" y="120" width="88" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
   <rect x="380" y="100" width="88" height="36" rx="8" fill="#1d5fa8" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="592" y="56" width="100" height="56" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="816" y="68" width="96" height="36" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
-  <rect x="820" y="72" width="88" height="28" rx="5" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
-  <rect x="596" y="140" width="88" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <text x="211" y="144" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">申請中</text>
-  <text x="423" y="120" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">課長待ち</text>
-  <text x="641" y="78" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">部長待ち</text>
-  <text x="641" y="98" text-anchor="middle" font-size="14" fill="#22201b">10万円以上</text>
-  <text x="864" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">支払い済み</text>
-  <text x="641" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">差し戻し</text>
-  <rect x="292" y="104" width="40" height="22" fill="#ffffff"/>
-  <text x="310" y="120" text-anchor="middle" font-size="14" fill="#22201b">申請</text>
-  <rect x="480" y="80" width="84" height="22" fill="#ffffff"/>
+  <rect x="592" y="56" width="104" height="56" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="820" y="68" width="100" height="36" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+  <rect x="824" y="72" width="92" height="28" rx="5" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5"/>
+  <rect x="600" y="140" width="88" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="208" y="144" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">申請中</text>
+  <text x="422" y="120" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">課長待ち</text>
+  <text x="643" y="78" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">部長待ち</text>
+  <text x="643" y="98" text-anchor="middle" font-size="14" fill="#22201b">10万円以上</text>
+  <text x="869" y="88" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">支払い済み</text>
+  <text x="643" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">差し戻し</text>
+  <rect x="288" y="104" width="40" height="22" fill="#ffffff"/>
+  <text x="308" y="120" text-anchor="middle" font-size="14" fill="#22201b">申請</text>
+  <rect x="480" y="80" width="88" height="22" fill="#ffffff"/>
   <text x="522" y="96" text-anchor="middle" font-size="14" fill="#22201b">10万円以上</text>
-  <rect x="728" y="60" width="40" height="22" fill="#ffffff"/>
-  <text x="746" y="76" text-anchor="middle" font-size="14" fill="#22201b">承認</text>
+  <rect x="732" y="60" width="40" height="22" fill="#ffffff"/>
+  <text x="750" y="76" text-anchor="middle" font-size="14" fill="#22201b">承認</text>
   <rect x="500" y="132" width="68" height="22" fill="#ffffff"/>
-  <text x="534" y="148" text-anchor="middle" font-size="14" fill="#22201b">差し戻す</text>
+  <text x="535" y="148" text-anchor="middle" font-size="14" fill="#22201b">差し戻す</text>
   <rect x="404" y="136" width="40" height="22" fill="#ffffff"/>
-  <text x="425" y="152" text-anchor="middle" font-size="14" fill="#22201b">直す</text>
+  <text x="424" y="152" text-anchor="middle" font-size="14" fill="#22201b">直す</text>
 
   <text x="470" y="206" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">矢羽根: focus（番号でも指せる）だけを塗る</text>
 

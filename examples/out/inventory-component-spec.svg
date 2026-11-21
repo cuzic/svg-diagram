@@ -69,7 +69,7 @@
   <text x="49" y="579" font-size="14" font-weight="400" fill="#22201b">発注点は 30 個。早めの発注を勧める。</text>
   <rect x="48" y="596" width="12" height="12" rx="2" fill="none" stroke="#6f6659" stroke-width="2"/>
   <text x="69" y="609" font-size="14" font-weight="700" fill="#22201b">在庫数 24 個</text>
-  <text x="161" y="609" font-size="14" font-weight="400" fill="#6f6659">10/9 10:24</text>
+  <text x="166" y="609" font-size="14" font-weight="400" fill="#6f6659">10/9 10:24</text>
   <g role="img" aria-label="注釈 1" data-badge="">
   <circle cx="36" cy="508" r="11" fill="#1d5fa8" stroke="#ffffff" stroke-width="2"/>
   <text x="36" y="513" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">1</text>
@@ -168,8 +168,8 @@
   <text x="787" y="914" font-size="14" font-weight="400" fill="#6f6659">棚</text>
   <text x="827" y="914" font-size="14" font-weight="400" fill="#22201b">A-03</text>
   <rect x="776" y="836" width="140" height="112" rx="6" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
-  <rect x="792" y="824" width="116" height="24" rx="12" fill="#f6f8fa" stroke="#e0d6c5" stroke-width="2"/>
-  <text x="851" y="841" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">古い情報 10:24</text>
+  <rect x="784" y="824" width="128" height="24" rx="12" fill="#f6f8fa" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="848" y="841" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">古い情報 10:24</text>
   <text x="20" y="1020" font-size="15" font-weight="700" fill="#22201b">検索結果</text>
   <text x="20" y="1042" font-size="14" font-weight="400" fill="#6f6659">0 件のとき空</text>
   <rect x="144" y="964" width="144" height="128" rx="8" fill="#ffffff" stroke="#e0d6c5" stroke-width="2"/>
@@ -240,6 +240,6 @@
   <text x="870" y="1057" text-anchor="middle" font-size="14" font-weight="700" fill="#b91c1c">少ない</text>
   <path d="M787,1078 L907,1078" fill="none" stroke="#e0d6c5" stroke-width="1.5" stroke-linejoin="round"/>
   <rect x="776" y="964" width="140" height="124" rx="6" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="6,4"/>
-  <rect x="792" y="952" width="116" height="24" rx="12" fill="#f6f8fa" stroke="#e0d6c5" stroke-width="2"/>
-  <text x="851" y="969" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">古い情報 10:24</text>
+  <rect x="784" y="952" width="128" height="24" rx="12" fill="#f6f8fa" stroke="#e0d6c5" stroke-width="2"/>
+  <text x="848" y="969" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">古い情報 10:24</text>
 </svg>
