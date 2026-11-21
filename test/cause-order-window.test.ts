@@ -85,13 +85,14 @@ test('windowPool (並びの探索の状態の add): 循環の 3 案が来る順�
   }
 });
 
-test('windowPool: 窓が縮んで前の案が外れたら、best が替わる (add が true)。同じなら false', () => {
+test('windowPool: add の返り値は「探索が進んだ」: 選択が替わる、または組を除いた (C, 折れ, 高さ) の最小が下がる。どちらでもなければ false', () => {
   const pool = windowPool<number[]>(a, a);
-  assert.equal(pool.add(b, b), false, '折れ 5 の b が来ても、窓の上限 5 + 4 = 9 に a も入り、組が最小の a のまま');
-  assert.equal(pool.best.score, a, '窓 {a, b}: 組が最小の a');
+  assert.equal(pool.add(b, b), true, '折れ 5 の b: 窓 {a, b} の best は組が最小の a のまま。だが組を除いた最小 (折れ 9 -> 5) が下がった: 待ちは延びる (組が待ちを早く切らさない)');
+  assert.equal(pool.best.score, a);
   assert.equal(pool.add(c, c), true, '折れ 1 の c が来て、窓が縮み、a が外れる。best は b に替わる');
   assert.equal(pool.best.score, b);
-  assert.equal(pool.add(S(0, 0, 2, 9, 9), S(0, 0, 2, 9, 9)), false, '窓の外・組が多い案は best を替えない');
+  assert.equal(pool.add(S(0, 0, 2, 9, 9), S(0, 0, 2, 9, 9)), false, '窓の外・組が多く、折れの最小も下げない案は進みでない');
+  assert.equal(pool.add(S(0, 0, 2, 0, 1, 380), S(0, 0, 2, 0, 1, 380)), true, '組 0・折れ 1 で、選択が替わる');
 });
 
 test('windowPool: AND の並走が多い案は、組が最小でも窓に入らない (C が違う)。AND の交差が少ない案は、折れが +20 でも窓の外から勝つ (上限が掛からない)', () => {

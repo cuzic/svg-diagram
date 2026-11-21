@@ -211,11 +211,14 @@ export function pickFinal<T>(first: T, candidates: readonly (T | undefined)[], b
 
 /**
  * The candidates of one stage with their scores (ADR 0073 D2). `add` keeps every score and the figure only while it is in the window (a window never takes back what it left: when C falls, the earlier
- * candidates are out; when the least bends fall, it only shrinks). `best` is the selection of the whole list, and `add` says whether it changed. A tie keeps the earlier candidate.
+ * candidates are out; when the least bends fall, it only shrinks). `best` is the selection of the whole list. A tie keeps the earlier candidate.
+ * `add` says whether the search made progress: the selection changed, or the best (C, bends, height) without the pairs got lower (a candidate that only the pairs keep from being chosen is still a better
+ * figure on the keys the search waited on before the pairs were a key: the wait does not run out sooner for the pairs, which stopped a figure's search short of the order that crosses less).
  */
 export function windowPool<T>(first: T, score: readonly number[]): {readonly best: {item: T | undefined; score: readonly number[]}; add: (item: T, score: readonly number[]) => boolean; readonly size: number; readonly held: number} {
   const all: {item: T | undefined; score: readonly number[]}[] = [{item: first, score}];
-  let at = 0;
+  const withoutPairs = (k: readonly number[]): number[] => k.filter((_, i) => i !== k.length - 3);
+  let at = 0, frontier = withoutPairs(score);
   return {
     get best() { return must(all[at]); },
     get size() { return all.length; },
@@ -226,7 +229,9 @@ export function windowPool<T>(first: T, score: readonly number[]): {readonly bes
       at = selectIndex(all.map(e => e.score));
       const inWindow = new Set(windowOf(all.map(e => e.score)));
       all.forEach((e, i) => { if (!inWindow.has(i)) e.item = undefined; });
-      return at !== before;
+      const f = withoutPairs(s), lower = lexLess(f, frontier);
+      if (lower) frontier = f;
+      return at !== before || lower;
     },
   };
 }
