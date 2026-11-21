@@ -513,9 +513,14 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       lastInit.set(o.i, made1);
       return made1;
     });
-    const routeNow = new Map<Pending | number, Pt[]>([...made.map((r, k): [number, Pt[]] => [k, r]), ...pending.map((o, k): [Pending, Pt[]] => [o, at(initial, k).route])]);
-    const signs = new Map([...made.map((r, k): [Pending | number, {x0: number; x1: number; h: number}] => [k, signOf(r)]), ...pending.map((o, k): [Pending | number, {x0: number; x1: number; h: number}] => [o, at(initial, k).sg])]);
-    const turnsSeen = new Map(pending.map((o, k): [Pending, (number | undefined)[]] => [o, at(initial, k).turns])); // the turns each pending route in `routeNow` was made from (never changed: a route made again takes a copy)
+    const routeNow = new Map<Pending | number, Pt[]>();
+    made.forEach((r, k) => routeNow.set(k, r));
+    pending.forEach((o, k) => routeNow.set(o, at(initial, k).route));
+    const signs = new Map<Pending | number, {x0: number; x1: number; h: number}>();
+    made.forEach((r, k) => signs.set(k, signOf(r)));
+    pending.forEach((o, k) => signs.set(o, at(initial, k).sg));
+    const turnsSeen = new Map<Pending, (number | undefined)[]>();
+    pending.forEach((o, k) => turnsSeen.set(o, at(initial, k).turns)); // the turns each pending route in `routeNow` was made from (never changed: a route made again takes a copy)
     // each route's extent along the layers by its place in `routeNow`'s order, so that a cluster finds the routes near it by a pass over two number arrays (a route that is not finite is never near)
     const seqOf = new Map<Pending | number, number>(), routeAt: (Pending | number)[] = [], ext0 = new Float64Array(signs.size), ext1 = new Float64Array(signs.size), extH = new Float64Array(signs.size);
     for (const [o, sg] of signs) { const k = seqOf.size; seqOf.set(o, k); routeAt.push(o); ext0[k] = sg.x0; ext1[k] = sg.x1; extH[k] = sg.h; }
@@ -824,7 +829,20 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   if (spread) {
     const lanes = new Map(laneOf), turns = new Map(outerTurns), before = crowded;
     // how many arrows run through a box that is not one of their two ends: the new lanes may not add to them
-    const pierced = (m: Map<number, Pt[]>): number => [...m].reduce((sum, [i, r]) => sum + [...lay.nodes].filter(([id, n]) => id !== edgeAt(i).from && id !== edgeAt(i).to && r.slice(1).some((q, k) => { const p = at(r, k); return Math.max(p.x, q.x) > n.x + 1 && Math.min(p.x, q.x) < n.x + n.w - 1 && Math.max(p.y, q.y) > n.y + 1 && Math.min(p.y, q.y) < n.y + n.h - 1; })).length, 0);
+    const pierced = (m: Map<number, Pt[]>): number => {
+      let sum = 0;
+      for (const [i, r] of m) {
+        const e = edgeAt(i);
+        for (const [id, n] of lay.nodes) {
+          if (id === e.from || id === e.to) continue;
+          for (let k = 1; k < r.length; k++) {
+            const p = at(r, k - 1), q = at(r, k);
+            if (Math.max(p.x, q.x) > n.x + 1 && Math.min(p.x, q.x) < n.x + n.w - 1 && Math.max(p.y, q.y) > n.y + 1 && Math.min(p.y, q.y) < n.y + n.h - 1) { sum++; break; }
+          }
+        }
+      }
+      return sum;
+    };
     const piercedBefore = pierced(routes);
     crowded = undefined; assignLanes(); turnOuter();
     const trial = build(), score = rescore(routes, best, trial, crossCache);

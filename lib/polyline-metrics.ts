@@ -100,14 +100,20 @@ export function crossingsWith(path: P[], others: readonly P[][], o: CrossOpts = 
   return n;
 }
 
-const samePath = (a: P[], b: P[]): boolean => a === b || (a.length === b.length && a.every((p, k) => { const q = b[k] as P; return p.x === q.x && p.y === q.y; }));
+const samePath = (a: P[], b: P[]): boolean => {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let k = 0; k < a.length; k++) { const p = a[k] as P, q = b[k] as P; if (p.x !== q.x || p.y !== q.y) return false; }
+  return true;
+};
 
 /**
  * `scoreOf(next)`, from the score of `prev` and the routes that differ: a local search tries one change after another, and a change moves a few
  * routes, so counting every pair of routes again for each try is most of its cost. The same numbers as counting afresh (test/polyline-metrics.test.ts).
  */
 export function rescore<K>(prev: ReadonlyMap<K, P[]>, prevScore: {crossings: number; bends: number}, next: ReadonlyMap<K, P[]>, cache?: WeakMap<P[], Runs>): {crossings: number; bends: number} {
-  if (prev.size !== next.size || [...next.keys()].some(k => !prev.has(k))) return scoreOf([...next.values()]);
+  if (prev.size !== next.size) return scoreOf([...next.values()]);
+  for (const k of next.keys()) if (!prev.has(k)) return scoreOf([...next.values()]);
   const before: P[][] = [], after: P[][] = [], rest: P[][] = [];
   for (const [k, r] of next) { const old = prev.get(k) as P[]; if (samePath(old, r)) rest.push(old); else { before.push(old); after.push(r); } }
   if (!after.length) return prevScore;
