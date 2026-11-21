@@ -31,38 +31,17 @@ const box = (id: string) => ({id, size: {w: 80, h: 60}});
 const nodes = ['a1', 'a2', 'a3', 'm', 'c1', 'c2', 'c3'].map(box);
 const edges = ([['a1', 'm'], ['m', 'c1'], ['m', 'c2'], ['m', 'c3'], ['a2', 'c1'], ['a3', 'c1'], ['a3', 'c2']] as const).map(([from, to]) => ({from, to}));
 
-test('trackLoad counts the long arrows\' turns as well as the direct arrows\' lanes; corridorLoad (the size of the gaps) is its largest, and without tracks it counts the direct arrows only', () => {
+test('trackLoad counts the long arrows\' turns as well as the direct arrows\' lanes; corridorLoad (the size of the gaps) still counts the direct arrows only', () => {
   const lay = layoutWithLanes(nodes, edges, {dir: 'right', gap: 24, levelGap: 20});
   const load = trackLoad(lay);
   // gap 0: a1 -> m and two long turns that overlap; gap 1: m -> c1, m -> c2 (m -> c3 is a straight line but counts: its ports are not known) and the three long arrows
   assert.deepEqual([...load].sort(), [[0, 2], [1, 4]]);
-  assert.equal(corridorLoad(lay, true), 4);
-  assert.equal(corridorLoad(lay), 3, 'direct arrows only, as it was');
-  assert.equal(corridorLoad(lay, true), Math.max(...load.values()));
+  assert.equal(Math.max(...load.values()), 4);
+  // the gaps are not sized by it (it depends on the order of the boxes of a layer, and the order search wants the same layers): corridorLoad is the direct arrows'
+  assert.equal(corridorLoad(lay), 3);
+  assert.equal(gapFor(corridorLoad(lay)) <= lay.w, true);
   // the arrows that are straight lines take no turn (`skip`): with no direct arrow left, the long arrows' turns alone are counted
   assert.deepEqual([...trackLoad(lay, LANE, () => 0, () => true)].sort(), [[0, 2], [1, 2]]);
-});
-
-test('the gaps are sized for the tracks with `tracks`, and as they were without', () => {
-  const plain = layoutWithLanes(nodes, edges, {dir: 'right', gap: 24, levelGap: 20});
-  assert.deepEqual(layoutWithLanes(nodes, edges, {dir: 'right', gap: 24, levelGap: 20}, 0, 1, false), plain);
-  const tracked = layoutWithLanes(nodes, edges, {dir: 'right', gap: 24, levelGap: 20}, 0, 1, true);
-  // 3 layers' gaps: each is gapFor(load) wide: 4 tracks need one lane step more than 3 (two gaps: 28px wider)
-  assert.equal(tracked.w - plain.w, 2 * (gapFor(4) - gapFor(3)));
-  // a gap that is wide enough already is left as it is
-  const wide = layoutWithLanes(nodes, edges, {dir: 'right', gap: 24, levelGap: 200});
-  assert.deepEqual(layoutWithLanes(nodes, edges, {dir: 'right', gap: 24, levelGap: 200}, 0, 1, true), wide);
-});
-
-test('with tracks, a figure that fits the width only with the old gaps keeps them (layeredAttempt)', () => {
-  const place = () => (p: Pt) => p;
-  const wide = layeredAttempt(nodes, edges, {dir: 'right', gap: 24, levelGap: 20}, {place, tracks: true, straighten: false});
-  const plain = layeredAttempt(nodes, edges, {dir: 'right', gap: 24, levelGap: 20}, {place, straighten: false});
-  assert.ok(wide.size.w > plain.size.w, 'the gaps are wider for the tracks');
-  const between = Math.round((wide.size.w + plain.size.w) / 2);
-  const kept = layeredAttempt(nodes, edges, {dir: 'right', gap: 24, levelGap: 20}, {place, tracks: true, straighten: false, maxAcross: between});
-  assert.equal(kept.size.w, plain.size.w, 'the figure that fits only with the old gaps has them');
-  assert.ok(kept.fits);
 });
 
 // ---- the moves after the tracks may not add a pair of runs under a lane step apart -------------------------------------------------------------
@@ -214,7 +193,7 @@ const graphsOf = (dist: 'A' | 'R' | 'RG' | 'RG129') => {
       const k = 4 + Math.floor(rnd() * 8), boxes = Array.from({length: k}, (_, i) => ({id: `n${i}`, size: {w: 60 + Math.floor(rnd() * 40), h: 30}}));
       const es: {from: string; to: string}[] = [];
       for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) if (rnd() < 0.3) es.push({from: `n${i}`, to: `n${j}`});
-      if (es.length) out.push({l: layoutWithLanes(boxes, es, {dir: 'right', gap: 24, levelGap: 60}, 0, 1, true)});
+      if (es.length) out.push({l: layoutWithLanes(boxes, es, {dir: 'right', gap: 24, levelGap: 60})});
     }
     return out;
   }
@@ -229,7 +208,7 @@ const graphsOf = (dist: 'A' | 'R' | 'RG' | 'RG129') => {
       seen.add(from + to); es.push({from, to});
     }
     rnd();
-    const l = layoutWithLanes(boxes, es, {dir: 'right', gap: 24, levelGap: 64}, 0, 1, true);
+    const l = layoutWithLanes(boxes, es, {dir: 'right', gap: 24, levelGap: 64});
     if (dist === 'R') { out.push({l}); continue; }
     const byTo = new Map<string, number[]>(), groups = new Map<number, number>();
     l.edges.forEach((e, i) => { if (!e.reversed) byTo.set(e.to, [...(byTo.get(e.to) ?? []), i]); });
@@ -240,7 +219,7 @@ const graphsOf = (dist: 'A' | 'R' | 'RG' | 'RG129') => {
   return out;
 };
 
-// totals of the crossings origin/main (18a15eb4) drew for the same graphs (the gaps sized for the tracks and the routes of main), measured before this change
+// totals of the crossings origin/main (18a15eb4) drew for the same graphs, measured before this change
 const MAIN_CROSSINGS = {A: 1119, R: 4058, RG: 4386, RG129: 4348};
 for (const dist of ['A', 'R', 'RG', 'RG129'] as const) {
   test(`random layered graphs, ${dist} (400, fixed seed): no more crossings in all than origin/main, and no AND's arrows more crossed than with the turns half-way`, () => {

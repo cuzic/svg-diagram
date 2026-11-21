@@ -247,14 +247,13 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   let crowded: Map<number, number> | undefined; // the lanes that meet in a gap (the gap after layer g); counted at the first use, when the ports are set
   const crowdOf = (): Map<number, number> => {
     if (crowded) return crowded;
-    // with tracks, the tracks a gap needs, counted as corridorLoad counts them for the gap's size (ADR 0070 D4, U4c)
     const crowd = crowded = new Map<number, number>();
     lay.edges.forEach((e, i) => {
       if (e.self) return;
       const l1 = layerOf(e.from), l2 = layerOf(e.to);
       for (const g of e.outer ? [l1 - 1, l2] : e.points.length === 2 ? (level(i) ? [] : [Math.min(l1, l2)]) : l1 < l2 && groupOf ? [l2 - 1] : []) crowd.set(g, (crowd.get(g) ?? 0) + 1);
     });
-    // ADR 0070 D4 (U4c, `tracks`): the tracks a gap needs (`trackLoad`, as `corridorLoad` counts them for the gap's size), but not more than the arrows that must each have a lane
+    // ADR 0070 D4 (U4c, `tracks`): the tracks a gap needs (`trackLoad`), but not more than the arrows that must each have a lane
     // there (the count above): the lanes' step never gets narrower than it was, which let the long arrows' turns between them (a narrower step crossed more arrows in graphs with no AND)
     if (tracks) for (const [g, n] of trackLoad(lay, LANE, (i, end) => portOf.get((i * 2 + end)) ?? 0, level)) crowd.set(g, Math.min(n, crowd.get(g) ?? n));
     return crowd;
@@ -970,7 +969,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
 }
 
 /**
- * ADR 0070 D4 (U4c; `tracks` only): the tracks each gap between two layers needs (the gap after layer g, by g), for the gap's size (`corridorLoad`) and for the
+ * ADR 0070 D4 (U4c; `tracks` only): the tracks each gap between two layers needs (the gap after layer g, by g), for the
  * step between its lanes (`crowdOf`, whose denominator it is), so that both count the same turns.
  * The turns across a gap are the direct arrows' lanes (each takes its own lane), the long arrows' turns (a long arrow turns once in each gap it passes; two whose spans, each
  * made a lane step longer at both ends, do not overlap share a track: the left-edge rule of `placeTracks`) and the returns' turns in an outer lane (one each). The
@@ -1002,9 +1001,12 @@ export function trackLoad(lay: LayeredLayout, lane = LANE, portOf: (edge: number
   return out;
 }
 
-/** The most direct arrows that pass through one gap between two layers (each needs its own lane there); with `tracks`, the most tracks any gap needs (`trackLoad`). */
-export function corridorLoad(lay: LayeredLayout, tracks = false, lane = LANE): number {
-  if (tracks) return Math.max(1, ...trackLoad(lay, lane).values());
+/**
+ * The most direct arrows that pass through one gap between two layers (each needs its own lane there). The gaps are not sized by `trackLoad`: it depends on the order of the
+ * boxes in a layer (which long arrows' turns overlap), so with it the layer coordinates differ from order to order and the order search (toc.ts, "the same layers") drops
+ * its candidates (ADR 0070 U4c, review of PR #398).
+ */
+export function corridorLoad(lay: LayeredLayout): number {
   const load = new Map<string, number>();
   for (const e of lay.edges) {
     if (e.self || e.points.length !== 2) continue;
@@ -1027,9 +1029,9 @@ export function corridorLoad(lay: LayeredLayout, tracks = false, lane = LANE): n
  * layoutLayered, with the gap between layers wide enough for the arrows that share it: laid out once to see how many arrows go
  * through each gap (layers do not depend on the gap), then again with a gap that gives each its own lane.
  */
-export function layoutWithLanes(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]; back?: readonly number[]}, chip = 0, space = 1, tracks = false): LayeredLayout {
+export function layoutWithLanes(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]; back?: readonly number[]}, chip = 0, space = 1): LayeredLayout {
   const first = layoutLayered(nodes, edges, opts);
-  const need = gapFor(corridorLoad(first, tracks, laneStepOf(space)), chip, space);
+  const need = gapFor(corridorLoad(first), chip, space);
   return need > (opts.levelGap ?? 0) ? layoutLayered(nodes, edges, {...opts, levelGap: need}) : first;
 }
 
@@ -1116,11 +1118,8 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
   let laneHeads = false; // the returns end on the face of their head that looks at the lane (routeLayered's `laneHeads`); set only for the last try below
   const optsOf = new WeakMap<Attempt, {opts: typeof layoutOpts; laneShare: boolean; near: Side}>();
   const build = (opts: typeof layoutOpts, laneShare = false, aside = false, near: Side = 'far'): Attempt => {
-    const laid = (tracks: boolean): LayeredLayout => layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: stubOf(o.space), step: laneStepOf(o.space), ...(near === 'far' ? {} : {side: near})}} : opts, 0, o.space, tracks);
+const lay = layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: stubOf(o.space), step: laneStepOf(o.space), ...(near === 'far' ? {} : {side: near})}} : opts, 0, o.space);
     const sizeOf = (l: LayeredLayout): {w: number; h: number} => ({w: o.transpose ? l.h : l.w, h: o.transpose ? l.w : l.h});
-    // ADR 0070 D4 (U4c): the gaps are sized for the tracks (`trackLoad`); a figure that then no longer fits the width keeps the gaps it had (the tracks crowd, as before)
-    let lay = laid(o.tracks === true);
-    if (o.tracks && o.maxAcross !== undefined && sizeOf(lay).w > o.maxAcross) { const old = laid(false); if (sizeOf(old).w < sizeOf(lay).w) lay = old; }
     const size = sizeOf(lay);
     const groupOf = o.groupOf;
     const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(at(lay.edges, i).index)), o.round, o.straighten !== false, laneShare, aside, o.detour === true && opts.coord === 'bk', o.detour === true, o.space, laneHeads, o.heads, o.tracks === true); // the search for a way around the boxes only in the straightened candidate (it competes with the plain one on bends); a lone port is straightened in both
