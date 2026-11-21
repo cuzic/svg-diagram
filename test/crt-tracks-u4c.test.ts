@@ -206,7 +206,7 @@ for (const [g, crossings] of [[7, 1], [33, 7], [93, 0]] as const) {
 
 // ---- the examples: edge-parallel in examples/toc-* ----------------------------------------------------------------------------------------------------
 
-test('edge-parallel in examples/toc-*: none but toc-hop and toc-hop-all, whose pair is a long arrow\'s way point 8 to 10px from another arrow\'s last run / a return\'s lane', async () => {
+test('edge-parallel in examples/toc-*: none but toc-hop-all (the pair of toc-hop went with ADR 0073 U2), whose pair is a long arrow\'s way point 8 to 10px from another arrow\'s last run / a return\'s lane', async () => {
   const EXAMPLES = path.resolve(import.meta.dirname, '../examples');
   const config = loadConfig();
   const found: Record<string, number> = {};
@@ -214,7 +214,7 @@ test('edge-parallel in examples/toc-*: none but toc-hop and toc-hop-all, whose p
     const r = await checkDiagram(await loadDiagram(path.join(EXAMPLES, `${name}.ts`), config));
     found[name] = lintDiagram(r.laidOut).filter(f => f.rule === 'edge-parallel').length;
   }
-  assert.deepEqual(Object.fromEntries(Object.entries(found).filter(([, n]) => n > 0)), {'toc-hop-all': 1, 'toc-hop': 1});
+  assert.deepEqual(Object.fromEntries(Object.entries(found).filter(([, n]) => n > 0)), {'toc-hop-all': 1});
 });
 
 // ---- the random layered graphs, against origin/main's totals ---------------------------------------------------------------------------------------

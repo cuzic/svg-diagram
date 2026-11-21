@@ -187,6 +187,14 @@ export function runPairWays(a: readonly RouteRun[], b: readonly RouteRun[], sep:
   return {level, plumb};
 }
 
+/** The run pairs of a figure (ADR 0073 D2): `runPairWays` summed over every two routes, at one `sep` (the lane step of the figure), and the overlaps under 4px once more (`parallelRuns(routes, 4)`). `pairs >= parallelRuns(routes, sep).length`: it also counts the pairs on one line. */
+export function pairsOf(routes: readonly P[][], sep: number): number {
+  const runs = routes.map(r => runsOfRoute(r));
+  let n = 0;
+  for (const [i, a] of runs.entries()) for (const b of runs.slice(i + 1)) { const w = runPairWays(a, b, sep); n += w.level + w.plumb; }
+  return n + parallelRuns(routes, 4).length; // a pair on one line (under 4px) is worse to read than one side by side: it counts twice (ADR 0070 U4c: never create an overlap)
+}
+
 /** A route's runs with the box it lies in (a pair of runs under `sep` apart needs the two boxes within `sep` of each other). */
 export interface RoutedRuns {pts: P[]; runs?: RouteRun[]; x0: number; x1: number; y0: number; y1: number}
 
