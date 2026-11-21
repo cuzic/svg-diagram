@@ -255,7 +255,7 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
   - D2: 新しい規則 `edge-parallel`(info、`causeTree` の帯だけ)。
 - **変わらない出力(バイト単位)**: pdpc・relationDiagram・whyWhyTree(`examples/qc-pdpc`・`qc-relation`・`why-why`)、states・classes・semnet・bpmn。`tree` を書かない `causeTree` の層。D3・D4・D7・D8 は `causeTree` の帯の条件の外で何もしない。
 - **触るファイル**: `lib/toc.ts`(D1 の既定、D3 の `need`、D4 の `tracks` を渡す、D7 の倍率、D8 の定数)、`lib/layout-handlers.ts`(D7 の `canvasGeom` を渡す)、`lib/layered-route.ts`(D3 の口、D4 の割り当て・`elbows`・`corridorLoad`)、`lib/route-search.ts`(U3 の `tail` を弧の深さから、U5 の `stub`・`margin` の倍率)、`lib/route-apart.ts`(U5 の歩幅の倍率)、`lib/polyline-metrics.ts`(D2 の `parallelRuns`)、`lib/rules.ts`(D2 の規則と `RULE_DOCS`)、`lib/types/diagrams.ts`(`LaidOutCause` の `origin`)、ADR 0019(D1 の既定の書き換えの注記)、README・`skills/svg-diagram/SKILL.md`(運用どおり PR 本文に書き、最後にまとめて反映)。
-- **費用**: D4 の割り当ては隙間ごとに、曲がりの数 n で O(n log n + 制約の数)。見積もりは「今の `assignLanes` と同程度」だったが、U4b の実測では、トラックの置き場所の探索(`placeCluster`)と、レーンの順を main の順と比べる 2 回目の `build()` が加わり、`causeTree` の全体で main の約 1.8 倍(60 節 96 本の CRT で 1.9s → 3.1〜3.7s)・約 1.9 倍(120 節 200 本で 3.4〜4.0s → 6.7〜6.9s)になった。交差は 25 → 17・83 → 62 に減る。費用を削る案: `placeCluster` の `signs` を x の区間の索引で引く(U4b で入れた)、置き場所の探索結果のメモの粒度、順序探索の候補数(U6)。
+- **費用**(U4a の見積もり「今の `assignLanes` と同程度」は外れた。実測は U4c の入力): U4b の `causeTree` 全体で main の約 1.5〜1.75 倍(60 節 96 本の CRT)・約 1.9 倍(120 節 200 本)、乱数の CRT で約 1.8 倍。交差は 25 → 17・83 → 62 に減る。120 節の `placeTracks` は 0.6s → 2.6s。レーンの順を main の順と比べる 2 回目の `build()` が全体の約 11% で、`reordered` はほぼ常に真なので、順が違うときだけ比べる条件では安くならない。U4c で安くする案: 2 回目の `build()` を順の変わった隙間の腕だけにする、`placeCluster` の x の区間の索引を構築のたびに作り直さない、束の結果の記憶を細かくする。
 - **リスク**: D4・D7 で隙間が高くなり、高さの予算に収まらない図が `fold` や狭めに回る。U4c・U5 の PR で、`examples/` の `toc-*` の高さの増え方を表で出す。D4 で hop の組が変わるので、U4 の PR で `toc-hop`・`toc-hop-all` の hop の数と省いた理由ごとの内訳を before / after で出す。
 
 ## 実装計画
@@ -305,6 +305,7 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 - D3・D4・D7・D8 を pdpc・relationDiagram・whyWhyTree へ広げるか(pdpc は外周の戻り辺の曲がり `turnOuter` を割り当てに入れる設計が要る)。U6 の後に別の ADR で決める。
 - asap の最終の図が素の案になった経路(`pick0` の後の `sharing`・並びの再探索・fit のどこで決まったか)は追い切っていない。D1 で前提条件のある CRT が ALAP になれば、報告の図では問題にならない。
 - D12〜D14 のずらし(`aside`・`apart`)を、`causeTree` で D4 の後も残すか(U6)。
+- U6 の入力: 順序探索の高さのふるい(`toc.ts` の `t.h > base.h + 0.5`)は、`cause-crossing` を減らす配置を捨ててはならない。U4b の乱数の CRT #70 は、AND の頭の交差 0・交差 1 の配置が、高さ 282 > 262.5 で落ち、`cause-crossing` 3 の図(高さ 263)が残る(#101・#21 も同じ形)。ふるいの前に採点し、`cause-crossing` が減る候補は予算の範囲で残すか、`bk` の選びに高さを入れる。Issue #397(順序探索が高さを見ない)と同じ話。
 - `edge-parallel` を、ほかの自動配置の図へ広げるか(U6)。
 - 隙間ごとの `levelGap`(混む隙間だけを広げる)。`graph-layout.ts` に手が入るので、D4 で図が高くなる例が出たら別の ADR で。
 - D8 の 0.4 倍・D7 の完了の基準 0.9 倍の係数は、U3・U5 で報告の図を見て調整しうる(調整したらこの ADR に戻す)。

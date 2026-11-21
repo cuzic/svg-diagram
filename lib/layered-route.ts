@@ -686,6 +686,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     return false;
   };
   let routes = build();
+  // (`reordered` is true almost always: the constrained order differs from the old one in some gap of nearly every figure, so this costs a second build() each time; U4c: only the gaps that changed)
   // ADR 0070 D4 (U4b): the lanes in the order of the vertical constraints are kept only when the figure is no worse in (crossings, pairs on
   // one line, bends) than with the lanes in the old order (the direct arrows' order does not see the long arrows' turns)
   if (tracks && reordered) {

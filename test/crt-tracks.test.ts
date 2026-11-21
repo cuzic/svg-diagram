@@ -240,6 +240,13 @@ test("U4b, the reported CRT's u4 in a smaller figure: the two ANDs into u4 and t
   assert.deepEqual(t.loose, []);
 });
 
+test('U4b m1: the direct arrows\' lanes take the order of the vertical constraints where the old order crosses (a fixed graph: 3 crossings, 7 with the lanes in the old order)', () => {
+  const l = shaped([['n0', 99], ['n1', 87], ['n2', 96], ['n3', 81], ['n4', 68], ['n5', 95], ['n6', 77]], [['n0', 'n2'], ['n0', 'n5'], ['n0', 'n6'], ['n1', 'n2'], ['n1', 'n6'], ['n2', 'n4'], ['n3', 'n5'], ['n5', 'n6']]);
+  const now = scoreOf([...routeOf(l, true).values()]);
+  // forcing the lanes back to the old order (assignLanes with no constrainedOrder) draws 7 crossings with 20 bends
+  assert.ok(now.crossings <= 3, JSON.stringify(now));
+});
+
 // ADR 0070 D4 (U4b), the review's round 1 (M1): with `tracks` a long arrow's last turn into an AND was placed from half-way across its gap and
 // squeezed in a narrow one. The routes are judged against where it turned before (`lastTurn`), so no figure gets a crossing more than it had.
 /** A layered graph of fixed boxes (id, w, h), the arrows `es`, the first two arrows into every head with two or more being one AND (the review's RG distribution). */
@@ -292,14 +299,16 @@ for (const scale of [1, 1.29]) {
 
 // The order search (toc.ts) picks its figure by (crossings among the arrows into an AND's head, ..., crossings, bends) and its path differs with the routes it
 // is given: main drew these two with 15 and 3 crossings. The arrows into one AND's head that cross each other are the search's to settle (U6); the totals do not grow.
-test("U4b M1, the review's random CRTs #48 and #70: no more crossings than main drew (15 and 3)", async () => {
+test("U4b M1, the review's random CRTs #48 and #70: the crossings and `cause-crossing` warnings of this PR's figures (main drew 15 and 3 crossings)", async () => {
   const cases = [
-    {limit: 15, dir: 'up' as const, nodes: [{id: 'n0', label: 'n0 ああああああああ'}, {id: 'n1', label: 'n1 ああああああああ'}, {id: 'n2', label: 'n2 ああああああああああ'}, {id: 'n3', label: 'n3 ああああああ'}, {id: 'n4', label: 'n4 あああああああああああ'}, {id: 'n5', label: 'n5 あああああああああ'}, {id: 'n6', label: 'n6 あああああああああ'}, {id: 'n7', label: 'n7 ああああああああああ'}, {id: 'n8', label: 'n8 あああああ'}, {id: 'n9', label: 'n9 あああああああああ'}, {id: 'n10', label: 'n10 あああああ'}, {id: 'n11', label: 'n11 ああああああ'}, {id: 'n12', label: 'n12 あああああああああ'}, {id: 'n13', label: 'n13 ああああ'}, {id: 'n14', label: 'n14 あああああ'}], links: [{from: 'n0', to: 'n1'}, {from: 'n1', to: 'n2'}, {from: 'n2', to: 'n3'}, {from: 'n2', to: 'n4'}, {from: 'n4', to: 'n5'}, {from: 'n4', to: 'n6'}, {from: 'n6', to: 'n7'}, {from: 'n0', to: 'n8'}, {from: 'n0', to: 'n9'}, {from: 'n6', to: 'n10'}, {from: 'n2', to: 'n11'}, {from: 'n3', to: 'n12'}, {from: 'n3', to: 'n13'}, {from: 'n9', to: 'n14'}, {from: 'n10', to: 'n11'}, {from: 'n13', to: 'n14'}, {from: 'n7', to: 'n12'}, {from: 'n6', to: 'n8'}, {from: 'n8', to: 'n9'}, {from: ['n3', 'n1'], to: 'n5'}, {from: ['n0', 'n4'], to: 'n7'}]},
-    {limit: 3, dir: 'left' as const, nodes: [{id: 'n0', label: 'n0 ああああああああ'}, {id: 'n1', label: 'n1 あああああ'}, {id: 'n2', label: 'n2 あああああ'}, {id: 'n3', label: 'n3 あああああ'}, {id: 'n4', label: 'n4 あああ'}, {id: 'n5', label: 'n5 あああああああ'}, {id: 'n6', label: 'n6 ああああああああああああ'}, {id: 'n7', label: 'n7 あああああああああ'}], links: [{from: 'n0', to: 'n1'}, {from: 'n1', to: 'n2'}, {from: 'n1', to: 'n3'}, {from: 'n0', to: 'n4'}, {from: 'n0', to: 'n5'}, {from: 'n3', to: 'n6'}, {from: 'n2', to: 'n7'}, {from: 'n5', to: 'n6'}, {from: 'n4', to: 'n6'}, {from: ['n0', 'n2'], to: 'n6'}]},
+    {limit: 9, cc: 1, dir: 'up' as const, nodes: [{id: 'n0', label: 'n0 ああああああああ'}, {id: 'n1', label: 'n1 ああああああああ'}, {id: 'n2', label: 'n2 ああああああああああ'}, {id: 'n3', label: 'n3 ああああああ'}, {id: 'n4', label: 'n4 あああああああああああ'}, {id: 'n5', label: 'n5 あああああああああ'}, {id: 'n6', label: 'n6 あああああああああ'}, {id: 'n7', label: 'n7 ああああああああああ'}, {id: 'n8', label: 'n8 あああああ'}, {id: 'n9', label: 'n9 あああああああああ'}, {id: 'n10', label: 'n10 あああああ'}, {id: 'n11', label: 'n11 ああああああ'}, {id: 'n12', label: 'n12 あああああああああ'}, {id: 'n13', label: 'n13 ああああ'}, {id: 'n14', label: 'n14 あああああ'}], links: [{from: 'n0', to: 'n1'}, {from: 'n1', to: 'n2'}, {from: 'n2', to: 'n3'}, {from: 'n2', to: 'n4'}, {from: 'n4', to: 'n5'}, {from: 'n4', to: 'n6'}, {from: 'n6', to: 'n7'}, {from: 'n0', to: 'n8'}, {from: 'n0', to: 'n9'}, {from: 'n6', to: 'n10'}, {from: 'n2', to: 'n11'}, {from: 'n3', to: 'n12'}, {from: 'n3', to: 'n13'}, {from: 'n9', to: 'n14'}, {from: 'n10', to: 'n11'}, {from: 'n13', to: 'n14'}, {from: 'n7', to: 'n12'}, {from: 'n6', to: 'n8'}, {from: 'n8', to: 'n9'}, {from: ['n3', 'n1'], to: 'n5'}, {from: ['n0', 'n4'], to: 'n7'}]},
+    {limit: 3, cc: 3, dir: 'left' as const, nodes: [{id: 'n0', label: 'n0 ああああああああ'}, {id: 'n1', label: 'n1 あああああ'}, {id: 'n2', label: 'n2 あああああ'}, {id: 'n3', label: 'n3 あああああ'}, {id: 'n4', label: 'n4 あああ'}, {id: 'n5', label: 'n5 あああああああ'}, {id: 'n6', label: 'n6 ああああああああああああ'}, {id: 'n7', label: 'n7 あああああああああ'}], links: [{from: 'n0', to: 'n1'}, {from: 'n1', to: 'n2'}, {from: 'n1', to: 'n3'}, {from: 'n0', to: 'n4'}, {from: 'n0', to: 'n5'}, {from: 'n3', to: 'n6'}, {from: 'n2', to: 'n7'}, {from: 'n5', to: 'n6'}, {from: 'n4', to: 'n6'}, {from: ['n0', 'n2'], to: 'n6'}]},
   ];
-  for (const {limit, dir, nodes: ns, links} of cases) {
-    const {t} = await laid(diagram({theme: 'blue', width: 1800}).add(causeTree(ns, links as never, {tree: 'crt', dir})));
+  for (const {limit, cc, dir, nodes: ns, links} of cases) {
+    const {t, crossing} = await laid(diagram({theme: 'blue', width: 1800}).add(causeTree(ns, links as never, {tree: 'crt', dir})));
     const c = crossingsOf(t.edges.map(e => e.points));
-    assert.ok(c <= limit, `${dir}: ${c} crossings, main drew ${limit}`);
+    assert.ok(c <= limit, `${dir}: ${c} crossings, this PR drew ${limit}`);
+    // #70's 3 are a known limit (main: 0): the order search's height filter drops the layout without them (282 > 262.5px), see ADR 0070 U6 and Issue #397
+    assert.ok(crossing <= cc, `${dir}: ${crossing} cause-crossing warnings, this PR drew ${cc}`);
   }
 });
