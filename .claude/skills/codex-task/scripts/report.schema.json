@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Codex task report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "summary", "branch", "head_sha", "pr_url", "checks", "mutations", "open_questions"],
+  "properties": {
+    "status": {"type": "string", "enum": ["done", "blocked", "failed"], "description": "done: PR pushed and the definition of done passed; blocked: stopped on an open question; failed: could not finish"},
+    "summary": {"type": "string", "description": "2-4 sentences: what changed and why"},
+    "branch": {"type": "string"},
+    "head_sha": {"type": "string", "description": "the pushed head commit, or empty"},
+    "pr_url": {"type": "string", "description": "the PR opened or updated, or empty"},
+    "checks": {
+      "type": "array",
+      "description": "each command of the definition of done that was run, with its result",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "result", "note"],
+        "properties": {
+          "command": {"type": "string"},
+          "result": {"type": "string", "enum": ["pass", "fail", "not-run"]},
+          "note": {"type": "string"}
+        }
+      }
+    },
+    "mutations": {
+      "type": "array",
+      "description": "hand mutations applied to the new code and whether a test failed",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["change", "caught_by"],
+        "properties": {
+          "change": {"type": "string"},
+          "caught_by": {"type": "string", "description": "the failing test, or 'NOT CAUGHT'"}
+        }
+      }
+    },
+    "open_questions": {"type": "array", "items": {"type": "string"}, "description": "decisions the spec did not make (status blocked when non-empty and work stopped)"}
+  }
+}
