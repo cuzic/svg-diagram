@@ -38,7 +38,8 @@ test('a stamped spec problem keeps the field path of a unique heading', async ()
   assert.equal(overlap?.path, 'parts[0].steps[0].title');
 });
 
-test('a stamped board connector problem still points to the link', async () => {
+test('linkOf keeps the original part index when locating a stamped board connector', async () => {
+  // Anchor IDs are unique across boards, so narrowing cannot disambiguate a board link.
   const figure = spec(
     {type: 'board', nodes: [{id: 'other', title: '共有'}]},
     {
@@ -85,7 +86,7 @@ test('a thrown spec layout error keeps its part under both deck figure prefixes'
   assert.deepEqual(deck.issues.map(i => i.path), ['slides[1].figure.parts[1]', 'slides[2].columns[1].figure.parts[1]']);
 });
 
-test('spec marks cover all returned and nested bands with stack capture off or on', () => {
+test('spec marks cover all returned and nested bands and keep captured stacks', () => {
   const figure = spec(lane('a', 2), {...lane('b', 2), flows: [{from: 'b1', to: 'b2'}]});
   for (const on of [false, true]) {
     captureSourceLocations(on);
@@ -95,7 +96,8 @@ test('spec marks cover all returned and nested bands with stack capture off or o
       for (const [i, band] of bands.entries()) {
         const ref = sourceOf(band);
         assert.equal(ref?.specPath, i === 0 ? 'parts[0]' : 'parts[1]');
-        assert.equal(ref?.stackHolder, undefined);
+        if (on) assert.match(ref?.stackHolder?.stack ?? '', /spec-source-locations\.test\.ts/);
+        else assert.equal(ref?.stackHolder, undefined);
         for (const nested of walkBands([band])) assert.equal(sourceOf(nested), ref);
       }
       const [, block, connector] = bands;
@@ -104,5 +106,20 @@ test('spec marks cover all returned and nested bands with stack capture off or o
     } finally {
       captureSourceLocations(false);
     }
+  }
+});
+
+test('a spec mark keeps each board child’s own captured stack', t => {
+  captureSourceLocations(true);
+  t.after(() => captureSourceLocations(false));
+  const {bands} = specToDiagram(spec({type: 'board', nodes: [{id: 'a', title: '開始'}, {id: 'b', title: '終了'}]}));
+  const [board, ...children] = walkBands(bands);
+  assert.ok(board);
+  assert.equal(children.length, 2);
+  for (const child of children) {
+    const ref = sourceOf(child);
+    assert.equal(ref?.specPath, 'parts[0]');
+    assert.ok(ref.stackHolder);
+    assert.notEqual(ref.stackHolder, sourceOf(board)?.stackHolder);
   }
 });

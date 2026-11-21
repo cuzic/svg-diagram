@@ -786,9 +786,16 @@ function assemble(written: unknown): {diagram: Diagram | null; issues: SpecIssue
     const at = `parts[${i}]`;
     try {
       const built = (partOf(part['type']) as PartDef).build(part, at) as BandInput;
-      const ref = new SourceRef(undefined, at);
-      // The spec path takes precedence over a stack captured by a DSL builder.
-      for (const band of walkBands([built].flat())) (band as typeof band & {[SOURCE]?: SourceRef})[SOURCE] = ref;
+      const refs = new Map<SourceRef['stackHolder'], SourceRef>();
+      for (const band of walkBands([built].flat())) {
+        const stack = sourceOf(band)?.stackHolder;
+        let ref = refs.get(stack);
+        if (!ref) {
+          ref = new SourceRef(stack, at);
+          refs.set(stack, ref);
+        }
+        (band as typeof band & {[SOURCE]?: SourceRef})[SOURCE] = ref;
+      }
       d.add(built);
     }
     catch (e) {
