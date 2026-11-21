@@ -51,6 +51,7 @@ jobs:
   # the goldens (examples/out/*.svg) are rebuilt and compared byte for byte (pnpm golden without writing anything).
   # Text widths come from the font files fontconfig picks, so this job has the test job's fonts: fonts-noto-cjk and what
   # `playwright install --with-deps chromium` installs (install-deps: the same apt packages, without downloading the browser).
+  # scripts/golden-docker/Dockerfile has the same fonts for regenerating the goldens on any machine: change the two together.
   golden:
     name: golden (examples/out)
     runs-on: ubuntu-latest
@@ -71,15 +72,13 @@ jobs:
           for f in 'Hiragino Sans' 'Noto Sans JP' sans-serif 'Liberation Mono' monospace 'Noto Color Emoji'; do
             for w in 80 200; do echo "$f:weight=$w -> $(fc-match -f '%{file} (%{family})' "$f:weight=$w")"; done
           done
-      # the drift cache (ADR 0038) skips a source only when its key (sources, lib/, packages, Node, fc-list, ...) and every file the build read are unchanged
-      - uses: actions/cache@v4
-        with:
-          path: .svg-diagram-cache
-          key: golden-${{ runner.os }}-${{ github.sha }}
-          restore-keys: golden-${{ runner.os }}-
+      # about 5 seconds on a runner, so the drift cache (ADR 0038) is not used: every source is rebuilt each time
       - name: the goldens match a rebuild
-        run: pnpm golden
+        id: golden
+        run: pnpm golden --no-cache
       - name: how to regenerate
-        if: failure()
+        if: failure() && steps.golden.outcome == 'failure'
         run: |
-          echo "::error title=golden drift::examples/out differs from a rebuild with CI's fonts. Regenerate with CI's fonts in Docker: scripts/golden-docker.sh --write (then check the SVGs and commit examples/out). Local fonts differ, so plain pnpm golden on a laptop is not the reference. See README (golden)."
+          msg="examples/out の golden が、CI のフォントでの再生成と一致しない。CI と同じフォントの Docker で作り直す: scripts/golden-docker.sh --write（変わった図を目で確かめてから examples/out をコミットする）。手元の pnpm golden はフォントが違うので正解にならない。README の「golden（examples/out）の検査と作り直し」を参照"
+          echo "::error title=golden drift::$msg"
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"

@@ -1543,3 +1543,18 @@ MIT
 
 全ソースは TypeScript（`.ts`）。ビルド工程はなく、Node の型ストリップ（Node ≥ 22.18）でそのまま実行する。このため `enum` / `namespace` などの非消去構文は使えない（`erasableSyntaxOnly`）。
 型検査は `pnpm typecheck`（`tsc -p .`）、`strict: true`。図・画面の型は `lib/types.ts` にまとまっている（`Band`、`WfNode`、`LaidOutDiagram` など）。図のソースを `.ts` で書くと `import {diagram, box} from 'svg-diagram'` にも型が付く（`tsconfig` の `paths` で `lib/dsl.ts` を指す）。
+
+### golden（`examples/out`）の検査と作り直し
+
+`examples/out/*.svg` は golden（正解の出力）で、CI の `golden (examples/out)` のジョブが `pnpm golden --no-cache`（`check --drift --rebuild`。何も書き換えない）で、今のコードの再生成と 1 バイトずつ比べる。違えば CI が落ちる。
+
+**golden は CI のフォントで作る。** 文字幅はフォントのファイルから測る（fontconfig が選ぶファイル。`lib/font-metrics.ts`）ので、フォントが違うと幅が変わり、golden と一致しない。CI のフォントは ubuntu 24.04 の `fonts-noto-cjk` と、`playwright install --with-deps chromium` が入れるフォント（Liberation、Noto Color Emoji など）で、本文の文字幅は DejaVu Sans で測られる（`'Noto Sans JP'` の名前のフォントは無く、`sans-serif` が DejaVu Sans になる）。手元のフォントは違うことが多く、そのときは CI で一致する図が手元ではずれて見える（2026-11 の時点で、Noto Sans JP を入れた Ubuntu では、`examples/` の 191 枚のうち 87 枚）。手元の `pnpm golden` の結果は、正解ではない。
+
+CI と同じフォントの Docker で、検査と作り直しをする（Docker が要る。イメージは `scripts/golden-docker/Dockerfile` から初回に作る）。
+
+    scripts/golden-docker.sh            # CI と同じ検査（pnpm golden）
+    scripts/golden-docker.sh --write    # 検査で一致しなかった図を examples/out に作り直す
+
+- `--write` のあとは、`git diff --stat examples/out` で変わった図を確かめ、`svg-diagram diff`（または `contact-sheet.ts`）で目で見てからコミットする。意図しない図が変わっていたら、作り直さずに原因を調べる。
+- コンテナの `node_modules` と pnpm のストアは `.cache/golden-docker/` に置く（手元の `node_modules` は別の OS 用のことがあるため使わない）。`docker` に sudo が要るなら `DOCKER="sudo docker" scripts/golden-docker.sh`。
+- PowerPoint の golden（`examples/out/pptx-golden.json`、`pnpm golden:pptx`）も CI のフォントで決まる。こちらは手で動かす workflow `pptx-golden` で比べて作り直す（ADR 0027）。

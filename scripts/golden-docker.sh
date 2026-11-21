@@ -22,12 +22,12 @@ run() {
 }
 setup='pnpm install --frozen-lockfile --store-dir /work/.cache/golden-docker/store --config.confirmModulesPurge=false >/dev/null'
 if [[ $write == 0 ]]; then
-  run "$setup && pnpm golden"
+  run "$setup && pnpm golden --no-cache"
   exit
 fi
 # the check, then a build of each source it reported (✗ examples/x.ts: ...)
-run "$setup && { pnpm -s golden > .cache/golden-docker/golden.log 2>&1 || true; }
+run "$setup && { pnpm -s golden --no-cache > .cache/golden-docker/golden.log 2>&1 || true; }
   srcs=\$(grep -o '^✗ examples/[^:]*\.ts' .cache/golden-docker/golden.log | cut -c5- | sort -u)
   if [ -z \"\$srcs\" ]; then echo 'goldens are up to date'; exit 0; fi
   echo \"regenerating:\"; echo \"\$srcs\"
-  node build-diagram.ts \$srcs --out-dir examples/out --no-lint"
+  node build-diagram.ts \$srcs --out-dir examples/out"

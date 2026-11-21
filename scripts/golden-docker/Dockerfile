@@ -1,13 +1,13 @@
 # The fonts of CI (.github/workflows/test.yml), for regenerating and checking the goldens (examples/out) on any machine.
 # Text widths are read from the font files that fontconfig picks (lib/font-metrics.ts), so a golden holds only for this set of fonts.
-# CI's runner is ubuntu-latest (24.04) with fonts-noto-cjk, plus the fonts that `playwright install --with-deps chromium` installs
+# CI's runner is ubuntu-latest (24.04: DejaVu is there already) with fonts-noto-cjk, plus the fonts that `playwright install --with-deps chromium` installs
 # (playwright-core's nativeDeps, "ubuntu24.04-x64" tools: Liberation Mono for the mono stack, Noto Color Emoji for the emoji stack, ...).
 # Built and run by scripts/golden-docker.sh.
 FROM ubuntu:24.04
 RUN apt-get update && apt-get install -y --no-install-recommends \
       fonts-noto-cjk \
       fonts-noto-color-emoji fonts-unifont xfonts-cyrillic xfonts-scalable fonts-liberation fonts-ipafont-gothic fonts-wqy-zenhei fonts-tlwg-loma-otf fonts-freefont-ttf \
-      fontconfig curl ca-certificates xz-utils \
+      fonts-dejavu-core fontconfig curl ca-certificates xz-utils \
  && rm -rf /var/lib/apt/lists/*
 # Node 22, as in CI (actions/setup-node node-version: 22); pnpm comes from package.json's packageManager through corepack
 ARG NODE_VERSION=22.21.1
