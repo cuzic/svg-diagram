@@ -937,7 +937,7 @@ export function locateVerdict(spec: unknown, verdict: Verdict): {problems: Locat
   const issues: Issue[] = verdict.issues ?? verdict.problems.map(message => ({message}));
   return {
     problems: issues.map(({message, loc}) => ({path: locateMessage(spec, message, loc), ...inSpecTerms(message), severity: 'problem' as const})),
-    findings: verdict.findings.map(f => ({path: locateMessage(spec, f.message), message: f.message, rule: f.rule, severity: f.severity, ...(f.data?.fix ? {fix: f.data.fix} : {})})),
+    findings: verdict.findings.map(f => ({path: locateMessage(spec, f.message, f.loc), message: f.message, rule: f.rule, severity: f.severity, ...(f.data?.fix ? {fix: f.data.fix} : {})})),
   };
 }
 
