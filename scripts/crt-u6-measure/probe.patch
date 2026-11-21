@@ -22,7 +22,7 @@ index 27f06e23..7834c84c 100644
  
    // 5. coordinates: layers along one axis, each layer centred on the widest, then relaxed toward the neighbours without overlap
 diff --git a/lib/layered-route.ts b/lib/layered-route.ts
-index cff68d36..ad5dc1af 100644
+index cff68d36..ee6bbae4 100644
 --- a/lib/layered-route.ts
 +++ b/lib/layered-route.ts
 @@ -3,10 +3,11 @@
@@ -102,7 +102,7 @@ index cff68d36..ad5dc1af 100644
 +    const undo = align(i, true);
 +    if (!undo) continue;
 +    const trial = build(), score = rescore(routes, best, trial, crossCache);
-+    if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i) && !(T.tailSep ? (tracks && score.crossings >= best.crossings && gainsRunPairs(routes, trial, laneStepOf(unit), runCache)) : gains(trial, score.crossings)) && groupCrossings(trial, groupOf) <= groupCrossings(routes, groupOf)) { bump('andTailOK'); routes = trial; best = score; } else undo();
++    if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i) && !gains(trial, score.crossings) && groupCrossings(trial, groupOf) <= groupCrossings(routes, groupOf)) { bump('andTailOK'); routes = trial; best = score; } else undo();
    }
    // the arrows that became straight lines no longer take a lane: the others take their lanes again, over the room that is left
    if (spread) {

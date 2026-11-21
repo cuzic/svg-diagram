@@ -10,7 +10,7 @@
 #           node <repo>/scripts/crt-u6-measure/pins.mjs <tagMain> <tagNew> > pins.json   # the per-figure values the ADR 0073 tests pin
 # The proposal of ADR 0073 (D1 + D2 + D3):  '{"height":"xcross","axis":"rank","pairs":"mid","sPairs":"mid","andAlign":"tail"}'   (main = '{}')
 # Toggles: noShift noTurn noApart (D12-D14) | pairs/sPairs: mid|last (run pairs in better() / the order search) | height: off|soft|key|xdrop|xcross (+cap, capBudget) | tieH (height as the last key)
-#          axis: off|rank (rankEps: ranks joined by gaps over 0.5px) | patience patienceQuiet maxOrders patLaid noProxy noSearch | andAlign: both|tail (tailSep) | gapTracks crowdTracks | epAll | proxyScan
+#          axis: off|rank (rankEps: ranks joined by gaps over 0.5px) | patience patienceQuiet maxOrders patLaid noProxy noSearch | andAlign: both|tail | gapTracks crowdTracks | epAll | proxyScan
 # xdrop = taller candidates need (AND crossings, AND pairs, crossings) to fall; xcross = ADR 0073 D1: crossings fall strictly and the score is lexicographically better. Same figures in all 218.
 # Other scripts: random-crt.ts (the figures), timing.ts + timing-alt.sh (cost, alternating), fixture.ts (the U0 fixture, examples/toc-*), edge-parallel-origins.ts, order-climb.ts, layered-min.ts, proxy-scan.ts.
 : "${ROOT:?set ROOT to the scratch worktree}"

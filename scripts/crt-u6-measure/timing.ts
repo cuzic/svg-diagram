@@ -13,5 +13,5 @@ if (mode !== 'plain') for (let q = 0, used = new Set<number>(); q < 1 + Math.flo
 const T = performance.now();
 const r = await checkDiagram((mode === 'canvas' ? diagram({theme: 'blue', canvas: {width: 4000, height: n * 100, minText: 18, fit: 'content'}}) : diagram({theme: 'blue', width: 4000})).add(causeTree(nodes, links, {dir: 'up'}) as never));
 const t = r.laidOut.laidOut.find((b: any) => b.type === 'cause'); const P = t.edges.map((e: any) => e.points);
-console.log(n, links.length, mode, 'ands', links.filter(l => typeof l.from !== 'string').length, 'ms', Math.round(performance.now() - T), 'cross', crossingsOf(P), 'bends', P.reduce((s: number, p: any) => s + bendsOf(p), 0), 'on-one-line', parallelRuns(P, 4).length, 'par14', parallelRuns(P, 14).length, 'h', t.h);
+const cpu = process.cpuUsage(); console.log(n, links.length, mode, 'cpu', Math.round((cpu.user + cpu.system) / 1000), 'ands', links.filter(l => typeof l.from !== 'string').length, 'ms', Math.round(performance.now() - T), 'cross', crossingsOf(P), 'bends', P.reduce((s: number, p: any) => s + bendsOf(p), 0), 'on-one-line', parallelRuns(P, 4).length, 'par14', parallelRuns(P, 14).length, 'h', t.h);
 closeMeasurer();
