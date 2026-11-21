@@ -1,12 +1,13 @@
 // ADR 0073 U1 (D1): the order search of a CRT takes a taller order only when it crosses less, and judges the height last. The pinned figures are random CRTs of a fixed seed
-// (test/helpers/random-crt.ts; test/fixtures/crt-random-pins.json holds what lib/ of main (PR #406) drew for them and what this version draws). The texts are the strict width's (the 'あ' x n of
-// the generator), so the numbers do not depend on a font. P1: no more crossings than main (the AND crossings and the cause-crossing findings too), except where an AND crossing went away.
+// (test/helpers/random-crt.ts; test/fixtures/crt-random-pins.json holds what lib/ of main (PR #406) drew for them and what this version draws). The labels are only 'あ' (full width in every Japanese font: CI's test job and
+// its golden job have different ones), so the numbers do not depend on a font. P1: no more crossings than main (the AND crossings and the cause-crossing findings too), except where an AND crossing went away.
 // P2: the height is within 1.25 x main's. The figures the search was changed for keep what they gained. The cost is counted in the orders the search laid out, not in time.
 import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {causeTree, checkDiagram, closeMeasurer, diagram} from '../lib/dsl.ts';
+import {andClashes} from '../lib/cause-clash.ts';
 import {crossingsOf} from '../lib/polyline-metrics.ts';
 import {searchStats} from '../lib/toc.ts';
 import type {LaidOutCause} from '../lib/types/diagrams.ts';
@@ -28,7 +29,7 @@ async function drawn(g: number, canvas: boolean): Promise<{c: number; cc: number
   const laid = searchStats.laid;
   const t = r.laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause;
   const P = t.edges.map(e => e.points);
-  const and = t.ands.map(a => crossingsOf(t.edges.filter(e => e.to === a.to && a.from.includes(e.from)).map(e => e.points))).reduce((s, x) => s + x, 0);
+  const and = andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length; // the AND crossings of the search's score (ADR 0073 D1-3)
   return {c: crossingsOf(P), cc: r.verdict.warnings.filter(w => w.startsWith('[cause-crossing]')).length, and, h: Math.round(t.h), lsd: t.lineScaleDropped ? 1 : 0, laid};
 }
 
@@ -52,7 +53,8 @@ for (const [name, canvas] of [['幅 1800', false], ['canvas 2400x1800 (倍率 1.
         if (x.c < m[1]) gained++;
       }
     }
-    assert.ok(gained >= 4, `交差が減る図 ${gained} 枚`);
+    const expected = set.now.filter(n => n[1] < set.main.find(m => m[0] === n[0])![1]).length;
+    assert.ok(expected >= 3 && gained >= expected, `交差が減る図 ${gained} 枚 (ピンは ${expected} 枚)`);
     assert.ok(laid <= set.laid.main, `配置した並びの数 ${laid} <= main の ${set.laid.main}`);
   });
 }
