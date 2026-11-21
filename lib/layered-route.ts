@@ -1125,7 +1125,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     for (const [x, sx] of segs.entries()) for (const sy of segs.slice(x + 1)) if (sx.to === sy.to && sx.s.some(p => sy.s.some(q => runsTogether(p, q)))) n++;
     return n;
   };
-  const worse = (a: Attempt, b: Attempt): boolean => b.loose.length > a.loose.length || (a.fits && !b.fits) || better(a, b) || piercings(b, o.place(b.size)) > piercings(a, o.place(a.size));
+  const worse = (a: Attempt, b: Attempt): boolean => worseThan(a, b, x => piercings(x, o.place(x.size)), o.heightKey);
   // the AND-bound arrows that cross each other
   const andCrossings = (a: Attempt): number => {
     const heads = new Set<string>(), groupOf = must(o.groupOf);
@@ -1208,6 +1208,13 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
  * C, the part the window is measured on, is the crossings alone: `better()` has no AND key of its own (`apartOf` and `aside` guard the AND crossings apart).
  */
 export const attemptKey = (a: Attempt, heightKey: boolean | undefined): number[] => [a.score.crossings, a.score.pairs ?? 0, a.score.bends, heightKey === true ? Math.round(a.size.h) : 0];
+
+/**
+ * `b` is worse than `a` (ADR 0073 D2; `worse` of `layeredAttempt`, which `aside`, `sharing` and `apartOf` use): more ANDs left undrawn, does not fit where `a` does, `a` is better by the selection of the two
+ * (pairs and the window of the bends included), or more arrows through a box. `piercingsOf` counts the arrows through a box of an attempt.
+ */
+export const worseThan = (a: Attempt, b: Attempt, piercingsOf: (x: Attempt) => number, heightKey?: boolean): boolean =>
+  b.loose.length > a.loose.length || (a.fits && !b.fits) || selectIndex([attemptKey(b, heightKey), attemptKey(a, heightKey)]) === 1 || piercingsOf(b) > piercingsOf(a);
 
 /** How many more bends than the least (among the figures with the least C) a figure may have and still be chosen for having fewer pairs (ADR 0073 D1-4: +4). */
 export const BEND_WINDOW = 4;

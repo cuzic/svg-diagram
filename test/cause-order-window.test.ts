@@ -5,7 +5,7 @@ import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {causeTree, closeMeasurer} from '../lib/dsl.ts';
-import {BEND_WINDOW, attemptKey, selectAttempt, selectIndex, windowOf} from '../lib/layered-route.ts';
+import {BEND_WINDOW, attemptKey, selectAttempt, selectIndex, windowOf, worseThan} from '../lib/layered-route.ts';
 import type {Attempt} from '../lib/layered-route.ts';
 import {pairsOf, parallelRuns} from '../lib/polyline-metrics.ts';
 import {bandSep, layoutCauseBand, windowPool} from '../lib/toc.ts';
@@ -52,6 +52,21 @@ test('selectAttempt: better() の key は (交差, 組, 折れ, 高さ)。高さ
   assert.equal(selectAttempt([at(2, 9, undefined, 300), at(2, 9, undefined, 400)], true).size.h, 300, '高さの key');
   assert.equal(selectAttempt([at(2, 9, undefined, 300), at(2, 9, undefined, 400)]).size.h, 300, '高さが無ければ一覧の先 (同じ key)');
   assert.equal(selectAttempt([at(2, 9, undefined, 400), at(2, 9, undefined, 300)]).size.h, 400, '高さの key が無いとき、高さは見ない');
+});
+
+test('worseThan (worse: aside・sharing・apartOf が使う): 組が多い・窓の内で組が少ない方が良い。窓の外 (折れ +5) では良くならない。AND の取りこぼし・幅・箱の貫通が先', () => {
+  const at = (crossings: number, bends: number, pairs: number, over: Partial<Attempt> = {}): Attempt => ({score: {crossings, bends, pairs}, size: {w: 1, h: 400}, fits: true, loose: [], ...over} as Attempt);
+  const none = (): number => 0;
+  assert.equal(worseThan(at(2, 5, 0), at(2, 5, 1), none), true, '組が多い b は worse');
+  assert.equal(worseThan(at(2, 5, 1), at(2, 5, 0), none), false);
+  assert.equal(worseThan(at(2, 9, 0), at(2, 5, 1), none), true, 'a は折れ +4 で組が少ない: 窓の中なので、b (組が多い) は worse');
+  assert.equal(worseThan(at(2, 10, 0), at(2, 5, 1), none), false, 'a は折れ +5: 窓の外。b は worse でない');
+  assert.equal(worseThan(at(2, 5, 1), at(1, 40, 9), none), false, '交差が少ない b は worse でない');
+  assert.equal(worseThan(at(2, 5, 1), at(2, 5, 1, {loose: ['x']}), none), true, 'AND を描けない');
+  assert.equal(worseThan(at(2, 5, 1), at(2, 5, 1, {fits: false}), none), true, '幅に収まらない');
+  const pa = at(2, 5, 1), pb = at(2, 5, 1);
+  assert.equal(worseThan(pa, pb, x => x === pb ? 1 : 0), true, '箱を貫く矢印が多い');
+  assert.equal(worseThan(pa, pb, x => x === pa ? 1 : 0), false);
 });
 
 // 並びの探索の状態: 採点は [AND の交差, AND の並走, 交差, 組, 折れ, 高さ] (C は先頭の 3 つ)
