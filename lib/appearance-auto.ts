@@ -3,6 +3,8 @@
 // beats the presentation attribute, and a renderer that cannot read the block shows the light figure.
 import {mapOf, NO_TONES} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
+import type {SourceRef} from './source-ref.ts';
+import type {Finding} from './types/verdicts.ts';
 
 const COLOR_ATTRS = ['fill', 'stroke', 'stop-color', 'flood-color', 'color'] as const;
 const OPEN = '@media (prefers-color-scheme: dark) {';
@@ -72,4 +74,20 @@ export function mergeSides<T>(light: readonly T[], dark: readonly T[], key: (x: 
   const out = [...light];
   for (const x of dark) if (!seen.has(key(x))) { seen.add(key(x)); out.push(mark(x)); }
   return out;
+}
+
+/** Layout copies share SourceRefs across appearances, including refs from the same helper's different calls. */
+export function mergeFindingSides(light: readonly Finding[], dark: readonly Finding[]): Finding[] {
+  const refs = new Map<SourceRef, number>();
+  const id = (ref: SourceRef): number => {
+    const existing = refs.get(ref);
+    if (existing !== undefined) return existing;
+    const next = refs.size + 1;
+    refs.set(ref, next);
+    return next;
+  };
+  return mergeSides(light, dark, f => {
+    const locations = [f.loc, ...(f.related ?? [])].map(ref => ref ? id(ref) : 0);
+    return `${locations.join(',')}\0${f.rule}\0${f.message}`;
+  }, f => ({...f, message: `${f.message} (${DARK_NOTE})`}));
 }

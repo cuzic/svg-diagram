@@ -307,3 +307,59 @@ test('all examples stay free of layout problems with source capture enabled', as
     assert.deepEqual(verdict.problems, [], file);
   }
 });
+
+test('check reports both identical headlines and keeps an accepted box finding on its own line', t => {
+  const run = fixture(t, {'rules.ts': `${imports}
+export default function define() {
+  const headline = '見出し'.repeat(16);
+  return diagram({theme: 'blue', medium: 'doc', appearance: 'auto', legend: false,
+    accept: {'box-size-ignored': '既存の設定'}}).add(
+    caption(headline, {role: 'title'}),
+    caption(headline, {role: 'title'}),
+    row([box({title: 'A', size: 24}), box({title: 'B'})]));
+}
+`});
+  const {findings} = JSON.parse(run('json', '--strict', 'rules.ts').stdout) as {
+    findings: (LayoutFinding & {rule: string; severity: string})[];
+  };
+  assert.deepEqual(findings.filter(f => f.rule === 'cjk-line-long').map(f => [f.line, f.column]), [[6, 5], [7, 5]], JSON.stringify(findings));
+  const accepted = findings.find(f => f.rule === 'box-size-ignored');
+  assert.equal(accepted?.line, 8);
+  assert.equal(accepted?.column, 10);
+  assert.equal(accepted?.severity, 'info');
+  assert.match(accepted.message, /許容: 既存の設定/);
+});
+
+test('check reports an imported rule source and the other part in a chart pair', t => {
+  const chartImport = `import {bars, diagram} from ${JSON.stringify(lib)};`;
+  const run = fixture(t, {
+    'parts.ts': `${chartImport}
+export const first = bars([{label: '前', value: 5}], {unit: '件', max: 6});
+`,
+    'charts.ts': `${chartImport}
+import {first} from './parts.ts';
+const second = () => bars([{label: '後', value: 5}], {unit: '件', max: 10});
+export default () => diagram({theme: 'blue', title: '比較'}).add(first, second());
+`,
+  });
+  const {findings} = JSON.parse(run('json', '--strict', 'charts.ts').stdout) as {findings: (LayoutFinding & {rule: string})[]};
+  const finding = findings.find(f => f.rule === 'chart-axis-mismatch');
+  assert.ok(finding);
+  assert.equal(finding.file, 'charts.ts');
+  assert.deepEqual(finding.location, {file: 'parts.ts', line: 2, column: 22});
+  assert.deepEqual(finding.related, [{file: 'charts.ts', line: 3, column: 22}]);
+
+  const github = run('github', '--strict', 'charts.ts').stdout;
+  assert.ok(github.includes('::warning file=parts.ts,line=2,col=22,title=chart-axis-mismatch::charts.ts: '), github);
+  const text = run('text', '--strict', 'charts.ts').stdout;
+  assert.ok(text.includes('⚠ parts.ts:2:22: [chart-axis-mismatch]'), text);
+  const sarif = JSON.parse(run('sarif', '--strict', 'charts.ts').stdout);
+  const result = sarif.runs[0].results.find((r: {ruleId: string}) => r.ruleId === 'chart-axis-mismatch');
+  assert.deepEqual(result.locations[0].physicalLocation, {
+    artifactLocation: {uri: 'parts.ts'}, region: {startLine: 2, startColumn: 22},
+  });
+  assert.deepEqual(result.relatedLocations[0].physicalLocation, {
+    artifactLocation: {uri: 'charts.ts'}, region: {startLine: 3, startColumn: 22},
+  });
+  assert.equal(result.partialFingerprints['svg-diagram/v1'], `charts.ts\0chart-axis-mismatch\0${finding.message}`);
+});

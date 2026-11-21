@@ -151,7 +151,7 @@ test('check: warnings exit 0 normally and 1 with --strict; --format json carries
   const j = JSON.parse(node(proj, CHECK, '--format', 'json', 'src/wide.ts').stdout);
   assert.equal(j.errors, 0); assert.equal(j.warnings, 1);
   assert.equal(j.findings[0].rule, 'doc-width');
-  assert.match(node(proj, CHECK, '--format', 'github', 'src/wide.ts').stdout, /^::warning file=src\/wide\.ts,title=doc-width::/m);
+  assert.match(node(proj, CHECK, '--format', 'github', 'src/wide.ts').stdout, /^::warning file=src\/wide\.ts,line=5,col=13,title=doc-width::/m);
   assert.equal(node(proj, CHECK, '--format', 'xml', 'src/wide.ts').status, 2);
 });
 
@@ -163,7 +163,7 @@ test('check: .svg-diagram.json accept (found by walking up) turns the warning in
   fs.writeFileSync(src, WIDE_TS);
   const r = node(path.join(sub, 'deep', 'er'), CHECK, '--strict', '--verbose', 'wide.ts');
   assert.equal(r.status, 0, out(r));
-  assert.match(r.stdout, /ℹ \[doc-width\].*許容: 幅は承知/);
+  assert.match(r.stdout, /ℹ wide\.ts:5:13: \[doc-width\].*許容: 幅は承知/);
 });
 
 test('check: a layout error (unknown anchor) exits 1 and names the id; a bad config file is an error too', () => {

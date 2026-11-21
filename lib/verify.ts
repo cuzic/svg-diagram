@@ -24,7 +24,7 @@
 
 import {toneEnv} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
-import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
+import {DARK_NOTE, mergeFindingSides, mergeSides} from './appearance-auto.ts';
 import {acceptHint, lintDiagram, walkBands} from './rules.ts';
 import {sourceOf} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
@@ -158,7 +158,7 @@ function verifyAuto(d: LaidOutDiagram, tones: ToneEnv): Verification {
   return {
     issues: mergeSides(light.issues, dark.issues, issueKey, i => ({...i, message: note(i.message)})),
     warnings: mergeSides(light.warnings, dark.warnings, s => s, note),
-    findings: mergeSides(light.findings, dark.findings, f => `${f.rule}\0${f.message}`, f => ({...f, message: note(f.message)})),
+    findings: mergeFindingSides(light.findings, dark.findings),
   };
 }
 

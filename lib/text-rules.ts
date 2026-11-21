@@ -2,6 +2,8 @@
 // A line break inside a run of katakana ("コンテキス/ト") or of Latin letters and digits reads as a typo. Kanji compounds are not judged: a break
 // between two kanji is common and often fine.
 
+import {sourceOf} from './source-ref.ts';
+import type {SourceRef} from './source-ref.ts';
 import {EMOJI_RE} from './tokens.ts';
 
 const KATAKANA = /[ァ-ヺーㇰ-ㇿｦ-ﾟ]/;
@@ -73,22 +75,28 @@ function placedBreaks(items: readonly Placed[], inSource: (junction: string) => 
 }
 
 /** Every mid-word break in a laid-out tree: a `wrappedRuns` entry (lines + source text) or any plain `lines: string[]`. */
-export function midWordBreaksIn(root: unknown, source?: string): MidWordBreak[] {
+export function midWordBreaksIn(root: unknown, source?: string, onBreak?: (ref: SourceRef | undefined) => void): MidWordBreak[] {
   const out: MidWordBreak[] = [], seen = new WeakSet<object>();
   // a break between two katakana letters is mid-word only if the author wrote them with nothing in between: with a space (or any mark) there the break fell on a boundary
   const inSource = (junction: string): boolean => source === undefined || source.includes(junction);
-  const walk = (o: unknown): void => {
+  const add = (breaks: MidWordBreak[], ref: SourceRef | undefined): void => {
+    if (!breaks.length) return;
+    out.push(...breaks);
+    onBreak?.(ref);
+  };
+  const walk = (o: unknown, parent?: SourceRef): void => {
     if (typeof o !== 'object' || o === null || seen.has(o)) return;
     seen.add(o);
+    const ref = sourceOf(o) ?? parent;
     if (Array.isArray(o)) {
-      if (o.length > 1 && o.every(isPlaced)) out.push(...placedBreaks(o, inSource));
-      for (const v of o) walk(v);
+      if (o.length > 1 && o.every(isPlaced)) add(placedBreaks(o, inSource), ref);
+      for (const v of o) walk(v, ref);
       return;
     }
     const rec = o as Record<string, unknown>;
     const lines = rec['lines'], text = rec['text'];
-    if (Array.isArray(lines) && lines.every(l => typeof l === 'string')) out.push(...midWordBreaks(lines, typeof text === 'string' ? text : undefined).filter(b => typeof text === 'string' || inSource(b.before.slice(-2) + b.after.slice(0, 2))));
-    for (const v of Object.values(rec)) walk(v);
+    if (Array.isArray(lines) && lines.every(l => typeof l === 'string')) add(midWordBreaks(lines, typeof text === 'string' ? text : undefined).filter(b => typeof text === 'string' || inSource(b.before.slice(-2) + b.after.slice(0, 2))), ref);
+    for (const v of Object.values(rec)) walk(v, ref);
   };
   walk(root);
   return out;
@@ -99,14 +107,20 @@ export function midWordBreaksIn(root: unknown, source?: string): MidWordBreak[] 
 const PICTOGRAPH = /\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F/gu;
 
 /** The pictographs in the text of a laid-out tree that would be drawn with the text font (and may come out blank). */
-export function missingGlyphs(root: unknown): string[] {
+export function missingGlyphs(root: unknown, onGlyph?: (ref: SourceRef | undefined) => void): string[] {
   const found = new Set<string>(), seen = new WeakSet<object>();
-  const scan = (s: string): void => { for (const m of s.matchAll(PICTOGRAPH)) if (!EMOJI_RE.test(m[0])) found.add(m[0]); };
-  const walk = (o: unknown, key?: string): void => {
-    if (typeof o === 'string') { if (key === 'text' || key === 'lines' || key === 'label' || key === 'title') scan(o); return; }
+  const scan = (s: string, ref: SourceRef | undefined): void => {
+    for (const m of s.matchAll(PICTOGRAPH)) if (!EMOJI_RE.test(m[0])) {
+      found.add(m[0]);
+      onGlyph?.(ref);
+    }
+  };
+  const walk = (o: unknown, key?: string, parent?: SourceRef): void => {
+    if (typeof o === 'string') { if (key === 'text' || key === 'lines' || key === 'label' || key === 'title') scan(o, parent); return; }
     if (typeof o !== 'object' || o === null || seen.has(o)) return;
     seen.add(o);
-    for (const [k, v] of Array.isArray(o) ? o.map(x => [key, x] as const) : Object.entries(o)) walk(v, k);
+    const ref = sourceOf(o) ?? parent;
+    for (const [k, v] of Array.isArray(o) ? o.map(x => [key, x] as const) : Object.entries(o)) walk(v, k, ref);
   };
   walk(root);
   return [...found];

@@ -6,19 +6,19 @@
 // Only the bands a generator places by rule are measured (box / group frames, row and grid children, quadrant cells). Auto-placed bands
 // (layered diagrams, trees, mind maps) and hand-placed ones (raw, wireframe, plane) are left out: their gaps and offsets are the layout's own.
 
+import {at} from './finding-rules.ts';
 import {snap4} from './emit-common.ts';
 import {must} from './must.ts';
 import type {Rect} from './types/core.ts';
 import type {LaidOutBand} from './types/index.ts';
-import type {FindingData} from './types/verdicts.ts';
+import type {FindingData, Issue} from './types/verdicts.ts';
 import type {LaidOutBox} from './types/text-bands.ts';
 
 export type LayoutRule = 'layout-sibling-size' | 'layout-edge-misalign' | 'layout-gutter-uneven' | 'layout-unused-space' | 'layout-figure-offset' | 'layout-figure-narrow' | 'layout-align-mixed';
 
 /** One measured finding: the rule, a human message, and the numbers a machine reads (`--format json`). */
-export interface LayoutMetric {
+export interface LayoutMetric extends Issue {
   rule: LayoutRule;
-  message: string;
   data: FindingData;
 }
 
@@ -40,6 +40,7 @@ const NEIGHBOUR_MAX_GAP = 64;
 const STAMP_STRIP = 30;
 
 interface Frame {
+  band: LaidOutBand;
   kind: 'box' | 'group' | 'cell';
   /** snapped, as drawn */
   x: number; y: number; w: number; h: number;
@@ -82,17 +83,17 @@ function framesOf(laidOut: LaidOutBand[]): Frame[] {
   };
   const addBox = (b: LaidOutBox, unit: string | null): void => {
     if (b.frame === false || pics.some(p => inside(b, p))) return; // no frame is drawn / a picture's annotation
-    out.push({kind: 'box', ...snapped(b), name: `「${boxName(b)}」`, align: b.align, unit: unit ?? `p${parentOf(b)}:box`, design: `${b.flex ?? 1}/${b.span ?? 1}/${b.width ?? ''}`});
+    out.push({band: b, kind: 'box', ...snapped(b), name: `「${boxName(b)}」`, align: b.align, unit: unit ?? `p${parentOf(b)}:box`, design: `${b.flex ?? 1}/${b.span ?? 1}/${b.width ?? ''}`});
   };
   laidOut.forEach((b, i) => {
     if (b.type === 'box') addBox(b, null);
     else if (b.type === 'group') {
       if (b.frame === false || pics.some(p => inside(b, p))) return;
-      out.push({kind: 'group', ...snapped(b), name: b.id ? `group「${b.id}」` : 'group', unit: `p${parentOf(b)}:group`, design: ''});
+      out.push({band: b, kind: 'group', ...snapped(b), name: b.id ? `group「${b.id}」` : 'group', unit: `p${parentOf(b)}:group`, design: ''});
       groups.push({rect: b, id: i});
     } else if (b.type === 'row') b.children.forEach(c => addBox(c, b.children.length > 1 ? `row${i}` : null)); // a row of one is a grouprow's box
     else if (b.type === 'grid') b.children.forEach(c => addBox(c, `grid${i}`));
-    else if (b.type === 'quadrant') for (const c of b.cells) out.push({kind: 'cell', ...snapped(c, true), name: 'quadrant のマス', unit: `q${i}`, design: ''});
+    else if (b.type === 'quadrant') for (const c of b.cells) out.push({band: b, kind: 'cell', ...snapped(c, true), name: 'quadrant のマス', unit: `q${i}`, design: ''});
   });
   return out;
 }
@@ -123,7 +124,7 @@ function siblingSize(runs: Frame[][], out: LayoutMetric[]): void {
     // a run that mixes widths further apart than the grid is a flex / span design; only the 1..GRID px differences are the defect
     if (run.some(f => f.design !== first.design)) continue; // flex / span / width differ: not an equal division
     if (hi === lo || run.some(f => run.some(g => f.w !== g.w && !near(f.w, g.w)))) continue;
-    out.push({rule: 'layout-sibling-size', message: `横に並ぶ ${run.length} 枠（${where(first)}）の幅が ${ws.join(' / ')}px で、${hi - lo}px だけ揃っていない。等分したい行は cols か flex で幅の比を揃える`, data: {band: first.name, measured: hi - lo, threshold: GRID, fix: 'cols / flex で列の幅を揃える（列の区切りは 4px の格子に乗せる）'}});
+    out.push({...at(first.band, ...run.slice(1).map(f => f.band)), rule: 'layout-sibling-size', message: `横に並ぶ ${run.length} 枠（${where(first)}）の幅が ${ws.join(' / ')}px で、${hi - lo}px だけ揃っていない。等分したい行は cols か flex で幅の比を揃える`, data: {band: first.name, measured: hi - lo, threshold: GRID, fix: 'cols / flex で列の幅を揃える（列の区切りは 4px の格子に乗せる）'}});
   }
 }
 
@@ -133,13 +134,13 @@ function gutterUneven(runs: Frame[][], out: LayoutMetric[]): void {
     if (!first || run.length < 3) continue;
     const gaps = run.slice(1).map((f, i) => f.x - right(must(run[i]))), lo = Math.min(...gaps), hi = Math.max(...gaps);
     if (hi - lo < GUTTER_UNEVEN_PX) continue;
-    out.push({rule: 'layout-gutter-uneven', message: `横に並ぶ ${run.length} 枠（${where(first)}）の間隔が ${gaps.join(' / ')}px で、${hi - lo}px の差がある`, data: {band: first.name, measured: hi - lo, threshold: GUTTER_UNEVEN_PX, fix: gaps.every(v => v % GRID === 0) ? '同じ cols の格子に乗せて、間隔を共有する' : '間隔（gap）を 4px の倍数にする'}});
+    out.push({...at(first.band, ...run.slice(1).map(f => f.band)), rule: 'layout-gutter-uneven', message: `横に並ぶ ${run.length} 枠（${where(first)}）の間隔が ${gaps.join(' / ')}px で、${hi - lo}px の差がある`, data: {band: first.name, measured: hi - lo, threshold: GUTTER_UNEVEN_PX, fix: gaps.every(v => v % GRID === 0) ? '同じ cols の格子に乗せて、間隔を共有する' : '間隔（gap）を 4px の倍数にする'}});
   }
 }
 
 function edgeMisalign(frames: Frame[], out: LayoutMetric[]): void {
   const report = (a: Frame, b: Frame, edge: string, d: number): void => {
-    out.push({rule: 'layout-edge-misalign', message: `${a.name}（${where(a)}）と ${b.name}（${where(b)}）の${edge}が ${d}px ずれている（揃えるか、はっきり違えるか）`, data: {band: a.name, measured: d, threshold: GRID, fix: '同じ列・行の枠は、同じ座標から始める（cols の列に乗せる）'}});
+    out.push({...at(a.band, b.band), rule: 'layout-edge-misalign', message: `${a.name}（${where(a)}）と ${b.name}（${where(b)}）の${edge}が ${d}px ずれている（揃えるか、はっきり違えるか）`, data: {band: a.name, measured: d, threshold: GRID, fix: '同じ列・行の枠は、同じ座標から始める（cols の列に乗せる）'}});
   };
   for (const a of frames) for (const b of frames) {
     if (a === b || a.kind !== b.kind) continue; // a group and a box are not the same sort of edge
@@ -178,9 +179,9 @@ function unionOf(rs: Rect[]): Rect | null {
 function unusedSpace(laidOut: LaidOutBand[], out: LayoutMetric[]): void {
   const pics = backdrops(laidOut);
   const judge = (name: string, raw: Rect, contentBottom: number, stamped: boolean): void => {
-    const at = snapped(raw), h = at.h; // as drawn
-    const free = bottom(at) - Math.max(contentBottom, stamped ? bottom(at) - STAMP_STRIP : 0);
-    if (free >= UNUSED_MIN_PX && free >= UNUSED_MIN_RATIO * h) out.push({rule: 'layout-unused-space', message: `${name}（${where(at)}）の下に ${Math.round(free)}px（${Math.round(100 * free / h)}%）の空き。中身を縦に寄せるか、枠の高さを内容に合わせる`, data: {band: name, measured: Math.round(free), threshold: UNUSED_MIN_PX, fix: '行の高さを揃えた結果の空き: 兄弟と同じ量の内容にするか、枠を分ける'}});
+    const frame = snapped(raw), h = frame.h; // as drawn
+    const free = bottom(frame) - Math.max(contentBottom, stamped ? bottom(frame) - STAMP_STRIP : 0);
+    if (free >= UNUSED_MIN_PX && free >= UNUSED_MIN_RATIO * h) out.push({...at(raw), rule: 'layout-unused-space', message: `${name}（${where(frame)}）の下に ${Math.round(free)}px（${Math.round(100 * free / h)}%）の空き。中身を縦に寄せるか、枠の高さを内容に合わせる`, data: {band: name, measured: Math.round(free), threshold: UNUSED_MIN_PX, fix: '行の高さを揃えた結果の空き: 兄弟と同じ量の内容にするか、枠を分ける'}});
   };
   const judgeBox = (b: LaidOutBox): void => {
     // no frame drawn, no text (an icon only) or a picture's annotation: there is no content to measure the room against
@@ -230,7 +231,7 @@ function alignMixed(runs: Frame[][], out: LayoutMetric[]): void {
     const first = run[0];
     const boxes = run.filter(f => f.kind === 'box' && f.align !== undefined), kinds = new Set(boxes.map(f => f.align)); // only an alignment the author set: a template's default is not a choice
     if (!first || boxes.length < 2 || kinds.size < 2) continue;
-    out.push({rule: 'layout-align-mixed', message: `横に並ぶ ${boxes.length} 枠（${where(first)}）で文字の揃え（${[...kinds].join(' / ')}）が混ざっている`, data: {band: first.name, measured: kinds.size, threshold: 1, fix: 'align を揃える（数字は中央、説明は左、などの意図があれば accept で許容する）'}});
+    out.push({...at(boxes[0]?.band, ...boxes.slice(1).map(f => f.band)), rule: 'layout-align-mixed', message: `横に並ぶ ${boxes.length} 枠（${where(first)}）で文字の揃え（${[...kinds].join(' / ')}）が混ざっている`, data: {band: first.name, measured: kinds.size, threshold: 1, fix: 'align を揃える（数字は中央、説明は左、などの意図があれば accept で許容する）'}});
   }
 }
 
