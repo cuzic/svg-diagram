@@ -158,8 +158,9 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 ### D4: 隙間のトラック割り当て(a・b の残り、P1・P2・P4)
 
 - **1 つの隙間の、すべての曲がりを 1 回で割り当てる**: 直接の矢印の曲がり、長い矢印の途中の曲がり(今は真ん中、`lib/layered-route.ts:32`)と最後の曲がり(`lastTurn`)、外周の戻り辺の曲がり。各曲がりは、隙間を横切る run(`dir: 'up'` で水平の線分)を持ち、その範囲(across の区間)が決まっている。
-- **D11 のレーンの共有(`laneShare`/`longLane`)と `lastTurn` は、`tracks` のときは使わず、この割り当てに吸収する**(長い矢印の最後の曲がりも 1 つの曲がりとして、縦の制約で位置が決まる)。AND の矢印の最後の曲がりは、頭から `AND_END + 1`(D8 の値)以上離れたトラックに置く(弧の置き場所。足りなければ隙間の側を広げる)。`tracks` のとき、`sharing()`(`lib/layered-route.ts:551`)は `laneShare` の案を作らない(割り当てに吸収済みで、作っても同じ経路になる)。
+- **D11 のレーンの共有(`laneShare`/`longLane`)と `lastTurn` は、`tracks` のときは使わず、この割り当てに吸収する**(長い矢印の最後の曲がりも 1 つの曲がりとして、縦の制約で位置が決まる)。AND の矢印の最後の曲がりは、頭から `AND_END + 1`(D8 の値)以上離れたトラックに置く(弧の置き場所。足りなければ隙間の側を広げる)。U4b では、この最後の曲がり(`headRun`)を `lastTurn`(`turnRun` = `headRun` + 4 の位置)の代わりに置くので、頭の手前の最後の run は `headRun` まで縮みうる(D8 の「4px の差」は 0 になる)。**main の `lastTurn` の位置を「今」とする**(U4b 第 1 巡 M1): 最初の段(U4a の段)は、最後の曲がりを真ん中からではなく main の `lastTurn` の位置から評価し、その位置を候補の 1 つに入れる。狭い隙間で、`lastTurn` の位置より悪い置き場所(交差が増える)を採らない。`tracks` のとき、`sharing()`(`lib/layered-route.ts:551`)は `laneShare` の案を作らない(割り当てに吸収済みで、作っても同じ経路になる)。
 - 割り当ては、チャネル配線の左端法(left-edge)に**縦の制約**を足したもの: 同じ across の位置に、一方の曲がりの「入る側の縦の run」と、他方の「出る側の縦の run」が来る組は、交差しない上下の順を制約にする(fan-in・fan-out・頭が混じる隙間を同じ規則で扱う。今の `fanIn` の分岐(`:189-193`)を置き換える)。制約に循環があれば、その組だけ今の順に戻す(交差は残り、`cause-crossing` が出る)。
+  - **U4b の読み方(「同じ across の位置」を置き換える)**: 曲がりは、隙間の左側の run(層に沿う、across の位置 `left`)・隙間を横切る run・右側の run(`right`)の 3 本の線分で、2 つの曲がり a・b の交差は、x の位置の順で決まる。x_a < x_b なら「b の左の run が a の範囲(across の区間)にある」+「a の右の run が b の範囲にある」、x_b < x_a なら「a の左の run が b の範囲にある」+「b の右の run が a の範囲にある」が、それぞれちょうど交差の条件になる(平面の 1 層の交差の条件と一致する)。そのため、「b の左の run が a の範囲にある」なら b は a の右(x が大きい側)に置けない向きが 1 つ決まり、これを制約にする。両向きに決まる組(どちらの順でも交差が 1 つになる)には制約を加えず、制約が循環するときは、加える前に `reaches` で閉じるかを見て、閉じる制約を落とす。範囲の端が `LANE` 未満で近い run は、交差ではなく並走(`LANE` 未満)になるので、弱い制約として先に交差の制約を、次に並走の制約を加える。
 - 範囲が重ならない曲がりは同じトラックを使ってよい(左端法)。ただし重なりの判定の前に、各区間を**両端で `laneStepOf(space)` ずつ伸ばす**(同じトラックの 2 本の run の端が近いと、1 本につながって見えるため)。重なるものは別のトラックで、トラックの間隔は `laneIn(g)`(`LANE` 以上)。
 - **後段の処理も間隔を壊さない**(割り当ての後に経路を動かす処理):
   1. `detour`: 探した経路も、層の間の区間ではその矢印に割り当てたトラックの座標に合わせる。合わせられない(箱にかかる)ときは detour を採らない。
@@ -171,6 +172,10 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 - `elbows` は、区間ごとの曲がりの座標(トラック)を受け取る形にする(`turn` / `lastTurn` の 2 つの引数を、区間の配列に置き換える)。
 - **`causeTree` の帯だけで有効にする**: `AttemptOpts` に `tracks?: boolean` を足し、`tryLayoutCause` が `band.base === undefined && band.layerFrom === undefined` のときだけ渡す。pdpc(外周の戻り辺が既定)・relationDiagram・whyWhyTree と states・classes・semnet は今の経路で、出力はバイト単位で同じ。**`straighten: false` の帯にも渡さない**(U4a で追記)。`straighten: false` は「従来の図に戻す手段」(`layeredAttempt` の説明)なので、トラックの割り当ても従来の真ん中の曲がりに戻す。ただし U3 の `heads`(D3・D8)は `straighten: false` でも効く。そのため、従来の図に戻るのは `tracks` の分だけで、図全体は従来とバイト単位では同じにならない。
 - **重なりと交差の交換**(U4a で追記): トラックの置き場所を選ぶときは、1 本の線の上に重なる 2 本の矢印(4px 未満。組ごとに 1 回)を、交差 1 つと同じ重さで数える。重なった 2 本はどちらがどこへ行くかが読めず、トラックで離すと、隠れていた交差が見えることがある。そのため、重なり 1 組を本物の交差 1 つと交換することがある(`cause-crossing` が増えうる)。`tracks` のとき、`routeLayered` の `fixed` と `spread` の選び方も同じ基準(交差 + 重なり、次に折れ)にそろえる。次の基準として、レーン未満の並走の組を数える。
+- **U4b の実装メモ**(U4b 第 1 巡で追記):
+  - 直接の矢印のレーンの順(`assignLanes`)を縦の制約の順に並べ替えるのは、並べ替えた図と main の順の図を (交差, 1 本の線の上に重なる組, 折れ) で比べ、悪くならない方を採る(並べ替えは長い矢印の曲がりを数えないため)。比べる 2 回目の `build()` の分、費用が増える。
+  - **asap の隙間をまたぐ交差(別々の頭に入る矢印どうし)は U4c への入力**: asap の図には AND の組の間の `cause-crossing` が残る(fixture で 2 件)。口の順(D3)を見直して減らす。
+  - **順序探索(`toc.ts` の再探索)が図の高さを見ず、ある段で探索をやめる規則は U6 の対象**: 探索が通る道は与えられた経路で変わり、同じ配置で main より交差が増えなくても、探索の結果の図は main と別の並びになりうる(乱数の CRT で AND の頭に入る矢印どうしの交差が増える図がある)。高さについては Issue #397。
 - 案の比べ方は変えない(`pick0`・`sharing`・`apartOf` は (交差, 折れ) のまま)。D12〜D14 のずらしは上の条件つきで残し、D4 の後に何かを動かしているかを D2 で数え、何も動かさないなら別の PR で外す(未決)。
 - P4(同じ尾から出る辺の重なり): 別の仕組みは作らない。同じ尾から出る矢印の曲がりも D4 の同じ割り当てに入り、口は今どおり `PORT` 間隔で分かれる。alap の実測では P4 は再現しないので、D2 の検査で見張る。
 
@@ -250,7 +255,7 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
   - D2: 新しい規則 `edge-parallel`(info、`causeTree` の帯だけ)。
 - **変わらない出力(バイト単位)**: pdpc・relationDiagram・whyWhyTree(`examples/qc-pdpc`・`qc-relation`・`why-why`)、states・classes・semnet・bpmn。`tree` を書かない `causeTree` の層。D3・D4・D7・D8 は `causeTree` の帯の条件の外で何もしない。
 - **触るファイル**: `lib/toc.ts`(D1 の既定、D3 の `need`、D4 の `tracks` を渡す、D7 の倍率、D8 の定数)、`lib/layout-handlers.ts`(D7 の `canvasGeom` を渡す)、`lib/layered-route.ts`(D3 の口、D4 の割り当て・`elbows`・`corridorLoad`)、`lib/route-search.ts`(U3 の `tail` を弧の深さから、U5 の `stub`・`margin` の倍率)、`lib/route-apart.ts`(U5 の歩幅の倍率)、`lib/polyline-metrics.ts`(D2 の `parallelRuns`)、`lib/rules.ts`(D2 の規則と `RULE_DOCS`)、`lib/types/diagrams.ts`(`LaidOutCause` の `origin`)、ADR 0019(D1 の既定の書き換えの注記)、README・`skills/svg-diagram/SKILL.md`(運用どおり PR 本文に書き、最後にまとめて反映)。
-- **費用**: D4 の割り当ては隙間ごとに、曲がりの数 n で O(n log n + 制約の数)。今の `assignLanes` と同程度。
+- **費用**(U4a の見積もり「今の `assignLanes` と同程度」は外れた。実測は U4c の入力): U4b の `causeTree` 全体で main の約 1.5〜1.75 倍(60 節 96 本の CRT)・約 1.9 倍(120 節 200 本)、乱数の CRT で約 1.8 倍。交差は 25 → 17・83 → 62 に減る。120 節の `placeTracks` は 0.6s → 2.6s。レーンの順を main の順と比べる 2 回目の `build()` が全体の約 11% で、`reordered` はほぼ常に真なので、順が違うときだけ比べる条件では安くならない。U4c で安くする案: 2 回目の `build()` を順の変わった隙間の腕だけにする、`placeCluster` の x の区間の索引を構築のたびに作り直さない、束の結果の記憶を細かくする。
 - **リスク**: D4・D7 で隙間が高くなり、高さの予算に収まらない図が `fold` や狭めに回る。U4c・U5 の PR で、`examples/` の `toc-*` の高さの増え方を表で出す。D4 で hop の組が変わるので、U4 の PR で `toc-hop`・`toc-hop-all` の hop の数と省いた理由ごとの内訳を before / after で出す。
 
 ## 実装計画
@@ -285,7 +290,7 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 ### 完了の基準
 
 - U0 の fixture(報告の図の構造の写し)を、報告の図と同じ指定(`tree: 'crt'`、`dir: 'up'`、canvas の `minText: 18` など)で描いたとき、既定(`layer` を書かない)で次が成り立つ。テストにする(どれもフォントに依らない比・数):
-  - 折れの最大 ≤ 4、折れの合計 ≤ 今の alap の値(PR で測って書く)
+  - 折れの最大 ≤ 4、(交差, 折れ)がこの順に main より悪くならない(U4b 以降の PR で、PR で測った main の値と比べる。折れの合計だけを「今の alap の値以下」にすると、交差を 1 つ減らすのに折れが 2 増える図を落とす)
   - `parallelRuns(routes, laneStepOf(space) × s)` = 0
   - `cause-crossing` = 0、`loose` = 0
   - **並走の最小間隔 ÷ `minText` ≥ 0.9**(`density: 'compact'` では ≥ 0.7)。SVG の座標で測る(図を縮めて表示しても、文字と線が同じ倍率で縮むので、表示の px での比と同じ)
@@ -300,6 +305,7 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 - D3・D4・D7・D8 を pdpc・relationDiagram・whyWhyTree へ広げるか(pdpc は外周の戻り辺の曲がり `turnOuter` を割り当てに入れる設計が要る)。U6 の後に別の ADR で決める。
 - asap の最終の図が素の案になった経路(`pick0` の後の `sharing`・並びの再探索・fit のどこで決まったか)は追い切っていない。D1 で前提条件のある CRT が ALAP になれば、報告の図では問題にならない。
 - D12〜D14 のずらし(`aside`・`apart`)を、`causeTree` で D4 の後も残すか(U6)。
+- U6 の入力: 順序探索の高さのふるい(`toc.ts` の `t.h > base.h + 0.5`)は、`cause-crossing` を減らす配置を捨ててはならない。U4b の乱数の CRT #70 は、AND の頭の交差 0・交差 1 の配置が、高さ 282 > 262.5 で落ち、`cause-crossing` 3 の図(高さ 263)が残る(#101・#21 も同じ形)。ふるいの前に採点し、`cause-crossing` が減る候補は予算の範囲で残すか、`bk` の選びに高さを入れる。Issue #397(順序探索が高さを見ない)と同じ話。
 - `edge-parallel` を、ほかの自動配置の図へ広げるか(U6)。
 - 隙間ごとの `levelGap`(混む隙間だけを広げる)。`graph-layout.ts` に手が入るので、D4 で図が高くなる例が出たら別の ADR で。
 - D8 の 0.4 倍・D7 の完了の基準 0.9 倍の係数は、U3・U5 で報告の図を見て調整しうる(調整したらこの ADR に戻す)。
@@ -308,3 +314,4 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 
 - 2026-11-20 第 1 巡(Opus レビュー `docs/adr/0070-opus-review-round1.md`、Major 6・Minor 8・Nit 3)を反映: M1 D3・D4 の範囲を `causeTree` の帯に限り、pdpc・relationDiagram・whyWhyTree のバイト単位の不変をテストに(U0)。M2 D11 を D4 に吸収、detour をトラックに合わせる、後段の採否に `LANE` 未満の並走を増やさない条件。M3 D3 は AND の組の隣だけ広げる。M4 D7(canvas の倍率)と、並走の間隔 ÷ `minText` の完了の基準。M5 弧と矢じりの隙間を実測し D8 と完了の基準に。M6 CRT の既定は前提条件だけの ALAP。Minor: 11 ファイル、`crowdOf`、区間の両端の伸ばし、hop、fixture、U4 の 3 分割、`edge-parallel` を `causeTree` だけに、D3 の広げ幅の固定。Nit: 「同じ軸」、toc-compact の a3、`pick0` の記録の手順。alap の 2 つの交差は、レビューの経路の確認で D4 で解けると分かったので未決から外した。
 - 2026-11-20 第 2 巡(Opus レビュー `docs/adr/0070-opus-review-round2.md`、Major 2・Minor 6・Nit 2、条件付き承認)を反映し、状態を承認にした: MA 頭の手前の最後の run の 5 つの下限を U3 で弧の深さから求め、弧が描けることを倍率 1・1.29 でテスト。MB `keep` を link の上の不動点 M の補集合にし、循環つきの CRT のテストを足す。Minor: D7 の倍率の下限 1、経路の間隔 16 か所の表と U5 での扱い、`GAP` を倍率つきレーンの 2 倍以上に、U0 は golden の差分で、`LaidOutCause` の `origin`(U2)、hop の `and-arc` の範囲の広がりは受け入れる効果とする。Nit: D8 の弧の位置の書き方、`tracks` のとき `sharing()` の `laneShare` の案を作らない。
+- 2026-11-21 U4b 第 1 巡(PR #396 のレビュー、Major 1・Minor 6・Nit 5)を反映: D4 に「範囲にある」の読み方(交差の条件との一致)、`headRun` に置く最後の曲がり、main の `lastTurn` を基準にすること、実装メモ(asap の交差は U4c、順序探索の打ち切りは U6)を追記。完了の基準の折れを「(交差, 折れ)が main より悪くならない」に、費用を実測に直した。

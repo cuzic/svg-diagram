@@ -209,8 +209,10 @@ test('causeTree() that fits nowhere: the failure says where to split (ADR 0019 D
   assert.throws(() => place(wide({dir: 'up'}), 300), /\n {2}split: layer \d is the widest \(\d+ nodes: u\d/, 'too wide: the widest layer');
 });
 
-// ADR 0019 D4: the arrows into an effect with an AND cross; another written order is tried and kept only when it is strictly better
-const nine = () => causeTree(Array.from({length: 9}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), JSON.parse('[{"from":"n0","to":"n2"},{"from":["n0","n1"],"to":"n3"},{"from":"n1","to":"n4"},{"from":"n0","to":"n4"},{"from":"n2","to":"n5"},{"from":"n3","to":"n5"},{"from":"n0","to":"n6"},{"from":"n0","to":"n7"},{"from":"n6","to":"n7"},{"from":"n1","to":"n7"},{"from":"n1","to":"n8"}]'), {tree: 'frt'});
+// ADR 0019 D4: the arrows into an effect with an AND cross; another written order is tried and kept only when it is strictly better.
+// (ADR 0070 U4b: the turns of a gap take the order that crosses none where it can, so the figure this test had first, whose AND crossing
+// was such a one, no longer crosses as written; this one's crossing is in the order of the boxes)
+const nine = () => causeTree(Array.from({length: 9}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), JSON.parse('[{"from":["n2","n3"],"to":"n4"},{"from":["n3","n4"],"to":"n7"},{"from":"n0","to":"n2"},{"from":"n1","to":"n4"},{"from":"n0","to":"n8"},{"from":"n1","to":"n5"},{"from":"n0","to":"n7"},{"from":"n6","to":"n7"},{"from":"n0","to":"n1"}]'), {tree: 'frt'});
 const andCrossings = (t: LaidOutCause): number => andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length;
 test('causeTree(): arrows into an AND that cross are searched again in another written order; the figure only gets better', () => {
   const once = layoutCauseBandOnce(nine(), 0, 0, 1400, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false}), now = place(nine(), 1400);
@@ -263,10 +265,16 @@ test('causeTree(): a direct arrow into an AND turns beside the other, so its fir
 });
 
 // ADR 0016 D13: the order search is entered by the AND crossings of the figure as first laid out, before the side-by-side runs are moved aside (CRT left, 10 nodes: it was 40px taller without that).
-test('causeTree(): clearing an AND crossing by moving a run aside does not keep the order search from finding a lower figure', () => {
+test('causeTree(): clearing an AND crossing by moving a run aside does not keep the order search from finding a figure with no crossing, no taller and no more bent than the first', () => {
   const links = JSON.parse('[{"from":"n0","to":"n1"},{"from":["n0","n1"],"to":"n2"},{"from":"n0","to":"n3"},{"from":"n2","to":"n4"},{"from":"n2","to":"n5"},{"from":["n1","n3","n4"],"to":"n6"},{"from":"n4","to":"n7"},{"from":"n6","to":"n8"},{"from":"n5","to":"n9"},{"from":["n9","n6","n2"],"to":"n10"}]');
-  const t = place(causeTree(Array.from({length: 11}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'crt', dir: 'left'}), 1800);
-  assert.ok(t.h < 230, `height ${t.h}`);
+  const band = (): CauseBand => causeTree(Array.from({length: 11}, (_, i) => N(`n${i}`, {label: `n${i} の説明の文`})), links, {tree: 'crt', dir: 'left'});
+  const t = place(band(), 1800), once = layoutCauseBandOnce(band(), 0, 0, 1800, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false});
+  // This test used to ask for a LOWER figure (t.h < 230: main finds 217px, 30 bends, the first being 257.5px). With the gap's turns in the order of
+  // the vertical constraints (ADR 0070 U4b) the search finds an order as tall as the first (257.5px) that crosses nothing with 26 bends, and its
+  // (crossings, bends) comparison takes it: the search ignores the height (Issue #397), so the 40px it used to find are not asked for here
+  assert.equal(scoreOf(t.edges.map(e => e.points)).crossings, 0);
+  assert.ok(scoreOf(once.edges.map(e => e.points)).crossings > 0, 'the written order crosses: the search is entered');
+  assert.ok(t.h <= once.h + 0.5 && scoreOf(t.edges.map(e => e.points)).bends <= scoreOf(once.edges.map(e => e.points)).bends, `height ${t.h}`);
   assert.deepEqual(andClashes(t.edges, t.ands), []);
 });
 
@@ -290,14 +298,18 @@ test('fitFailure(): an attempt 0.3px over the width in the rounded record but in
 });
 
 // A long arrow went out to the side of the boxes and back (4 bends) because it turned half-way between the way points of the layers; it now takes the way around the boxes with the fewest bends.
-test('causeTree(): the arrows of a current reality tree bend little: no arrow more than twice, and the figure well under what main drew (26 bends, up to 4 in one arrow)', () => {
+test('causeTree(): the arrows of a current reality tree bend little: the figure well under what main drew (26 bends), at most 4 in one arrow', () => {
   const nodes = ['u1', 'u2', 'u3', 'a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'c1', 'c2'].map(id => N(id, {label: `${id} の説明の文`}));
   const links = JSON.parse('[{"from":"c2","to":"b1"},{"from":"b1","to":"a1"},{"from":"a1","to":"u1"},{"from":["c1","b3"],"to":"b2"},{"from":"b2","to":"a2"},{"from":"a2","to":"u1"},{"from":"b3","to":"a3"},{"from":"a3","to":"u1"},{"from":"u1","to":"u2"},{"from":"a3","to":"u2"},{"from":"c2","to":"b5"},{"from":"b5","to":"b4"},{"from":"b4","to":"a4"},{"from":"a3","to":"a5"},{"from":"a5","to":"a4"},{"from":"a4","to":"u3"}]');
   const bends = (t: LaidOutCause): number[] => t.edges.map(e => scoreOf([e.points]).bends);
   const now = place(causeTree(nodes, links, {tree: 'crt'}), 1800);
   const sum = (a: number[]): number => a.reduce((x, y) => x + y, 0);
   assert.ok(sum(bends(now)) <= 20, `${sum(bends(now))} bends: ${bends(now)}`);
-  assert.ok(Math.max(...bends(now)) <= 2, `${bends(now)}`);
+  // the limit of 2 bends an arrow (before ADR 0070 U4b: 16 bends, 2 crossings) is 4 here, for one arrow: the search now finds an order of 1 crossing
+  // (18 bends), where a3 -> u1 passes u2's layer off the line of its ports (4 bends); every other arrow keeps to 2
+  assert.equal(bends(now).filter(b => b > 2).length, 1, `${bends(now)}`);
+  assert.ok(Math.max(...bends(now)) <= 4, `${bends(now)}`);
+  assert.ok(scoreOf(now.edges.map(e => e.points)).crossings <= 1);
   assert.equal(now.loose.length, 0);
 });
 
