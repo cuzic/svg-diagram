@@ -116,15 +116,19 @@ test('the review\'s graphs #133 and #320: no more crossings with tracks (the fix
   }
 });
 
+/** The review's graphs where the figure with tracks has bends more and no crossing less (measured with U4c). */
+const GATE_TRADES: number[] = [301, 304, 357, 373];
 test('the review\'s graphs (400, boxes 40 to 80 high): crossings + pairs on one line never grow; a crossing grows only where a pair on one line went (#35 at most), bends only where crossings went', () => {
-  const traded: number[] = [];
+  const traded: number[] = [], gateTrades: number[] = [];
   reviewGraphs(400).forEach((l, g) => {
     const old = [...routeOf(l, false).values()], now = [...routeOf(l, true).values()];
     const a = scoreOf(old), b = scoreOf(now), la = onOneLine(old), lb = onOneLine(now);
     assert.ok(b.crossings + lb <= a.crossings + la, `#${g}: ${a.crossings} + ${la} -> ${b.crossings} + ${lb}`);
     if (b.crossings > a.crossings) { assert.ok(lb < la, `#${g}: a crossing more with no pair on one line less`); traded.push(g); }
-    if (b.bends > a.bends) assert.ok(b.crossings < a.crossings, `#${g}: bends ${a.bends} -> ${b.bends} with no crossing less`);
+    // U4c: the moves after the tracks (a straightening, D12 to D14, the detour) are not taken where they add a pair of runs under a lane step (the figures that cost two bends: GATE_TRADES)
+    if (b.bends > a.bends && b.crossings >= a.crossings) gateTrades.push(g);
   });
+  assert.deepEqual(gateTrades, GATE_TRADES, 'two bends a figure for a pair of runs under a lane step kept out: the same figures as when measured');
   // U4a traded 4 pairs on one line for 2 crossings in #35 (44 -> 46); U4b's order of the gap's turns takes that crossing away again
   assert.ok(traded.every(g => g === 35), `trades of pairs on one line for crossings: ${traded}`);
 });

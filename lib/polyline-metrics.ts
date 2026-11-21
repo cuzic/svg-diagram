@@ -161,16 +161,16 @@ export function runsOfRoute(pts: P[]): RouteRun[] {
 }
 
 /**
- * The ways two routes lie against each other (ADR 0070 U4c): `level` / `plumb` is in the set when a run of one and a run of the other, both level
- * (or both plumb), are side by side (on one axis under `sep` apart, over 4px long together: `parallelRuns`' pair) or on one line with their ends
- * under `sep` apart (a pair `parallelRuns` leaves out: two runs that read as one, ADR 0070 U4b's `touch`).
+ * The ways two routes lie against each other (ADR 0070 U4c): how many pairs of runs, one of each, both level (`level`) or both plumb (`plumb`), are side by
+ * side (on one axis under `sep` apart, over 4px long together: `parallelRuns`' pair) or on one line with their ends under `sep` apart (a pair `parallelRuns`
+ * leaves out: two runs that read as one, ADR 0070 U4b's `touch`).
  */
-export function runPairWays(a: readonly RouteRun[], b: readonly RouteRun[], sep: number): {level: boolean; plumb: boolean} {
-  let level = false, plumb = false;
+export function runPairWays(a: readonly RouteRun[], b: readonly RouteRun[], sep: number): {level: number; plumb: number} {
+  let level = 0, plumb = 0;
   for (const r of a) for (const s of b) {
-    if (r.level !== s.level || (r.level ? level : plumb)) continue;
+    if (r.level !== s.level) continue;
     const gap = Math.abs(r.at - s.at), overlap = Math.min(r.hi, s.hi) - Math.max(r.lo, s.lo);
-    if (overlap > 4 ? gap < sep : gap < 0.5 && overlap > -sep) { if (r.level) level = true; else plumb = true; }
+    if (overlap > 4 ? gap < sep : gap < 0.5 && overlap > -sep) { if (r.level) level++; else plumb++; }
   }
   return {level, plumb};
 }
@@ -191,12 +191,14 @@ export function routedRuns(r: P[], cache: WeakMap<P[], RoutedRuns>): RoutedRuns 
 }
 
 /**
- * Does `next` lie against another route in a way `prev` did not (`runPairWays`)? Only the routes that differ are asked: for each, the other routes
- * it lies against, level or plumb. A pair that was there stays allowed (it may be a bit nearer); a new pair, or the same two routes the other
- * way (a plumb pair for a level one), is a gain. `cache` holds the runs of the routes by their arrays.
+ * Does `next` lie against the other routes in a way `prev` did not (`runPairWays`)? Only the routes that differ are asked: for each, the other routes
+ * it lies against. It does when it lies against a route level or plumb where it did not (the same two routes the other way, a plumb pair for a level
+ * one, is a gain too), or when the pairs of the moved routes are more in all than they were. A pair that was there stays allowed (it may be a bit
+ * nearer). `cache` holds the runs of the routes by their arrays.
  */
 export function gainsRunPairs<K>(prev: ReadonlyMap<K, P[]>, next: ReadonlyMap<K, P[]>, sep: number, cache: WeakMap<P[], RoutedRuns>): boolean {
   const near = (a: RoutedRuns, b: RoutedRuns): boolean => a.x0 - sep - 1 <= b.x1 && b.x0 - sep - 1 <= a.x1 && a.y0 - sep - 1 <= b.y1 && b.y0 - sep - 1 <= a.y1;
+  let before = 0, after = 0;
   for (const [k, r] of next) {
     const old = prev.get(k);
     if (!old || samePath(old, r)) continue;
@@ -205,9 +207,10 @@ export function gainsRunPairs<K>(prev: ReadonlyMap<K, P[]>, next: ReadonlyMap<K,
       if (o === k) continue;
       const oldO = prev.get(o) ?? ro, other = routedRuns(samePath(oldO, ro) ? oldO : ro, cache), otherWas = routedRuns(oldO, cache); // an unchanged route's runs are those of its old array
       const was = near(was0, otherWas) ? runPairWays(was0.runs, otherWas.runs, sep) : NONE, now = near(now0, other) ? runPairWays(now0.runs, other.runs, sep) : NONE;
-      if ((now.level && !was.level) || (now.plumb && !was.plumb)) return true;
+      if ((now.level > 0 && was.level === 0) || (now.plumb > 0 && was.plumb === 0)) return true;
+      before += was.level + was.plumb; after += now.level + now.plumb;
     }
   }
-  return false;
+  return after > before;
 }
-const NONE = {level: false, plumb: false};
+const NONE = {level: 0, plumb: 0};
