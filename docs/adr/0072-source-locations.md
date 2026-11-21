@@ -79,7 +79,7 @@ VS Code 拡張は `check --format json` の指摘をエディタの波線にし�
 - `--format json`: 指摘に `line` / `column` を足す(位置が `file` の中のとき)。位置が別のファイルのときは `location: {file, line, column}` を足し、`file` は検査したソースのまま。外側の呼び出しは `via: [{line, column}]`、重なりの相手は `related: [{file, line, column}]`。`--baseline` の指紋(`file`・`rule`・`message`)は変えない。行がずれても、ベースラインは外れない。
 - `--format github`: `line=` / `col=` を足す。位置が別のファイルなら、そのファイルに付ける(PR でその差分に出る)。
 - `--format sarif`: `region` と `relatedLocations` を足す。`region` が増えると、GitHub の code scanning は一度だけ古い警告を閉じて新しく開く。そこで、`partialFingerprints` にベースラインと同じ指紋を入れて、それ以降は行が動いても同じ警告にする。
-- `--format text`: `✗ src/a.ts:12:5: …`(ターミナルでクリックできる形)。行の書き方が変わるので、互換の注意として CHANGELOG に書く。
+- `--format text`: `✗ src/a.ts:12:5: …`(ターミナルでクリックできる形)。位置が別のファイルにあるときは、`check` と `build` のどちらも `✗ src/a.ts: src/_parts.ts:12:5: …` の形で検査したソースの名前を先頭に付ける。行の書き方が変わるので、互換の注意として CHANGELOG に書く。
 - `--worker` の子が返すのは、解いたあとの普通の値だけにする(`SourceRef` は渡さない)。
 
 **D6. 図からソースへ: SVG は変えず、別のファイルに地図を書く。** `build --locations FILE`(`--locations-dir DIR`)は、次を JSON で書く。
