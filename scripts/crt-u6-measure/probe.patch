@@ -1,0 +1,373 @@
+diff --git a/lib/graph-layout.ts b/lib/graph-layout.ts
+index 27f06e23..7834c84c 100644
+--- a/lib/graph-layout.ts
++++ b/lib/graph-layout.ts
+@@ -1,3 +1,5 @@
++import {T as T6} from './u6-probe.ts';
++import fs6 from 'node:fs';
+ import {must} from './must.ts';
+ // Pure graph layout for the diagram parts that place themselves: org charts and trees (layoutTree), mind maps (layoutBalanced),
+ // state machines and flows (layoutLayered). No bands, fonts or SVG here: sizes in, rectangles and edge polylines out, so each
+@@ -513,6 +515,12 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts:
+     }
+   }
+ 
++  if (T6.force && opts.coord === 'bk' && !opts.orderOnly) {
++    const f: string[][] = JSON.parse(fs6.readFileSync(T6.force, 'utf8'));
++    const m = (id: string): string => id.startsWith('d') ? '\u0000d' + id.slice(1).replace('_', '.') : id;
++    f.forEach((r, l) => { const want = r.map(m); const have = rowAt(l); if (want.length === have.length && want.every(x => have.includes(x))) rowAt(l).splice(0, have.length, ...want); else console.error('force mismatch layer', l, want.length, have.length); });
++    reindex();
++  }
+   if (opts.orderOnly) return {nodes: new Map(), edges: [], layers: new Map(), w: 0, h: 0, orderCrossings: allCrossings()} as unknown as LayeredLayout;
+ 
+   // 5. coordinates: layers along one axis, each layer centred on the widest, then relaxed toward the neighbours without overlap
+diff --git a/lib/layered-route.ts b/lib/layered-route.ts
+index cff68d36..ee6bbae4 100644
+--- a/lib/layered-route.ts
++++ b/lib/layered-route.ts
+@@ -3,10 +3,11 @@
+ // it for a 'down' diagram).
+ import {layoutLayered} from './graph-layout.ts';
+ import type {LayeredEdge, LayeredEdgeOut, LayeredLayout, LayeredNode, LayeredOpts, Placed, Pt} from './graph-layout.ts';
+-import {bendsOf, crossingsOf, crossingsOfRuns, crossingsWith, gainsRunPairs, runPairGain, rescore, runsOfPath, runsTogether, scoreOf, simplify} from './polyline-metrics.ts';
++import {runsOfRoute, runPairWays, bendsOf, crossingsOf, crossingsOfRuns, crossingsWith, gainsRunPairs, runPairGain, rescore, runsOfPath, runsTogether, scoreOf, simplify} from './polyline-metrics.ts';
+ import type {RoutedRuns, Runs} from './polyline-metrics.ts';
+ import {headCrossings, searchRoute} from './route-search.ts';
+ import {moveApart} from './route-apart.ts';
++import {T, bump} from './u6-probe.ts';
+ import {must} from './must.ts';
+ 
+ /** The element of a list at an index the caller knows is inside it. */
+@@ -262,6 +263,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+       const l1 = layerOf(e.from), l2 = layerOf(e.to);
+       for (const g of e.outer ? [l1 - 1, l2] : e.points.length === 2 ? (level(i) ? [] : [Math.min(l1, l2)]) : l1 < l2 && groupOf ? [l2 - 1] : []) crowd.set(g, (crowd.get(g) ?? 0) + 1);
+     });
++    if (T.crowdTracks && tracks) for (const [g, n] of trackLoad(lay, LANE, (i, end) => portOf.get((i * 2 + end)) ?? 0, level)) crowd.set(g, Math.min(n, crowd.get(g) ?? n));
+     return crowd;
+   };
+   const laneIn = (g: number): number => {
+@@ -773,13 +775,13 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+   const endY = (i: number, end: 0 | 1): number => { const e = edgeAt(i); return centreY(end === 0 ? e.from : e.to) + (portOf.get((i * 2 + end)) ?? 0); };
+   const pairOf = (i: number): string => { const e = edgeAt(i); return `${Math.min(layerOf(e.from), layerOf(e.to))}`; };
+   /** Moves both ports of arrow `i` to one height; returns how to take it back, or undefined when no such height exists. */
+-  const align = (i: number): (() => void) | undefined => {
++  const align = (i: number, tailOnly = false): (() => void) | undefined => {
+     const e = edgeAt(i), A = nodeOf(e.from), B = nodeOf(e.to);
+     const ya = endY(i, 0), yb = endY(i, 1);
+     if (Math.abs(ya - yb) < 0.5) return undefined;
+     // (1) both boxes reach this height, 6px inside their edges (the same margin as the ports'); (2) the neighbours on each side keep a step
+-    let lo = Math.max(A.y, B.y) + 6, hi = Math.min(A.y + A.h, B.y + B.h) - 6;
+-    for (const end of [0, 1] as const) {
++    let lo = tailOnly ? A.y + 6 : Math.max(A.y, B.y) + 6, hi = tailOnly ? A.y + A.h - 6 : Math.min(A.y + A.h, B.y + B.h) - 6;
++    for (const end of (tailOnly ? [0] : [0, 1]) as (0 | 1)[]) {
+       const slot = must(slotOf.get((i * 2 + end)));
+       const near = (k: number): number | undefined => { const o = slot.list[k]; return o ? endY(o.edge, o.end) : undefined; };
+       const prev = near(slot.k - 1), next = near(slot.k + 1);
+@@ -787,7 +789,8 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+       if (next !== undefined) hi = Math.min(hi, next - slot.after);
+     }
+     if (lo > hi) return undefined;
+-    const y = Math.min(hi, Math.max(lo, (ya + yb) / 2));
++    if (tailOnly && (yb < lo - 0.01 || yb > hi + 0.01)) return undefined;
++    const y = tailOnly ? yb : Math.min(hi, Math.max(lo, (ya + yb) / 2));
+     // (3) no other arrow of this pair of layers has a port at this height (their runs would line up as one line)
+     const own = new Set([i * 2, i * 2 + 1]);
+     for (const [j, o] of lay.edges.entries()) {
+@@ -795,7 +798,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+       for (const end of [0, 1] as const) if (!own.has((j * 2 + end)) && Math.abs(endY(j, end) - y) < 3) return undefined;
+     }
+     const was = [portOf.get((i * 2)), portOf.get((i * 2 + 1))];
+-    portOf.set((i * 2), y - centreY(e.from)); portOf.set((i * 2 + 1), y - centreY(e.to));
++    portOf.set((i * 2), y - centreY(e.from)); if (!tailOnly) portOf.set((i * 2 + 1), y - centreY(e.to));
+     return () => { for (const end of [0, 1] as const) { if (was[end] === undefined) portOf.delete((i * 2 + end)); else portOf.set((i * 2 + end), was[end]); } };
+   };
+   /** Does the straight run of arrow `i` lie along a horizontal run of another arrow (within 3px, sharing more than a point)? */
+@@ -819,7 +822,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+     if (b.crossings < a.crossings || (b.crossings === a.crossings && (ob < oa || (ob === oa && b.bends < a.bends)))) routes = plain;
+     else { constrainLanes = true; assignLanes(); turnOuter(); }
+   }
+-  const direct = lay.edges.map((_e, i) => i).filter(i => { const e = edgeAt(i); return straighten && !e.self && !e.outer && e.points.length === 2 && groupOf?.(i) === undefined && !round?.(e.from) && !round?.(e.to) && (lonePorts || must(slotOf.get((i * 2))).list.length > 1 || must(slotOf.get((i * 2 + 1))).list.length > 1); });
++  const direct = lay.edges.map((_e, i) => i).filter(i => { const e = edgeAt(i); return straighten && !e.self && !e.outer && e.points.length === 2 && (groupOf?.(i) === undefined || T.andAlign === 'both') && !round?.(e.from) && !round?.(e.to) && (lonePorts || must(slotOf.get((i * 2))).list.length > 1 || must(slotOf.get((i * 2 + 1))).list.length > 1); });
+   let best = scoreOf([...routes.values()]);
+   // ADR 0070 D4 (U4c, `tracks`): a move after the tracks are placed (this one, the routes around the boxes, D12-D14) may not add a pair of runs under a lane step
+   // apart, nor two runs on one line whose ends are under a lane step apart (the tracks' own spacing: what a move must not take away)
+@@ -830,7 +833,13 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+     const undo = align(i);
+     if (!undo) continue;
+     const trial = build(), score = rescore(routes, best, trial, crossCache);
+-    if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i) && !gains(trial, score.crossings)) { routes = trial; best = score; } else undo();
++    if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i) && !gains(trial, score.crossings) && (!groupOf || groupOf(i) === undefined || groupCrossings(trial, groupOf) <= groupCrossings(routes, groupOf))) { if (groupOf?.(i) !== undefined) bump('andBothOK'); routes = trial; best = score; } else undo();
++  }
++  if (T.andAlign === 'tail' && groupOf) for (const i of lay.edges.map((_e, k) => k).filter(k => { const e = edgeAt(k); return straighten && !e.self && !e.outer && e.points.length === 2 && groupOf(k) !== undefined && !round?.(e.from) && !round?.(e.to); })) {
++    const undo = align(i, true);
++    if (!undo) continue;
++    const trial = build(), score = rescore(routes, best, trial, crossCache);
++    if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i) && !gains(trial, score.crossings) && groupCrossings(trial, groupOf) <= groupCrossings(routes, groupOf)) { bump('andTailOK'); routes = trial; best = score; } else undo();
+   }
+   // the arrows that became straight lines no longer take a lane: the others take their lanes again, over the room that is left
+   if (spread) {
+@@ -953,8 +962,8 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+       const now = beside(routes, i);
+       if (!now.head) continue;
+       const tries: (() => void)[] = [];
+-      if (e.points.length > 2) for (const dz of [sc(8), -sc(8), sc(16), -sc(16)]) tries.push(() => shiftOf.set(i, dz));
+-      else {
++      if (e.points.length > 2) { if (!T.noShift) for (const dz of [sc(8), -sc(8), sc(16), -sc(16)]) tries.push(() => shiftOf.set(i, dz)); }
++      else if (!T.noTurn) {
+         const lo = Math.min(layerOf(e.from), layerOf(e.to)), gl = must(layerRight.get(lo)), gr = layerLeft.get(lo + 1) ?? gl + 2 * STUB;
+         for (const [j, o] of routes) {
+           if (j === i || edgeAt(j).to !== e.to || !segs(o).some(y => segs(must(routes.get(i))).some(x => runsTogether(x, y)))) continue;
+@@ -969,7 +978,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+         const trial = build(), s = rescore(routes, best, trial, crossCache), t = beside(trial, i);
+         // (with tracks) a move that gets two arrows off one line (under 4px: `beside`) may add up to two pairs of runs under a lane step (one neighbour each side of the line it moved to) for each overlap it takes off one line: an overlap reads worse (PR #398 #93).
+         // The arrows into the heads of ANDs do not cross each other more than they did: a move that trades a crossing there for another is no gain (an AND's arc reads wrongly over crossing arrows, ADR 0015)
+-        if (t.head < now.head && t.all <= now.all && s.crossings <= best.crossings && s.bends <= best.bends && inside(must(trial.get(i))) && !pierces(must(trial.get(i)), i) && (!gains(trial, s.crossings) || (t.all < now.all && runPairGain(routes, trial, LANE, runCache) <= 2 * (now.all - t.all))) && (!tracks || groupCrossings(trial, groupOf) <= groupCrossings(routes, groupOf))) { routes = trial; best = s; break; }
++        if (t.head < now.head && t.all <= now.all && s.crossings <= best.crossings && s.bends <= best.bends && inside(must(trial.get(i))) && !pierces(must(trial.get(i)), i) && (!gains(trial, s.crossings) || (t.all < now.all && runPairGain(routes, trial, LANE, runCache) <= 2 * (now.all - t.all))) && (!tracks || groupCrossings(trial, groupOf) <= groupCrossings(routes, groupOf))) { bump(e.points.length > 2 ? 'shiftOK' : 'turnOK'); routes = trial; best = s; break; }
+         shiftOf.delete(i); turnAt.delete(i);
+       }
+     }
+@@ -982,6 +991,31 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+  * boxes in a layer (which long arrows' turns overlap), so with it the layer coordinates differ from order to order and the order search (toc.ts, "the same layers") drops
+  * its candidates (ADR 0070 U4c, review of PR #398).
+  */
++export function trackLoad(lay: LayeredLayout, lane = LANE, portOf: (edge: number, end: 0 | 1) => number = () => 0, skip: (edge: number) => boolean = () => false): Map<number, number> {
++  const direct = new Map<number, number>(), outer = new Map<number, number>(), spans = new Map<number, {lo: number; hi: number}[]>();
++  const bump = (m: Map<number, number>, g: number): void => { m.set(g, (m.get(g) ?? 0) + 1); };
++  const span = (g: number, a: number, b: number): void => { if (Math.abs(a - b) < 0.5) return; const l = spans.get(g) ?? []; l.push({lo: Math.min(a, b) - lane, hi: Math.max(a, b) + lane}); spans.set(g, l); };
++  const centre = (id: string): number => { const n = must(lay.nodes.get(id)); return n.y + n.h / 2; };
++  lay.edges.forEach((e, i) => {
++    if (e.self) return;
++    const l1 = must(lay.layers.get(e.from)), l2 = must(lay.layers.get(e.to));
++    if (e.outer) { for (const g of [l1 - 1, l2]) bump(outer, g); return; }
++    const ys = [centre(e.from) + portOf(i, 0), ...e.points.slice(1, -1).map(p => p.y), centre(e.to) + portOf(i, 1)];
++    if (e.points.length === 2) { if (skip(i)) return; bump(direct, Math.min(l1, l2)); span(Math.min(l1, l2), at(ys, 0), at(ys, 1)); return; }
++    if (ys.length - 1 !== Math.abs(l2 - l1)) return; // one way point per layer passed: else the arrow is not one placeTracks places
++    for (let k = 0; k + 1 < ys.length; k++) span(l2 > l1 ? l1 + k : l1 - 1 - k, at(ys, k), at(ys, k + 1));
++  });
++  const out = new Map<number, number>();
++  for (const g of new Set([...direct.keys(), ...outer.keys(), ...spans.keys()])) {
++    // the most spans over one point: the sweep over their ends (a span's end sorts before another's start at the same place)
++    const ends = (spans.get(g) ?? []).flatMap(({lo, hi}) => [[lo, 1], [hi, -1]] as const).sort((p, q) => p[0] - q[0] || p[1] - q[1]);
++    let depth = 0, most = 0;
++    for (const [, d] of ends) { depth += d; most = Math.max(most, depth); }
++    out.set(g, (outer.get(g) ?? 0) + Math.max(direct.get(g) ?? 0, most));
++  }
++  return out;
++}
++
+ export function corridorLoad(lay: LayeredLayout): number {
+   const load = new Map<string, number>();
+   for (const e of lay.edges) {
+@@ -1007,7 +1041,7 @@ export function corridorLoad(lay: LayeredLayout): number {
+  */
+ export function layoutWithLanes(nodes: LayeredNode[], edges: LayeredEdge[], opts: LayeredOpts & {start?: string[]; back?: readonly number[]}, chip = 0, space = 1, scale = 1): LayeredLayout {
+   const first = layoutLayered(nodes, edges, opts);
+-  const need = gapFor(corridorLoad(first), chip, space, scale);
++  const need = gapFor(T.gapTracks ? Math.max(corridorLoad(first), ...(T.gapTracks === 'min' ? [] : trackLoad(first, laneStepOf(space * scale)).values())) : corridorLoad(first), chip, space, scale);
+   return need > (opts.levelGap ?? 0) ? layoutLayered(nodes, edges, {...opts, levelGap: need}) : first;
+ }
+ 
+@@ -1094,6 +1128,7 @@ function piercings(a: Attempt, place: (p: Pt) => Pt): number {
+  */
+ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layoutOpts: LayeredOpts & {start?: string[]; back?: readonly number[]}, o: AttemptOpts): Attempt {
+   const unit = (o.space ?? 1) * (o.scale ?? 1); // ADR 0070 D7
++  const scoreP = (P: Pt[][]): {crossings: number; bends: number; pairs?: number} => { const sc: any = scoreOf(P); if (T.pairs) sc.pairs = pairsAt(P, laneStepOf(unit)); return sc; };
+   type Side = 'far' | 'near' | 'low';
+   let laneHeads = false; // the returns end on the face of their head that looks at the lane (routeLayered's `laneHeads`); set only for the last try below
+   const optsOf = new WeakMap<Attempt, {opts: typeof layoutOpts; laneShare: boolean; near: Side}>();
+@@ -1103,7 +1138,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
+     const size = sizeOf(lay);
+     const groupOf = o.groupOf;
+     const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(at(lay.edges, i).index)), o.round, o.straighten !== false, laneShare, aside, o.detour === true && opts.coord === 'bk', o.detour === true, o.space, laneHeads, o.heads, o.tracks === true, o.scale); // the search for a way around the boxes only in the straightened candidate (it competes with the plain one on bends); a lone port is straightened in both
+-    const made = {lay, routes, score: scoreOf([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
++    const made = {lay, routes, score: scoreP([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
+     optsOf.set(made, {opts, laneShare, near});
+     return made;
+   };
+@@ -1145,7 +1180,8 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
+   };
+   // ADR 0016 D14: what is chosen gets the runs of arrows with no end in common that lie along each other moved apart, once; kept only when nothing else gets worse
+   const apartOf = (a: Attempt): Attempt => {
+-    if (!o.apart) return a;
++    if (!o.apart || T.noApart) return a;
++    bump('apartTry');
+     const place = o.place(a.size), rects = new Map<string, {x0: number; x1: number; y0: number; y1: number}>();
+     for (const [id, n] of a.lay.nodes) {
+       const p = place({x: n.x, y: n.y}), q = place({x: n.x + n.w, y: n.y + n.h});
+@@ -1156,13 +1192,14 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
+     if (groupOf && run !== undefined) a.lay.edges.forEach(e => { if (!e.self && groupOf(e.index) !== undefined) andHeads.add(e.to); });
+     const routes = moveApart({routes: a.routes, edges: new Map(a.lay.edges.map((e, i) => [i, {from: e.from, to: e.to, self: e.self, outer: e.outer}])), rects, ...(run === undefined ? {} : {headRun: (i: number) => andHeads.has(at(a.lay.edges, i).to) ? run : 22}), ...(o.scale === undefined ? {} : {scale: o.scale}), ...(o.tracks ? {sep: laneStepOf(unit)} : {})});
+     if ([...routes].every(([i, r]) => r === a.routes.get(i))) return a;
+-    const b: Attempt = {...a, routes, score: scoreOf([...routes.values()]), loose: o.looseOf ? o.looseOf(routes, a.lay) : []};
++    const b: Attempt = {...a, routes, score: scoreP([...routes.values()]), loose: o.looseOf ? o.looseOf(routes, a.lay) : []};
+     optsOf.set(b, must(optsOf.get(a)));
+     if (worse(a, b) || (o.groupOf !== undefined && (andCrossings(b) > andCrossings(a) || parallels(b) > parallels(a)))) return a;
+     // the search of the orders is entered on the first figure's crossings (toc.ts): a move that takes the last crossing away would skip it where it ran
+     if (a.score.crossings > 0 && b.score.crossings === 0) return a;
+     // an AND crossing it took away is judged like D12/D13's: toc.ts decides whether to search the orders on the figure without these moves
+     if (o.groupOf !== undefined && andCrossings(b) < andCrossings(a)) b.asided = true;
++    bump('apartOK');
+     return b;
+   };
+   // an attempt that does not fit is set aside by the fitting (only its width and its layers are read, for the message): the work that only moves its routes is not done (ADR 0053)
+@@ -1194,4 +1231,10 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
+ }
+ 
+ /** (crossings, bends) in lexicographic order: strictly better only. */
+-const better = (a: {crossings: number; bends: number}, b: {crossings: number; bends: number}): boolean => a.crossings < b.crossings || (a.crossings === b.crossings && a.bends < b.bends);
++export const pairsAt = (P: Pt[][], sep: number): number => { const rs = P.map(p => runsOfRoute(p)); let n = 0; for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) { const w = runPairWays(rs[i]!, rs[j]!, sep); n += w.level + w.plumb; } return n; };
++const better = (a: {crossings: number; bends: number; pairs?: number}, b: {crossings: number; bends: number; pairs?: number}): boolean => {
++  const pa = a.pairs ?? 0, pb = b.pairs ?? 0;
++  if (T.pairs === 'mid') return a.crossings < b.crossings || (a.crossings === b.crossings && (pa < pb || (pa === pb && a.bends < b.bends)));
++  if (T.pairs === 'last') return a.crossings < b.crossings || (a.crossings === b.crossings && (a.bends < b.bends || (a.bends === b.bends && pa < pb)));
++  return a.crossings < b.crossings || (a.crossings === b.crossings && a.bends < b.bends);
++};
+diff --git a/lib/rules.ts b/lib/rules.ts
+index 70cffc70..cda19a9a 100644
+--- a/lib/rules.ts
++++ b/lib/rules.ts
+@@ -1,3 +1,4 @@
++import {T} from './u6-probe.ts';
+ // Diagram rules ("svg-diagram check"): semantic checks that need the diagram model, not
+ // the rendered pixels — accessibility contrast, legend completeness, lane order, edge
+ // crossings, density. Each finding is {rule, severity: 'warn' | 'info', message}.
+@@ -693,7 +694,7 @@ function edgeParallelRules(d: LintTarget, out: Finding[]): void {
+   if (!d.laidOut) return;
+   const severity = layoutSeverity(d);
+   for (const band of causeBandsOf(d.laidOut)) {
+-    if (band.origin !== undefined) continue;
++    if (band.origin !== undefined && !T.epAll) continue;
+     // ADR 0070 D7 (U5): on a canvas the lines scale with the text (`WrapEnv.lineScale`), so the lane step does too; a band drawn with the old lines (`lineScaleDropped`) is measured at the scaled step as well, and is reported when it is crowded
+     const sep = laneStepOf((d.density === 'compact' && !band.densityRestored ? 0.75 : 1) * (d.canvas ? Math.max(1, canvasFontScale(d.canvas.minText)) : 1));
+     const edges = band.edges.filter(e => e.from !== e.to && e.points.length >= 2);
+diff --git a/lib/toc.ts b/lib/toc.ts
+index d49b7155..9dfe9554 100644
+--- a/lib/toc.ts
++++ b/lib/toc.ts
+@@ -4,6 +4,8 @@
+ //               figure: an arrow across an AND arc means "together", separate arrows mean "either".
+ //  cloud():     the Evaporating Cloud: five boxes in a fixed place (A the common objective, B and C the needs, D and D' the
+ //               conflicting wants), the arrows between them with their assumptions numbered, and the numbered list under the figure.
++import {T, bump, LOG} from './u6-probe.ts';
++import {pairsAt} from './layered-route.ts';
+ import {orderCrossings} from './graph-layout.ts';
+ import {textWidth} from './atoms.ts';
+ import {andClashes} from './cause-clash.ts';
+@@ -105,8 +107,10 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
+ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause | NoFit {
+   const once = (order?: readonly string[], plainRoutes = false, noDetour = false, sameFit?: {width: number; folded: boolean}) => tryLayoutCause(prep, band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, plainRoutes, noDetour, sameFit);
+   const prep = prepareCause(band);
++  curSep = Math.round(14 * (env.space ?? 1) * (env.lineScale ?? 1));
+   const first = once();
+   if (isNoFit(first)) return first;
++  if (T.noSearch) return first;
+   // the search is for a figure whose AND arrows cross as first laid out: judged before the side-by-side runs are moved aside (ADR 0016 D12/D13), which also clears crossings
+   // a crossing of any two arrows also starts it: the order only wins when it is strictly better in (AND crossings, AND side-by-side, crossings, bends)
+   if (band.base !== undefined) return first;
+@@ -124,7 +128,13 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+   // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
+   const orders = [ids.toReversed(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
+   const axisOf = (t: LaidOutCause): number[] => t.nodes.map(n => band.dir === 'left' || band.dir === 'right' ? n.x : n.y);
+-  const baseAxis = axisOf(base);
++  const baseAxis = axisOf(base), baseRank = rankOf(baseAxis);
++  const sameAxis = (t: LaidOutCause): boolean => T.axis === 'off' ? true : T.axis === 'rank' ? rankOf(axisOf(t)).every((v, i) => v === baseRank[i]) : axisOf(t).every((v, i) => Math.abs(v - must(baseAxis[i])) <= 0.5);
++  const fig = {n: ids.length, tried: 0, exit: '', queued: 0, bestIdx: -1} as any; LOG.push(fig);
++  const tall = (t: LaidOutCause, sc?: number[], bs?: number[]): boolean => {
++    if (T.height === 'off' || T.height === 'key') return false;
++    if (T.height === 'xdrop') { if (t.h <= base.h + 0.5) return false; if (t.h > base.h * (1 + (T.cap ?? 0.25))) return true; if (!sc || !bs) return false; return !lexLess(sc.slice(0, 3), bs.slice(0, 3)); }
++    return t.h > base.h + (T.height === 'soft' ? 0.1 * base.h : 0.5); };
+   // the orders are ranked by how many links cross between the layers before any is laid out: an order whose layers cross more than the best one's is not laid out (ADR 0053).
+   // It is a forecast: the routes, the lanes and the AND arcs come only with the whole layout, which still decides
+   const declaredBack = prep.arrows.flatMap((a, k) => a.back ? [k] : []), alapOpt = alapOf(band);
+@@ -135,6 +145,13 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+   const baseWidth = base.fitApplied?.find(a => a.what === 'maxNodeW')?.to;
+   const sameFit = {width: typeof baseWidth === 'number' ? baseWidth : (band.maxNodeW === undefined || band.maxNodeW === 'auto' ? NARROWING[0] as number : band.maxNodeW), folded: !!base.fitApplied?.some(a => a.what === 'fold')};
+   let best = base, bestScore = scoreOfCause(base), bestOrder: string[] | undefined;
++  if (T.proxyScan) {
++    let sd = 99; const rn = (n: number): number => { sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0; return sd % n; };
++    const found = new Map<number, string[][]>();
++    for (let k = 0; k < T.proxyScan; k++) { const o = [...ids]; for (let i = o.length - 1; i > 0; i--) { const j = rn(i + 1); [o[i], o[j]] = [o[j]!, o[i]!]; } const pr = proxyOf(o); const l = found.get(pr) ?? []; if (l.length < 12) l.push(o); found.set(pr, l); }
++    const mins = [...found.keys()].sort((a, b) => a - b).slice(0, 3);
++    fig.scan = {baseProxy: bestProxy, hist: Object.fromEntries([...found].map(([k, v]) => [k, v.length])), top: mins.map(m => ({proxy: m, laid: (found.get(m) ?? []).map(o => { const t = once(o, false, true, sameFit); if (isNoFit(t)) return {nofit: 1}; return {score: scoreOfCause(t), h: Math.round(t.h), axisOK: sameAxis(t), bh: Math.round(base.h)}; })}))};
++  }
+   // then more orders when the fixed ones left a crossing: shuffles from a fixed seed (the same figure always gets the same answer), then swaps of two neighbours of the best order so far.
+   // `straighten: false` keeps to the fixed ones (it is the way back to the old figure)
+   const queue = [...orders], seen = new Set<string>([ids.join('\u0000'), ...orders.map(o => o.join('\u0000'))]);
+@@ -153,30 +170,42 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+       continue;
+     }
+     // give up when nothing has got better for a while (counted in the orders tried, the ones set aside too: each is a layout): sooner once no AND arrows cross
+-    if (++tried > MAX_ORDERS || tried - lastBetter > (bestScore[0] === 0 ? PATIENCE_QUIET : PATIENCE)) break;
++    const maxO = T.maxOrders ?? MAX_ORDERS, pat = T.patience ?? PATIENCE, patQ = T.patienceQuiet ?? PATIENCE_QUIET;
++    if (++tried > maxO) { fig.exit = 'max'; fig.left = queue.length; break; }
++    if ((T.patLaid ? (fig.laid ?? 0) - (fig.lbl ?? 0) : tried - lastBetter) > (bestScore[0] === 0 ? patQ : pat)) { fig.exit = 'patience'; fig.left = queue.length; break; }
+     const order = must(queue.shift());
+     const proxy = proxyOf(order);
+     // the forecast does not see the arrows of an AND, which only the routes show: while some of them cross, every order is laid out
+-    if (bestScore[0] === 0 && proxy > bestProxy) continue;
++    if (!T.noProxy && bestScore[0] === 0 && proxy > bestProxy) { fig.proxySkip = (fig.proxySkip ?? 0) + 1; continue; }
++    fig.laid = (fig.laid ?? 0) + 1;
+     const t = once(order, false, true, sameFit);
+-    if (isNoFit(t)) continue; // another order widens a layer: it does not fit where the written one does
++    if (isNoFit(t)) { fig.nofit = (fig.nofit ?? 0) + 1; continue; } // another order widens a layer: it does not fit where the written one does
+     // the same layers (a different order must not change which edge of a cycle is cut, or fold the figure), the same size limits, no AND the first drew left undrawn
+-    if (axisOf(t).some((v, i) => Math.abs(v - must(baseAxis[i])) > 0.5) || t.h > base.h + 0.5 || t.loose.length > base.loose.length) continue;
+-    if (t.fitApplied?.length !== base.fitApplied?.length) continue;
++    const why: string[] = [];
++    if (!sameAxis(t)) why.push('axis');
+     const score = scoreOfCause(t);
+-    if (lexLess(score, bestScore)) { best = t; bestScore = score; bestOrder = order; lastBetter = tried; bestProxy = proxy; if (polished) { queue.length = 0; polished = false; } }
++    if (tall(t, score, bestScore)) why.push('height');
++    if (t.loose.length > base.loose.length) why.push('loose');
++    if (t.fitApplied?.length !== base.fitApplied?.length) why.push('fit');
++    if (why.length) {
++      if (lexLess(score, bestScore)) { for (const r of why) bump('rej_' + r); if (why.length === 1) bump('only_' + why[0]); fig.rej = [...(fig.rej ?? []), {why, score, best: bestScore, h: t.h, bh: base.h}]; }
++      continue;
++    }
++    if (lexLess(score, bestScore)) { fig.bestIdx = tried; fig.lbl = fig.laid; best = t; bestScore = score; bestOrder = order; lastBetter = tried; bestProxy = proxy; if (polished) { queue.length = 0; polished = false; } }
+   }
++  fig.tried = tried; fig.exit ||= (queue.length ? 'x' : 'done'); fig.base = scoreOfCause(base); fig.best = bestScore; fig.first = scoreOfCause(first);
+   if (band.straighten === false) return best;
+   const withDetours = bestOrder ? once(bestOrder) : undefined;
+   const found = withDetours && !isNoFit(withDetours) ? withDetours : undefined;
+   // the best of: the first figure, the best order with the detours, the best figure without them (the one the search judged; the base itself when no order beat it): the first one wins a tie.
+   // The detours can make AND arrows cross (they are judged by the whole figure's crossings), so the figure without them must stay a candidate
+   // the same frame as the figures the search compared (the plain ones: the detours may have made `first` lower than any order would be without them)
+-  const sameFrame = (t: LaidOutCause): boolean => axisOf(t).every((v, i) => Math.abs(v - must(baseAxis[i])) <= 0.5) && t.h <= base.h + 0.5 && t.loose.length <= base.loose.length && t.fitApplied?.length === base.fitApplied?.length;
++  const sameFrame = (t: LaidOutCause, sc?: number[], bs?: number[]): boolean => sameAxis(t) && !tall(t, sc, bs) && t.loose.length <= base.loose.length && t.fitApplied?.length === base.fitApplied?.length;
+   let pick = first, pickScore = scoreOfCause(first);
+   for (const t of [found, best]) {
+-    if (!t || !sameFrame(t)) continue;
++    if (!t) continue;
+     const sc = scoreOfCause(t);
++    if (!sameFrame(t, sc, pickScore)) continue;
+     if (lexLess(sc, pickScore)) { pick = t; pickScore = sc; }
+   }
+   return pick;
+@@ -188,7 +217,14 @@ const MAX_ORDERS = 60;
+ const PATIENCE = 30, PATIENCE_QUIET = 14;
+ const crossingsOf_ = (t: LaidOutCause): number => andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length;
+ /** (arrows of an AND that cross, arrows of an AND that run side by side, crossings, bends): smaller is better, in this order. */
+-const scoreOfCause = (t: LaidOutCause): number[] => { const s = scoreOf(t.edges.map(e => e.points)); return [crossingsOf_(t), andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses').length, s.crossings, s.bends]; };
++let curSep = 14;
++const scoreOfCause = (t: LaidOutCause): number[] => { const s = scoreOf(t.edges.map(e => e.points)); const base = [crossingsOf_(t), andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses').length];
++  const pr = T.sPairs ? pairsAt(t.edges.map(e => e.points), curSep) : 0;
++  const h = T.height === 'key' ? [Math.round(t.h ?? 0)] : [];
++  if (T.sPairs === 'mid') return [...base, s.crossings, pr, s.bends, ...h];
++  if (T.sPairs === 'last') return [...base, s.crossings, s.bends, pr, ...h];
++  return [...base, s.crossings, s.bends, ...h]; };
++const rankOf = (a: number[]): number[] => { const u = [...new Set(a.map(v => Math.round(v * 2) / 2))].sort((x, y) => x - y); return a.map(v => u.indexOf(Math.round(v * 2) / 2)); };
+ const lexLess = (a: number[], b: number[]): boolean => { for (let i = 0; i < a.length; i++) { const x = a[i], y = b[i]; if (x !== y) return x !== undefined && y !== undefined && x < y; } return false; };
+ 
+ export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false): LaidOutCause {
+diff --git a/lib/u6-probe.ts b/lib/u6-probe.ts
+new file mode 100644
+index 00000000..053cdf2b
+--- /dev/null
++++ b/lib/u6-probe.ts
+@@ -0,0 +1,5 @@
++// SCRATCH (ADR 0070 U6 measurement): toggles from the U6 environment variable and counters. Never merged.
++export const T: Record<string, any> = JSON.parse(process.env.U6 ?? '{}');
++export const C: Record<string, number> = ((globalThis as any).__u6c ??= {});
++export const bump = (k: string, n = 1): void => { C[k] = (C[k] ?? 0) + n; };
++export const LOG: any[] = ((globalThis as any).__u6log ??= []);
