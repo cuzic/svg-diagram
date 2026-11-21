@@ -24,8 +24,8 @@
 
 import {toneEnv} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
-import {DARK_NOTE, mergeFindingSides, mergeSides} from './appearance-auto.ts';
-import {acceptHint, lintDiagram, walkBands} from './rules.ts';
+import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
+import {acceptHint, lintDiagram, mergeFindingSides, walkBands} from './rules.ts';
 import {sourceOf} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
 import {CHECK_PHASES, collectRects, contrastProblems, runCheckPhase} from './verify-handlers.ts';

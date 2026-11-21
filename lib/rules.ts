@@ -13,10 +13,11 @@ import {midWordBreaksIn, missingGlyphs, sourceText} from './text-rules.ts';
 import {ceil4, connectRoom, labelCover, hidesArrow} from './connect-rules.ts';
 import {axisMismatches} from './axis-rules.ts';
 import {qualify, scopeOf} from './anchor-scope.ts';
-import {mergeFindingSides} from './appearance-auto.ts';
+import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {at, fromSources} from './finding-rules.ts';
 import type {SourceRef} from './source-ref.ts';
 import {nestedBandsOf} from './band-children.ts';
+import {itemIdsOf} from './band-ids.ts';
 import {sourceOf, withSource} from './source-ref.ts';
 import {minTextSize} from './fit.ts';
 import {IMAGE_WARN_BYTES} from './image.ts';
@@ -171,11 +172,13 @@ export const RULE_DOCS = {
   'doc-orphan-svg': 'どの文書からも参照されていない SVG',
 };
 
-/** Where a figure rule points. The doc-* rules use the document as their scope and provide lines in --docs. */
+/** Per-part findings keep their location in auto appearance; grouped findings use their original wording to match across sides.
+ * Document rules use the document as their scope and provide lines in --docs.
+ */
 export const RULE_LOCATION = {
-  'a11y-text-contrast': 'band',
-  'a11y-color-only-emphasis': 'band',
-  'a11y-nontext-contrast': 'band',
+  'a11y-text-contrast': 'band-grouped',
+  'a11y-color-only-emphasis': 'band-grouped',
+  'a11y-nontext-contrast': 'band-grouped',
   'title-duplicated': 'band',
   'a11y-no-title': 'diagram',
   'bars-values-hidden': 'diagram',
@@ -185,20 +188,20 @@ export const RULE_LOCATION = {
   'draft-status': 'diagram',
   'source-wraps': 'diagram',
   'legend-missing': 'diagram',
-  'legend-incomplete': 'diagram',
+  'legend-incomplete': 'band-grouped',
   'swimlane-lane-order': 'band',
-  'text-mid-word-break': 'band',
-  'glyph-missing': 'band',
-  'connect-label-covers-arrow': 'band',
-  'chart-axis-mismatch': 'band',
+  'text-mid-word-break': 'band-grouped',
+  'glyph-missing': 'band-grouped',
+  'connect-label-covers-arrow': 'band-grouped',
+  'chart-axis-mismatch': 'band-grouped',
   'wrap-fell-back': 'diagram',
   'shrink-narrow-text': 'band',
-  'gray-tone-collision': 'band',
+  'gray-tone-collision': 'band-grouped',
   'rowheader-tone-collides': 'band',
   'semantic-table-warning': 'band',
   'swimlane-lanes': 'band',
   'swimlane-hand-offs': 'band',
-  'edge-crossings': 'band',
+  'edge-crossings': 'band-grouped',
   'edge-bends': 'band',
   'edge-parallel': 'band',
   'quadrant-item-moved': 'band',
@@ -238,10 +241,10 @@ export const RULE_LOCATION = {
   'toc-chain-only': 'band',
   'toc-orphan': 'band',
   'toc-cycle-undeclared': 'band',
-  'graph-orphan-node': 'band',
-  'graph-disconnected': 'diagram',
-  'term-variant': 'band',
-  'term-avoid': 'band',
+  'graph-orphan-node': 'band-grouped',
+  'graph-disconnected': 'band-grouped',
+  'term-variant': 'band-grouped',
+  'term-avoid': 'band-grouped',
   'table-sum-mismatch': 'band',
   'table-share-not-100': 'band',
   'arrow-labels': 'diagram',
@@ -249,7 +252,7 @@ export const RULE_LOCATION = {
   'one-story': 'diagram',
   'slide-min-text': 'diagram',
   'font-floor-lowered': 'diagram',
-  'box-size-ignored': 'band',
+  'box-size-ignored': 'band-grouped',
   'stat-no-source': 'band',
   'stat-fit-shrunk': 'band',
   'slide-canvas-overflow': 'diagram',
@@ -257,8 +260,8 @@ export const RULE_LOCATION = {
   'doc-width': 'diagram',
   'flowchart-decision-edges': 'band',
   'auto-fit-applied': 'band',
-  'cause-line-scale-dropped': 'band',
-  'density-compact-restored': 'band',
+  'cause-line-scale-dropped': 'band-grouped',
+  'density-compact-restored': 'band-grouped',
   'density': 'diagram',
   'concentric-label-crossing': 'band',
   'wf-callout-no-note': 'band',
@@ -286,7 +289,7 @@ export const RULE_LOCATION = {
   'doc-orphan-png': 'diagram',
   'doc-svg-no-source': 'diagram',
   'doc-orphan-svg': 'diagram',
-} satisfies Record<RuleId, 'band' | 'diagram'>;
+} satisfies Record<RuleId, 'band' | 'band-grouped' | 'diagram'>;
 
 export const DEFAULT_LEGEND_LABELS = {
   'line:solid': '実線', 'line:dashed': '破線', 'line:dotted': '点線', 'line:double': '二重線', 'arrow:both': '双方向', 'weight:strong': '強い流れ',
@@ -322,12 +325,17 @@ function bandTones(bands: Band[]): string[] {
   return out;
 }
 
+// A canvas region with a pill says its tone in words.
+function wordedCanvasBands(all: Band[]): Set<Band> {
+  return new Set(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => must(b.canvas).worded[i]) : []));
+}
+
 // notation keys a diagram uses: 'line:dashed', 'arrow:both', 'weight:strong', 'tone:new', ...
 export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause = false): Set<string> {
   const all = walkBands(bands);
   const used = new Set<string>(), lines = new Set<string>();
   // a canvas() region with a pill (重点 / 中心 / ソフト) says its tone in words: that tone needs no legend entry
-  const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => must(b.canvas).worded[i]) : []));
+  const worded = wordedCanvasBands(all);
   for (const b of all) {
     if (dimmed.has(b) || worded.has(b)) continue;
     if (b.type === 'connect') {
@@ -426,17 +434,19 @@ const ASPECT_TALL = 1.5;
 
 function textContrast(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   const paint = paintOf(tones, d.appearance);
-  const seen = new Map<SourceRef | undefined, Set<string>>();
+  const pairs = new Map<string, {finding: Finding; refs: Set<SourceRef>}>();
   const check = (band: LaidOutBand, fg: string | undefined, bg: string | undefined, what: string): void => {
     if (!fg || !bg) return;
     fg = paint(fg); bg = paint(bg);
     const need = 4.5, r = lightWcag(fg, bg), key = `${fg}|${bg}`;
     if (r < need) {
-      const loc = sourceOf(band), pairs = seen.get(loc) ?? new Set<string>();
-      if (pairs.has(key)) return;
-      pairs.add(key);
-      seen.set(loc, pairs);
-      out.push({...at(band), rule: 'a11y-text-contrast', severity: 'warn', message: `${what} の文字 ${fg} と背景 ${bg} のコントラスト比が ${ratioText(r)}:1（4.5:1 以上が目安）`});
+      let pair = pairs.get(key);
+      if (!pair) {
+        pair = {refs: new Set(), finding: {rule: 'a11y-text-contrast', severity: 'warn', message: `${what} の文字 ${fg} と背景 ${bg} のコントラスト比が ${ratioText(r)}:1（4.5:1 以上が目安）`}};
+        pairs.set(key, pair);
+      }
+      const ref = sourceOf(band);
+      if (ref) pair.refs.add(ref);
     }
   };
   const boxes: (LaidOutBand | LaidOutBox)[] = [];
@@ -459,6 +469,7 @@ function textContrast(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
       }
     }
   }
+  for (const {finding, refs} of pairs.values()) out.push({...finding, ...fromSources(refs)});
 }
 
 // em.danger() / em.accent() without em.b(): the emphasis is the colour alone (WCAG 1.4.1). em.muted() softens, so it is not one.
@@ -491,39 +502,49 @@ function nonTextContrast(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
     const r = own == null ? wcagRatio(st.fill, PALETTE.bg) : Math.min(wcagRatio(st.stroke, st.fill), wcagRatio(st.stroke, PALETTE.bg));
     if (r < 3) out.push({...at(parts[0], ...parts.slice(1)), rule: 'a11y-nontext-contrast', severity: 'warn', message: `トーン「${t}」の枠線 ${st.stroke} が、背景に対して ${ratioText(r)}:1（3:1 以上が目安）。タグや文言など、色以外の手がかりを必ず併用する`});
   }
+  let firstArrow: {col: string; r: number} | undefined;
+  const arrowRefs: SourceRef[] = [];
   for (const c of d.connects ?? []) {
     // connector colours are resolved the same way emit does
     const col = c.dim ? PALETTE.muted : c.tone === 'muted' || c.tone === 'danger' || c.tone === 'accent' ? colorOf(toneStyle(tones, c.tone).ink, d.day) : PALETTE.text;
     const r = wcagRatio(col, PALETTE.bg);
-    if (r < 3) { out.push({...at(c), rule: 'a11y-nontext-contrast', severity: 'warn', message: `矢印の色 ${col} のコントラスト比が ${ratioText(r)}:1`}); break; }
+    if (r < 3) {
+      firstArrow ??= {col, r};
+      const ref = sourceOf(c);
+      if (ref) arrowRefs.push(ref);
+    }
   }
+  if (firstArrow) out.push({...fromSources(arrowRefs), rule: 'a11y-nontext-contrast', severity: 'warn', message: `矢印の色 ${firstArrow.col} のコントラスト比が ${ratioText(firstArrow.r)}:1`});
 }
 
 function legendRules(d: LintTarget, out: Finding[]): void {
   if (d.legend === false) return; // the author declared that this diagram needs no legend
-  const used = usedNotation(d.bands, dimmedBands(d)), have = legendKeys(d.bands);
+  const dim = dimmedBands(d), used = usedNotation(d.bands, dim), have = legendKeys(d.bands);
   if (!used.size) return;
-  const hasLegend = walkBands(d.bands).some(b => b.type === 'legend');
   const missing = [...used].filter(k => !have.has(k));
   if (!missing.length) return;
   const labels = legendLabelsFor(used, d.legendLabels);
   // say WHICH element uses each missing notation (a tone: the boxes drawn in it; a line / arrow: the connectors), not just the key
   const all = walkBands(d.bands), quote = (t: string | undefined): string => { const s = (t ?? '').replace(/\s+/g, ' ').trim(); return s ? `「${[...s].length > 14 ? `${[...s].slice(0, 14).join('')}…` : s}」` : ''; };
-  const dim = dimmedBands(d);
+  const hasLegend = all.some(b => b.type === 'legend');
+  const worded = wordedCanvasBands(all), parts = new Set<Band>();
   const where = (k: string): string => {
     if (k.startsWith('tone:')) {
       const boxes = all.filter((b): b is BoxBand => b.type === 'box' && `tone:${b.tone}` === k && !dim.has(b));
+      for (const b of boxes) if (!worded.has(b)) parts.add(b);
       const ex = boxes.slice(0, 3).map(b => quote(b.title ?? b.body)).filter(Boolean).join('');
       return boxes.length ? `${k.slice(5)} の色の箱 ${boxes.length} 枚${ex ? `: ${ex}${boxes.length > 3 ? ' ほか' : ''}` : ''}` : '';
     }
     if (k.startsWith('line:') || k.startsWith('weight:') || k === 'arrow:both') {
-      const n = all.filter(b => b.type === 'connect' && (k === 'arrow:both' ? b.arrow === 'both' : k.startsWith('weight:') ? `weight:${b.weight}` === k : `line:${b.line ?? 'solid'}` === k)).length;
-      return n ? `該当する矢印・線 ${n} 本` : '';
+      const lines = all.filter(b => b.type === 'connect' && (k === 'arrow:both' ? b.arrow === 'both' : k.startsWith('weight:') ? `weight:${b.weight}` === k : `line:${b.line ?? 'solid'}` === k));
+      for (const b of lines) if (!dim.has(b)) parts.add(b);
+      return lines.length ? `該当する矢印・線 ${lines.length} 本` : '';
     }
     return '';
   };
   const names = missing.map(k => { const w = where(k); return `${k}（${w ? `${w}。` : ''}凡例の例: ${labels[k] ?? k}）`; }).join('、');
-  out.push({rule: hasLegend ? 'legend-incomplete' : 'legend-missing', severity: 'warn', message: `凡例にない記法: ${names}。凡例に項目を足す（legend: 'auto' なら自動）か、凡例が要らない図なら legend: false`});
+  const location = hasLegend ? fromSources(all.filter(b => parts.has(b)).map(b => sourceOf(b))) : {};
+  out.push({...location, rule: hasLegend ? 'legend-incomplete' : 'legend-missing', severity: 'warn', message: `凡例にない記法: ${names}。凡例に項目を足す（legend: 'auto' なら自動）か、凡例が要らない図なら legend: false`});
 }
 
 // segments of every connector, for crossing / overlap counting
@@ -619,7 +640,7 @@ function grayToneRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
     used.set(name, parts);
   };
   // a canvas() region with a pill (重点 / 中心 / 結論) says its tone in words, as for the legend (usedNotation): not a grayscale matter
-  const worded = new Set<Band>(all.flatMap(b => b.type === 'grid' && b.canvas ? b.children.filter((_, i) => must(b.canvas).worded[i]) : []));
+  const worded = wordedCanvasBands(all);
   for (const b of all) if (b.type === 'box' && !worded.has(b)) use(b.tone ?? 'plain', b);
   for (const b of all) if (b.type === 'emblem') for (const i of b.items) use(i.tone ?? 'plain', b);
   for (const b of d.laidOut ?? []) if (b.type === 'table') for (const r of b.rows) if (!r.header && r.tone) use(r.tone, b);
@@ -854,6 +875,24 @@ export function acceptHint(rule: string): string {
   return Object.hasOwn(RULE_DOCS, rule) ? `許容するなら diagram({accept: {'${rule}': '理由'}}) か .svg-diagram.json の {"accept": {"${rule}": "理由"}}（詳しくは check --explain ${rule}）` : '';
 }
 
+/** Layout copies share SourceRefs across appearances, including refs from the same helper's different calls. */
+export function mergeFindingSides(light: readonly Finding[], dark: readonly Finding[]): Finding[] {
+  const refs = new Map<SourceRef, number>();
+  const id = (ref: SourceRef): number => {
+    const existing = refs.get(ref);
+    if (existing !== undefined) return existing;
+    const next = refs.size + 1;
+    refs.set(ref, next);
+    return next;
+  };
+  return mergeSides(light, dark, f => {
+    const wording = `${f.rule}\0${f.message}`;
+    if (RULE_LOCATION[f.rule as RuleId] === 'band-grouped') return wording;
+    const locations = [f.loc, ...(f.related ?? [])].map(ref => ref ? id(ref) : 0);
+    return `${wording}\0${locations.join(',')}`;
+  }, f => ({...f, message: `${f.message} (${DARK_NOTE})`}));
+}
+
 export function lintDiagram(d: LintTarget): Finding[] {
   if (d.appearance === 'auto') { // ADR 0023 D4: both colour sides, the same finding once, a dark-only one marked
     const side = (appearance: 'light' | 'dark') => lintDiagram({...d, appearance});
@@ -864,7 +903,7 @@ export function lintDiagram(d: LintTarget): Finding[] {
   // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
   const reasonOf = (rule: string): string | undefined => d.accept?.[rule as RuleId] ?? (rule === 'toc-no-desired-result' ? d.accept?.['toc-parts'] : undefined); // before ADR 0037 the missing desired result was toc-parts
   return out.map(f => {
-    const located = RULE_LOCATION[f.rule as RuleId] === 'diagram' ? {...f, ...diagramLocation} : f;
+    const located = RULE_LOCATION[f.rule as RuleId] === 'diagram' || !f.loc ? {...f, ...diagramLocation} : f;
     const why = reasonOf(f.rule);
     return why ? {...located, severity: 'info' as const, message: `${f.message}（許容: ${why}）`} : located;
   });
@@ -936,12 +975,21 @@ function graphRules(d: LintTarget, out: Finding[]): void {
     for (const id of ids) add(id);
     for (const id of ids) parent.set(find(id), find(must(ids[0])));
   }
-  const boxes = walkBands(d.bands).filter((b): b is BoxBand => b.type === 'box' && !!b.id && !!b.title);
+  const all = walkBands(d.bands);
+  const boxes = all.filter((b): b is BoxBand => b.type === 'box' && !!b.id && !!b.title);
   const orphans = boxes.filter(b => !parent.has(must(b.id)));
   if (orphans.length) out.push({...at(orphans[0], ...orphans.slice(1)), rule: 'graph-orphan-node', severity: 'warn', message: `どの矢印にもつながっていない箱: ${orphans.map(b => `「${oneLine(b.title)}」(${b.id})`).join('、')}。矢印を足すか、箱を消す（注記なら id を付けない）`});
   const groups = new Map<string, string[]>();
   for (const id of parent.keys()) { const r = find(id); groups.set(r, [...(groups.get(r) ?? []), id]); }
-  if (groups.size > 1) out.push({rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${[...groups.values()].map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
+  if (groups.size > 1) {
+    const components = [...groups.values()];
+    // Point at the components outside the largest one; keep the first component on a tie.
+    const largest = components.reduce((a, b) => a.length >= b.length ? a : b);
+    const disconnected = new Set(components.filter(g => g !== largest).flat());
+    const refs = all.filter(b => ('id' in b && b.id && disconnected.has(b.id))
+      || itemIdsOf(b).some(id => disconnected.has(qualify(scopeOf(b), id)))).map(b => sourceOf(b));
+    out.push({...fromSources(refs), rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${components.map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
+  }
 }
 // A decision (a diamond) is a fork: it needs two or more arrows out, and each says which answer it is (ADR 0041 D5)
 function flowRules(d: LintTarget, out: Finding[]): void {

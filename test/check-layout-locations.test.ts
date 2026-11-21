@@ -41,13 +41,13 @@ interface LayoutFinding {
   via?: {line: number; column: number}[];
 }
 
-function fixture(t: TestContext, files: Record<string, string>) {
+function fixture(t: TestContext, files: Record<string, string>, status = 1) {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'svgd-layout-location-'));
   t.after(() => fs.rmSync(cwd, {recursive: true, force: true}));
   for (const [file, source] of Object.entries(files)) fs.writeFileSync(path.join(cwd, file), source);
   return (format: string, ...sources: string[]) => {
     const result = spawnSync(process.execPath, [cli, '--format', format, ...sources], {cwd, encoding: 'utf8'});
-    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.equal(result.status, status, result.stdout + result.stderr);
     return result;
   };
 }
@@ -328,6 +328,58 @@ export default function define() {
   assert.equal(accepted?.column, 10);
   assert.equal(accepted?.severity, 'info');
   assert.match(accepted.message, /許容: 既存の設定/);
+});
+
+test('check keeps the main baseline for three boxes with the same failing contrast', t => {
+  // Written by main (44b006d) with check --write-baseline baseline.json contrast.ts.
+  const baseline = fs.readFileSync(new URL('./fixtures/contrast-main-baseline.json', import.meta.url), 'utf8');
+  const run = fixture(t, {
+    'baseline.json': baseline,
+    'contrast.ts': `${imports}
+export default function define() {
+  return diagram({theme: 'blue', medium: 'doc', title: '配色', legend: false,
+    tones: {accent: {fill: '#808080', stroke: '#808080'}}}).add(
+    row([
+      box({title: '一つ目', tone: 'accent'}),
+      box({title: '二つ目', tone: 'accent'}),
+      box({title: '三つ目', tone: 'accent'}),
+    ]));
+}
+`,
+  }, 0);
+  const accepted = run('json', '--strict', '--baseline', 'baseline.json', 'contrast.ts');
+  const main = JSON.parse(baseline).warnings;
+  const {findings} = JSON.parse(run('json', 'contrast.ts').stdout) as {
+    findings: (LayoutFinding & {rule: string; severity: string})[];
+  };
+  const warnings = findings.filter(f => f.severity === 'warn');
+  assert.deepEqual(warnings.map(({file, rule, message}) => ({file, rule, message})), main);
+  for (const f of warnings) {
+    assert.deepEqual([f.line, f.column], [6, 7]);
+    assert.deepEqual(f.related, [7, 8].map(line => ({file: 'contrast.ts', line, column: 7})));
+  }
+  assert.equal(JSON.parse(accepted.stdout).findings.filter((f: {message: string}) => f.message.endsWith('（ベースライン済み）')).length, 2);
+});
+
+test('check limits grouped rule locations in JSON and SARIF to ten related parts', t => {
+  const run = fixture(t, {'many.ts': `${imports}
+export default function define() {
+  return diagram({theme: 'blue', medium: 'doc', title: '配色', legend: false,
+    tones: {accent: {fill: '#808080', stroke: '#808080'}}}).add(
+${Array.from({length: 12}, (_, i) => `    box({title: '箱 ${i + 1}', tone: 'accent'})`).join(',\n')});
+}
+`});
+  const rule = 'a11y-nontext-contrast';
+  const {findings} = JSON.parse(run('json', '--strict', 'many.ts').stdout) as {findings: (LayoutFinding & {rule: string})[]};
+  const hit = findings.find(f => f.rule === rule);
+  assert.equal(hit?.line, 5);
+  const lines = Array.from({length: 10}, (_, i) => i + 6);
+  assert.deepEqual(hit.related, lines.map(line => ({file: 'many.ts', line, column: 5})));
+  const {runs} = JSON.parse(run('sarif', '--strict', 'many.ts').stdout);
+  const result = runs[0].results.find((r: {ruleId: string}) => r.ruleId === rule);
+  assert.deepEqual(result.relatedLocations, lines.map((line, i) => ({
+    id: i + 1, physicalLocation: {artifactLocation: {uri: 'many.ts'}, region: {startLine: line, startColumn: 5}},
+  })));
 });
 
 test('check reports an imported rule source and the other part in a chart pair', t => {

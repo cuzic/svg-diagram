@@ -12,7 +12,11 @@ export function at(band: object | undefined, ...relatedBands: object[]): Pick<Is
 
 export function fromSources(refs: Iterable<SourceRef | undefined>): Pick<Issue, 'loc' | 'related'> {
   const sources = new Set<SourceRef>();
-  for (const ref of refs) if (ref) sources.add(ref);
+  // Keep one primary and at most ten distinct related locations.
+  for (const ref of refs) {
+    if (ref) sources.add(ref);
+    if (sources.size === 11) break;
+  }
   const [loc, ...related] = sources;
   return loc ? {loc, ...(related.length ? {related} : {})} : {};
 }
