@@ -1,4 +1,4 @@
-// ADR 0070 D4 (U4c): the tracks counted the same way for a gap's size and its lanes' step (`trackLoad`), the moves after the tracks (align, D12 to D14,
+// ADR 0070 D4 (U4c): the moves after the tracks (align, D12 to D14,
 // the routes around the boxes) that may not add a pair of runs under a lane step apart (`gainsRunPairs`), the detour on the arrow's tracks, and
 // the criteria of the ADR for the reported CRT's shape. The routing is checked on layouts of fixed box sizes (no font); the figures only for counts.
 import test from 'node:test';
@@ -7,8 +7,8 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {register} from 'node:module';
-import {corridorLoad, gapFor, laneStepOf, layeredAttempt, layoutWithLanes, routeLayered, trackLoad} from '../lib/layered-route.ts';
-import {crossingsOf, gainsRunPairs, parallelRuns, runPairWays, runsOfRoute, scoreOf} from '../lib/polyline-metrics.ts';
+import {corridorLoad, laneStepOf, layeredAttempt, layoutWithLanes, routeLayered} from '../lib/layered-route.ts';
+import {crossingsOf, crossingsWith, gainsRunPairs, parallelRuns, runPairGain, runPairWays, runsOfPath, runsOfRoute, scoreOf} from '../lib/polyline-metrics.ts';
 import type {RoutedRuns} from '../lib/polyline-metrics.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import type {Pt} from '../lib/graph-layout.ts';
@@ -31,17 +31,9 @@ const box = (id: string) => ({id, size: {w: 80, h: 60}});
 const nodes = ['a1', 'a2', 'a3', 'm', 'c1', 'c2', 'c3'].map(box);
 const edges = ([['a1', 'm'], ['m', 'c1'], ['m', 'c2'], ['m', 'c3'], ['a2', 'c1'], ['a3', 'c1'], ['a3', 'c2']] as const).map(([from, to]) => ({from, to}));
 
-test('trackLoad counts the long arrows\' turns as well as the direct arrows\' lanes; corridorLoad (the size of the gaps) still counts the direct arrows only', () => {
+test('corridorLoad (the size of the gaps) counts the direct arrows only: the long arrows\' turns are not counted (PR #398: the order search wants the same layers)', () => {
   const lay = layoutWithLanes(nodes, edges, {dir: 'right', gap: 24, levelGap: 20});
-  const load = trackLoad(lay);
-  // gap 0: a1 -> m and two long turns that overlap; gap 1: m -> c1, m -> c2 (m -> c3 is a straight line but counts: its ports are not known) and the three long arrows
-  assert.deepEqual([...load].sort(), [[0, 2], [1, 4]]);
-  assert.equal(Math.max(...load.values()), 4);
-  // the gaps are not sized by it (it depends on the order of the boxes of a layer, and the order search wants the same layers): corridorLoad is the direct arrows'
   assert.equal(corridorLoad(lay), 3);
-  assert.equal(gapFor(corridorLoad(lay)) <= lay.w, true);
-  // the arrows that are straight lines take no turn (`skip`): with no direct arrow left, the long arrows' turns alone are counted
-  assert.deepEqual([...trackLoad(lay, LANE, () => 0, () => true)].sort(), [[0, 2], [1, 2]]);
 });
 
 // ---- the moves after the tracks may not add a pair of runs under a lane step apart -------------------------------------------------------------
@@ -277,5 +269,46 @@ for (const dist of ['A', 'R', 'RG', 'RG129'] as const) {
       assert.ok(of(now) <= of(old), `#${g}: crossings inside an AND ${of(old)} -> ${of(now)}`);
     });
     assert.ok(total <= MAIN_CROSSINGS[dist], `${dist}: ${total} crossings in all, origin/main drew ${MAIN_CROSSINGS[dist]}`);
+  });
+}
+
+// ---- guards of the speed-ups ------------------------------------------------------------------------------------------------------------------------
+
+test('a gap\'s stage is played back only for the same input: with every stage given one key (a collision), the routes are what they are without', () => {
+  for (const seed of [31, 52, 54]) {
+    const {boxes, es} = randomGraph(seed);
+    const lay = layoutWithLanes(boxes, es, {dir: 'right', gap: 24, levelGap: 60});
+    const route = (heads: {stageHashBits?: number}) => rounded(routeLayered(lay, p => p, 22, undefined, undefined, true, false, false, false, false, 1, false, heads, true));
+    assert.deepEqual(route({stageHashBits: 0}), route({}), `seed ${seed}`);
+  }
+});
+
+test('crossingsWith keeps its cache for the default options only', () => {
+  const a = [P(0, 5), P(10, 5)], b = [P(5, 0), P(5, 10)], cache = new WeakMap<Pt[], ReturnType<typeof runsOfPath>>();
+  assert.equal(crossingsWith(a, [b], {margin: 3}, cache), 1);
+  assert.equal(cache.has(a) || cache.has(b), false, 'nothing kept for other options');
+  assert.equal(crossingsWith(a, [b], {}, cache), 1);
+  assert.equal(cache.has(a) && cache.has(b), true);
+  assert.equal(crossingsWith(a, [b], {margin: 6}, cache), 0, 'a margin of 6 leaves the crossing 5 from each end out, whatever the cache holds');
+});
+
+test('the gate\'s exception: a move that gets two arrows off one line adds at most two pairs for each overlap it takes off (runPairGain)', () => {
+  const cache = new WeakMap<Pt[], RoutedRuns>();
+  const corner = [P(0, 0), P(100, 0), P(100, 40)], onLine = [P(0, 2), P(100, 2)], away = [P(0, 11), P(100, 11)];
+  assert.equal(runPairGain(new Map([[0, corner], [1, onLine]]), new Map([[0, corner], [1, away]]), LANE, cache) <= 0, true, 'an overlap 2px apart becomes a pair 11px apart: no more pairs');
+
+  assert.equal(runPairGain(new Map([[0, corner], [1, [P(300, 300), P(300, 340)]]]), new Map([[0, corner], [1, away]]), LANE, cache) > 0, true);
+});
+
+// ---- the real CRTs: no figure with more pairs under a lane step than origin/main drew --------------------------------------------------------------
+
+// the pairs (`parallelRuns(·, 14)`) origin/main (18a15eb4) drew: #85 1, #117 0, #142 1, #93 1 (width 1800) and #6 1, #70 0 (canvas 1.29). A `crowdOf` counted by `trackLoad`
+// moved the tracks a few px and gave each one pair more (PR #398 round 2); it is deferred to U5 (the lane step grown with the text) with this check on each figure
+for (const [g, pairs, canvas] of [[85, 1, false], [117, 0, false], [142, 1, false], [93, 1, false], [6, 1, true], [70, 0, true]] as const) {
+  test(`the review's random CRT #${g}${canvas ? ' (canvas 1.29)' : ''}: at most ${pairs} pair(s) of runs under a lane step, as origin/main`, async () => {
+    const {nodes: ns, links, dir} = randomCrt(g);
+    const d = canvas ? diagram({theme: 'blue', canvas: {width: 2400, height: 1800, minText: 18, fit: 'content'}}) : diagram({theme: 'blue', width: 1800});
+    const {t} = await causeOf(d.add(causeTree(ns, links as never, {tree: 'crt', dir})));
+    assert.ok(parallelRuns(t.edges.map(e => e.points), LANE).length <= pairs);
   });
 }

@@ -203,14 +203,14 @@ export function routedRuns(r: P[], cache: WeakMap<P[], RoutedRuns>): RoutedRuns 
 }
 
 /**
- * Does `next` lie against the other routes in a way `prev` did not (`runPairWays`)? Only the routes that differ are asked: for each, the other routes
+ * How many pairs `next` has against the other routes that `prev` did not (`runPairWays`): the most of the new kinds of pair and the growth of the moved routes' pairs in all (0 or less: none). Only the routes that differ are asked: for each, the other routes
  * it lies against. It does when it lies against a route level or plumb where it did not (the same two routes the other way, a plumb pair for a level
  * one, is a gain too), or when the pairs of the moved routes are more in all than they were. A pair that was there stays allowed (it may be a bit
  * nearer). `cache` holds the runs of the routes by their arrays.
  */
-export function gainsRunPairs<K>(prev: ReadonlyMap<K, P[]>, next: ReadonlyMap<K, P[]>, sep: number, cache: WeakMap<P[], RoutedRuns>): boolean {
+export function runPairGain<K>(prev: ReadonlyMap<K, P[]>, next: ReadonlyMap<K, P[]>, sep: number, cache: WeakMap<P[], RoutedRuns>): number {
   const near = (a: RoutedRuns, b: RoutedRuns): boolean => a.x0 - sep - 1 <= b.x1 && b.x0 - sep - 1 <= a.x1 && a.y0 - sep - 1 <= b.y1 && b.y0 - sep - 1 <= a.y1;
-  let before = 0, after = 0;
+  let before = 0, after = 0, newWays = 0;
   for (const [k, r] of next) {
     const old = prev.get(k);
     if (!old || samePath(old, r)) continue;
@@ -219,11 +219,16 @@ export function gainsRunPairs<K>(prev: ReadonlyMap<K, P[]>, next: ReadonlyMap<K,
       if (o === k) continue;
       const oldO = prev.get(o) ?? ro, other = routedRuns(samePath(oldO, ro) ? oldO : ro, cache), otherWas = routedRuns(oldO, cache); // an unchanged route's runs are those of its old array
       const was = near(was0, otherWas) ? runPairWays(runsIn(was0), runsIn(otherWas), sep) : NONE, now = near(now0, other) ? runPairWays(runsIn(now0), runsIn(other), sep) : NONE;
-      if ((now.level > 0 && was.level === 0) || (now.plumb > 0 && was.plumb === 0)) return true;
+      if ((now.level > 0 && was.level === 0) || (now.plumb > 0 && was.plumb === 0)) newWays++;
       before += was.level + was.plumb; after += now.level + now.plumb;
     }
   }
-  return after > before;
+  return Math.max(after - before, newWays);
+}
+
+/** Does `next` lie against the other routes in a way `prev` did not (`runPairGain` over 0)? */
+export function gainsRunPairs<K>(prev: ReadonlyMap<K, P[]>, next: ReadonlyMap<K, P[]>, sep: number, cache: WeakMap<P[], RoutedRuns>): boolean {
+  return runPairGain(prev, next, sep, cache) > 0;
 }
 const runsIn = (e: RoutedRuns): RouteRun[] => e.runs ??= runsOfRoute(e.pts);
 const NONE = {level: 0, plumb: 0};
