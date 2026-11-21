@@ -9,7 +9,7 @@ import {checkDiagram, renderDiagram} from '../lib/dsl/render.ts';
 import {importDefine} from '../lib/load-source.ts';
 import {installResolveHook} from '../lib/resolve-hook.ts';
 import {walkBands} from '../lib/rules.ts';
-import {DIAGRAM_SOURCE, SOURCE, SourceRef, atBand, captureHere, captureSourceLocations, sourceOf as refOf} from '../lib/source-ref.ts';
+import {DIAGRAM_SOURCE, SOURCE, SourceRef, atBand, captureHere, captureSourceLocations, sourceOf as refOf, throwAtDiagram, withSource} from '../lib/source-ref.ts';
 import type {Diagram} from '../lib/types/core.ts';
 import type {Band, LaidOutDiagram} from '../lib/types/index.ts';
 
@@ -277,4 +277,21 @@ test('a group stretched inside a row keeps its source on the frame and title', a
   assert.equal(refOf(title), refOf(frame));
   assert.equal(refOf(child), refs.get(short.children[0]!));
   assert.equal(refOf(tallFrame), refs.get(r.children[1]!));
+});
+
+
+test('withSource preserves an existing mark and throwAtDiagram preserves the original Error', () => {
+  const target = {};
+  const ref = mark(target);
+  const other = new SourceRef(undefined, 'parts[1]');
+  const error = new Error('failure');
+  assert.equal(withSource(error, ref), error);
+  assert.equal(refOf(error), ref);
+  withSource(error, other);
+  assert.equal(refOf(error), ref);
+  assert.throws(() => throwAtDiagram(error, target), thrown => {
+    assert.equal(thrown, error);
+    assert.equal(refOf(error, DIAGRAM_SOURCE), undefined);
+    return true;
+  });
 });
