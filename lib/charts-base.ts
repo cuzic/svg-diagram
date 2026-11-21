@@ -32,7 +32,30 @@ export type ChartItem = (
   | {k: 'path'; d: string; fill: ColorKey | 'none'; op?: number; stroke?: ColorKey; sw?: number; dash?: string; of?: string | string[]; soft?: boolean}
   | {k: 'icon'; name: string; glyph: IconGlyph; x: number; y: number; size: number; fill: ColorKey; of?: string}
   | {k: 'text'; s: string; x: number; y: number; anchor: 'start' | 'middle' | 'end'; fill: ColorKey; size: number; bold?: boolean; of?: string}
-) & {part?: string};
+) & {part?: string; /** Drawn by the chart's `table` (a cell's text, fill or rule): the PowerPoint export writes the table and leaves these out. */ cell?: true;
+  /** Drawn under the chart's `table` in the PowerPoint export (a highlighted column's box), wherever it comes in the drawing order. */ under?: true};
+/** A line along a side of a table cell, as the svg draws it there. */
+export interface TableRule {stroke: ColorKey; sw: number; dash?: string}
+/** One cell of a chart drawn as a table (TableCell[][] holds null where a cell to the left spans over it). */
+export interface TableCell {
+  lines: string[];
+  align: 'start' | 'middle' | 'end';
+  valign: 'top' | 'middle' | 'bottom';
+  ink: ColorKey;
+  bold?: boolean;
+  fill?: {key: ColorKey; op?: number};
+  /** How far (px) the text sits from the cell's left or right side (start / end) and from its top or bottom (top / bottom). */
+  padX?: number;
+  padY?: number;
+  /** Columns this cell covers (default 1). */
+  span?: number;
+  /** Its own text size and line pitch (px), when not the table's. */
+  size?: number;
+  pitch?: number;
+  l?: TableRule; r?: TableRule; t?: TableRule; b?: TableRule;
+}
+/** A chart that is a table (harvey, compare, heatmap): its grid, so the PowerPoint export can write a native table. */
+export interface ChartTable {x: number; y: number; colW: number[]; rowH: number[]; cells: (TableCell | null)[][]; /** Text size and line pitch (px). */ size: number; pitch: number}
 export interface ChartBox extends Rect {label: string; on?: ChartBg; host?: number; of?: string; /** Drawn on a plate of the page colour: lines behind it are covered, not crossed. */ plate?: boolean}
 export interface ChartSolid extends Rect {label: string; id?: string}
 export interface ChartSeg {x1: number; y1: number; x2: number; y2: number}
@@ -48,6 +71,8 @@ export interface LaidOutChartPart {
   edges?: {from: string; to: string; points: {x: number; y: number}[]}[];
   /** What the figure leaves out of its drawing (labels too small for their cell): listed in the description instead. */
   omitted: string[];
+  /** The chart's table, when it is one: the items it draws carry `cell`. */
+  table?: ChartTable;
   h: number;
 }
 
@@ -119,6 +144,8 @@ export class Canvas {
   readonly items: ChartItem[] = [];
   /** The part the items drawn now belong to (withPart), outside in, joined by `/`. */
   private part: string | undefined;
+  /** The chart as a table (asCell marks what of the drawing it covers). */
+  table: ChartTable | undefined;
   readonly boxes: ChartBox[] = [];
   readonly solids: ChartSolid[] = [];
   readonly segs: ChartSeg[] = [];
@@ -145,12 +172,22 @@ export class Canvas {
       this.part = outer;
     }
   }
+  /** Draws what the chart's `table` draws too (a cell's text, its fill, a rule): the items get `cell`. Returns what `draw` returns. */
+  asCell<T>(draw: () => T): T {
+    const n = this.items.length;
+    try { return draw(); } finally { for (let i = n; i < this.items.length; i++) (this.items[i] as ChartItem).cell = true; }
+  }
   /**
    * Puts every item that has no part yet and belongs to one item of the chart (`of`, the id spotlight dims it by) into that item's part
    * (ADR 0054: a row, a group, a column). Items of several (`of` a list, a ribbon) or of none stay as they are.
    */
   partsByOf(byOf: ReadonlyMap<string, string>): void {
     for (const it of this.items) if (it.part === undefined && typeof it.of === 'string') { const p = byOf.get(it.of); if (p) it.part = p; }
+  }
+  /** Draws what the PowerPoint export puts under the chart's `table` (a highlighted column's box): the items get `under`. */
+  underTable(draw: () => void): void {
+    const n = this.items.length;
+    try { draw(); } finally { for (let i = n; i < this.items.length; i++) (this.items[i] as ChartItem).under = true; }
   }
   /** Draws one entry of the chart's legend: its sample and name are a part inside the legend's (ADR 0054). */
   legendEntry<T>(i: number, label: string, draw: () => T): T { return this.withPart(LEGEND, () => this.withPart(partStep('entry', i, label), draw)); }
@@ -213,7 +250,7 @@ export class Canvas {
   }
   lineH(): number { return Math.round(this.size * 1.25); }
   done(): LaidOutChartPart {
-    return {items: this.items, boxes: this.boxes, solids: this.solids, segs: this.segs, anchors: this.anchors, ...(this.edges.length ? {edges: this.edges} : {}), omitted: this.omitted, h: this.h};
+    return {items: this.items, boxes: this.boxes, solids: this.solids, segs: this.segs, anchors: this.anchors, ...(this.edges.length ? {edges: this.edges} : {}), omitted: this.omitted, ...(this.table ? {table: this.table} : {}), h: this.h};
   }
 }
 

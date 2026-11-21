@@ -1,4 +1,6 @@
-import {PALETTE, textColorOf, type ToneEnv} from '../tokens.ts';
+import {PALETTE, colorOf, textColorOf, type ToneEnv} from '../tokens.ts';
+import type {ChartTable, TableCell, TableRule} from '../charts-base.ts';
+import type {Theme} from '../types/core.ts';
 import {resolveBoxStyle} from '../emit-common.ts';
 import {LINE_HEIGHT_EM} from '../layout-util.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
@@ -56,4 +58,57 @@ export function tableXml(id: number, b: LaidOutTable, ld: LaidOutDiagram, tones:
   });
   const y = t?.y ?? b.y;
   return `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${id}" name="${attr(b.id ?? `table-${id}`)}"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="${emu(b.x)}" y="${emu(y)}"/><a:ext cx="${emu(b.w)}" cy="${emu(b.h)}"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr/><a:tblGrid>${cols}</a:tblGrid>${rows.join('')}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`;
+}
+
+/** A side of a chart table's cell: its rule, or none. */
+function ruleXml(tag: string, rule: TableRule | undefined, day: Theme): string {
+  if (!rule) return `<a:${tag} w="0"><a:noFill/></a:${tag}>`;
+  return `<a:${tag} w="${emu(rule.sw)}" cap="flat" cmpd="sng" algn="ctr">${solidFill(colorOf(rule.stroke, day))}<a:prstDash val="${rule.dash ? 'dash' : 'solid'}"/><a:round/><a:headEnd type="none" w="med" len="med"/><a:tailEnd type="none" w="med" len="med"/></a:${tag}>`;
+}
+
+/**
+ * A chart that is a table (harvey, compare, heatmap: charts-base.ts ChartTable), or a swimlane's frame (./swimlane.ts), as a PowerPoint table: each cell's text, fill and rules as
+ * the svg draws them. No table style: every cell says its own fill and sides. What the table does not hold (a Harvey ball, a legend) the
+ * caller draws over it.
+ */
+export function chartTableXml(id: number, name: string, t: ChartTable, day: Theme, fonts: Fonts): string {
+  const cols = t.colW.map(w => `<a:gridCol w="${emu(w)}"/>`).join('');
+  // the cell that covers column j of row i (a cell spanning to the right covers the null cells after it)
+  const at = (i: number, j: number): TableCell | undefined => {
+    const row = t.cells[i];
+    if (!row) return undefined;
+    for (let k = Math.min(j, row.length - 1); k >= 0; k--) { const c = row[k]; if (c) return k + (c.span ?? 1) > j ? c : undefined; }
+    return undefined;
+  };
+  // a side two cells share is drawn by both: a rule only one of them asks for is given to the other too (which side wins when they
+  // differ is up to the renderer, and a missing side can drop the line)
+  const sides = (c: TableCell, i: number, j: number): Pick<TableCell, 'l' | 'r' | 't' | 'b'> => ({
+    l: c.l ?? (j > 0 ? at(i, j - 1)?.r : undefined), r: c.r ?? at(i, j + (c.span ?? 1))?.l,
+    t: c.t ?? (i > 0 ? at(i - 1, j)?.b : undefined), b: c.b ?? at(i + 1, j)?.t,
+  });
+  // an empty cell (and a merged one) holds a 1pt paragraph with no insets, so PowerPoint never grows a short row (a padding row) to
+  // the height of a line of text it does not hold
+  const EMPTY = '<a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:lnSpc><a:spcPts val="100"/></a:lnSpc></a:pPr><a:endParaRPr lang="ja-JP" sz="100"/></a:p></a:txBody>';
+  const rows = t.cells.map((row, i) => {
+    const cells = row.map((c, j) => {
+      if (c === null) return `<a:tc hMerge="1">${EMPTY}<a:tcPr marL="0" marR="0" marT="0" marB="0"/></a:tc>`;
+      const color = hex(colorOf(c.ink, day));
+      const size = c.size ?? t.size, pitch = c.pitch ?? t.pitch, lnSpc = `<a:lnSpc><a:spcPts val="${Math.round(pitch * 75)}"/></a:lnSpc>`;
+      const runs = c.lines.map((line, k) => `${k ? '<a:br/>' : ''}${runXml(line, size, !!c.bold, false, color, fonts)}`).join('');
+      const algn = c.align === 'start' ? 'l' : c.align === 'end' ? 'r' : 'ctr';
+      const padX = c.padX ?? 2, padY = c.padY ?? 0;
+      // PowerPoint puts a line's baseline 0.8 of its pitch below the line's top: a bottom inset of padY puts the last baseline padY above the bottom
+      const marT = c.valign === 'top' ? padY : 0, marB = c.valign === 'bottom' ? Math.max(0, padY - pitch * 0.2) : 0;
+      const anchor = c.valign === 'top' ? 't' : c.valign === 'bottom' ? 'b' : 'ctr';
+      const fill = !c.fill ? '<a:noFill/>' : c.fill.op === undefined || c.fill.op >= 1 ? solidFill(colorOf(c.fill.key, day))
+        : `<a:solidFill><a:srgbClr val="${hex(colorOf(c.fill.key, day))}"><a:alpha val="${Math.round(c.fill.op * 100000)}"/></a:srgbClr></a:solidFill>`;
+      const span = c.span && c.span > 1 ? ` gridSpan="${c.span}"` : '';
+      const {l, r, t: top, b} = sides(c, i, j), rules = `${ruleXml('lnL', l, day)}${ruleXml('lnR', r, day)}${ruleXml('lnT', top, day)}${ruleXml('lnB', b, day)}`;
+      if (!runs) return `<a:tc${span}>${EMPTY}<a:tcPr marL="0" marR="0" marT="0" marB="0">${rules}${fill}</a:tcPr></a:tc>`;
+      return `<a:tc${span}><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:pPr algn="${algn}">${lnSpc}</a:pPr>${runs}</a:p></a:txBody><a:tcPr marL="${emu(c.align === 'start' ? padX : 2)}" marR="${emu(c.align === 'end' ? padX : 2)}" marT="${emu(marT)}" marB="${emu(marB)}" anchor="${anchor}">${rules}${fill}</a:tcPr></a:tc>`;
+    }).join('');
+    return `<a:tr h="${emu(t.rowH[i] ?? 0)}">${cells}</a:tr>`;
+  });
+  const w = t.colW.reduce((a, b) => a + b, 0), h = t.rowH.reduce((a, b) => a + b, 0);
+  return `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${id}" name="${attr(name)}"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="${emu(t.x)}" y="${emu(t.y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr/><a:tblGrid>${cols}</a:tblGrid>${rows.join('')}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`;
 }

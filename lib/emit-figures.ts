@@ -420,7 +420,7 @@ export function renderGantt(b: LaidOutGantt, day: Theme): string {
   const soft = (t: 'accent' | 'danger' | 'muted'): string => b.dim ? PALETTE.bg : t === 'accent' ? PALETTE[day].soft : PALETTE.border;
   for (const s of b.sections) out.push(`<rect x="${snap4(s.x)}" y="${snap4(s.y)}" width="${snap4(s.w)}" height="${s.h}" fill="${PALETTE.code}"${pa(s.part)}/>`);
   for (const t of b.ticks) out.push(`<path d="M${snap4(t.x)},${snap4(b.plot.y1)} V${snap4(b.plot.y2)}" fill="none" stroke="${PALETTE.border}" stroke-width="1"${axis}/>`);
-  out.push(`<path d="M${snap4(b.plot.x1)},${snap4(b.plot.y1)} H${snap4(b.plot.x2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"${axis}/>`);
+  if (b.frame !== false) out.push(`<path d="M${snap4(b.plot.x1)},${snap4(b.plot.y1)} H${snap4(b.plot.x2)}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"${axis}/>`);
   for (const d of b.deps) {
     const pts = d.points.slice(), n = pts.length, tip = must(pts[n - 1]), prev = must(pts[n - 2]), L = 8, W = 4;
     const dx = Math.sign(tip.x - prev.x), dy = Math.sign(tip.y - prev.y);
