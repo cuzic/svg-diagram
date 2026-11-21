@@ -17,18 +17,21 @@ export interface ApartIn {
   headRun?: (edge: number) => number;
   /** ADR 0070 D4 (U4c): a move may not add a pair of runs under this far apart, nor two runs on one line whose ends are under it apart (`runPairs`). Default: not asked. */
   sep?: number;
+  /** ADR 0070 D7: the scale of the lines (a cause tree's own band on a canvas): `CLEAR`, `JOG` and the steps are multiplied by it. Default 1. */
+  scale?: number;
 }
 
 /** A moved run keeps this clear of every box that is not an end of its arrow (the pierce test then counts a run that comes nearer). */
-const CLEAR = 6;
+const CLEAR0 = 6;
 /** The shortest run left on either side of a moved one (a 6px jog reads as a kink); next to a port and next to an arrowhead the stub / the head's room. */
-const JOG = 10;
-const STEPS = [8, -8, 16, -16, 24, -24];
+const JOG0 = 10;
+const STEPS0 = [8, -8, 16, -16, 24, -24];
 
 /** Arrows from one tail or into one head merge on purpose (the ones into an AND are D11-D13's): only arrows with no end in common are counted as beside. An AND's arrow may move, but never next to another arrow (`near`). */
 const related = (a: ApartEdge, b: ApartEdge): boolean => a.from === b.from || a.to === b.to;
 
-export function moveApart({routes, edges, rects, headRun, sep}: ApartIn): Map<number, Pt[]> {
+export function moveApart({routes, edges, rects, headRun, sep, scale = 1}: ApartIn): Map<number, Pt[]> {
+  const CLEAR = Math.round(CLEAR0 * scale), JOG = Math.round(JOG0 * scale), STEPS = STEPS0.map(d => Math.round(d * scale));
   const out = new Map(routes);
   const runCache = new WeakMap<Pt[], RoutedRuns>();
   /** Would route `t` instead of the one `out` holds (arrow `i`) lie against another route in a way `r` did not (`gainsRunPairs`)? */

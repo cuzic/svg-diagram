@@ -245,9 +245,6 @@ export interface CauseBand extends Omit<CauseOpts, 'focus'> {
   unanchored?: readonly string[];
   /** Which maker built this band, when it is not causeTree() (ADR 0070 D2): pdpc(), relationDiagram() or whyWhyTree(). Set by the DSL, not by the author; carried to `LaidOutCause.origin`. */
   origin?: CauseOrigin;
-  /** Tests only (ADR 0070 U3): the scale of the AND arc (`andArc(s)`) and of the room before the AND heads that follows from it. Not set by the DSL;
-   *  ADR 0070 D7 (U5) replaces it with the canvas scale. Default 1. */
-  arcScale?: number;
 }
 /** The makers of a cause band other than causeTree() (ADR 0070 D2). */
 export type CauseOrigin = 'pdpc' | 'relation' | 'whywhy';
@@ -460,6 +457,8 @@ export interface LaidOutCause extends Rect, Dimmed {
   type: 'cause';
   /** `density: 'compact'` was asked for, but the compact figure had more wrong in it, so this band is drawn at the normal gaps (ADR 0036 D6). */
   densityRestored?: boolean;
+  /** ADR 0070 D7 (U5): the canvas asked for scaled lines, but the figure fits only with the old ones, so this band is drawn with them (the `cause-line-scale-dropped` finding). */
+  lineScaleDropped?: true;
   /** The ids no author name answers to (whyWhyTree's own): in `anchors`, but not in the registry or a spotlight scope. */
   unanchored?: readonly string[];
   /** What the layout changed on its own to fit the width (none: the figure is as written). */
