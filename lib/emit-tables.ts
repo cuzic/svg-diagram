@@ -2,7 +2,7 @@ import {PALETTE, colorOf, runColorOf} from './tokens.ts';
 import {marked, partAttr, partStep, partsOn} from './parts.ts';
 import type {ToneEnv} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
-import type {Theme, ColorKey, Roles} from './types/core.ts';
+import type {Theme, ColorKey, Rect, Roles} from './types/core.ts';
 import type {LaidOutSequence, LaidOutTable} from './types/sequence-table-swimlane.ts';
 import type {Prim} from './types/wireframe-nodes.ts';
 import type {LaidOutWireframe, LaidOutScreens} from './types/wireframe.ts';
@@ -114,6 +114,11 @@ export function renderTable(band: LaidOutTable, day: Theme, tones: ToneEnv, role
 // wireframe() / screens(): a flat list of primitives with token-key colours (see wireframe.ts)
 export type PaintPrim = Exclude<Prim, {k: 'text' | 'badge' | 'pill'}>;
 
+export function primRectGeometry(rect: Rect): Rect {
+  const x = snap4(rect.x), y = snap4(rect.y);
+  return {x, y, w: Math.max(0, snap4(rect.x + rect.w) - x), h: Math.max(0, snap4(rect.y + rect.h) - y)};
+}
+
 export function renderPrims(b: LaidOutWireframe | LaidOutScreens, day: Theme): string {
   const col = (k: ColorKey | null): string => k == null ? 'none' : colorOf(k, day);
   const stroke = (p: PaintPrim): string => {
@@ -124,15 +129,14 @@ export function renderPrims(b: LaidOutWireframe | LaidOutScreens, day: Theme): s
   const out: string[] = [];
   for (const p of b.prims) {
     if (p.k === 'rect') {
-      const x0 = snap4(p.x), y0 = snap4(p.y), x1 = snap4(p.x + p.w), y1 = snap4(p.y + p.h);
-      out.push(`<rect x="${x0}" y="${y0}" width="${Math.max(0, x1 - x0)}" height="${Math.max(0, y1 - y0)}"${p.r ? ` rx="${p.r}"` : ''} ${fill(p)}${stroke(p)}/>`);
+      const {x, y, w, h} = primRectGeometry(p);
+      out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}"${p.r ? ` rx="${p.r}"` : ''} ${fill(p)}${stroke(p)}/>`);
     } else if (p.k === 'circle') {
       out.push(`<circle cx="${snap4(p.cx)}" cy="${snap4(p.cy)}" r="${p.r}" ${fill(p)}${stroke(p)}/>`);
     } else if (p.k === 'path') {
       out.push(`<path d="${p.d}" ${fill(p)}${stroke(p)}${p.stroke ? ' stroke-linejoin="round"' : ''}/>`);
     } else if (p.k === 'pill') {
-      const x0 = snap4(p.x), y0 = snap4(p.y), x1 = snap4(p.x + p.w), y1 = snap4(p.y + p.h);
-      out.push(pillSvg({x: x0, y: y0, w: Math.max(0, x1 - x0), h: Math.max(0, y1 - y0), fill: col(p.fill), stroke: p.stroke ? col(p.stroke) : null, cx: p.x + p.w / 2, baseline: p.base, rawY: p.y, text: col(p.text), size: p.size, labelHtml: emojiSpan(p.label)}));
+      out.push(pillSvg({...primRectGeometry(p), fill: col(p.fill), stroke: p.stroke ? col(p.stroke) : null, cx: p.x + p.w / 2, baseline: p.base, rawY: p.y, text: col(p.text), size: p.size, labelHtml: emojiSpan(p.label)}));
     } else if (p.k === 'badge') {
       out.push(badgeSvg({cx: p.cx, cy: p.cy, r: p.r, w: p.w, shape: p.shape, label: p.label, aria: p.aria, size: p.size, fill: col(p.fill), stroke: PALETTE.bg, sw: 2, snap: snap4, esc: escapeXml}));
     } else if (p.k === 'text') {

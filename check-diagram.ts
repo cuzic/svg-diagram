@@ -53,6 +53,7 @@ import type {WorkerResult} from './drift-pool.ts';
 import type {FindingData, Issue} from './lib/types/verdicts.ts';
 import type {MapRow} from './lib/docs-check.ts';
 import type {SourceLoc} from './lib/source-location.ts';
+import {findingLocation, issueLocation, layoutFinding} from './lib/layout-issues.ts';
 import {installResolveHook} from './lib/resolve-hook.ts';
 import {installStackCapture, locateError, locateSource} from './lib/source-location-io.ts';
 import {captureSourceLocations} from './lib/source-capture.ts';
@@ -171,17 +172,6 @@ type CheckFinding = {
   /** What was measured against which threshold, and how to fix it (JSON only). */
   data?: FindingData;
 };
-function findingLocation(file: string, {loc, via}: ReturnType<typeof locateError>): Pick<CheckFinding, 'line' | 'column' | 'location' | 'via'> {
-  const at = loc && (loc.file === file ? {line: loc.line, column: loc.column} : {location: loc});
-  return {...at, ...(via.length ? {via: via.map(({line, column}) => ({line, column}))} : {})};
-}
-function issueLocation(file: string, issue: Issue): Pick<CheckFinding, 'line' | 'column' | 'location' | 'via' | 'related'> {
-  const related = issue.related?.flatMap(ref => {
-    const {loc} = locateSource(ref, file);
-    return loc ? [loc] : [];
-  });
-  return {...findingLocation(file, locateSource(issue.loc, file)), ...(related?.length ? {related} : {})};
-}
 function textLocation(f: CheckFinding): string {
   const {file, line, column} = f.location ?? f;
   return line === undefined ? '' : `${file}:${line}:${column}: `;
@@ -447,10 +437,11 @@ try {
     }
     const d = await loadDiagram(abs, config);
     const {verdict} = await checkDiagram(d);
+    const resolveSource = (ref: Parameters<typeof locateSource>[0]) => locateSource(ref, src);
     if (!verdict.ok) {
       const issues: Issue[] = verdict.issues ?? verdict.problems.map(message => ({message}));
       const lines = issues.map(issue => {
-        const f = add({file: src, rule: 'layout', severity: 'error', message: issue.message, ...issueLocation(src, issue)});
+        const f = add(layoutFinding(src, issue, resolveSource));
         return `${textLocation(f)}${f.message}`;
       });
       complain(`✗ ${src}:\n  ${lines.join('\n  ')}`);
@@ -459,7 +450,7 @@ try {
     // --forbid-draft (a publishing job): a figure still marked as a draft is a warning (an accepted one stays info)
     const shown = verdict.findings
       .map(f => forbidDraft && f.rule === 'draft-status' && !f.message.includes('（許容:') ? {...f, severity: 'warn' as const, message: `${f.message}（--forbid-draft）`} : f)
-      .map(f => add({file: src, rule: f.rule, severity: f.severity, message: f.message, ...(f.data ? {data: f.data} : {}), ...issueLocation(src, f)}));
+      .map(f => add({file: src, rule: f.rule, severity: f.severity, message: f.message, ...(f.data ? {data: f.data} : {}), ...issueLocation(src, f, resolveSource)}));
     const w = shown.filter(f => f.severity === 'warn').length;
     say(`${w ? '△' : '✓'} ${src}${w ? `（警告 ${w}）` : ''}`);
     for (const f of shown.filter(f => verbose || f.severity === 'warn')) say(`   ${f.severity === 'warn' ? '⚠' : 'ℹ'} ${textLocation(f)}[${f.rule}] ${f.message}${f.severity === 'warn' && acceptHint(f.rule) ? `\n       → ${acceptHint(f.rule)}` : ''}`);

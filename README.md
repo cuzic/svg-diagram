@@ -36,6 +36,14 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 反復の作業中は `--no-lint` で lint を省ける（仕上げの build や `svg-diagram check` で通す）。
 `--stale` を付けると、SVG が今のソース・ツールの版・`.svg-diagram.json` から作られたものならスキップする。判定に使うのは SVG に埋め込んだ生成元の情報（ソース・import しているローカルファイル・ツールの版・設定の各ハッシュ）。共通部品を直せば、それを使う図は古いと判定される。import は静的に読むだけなので、相対パスの import だけが対象（`tsconfig` の `paths` の別名や、変数で組み立てた `import()` は追えない。後者は build が警告する）。
 
+**部品とソースの位置の地図（ADR 0072 D6）**: `svg-diagram build flow.ts --locations flow.locations.json` は、SVG と一緒に位置の地図を JSON で書く。複数のソースには `--locations-dir DIR` を使う。各ソースの拡張子を外した名前で `DIR/<name>.locations.json` を書く。`--stale` で SVG が最新でも、地図が無い、`provenance` が今のソースと合わない、または地図が `issues` を持つ場合は、地図を作り直す。
+
+地図には `version: 1`、ソースのパス `source`、生成元の `provenance: {sourceSha256, depsSha256, tool, configSha256?, noSourceLine?}`、SVG の `width` と `height`、`diagram`、`parts`、`connects` がある。`provenance` はソースとローカルの依存ファイルのハッシュ、`svg-diagram` の版を持つ。設定ファイルがあれば `configSha256` にそのハッシュ、`--no-source-line` を使ったときは `noSourceLine: true` を記録する。SVG と地図の鮮度判定は同じ値を比べる。`source` と各 `loc.file` は地図のあるディレクトリからの相対パス。`diagram.loc` は `diagram()` の位置。
+
+部品はレイアウト順に並び、各項目に `loc: {file, line, column}`（行と桁は 1 始まり）、`kind`、`label`、SVG の `viewBox` 座標の `rect: {x, y, w, h}` を持つ。箱・グループ・ノードなどの四角い枠、ガントの棒、`screens()` の画面枠と状態マトリクスのセル枠は、SVG に描く四角と同じ座標を持つ。該当する項目には呼び出し元の `via`、ノード名の `node`（スコープがあれば `scope.id`）、表示段階の `reveal` と `until` が付く。メインの SVG は最終段階を描く。最終段階で消えている部品と接続には `final: false` が付く。グループの題名や `areas()` のセルを包む部品には `generated: true` が付き、`loc` は元の呼び出しを指す。接続は `kind: "connect"` で、`rect` は線とラベルを囲み、`segments` に `[x1, y1, x2, y2]` を並べる。ソース位置が解けた部品と接続だけを収録する。
+
+レイアウト検査に失敗した場合も、地図に `check --format json` の `layout` と同じ形の `issues` を入れてから終了コード 1 を返す。ソースの読み込みや `define()` が失敗した場合は、前回の地図を削除する。`build()` の戻り値からは、列挙されない `laidOut` プロパティで描画に使ったレイアウトを読める。
+
 **ビルドが失敗したとき（古い SVG）**: `build` は、失敗しても既存の SVG（`.html`、`name.revealN.svg` も）を**消さず、書き換えない**。出力先には手で置いた SVG や他のツールの SVG があり、`<img src>` で参照されていることもあるので、削除はしない。そのため前回の成功時の SVG がそのまま残る。失敗した出力が**そのソース自身の前回の出力**（SVG に埋め込んだ `source` が一致する）なら、`✗` の行の次に `⚠ 前回の svg/flow.svg が残っている(ソースと一致しない古い絵)` を出す。手置きの SVG や別のソース由来の SVG、初回の失敗では出ない。
 `lint-svg --strict` で落ちた `build` は exit 1 を返すが、その SVG は**新しい内容で既に書かれている**（古い絵ではない）。直すまで、`--no-lint` なしの `build` は exit 1 のまま。
 **古さの警告**: `svg-diagram preview x.svg` と `show x.svg` は、SVG の生成元の情報（`<metadata id="svg-diagram">` のソースと import 先のハッシュ。ファイルの時刻は使わない）を今のソースと比べ、違えば古いと警告する（stderr に理由と `svg-diagram build <ソース>` の直し方。`preview` は stdout の `wrote ...` の行にも ` (古い: ソースが変わっている)` を足し、PNG の上端に赤い帯を描く。`show` は `--png` のときだけ帯）。ソースが見つからない SVG と、メタデータのない SVG（手置き・他ツール）は判定しない。exit code は 0 のまま。`--no-stale-banner`（`preview` のみ）で帯だけ消せる。`--require-fresh` を付けると古いときに exit 1（CI やエージェントの自動手順用）。SVG ファイルは書き換えない。
@@ -150,6 +158,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
     svg-diagram typecheck                                # 図のソースの型検査
     svg-diagram check --typecheck <ソース.ts>...           # check に型検査も足す（build と check は型を読まないので、実行時に無視される誤った引数・キーが素通りする。tsc が約 3 秒/250 本）
     svg-diagram build <source.ts>... [--out file.svg | --out-dir DIR] [--stale] [--no-lint] [--png DIR [--scale N]]   # 既定の出力: ./svg/<name>.svg（.svg-diagram.json の "outDir" で変えられる）。--png: SVG と同時に PNG も DIR に書く（既定の倍率 2）
+    svg-diagram build <source.ts>... [--locations FILE | --locations-dir DIR]  # 部品の四角とソース位置を JSON で書く
     svg-diagram build <source.ts> --dark --transparent   # 暗い配色／背景の矩形なしで描く（図の appearance / transparent を上書き）
     svg-diagram build <source.ts> --no-source-line       # diagram({sourceLine}) を描かない（スライド用と文書用を 1 つのソースで使い分ける。ソースは変えない。deck も同じフラグを受ける）
     svg-diagram build|check [--today YYYY-MM-DD] <source.ts>...   # gantt({today: 'auto'}) の日付を渡す（環境変数 SVG_DIAGRAM_TODAY、.svg-diagram.json の "today" でも可。「ガントチャート」の節）

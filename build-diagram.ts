@@ -19,6 +19,8 @@
 //
 // Output path defaults to <outDir of .svg-diagram.json, else svg>/<basename-without-extension>.svg.
 // --out overrides it (only valid with exactly one input module).
+// --locations <file> writes the source map for one diagram; --locations-dir <dir>
+// writes one <name>.locations.json per input module.
 // Always runs lint-svg.ts --strict on the result (via dsl.ts's build()) —
 // a diagram that fails lint is reported as a failure, not written silently.
 
@@ -28,12 +30,18 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {installResolveHook} from './lib/resolve-hook.ts';
 import {must} from './lib/must.ts';
-import {installStackCapture, locateError} from './lib/source-location-io.ts';
+import {assertBuildOutput} from './lib/build-verdict.ts';
+import {locationsMap} from './lib/locations-map.ts';
+import type {LocationsProvenance} from './lib/locations-map.ts';
+import {captureSourceLocations} from './lib/source-capture.ts';
+import {installStackCapture, locateError, locateSource} from './lib/source-location-io.ts';
+import type {LaidOutDiagram} from './lib/types/index.ts';
+import type {Issue} from './lib/types/verdicts.ts';
 // Run from source (.ts) or from the compiled dist/ (.js); sibling files share the extension.
 const EXT = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
 installResolveHook();
 installStackCapture();
-const {build, closeMeasurer} = await import('./lib/dsl.ts');
+const {build, renderDiagram, closeMeasurer} = await import('./lib/dsl.ts');
 const {loadConfig, svgDirOf} = await import('./lib/config.ts');
 const {MIN_FONT_SIZE} = await import('./lib/tokens.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
@@ -67,6 +75,8 @@ const argValue = (flag: string) => { const i = args.indexOf(flag); return i === 
 const outOverride = argValue('--out');
 const todayArg = argValue('--today'); // the day for gantt({today: 'auto'}); else SVG_DIAGRAM_TODAY, else "today" in .svg-diagram.json (ADR 0022)
 const outDir = argValue('--out-dir');
+const locationsFile = argValue('--locations');
+const locationsDir = argValue('--locations-dir');
 const pngDir = argValue('--png'); // also write <name>.png (the rasters of lib/raster.ts) here
 const scaleArg = argValue('--scale');
 const PNG_SCALE = scaleArg === null ? 2 : Number(scaleArg);
@@ -78,10 +88,23 @@ const DARK = args.includes('--dark'); // draw with the dark token set (overrides
 const TRANSPARENT = args.includes('--transparent'); // no page-colour background rectangle
 const NO_SOURCE_LINE = args.includes('--no-source-line'); // ADR 0023 D11: draw without diagram({sourceLine}) (recorded in <metadata> as noSourceLine)
 const STALE = args.includes('--stale'); // skip diagrams whose SVG already matches this source, tool version and project config
-const modules = args.filter((a, i) => !['--out', '--out-dir', '--png', '--scale', '--id-prefix', '--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent', '--no-source-line', '--today'].includes(a) && !['--out', '--out-dir', '--png', '--scale', '--id-prefix', '--today'].includes(args[i - 1] ?? ''));
+const valueFlags = ['--out', '--out-dir', '--locations', '--locations-dir', '--png', '--scale', '--id-prefix', '--today'];
+const boolFlags = ['--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent', '--no-source-line'];
+const modules = args.filter((a, i) => !valueFlags.includes(a) && !boolFlags.includes(a) && !valueFlags.includes(args[i - 1] ?? ''));
+
+if (locationsFile !== null && (!locationsFile || locationsFile.startsWith('--'))) { console.error('--locations に出力ファイルを指定してください（--locations FILE）'); process.exit(2); }
+if (locationsDir !== null && (!locationsDir || locationsDir.startsWith('--'))) { console.error('--locations-dir に出力先のディレクトリを指定してください（--locations-dir DIR）'); process.exit(2); }
+if (locationsFile !== null && modules.length !== 1) {
+  console.error('--locations はソースが 1 つのときだけ使えます（複数なら --locations-dir DIR を使ってください）');
+  process.exit(2);
+}
+if (locationsFile !== null && locationsDir !== null) {
+  console.error('--locations と --locations-dir はどちらか一方を指定してください');
+  process.exit(2);
+}
 
 if (modules.length === 0) {
-  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--png <dir> [--scale N]] [--stale] [--no-lint] [--fit] [--html] [--dark] [--transparent] [--no-source-line] [--id-prefix <p|auto>] [--today YYYY-MM-DD]');
+  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--locations FILE | --locations-dir DIR] [--png <dir> [--scale N]] [--stale] [--no-lint] [--fit] [--html] [--dark] [--transparent] [--no-source-line] [--id-prefix <p|auto>] [--today YYYY-MM-DD]');
   process.exit(2);
 }
 if (outOverride && modules.length > 1) {
@@ -98,8 +121,23 @@ if (outOverride && outDir) {
   process.exit(2);
 }
 
+if (locationsFile !== null || locationsDir !== null) captureSourceLocations(true);
+
 // the project config changes what a build produces, so it takes part in "is this SVG current?"
 const configSha256 = config._file ? sha(fs.readFileSync(config._file)) : '';
+
+function matchesBuildProvenance(actual: Partial<LocationsProvenance> | undefined, expected: LocationsProvenance): boolean {
+  return actual?.sourceSha256 === expected.sourceSha256 && actual.tool === expected.tool &&
+    (actual.configSha256 ?? '') === (expected.configSha256 ?? '') &&
+    (actual.depsSha256 ?? '') === expected.depsSha256 && !!actual.noSourceLine === !!expected.noSourceLine;
+}
+
+function locationsCurrent(file: string, source: string, expected: LocationsProvenance): boolean {
+  try {
+    const map = JSON.parse(fs.readFileSync(file, 'utf8')) as Partial<ReturnType<typeof locationsMap>> | null;
+    return map?.source === source && !Object.hasOwn(map, 'issues') && matchesBuildProvenance(map.provenance, expected);
+  } catch { return false; }
+}
 
 let failed = false;
 const written: string[] = [];
@@ -108,8 +146,41 @@ try {
   for (const modPath of modules) {
     const abs = path.resolve(modPath);
     const outPath = outOverride ?? path.join(outDir ?? svgDirOf(config), path.parse(modPath).name + '.svg');
-    // ADR 0013: a failed build never touches the old SVG, but says so when that file is this source's own output (it is now out of date)
-    const failedBuild = (err: unknown) => {
+    const locationsPath = locationsFile ?? (locationsDir === null ? null : path.join(locationsDir, path.parse(modPath).name + '.locations.json'));
+    const source = path.relative(process.cwd(), abs);
+    if (locationsPath && [abs, path.resolve(outPath)].includes(path.resolve(locationsPath))) {
+      console.error('地図の出力先がソースまたは SVG と同じです。--locations または --locations-dir で別の出力先を指定してください');
+      failed = true;
+      continue;
+    }
+    const mapDir = locationsPath && path.dirname(path.resolve(locationsPath));
+    const mapSource = mapDir && path.relative(mapDir, abs);
+    const failedLocations = (err: unknown) => {
+      console.error(`✗ ${locationsPath}: 地図を書けません。出力先を確認してください（${(err as Error).message}）`);
+      failed = true;
+    };
+    const writeLocations = (layout: LaidOutDiagram, provenance: LocationsProvenance, issues?: Issue[]) => {
+      if (!locationsPath || mapDir === null || mapSource === null) return;
+      try {
+        const map = locationsMap(layout, mapSource, provenance, ref => {
+          const {loc, via} = locateSource(ref, source);
+          return {loc: loc && {...loc, file: path.relative(mapDir, path.resolve(loc.file))}, via};
+        }, issues);
+        fs.mkdirSync(path.dirname(locationsPath), {recursive: true});
+        fs.writeFileSync(locationsPath, JSON.stringify(map, null, 2) + '\n');
+      } catch (err) { failedLocations(err); }
+    };
+    // ADR 0013: say when a failed build leaves the source's own previous SVG in place.
+    const failedBuild = (err: unknown, provenance?: LocationsProvenance) => {
+      if (locationsPath) {
+        try {
+          const details = err instanceof Error ? err as Error & {laidOut?: LaidOutDiagram; issues?: Issue[]} : undefined;
+          if (provenance && details?.laidOut) writeLocations(details.laidOut, provenance, details.issues ?? []);
+          else fs.rmSync(locationsPath, {force: true});
+        } catch (mapError) {
+          failedLocations(mapError);
+        }
+      }
       console.error(formatBuildError(buildErrorSite(modPath, locateError(err, modPath).loc), err));
       if (ownsOutput(outPath, abs)) console.error(`  ⚠ 前回の ${outPath} が残っている(ソースと一致しない古い絵)`);
       failed = true;
@@ -123,20 +194,32 @@ try {
     const srcSha = sha(fs.readFileSync(abs));
     for (const f of depsOf(abs).unfollowable) console.warn(`  ⚠ ${path.relative(process.cwd(), f)}: 変数で組み立てた import() は、変更の検出（--stale / check --drift）の対象にならない`);
     const depsSha = depsSha256(abs); // local files the source imports (shared parts): a change there makes the SVG stale too
+    const svgProvenance = {
+      sourceSha256: srcSha,
+      ...(configSha256 ? {configSha256} : {}),
+      ...(depsSha ? {depsSha256: depsSha} : {}),
+      ...(NO_SOURCE_LINE ? {noSourceLine: true} : {}),
+    };
+    const provenance = {...svgProvenance, depsSha256: depsSha, tool: TOOL_VERSION};
     const pngPath = pngDir && path.join(pngDir, path.parse(outPath).name + '.png');
     const pngCurrent = () => !pngPath || (fs.existsSync(pngPath) && fs.statSync(pngPath).mtimeMs >= fs.statSync(outPath).mtimeMs);
+    let skipSvg = false;
     if (STALE && idPrefixArg === null && !FIT && !DARK && !TRANSPARENT && fs.existsSync(outPath) && pngCurrent()) { // --png: a missing or older PNG is not up to date either
       const meta = readProvenance(outPath);
-      if (meta && meta.sourceSha256 === srcSha && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256 && (meta.depsSha256 ?? '') === depsSha && !!meta.noSourceLine === NO_SOURCE_LINE) {
-        console.log(`· ${outPath} は最新（スキップ）`);
-        skipped++;
-        continue;
+      if (meta && matchesBuildProvenance({...meta, tool: meta.toolVersion}, provenance)) {
+        skipSvg = true;
+        if (!locationsPath || (mapSource !== null && locationsCurrent(locationsPath, mapSource, provenance))) {
+          console.log(`· ${outPath} は最新（スキップ）`);
+          skipped++;
+          continue;
+        }
       }
     }
+    let layoutStarted = false;
     try {
       const d = await loadDiagram(abs, config); // .svg-diagram.json: project-wide accepted rules and max width
       // provenance for drift checks: which source (and which tool version) produced this SVG
-      d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source: path.relative(process.cwd(), abs), sourceSha256: srcSha, ...(configSha256 ? {configSha256} : {}), ...(depsSha ? {depsSha256: depsSha} : {}), ...(NO_SOURCE_LINE ? {noSourceLine: true} : {})};
+      d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source, ...svgProvenance};
       if (DARK && typeof d.appearance !== 'object') d.appearance = 'dark'; // a custom dark set the diagram names stays
       if (TRANSPARENT) d.transparent = true;
       if (NO_SOURCE_LINE) d.sourceLine = undefined; // before drawing, so the figure is the one the source would give without a sourceLine
@@ -147,6 +230,15 @@ try {
         d.fill = true;
         d.slide = {page: must(hits[0]).page, heading: must(hits[0]).heading as string};
       }
+      layoutStarted = true;
+      if (skipSvg && locationsPath) {
+        const rendered = await renderDiagram(d, {name: path.basename(outPath), budget: 'measure'});
+        assertBuildOutput(rendered, outPath);
+        writeLocations(rendered.laidOut, provenance);
+        console.log(`· ${outPath} は最新（スキップ）`);
+        skipped++;
+        continue;
+      }
       const result = await build(d, outPath, {lint: false, html: HTML}); // linted together below: one Chromium for all files
       if (idPrefixArg !== null) {
         const base = modules.length > 1 ? path.parse(modPath).name : null;
@@ -156,6 +248,7 @@ try {
           fs.writeFileSync(f, prefixSvgIds(text, prefix, {rootId: /<div id="(sd-[0-9a-f]+)" class="sd"/.exec(text)?.[1]})); // <metadata id="svg-diagram"> stays
         }
       }
+      if (locationsPath) writeLocations(result.laidOut, provenance);
       written.push(outPath, ...result.revealPaths);
       if (result.htmlPath) console.log(`✓ ${result.htmlPath}`);
       if (result.fit.doc) console.log(`✓ ${outPath} (${result.width}x${result.height})`);
@@ -168,7 +261,7 @@ try {
       // ADR 0017: the lint's notice is not shown when it passes, so a figure that lowered the text floor says so here itself
       if (d.canvas && d.canvas.minText < MIN_FONT_SIZE) console.error(`⚠ ${outPath}: 文字の下限を ${d.canvas.minText}px に下げている(fontFloor ${config.fontFloor ?? MIN_FONT_SIZE}。投影には向かない)`);
     } catch (err) {
-      failedBuild(err);
+      failedBuild(err, layoutStarted ? provenance : undefined);
     }
   }
 } finally {
