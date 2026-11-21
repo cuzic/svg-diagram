@@ -1,4 +1,5 @@
 // Types: rules, verification, fit, budget.
+import type {SourceRef} from '../source-ref.ts';
 import type {LaidOutConnect} from './containers.ts';
 import type {DiagramData, Rect} from './core.ts';
 import type {LaidOutBand, LaidOutDiagram} from './index.ts';
@@ -16,9 +17,12 @@ export interface LintTarget extends DiagramData {
   contentHeight?: number;
   canvasHeight?: number;
 }
+/** One layout problem, with the source references of the parts involved when available. */
+export interface Issue {message: string; loc?: SourceRef; related?: SourceRef[]}
 /** verifyDiagram() result: `problems` fail the build, `warnings` never do. */
 export interface Verdict {
   ok: boolean;
+  issues?: Issue[];
   problems: string[];
   warnings: string[];
   findings: Finding[];
@@ -26,7 +30,7 @@ export interface Verdict {
 /** A checkable rect in verify.ts (id null when the band has none). */
 /** `holds`: ids of anchors drawn inside this rect (an image's marks): a connector that starts on one may cross the rect. `backdrop`: a picture with parts over it, not an obstacle or an overlap partner. */
 /** `life`: when it is on screen, if not always (a bar that another `replaces` shares its place with it). */
-export interface CheckRect extends Rect {id: string | null; label: string; life?: {reveal?: number; until?: number}; holds?: string[]; backdrop?: boolean}
+export interface CheckRect extends Rect {id: string | null; label: string; loc?: SourceRef; life?: {reveal?: number; until?: number}; holds?: string[]; backdrop?: boolean}
 export interface FitReport {
   scale: number;
   effectiveFont: number;

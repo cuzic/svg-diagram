@@ -5,6 +5,7 @@ import path from 'node:path';
 import {resolveErrorLocation} from './source-location.ts';
 import type {SourceLoc} from './source-location.ts';
 import {DIAGRAM_SOURCE, sourceOf} from './source-ref.ts';
+import type {SourceRef} from './source-ref.ts';
 
 const CALL_SITES = Symbol('svg-diagram.call-sites');
 type StackHolder = {stack?: unknown; [CALL_SITES]?: NodeJS.CallSite[]};
@@ -41,6 +42,7 @@ const realpath = (file: string): string => {
 const readSource = (file: string): string | undefined => {
   try { return fs.readFileSync(file, 'utf8'); } catch { return undefined; }
 };
+const sourceContext = (source: string) => ({source, cwd: process.cwd(), packageDir, realpath, readSource});
 
 function resolveStack(holder: StackHolder, context: Parameters<typeof resolveErrorLocation>[1], details?: {code?: unknown; message?: string}): ReturnType<typeof resolveErrorLocation> {
   // V8 calls prepareStackTrace on the first stack read.
@@ -50,9 +52,13 @@ function resolveStack(holder: StackHolder, context: Parameters<typeof resolveErr
   return resolveErrorLocation({...details, stack: typeof stack === 'string' ? stack : undefined, frames}, context);
 }
 
+export function locateSource(ref: SourceRef | undefined, source: string): ReturnType<typeof resolveErrorLocation> {
+  return ref?.stackHolder ? resolveStack(ref.stackHolder, sourceContext(source)) : {via: []};
+}
+
 export function locateError(thrown: unknown, source: string): ReturnType<typeof resolveErrorLocation> {
   const holder = Object(thrown) as StackHolder;
-  const context = {source, cwd: process.cwd(), packageDir, realpath, readSource};
+  const context = sourceContext(source);
   const part = sourceOf(holder)?.stackHolder;
   const atPart = part && resolveStack(part, context);
   if (atPart?.loc) return atPart;

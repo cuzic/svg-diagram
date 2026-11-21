@@ -2,9 +2,15 @@
 
 import {must} from './must.ts';
 import {statesWords} from './states-words.ts';
+import type {SourceRef} from './source-ref.ts';
 import type {Rect} from './types/core.ts';
+import type {Issue} from './types/verdicts.ts';
 
 export const CONTRAST_THRESHOLD = 70; // same threshold lint-svg.ts's own contrast check uses
+
+export function issueAt(message: string, loc?: SourceRef, related?: SourceRef): Issue {
+  return {message, ...(loc ? {loc} : {}), ...(related ? {related: [related]} : {})};
+}
 
 /**
  * Returns the overlap {dx,dy} if two rects share more than `tolerance`px of area in both axes, else null. Rects that merely
