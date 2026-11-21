@@ -2,6 +2,7 @@
 // box padding, icon / step-badge sizes, the row() / grid() width distribution and the group title caption. No text metrics, no state.
 
 import {textWidth} from './atoms.ts';
+import {sourceOf, withSource} from './source-ref.ts';
 import type {GroupBand, RowBand, GridBand} from './types/containers.ts';
 import type {DiagramData, Roles, WidthOf, Rect} from './types/core.ts';
 import type {CaptionBand} from './types/text-bands.ts';
@@ -209,8 +210,8 @@ export function gridChildGeometry(band: GridBand, contentWidth: number) {
  */
 /** diagram({showTitle}) puts the title first, drawn like a group's title (bold, left, title size). A copy; without showTitle, the input itself. */
 export function withTitleLine(d: DiagramData): DiagramData {
-  return !d.showTitle || !d.title ? d : {...d, bands: [{type: 'caption', text: d.title, align: 'left', role: 'title', tone: 'text', bold: true, mono: false, titleLine: true}, ...d.bands]};
+  return !d.showTitle || !d.title ? d : {...d, bands: [withSource<CaptionBand>({type: 'caption', text: d.title, align: 'left', role: 'title', tone: 'text', bold: true, mono: false, titleLine: true}, sourceOf(d)), ...d.bands]};
 }
 export function withSourceLine(d: DiagramData): DiagramData {
-  return d.sourceLine === undefined ? d : {...d, bands: [...d.bands, {type: 'caption', text: d.sourceLine, align: 'left', role: 'note', tone: 'muted', bold: false, mono: false, sourceLine: true}]};
+  return d.sourceLine === undefined ? d : {...d, bands: [...d.bands, withSource<CaptionBand>({type: 'caption', text: d.sourceLine, align: 'left', role: 'note', tone: 'muted', bold: false, mono: false, sourceLine: true}, sourceOf(d))]};
 }

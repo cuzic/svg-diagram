@@ -4,6 +4,7 @@ import {checked, earlier, revealHandlerFor} from './reveal-handlers.ts';
 import type {Revealed, RevealCtx} from './reveal-handlers.ts';
 import type {DiagramData} from './types/core.ts';
 import type {Band} from './types/index.ts';
+import {atBand} from './source-ref.ts';
 
 const refId = (ref: string): string => ref.split(':')[0] ?? ref;
 
@@ -29,9 +30,9 @@ export function prepareReveal(d: DiagramData): number {
       return n;
     },
     walk(bands: Band[], inherited = 0, until?: number): void {
-      for (const b of bands) {
+      for (const b of bands) atBand(b, () => {
         const h = revealHandlerFor(b);
-        if (!h.stage) { h.visit?.(b as never, ctx); continue; }
+        if (!h.stage) { h.visit?.(b as never, ctx); return; }
         const outer = ctx.scope;
         ctx.scope = undefined; // the band's own id is a name of the whole figure
         const n = ctx.set(b as Revealed, inherited, `${b.type}()`, until);
@@ -40,7 +41,7 @@ export function prepareReveal(d: DiagramData): number {
         ctx.scope = scopeOf(b); // what the band holds (marks, bars, steps) is named under its scope
         h.visit?.(b as never, n, u, ctx);
         ctx.scope = outer;
-      }
+      });
     },
   };
   const {ids, untils, warnings, connects} = ctx;
@@ -48,7 +49,7 @@ export function prepareReveal(d: DiagramData): number {
   let max = ctx.max;
   const known = (name: string): boolean => ids.has(name) || untils.has(name);
   const nameOf = (ref: string): string => resolveAnchor(scopes, refId(ref), known) ?? refId(ref); // throws when a bare id names several scoped items
-  for (const c of connects) {
+  for (const c of connects) atBand(c, () => {
     const from = nameOf(c.from), to = nameOf(c.to);
     const ends = Math.max(ids.get(from) ?? 0, ids.get(to) ?? 0);
     const explicit = c.reveal;
@@ -64,7 +65,7 @@ export function prepareReveal(d: DiagramData): number {
       c.until = gone;
       max = Math.max(max, gone);
     }
-  }
+  });
   d.maxReveal = max;
   d.revealWarnings = warnings;
   return max;

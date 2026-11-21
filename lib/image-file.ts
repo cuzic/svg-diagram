@@ -5,6 +5,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {describeImage, readDataImage, type ImageFile} from './image-sniff.ts';
 import type {Band} from './types/index.ts';
+import {atBand} from './source-ref.ts';
 
 export {IMAGE_MAX_BYTES, sniffImage, type ImageFile} from './image-sniff.ts';
 
@@ -26,8 +27,10 @@ export function readImage(src: string | URL, baseDir: string = process.cwd()): I
 export function resolveImages(bands: readonly Band[], baseDir: string): void {
   for (const b of bands) {
     if (b.type !== 'image' || !b.unresolved) continue;
-    const f = readImage(b.src, baseDir);
-    b.href = f.href; b.naturalW = f.w; b.naturalH = f.h; b.bytes = f.bytes;
-    delete b.unresolved;
+    atBand(b, () => {
+      const f = readImage(b.src, baseDir);
+      b.href = f.href; b.naturalW = f.w; b.naturalH = f.h; b.bytes = f.bytes;
+      delete b.unresolved;
+    });
   }
 }

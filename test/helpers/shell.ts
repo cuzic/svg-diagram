@@ -25,6 +25,7 @@ export const SHELL: Record<string, Shell> = {
   'image-file': {reason: 'reads picture files (readImage / resolveImages): a path is read from a base folder it is given'},
   'layout-measured': {reason: 'the measured layout: awaits the measurer'},
   'markdown-it': {reason: 'the markdown-it plugin: fs, child_process'},
+  'source-capture': {reason: 'ADR 0072 D2: check が有効にするスタックの捕捉の切り替え。既定は無効', through: 'allow', declared: true},
   'source-path': {reason: 'resolveSource(): the working folder and symbolic links'},
   'math-tex': {reason: 'loads MathJax through node:module'},
   'geometry-checks': {reason: 'geometryChecks(): the geometry engine with the text boxes read from the font files'},

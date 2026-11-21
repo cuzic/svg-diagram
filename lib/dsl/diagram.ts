@@ -11,6 +11,9 @@ import {applyWireframeDefaults} from './wireframe-numbering.ts';
 import {fillAutoToday} from '../today-auto.ts';
 import {walkBands} from '../rules.ts';
 import {rewrite} from './rewrite.ts';
+import {DIAGRAM_SOURCE, captureHere, sourceOf, withSource} from '../source-ref.ts';
+import type {SourceRef} from '../source-ref.ts';
+import {sourceCaptureEnabled} from '../source-capture.ts';
 
 // Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
 // that is declared neither in the same add() call (before OR after the connect) nor earlier in a chained
@@ -83,19 +86,27 @@ export function diagram(opts: DiagramOpts = {}): Diagram {
     fill: !!opts.fill, // fit-figure slide: build to the measured width/height, growing fonts to use the slack (see build())
     bands: [],
   };
-  return {
+  return withSource({
     ...d,
-    add(this: Diagram, ...bands: BandInput[]) {
+    add: function add(this: Diagram, ...bands: BandInput[]) {
       let flat = bands.flat();
       if (d.connectDefaults) flat = applyConnectDefaults(flat, d.connectDefaults);
       if (d.wireframeDefaults) flat = applyWireframeDefaults(flat, d.wireframeDefaults);
       for (const rule of [opts.transform ?? []].flat()) flat = rewrite(flat, rule);
+      if (sourceCaptureEnabled()) {
+        let source: SourceRef | undefined;
+        for (const band of walkBands(flat)) {
+          if (sourceOf(band) === undefined) withSource(band, source ??= captureHere(add));
+        }
+      }
       d.bands.push(...flat);
       return this;
     },
-    connect(this: Diagram, from: string, to: string, opts: ConnectOpts = {}) { return this.add(connectBand(from, to, opts)); },
+    connect: function connect(this: Diagram, from: string, to: string, opts: ConnectOpts = {}) {
+      return this.add(withSource(connectBand(from, to, opts), captureHere(connect)));
+    },
     get bands() { return d.bands; },
-  } as Diagram;
+  }, captureHere(diagram)) as Diagram;
 }
 /** What the passes may write into: the bands are copied, so a band shared by two diagrams (or drawn twice) is never changed by a render. */
 export function detachData<D extends DiagramData>(d: D): D {
@@ -111,7 +122,7 @@ export function detachData<D extends DiagramData>(d: D): D {
  * is copied once, so a band placed in two spots stays one band in the copy, and a cycle ends.
  * Known gap: a class instance handed in as plan data (a point of plane({points})) is shared, so a reveal written into it by
  * prepareReveal can still show in another figure. Not copied: non-enumerable properties (the .left / .right / .at handles,
- * withAnchors' anchors) and symbol keys (NUMBERING, GIVEN, RICH) — add() has used them up and nothing downstream reads them.
+ * withAnchors' anchors) and symbol keys such as NUMBERING, GIVEN and RICH that add() has used up. Source marks are copied by reference.
  */
 function cloneData<T>(v: T, seen = new WeakMap<object, unknown>()): T {
   if (!v || typeof v !== 'object') return v;
@@ -127,7 +138,8 @@ function cloneData<T>(v: T, seen = new WeakMap<object, unknown>()): T {
   const out = Object.create(proto);
   seen.set(v, out);
   for (const [k, x] of Object.entries(v)) out[k] = cloneData(x, seen);
-  return out;
+  withSource(out, sourceOf(v));
+  return withSource(out, sourceOf(v, DIAGRAM_SOURCE), DIAGRAM_SOURCE);
 }
 
 /**

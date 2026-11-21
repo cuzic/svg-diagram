@@ -1,6 +1,7 @@
 // diagram({status: 'draft'}): a strip across the top of the figure with a badge at its right end (ADR 0022 D5-D7).
 // A band of its own (not a caption): a caption would be a candidate for the figure's title, a spotlight subject and a layout-* ruler.
 import {textWidth} from './atoms.ts';
+import {sourceOf, withSource} from './source-ref.ts';
 import type {StatusBand, LaidOutStatus} from './types/containers.ts';
 import type {DiagramData, FontFamily, Roles, WidthOf} from './types/core.ts';
 
@@ -15,7 +16,7 @@ export const statusText = (d: Pick<DiagramData, 'status' | 'statusLabel'>): stri
 export function withStatus(d: DiagramData): DiagramData {
   if (d.status === undefined) return d;
   const band: StatusBand = {type: 'status', status: d.status, text: statusText(d)};
-  return {...d, bands: [band, ...d.bands]};
+  return {...d, bands: [withSource(band, sourceOf(d)), ...d.bands]};
 }
 
 /** Every text this band draws, for measuring: [text, size, weight, font]. */

@@ -2,6 +2,7 @@ import type {ConnectBand, ConnectOpts, ConnectVia} from '../types/containers.ts'
 import type {ConnectDefaults} from '../types/core.ts';
 import type {Band} from '../types/index.ts';
 import {mapBands, revealOf} from './shared.ts';
+import {sourceOf, withSource} from '../source-ref.ts';
 
 // The options a connector was written with, kept (non-enumerable) so diagram({connectDefaults}) can tell "not given" from "given as the default".
 // Only connect() and branch() keep them: swimlane() flows are not connectors the user wrote, so the defaults do not touch them.
@@ -19,7 +20,7 @@ export function applyConnectDefaults(bands: Band[], defaults: ConnectDefaults): 
     const route = merged.route ?? 'straight';
     if (route !== 'elbow') { merged.bend = own.bend; merged.bendOffset = own.bendOffset; }
     if (route !== 'loop-under' && route !== 'loop-side') merged.dip = own.dip;
-    const band = connectBand(b.from, b.to, merged);
+    const band = withSource(connectBand(b.from, b.to, merged), sourceOf(b));
     return (b as ConnectBand).fan ? Object.assign(band, {fan: true as const}) : band;
   });
 }

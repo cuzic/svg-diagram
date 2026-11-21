@@ -15,6 +15,7 @@ import {axisMismatches} from './axis-rules.ts';
 import {qualify, scopeOf} from './anchor-scope.ts';
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {nestedBandsOf} from './band-children.ts';
+import {sourceOf, withSource} from './source-ref.ts';
 import {minTextSize} from './fit.ts';
 import {IMAGE_WARN_BYTES} from './image.ts';
 import {PALETTE, MIN_FONT_SIZE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv, canvasFontScale} from './tokens.ts';
@@ -296,7 +297,7 @@ export function applyAutoLegend(d: DiagramData): void {
   });
   const existing = d.bands.find((b): b is LegendBand => b.type === 'legend');
   if (existing) existing.items.push(...items);
-  else d.bands.push({type: 'legend', items, align: 'center'});
+  else d.bands.push(withSource<LegendBand>({type: 'legend', items, align: 'center'}, sourceOf(d)));
 }
 
 function ratioText(r: number): string { return r.toFixed(1); }
