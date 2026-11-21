@@ -4,9 +4,11 @@ import {findPackageJSON, findSourceMap} from 'node:module';
 import path from 'node:path';
 import {resolveErrorLocation} from './source-location.ts';
 import type {SourceLoc} from './source-location.ts';
+import {DIAGRAM_SOURCE, sourceOf} from './source-ref.ts';
 
 const CALL_SITES = Symbol('svg-diagram.call-sites');
-type CapturedError = Error & {[CALL_SITES]?: NodeJS.CallSite[]; code?: unknown};
+type StackHolder = {stack?: unknown; [CALL_SITES]?: NodeJS.CallSite[]};
+type CapturedError = Error & StackHolder & {code?: unknown};
 
 const packageJson = findPackageJSON(import.meta.url);
 const packageDir = path.dirname(packageJson ?? import.meta.dirname);
@@ -40,14 +42,25 @@ const readSource = (file: string): string | undefined => {
   try { return fs.readFileSync(file, 'utf8'); } catch { return undefined; }
 };
 
-export function locateError(thrown: unknown, source: string): ReturnType<typeof resolveErrorLocation> {
-  const err: CapturedError = thrown instanceof Error ? thrown : new Error(String(thrown), {cause: thrown});
+function resolveStack(holder: StackHolder, context: Parameters<typeof resolveErrorLocation>[1], details?: {code?: unknown; message?: string}): ReturnType<typeof resolveErrorLocation> {
   // V8 calls prepareStackTrace on the first stack read.
   let stack: unknown;
-  try { stack = (thrown as {stack?: unknown} | null | undefined)?.stack; } catch { /* a user-defined stack getter can throw */ }
-  const frames = err[CALL_SITES]?.flatMap(callSiteLocation);
-  return resolveErrorLocation(
-    {stack: typeof stack === 'string' ? stack : undefined, frames, code: err.code, message: err.message},
-    {source, cwd: process.cwd(), packageDir, realpath, readSource},
-  );
+  try { stack = holder.stack; } catch { /* a user-defined stack getter can throw */ }
+  const frames = holder[CALL_SITES]?.flatMap(callSiteLocation);
+  return resolveErrorLocation({...details, stack: typeof stack === 'string' ? stack : undefined, frames}, context);
+}
+
+export function locateError(thrown: unknown, source: string): ReturnType<typeof resolveErrorLocation> {
+  const holder = Object(thrown) as StackHolder;
+  const context = {source, cwd: process.cwd(), packageDir, realpath, readSource};
+  const part = sourceOf(holder)?.stackHolder;
+  const atPart = part && resolveStack(part, context);
+  if (atPart?.loc) return atPart;
+
+  const err: CapturedError = thrown instanceof Error ? thrown : new Error(String(thrown), {cause: thrown});
+  const atError = resolveStack(holder, context, {code: err.code, message: err.message});
+  if (atError.loc) return atError;
+
+  const diagram = sourceOf(holder, DIAGRAM_SOURCE)?.stackHolder;
+  return diagram ? resolveStack(diagram, context) : atError;
 }

@@ -5,8 +5,10 @@ import {test} from 'node:test';
 import {fileURLToPath} from 'node:url';
 import {nestedBandsOf} from '../lib/band-children.ts';
 import {areas, box, connect, diagram, gantt, grid, group, image, raw, row} from '../lib/dsl.ts';
+import {row as unlocatedRow} from '../lib/dsl/containers.ts';
 import {detachData} from '../lib/dsl/diagram.ts';
 import {checkDiagram, renderDiagram} from '../lib/dsl/render.ts';
+import {box as unlocatedBox} from '../lib/dsl/text-bands.ts';
 import {importDefine} from '../lib/load-source.ts';
 import {installResolveHook} from '../lib/resolve-hook.ts';
 import {walkBands} from '../lib/rules.ts';
@@ -279,8 +281,9 @@ test('diagram, add and connect do not capture by default', () => {
 test('diagram, add and connect capture their caller when opted in', async () => {
   captureSourceLocations(true);
   try {
-    const a = box({id: 'a', title: 'A'}), b = box({id: 'b', title: 'B'});
-    const r = row([a, b]);
+    // Exercise add()'s fallback for parts assembled outside the public builders.
+    const a = unlocatedBox({id: 'a', title: 'A'}), b = unlocatedBox({id: 'b', title: 'B'});
+    const r = unlocatedRow([a, b]);
     const prior = mark(r.children[0]!);
     function makeDiagram() { return diagram({theme: 'blue', connectDefaults: {line: 'dashed'}}); }
     const d = makeDiagram();
