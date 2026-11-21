@@ -1,7 +1,7 @@
 // node --test test/   — ADR 0016 U1: counting bends, crossings and length of polylines (pure functions of points; no font involved).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {bendsOf, crossingsOf, rescore, scoreOf, simplify, totalLength, crossingsWith} from '../lib/polyline-metrics.ts';
+import {bendsOf, crossingsOf, crossingsOfRuns, crossingsWith, rescore, runsOfPath, scoreOf, simplify, totalLength} from '../lib/polyline-metrics.ts';
 import {layoutWithLanes, routeLayered} from '../lib/layered-route.ts';
 import {edgeStats} from '../lib/rules.ts';
 import type {LaidOutConnect} from '../lib/types/containers.ts';
@@ -130,4 +130,15 @@ test('crossingsWith counts one route against the others, never the others agains
   const v = [{x: 5, y: -5}, {x: 5, y: 5}], h1 = [{x: 0, y: 0}, {x: 10, y: 0}], h2 = [{x: 0, y: 2}, {x: 10, y: 2}], v2 = [{x: 7, y: -5}, {x: 7, y: 5}];
   assert.equal(crossingsWith(v, [h1, h2, v2]), 2);
   assert.equal(crossingsWith(v, [h1, h2, v2]), crossingsOf([v, h1, h2, v2]) - crossingsOf([h1, h2, v2]));
+});
+
+test('crossingsOfRuns / runsOfPath: the crossings of two polylines from their runs are those crossingsWith counts, and a cache of the runs by array changes nothing', () => {
+  const a = P(0, 5, 10, 5, 10, 20), b = P(5, 0, 5, 10, 20, 10), c = P(2, 12, 30, 12);
+  assert.equal(crossingsOfRuns(runsOfPath(a), runsOfPath(b)), crossingsWith(a, [b]));
+  assert.equal(crossingsOfRuns(runsOfPath(a), runsOfPath(c)), crossingsWith(a, [c]));
+  const cache = new WeakMap<Pt[], ReturnType<typeof runsOfPath>>();
+  assert.equal(crossingsWith(a, [b, c], {}, cache), crossingsWith(a, [b, c]));
+  assert.equal(crossingsWith(a, [b, c], {}, cache), crossingsWith(a, [b, c]), 'the second time, from the cache');
+  const next = new Map([[0, a], [1, b], [2, c]]), moved = new Map([[0, a], [1, P(5, 0, 5, 10, 25, 10)], [2, c]]);
+  assert.deepEqual(rescore(next, scoreOf([...next.values()]), moved, cache), scoreOf([...moved.values()]));
 });

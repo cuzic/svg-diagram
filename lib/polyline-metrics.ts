@@ -9,12 +9,16 @@ const same = (a: P, b: P): boolean => Math.abs(a.x - b.x) < 0.01 && Math.abs(a.y
 export function simplify<T extends P>(pts: T[]): T[] {
   const out: T[] = [];
   for (const p of pts) { const last = out[out.length - 1]; if (!last || !same(last, p)) out.push(p); }
-  return out.filter((p, i) => {
-    if (i === 0 || i === out.length - 1) return true;
-    const a = out[i - 1], b = out[i + 1];
-    if (!a || !b) return true;
-    return !((a.x === p.x && p.x === b.x) || (a.y === p.y && p.y === b.y));
-  });
+  const n = out.length;
+  if (n < 3) return out;
+  // the middle point of three on a line goes, the three being neighbours in the list without repeats (a point that goes does not change which are the neighbours of the next)
+  const res: T[] = [out[0] as T];
+  for (let i = 1; i < n - 1; i++) {
+    const a = out[i - 1] as T, p = out[i] as T, b = out[i + 1] as T;
+    if (!((a.x === p.x && p.x === b.x) || (a.y === p.y && p.y === b.y))) res.push(p);
+  }
+  res.push(out[n - 1] as T);
+  return res;
 }
 
 /** The bends of a polyline: the inner points where the line turns (a repeated point or a point in the middle of a straight run is not one). */
@@ -65,39 +69,56 @@ export function crossingsOf(paths: P[][], o: CrossOpts = {}): number {
   return n;
 }
 
+/** A polyline's level and plumb runs, as `crossingsWith` reads them (worked out once for a polyline that is compared with many). */
+export interface Runs {h: {at: number; lo: number; hi: number}[]; v: {at: number; lo: number; hi: number}[]}
+
+export function runsOfPath(p: P[], o: CrossOpts = {}): Runs {
+  const tol = o.tol ?? 0;
+  const h: Runs['h'] = [], v: Runs['v'] = [];
+  for (let i = 1; i < p.length; i++) {
+    const a = p[i - 1], b = p[i];
+    if (!a || !b) continue;
+    if (a.y === b.y || Math.abs(a.y - b.y) < tol) h.push({at: a.y, lo: Math.min(a.x, b.x), hi: Math.max(a.x, b.x)});
+    if (a.x === b.x || Math.abs(a.x - b.x) < tol) v.push({at: a.x, lo: Math.min(a.y, b.y), hi: Math.max(a.y, b.y)});
+  }
+  return {h, v};
+}
+
+/** The crossings of two polylines from their runs (what `crossingsWith(a, [b])` counts). */
+export function crossingsOfRuns(a: Runs, b: Runs, o: CrossOpts = {}): number {
+  const m = o.margin ?? 0;
+  const cross = (h: Runs['h'], v: Runs['v']): number => { let n = 0; for (const x of h) for (const y of v) if (y.at > x.lo + m && y.at < x.hi - m && x.at > y.lo + m && x.at < y.hi - m) n++; return n; };
+  return cross(a.h, b.v) + cross(b.h, a.v);
+}
+
 /** The crossings of one polyline with each of the others (the same count as `crossingsOf`, for a figure in which only this one changed). Only its own pairs are compared: the others are not counted against each other. */
-export function crossingsWith(path: P[], others: readonly P[][], o: CrossOpts = {}): number {
-  const m = o.margin ?? 0, tol = o.tol ?? 0;
-  type R = {at: number; lo: number; hi: number};
-  const runsOf = (p: P[]): {h: R[]; v: R[]} => {
-    const h: R[] = [], v: R[] = [];
-    for (let i = 1; i < p.length; i++) {
-      const a = p[i - 1], b = p[i];
-      if (!a || !b) continue;
-      if (a.y === b.y || Math.abs(a.y - b.y) < tol) h.push({at: a.y, lo: Math.min(a.x, b.x), hi: Math.max(a.x, b.x)});
-      if (a.x === b.x || Math.abs(a.x - b.x) < tol) v.push({at: a.x, lo: Math.min(a.y, b.y), hi: Math.max(a.y, b.y)});
-    }
-    return {h, v};
-  };
-  const cross = (h: R[], v: R[]): number => { let n = 0; for (const a of h) for (const b of v) if (b.at > a.lo + m && b.at < a.hi - m && a.at > b.lo + m && a.at < b.hi - m) n++; return n; };
-  const mine = runsOf(path);
+export function crossingsWith(path: P[], others: readonly P[][], o: CrossOpts = {}, cache?: WeakMap<P[], Runs>): number {
+  const useCache = cache !== undefined && o.tol === undefined && o.margin === undefined; // the cache holds the runs for the default options only
+  const runsIn = (r: P[]): Runs => { let x = useCache ? cache?.get(r) : undefined; if (!x) { x = runsOfPath(r, o); if (useCache) cache?.set(r, x); } return x; }; // `cache`: the runs of a route by its array, the caller's (the others are the same routes try after try)
+  const mine = runsIn(path);
   let n = 0;
-  for (const other of others) { const r = runsOf(other); n += cross(mine.h, r.v) + cross(r.h, mine.v); }
+  for (const other of others) n += crossingsOfRuns(mine, runsIn(other), o);
   return n;
 }
 
-const samePath = (a: P[], b: P[]): boolean => a === b || (a.length === b.length && a.every((p, k) => { const q = b[k] as P; return p.x === q.x && p.y === q.y; }));
+const samePath = (a: P[], b: P[]): boolean => {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let k = 0; k < a.length; k++) { const p = a[k] as P, q = b[k] as P; if (p.x !== q.x || p.y !== q.y) return false; }
+  return true;
+};
 
 /**
  * `scoreOf(next)`, from the score of `prev` and the routes that differ: a local search tries one change after another, and a change moves a few
  * routes, so counting every pair of routes again for each try is most of its cost. The same numbers as counting afresh (test/polyline-metrics.test.ts).
  */
-export function rescore<K>(prev: ReadonlyMap<K, P[]>, prevScore: {crossings: number; bends: number}, next: ReadonlyMap<K, P[]>): {crossings: number; bends: number} {
-  if (prev.size !== next.size || [...next.keys()].some(k => !prev.has(k))) return scoreOf([...next.values()]);
+export function rescore<K>(prev: ReadonlyMap<K, P[]>, prevScore: {crossings: number; bends: number}, next: ReadonlyMap<K, P[]>, cache?: WeakMap<P[], Runs>): {crossings: number; bends: number} {
+  if (prev.size !== next.size) return scoreOf([...next.values()]);
+  for (const k of next.keys()) if (!prev.has(k)) return scoreOf([...next.values()]);
   const before: P[][] = [], after: P[][] = [], rest: P[][] = [];
-  for (const [k, r] of next) { const old = prev.get(k) as P[]; if (samePath(old, r)) rest.push(r); else { before.push(old); after.push(r); } }
+  for (const [k, r] of next) { const old = prev.get(k) as P[]; if (samePath(old, r)) rest.push(old); else { before.push(old); after.push(r); } }
   if (!after.length) return prevScore;
-  const against = (moved: P[][]): number => crossingsOf(moved) + moved.reduce((n, r) => n + crossingsWith(r, rest), 0);
+  const against = (moved: P[][]): number => crossingsOf(moved) + moved.reduce((n, r) => n + crossingsWith(r, rest, {}, cache), 0);
   return {
     crossings: prevScore.crossings - against(before) + against(after),
     bends: prevScore.bends - before.reduce((n, r) => n + bendsOf(r), 0) + after.reduce((n, r) => n + bendsOf(r), 0),
@@ -125,18 +146,7 @@ export interface ParallelRun {a: number; b: number; gap: number; overlap: number
  * single runs, and keeps its own definition (the verifier's `cause-parallel` and the router's ADR 0016 D11 read it).
  */
 export function parallelRuns(routes: readonly P[][], sep: number): ParallelRun[] {
-  type R = {level: boolean; at: number; lo: number; hi: number};
-  const runsOf = (pts: P[]): R[] => {
-    const s = simplify(pts), out: R[] = [];
-    for (let i = 1; i < s.length; i++) {
-      const p = s[i - 1] as P, q = s[i] as P;
-      const level = Math.abs(p.y - q.y) < 0.5, plumb = Math.abs(p.x - q.x) < 0.5;
-      if (level === plumb) continue; // a point, or a slanted segment
-      out.push(level ? {level, at: p.y, lo: Math.min(p.x, q.x), hi: Math.max(p.x, q.x)} : {level, at: p.x, lo: Math.min(p.y, q.y), hi: Math.max(p.y, q.y)});
-    }
-    return out;
-  };
-  const runs = routes.map(runsOf), out: ParallelRun[] = [];
+  const runs = routes.map(r => runsOfRoute(r)), out: ParallelRun[] = [];
   for (let i = 0; i < runs.length; i++) for (let j = i + 1; j < runs.length; j++) {
     for (const r of runs[i] ?? []) for (const s of runs[j] ?? []) {
       if (r.level !== s.level) continue;
@@ -146,3 +156,79 @@ export function parallelRuns(routes: readonly P[][], sep: number): ParallelRun[]
   }
   return out;
 }
+
+/** One run of a route (`parallelRuns`): level or plumb, where it lies across, and its span. */
+export interface RouteRun {level: boolean; at: number; lo: number; hi: number}
+
+/** A route's runs, its corners first (`simplify`): a straight run is one however many points it has; a point and a slanted segment are not runs. */
+export function runsOfRoute(pts: P[]): RouteRun[] {
+  const s = simplify(pts), out: RouteRun[] = [];
+  for (let i = 1; i < s.length; i++) {
+    const p = s[i - 1] as P, q = s[i] as P;
+    const level = Math.abs(p.y - q.y) < 0.5, plumb = Math.abs(p.x - q.x) < 0.5;
+    if (level === plumb) continue;
+    out.push(level ? {level, at: p.y, lo: Math.min(p.x, q.x), hi: Math.max(p.x, q.x)} : {level, at: p.x, lo: Math.min(p.y, q.y), hi: Math.max(p.y, q.y)});
+  }
+  return out;
+}
+
+/**
+ * The ways two routes lie against each other (ADR 0070 U4c): how many pairs of runs, one of each, both level (`level`) or both plumb (`plumb`), are side by
+ * side (on one axis under `sep` apart, over 4px long together: `parallelRuns`' pair) or on one line with their ends under `sep` apart (a pair `parallelRuns`
+ * leaves out: two runs that read as one, ADR 0070 U4b's `touch`).
+ */
+export function runPairWays(a: readonly RouteRun[], b: readonly RouteRun[], sep: number): {level: number; plumb: number} {
+  let level = 0, plumb = 0;
+  for (const r of a) for (const s of b) {
+    if (r.level !== s.level) continue;
+    const gap = Math.abs(r.at - s.at), overlap = Math.min(r.hi, s.hi) - Math.max(r.lo, s.lo);
+    if (overlap > 4 ? gap < sep : gap < 0.5 && overlap > -sep) { if (r.level) level++; else plumb++; }
+  }
+  return {level, plumb};
+}
+
+/** A route's runs with the box it lies in (a pair of runs under `sep` apart needs the two boxes within `sep` of each other). */
+export interface RoutedRuns {pts: P[]; runs?: RouteRun[]; x0: number; x1: number; y0: number; y1: number}
+
+/** The box of a route, worked out once per array in `cache` (the caller's, so no module holds state); its runs are worked out when they are first asked for (`runsIn`). */
+export function routedRuns(r: P[], cache: WeakMap<P[], RoutedRuns>): RoutedRuns {
+  let e = cache.get(r);
+  if (!e) {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const p of r) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+    e = {pts: r, x0, x1, y0, y1};
+    cache.set(r, e);
+  }
+  return e;
+}
+
+/**
+ * How many pairs `next` has against the other routes that `prev` did not (`runPairWays`): the most of the new kinds of pair and the growth of the moved routes' pairs in all (0 or less: none). Only the routes that differ are asked: for each, the other routes
+ * it lies against. It does when it lies against a route level or plumb where it did not (the same two routes the other way, a plumb pair for a level
+ * one, is a gain too), or when the pairs of the moved routes are more in all than they were. A pair that was there stays allowed (it may be a bit
+ * nearer). `cache` holds the runs of the routes by their arrays.
+ */
+export function runPairGain<K>(prev: ReadonlyMap<K, P[]>, next: ReadonlyMap<K, P[]>, sep: number, cache: WeakMap<P[], RoutedRuns>): number {
+  const near = (a: RoutedRuns, b: RoutedRuns): boolean => a.x0 - sep - 1 <= b.x1 && b.x0 - sep - 1 <= a.x1 && a.y0 - sep - 1 <= b.y1 && b.y0 - sep - 1 <= a.y1;
+  let before = 0, after = 0, newWays = 0;
+  for (const [k, r] of next) {
+    const old = prev.get(k);
+    if (!old || samePath(old, r)) continue;
+    const was0 = routedRuns(old, cache), now0 = routedRuns(r, cache);
+    for (const [o, ro] of next) {
+      if (o === k) continue;
+      const oldO = prev.get(o) ?? ro, other = routedRuns(samePath(oldO, ro) ? oldO : ro, cache), otherWas = routedRuns(oldO, cache); // an unchanged route's runs are those of its old array
+      const was = near(was0, otherWas) ? runPairWays(runsIn(was0), runsIn(otherWas), sep) : NONE, now = near(now0, other) ? runPairWays(runsIn(now0), runsIn(other), sep) : NONE;
+      if ((now.level > 0 && was.level === 0) || (now.plumb > 0 && was.plumb === 0)) newWays++;
+      before += was.level + was.plumb; after += now.level + now.plumb;
+    }
+  }
+  return Math.max(after - before, newWays);
+}
+
+/** Does `next` lie against the other routes in a way `prev` did not (`runPairGain` over 0)? */
+export function gainsRunPairs<K>(prev: ReadonlyMap<K, P[]>, next: ReadonlyMap<K, P[]>, sep: number, cache: WeakMap<P[], RoutedRuns>): boolean {
+  return runPairGain(prev, next, sep, cache) > 0;
+}
+const runsIn = (e: RoutedRuns): RouteRun[] => e.runs ??= runsOfRoute(e.pts);
+const NONE = {level: 0, plumb: 0};
