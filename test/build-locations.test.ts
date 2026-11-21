@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {assertBuildOutput} from '../lib/build-verdict.ts';
+import {readProvenance} from '../lib/freshness.ts';
 import {layoutFinding} from '../lib/layout-issues.ts';
 import {SourceRef} from '../lib/source-ref.ts';
 import {box, build, closeMeasurer, diagram} from '../lib/dsl.ts';
@@ -13,11 +14,11 @@ import type {locationsMap} from '../lib/locations-map.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
 const source = `import {box, connect, diagram, row} from 'svg-diagram';
-const first = () => box({id: 'a', title: 'First', padY: 17.5});
+const first = () => box({id: 'a', title: 'First'});
 export default () => diagram({theme: 'blue', gap: 80}).add(
   row([
     first(),
-    box({id: 'b', title: 'Second', padY: 17.5, reveal: 1}),
+    box({id: 'b', title: 'Second', reveal: 1}),
   ]),
   connect('a:right', 'b:left', {label: 'Next'}),
 );
@@ -33,7 +34,11 @@ export default () => diagram({theme: 'blue'}).add(
 function fixture(t: TestContext, files: Record<string, string>) {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'svgd-build-locations-'));
   t.after(() => fs.rmSync(cwd, {recursive: true, force: true}));
-  const write = (file: string, value: string) => fs.writeFileSync(path.join(cwd, file), value);
+  const write = (file: string, value: string) => {
+    const target = path.join(cwd, file);
+    fs.mkdirSync(path.dirname(target), {recursive: true});
+    fs.writeFileSync(target, value);
+  };
   for (const [file, value] of Object.entries(files)) write(file, value);
   const run = (cli: string, args: string[], nodeArgs: string[] = []) => spawnSync(process.execPath, [...nodeArgs, path.join(root, `${cli}-diagram.ts`), ...args], {cwd, encoding: 'utf8'});
   const read = (file: string) => fs.readFileSync(path.join(cwd, file), 'utf8');
@@ -45,16 +50,25 @@ function assertStatus(result: ReturnType<ReturnType<typeof fixture>['build']>, e
   assert.equal(result.status, expected, result.stdout + result.stderr);
 }
 
+function readMap(p: ReturnType<typeof fixture>, file = 'figure.json'): ReturnType<typeof locationsMap> {
+  return JSON.parse(p.read(file));
+}
+
+function svgFrames(svg: string) {
+  return [...svg.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)" rx="8"/g)]
+    .map(([, x, y, w, h]) => ({x: Number(x), y: Number(y), w: Number(w), h: Number(h)}));
+}
+
 test('build --locations maps rows, boxes and connections in layout order', t => {
   const p = fixture(t, {'figure.ts': source});
   const plain = p.build('figure.ts');
   assertStatus(plain, 0);
   const svg = p.read('svg/figure.svg');
-  const result = p.build('figure.ts', '--locations', 'maps/figure.json');
+  const result = p.build('figure.ts', '--locations', 'figure.json');
   assertStatus(result, 0);
   assert.equal(result.stdout, plain.stdout);
   assert.equal(p.read('svg/figure.svg'), svg);
-  const map = JSON.parse(p.read('maps/figure.json')) as ReturnType<typeof locationsMap>;
+  const map = readMap(p);
   assert.equal(map.version, 1);
   assert.equal(map.source, 'figure.ts');
   assert.ok(svg.includes(`viewBox="0 0 ${map.width} ${map.height}"`));
@@ -69,8 +83,7 @@ test('build --locations maps rows, boxes and connections in layout order', t => 
   assert.deepEqual(second.loc, {file: 'figure.ts', line: 6, column: 5});
   assert.equal(second.reveal, 1);
 
-  const rects = [...svg.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)" rx="8"/g)].map(([, x, y, w, h]) => ({x: Number(x), y: Number(y), w: Number(w), h: Number(h)}));
-  assert.deepEqual([first.rect, second.rect], rects);
+  assert.deepEqual([first.rect, second.rect], svgFrames(svg));
   assert.equal(map.connects.length, 1);
   const [line] = map.connects;
   assert.ok(line);
@@ -79,11 +92,95 @@ test('build --locations maps rows, boxes and connections in layout order', t => 
   assert.deepEqual(line.loc, {file: 'figure.ts', line: 8, column: 3});
   const route = /<path d="M(\d+),(\d+) L(\d+),(\d+)" fill="none"[^>]*marker-end=/.exec(svg);
   assert.ok(route);
-  assert.deepEqual(line.segments, [route.slice(1).map(Number)]);
+  assert.deepEqual(line.segments.map(segment => segment.map(Math.round)), [route.slice(1).map(Number)]);
   const [, labelY] = /<text x="[^"]+" y="(\d+)" text-anchor="middle"[^>]*>Next<\/text>/.exec(svg) ?? [];
   assert.ok(labelY && line.rect.y < Number(labelY) && line.rect.y + line.rect.h > Number(labelY));
   assert.equal(line.reveal, 1);
   assert.equal(map.issues, undefined);
+});
+
+test('build --locations matches box and group frames to their SVG rectangles', t => {
+  const p = fixture(t, {
+    'figure.ts': fs.readFileSync(path.join(root, 'examples/slide-canvas.ts'), 'utf8'),
+    'cloud.ts': fs.readFileSync(path.join(root, 'examples/cloud-architecture.ts'), 'utf8'),
+    'svg-diagram.icons.json': fs.readFileSync(path.join(root, 'svg-diagram.icons.json'), 'utf8'),
+  });
+  assertStatus(p.build('figure.ts', '--locations', 'figure.json'), 0);
+  const rects = svgFrames(p.read('svg/figure.svg'));
+  assert.equal(rects.length, 3);
+  assert.deepEqual(readMap(p).parts.filter(part => part.kind === 'box').map(part => part.rect), rects);
+
+  assertStatus(p.build('cloud.ts', '--locations', 'cloud.json'), 0);
+  const frames = svgFrames(p.read('svg/cloud.svg'));
+  const groups = readMap(p, 'cloud.json').parts.filter(part => part.kind === 'group');
+  assert.ok(groups.length);
+  assert.deepEqual(groups[0]?.rect, frames[0]);
+});
+
+test('build captures part sources only with a locations flag', t => {
+  const p = fixture(t, {'probe.ts': `import {box, diagram} from 'svg-diagram';
+export default () => {
+  const part = box({title: 'Capture probe'});
+  console.log('SOURCE capture: ' + (Object.hasOwn(part, Symbol.for('svg-diagram.source')) ? 'on' : 'off'));
+  return diagram({theme: 'blue'}).add(part);
+};
+`});
+  for (const [capture, args] of [['off', []], ['on', ['--locations', 'figure.json']], ['on', ['--locations-dir', 'maps']]] as const) {
+    const result = p.build('probe.ts', ...args);
+    assertStatus(result, 0);
+    assert.match(result.stdout, new RegExp(`^SOURCE capture: ${capture}$`, 'm'));
+  }
+});
+
+test('build --locations keeps item lifetimes, grid height, scoped row names, and cause node names', t => {
+  const p = fixture(t, {'figure.ts': `import {bars, box, connect, diagram, grid, row, whyWhyTree} from 'svg-diagram';
+export default () => diagram({theme: 'blue'}).add(
+  box({id: 'standalone', title: 'Standalone'}),
+  row([Object.assign(box({id: 'gate', title: 'Gate', until: 3}), {scope: 'plan'}), box({id: 'next', title: 'Next'})], {gap: 80}),
+  connect('gate:right', 'next:left', {until: 3}),
+  grid([box({title: 'Grid first'}), box({title: 'Grid second'})], {cols: 1}),
+  bars([{id: 'temporary', label: 'Temporary', value: 25, reveal: 1, until: 2}, {label: 'Current', value: 45, reveal: 2}], {max: 100}),
+  whyWhyTree('Delayed', [{id: 'known', why: 'No time'}, {why: 'No plan'}], {scope: 'reason', readingNote: false}),
+);
+`});
+  assertStatus(p.build('figure.ts', '--locations', 'figure.json'), 0);
+  const {parts, connects} = readMap(p);
+  assert.equal(parts.filter(part => part.node === 'standalone').length, 1);
+  const gate = parts.find(part => part.label === 'Gate');
+  assert.ok(gate);
+  assert.deepEqual([gate.node, gate.until, gate.final], ['plan.gate', 3, false]);
+  assert.equal(parts.find(part => part.label === 'Next')?.final, undefined);
+  assert.equal(connects.length, 1);
+  assert.equal(connects[0]?.final, false);
+  const temporary = parts.find(part => part.node === 'temporary');
+  assert.ok(temporary);
+  assert.deepEqual([temporary.reveal, temporary.until, temporary.final], [1, 2, false]);
+  assert.doesNotMatch(p.read('svg/figure.svg'), />Gate<|>Temporary</);
+  assert.match(p.read('svg/figure.reveal1.svg'), />Temporary</);
+
+  const grid = parts.find(part => part.kind === 'grid');
+  const last = parts.find(part => part.label === 'Grid second');
+  assert.ok(grid && last);
+  assert.ok(Math.abs(grid.rect.y + grid.rect.h - last.rect.y - last.rect.h) <= 4);
+  const cause = parts.filter(part => part.kind === 'cause');
+  assert.equal(cause.length, 4); // the figure, its effect, and two causes
+  assert.deepEqual(cause.flatMap(part => part.node ?? []), ['reason.known']);
+});
+
+test('build --locations marks group titles and areas wrappers as generated', t => {
+  const p = fixture(t, {'figure.ts': `import {areas, box, caption, diagram, group, row} from 'svg-diagram';
+export default () => diagram({theme: 'blue'}).add(
+  group([box({title: 'Member'})], {id: 'own', title: 'Own title'}),
+  areas('memo note author', {memo: box({title: 'Memo'}), note: caption('Note'), author: group([caption('Author')], {frame: false})}),
+  row([box({title: 'An ordinary cell'})], {id: 'ordinary'}),
+);
+`});
+  assertStatus(p.build('figure.ts', '--locations', 'figure.json'), 0);
+  const {parts} = readMap(p);
+  assert.deepEqual(parts.filter(part => part.generated).map(({kind, node, loc}) => [kind, node, loc.line]), [
+    ['caption', undefined, 3], ['caption', undefined, 3], ['row', undefined, 4], ['group', 'note', 4],
+  ]);
+  assert.deepEqual(parts.filter(part => part.node === 'author').map(part => part.generated), [undefined]);
 });
 
 test('build --locations writes layout issues and removes the old map on loading errors', t => {
@@ -121,9 +218,33 @@ test('build --locations accepts one source and --locations-dir names each map', 
   assertStatus(p.build('first.ts', path.join(p.cwd, 'second.ts'), '--locations-dir', 'maps'), 0);
   for (const file of ['first', 'second']) {
     const map = JSON.parse(p.read(`maps/${file}.locations.json`));
-    assert.equal(map.source, `${file}.ts`);
-    assert.equal(map.parts[1].loc.file, `${file}.ts`);
+    assert.equal(map.source, `../${file}.ts`);
+    assert.equal(map.parts[1].loc.file, `../${file}.ts`);
   }
+});
+
+test('build --locations bases source and location paths on the map directory', t => {
+  const p = fixture(t, {
+    'src/figure.ts': `import {diagram} from 'svg-diagram';
+import {part} from '../shared/part.ts';
+export default () => diagram({theme: 'blue'}).add(part);
+`,
+    'shared/part.ts': `import {box} from 'svg-diagram';
+export const part = box({title: 'Shared box'});
+`,
+  });
+  const source = path.join(p.cwd, 'src/figure.ts');
+  const map = 'maps/nested/figure.json';
+  const args = ['--no-lint', source, '--out', path.join(p.cwd, 'figure.svg'), '--locations', path.join(p.cwd, map)];
+  assertStatus(p.run('build', args), 0);
+  const first = p.read(map);
+  const result = spawnSync(process.execPath, [path.join(root, 'build-diagram.ts'), ...args], {cwd: path.join(p.cwd, 'src'), encoding: 'utf8'});
+  assertStatus(result, 0);
+  assert.equal(p.read(map), first);
+  const locations = readMap(p, map);
+  assert.equal(locations.source, '../../src/figure.ts');
+  assert.equal(locations.diagram.loc?.file, '../../src/figure.ts');
+  assert.equal(locations.parts[0]?.loc.file, '../../shared/part.ts');
 });
 
 test('build --stale backfills a missing map without rewriting the current SVG', t => {
@@ -137,6 +258,72 @@ test('build --stale backfills a missing map without rewriting the current SVG', 
   assert.equal(fs.statSync(svg).mtimeMs, 100_000);
   const map = JSON.parse(p.read('figure.json'));
   assert.equal(map.parts[1].label, 'First');
+});
+
+test('build --stale refreshes the map when the source lines or dependencies move', t => {
+  const p = fixture(t, {
+    'figure.ts': `import {box, diagram} from 'svg-diagram';
+import {part} from './part.ts';
+export default () => diagram({theme: 'blue'}).add(box({title: 'Local box'}), part);
+`,
+    'part.ts': `import {box} from 'svg-diagram';
+export const part = box({title: 'Shared box'});
+`,
+  });
+  const flag = ['--locations', 'figure.json'];
+  assertStatus(p.build('figure.ts', ...flag), 0);
+  const svg = path.join(p.cwd, 'svg/figure.svg');
+  for (const [file, lines] of [['figure.ts', [4, 2]], ['part.ts', [4, 3]]] as const) {
+    p.write(file, '\n' + p.read(file));
+    assertStatus(p.build('figure.ts'), 0);
+    fs.utimesSync(svg, 100, 100);
+    const result = p.build('figure.ts', '--stale', ...flag);
+    assertStatus(result, 0);
+    assert.match(result.stdout, /最新（スキップ）/);
+    assert.equal(fs.statSync(svg).mtimeMs, 100_000);
+    const map = readMap(p);
+    assert.deepEqual(map.parts.map(part => part.loc.line), lines);
+    const meta = readProvenance(svg);
+    assert.ok(meta?.sourceSha256 && meta.depsSha256);
+    assert.deepEqual(map.provenance, {sourceSha256: meta.sourceSha256, depsSha256: meta.depsSha256, tool: meta.toolVersion});
+  }
+  const mapPath = path.join(p.cwd, 'figure.json');
+  fs.utimesSync(mapPath, 100, 100);
+  assertStatus(p.build('figure.ts', '--stale', ...flag), 0);
+  assert.equal(fs.statSync(mapPath).mtimeMs, 100_000);
+  const current = readMap(p);
+  p.write('figure.json', JSON.stringify({...current, provenance: {...current.provenance, tool: 'old-version'}}));
+  assertStatus(p.build('figure.ts', '--stale', ...flag), 0);
+  assert.deepEqual(readMap(p), current);
+});
+
+test('build --stale replaces a map with issues after a failed build is fixed', t => {
+  const p = fixture(t, {'figure.ts': source});
+  const args = ['figure.ts', '--locations', 'figure.json'];
+  assertStatus(p.build(...args), 0);
+  const good = readMap(p);
+  p.write('figure.ts', overlap);
+  assertStatus(p.build(...args), 1);
+  const failed = readMap(p);
+  assert.ok(failed.issues?.length);
+  p.write('figure.ts', source);
+  assertStatus(p.build('--stale', ...args), 0);
+  assert.deepEqual(readMap(p), good);
+
+  // Even matching hashes cannot make a map from a failed build current.
+  p.write('figure.json', JSON.stringify({...good, issues: failed.issues}));
+  assertStatus(p.build('--stale', ...args), 0);
+  assert.deepEqual(readMap(p), good);
+});
+
+test('build reports a map write failure without warning about an old SVG', t => {
+  const p = fixture(t, {'figure.ts': source.replace("theme: 'blue'", "theme: 'blue', title: 'Flow'"), 'blocked': 'not a directory'});
+  for (const flags of [[], ['--stale']]) {
+    const result = p.build('figure.ts', '--locations', 'blocked/figure.json', ...flags);
+    assertStatus(result, 1);
+    assert.ok(p.exists('svg/figure.svg'));
+    assert.match(result.stderr.trim(), /^✗ blocked\/figure\.json: [^\n]+$/);
+  }
 });
 
 test('build result exposes layout as a non-enumerable field', async t => {

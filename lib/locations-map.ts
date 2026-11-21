@@ -1,11 +1,15 @@
 // ADR 0072 D6: a map of the placed parts in viewBox coordinates.
+import {renderBoxRect} from './emit-boxes.ts';
 import {layoutFinding} from './layout-issues.ts';
 import type {ResolveSource} from './layout-issues.ts';
 import {must} from './must.ts';
+import {visibleAt} from './reveal.ts';
+import {walkBands} from './rules.ts';
 import {qualify, scopeOf} from './scope-name.ts';
 import type {SourceLoc} from './source-location.ts';
 import {sourceOf} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
+import {toneEnv} from './tokens.ts';
 import type {LaidOutConnect} from './types/containers.ts';
 import type {Rect} from './types/core.ts';
 import type {LaidOutBand, LaidOutDiagram} from './types/index.ts';
@@ -15,8 +19,10 @@ import {collectRects} from './verify-handlers.ts';
 
 type At = {loc: SourceLoc; via?: Omit<SourceLoc, 'file'>[]};
 type Life = {reveal?: number; until?: number};
-type Part = At & Life & {kind: LaidOutBand['type']; label: string; rect: Rect; node?: string};
-type Connection = At & Life & {kind: 'connect'; label?: string; rect: Rect; segments: [number, number, number, number][]};
+type Visibility = Life & {final?: false};
+type Part = At & Visibility & {kind: LaidOutBand['type']; label: string; rect: Rect; node?: string; generated?: true};
+type Connection = At & Visibility & {kind: 'connect'; label?: string; rect: Rect; segments: [number, number, number, number][]};
+export type LocationsProvenance = {sourceSha256: string; depsSha256: string; tool: string};
 
 function partLocation(ref: SourceRef | undefined, resolve: ResolveSource): At | undefined {
   if (!ref) return undefined;
@@ -28,9 +34,37 @@ function rectOf({x, y, w, h}: Rect): Rect {
   return {x, y, w, h};
 }
 
+function drawnFrame(rect: Rect): Rect {
+  // Read the emitter's geometry so the map uses the same snapping of the right edge and height.
+  const svg = renderBoxRect(rect, 'blue', toneEnv(undefined), 'plain');
+  const attrs = Object.fromEntries([...svg.matchAll(/ (x|y|width|height)="([^"]+)"/g)].map(([, name, value]) => [must(name), Number(value)]));
+  return {x: must(attrs['x']), y: must(attrs['y']), w: must(attrs['width']), h: must(attrs['height'])};
+}
+
+function drawsFrame(band: LaidOutBand, item?: number): boolean {
+  switch (band.type) {
+    case 'box':
+    case 'group': return band.frame !== false;
+    case 'banner': return true;
+    case 'bowtie':
+    case 'classes':
+    case 'cloud':
+    case 'fta':
+    case 'tree': return item !== undefined;
+    case 'cause': return item !== undefined && !must(band.nodes[item]).hex;
+    case 'states': return item !== undefined && !must(band.nodes[item]).circle;
+    case 'bpmn': return item !== undefined && must(band.nodes[item]).kind === 'task';
+    default: return false;
+  }
+}
+
 function lifeOf(part: object): Life {
   const {reveal, until} = part as Life;
   return {...(reveal === undefined ? {} : {reveal}), ...(until === undefined ? {} : {until})};
+}
+
+function visibility(life: Life, stage: number | undefined): Visibility {
+  return visibleAt(life, stage) ? life : {...life, final: false};
 }
 
 function ownRect(band: LaidOutBand): Rect {
@@ -40,16 +74,35 @@ function ownRect(band: LaidOutBand): Rect {
   return {x, y, w, h: Math.max(y, ...band.children.map(c => c.y + c.h)) - y};
 }
 
-function partMap(diagram: LaidOutDiagram, band: LaidOutBand, resolve: ResolveSource): Part[] {
+function areaWrappers(diagram: LaidOutDiagram) {
+  const rows = new Set<string>(), groups = new Set<string>();
+  for (const band of walkBands(diagram.bands)) {
+    if (band.type !== 'areas') continue;
+    const ref = sourceOf(band);
+    for (const cell of band.children) {
+      if (cell.type === 'box' && cell.id) rows.add(cell.id);
+      // areas() captures its own location for the frameless groups it creates.
+      if (cell.type === 'group' && cell.id && ref && sourceOf(cell) === ref) groups.add(cell.id);
+    }
+  }
+  return {rows, groups};
+}
+
+function partMap(diagram: LaidOutDiagram, band: LaidOutBand, resolve: ResolveSource, wrappers: ReturnType<typeof areaWrappers>): Part[] {
   // Collect per band to keep its type and the corresponding row/grid children.
   const rects = collectRects({...diagram, laidOut: [band]});
   const children = band.type === 'row' || band.type === 'grid' ? band.children : undefined;
   const parts: Part[] = [];
   const ref = sourceOf(band), at = partLocation(ref, resolve);
   const own = ownRect(band);
+  const generated = (band.type === 'caption' && band.inkBox) ||
+    (band.type === 'row' && band.children.length === 1 && wrappers.rows.has(band.children[0]?.id ?? '')) ||
+    (band.type === 'group' && band.id && wrappers.groups.has(band.id));
+  const origin = generated ? {generated: true as const} : {};
   if (at && (children || !rects.some(r => r.loc === ref && r.x === own.x && r.y === own.y && r.w === own.w && r.h === own.h))) {
     const node = 'id' in band ? band.id : undefined;
-    parts.push({...at, kind: band.type, label: labelOf(band), rect: own, ...(node ? {node} : {}), ...lifeOf(band)});
+    const rect = drawsFrame(band) ? drawnFrame(own) : own;
+    parts.push({...at, kind: band.type, label: labelOf(band), rect, ...(node ? {node} : {}), ...visibility(lifeOf(band), diagram.maxReveal), ...origin});
   }
   for (const [index, r] of rects.entries()) {
     const at = partLocation(r.loc, resolve);
@@ -57,12 +110,14 @@ function partMap(diagram: LaidOutDiagram, band: LaidOutBand, resolve: ResolveSou
     const part = children ? must(children[index]) : band;
     const synthetic = band.type === 'cause' && band.unanchored?.some(id => qualify(scopeOf(band), id) === r.id);
     const node = children && 'id' in part && part.id ? qualify(scopeOf(part), part.id) : synthetic ? undefined : r.id;
-    parts.push({...at, kind: part.type, label: r.label, rect: rectOf(r), ...(node ? {node} : {}), ...lifeOf(part), ...lifeOf(r.life ?? {})});
+    const life = {...lifeOf(part), ...lifeOf(r.life ?? {})};
+    const rect = drawsFrame(part, index) ? drawnFrame(r) : rectOf(r);
+    parts.push({...at, kind: part.type, label: r.label, rect, ...(node ? {node} : {}), ...visibility(life, diagram.maxReveal), ...(children ? {} : origin)});
   }
   return parts;
 }
 
-function connectionMap(c: LaidOutConnect, resolve: ResolveSource): Connection[] {
+function connectionMap(c: LaidOutConnect, resolve: ResolveSource, stage: number | undefined): Connection[] {
   const at = partLocation(sourceOf(c), resolve);
   if (!at) return [];
   const label = c.chipBox ?? c.labelBox;
@@ -76,20 +131,22 @@ function connectionMap(c: LaidOutConnect, resolve: ResolveSource): Connection[] 
     const start = must(c.points[i]);
     return [start.x, start.y, end.x, end.y];
   });
-  return [{...at, kind: 'connect', ...(c.label === undefined ? {} : {label: c.label}), rect: {x, y, w, h}, segments, ...lifeOf(c)}];
+  return [{...at, kind: 'connect', ...(c.label === undefined ? {} : {label: c.label}), rect: {x, y, w, h}, segments, ...visibility(lifeOf(c), stage)}];
 }
 
-export function locationsMap(diagram: LaidOutDiagram, source: string, resolve: ResolveSource, issues?: readonly Issue[]) {
+export function locationsMap(diagram: LaidOutDiagram, source: string, provenance: LocationsProvenance, resolve: ResolveSource, issues?: readonly Issue[]) {
   const {loc} = resolve(sourceOf(diagram));
   const diagramLocation: {loc?: SourceLoc} = loc ? {loc} : {};
+  const wrappers = areaWrappers(diagram);
   return {
     version: 1 as const,
     source,
+    provenance,
     width: diagram.width,
     height: diagram.canvasHeight,
     diagram: diagramLocation,
-    parts: diagram.laidOut.flatMap(band => partMap(diagram, band, resolve)),
-    connects: diagram.connects.flatMap(c => connectionMap(c, resolve)),
+    parts: diagram.laidOut.flatMap(band => partMap(diagram, band, resolve, wrappers)),
+    connects: diagram.connects.flatMap(c => connectionMap(c, resolve, diagram.maxReveal)),
     ...(issues === undefined ? {} : {issues: issues.map(issue => layoutFinding(source, issue, resolve))}),
   };
 }

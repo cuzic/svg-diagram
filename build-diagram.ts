@@ -32,6 +32,7 @@ import {installResolveHook} from './lib/resolve-hook.ts';
 import {must} from './lib/must.ts';
 import {assertBuildOutput} from './lib/build-verdict.ts';
 import {locationsMap} from './lib/locations-map.ts';
+import type {LocationsProvenance} from './lib/locations-map.ts';
 import {captureSourceLocations} from './lib/source-capture.ts';
 import {installStackCapture, locateError, locateSource} from './lib/source-location-io.ts';
 import type {LaidOutDiagram} from './lib/types/index.ts';
@@ -125,6 +126,15 @@ if (locationsFile !== null || locationsDir !== null) captureSourceLocations(true
 // the project config changes what a build produces, so it takes part in "is this SVG current?"
 const configSha256 = config._file ? sha(fs.readFileSync(config._file)) : '';
 
+function locationsCurrent(file: string, source: string, expected: LocationsProvenance): boolean {
+  try {
+    const map = JSON.parse(fs.readFileSync(file, 'utf8')) as Partial<ReturnType<typeof locationsMap>> | null;
+    const provenance = map?.provenance;
+    return map?.source === source && !Object.hasOwn(map, 'issues') &&
+      provenance?.sourceSha256 === expected.sourceSha256 && provenance.depsSha256 === expected.depsSha256 && provenance.tool === expected.tool;
+  } catch { return false; }
+}
+
 let failed = false;
 const written: string[] = [];
 let skipped = 0;
@@ -134,25 +144,37 @@ try {
     const outPath = outOverride ?? path.join(outDir ?? svgDirOf(config), path.parse(modPath).name + '.svg');
     const locationsPath = locationsFile ?? (locationsDir === null ? null : path.join(locationsDir, path.parse(modPath).name + '.locations.json'));
     const source = path.relative(process.cwd(), abs);
-    const writeLocations = (file: string, layout: LaidOutDiagram, issues?: Issue[]) => {
-      const map = locationsMap(layout, source, ref => locateSource(ref, source), issues);
-      fs.mkdirSync(path.dirname(file), {recursive: true});
-      fs.writeFileSync(file, JSON.stringify(map, null, 2) + '\n');
-    };
     if (locationsPath && [abs, path.resolve(outPath)].includes(path.resolve(locationsPath))) {
       console.error('地図の出力先がソースまたは SVG と同じです。--locations または --locations-dir で別の出力先を指定してください');
       failed = true;
       continue;
     }
-    // ADR 0013: a failed build never touches the old SVG, but says so when that file is this source's own output (it is now out of date)
-    const failedBuild = (err: unknown, layoutStarted = false) => {
+    const mapDir = locationsPath && path.dirname(path.resolve(locationsPath));
+    const mapSource = mapDir && path.relative(mapDir, abs);
+    const failedLocations = (err: unknown) => {
+      console.error(`✗ ${locationsPath}: 地図を書けません。出力先を確認してください（${(err as Error).message}）`);
+      failed = true;
+    };
+    const writeLocations = (layout: LaidOutDiagram, provenance: LocationsProvenance, issues?: Issue[]) => {
+      if (!locationsPath || mapDir === null || mapSource === null) return;
+      try {
+        const map = locationsMap(layout, mapSource, provenance, ref => {
+          const {loc, via} = locateSource(ref, source);
+          return {loc: loc && {...loc, file: path.relative(mapDir, path.resolve(loc.file))}, via};
+        }, issues);
+        fs.mkdirSync(path.dirname(locationsPath), {recursive: true});
+        fs.writeFileSync(locationsPath, JSON.stringify(map, null, 2) + '\n');
+      } catch (err) { failedLocations(err); }
+    };
+    // ADR 0013: say when a failed build leaves the source's own previous SVG in place.
+    const failedBuild = (err: unknown, provenance?: LocationsProvenance) => {
       if (locationsPath) {
         try {
-          const details = layoutStarted && err instanceof Error ? err as Error & {laidOut?: LaidOutDiagram; issues?: Issue[]} : undefined;
-          if (details?.laidOut) writeLocations(locationsPath, details.laidOut, details.issues ?? []);
+          const details = err instanceof Error ? err as Error & {laidOut?: LaidOutDiagram; issues?: Issue[]} : undefined;
+          if (provenance && details?.laidOut) writeLocations(details.laidOut, provenance, details.issues ?? []);
           else fs.rmSync(locationsPath, {force: true});
         } catch (mapError) {
-          console.error(`✗ ${locationsPath}: ${(mapError as Error).message}`);
+          failedLocations(mapError);
         }
       }
       console.error(formatBuildError(buildErrorSite(modPath, locateError(err, modPath).loc), err));
@@ -168,6 +190,7 @@ try {
     const srcSha = sha(fs.readFileSync(abs));
     for (const f of depsOf(abs).unfollowable) console.warn(`  ⚠ ${path.relative(process.cwd(), f)}: 変数で組み立てた import() は、変更の検出（--stale / check --drift）の対象にならない`);
     const depsSha = depsSha256(abs); // local files the source imports (shared parts): a change there makes the SVG stale too
+    const provenance = {sourceSha256: srcSha, depsSha256: depsSha, tool: TOOL_VERSION};
     const pngPath = pngDir && path.join(pngDir, path.parse(outPath).name + '.png');
     const pngCurrent = () => !pngPath || (fs.existsSync(pngPath) && fs.statSync(pngPath).mtimeMs >= fs.statSync(outPath).mtimeMs);
     let skipSvg = false;
@@ -175,7 +198,7 @@ try {
       const meta = readProvenance(outPath);
       if (meta && meta.sourceSha256 === srcSha && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256 && (meta.depsSha256 ?? '') === depsSha && !!meta.noSourceLine === NO_SOURCE_LINE) {
         skipSvg = true;
-        if (!locationsPath || fs.existsSync(locationsPath)) {
+        if (!locationsPath || (mapSource !== null && locationsCurrent(locationsPath, mapSource, provenance))) {
           console.log(`· ${outPath} は最新（スキップ）`);
           skipped++;
           continue;
@@ -201,7 +224,7 @@ try {
       if (skipSvg && locationsPath) {
         const rendered = await renderDiagram(d, {name: path.basename(outPath), budget: 'measure'});
         assertBuildOutput(rendered, outPath);
-        writeLocations(locationsPath, rendered.laidOut);
+        writeLocations(rendered.laidOut, provenance);
         console.log(`· ${outPath} は最新（スキップ）`);
         skipped++;
         continue;
@@ -215,7 +238,7 @@ try {
           fs.writeFileSync(f, prefixSvgIds(text, prefix, {rootId: /<div id="(sd-[0-9a-f]+)" class="sd"/.exec(text)?.[1]})); // <metadata id="svg-diagram"> stays
         }
       }
-      if (locationsPath) writeLocations(locationsPath, result.laidOut);
+      if (locationsPath) writeLocations(result.laidOut, provenance);
       written.push(outPath, ...result.revealPaths);
       if (result.htmlPath) console.log(`✓ ${result.htmlPath}`);
       if (result.fit.doc) console.log(`✓ ${outPath} (${result.width}x${result.height})`);
@@ -228,7 +251,7 @@ try {
       // ADR 0017: the lint's notice is not shown when it passes, so a figure that lowered the text floor says so here itself
       if (d.canvas && d.canvas.minText < MIN_FONT_SIZE) console.error(`⚠ ${outPath}: 文字の下限を ${d.canvas.minText}px に下げている(fontFloor ${config.fontFloor ?? MIN_FONT_SIZE}。投影には向かない)`);
     } catch (err) {
-      failedBuild(err, layoutStarted);
+      failedBuild(err, layoutStarted ? provenance : undefined);
     }
   }
 } finally {
