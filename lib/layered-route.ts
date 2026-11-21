@@ -196,8 +196,8 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   const edgeAt = (i: number): LayeredEdgeOut => at(lay.edges, i);
   const nodeOf = (id: string): Placed => must(lay.nodes.get(id));
   const laneY = (i: number): number => at(edgeAt(i).points, 1).y; // the lane of a return in an outer lane (its second point)
-  const portOf = new Map<string, number>(), laneOf = new Map<number, number>();
-  const slotOf = new Map<string, {list: {edge: number; end: 0 | 1}[]; k: number; before: number; after: number}>(); // where each arrow end sits among the ends of its box side
+  const portOf = new Map<number, number>(), laneOf = new Map<number, number>();
+  const slotOf = new Map<number, {list: {edge: number; end: 0 | 1}[]; k: number; before: number; after: number}>(); // where each arrow end sits among the ends of its box side
   // the gap between layer l and l+1 runs from the right edge of the widest box of l to the left edge of the leftmost box of l+1
   const layerOf = (id: string): number => must(lay.layers.get(id));
   const layerRight = new Map<number, number>(), layerLeft = new Map<number, number>();
@@ -243,12 +243,12 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   // crowded at the sides. They spread over the room the gap has left, up to twice the step; a gap with no room keeps LANE. Direct arrows, the long arrows into an AND
   // and the turns of the returns in an outer lane all use the step of their gap, so their order and the way they share the gap do not change.
   // a direct arrow whose two ports are at one height is a straight line: it has no vertical run, so it takes no lane (without `spread` the lanes are the old ones: every direct arrow has one)
-  const level = (i: number): boolean => { if (!spread) return false; const e = edgeAt(i), A = nodeOf(e.from), B = nodeOf(e.to); return Math.abs(A.y + A.h / 2 + (portOf.get(`${i}:0`) ?? 0) - (B.y + B.h / 2 + (portOf.get(`${i}:1`) ?? 0))) < 0.5; };
+  const level = (i: number): boolean => { if (!spread) return false; const e = edgeAt(i), A = nodeOf(e.from), B = nodeOf(e.to); return Math.abs(A.y + A.h / 2 + (portOf.get((i * 2)) ?? 0) - (B.y + B.h / 2 + (portOf.get((i * 2 + 1)) ?? 0))) < 0.5; };
   let crowded: Map<number, number> | undefined; // the lanes that meet in a gap (the gap after layer g); counted at the first use, when the ports are set
   const crowdOf = (): Map<number, number> => {
     if (crowded) return crowded;
     // with tracks, the tracks a gap needs, counted as corridorLoad counts them for the gap's size (ADR 0070 D4, U4c)
-    if (tracks) return crowded = trackLoad(lay, LANE, (i, end) => portOf.get(`${i}:${end}`) ?? 0, level);
+    if (tracks) return crowded = trackLoad(lay, LANE, (i, end) => portOf.get((i * 2 + end)) ?? 0, level);
     const crowd = crowded = new Map<number, number>();
     lay.edges.forEach((e, i) => {
       if (e.self) return;
@@ -308,8 +308,8 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       const room = h / 2 - 6, span = total / 2 * step; // how far the outer ports are from the middle
       const slack = Math.min(step / 2, room - span); // as much of half a step as still keeps the whole side inside the box
       const lower = en.key.endsWith(':l') && list.length > 1 && slack >= 3 ? slack : 0;
-      portOf.set(`${en.edge}:${en.end}`, (must(offsets[k]) - total / 2) * step + lower);
-      slotOf.set(`${en.edge}:${en.end}`, {list, k, before: (units[k] ?? 0) * step, after: (units[k + 1] ?? 0) * step});
+      portOf.set((en.edge * 2 + en.end), (must(offsets[k]) - total / 2) * step + lower);
+      slotOf.set((en.edge * 2 + en.end), {list, k, before: (units[k] ?? 0) * step, after: (units[k + 1] ?? 0) * step});
     });
   }
   // fan-out (one tail): the arrow that goes farthest turns first (the lane nearest the tail), so no vertical run crosses another arrow's
@@ -331,7 +331,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   /** A direct arrow's runs along the layers, at its two ports: the one on the gap's left side, and the one on its right. */
   const legsOf = (i: number): Legs => {
     const e = edgeAt(i), A = nodeOf(e.from), B = nodeOf(e.to);
-    const ya = A.y + A.h / 2 + (portOf.get(`${i}:0`) ?? 0), yb = B.y + B.h / 2 + (portOf.get(`${i}:1`) ?? 0);
+    const ya = A.y + A.h / 2 + (portOf.get((i * 2)) ?? 0), yb = B.y + B.h / 2 + (portOf.get((i * 2 + 1)) ?? 0);
     return A.x < B.x ? {left: ya, right: yb} : {left: yb, right: ya};
   };
   const orders = new Map<string, number[]>(); // constrainedOrder's answers: the same turns are ordered again in every trial
@@ -653,8 +653,8 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       if (e.self) return;
       const A = nodeOf(e.from), B = nodeOf(e.to), ca = {x: A.x + A.w / 2, y: A.y + A.h / 2}, cb = {x: B.x + B.w / 2, y: B.y + B.h / 2};
       const first = e.points[1] ?? cb, last = e.points[e.points.length - 2] ?? ca;
-      const start = {x: first.x >= ca.x ? A.x + A.w : A.x, y: ca.y + (portOf.get(`${i}:0`) ?? 0)};
-      const end = {x: last.x <= cb.x ? B.x : B.x + B.w, y: cb.y + (portOf.get(`${i}:1`) ?? 0)};
+      const start = {x: first.x >= ca.x ? A.x + A.w : A.x, y: ca.y + (portOf.get((i * 2)) ?? 0)};
+      const end = {x: last.x <= cb.x ? B.x : B.x + B.w, y: cb.y + (portOf.get((i * 2 + 1)) ?? 0)};
       const turns = outerTurns.get(i);
       if (turns) { // out of the tail's left side, out to the lane, back along it, into the head's right side (or up into its face, see laneHeads)
         const lane = laneY(i), face = faceOf.get(i);
@@ -702,7 +702,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   // be moved to one height. Each candidate is tried against the whole drawing and kept only if (crossings, bends) get strictly better and
   // the new straight run does not lie along another arrow's run, so a figure never gets worse.
   const centreY = (id: string): number => { const n = nodeOf(id); return n.y + n.h / 2; };
-  const endY = (i: number, end: 0 | 1): number => { const e = edgeAt(i); return centreY(end === 0 ? e.from : e.to) + (portOf.get(`${i}:${end}`) ?? 0); };
+  const endY = (i: number, end: 0 | 1): number => { const e = edgeAt(i); return centreY(end === 0 ? e.from : e.to) + (portOf.get((i * 2 + end)) ?? 0); };
   const pairOf = (i: number): string => { const e = edgeAt(i); return `${Math.min(layerOf(e.from), layerOf(e.to))}`; };
   /** Moves both ports of arrow `i` to one height; returns how to take it back, or undefined when no such height exists. */
   const align = (i: number): (() => void) | undefined => {
@@ -712,7 +712,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     // (1) both boxes reach this height, 6px inside their edges (the same margin as the ports'); (2) the neighbours on each side keep a step
     let lo = Math.max(A.y, B.y) + 6, hi = Math.min(A.y + A.h, B.y + B.h) - 6;
     for (const end of [0, 1] as const) {
-      const slot = must(slotOf.get(`${i}:${end}`));
+      const slot = must(slotOf.get((i * 2 + end)));
       const near = (k: number): number | undefined => { const o = slot.list[k]; return o ? endY(o.edge, o.end) : undefined; };
       const prev = near(slot.k - 1), next = near(slot.k + 1);
       if (prev !== undefined) lo = Math.max(lo, prev + slot.before);
@@ -721,14 +721,14 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     if (lo > hi) return undefined;
     const y = Math.min(hi, Math.max(lo, (ya + yb) / 2));
     // (3) no other arrow of this pair of layers has a port at this height (their runs would line up as one line)
-    const own = new Set([`${i}:0`, `${i}:1`]);
+    const own = new Set([i * 2, i * 2 + 1]);
     for (const [j, o] of lay.edges.entries()) {
       if (j === i || o.self || pairOf(j) !== pairOf(i)) continue;
-      for (const end of [0, 1] as const) if (!own.has(`${j}:${end}`) && Math.abs(endY(j, end) - y) < 3) return undefined;
+      for (const end of [0, 1] as const) if (!own.has((j * 2 + end)) && Math.abs(endY(j, end) - y) < 3) return undefined;
     }
-    const was = [portOf.get(`${i}:0`), portOf.get(`${i}:1`)];
-    portOf.set(`${i}:0`, y - centreY(e.from)); portOf.set(`${i}:1`, y - centreY(e.to));
-    return () => { for (const end of [0, 1] as const) { if (was[end] === undefined) portOf.delete(`${i}:${end}`); else portOf.set(`${i}:${end}`, was[end]); } };
+    const was = [portOf.get((i * 2)), portOf.get((i * 2 + 1))];
+    portOf.set((i * 2), y - centreY(e.from)); portOf.set((i * 2 + 1), y - centreY(e.to));
+    return () => { for (const end of [0, 1] as const) { if (was[end] === undefined) portOf.delete((i * 2 + end)); else portOf.set((i * 2 + end), was[end]); } };
   };
   /** Does the straight run of arrow `i` lie along a horizontal run of another arrow (within 3px, sharing more than a point)? */
   const alongOther = (routes: Map<number, Pt[]>, i: number): boolean => {
@@ -751,7 +751,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     if (b.crossings < a.crossings || (b.crossings === a.crossings && (ob < oa || (ob === oa && b.bends < a.bends)))) routes = plain;
     else { constrainLanes = true; assignLanes(); turnOuter(); }
   }
-  const direct = lay.edges.map((_e, i) => i).filter(i => { const e = edgeAt(i); return straighten && !e.self && !e.outer && e.points.length === 2 && groupOf?.(i) === undefined && !round?.(e.from) && !round?.(e.to) && (lonePorts || must(slotOf.get(`${i}:0`)).list.length > 1 || must(slotOf.get(`${i}:1`)).list.length > 1); });
+  const direct = lay.edges.map((_e, i) => i).filter(i => { const e = edgeAt(i); return straighten && !e.self && !e.outer && e.points.length === 2 && groupOf?.(i) === undefined && !round?.(e.from) && !round?.(e.to) && (lonePorts || must(slotOf.get((i * 2))).list.length > 1 || must(slotOf.get((i * 2 + 1))).list.length > 1); });
   let best = scoreOf([...routes.values()]);
   // ADR 0070 D4 (U4c, `tracks`): a move after the tracks are placed (this one, the routes around the boxes, D12-D14) may not add a pair of runs under a lane step
   // apart, nor two runs on one line whose ends are under a lane step apart (the tracks' own spacing: what a move must not take away)
