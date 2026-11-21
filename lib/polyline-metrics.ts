@@ -9,12 +9,16 @@ const same = (a: P, b: P): boolean => Math.abs(a.x - b.x) < 0.01 && Math.abs(a.y
 export function simplify<T extends P>(pts: T[]): T[] {
   const out: T[] = [];
   for (const p of pts) { const last = out[out.length - 1]; if (!last || !same(last, p)) out.push(p); }
-  return out.filter((p, i) => {
-    if (i === 0 || i === out.length - 1) return true;
-    const a = out[i - 1], b = out[i + 1];
-    if (!a || !b) return true;
-    return !((a.x === p.x && p.x === b.x) || (a.y === p.y && p.y === b.y));
-  });
+  const n = out.length;
+  if (n < 3) return out;
+  // the middle point of three on a line goes, the three being neighbours in the list without repeats (a point that goes does not change which are the neighbours of the next)
+  const res: T[] = [out[0] as T];
+  for (let i = 1; i < n - 1; i++) {
+    const a = out[i - 1] as T, p = out[i] as T, b = out[i + 1] as T;
+    if (!((a.x === p.x && p.x === b.x) || (a.y === p.y && p.y === b.y))) res.push(p);
+  }
+  res.push(out[n - 1] as T);
+  return res;
 }
 
 /** The bends of a polyline: the inner points where the line turns (a repeated point or a point in the middle of a straight run is not one). */
@@ -88,10 +92,11 @@ export function crossingsOfRuns(a: Runs, b: Runs, o: CrossOpts = {}): number {
 }
 
 /** The crossings of one polyline with each of the others (the same count as `crossingsOf`, for a figure in which only this one changed). Only its own pairs are compared: the others are not counted against each other. */
-export function crossingsWith(path: P[], others: readonly P[][], o: CrossOpts = {}): number {
-  const mine = runsOfPath(path, o);
+export function crossingsWith(path: P[], others: readonly P[][], o: CrossOpts = {}, cache?: WeakMap<P[], Runs>): number {
+  const runsIn = (r: P[]): Runs => { let x = cache?.get(r); if (!x) { x = runsOfPath(r, o); cache?.set(r, x); } return x; }; // `cache`: the runs of a route by its array, the caller's (the others are the same routes try after try)
+  const mine = runsIn(path);
   let n = 0;
-  for (const other of others) n += crossingsOfRuns(mine, runsOfPath(other, o), o);
+  for (const other of others) n += crossingsOfRuns(mine, runsIn(other), o);
   return n;
 }
 
@@ -101,12 +106,12 @@ const samePath = (a: P[], b: P[]): boolean => a === b || (a.length === b.length 
  * `scoreOf(next)`, from the score of `prev` and the routes that differ: a local search tries one change after another, and a change moves a few
  * routes, so counting every pair of routes again for each try is most of its cost. The same numbers as counting afresh (test/polyline-metrics.test.ts).
  */
-export function rescore<K>(prev: ReadonlyMap<K, P[]>, prevScore: {crossings: number; bends: number}, next: ReadonlyMap<K, P[]>): {crossings: number; bends: number} {
+export function rescore<K>(prev: ReadonlyMap<K, P[]>, prevScore: {crossings: number; bends: number}, next: ReadonlyMap<K, P[]>, cache?: WeakMap<P[], Runs>): {crossings: number; bends: number} {
   if (prev.size !== next.size || [...next.keys()].some(k => !prev.has(k))) return scoreOf([...next.values()]);
   const before: P[][] = [], after: P[][] = [], rest: P[][] = [];
-  for (const [k, r] of next) { const old = prev.get(k) as P[]; if (samePath(old, r)) rest.push(r); else { before.push(old); after.push(r); } }
+  for (const [k, r] of next) { const old = prev.get(k) as P[]; if (samePath(old, r)) rest.push(old); else { before.push(old); after.push(r); } }
   if (!after.length) return prevScore;
-  const against = (moved: P[][]): number => crossingsOf(moved) + moved.reduce((n, r) => n + crossingsWith(r, rest), 0);
+  const against = (moved: P[][]): number => crossingsOf(moved) + moved.reduce((n, r) => n + crossingsWith(r, rest, {}, cache), 0);
   return {
     crossings: prevScore.crossings - against(before) + against(after),
     bends: prevScore.bends - before.reduce((n, r) => n + bendsOf(r), 0) + after.reduce((n, r) => n + bendsOf(r), 0),

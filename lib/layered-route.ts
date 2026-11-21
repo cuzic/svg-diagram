@@ -389,11 +389,12 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   /** homes: where main put a turn that placeTracks may move (a long arrow's last turn into an AND, `lastTurn`): the place to beat. */
   type Pending = {i: number; pts: Pt[]; turns: (number | undefined)[]; homes: (number | undefined)[]; mark: number};
   /** One arrow's stretches of runs near a cluster, with their box (4px wider) and their runs. */
-  type Arrow = {st: Pt[][]; box: {x0: number; x1: number; y0: number; y1: number}; segs: {p: Pt; q: Pt}[]; runs?: Runs[]};
+  type Arrow = {st: Pt[][]; box: {x0: number; x1: number; y0: number; y1: number}; segs?: {p: Pt; q: Pt}[]; runs?: Runs[]};
+  const segsOf = (st: Pt[][]): {p: Pt; q: Pt}[] => st.flatMap(r => r.slice(1).map((q, k) => ({p: at(r, k), q})));
   const arrowOf = (st: Pt[][]): Arrow => {
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (const r of st) for (const p of r) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
-    return {st, box: {x0: x0 - 4, x1: x1 + 4, y0: y0 - 4, y1: y1 + 4}, segs: st.flatMap(r => r.slice(1).map((q, k) => ({p: at(r, k), q})))};
+    return {st, box: {x0: x0 - 4, x1: x1 + 4, y0: y0 - 4, y1: y1 + 4}};
   };
   /** cross: the crossings of a cluster's arrows with each other and the rest, plus the pairs of arrows that lie on one line (under 4px apart,
    *  once per pair): such a pair hides how the two pass each other, so it weighs as one crossing and may be traded for one.
@@ -428,13 +429,16 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
         const xr = x.runs ??= x.st.map(r => runsOfPath(r)), yr = y.runs ??= y.st.map(r => runsOfPath(r)); // worked out when first compared
         for (const rx of xr) for (const ry of yr) c += crossingsOfRuns(rx, ry);
         cross += c; real += c;
-        if (x.segs.some(u => y.segs.some(v => runsTogether(u, v)))) cross++;
-        else if (x.segs.some(u => y.segs.some(v => endToEnd(u, v)))) touch++;
-        if (x.segs.some(u => y.segs.some(v => beside(u, v)))) par++;
+        const xs = x.segs ??= segsOf(x.st), ys = y.segs ??= segsOf(y.st); // worked out when first compared
+        if (xs.some(u => ys.some(v => runsTogether(u, v)))) cross++;
+        else if (xs.some(u => ys.some(v => endToEnd(u, v)))) touch++;
+        if (xs.some(u => ys.some(v => beside(u, v)))) par++;
       }
     });
     return {cross, par, real, touch};
   };
+  const lastInit = new Map<number, {pts: Pt[]; turns: (number | undefined)[]; route: Pt[]; sg: {x0: number; x1: number; h: number}}>(); // each pending arrow's route as it was made at the start of the last placing
+  const crossCache = new WeakMap<Pt[], Runs>(); // the runs of the routes by their arrays, for the crossings of one route against the others (the same routes try after try)
   const stageMemo = new Map<string, {raw: (number | undefined)[]; touched: number[]}>(); // a gap's turns after one stage, by everything the stage reads (a gap with the same inputs is placed the same: the figure is routed again for every trial)
   const trackMemo = new Map<string, number[] | null>(); // a cluster's place, by everything it was chosen from (build() runs again and again)
   /**
@@ -455,7 +459,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
    * than where they are. A last turn into a head stays `headRun` (the AND's arc) from it. The places are memoised by everything they are
    * chosen from (build() runs again for every trial).
    */
-  const placeTracks = (pending: Pending[], out: Map<number, Pt[]>): void => {
+  const placeTracks = (pending: Pending[], out: Map<number, Pt[]>): ((o: Pending) => Pt[]) => {
     type Run = {x: number; lo: number; hi: number};
     type Ask = {own: Pending; p: Pt; q: Pt; lo: number; hi: number; min: number; max: number; home: number | undefined; cur: () => number; raw: () => number | undefined; set: (x: number | undefined) => void};
     const madeRuns = new Map<number, Run[]>(), given = new Map<number, Run[]>(), held = new Map<number, Run[]>();
@@ -493,15 +497,23 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     }
     const near = (a: {lo: number; hi: number}, b: {lo: number; hi: number}): boolean => a.lo - LANE < b.hi + LANE && b.lo - LANE < a.hi + LANE;
     // every route as it stands, the pending ones at their turns so far (made once, and again for the arrows of each cluster placed)
-    const routeNow = new Map<Pending | number, Pt[]>([...made.map((r, k): [number, Pt[]] => [k, r]), ...pending.map((o): [Pending, Pt[]] => [o, elbows(o.pts, o.turns)])]);
     // each route's extent along the layers and a hash of its points: what a cluster's memo is keyed by (cheap to test, many times a figure)
     const signOf = (r: Pt[]): {x0: number; x1: number; h: number} => {
       let h = 2166136261, x0 = Infinity, x1 = -Infinity;
-      for (const p of r) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); for (const v of [p.x, p.y]) h = Math.imul(h ^ Math.round(v * 100), 16777619) >>> 0; }
+      for (const p of r) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); h = Math.imul(h ^ Math.round(p.x * 100), 16777619) >>> 0; h = Math.imul(h ^ Math.round(p.y * 100), 16777619) >>> 0; }
       return {x0, x1, h};
     };
-    const signs = new Map([...routeNow].map(([o, r]) => [o, signOf(r)]));
-    const turnsSeen = new Map(pending.map((o): [Pending, (number | undefined)[]] => [o, [...o.turns]])); // the turns each pending route in `routeNow` was made from
+    // a pending route made again for every trial is the same as the last time (and its hash) when its points and turns are
+    const initial = pending.map((o): {turns: (number | undefined)[]; route: Pt[]; sg: {x0: number; x1: number; h: number}} => {
+      const prev = lastInit.get(o.i);
+      if (prev && prev.pts.length === o.pts.length && prev.turns.length === o.turns.length && prev.turns.every((x, k) => x === o.turns[k]) && prev.pts.every((p, k) => p.x === at(o.pts, k).x && p.y === at(o.pts, k).y)) return prev;
+      const route = elbows(o.pts, o.turns), made1 = {pts: o.pts, turns: [...o.turns], route, sg: signOf(route)};
+      lastInit.set(o.i, made1);
+      return made1;
+    });
+    const routeNow = new Map<Pending | number, Pt[]>([...made.map((r, k): [number, Pt[]] => [k, r]), ...pending.map((o, k): [Pending, Pt[]] => [o, at(initial, k).route])]);
+    const signs = new Map([...made.map((r, k): [Pending | number, {x0: number; x1: number; h: number}] => [k, signOf(r)]), ...pending.map((o, k): [Pending | number, {x0: number; x1: number; h: number}] => [o, at(initial, k).sg])]);
+    const turnsSeen = new Map(pending.map((o, k): [Pending, (number | undefined)[]] => [o, at(initial, k).turns])); // the turns each pending route in `routeNow` was made from (never changed: a route made again takes a copy)
     // each route's extent along the layers by its place in `routeNow`'s order, so that a cluster finds the routes near it by a pass over two number arrays (a route that is not finite is never near)
     const seqOf = new Map<Pending | number, number>(), routeAt: (Pending | number)[] = [], ext0 = new Float64Array(signs.size), ext1 = new Float64Array(signs.size), extH = new Float64Array(signs.size);
     for (const [o, sg] of signs) { const k = seqOf.size; seqOf.set(o, k); routeAt.push(o); ext0[k] = sg.x0; ext1[k] = sg.x1; extH[k] = sg.h; }
@@ -681,6 +693,11 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
         }
       });
     }
+    // each arrow's route from its turns now: as `routeNow` has it when no turn moved since it was made, else made again
+    return (o: Pending): Pt[] => {
+      const seen = must(turnsSeen.get(o));
+      return seen.length === o.turns.length && seen.every((x, k) => x === o.turns[k]) ? must(routeNow.get(o)) : elbows(o.pts, o.turns);
+    };
   };
   const build = (): Map<number, Pt[]> => {
     const out = new Map<number, Pt[]>();
@@ -729,8 +746,8 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       pending.push({i, pts, turns: turnsOf, homes, mark: 0});
     });
     if (tracks) {
-      placeTracks(pending, out);
-      for (const {i, pts, turns} of pending) out.set(i, elbows(pts, turns));
+      const routeOf = placeTracks(pending, out);
+      for (const o of pending) out.set(o.i, routeOf(o));
     }
     return out;
   };
@@ -798,7 +815,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   for (const i of direct) {
     const undo = align(i);
     if (!undo) continue;
-    const trial = build(), score = rescore(routes, best, trial);
+    const trial = build(), score = rescore(routes, best, trial, crossCache);
     if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i) && !gains(trial, score.crossings)) { routes = trial; best = score; } else undo();
   }
   // the arrows that became straight lines no longer take a lane: the others take their lanes again, over the room that is left
@@ -808,7 +825,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     const pierced = (m: Map<number, Pt[]>): number => [...m].reduce((sum, [i, r]) => sum + [...lay.nodes].filter(([id, n]) => id !== edgeAt(i).from && id !== edgeAt(i).to && r.slice(1).some((q, k) => { const p = at(r, k); return Math.max(p.x, q.x) > n.x + 1 && Math.min(p.x, q.x) < n.x + n.w - 1 && Math.max(p.y, q.y) > n.y + 1 && Math.min(p.y, q.y) < n.y + n.h - 1; })).length, 0);
     const piercedBefore = pierced(routes);
     crowded = undefined; assignLanes(); turnOuter();
-    const trial = build(), score = rescore(routes, best, trial);
+    const trial = build(), score = rescore(routes, best, trial, crossCache);
     if (score.crossings <= best.crossings && score.bends <= best.bends && pierced(trial) <= piercedBefore) { routes = trial; best = score; }
     else { crowded = before; laneOf.clear(); for (const [k, v] of lanes) laneOf.set(k, v); outerTurns.clear(); for (const [k, v] of turns) outerTurns.set(k, v); }
   }
@@ -870,7 +887,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       const found2 = simplify(found), snapped = tracks ? snapToTracks(i, r, found2) : undefined;
       for (const route of tracks ? [found2, ...(snapped ? [snapped] : [])] : [found2]) {
         // only this arrow changed: its crossings and bends against the rest, before and after
-        const score = {crossings: best.crossings - crossingsWith(r, rest) + crossingsWith(route, rest), bends: best.bends - bendsOf(r) + bendsOf(route)};
+        const score = {crossings: best.crossings - crossingsWith(r, rest, {}, crossCache) + crossingsWith(route, rest, {}, crossCache), bends: best.bends - bendsOf(r) + bendsOf(route)};
         // strictly better in (crossings, bends); or it gets the arrow off a box it ran along or through, with no more crossings (the bends may grow: a figure that draws an arrow through a box is wrong)
         if (!(score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends) || (onBox && !touches(i, route) && score.crossings <= best.crossings))) continue;
         const trial = new Map(routes); trial.set(i, route);
@@ -922,7 +939,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       }
       for (const set of tries) {
         set();
-        const trial = build(), s = rescore(routes, best, trial), t = beside(trial, i);
+        const trial = build(), s = rescore(routes, best, trial, crossCache), t = beside(trial, i);
         // (with tracks) the arrows into the heads of ANDs do not cross each other more than they did: a move that trades a crossing there for another is no gain (an AND's arc reads wrongly over crossing arrows, ADR 0015)
         if (t.head < now.head && t.all <= now.all && s.crossings <= best.crossings && s.bends <= best.bends && inside(must(trial.get(i))) && !pierces(must(trial.get(i)), i) && !gains(trial, s.crossings) && (!tracks || groupCrossings(trial, groupOf) <= groupCrossings(routes, groupOf))) { routes = trial; best = s; break; }
         shiftOf.delete(i); turnAt.delete(i);
