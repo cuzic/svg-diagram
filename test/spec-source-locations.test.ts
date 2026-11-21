@@ -6,7 +6,7 @@ import {walkBands} from '../lib/rules.ts';
 import {captureSourceLocations, sourceOf} from '../lib/source-ref.ts';
 import {renderSpecEdge} from '../lib/spec-edge.ts';
 import {renderSpec} from '../lib/spec-render.ts';
-import {layoutIssue, specToDiagram, validateSpec} from '../lib/spec.ts';
+import {layoutIssue, partCatalog, specToDiagram, validateSpec} from '../lib/spec.ts';
 import {JA_FONTS, realEngine} from './helpers/text-engine.ts';
 
 test.after(() => closeMeasurer());
@@ -36,6 +36,68 @@ test('a stamped spec problem keeps the field path of a unique heading', async ()
   const result = await renderSpec(figure, {config});
   const overlap = result.problems.find(p => /^"共有" overlaps "確認"/.test(p.message));
   assert.equal(overlap?.path, 'parts[0].steps[0].title');
+});
+
+const longHeading = '同じ見出し'.repeat(10);
+const boardWithHeading = (id: string, title: string) => ({
+  type: 'board', nodes: [{id, kind: 'group', title, children: [{title: '説明'}]}],
+});
+
+test('warnings for repeated long headings point to their respective spec parts', async () => {
+  const figure = {...spec(boardWithHeading('a', longHeading), boardWithHeading('b', longHeading)), width: 320};
+  for (const result of [await renderSpec(figure, {config}), await renderSpecEdge(figure, realEngine())]) {
+    assert.deepEqual(result.issues, []);
+    const warnings = result.findings.filter(f => f.rule === 'cjk-line-long');
+    assert.deepEqual(warnings.map(f => f.path), ['parts[0].nodes[0].title', 'parts[1].nodes[0].title']);
+    assert.equal(warnings[0]?.message, warnings[1]?.message);
+  }
+});
+
+test('a stamped spec warning keeps the field path of a unique heading', async () => {
+  const figure = {...spec(boardWithHeading('a', '短い見出し'), boardWithHeading('b', longHeading)), width: 320};
+  const result = await renderSpec(figure, {config});
+  assert.deepEqual(result.findings.filter(f => f.rule === 'cjk-line-long').map(f => f.path), ['parts[1].nodes[0].title']);
+});
+
+test('a grouped spec warning locates a field in a related part', async t => {
+  const examples = new Map(partCatalog().map(({type, example}) => [type, example]));
+  const figure = {...spec(examples.get('matrix'), examples.get('table')), width: 320};
+  const node = await renderSpec(figure, {config});
+  const edge = await renderSpecEdge(figure, realEngine());
+  for (const [engine, result] of Object.entries({node, edge})) {
+    await t.test(engine, () => {
+      assert.deepEqual(result.issues, []);
+      assert.deepEqual(result.findings.filter(f => f.rule === 'text-mid-word-break').map(f => f.path), ['parts[1].columns[2].label']);
+    });
+  }
+});
+
+test('a grouped spec warning skips a part with multiple field matches', async t => {
+  // The glyph matches two titles in the first board and one in the second.
+  const figure = spec(
+    {type: 'board', nodes: [{id: 'a', title: '✅'}, {id: 'b', title: '✅'}]},
+    {type: 'board', nodes: [{id: 'c', title: '✅'}]},
+  );
+  const node = await renderSpec(figure, {config});
+  const edge = await renderSpecEdge(figure, realEngine());
+  for (const [engine, result] of Object.entries({node, edge})) {
+    await t.test(engine, () => {
+      assert.deepEqual(result.issues, []);
+      assert.deepEqual(result.findings.filter(f => f.rule === 'glyph-missing').map(f => f.path), ['parts[1].nodes[0].title']);
+    });
+  }
+});
+
+test('a grouped spec warning falls back to the first affected part when it names no field', async () => {
+  const chain = (...ids: string[]) => ({
+    type: 'board', nodes: ids.map(id => ({id, title: id})), links: ids.slice(1).map((to, i) => ({from: ids[i], to})),
+  });
+  // The largest component is b → c → d. The warning groups the two smaller components.
+  const figure = spec(chain('note'), chain('a1', 'a2'), chain('b', 'c', 'd'), chain('e1', 'e2'));
+  for (const result of [await renderSpec(figure, {config}), await renderSpecEdge(figure, realEngine())]) {
+    assert.deepEqual(result.issues, []);
+    assert.deepEqual(result.findings.filter(f => f.rule === 'graph-disconnected').map(f => f.path), ['parts[1]']);
+  }
 });
 
 test('linkOf keeps the original part index when locating a stamped board connector', async () => {
