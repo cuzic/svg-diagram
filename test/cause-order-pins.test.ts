@@ -9,21 +9,24 @@ import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {causeTree, checkDiagram, closeMeasurer, diagram} from '../lib/dsl.ts';
 import {andClashes} from '../lib/cause-clash.ts';
-import {bendsOf, crossingsOf, pairsOf} from '../lib/polyline-metrics.ts';
+import {bendsOf, crossingsOf, parallelRuns, runPairWays, runsOfRoute} from '../lib/polyline-metrics.ts';
+import type {P as Pt} from '../lib/polyline-metrics.ts';
 import {searchStats} from '../lib/toc.ts';
 import type {LaidOutCause} from '../lib/types/diagrams.ts';
 import {randomCrts} from './helpers/random-crt.ts';
 
 test.after(() => closeMeasurer());
 
-type Row = [g: number, crossings: number, causeCrossing: number, andCrossings: number, pairs: number, bends: number, height: number, lineScaleDropped: number, laid: number];
+type Row = [g: number, crossings: number, causeCrossing: number, andCrossings: number, pairs: number, bends: number, height: number, lineScaleDropped: number, laid: number, overlaps: number];
 interface Set_ {laneStep?: Record<string, string>; main: Row[]; now: Row[]; nopairs: Row[]; laid: {main: number; now: number}}
 interface Pins {plain: Set_; canvas: Set_}
 const pins = JSON.parse(readFileSync(new URL('./fixtures/crt-random-pins.json', import.meta.url), 'utf8')) as Pins;
 const figures = randomCrts(150);
+/** The run pairs the pins count: `runPairWays` over every two routes (the lib's `pairsOf` counts an overlap under 4px once more: ADR 0073 U2 M1; those are the `overlaps` column). */
+const pairsPlain = (P: Pt[][], sep: number): number => { const runs = P.map(p => runsOfRoute(p)); let n = 0; for (const [i, a] of runs.entries()) for (const b of runs.slice(i + 1)) { const w = runPairWays(a, b, sep); n += w.level + w.plumb; } return n; };
 
 /** One pinned figure drawn now: what the pins record for it. */
-async function drawn(g: number, canvas: boolean): Promise<{hash: string; c: number; cc: number; and: number; pairs: number; bends: number; h: number; lsd: number; laid: number}> {
+async function drawn(g: number, canvas: boolean): Promise<{hash: string; ov: number; c: number; cc: number; and: number; pairs: number; bends: number; h: number; lsd: number; laid: number}> {
   const f = figures[g]!;
   const d = canvas ? diagram({theme: 'blue', canvas: {width: 2400, height: 1800, minText: 18, fit: 'content'}}) : diagram({theme: 'blue', width: 1800});
   searchStats.laid = 0;
@@ -32,8 +35,8 @@ async function drawn(g: number, canvas: boolean): Promise<{hash: string; c: numb
   const t = r.laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause;
   const P = t.edges.map(e => e.points);
   const and = andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length; // the AND crossings of the search's score (ADR 0073 D1-3)
-  const pairs = pairsOf(P, canvas ? 18 : 14), bends = P.reduce((n, p) => n + bendsOf(p), 0); // 18 = the lane step of the canvas's lines (14 x 1.29, rounded)
-  return {hash: createHash('md5').update(JSON.stringify(P)).digest('hex').slice(0, 10), c: crossingsOf(P), pairs, bends, cc: r.verdict.warnings.filter(w => w.startsWith('[cause-crossing]')).length, and, h: Math.round(t.h), lsd: t.lineScaleDropped ? 1 : 0, laid};
+  const pairs = pairsPlain(P, canvas ? 18 : 14), bends = P.reduce((n, p) => n + bendsOf(p), 0); // 18 = the lane step of the canvas's lines (14 x 1.29, rounded)
+  return {hash: createHash('md5').update(JSON.stringify(P)).digest('hex').slice(0, 10), ov: parallelRuns(P, 4).length, c: crossingsOf(P), pairs, bends, cc: r.verdict.warnings.filter(w => w.startsWith('[cause-crossing]')).length, and, h: Math.round(t.h), lsd: t.lineScaleDropped ? 1 : 0, laid};
 }
 
 for (const [name, canvas] of [['幅 1800', false], ['canvas 2400x1800 (倍率 1.29)', true]] as const) {
@@ -64,7 +67,7 @@ for (const [name, canvas] of [['幅 1800', false], ['canvas 2400x1800 (倍率 1.
 
 for (const [name, canvas] of [['幅 1800', false], ['canvas 2400x1800 (倍率 1.29)', true]] as const) {
   const set = canvas ? pins.canvas : pins.plain;
-  test(`ピンの図 (${name}): P3 組はピンの記録の図以外で増えず、合計も増えない。P4 折れは「組の key を切った版 + 4」以下 (AND の交差が減った図は除く)`, async () => {
+  test(`ピンの図 (${name}): P3 組はピンの記録の図以外で増えず、合計も増えない。同じ線の上の重なり (4px 未満) が main より増えない。P4 折れは「組の key を切った版 + 4」以下 (AND の交差が減った図は除く)`, async () => {
     const now = new Map(set.now.map(r => [r[0], r])), off = new Map(set.nopairs.map(r => [r[0], r]));
     // 組が増える図 = ピンの記録 (now) が main より組の多い図。名前の一覧は持たず、ピンから決める
     const recorded = new Set(set.main.filter(m => (now.get(m[0])?.[4] ?? 0) > m[4]).map(m => m[0]));
@@ -75,6 +78,7 @@ for (const [name, canvas] of [['幅 1800', false], ['canvas 2400x1800 (倍率 1.
       assert.ok(x.pairs <= (recorded.has(g) ? n[4] : m[4]), `${tag}: 組 ${m[4]} -> ${x.pairs} (記録の図 ${recorded.has(g)})`);
       assert.ok(x.bends <= o[5] + 4 || x.and < o[3], `${tag}: 折れ ${o[5]} (組の key を切った版) -> ${x.bends} (+4 の上限、AND の交差 ${o[3]} -> ${x.and})`);
       assert.equal(x.pairs, n[4], `${tag}: 組はピンのとおり`);
+      assert.ok(x.ov <= m[9], `${tag}: 同じ線の上の重なり (4px 未満) ${m[9]} -> ${x.ov} (ADR 0070 U4c: 重なりを作らない)`);
     }
     // better() counts the pairs at the lane step of the figure's lines (18 on the canvas), not at 14: the figures whose route changes with 14 keep their route (the hash is of the points)
     for (const [g, hash] of Object.entries(set.laneStep ?? {})) assert.equal((await drawn(Number(g), canvas)).hash, hash, `#${g}: better() の組の間隔 (倍率つきの線の間隔)`);
