@@ -69,8 +69,19 @@ export function constrainedOrder<T>(items: readonly T[], legsOf: (t: T) => Legs,
     return false;
   };
   const byRank = items.map((_t, k) => k).sort((p, q) => at(ranks, p) - at(ranks, q) || p - q);
+  const tols = sep > 1 ? [1, sep] : [1];
+  // most gaps already go in an order no constraint breaks: then that order is the answer (no cycle to look for)
+  const broken = byRank.some((a, x) => {
+    for (let y = x + 1; y < n; y++) {
+      const b = at(byRank, y);
+      if (first(a, b, 1) && first(b, a, 1)) continue;
+      if (tols.some(tol => first(b, a, tol) && !first(a, b, tol))) return true;
+    }
+    return false;
+  });
+  if (!broken) return byRank.map(k => at(items, k));
   // the constraints against a crossing first (a run within the other's span), then those against runs side by side (under `sep` from it)
-  for (const tol of sep > 1 ? [1, sep] : [1]) {
+  for (const tol of tols) {
     for (const [x, a] of byRank.entries()) for (const b of byRank.slice(x + 1)) {
       if (first(a, b, 1) && first(b, a, 1)) continue; // crossing either way
       const ab = first(a, b, tol), ba = first(b, a, tol);
