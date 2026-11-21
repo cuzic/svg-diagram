@@ -38,9 +38,9 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 
 **部品とソースの位置の地図（ADR 0072 D6）**: `svg-diagram build flow.ts --locations flow.locations.json` は、SVG と一緒に位置の地図を JSON で書く。複数のソースには `--locations-dir DIR` を使う。各ソースの拡張子を外した名前で `DIR/<name>.locations.json` を書く。`--stale` で SVG が最新でも、地図が無い、`provenance` が今のソースと合わない、または地図が `issues` を持つ場合は、地図を作り直す。
 
-地図には `version: 1`、ソースのパス `source`、生成元の `provenance: {sourceSha256, depsSha256, tool}`、SVG の `width` と `height`、`diagram`、`parts`、`connects` がある。`provenance` はソースとローカルの依存ファイルのハッシュ、および `svg-diagram` の版を持つ。`source` と各 `loc.file` は地図のあるディレクトリからの相対パス。`diagram.loc` は `diagram()` の位置。
+地図には `version: 1`、ソースのパス `source`、生成元の `provenance: {sourceSha256, depsSha256, tool, configSha256?, noSourceLine?}`、SVG の `width` と `height`、`diagram`、`parts`、`connects` がある。`provenance` はソースとローカルの依存ファイルのハッシュ、`svg-diagram` の版を持つ。設定ファイルがあれば `configSha256` にそのハッシュ、`--no-source-line` を使ったときは `noSourceLine: true` を記録する。SVG と地図の鮮度判定は同じ値を比べる。`source` と各 `loc.file` は地図のあるディレクトリからの相対パス。`diagram.loc` は `diagram()` の位置。
 
-部品はレイアウト順に並び、各項目に `loc: {file, line, column}`（行と桁は 1 始まり）、`kind`、`label`、SVG の `viewBox` 座標の `rect: {x, y, w, h}` を持つ。箱やグループの枠は、SVG の描画と同じ 4px グリッドに合わせた座標を持つ。該当する項目には呼び出し元の `via`、ノード名の `node`（スコープがあれば `scope.id`）、表示段階の `reveal` と `until` が付く。メインの SVG は最終段階を描く。最終段階で消えている部品と接続には `final: false` が付く。グループの題名や `areas()` のセルを包む部品には `generated: true` が付き、`loc` は元の呼び出しを指す。接続は `kind: "connect"` で、`rect` は線とラベルを囲み、`segments` に `[x1, y1, x2, y2]` を並べる。ソース位置が解けた部品と接続だけを収録する。
+部品はレイアウト順に並び、各項目に `loc: {file, line, column}`（行と桁は 1 始まり）、`kind`、`label`、SVG の `viewBox` 座標の `rect: {x, y, w, h}` を持つ。箱・グループ・ノードなどの四角い枠、ガントの棒、`screens()` の画面枠と状態マトリクスのセル枠は、SVG に描く四角と同じ座標を持つ。該当する項目には呼び出し元の `via`、ノード名の `node`（スコープがあれば `scope.id`）、表示段階の `reveal` と `until` が付く。メインの SVG は最終段階を描く。最終段階で消えている部品と接続には `final: false` が付く。グループの題名や `areas()` のセルを包む部品には `generated: true` が付き、`loc` は元の呼び出しを指す。接続は `kind: "connect"` で、`rect` は線とラベルを囲み、`segments` に `[x1, y1, x2, y2]` を並べる。ソース位置が解けた部品と接続だけを収録する。
 
 レイアウト検査に失敗した場合も、地図に `check --format json` の `layout` と同じ形の `issues` を入れてから終了コード 1 を返す。ソースの読み込みや `define()` が失敗した場合は、前回の地図を削除する。`build()` の戻り値からは、列挙されない `laidOut` プロパティで描画に使ったレイアウトを読める。
 

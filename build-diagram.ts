@@ -126,12 +126,16 @@ if (locationsFile !== null || locationsDir !== null) captureSourceLocations(true
 // the project config changes what a build produces, so it takes part in "is this SVG current?"
 const configSha256 = config._file ? sha(fs.readFileSync(config._file)) : '';
 
+function matchesBuildProvenance(actual: Partial<LocationsProvenance> | undefined, expected: LocationsProvenance): boolean {
+  return actual?.sourceSha256 === expected.sourceSha256 && actual.tool === expected.tool &&
+    (actual.configSha256 ?? '') === (expected.configSha256 ?? '') &&
+    (actual.depsSha256 ?? '') === expected.depsSha256 && !!actual.noSourceLine === !!expected.noSourceLine;
+}
+
 function locationsCurrent(file: string, source: string, expected: LocationsProvenance): boolean {
   try {
     const map = JSON.parse(fs.readFileSync(file, 'utf8')) as Partial<ReturnType<typeof locationsMap>> | null;
-    const provenance = map?.provenance;
-    return map?.source === source && !Object.hasOwn(map, 'issues') &&
-      provenance?.sourceSha256 === expected.sourceSha256 && provenance.depsSha256 === expected.depsSha256 && provenance.tool === expected.tool;
+    return map?.source === source && !Object.hasOwn(map, 'issues') && matchesBuildProvenance(map.provenance, expected);
   } catch { return false; }
 }
 
@@ -190,13 +194,19 @@ try {
     const srcSha = sha(fs.readFileSync(abs));
     for (const f of depsOf(abs).unfollowable) console.warn(`  ⚠ ${path.relative(process.cwd(), f)}: 変数で組み立てた import() は、変更の検出（--stale / check --drift）の対象にならない`);
     const depsSha = depsSha256(abs); // local files the source imports (shared parts): a change there makes the SVG stale too
-    const provenance = {sourceSha256: srcSha, depsSha256: depsSha, tool: TOOL_VERSION};
+    const svgProvenance = {
+      sourceSha256: srcSha,
+      ...(configSha256 ? {configSha256} : {}),
+      ...(depsSha ? {depsSha256: depsSha} : {}),
+      ...(NO_SOURCE_LINE ? {noSourceLine: true} : {}),
+    };
+    const provenance = {...svgProvenance, depsSha256: depsSha, tool: TOOL_VERSION};
     const pngPath = pngDir && path.join(pngDir, path.parse(outPath).name + '.png');
     const pngCurrent = () => !pngPath || (fs.existsSync(pngPath) && fs.statSync(pngPath).mtimeMs >= fs.statSync(outPath).mtimeMs);
     let skipSvg = false;
     if (STALE && idPrefixArg === null && !FIT && !DARK && !TRANSPARENT && fs.existsSync(outPath) && pngCurrent()) { // --png: a missing or older PNG is not up to date either
       const meta = readProvenance(outPath);
-      if (meta && meta.sourceSha256 === srcSha && meta.toolVersion === TOOL_VERSION && (meta.configSha256 ?? '') === configSha256 && (meta.depsSha256 ?? '') === depsSha && !!meta.noSourceLine === NO_SOURCE_LINE) {
+      if (meta && matchesBuildProvenance({...meta, tool: meta.toolVersion}, provenance)) {
         skipSvg = true;
         if (!locationsPath || (mapSource !== null && locationsCurrent(locationsPath, mapSource, provenance))) {
           console.log(`· ${outPath} は最新（スキップ）`);
@@ -209,7 +219,7 @@ try {
     try {
       const d = await loadDiagram(abs, config); // .svg-diagram.json: project-wide accepted rules and max width
       // provenance for drift checks: which source (and which tool version) produced this SVG
-      d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source, sourceSha256: srcSha, ...(configSha256 ? {configSha256} : {}), ...(depsSha ? {depsSha256: depsSha} : {}), ...(NO_SOURCE_LINE ? {noSourceLine: true} : {})};
+      d.source = {generator: 'svg-diagram', toolVersion: TOOL_VERSION, source, ...svgProvenance};
       if (DARK && typeof d.appearance !== 'object') d.appearance = 'dark'; // a custom dark set the diagram names stays
       if (TRANSPARENT) d.transparent = true;
       if (NO_SOURCE_LINE) d.sourceLine = undefined; // before drawing, so the figure is the one the source would give without a sourceLine

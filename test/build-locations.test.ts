@@ -5,12 +5,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {isDeepStrictEqual} from 'node:util';
 import {assertBuildOutput} from '../lib/build-verdict.ts';
 import {readProvenance} from '../lib/freshness.ts';
 import {layoutFinding} from '../lib/layout-issues.ts';
 import {SourceRef} from '../lib/source-ref.ts';
-import {box, build, closeMeasurer, diagram} from '../lib/dsl.ts';
+import {box, build, checkDiagram, closeMeasurer, diagram} from '../lib/dsl.ts';
+import {loadDiagram} from '../lib/load-source.ts';
 import type {locationsMap} from '../lib/locations-map.ts';
+import {installResolveHook} from '../lib/resolve-hook.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
 const source = `import {box, connect, diagram, row} from 'svg-diagram';
@@ -54,8 +57,9 @@ function readMap(p: ReturnType<typeof fixture>, file = 'figure.json'): ReturnTyp
   return JSON.parse(p.read(file));
 }
 
-function svgFrames(svg: string) {
-  return [...svg.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)" rx="8"/g)]
+function svgFrames(svg: string, radius = 8) {
+  return [...svg.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)" rx="(\d+)"/g)]
+    .filter(match => Number(match[5]) === radius)
     .map(([, x, y, w, h]) => ({x: Number(x), y: Number(y), w: Number(w), h: Number(h)}));
 }
 
@@ -115,6 +119,76 @@ test('build --locations matches box and group frames to their SVG rectangles', t
   const groups = readMap(p, 'cloud.json').parts.filter(part => part.kind === 'group');
   assert.ok(groups.length);
   assert.deepEqual(groups[0]?.rect, frames[0]);
+});
+
+function exampleFixture(t: TestContext, name: string) {
+  const p = fixture(t, {'figure.ts': fs.readFileSync(path.join(root, 'examples', name + '.ts'), 'utf8')});
+  assertStatus(p.build('figure.ts', '--locations', 'figure.json'), 0);
+  return p;
+}
+
+test('build --locations uses the frame geometry of tree and banner parts', async t => {
+  for (const [name, kind] of [['mindmap', 'tree'], ['text-roles', 'banner']] as const) {
+    await t.test(kind, t => {
+      const p = exampleFixture(t, name);
+      const parts = readMap(p).parts.filter(part => part.kind === kind).slice(kind === 'tree' ? 1 : 0);
+      const frames = svgFrames(p.read('svg/figure.svg'));
+      assert.ok(parts.length);
+      assert.deepEqual(parts.map(part => part.rect), frames);
+    });
+  }
+});
+
+test('build --locations uses frames for cause, states and bpmn nodes that draw them', async t => {
+  installResolveHook();
+  t.after(closeMeasurer);
+  for (const [name, kind] of [['toc-prt', 'cause'], ['qc-arrow', 'states'], ['bpmn', 'bpmn']] as const) {
+    await t.test(kind, async t => {
+      const p = exampleFixture(t, name);
+      const {laidOut} = await checkDiagram(await loadDiagram(path.join(p.cwd, 'figure.ts'), {}));
+      const band = laidOut.laidOut.find(band => band.type === kind);
+      assert.ok(band && 'nodes' in band);
+      const parts = readMap(p).parts.filter(part => part.kind === kind && part.node);
+      const frames = svgFrames(p.read('svg/figure.svg'));
+      assert.equal(parts.length, band.nodes.length);
+      let unframed = 0;
+      for (const [i, node] of band.nodes.entries()) {
+        const part = parts[i];
+        assert.ok(part?.node);
+        if (('hex' in node && node.hex) || ('circle' in node && node.circle) || ('kind' in node && node.kind !== 'task')) {
+          const {x, y, w, h} = node;
+          assert.deepEqual(part.rect, {x, y, w, h}, part.node);
+          unframed++;
+        } else {
+          assert.ok(frames.some(frame => isDeepStrictEqual(frame, part.rect)), part.node);
+        }
+      }
+      assert.ok(unframed);
+    });
+  }
+});
+
+test('build --locations matches gantt bars to their SVG rectangles', t => {
+  const p = exampleFixture(t, 'gantt');
+  const frames = svgFrames(p.read('svg/figure.svg'), 4);
+  const parts = readMap(p).parts.filter(part => part.kind === 'gantt' && part.node);
+  assert.deepEqual(parts.map(part => part.node), ['req', 'ui', 'app', 'api', 'test']);
+  // The first two bars also draw a progress overlay after their outer rect.
+  assert.deepEqual(parts.map(part => part.rect), frames.filter((_, index) => index !== 1 && index !== 3));
+});
+
+test('build --locations matches screens items to their SVG rectangles', async t => {
+  for (const [name, radius, count] of [['inventory-component-spec', 8, 9], ['inventory-flow', 4, 4]] as const) {
+    await t.test(name, t => {
+      const p = exampleFixture(t, name);
+      const parts = readMap(p).parts.filter(part => part.kind === 'screens').slice(1);
+      const frames = svgFrames(p.read('svg/figure.svg'), radius);
+      assert.equal(parts.length, count);
+      for (const part of parts) {
+        assert.ok(frames.some(frame => isDeepStrictEqual(frame, part.rect)), JSON.stringify(part));
+      }
+    });
+  }
 });
 
 test('build captures part sources only with a locations flag', t => {
@@ -295,6 +369,55 @@ export const part = box({title: 'Shared box'});
   p.write('figure.json', JSON.stringify({...current, provenance: {...current.provenance, tool: 'old-version'}}));
   assertStatus(p.build('figure.ts', '--stale', ...flag), 0);
   assert.deepEqual(readMap(p), current);
+});
+
+test('build --stale refreshes the map when --no-source-line changes', t => {
+  const p = fixture(t, {'figure.ts': source.replace("theme: 'blue'", "theme: 'blue', sourceLine: '出典: テスト'")});
+  const args = ['figure.ts', '--locations', 'figure.json'];
+  assertStatus(p.build(...args), 0);
+  const before = readMap(p);
+  assertStatus(p.build('--no-source-line', 'figure.ts'), 0);
+  const svg = path.join(p.cwd, 'svg/figure.svg');
+  fs.utimesSync(svg, 100, 100);
+  const result = p.build('--stale', '--no-source-line', ...args);
+  assertStatus(result, 0);
+  assert.match(result.stdout, /最新（スキップ）/);
+  assert.equal(fs.statSync(svg).mtimeMs, 100_000);
+  const map = readMap(p);
+  assert.ok(map.height < before.height);
+  assert.ok(p.read('svg/figure.svg').includes(`viewBox="0 0 ${map.width} ${map.height}"`));
+  assert.equal(map.provenance.noSourceLine, true);
+  assert.equal(map.provenance.noSourceLine, readProvenance(svg)?.noSourceLine);
+});
+
+test('build --stale refreshes the map after a project config edit', t => {
+  const p = fixture(t, {'figure.ts': source, '.svg-diagram.json': '{"legend":false}'});
+  const args = ['figure.ts', '--locations', 'figure.json'];
+  assertStatus(p.build(...args), 0);
+  const svg = path.join(p.cwd, 'svg/figure.svg');
+  const oldHash = readProvenance(svg)?.configSha256;
+  assert.ok(oldHash);
+  p.write('.svg-diagram.json', '{"legend":"auto"}');
+  assertStatus(p.build('figure.ts'), 0);
+  const newHash = readProvenance(svg)?.configSha256;
+  assert.ok(newHash && newHash !== oldHash);
+  fs.utimesSync(svg, 100, 100);
+  const result = p.build('--stale', ...args);
+  assertStatus(result, 0);
+  assert.match(result.stdout, /最新（スキップ）/);
+  assert.equal(fs.statSync(svg).mtimeMs, 100_000);
+  assert.equal(readMap(p).provenance.configSha256, newHash);
+});
+
+test('build --stale replaces a map whose source path differs', t => {
+  const p = fixture(t, {'figure.ts': source, 'other.ts': source});
+  assertStatus(p.build('figure.ts', '--locations', 'figure.json'), 0);
+  assertStatus(p.build('other.ts', '--locations', 'figure.json'), 0);
+  assert.equal(readMap(p).source, 'other.ts');
+  const result = p.build('figure.ts', '--stale', '--locations', 'figure.json');
+  assertStatus(result, 0);
+  assert.match(result.stdout, /最新（スキップ）/);
+  assert.equal(readMap(p).source, 'figure.ts');
 });
 
 test('build --stale replaces a map with issues after a failed build is fixed', t => {

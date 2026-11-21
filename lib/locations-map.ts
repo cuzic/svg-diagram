@@ -1,5 +1,7 @@
 // ADR 0072 D6: a map of the placed parts in viewBox coordinates.
-import {renderBoxRect} from './emit-boxes.ts';
+import {frameGeometry} from './emit-boxes.ts';
+import {ganttBarGeometry} from './emit-figures.ts';
+import {primRectGeometry} from './emit-tables.ts';
 import {layoutFinding} from './layout-issues.ts';
 import type {ResolveSource} from './layout-issues.ts';
 import {must} from './must.ts';
@@ -9,9 +11,8 @@ import {qualify, scopeOf} from './scope-name.ts';
 import type {SourceLoc} from './source-location.ts';
 import {sourceOf} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
-import {toneEnv} from './tokens.ts';
 import type {LaidOutConnect} from './types/containers.ts';
-import type {Rect} from './types/core.ts';
+import type {DiagramSource, Rect} from './types/core.ts';
 import type {LaidOutBand, LaidOutDiagram} from './types/index.ts';
 import type {Issue} from './types/verdicts.ts';
 import {labelOf} from './verify-base.ts';
@@ -22,7 +23,7 @@ type Life = {reveal?: number; until?: number};
 type Visibility = Life & {final?: false};
 type Part = At & Visibility & {kind: LaidOutBand['type']; label: string; rect: Rect; node?: string; generated?: true};
 type Connection = At & Visibility & {kind: 'connect'; label?: string; rect: Rect; segments: [number, number, number, number][]};
-export type LocationsProvenance = {sourceSha256: string; depsSha256: string; tool: string};
+export type LocationsProvenance = Pick<DiagramSource, 'sourceSha256' | 'configSha256' | 'noSourceLine'> & {depsSha256: string; tool: string};
 
 function partLocation(ref: SourceRef | undefined, resolve: ResolveSource): At | undefined {
   if (!ref) return undefined;
@@ -32,13 +33,6 @@ function partLocation(ref: SourceRef | undefined, resolve: ResolveSource): At | 
 
 function rectOf({x, y, w, h}: Rect): Rect {
   return {x, y, w, h};
-}
-
-function drawnFrame(rect: Rect): Rect {
-  // Read the emitter's geometry so the map uses the same snapping of the right edge and height.
-  const svg = renderBoxRect(rect, 'blue', toneEnv(undefined), 'plain');
-  const attrs = Object.fromEntries([...svg.matchAll(/ (x|y|width|height)="([^"]+)"/g)].map(([, name, value]) => [must(name), Number(value)]));
-  return {x: must(attrs['x']), y: must(attrs['y']), w: must(attrs['width']), h: must(attrs['height'])};
 }
 
 function drawsFrame(band: LaidOutBand, item?: number): boolean {
@@ -56,6 +50,22 @@ function drawsFrame(band: LaidOutBand, item?: number): boolean {
     case 'bpmn': return item !== undefined && must(band.nodes[item]).kind === 'task';
     default: return false;
   }
+}
+
+function itemRect(band: LaidOutBand, rect: Rect, index: number): Rect {
+  if (band.type === 'gantt') {
+    // Only tasks with IDs have anchors, so the anchor index need not be the bar index.
+    const bar = band.bars.find(b => b.x === rect.x && b.y === rect.y && b.w === rect.w && b.h === rect.h);
+    if (bar && !bar.milestone) return ganttBarGeometry(bar);
+  }
+  if (band.type === 'screens') {
+    // The anchor includes the title above the frame. The frame shares its left, right and bottom edges.
+    const bottom = rect.y + rect.h;
+    const frame = band.prims.find(p => p.k === 'rect' && p.x === rect.x && p.w === rect.w &&
+      p.y >= rect.y && Math.abs(p.y + p.h - bottom) < 1e-6);
+    if (frame?.k === 'rect') return primRectGeometry(frame);
+  }
+  return drawsFrame(band, index) ? frameGeometry(rect) : rectOf(rect);
 }
 
 function lifeOf(part: object): Life {
@@ -101,7 +111,7 @@ function partMap(diagram: LaidOutDiagram, band: LaidOutBand, resolve: ResolveSou
   const origin = generated ? {generated: true as const} : {};
   if (at && (children || !rects.some(r => r.loc === ref && r.x === own.x && r.y === own.y && r.w === own.w && r.h === own.h))) {
     const node = 'id' in band ? band.id : undefined;
-    const rect = drawsFrame(band) ? drawnFrame(own) : own;
+    const rect = drawsFrame(band) ? frameGeometry(own) : own;
     parts.push({...at, kind: band.type, label: labelOf(band), rect, ...(node ? {node} : {}), ...visibility(lifeOf(band), diagram.maxReveal), ...origin});
   }
   for (const [index, r] of rects.entries()) {
@@ -111,7 +121,7 @@ function partMap(diagram: LaidOutDiagram, band: LaidOutBand, resolve: ResolveSou
     const synthetic = band.type === 'cause' && band.unanchored?.some(id => qualify(scopeOf(band), id) === r.id);
     const node = children && 'id' in part && part.id ? qualify(scopeOf(part), part.id) : synthetic ? undefined : r.id;
     const life = {...lifeOf(part), ...lifeOf(r.life ?? {})};
-    const rect = drawsFrame(part, index) ? drawnFrame(r) : rectOf(r);
+    const rect = itemRect(part, r, index);
     parts.push({...at, kind: part.type, label: r.label, rect, ...(node ? {node} : {}), ...visibility(life, diagram.maxReveal), ...(children ? {} : origin)});
   }
   return parts;

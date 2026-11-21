@@ -1,6 +1,6 @@
 # ADR 0072: 指摘と図の部品に、ソースの位置(ファイル・行・桁)を持たせる
 
-- 状態: 決定・U1・U2a・U2b 実装済み・U3a・U3b 実装済み・U4a・U4b 実装済み(2026-11-21。Opus のレビュー 1 回目(`0072-opus-review-round1.md`)の Blocker 1・Major 5・Minor 10・Nit 7 を反映。2 回目(`0072-opus-review-round2.md`)は Blocker なし、D2 の運び方は全例で動くと確かめた上で、Major 3・Minor 5・Nit 6 を反映。3 回目(`0072-opus-review-round3.md`)は Blocker なし・Major 1(D7 の path が粗くなる)で、Major・Minor 5・Nit 6 を反映。4 回目(`0072-opus-review-round4.md`)で Blocker・Major なしで収束し、その Minor 4・Nit 4 を反映。PR #415 のレビュー 1 回目の m1・m2・n1・n2、PR #419 のレビュー 1 回目、同 PR のレビュー 2 回目の m1・n1、PR #422 のレビュー 1 回目の M1・m2・n1、PR #423 のレビュー 1 回目の M1・m1・m2・m3・n1・n2 を反映)
+- 状態: 決定・U1・U2a・U2b 実装済み・U3a・U3b 実装済み・U4a・U4b 実装済み(2026-11-21。Opus のレビュー 1 回目(`0072-opus-review-round1.md`)の Blocker 1・Major 5・Minor 10・Nit 7 を反映。2 回目(`0072-opus-review-round2.md`)は Blocker なし、D2 の運び方は全例で動くと確かめた上で、Major 3・Minor 5・Nit 6 を反映。3 回目(`0072-opus-review-round3.md`)は Blocker なし・Major 1(D7 の path が粗くなる)で、Major・Minor 5・Nit 6 を反映。4 回目(`0072-opus-review-round4.md`)で Blocker・Major なしで収束し、その Minor 4・Nit 4 を反映。PR #415 のレビュー 1 回目の m1・m2・n1・n2、PR #419 のレビュー 1 回目、同 PR のレビュー 2 回目の m1・n1、PR #422 のレビュー 1 回目の M1・m2・n1、PR #423 のレビュー 1 回目の M1・m1・m2・m3・n1・n2 と 2 回目の M1・m1・m2・n1 を反映)
 - 基点: `main`(950584b、PR #398 まで)
 - 関連: ADR 0013(失敗の伝え方)、ADR 0025/0026(検査の重大度)、ADR 0034(SVG の `data-node`)、ADR 0038(ドリフトの検査)、ADR 0045(ブラウザの入口)、ADR 0071(JSON Schema)、svg-diagram-vscode(VS Code 拡張。Phase 2)
 
@@ -86,7 +86,7 @@ VS Code 拡張は `check --format json` の指摘をエディタの波線にし�
 **D6. 図からソースへ: SVG は変えず、別のファイルに地図を書く。** `build --locations FILE`(`--locations-dir DIR`)は、次を JSON で書く。
 
 - 部品ごとに `{loc, via?, kind, rect: {x, y, w, h}, label, node?, reveal?, until?}`。
-  - `rect` は SVG の `viewBox` の座標。fill・canvas の倍率と `layoutFitted` はレイアウトで当たっているので、レイアウトの座標がそのまま使える。
+  - `rect` は SVG の `viewBox` の座標。fill・canvas の倍率と `layoutFitted` はレイアウトで当たっている。部品を囲う四角は描画と同じ幾何の関数を通す。画面の題名が枠の外にあれば、枠の四角を使う。
   - `node` は ADR 0034 の名前。
 - 接続は、線と見出しの外接の四角に加えて、`segments`(線の区切り)を書く。
 - 図全体は `diagram()` の位置で 1 つ。
@@ -94,6 +94,7 @@ VS Code 拡張は `check --format json` の指摘をエディタの波線にし�
 - 地図の元は `laidOut`。成功したときの `BuildResult` にも `laidOut` を足す(今は返していない)。
 - フラグは SVG と同じく 2 つに分ける。`--locations FILE`(ソースがちょうど 1 つのとき)と `--locations-dir DIR`(ソースごとに `<名前>.locations.json`。`--out-dir` と同じ名前の付け方)。
 - `--stale` で SVG を飛ばしたソースでも、地図が無い・地図の `provenance` が今のソースと合わない・地図が `issues` を持つときは、地図を作り直す。
+- 地図の `provenance` には、SVG の鮮度判定と同じソース・依存ファイル・設定ファイルのハッシュ、ツールの版、`--no-source-line` の有無を記録する。
 
 拡張のプレビューでの使い方:
 

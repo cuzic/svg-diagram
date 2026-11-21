@@ -1,7 +1,7 @@
 import {PALETTE, colorOf, textColorOf, toneStyle, isSolidTone} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import type {LaidOutBars} from './types/bars.ts';
-import type {Theme, ColorKey} from './types/core.ts';
+import type {Theme, ColorKey, Rect} from './types/core.ts';
 import type {LaidOutTree, LaidOutStates, LaidOutCause, LaidOutCloud, LaidOutClasses, LaidOutBpmn} from './types/diagrams.ts';
 import type {LaidOutMath} from './types/math.ts';
 import type {LaidOutPlane, PlaneTone} from './types/figures.ts';
@@ -15,7 +15,7 @@ import type {LaidOutFlowShape} from './flow-shapes.ts';
 import {snap4, escapeAttr, escapeXml, emojiSpan, resolveTextColor, lineAttrs, arrowPath, resolveBoxStyle} from './emit-common.ts';
 import type {PathCut} from './emit-common.ts';
 import {HOP_R} from './cause-hop.ts';
-import {renderBoxRect} from './emit-boxes.ts';
+import {frameGeometry, renderBoxRect} from './emit-boxes.ts';
 import {CORE_BADGE_H, CORE_BADGE_W, CORE_BADGE_GAP, DOUBLE_INSET} from './toc.ts';
 
 import {must} from './must.ts';
@@ -301,7 +301,8 @@ export function renderStates(b: LaidOutStates, day: Theme, tones: ToneEnv): stri
     if (n.shape === 'diamond') { // a decision: a diamond in its tone's colours (a path, like a gateway: a polygon does not reach the HTML output)
       const st = resolveBoxStyle(tones, n.tone, day);
       if (b.dim) { st.fill = PALETTE.bg; st.stroke = PALETTE.muted; }
-      const rx = snap4(n.x), ry = snap4(n.y), rw = snap4(n.x + n.w) - rx, rh = snap4(n.h), dash = st.dashed ? ' stroke-dasharray="6,4"' : b.dim ? ' stroke-dasharray="2,5" stroke-linecap="round"' : '';
+      const {x: rx, y: ry, w: rw, h: rh} = frameGeometry(n);
+      const dash = st.dashed ? ' stroke-dasharray="6,4"' : b.dim ? ' stroke-dasharray="2,5" stroke-linecap="round"' : '';
       out.push(`<path d="M${rx + rw / 2},${ry} L${rx + rw},${ry + rh / 2} L${rx + rw / 2},${ry + rh} L${rx},${ry + rh / 2} Z" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2.5" stroke-linejoin="round"${dash}/>`);
       continue;
     }
@@ -413,6 +414,10 @@ export function renderCloud(b: LaidOutCloud, day: Theme, tones: ToneEnv): string
 }
 
 
+export function ganttBarGeometry({x, y, w, h}: Rect): Rect {
+  return {x: snap4(x), y: snap4(y), w: snap4(w), h};
+}
+
 export function renderGantt(b: LaidOutGantt, day: Theme): string {
   const out: string[] = [], on = partsOn(b), pa = (part?: string): string => part ? partAttr(on, part) : '', axis = pa(GANTT_AXIS);
   const ink = b.dim ? PALETTE.muted : PALETTE.text;
@@ -429,11 +434,11 @@ export function renderGantt(b: LaidOutGantt, day: Theme): string {
   }
   for (const r of b.bars) {
     if (r.milestone) { const cx = r.x + r.w / 2, cy = r.y + r.h / 2; out.push(`<path d="M${snap4(cx)},${snap4(r.y)} L${snap4(r.x + r.w)},${snap4(cy)} L${snap4(cx)},${snap4(r.y + r.h)} L${snap4(r.x)},${snap4(cy)} z" fill="${tone(r.tone)}" stroke="${PALETTE.bg}" stroke-width="2"${pa(r.part)}/>`); continue; }
-    const x = snap4(r.x), y = snap4(r.y), w = snap4(r.w);
-    if (r.progress === undefined) out.push(`<rect x="${x}" y="${y}" width="${w}" height="${r.h}" rx="4" fill="${tone(r.tone)}"${pa(r.part)}/>`);
+    const {x, y, w, h} = ganttBarGeometry(r);
+    if (r.progress === undefined) out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${tone(r.tone)}"${pa(r.part)}/>`);
     else {
-      out.push(`<rect x="${x}" y="${y}" width="${w}" height="${r.h}" rx="4" fill="${soft(r.tone)}" stroke="${tone(r.tone)}" stroke-width="2"${pa(r.part)}/>`);
-      if (r.progress > 0) out.push(`<rect x="${x}" y="${y}" width="${snap4(r.w * r.progress)}" height="${r.h}" rx="4" fill="${tone(r.tone)}"${pa(r.part)}/>`);
+      out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${soft(r.tone)}" stroke="${tone(r.tone)}" stroke-width="2"${pa(r.part)}/>`);
+      if (r.progress > 0) out.push(`<rect x="${x}" y="${y}" width="${snap4(r.w * r.progress)}" height="${h}" rx="4" fill="${tone(r.tone)}"${pa(r.part)}/>`);
     }
   }
   if (b.today) out.push(`<path d="M${snap4(b.today.x)},${snap4(b.today.y1)} V${snap4(b.today.y2)}" fill="none" stroke="${b.dim ? PALETTE.muted : PALETTE.danger}" stroke-width="2"${pa(b.today.part)}/>`);
