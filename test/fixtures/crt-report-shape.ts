@@ -51,5 +51,5 @@ export const CRT_REPORT_OPTIONS: CauseOpts = {tree: 'crt', dir: 'up', maxNodeW: 
 
 /** The report's figure: its title, legend and canvas, and its cause tree; `opts` is laid over the cause tree's options (e.g. `{layer: 'asap'}`),
  *  `width` over the canvas width (a wider canvas, where no layer is folded into rows, shows each layer on one row). */
-export const crtReportShape = (opts: Partial<CauseOpts> = {}, width = 2600) => diagram({theme: 'blue', title: filler(31, 0), showTitle: true, legend: 'auto', canvas: {width, height: 2000, minText: 18, fit: 'content'}})
+export const crtReportShape = (opts: Partial<CauseOpts> = {}, width = 2600, height = 2000) => diagram({theme: 'blue', title: filler(31, 0), showTitle: true, legend: 'auto', canvas: {width, height, minText: 18, fit: 'content'}})
   .add(causeTree(CRT_REPORT_NODES, CRT_REPORT_LINKS, {...CRT_REPORT_OPTIONS, ...opts}));

@@ -79,13 +79,16 @@ const movedAside = new WeakSet<object>();
  * A cause tree. When the arrows into an effect with an AND cross each other, or any two arrows cross, the order the entities are written in is tried again
  * in a few fixed ways (ADR 0019 D4); a figure with no crossing is never touched. Only a cause tree (not pdpc() / relationDiagram()).
  */
-export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause {
+export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, /** What the canvas holds below the band (the bottom padding): the budget is the canvas height, but the content is y + h + this. */ below = 0): LaidOutCause {
   // ADR 0070 D7: the scaled lines make a figure taller; one that then fits no way the old lines fit is drawn with the old lines (the scale never turns a figure that was drawn into an error)
   let laid = layoutCauseBandAt(band, x, y, w, widthOf, roles, env, heightBudget, canvasBound);
-  if (isNoFit(laid) && env.lineScale !== undefined) {
+  // a figure that fits the layout's budget can still overflow the canvas (the band sits at y, with the padding below it): on a canvas that is the same "does not fit"
+  const overflows = (t: LaidOutCause | NoFit): boolean => !isNoFit(t) && canvasBound && heightBudget !== undefined && y + t.h + below > heightBudget;
+  if ((isNoFit(laid) || overflows(laid)) && env.lineScale !== undefined) {
     const {lineScale: _scale, ...old} = env;
     const plain = layoutCauseBandAt(band, x, y, w, widthOf, roles, old, heightBudget, canvasBound);
-    if (!isNoFit(plain)) { laid = plain; plain.lineScaleDropped = true; }
+    // the old lines are drawn only when they fix it: a figure that overflows with both keeps the scaled one (the overflow is then not the scale's)
+    if (!isNoFit(plain) && (isNoFit(laid) || !overflows(plain))) { laid = plain; plain.lineScaleDropped = true; }
   }
   const out = fitOrThrow(laid);
   if (env.space === undefined || env.space === 1) return out;
