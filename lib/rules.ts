@@ -795,7 +795,9 @@ function tocRules(d: LintTarget, out: Finding[]): void {
 function layoutQualityRules(d: LintTarget, out: Finding[]): void {
   if (!d.laidOut) return;
   const severity = layoutSeverity(d);
-  for (const m of layoutMetrics(d.laidOut, {width: d.width, slideCanvas: !!d.canvas})) out.push({...m, severity});
+  for (const {rule, message, data, ...location} of layoutMetrics(d.laidOut, {width: d.width, slideCanvas: !!d.canvas})) {
+    out.push({rule, severity, message, data, ...location});
+  }
 }
 
 // ---- edge-bends (ADR 0016 D6) ------------------------------------------------------------------------------------------------

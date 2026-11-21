@@ -99,6 +99,13 @@ test('layout-align-mixed: left and centre boxes in one row', () => {
   assert.ok(!rules([textBox(20, 20, 200, 60, {align: 'center'}), textBox(236, 20, 200, 60, {align: 'center'})]).includes('layout-align-mixed'));
 });
 
+test('layout findings preserve their key order without capture', () => {
+  const laidOut = [frame(20, 20, 444, 100), frame(480, 20, 440, 100)];
+  const hit = lintDiagram({...diagram({theme: 'blue'}), laidOut}).find(f => f.rule === 'layout-sibling-size');
+  assert.ok(hit);
+  assert.deepEqual(Object.keys(hit), ['rule', 'severity', 'message', 'data']);
+});
+
 const sample = (extra: object = {}) => diagram({theme: 'blue', title: 'a short box beside a tall one', ...extra}).add(row([box({title: 'short'}), box({title: 'tall', body: 'l1\nl2\nl3\nl4\nl5\nl6\nl7\nl8'})]));
 
 test('layoutCheck: info by default, warn for strict, info again when the rule is accepted; the SVG does not change', async () => {
