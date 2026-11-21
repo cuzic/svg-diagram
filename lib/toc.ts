@@ -124,7 +124,10 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
   // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
   const orders = [ids.toReversed(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
   const axisOf = (t: LaidOutCause): number[] => t.nodes.map(n => band.dir === 'left' || band.dir === 'right' ? n.x : n.y);
-  const baseAxis = axisOf(base);
+  // ADR 0073 D1: a cause tree's own band (not whyWhyTree) may take a taller order that crosses less, and the height is the last key of the score
+  const own = band.layerFrom === undefined, exchange = own && env.exchange !== false;
+  const baseRank = layerRank(axisOf(base));
+  const sameLayers = (t: LaidOutCause): boolean => { const r = layerRank(axisOf(t)); return r.every((v, i) => v === baseRank[i]); };
   // the orders are ranked by how many links cross between the layers before any is laid out: an order whose layers cross more than the best one's is not laid out (ADR 0053).
   // It is a forecast: the routes, the lanes and the AND arcs come only with the whole layout, which still decides
   const declaredBack = prep.arrows.flatMap((a, k) => a.back ? [k] : []), alapOpt = alapOf(band);
@@ -134,7 +137,7 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
   // the node width and folding the base fitted with: another order is laid out with the same, as any other would be set aside below (ADR 0053)
   const baseWidth = base.fitApplied?.find(a => a.what === 'maxNodeW')?.to;
   const sameFit = {width: typeof baseWidth === 'number' ? baseWidth : (band.maxNodeW === undefined || band.maxNodeW === 'auto' ? NARROWING[0] as number : band.maxNodeW), folded: !!base.fitApplied?.some(a => a.what === 'fold')};
-  let best = base, bestScore = scoreOfCause(base), bestOrder: string[] | undefined;
+  let best = base, bestScore = scoreOfCause(base, own), bestOrder: string[] | undefined;
   // then more orders when the fixed ones left a crossing: shuffles from a fixed seed (the same figure always gets the same answer), then swaps of two neighbours of the best order so far.
   // `straighten: false` keeps to the fixed ones (it is the way back to the old figure)
   const queue = [...orders], seen = new Set<string>([ids.join('\u0000'), ...orders.map(o => o.join('\u0000'))]);
@@ -158,13 +161,13 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
     const proxy = proxyOf(order);
     // the forecast does not see the arrows of an AND, which only the routes show: while some of them cross, every order is laid out
     if (bestScore[0] === 0 && proxy > bestProxy) continue;
+    searchStats.laid++;
     const t = once(order, false, true, sameFit);
     if (isNoFit(t)) continue; // another order widens a layer: it does not fit where the written one does
-    // the same layers (a different order must not change which edge of a cycle is cut, or fold the figure), the same size limits, no AND the first drew left undrawn
-    if (axisOf(t).some((v, i) => Math.abs(v - must(baseAxis[i])) > 0.5) || t.h > base.h + 0.5 || t.loose.length > base.loose.length) continue;
-    if (t.fitApplied?.length !== base.fitApplied?.length) continue;
-    const score = scoreOfCause(t);
-    if (lexLess(score, bestScore)) { best = t; bestScore = score; bestOrder = order; lastBetter = tried; bestProxy = proxy; if (polished) { queue.length = 0; polished = false; } }
+    // the same layers (a different order must not change which edge of a cycle is cut, or fold the figure), the same size limits, no AND the first drew left undrawn (ADR 0073 D1 (a)-(c))
+    if (!sameLayers(t) || t.loose.length > base.loose.length || t.fitApplied?.length !== base.fitApplied?.length) continue;
+    const score = scoreOfCause(t, own);
+    if (adopts(t.h, score, base, bestScore, exchange)) { best = t; bestScore = score; bestOrder = order; lastBetter = tried; bestProxy = proxy; if (polished) { queue.length = 0; polished = false; } }
   }
   if (band.straighten === false) return best;
   const withDetours = bestOrder ? once(bestOrder) : undefined;
@@ -172,24 +175,49 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
   // the best of: the first figure, the best order with the detours, the best figure without them (the one the search judged; the base itself when no order beat it): the first one wins a tie.
   // The detours can make AND arrows cross (they are judged by the whole figure's crossings), so the figure without them must stay a candidate
   // the same frame as the figures the search compared (the plain ones: the detours may have made `first` lower than any order would be without them)
-  const sameFrame = (t: LaidOutCause): boolean => axisOf(t).every((v, i) => Math.abs(v - must(baseAxis[i])) <= 0.5) && t.h <= base.h + 0.5 && t.loose.length <= base.loose.length && t.fitApplied?.length === base.fitApplied?.length;
-  let pick = first, pickScore = scoreOfCause(first);
+  const sameFrame = (t: LaidOutCause): boolean => sameLayers(t) && t.loose.length <= base.loose.length && t.fitApplied?.length === base.fitApplied?.length;
+  let pick = first, pickScore = scoreOfCause(first, own);
   for (const t of [found, best]) {
     if (!t || !sameFrame(t)) continue;
-    const sc = scoreOfCause(t);
-    if (lexLess(sc, pickScore)) { pick = t; pickScore = sc; }
+    const sc = scoreOfCause(t, own);
+    if (adopts(t.h, sc, base, pickScore, exchange)) { pick = t; pickScore = sc; }
   }
   return pick;
 }
 
+/** A count of the orders the search laid out (a measure of its cost that does not depend on the load of the machine; read by the tests and by scripts/crt-u6-measure). */
+export const searchStats = {laid: 0};
 /** The most orders the search tries for one figure. */
 const MAX_ORDERS = 60;
 /** How many orders in a row may fail to get better before the search stops (with and without AND arrows crossing). */
 const PATIENCE = 30, PATIENCE_QUIET = 14;
 const crossingsOf_ = (t: LaidOutCause): number => andClashes(t.edges, t.ands).filter(c => c.how === 'crosses').length;
-/** (arrows of an AND that cross, arrows of an AND that run side by side, crossings, bends): smaller is better, in this order. */
-const scoreOfCause = (t: LaidOutCause): number[] => { const s = scoreOf(t.edges.map(e => e.points)); return [crossingsOf_(t), andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses').length, s.crossings, s.bends]; };
-const lexLess = (a: number[], b: number[]): boolean => { for (let i = 0; i < a.length; i++) { const x = a[i], y = b[i]; if (x !== y) return x !== undefined && y !== undefined && x < y; } return false; };
+/**
+ * (arrows of an AND that cross, arrows of an AND that run side by side, crossings, bends, height): smaller is better, in this order. The height (rounded) is the last key, only for a cause tree's own
+ * band (`withHeight`, ADR 0073 D1): of two orders that are the same in the rest, the lower one wins.
+ */
+const scoreOfCause = (t: LaidOutCause, withHeight = false): number[] => { const s = scoreOf(t.edges.map(e => e.points)); return [crossingsOf_(t), andClashes(t.edges, t.ands).filter(c => c.how !== 'crosses').length, s.crossings, s.bends, ...(withHeight ? [Math.round(t.h)] : [])]; };
+/** ADR 0073 D1 (c): how much taller than the first order's figure an order may be, when it crosses less. */
+const TALLER = 1.25;
+/**
+ * Whether an order's figure is not too tall (ADR 0073 D1 (b), (c-1), (c-2)): up to the first order's height + 0.5px always; a taller one only when it has strictly fewer crossings than the best
+ * so far and is at most 1.25 times the FIRST order's height (`base`, not the best's: a taller figure taken does not raise the limit for the next one).
+ */
+export const mayBeTaller = (t: {h: number; crossings: number}, base: {h: number}, best: {crossings: number}): boolean => t.h <= base.h + 0.5 || (t.h <= TALLER * base.h && t.crossings < best.crossings);
+/**
+ * The rank of each value along a layer: ascending, values within 0.5px of the next smaller one share its rank (the gaps between boxes may differ from order to order, the layers may not; ADR 0073 D1 (e)).
+ * Joined by the difference, not by a rounded grid: two values 0.02px apart are one rank wherever they fall.
+ */
+export function layerRank(values: readonly number[]): number[] {
+  const sorted = [...new Set(values)].sort((a, b) => a - b), rank = new Map<number, number>();
+  let k = -1, prev = -Infinity;
+  for (const v of sorted) { if (v - prev > 0.5) k++; rank.set(v, k); prev = v; }
+  return values.map(v => must(rank.get(v)));
+}
+/** Whether an order's figure (height `h`, its score) replaces the best one `best` (the search) or the pick (the end): not too tall, and a lexicographically smaller score (ADR 0073 D1 (b)-(d)). `exchange` false: only the figures up to the first order's height + 0.5px. */
+export const adopts = (h: number, score: readonly number[], base: {h: number}, best: readonly number[], exchange = true): boolean =>
+  (exchange ? mayBeTaller({h, crossings: must(score[2])}, base, {crossings: must(best[2])}) : h <= base.h + 0.5) && lexLess(score, best);
+export const lexLess = (a: readonly number[], b: readonly number[]): boolean => { for (let i = 0; i < a.length; i++) { const x = a[i], y = b[i]; if (x !== y) return x !== undefined && y !== undefined && x < y; } return false; };
 
 export function layoutCauseBandOnce(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false): LaidOutCause {
   return fitOrThrow(tryLayoutCause(prepareCause(band), band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, anotherOrder, plainRoutes, noDetour));
@@ -335,7 +363,7 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
     // (U5: the ADR's `2 x LANE x unit` made the real CRT wider than its canvas at s = 1.29 and the straightened layout lost; see the PR)
     const boxGap = Math.max(Math.round(GAP * (env.space ?? 1)), laneStepOf((env.space ?? 1) * s));
     const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: boxGap, levelGap: Math.max(Math.round(LEVEL * (env.space ?? 1)), gapFor(degree, 0, env.space, s)), ...(declared.length ? {back: declared} : {}), ...(alap ? {alap} : {}), ...(fold === undefined ? {} : {fold})}, {
-      portStep: PORT_S, ...(env.space === undefined || env.space === 1 ? {} : {space: env.space}), ...(s > 1 ? {scale: s} : {}), groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: iw + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(heads ? {heads} : {}), ...(heads && band.straighten !== false ? {tracks: true} : {}), ...(band.straighten === false ? {straighten: false} : {}), ...(band.straighten === false || noDetour ? {} : {detour: true}), ...(plainRoutes ? {aside: false} : band.straighten === false ? {} : {apart: true}),
+      portStep: PORT_S, ...(env.space === undefined || env.space === 1 ? {} : {space: env.space}), ...(s > 1 ? {scale: s} : {}), groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: iw + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(heads ? {heads, heightKey: true} : {}), ...(heads && band.straighten !== false ? {tracks: true} : {}), ...(band.straighten === false ? {straighten: false} : {}), ...(band.straighten === false || noDetour ? {} : {detour: true}), ...(plainRoutes ? {aside: false} : band.straighten === false ? {} : {apart: true}),
       looseOf: (rts, ly) => {
         const route = new Map<number, Pt[]>();
         ly.edges.forEach((e, i) => { if (!e.self) route.set(e.index, must(rts.get(i))); });

@@ -1,6 +1,6 @@
 # ADR 0073: CRT の並びの探索(高さ・並走の組・打ち切り)、AND の矢印の段差、D12〜D14 の整理、`edge-parallel` の範囲
 
-- 状態: 提案(Proposed。2026-11-21。決める人の決定をすべて記録済み(Q1〜Q4 と、レビューで出た 5 点)。PR #406 のレビュー 1 回目(PR #404 に対するもの。内容は同じ)の指摘を反映。2 回目のレビュー待ち)
+- 状態: 承認(Accepted。2026-11-21。レビュー 4 回で収束。決める人の決定をすべて記録済み(Q1〜Q4 と、レビューで出た 5 点)。U1 は実装済み。下の「U1 の実装メモ」)
 - 日付: 2026-11-21
 - 基点: `main`(PR #402 まで)。数値はすべて ADR 0070「U6 測定結果」(同じ PR)の測定と、同じ PR の `scripts/crt-u6-measure/` の再測定による(測定した版の `lib/` は `probe.patch`。基点は `456ef142`)
 - 関連: ADR 0070(CRT の辺の読みやすさ。U6 の残り)、ADR 0019 D4(並びの再探索)、ADR 0053(探索の費用。**実装済み**。D1 の費用はその予算の中で測る)、ADR 0016 D12〜D14(並走のずらし)、ADR 0015(AND の弧)、Issue #397(探索が高さを見ない)、PR #402(倍率の線を外す再配置)
@@ -279,3 +279,15 @@ Issue #397 は、`toc-hop-all` が 502 → 621px に高くなった(#385 以降)
 1. D12・D13 を外すかは、U4 で測ってから決める。
 2. minText が大きい図(24)で倍率を掛けた図が収まらない(倍率なしで描かれる)件は、この ADR の範囲外(ADR 0070 D7・PR #402)。
 3. (測定の宿題。決める人の判断は要らない)高さの key を `better()` に入れた版の測定(U1)と、折れの上限 +4 の測定(U2)。結果でピンを更新する。
+
+## U1 の実装メモ(2026-11-21)
+
+D1 の規則 (a)〜(g) と高さの最後の key(D1-2)を実装した(PR は U1 の 1 本。U2〜U4 は含まない)。
+
+- **探索(`lib/toc.ts`)**: 純関数 `mayBeTaller`・`layerRank`・`lexLess`・`adopts` を export した(`adopts` は「高さが通り、採点が辞書式で小さい」の 1 つの判定。探索ループと最終の選び (d) の両方がこれだけを呼ぶ)。層の検査は `layerRank` の順位の一致(差 0.5px で連結。測定の `rankEps`)。採点は `[AND の交差, AND の並走, 交差, 折れ, 高さ]`(高さは `Math.round(h)`)。**組は U2 で入れる**。そのため、窓(D2 の折れの上限)つきの全体の選択は、組が無い今は (C, 折れ, 高さ) の辞書式の最小と同じで、`lexLess` を畳み込む今の形と変わらない(選択の関数 `selectAttempt` と窓は U2 で入れる)。**採った高い候補・高さだけの改善は `lastBetter` を更新する**(`adopts` が真のときの 1 行)。探索が配置した並びの数は `searchStats.laid`(測定とテストの費用の指標)。
+- **範囲**: 高さの key と高い候補の交換は **`causeTree` の自分の帯だけ**(`band.layerFrom === undefined`。`base` のある pdpc・relationDiagram は探索に入らない)。**whyWhyTree(`layerFrom: 'effect'`)は探索に入るが、この規則の外**(旗に依らず今までの規則。ADR の範囲外の宣言「pdpc・relationDiagram・whyWhyTree の点列は変えない」に合わせた)。`layeredAttempt` の `better()` の高さの key も `heightKey` の旗(`heads` のある帯だけ)で、states・classes・semnet は変わらない。
+- **`better()` の高さの key(`layered-route.ts`)**: `Attempt.size.h`(丸め)を最後の key にした。**同じ並びで経路の選び方だけが違う案(`sharing` の `laneShare`・`aside`)の `size.h` は、乱数の CRT で 39 + 4 件すべて同じだった**ので、key は外さない。効くのは `pick0` の `plain` と `cand`・`near`/`low` の選びで、乱数では #32 の 1 枚(幅 1800: 180 → 164px、canvas: 196 → 192px)だけ。
+- **canvas の再配置(`layout.ts` の `fitLineScale`)**: `LayoutCtx.lines` に `exchange` を足し(最初は `true`)、はみ出すとき、**(2) 交換なし・倍率つき → (3) 帯を 1 つずつ倍率なし(交換なし)**の順にした。(2) は今の条件(`contentHeight > canvas.height`)で動くので、はみ出す図は全体を 1 回多く配置する(1 + 1 + `seen` 回まで)。帯ごとの `layoutCauseBand` へは `WrapEnv.exchange`(`false` のときだけ渡す)で届く。
+- **測定の `probe.patch` との違い**: (1) probe の `capBudget`(`min(1.25 × base.h, heightBudget − y)`)は入れていない。ADR の規則 (c-1) は `1.25 × base.h` だけで、予算を超える並びは `tryLayoutCause` の `NoFit` で落ちる(テスト `heightBudget`)ので同じ。(2) 層の順位は `rankEps` と同じ(格子でなく差で連結)。(3) probe の `height: 'xcross'` は、探索ループの中で高さの条件を採点の後に見るだけで、規則は同じ。(4) 費用: 高さの key で、探索が配置した並びの数は 幅 1800 の 138 枚で 1774 → 1673、canvas の 80 枚で 1070 → 1006(ADR の全部入りの測定は 1668・1014。U2・U3 を含む)。
+- **P2 の基準**: ADR は `1.25 × max(main の高さ, 最初の並びの高さ)`。ピンは最初の並びの高さを持たないので、`1.25 × main の高さ` で見る(より厳しい側。実測の最大は #106 の 1.242 倍)。最初の並びの高さからの上限は、`test/cause-order-search.test.ts` の「交換」のテストが、固定の字幅の図で直接確かめる。
+- **#397**: 下の PR で閉じてよい。テスト(`toc-hop-all` の 505px、高さの最後の key の #99)が通る。残ること: 高さを交差・組と重みづけて交換することはしない。採った高い候補が main の最終の図より高いまま残る図は、幅 1800 で #42(+51px、組 +1)、canvas で #13・#37・#42(+20〜+57px)の 4 枚(探索の道の変化。同点の高さの比べでは直らない)。

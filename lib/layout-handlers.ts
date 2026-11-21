@@ -669,7 +669,7 @@ const lineEnv = (ctx: LayoutCtx, band: {base?: unknown; layerFrom?: unknown}): {
 };
 const layoutCauseBandHere = (band: Band & {type: 'cause'}, x: number, y: number, w: number, ctx: LayoutCtx) => {
   const {env, retried} = lineEnv(ctx, band);
-  const laid = layoutCauseBand(band, x, y, w, ctx.widthOf, ctx.roles, env, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight, ctx.d.canvas?.height !== undefined);
+  const laid = layoutCauseBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx.lines.exchange ? env : {...env, exchange: false}, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight, ctx.d.canvas?.height !== undefined);
   if (retried) laid.lineScaleDropped = true;
   return laid;
 };
