@@ -12,16 +12,30 @@ import {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 import {spotlightDim} from './spotlight.ts';
 import {legibilityProblem} from './wordart.ts';
 import {andClashes} from './cause-clash.ts';
-import {CONTRAST_THRESHOLD, dxdy, eachOverlap, labelOf, neverTogether, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes, statesProblems} from './verify-base.ts';
+import {sourceOf} from './source-ref.ts';
+import type {SourceRef} from './source-ref.ts';
+import {CONTRAST_THRESHOLD, dxdy, eachOverlap, issueAt, labelOf, neverTogether, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes, statesProblems} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import type {EmphasisTone, Rect} from './types/core.ts';
 import type {LaidOutDiagram} from './types/index.ts';
 import type {LaidOutBanner, LaidOutBox, LaidOutCaption} from './types/text-bands.ts';
-import type {CheckRect} from './types/verdicts.ts';
+import type {CheckRect, Issue} from './types/verdicts.ts';
 
 import {must} from './must.ts';
 /** Where a band's findings go: `problems` fail the build, `warnings` never do. */
-export interface VerifyOut {problems: string[]; warnings: string[]}
+interface VerifyOut {
+  problems: {push(...messages: string[]): void};
+  warnings: string[];
+  forChild(child: LaidOutBox): VerifyOut;
+}
+
+function outFor(issues: Issue[], warnings: string[], loc?: SourceRef): VerifyOut {
+  return {
+    problems: {push(...messages) { for (const message of messages) issues.push(issueAt(message, loc)); }},
+    warnings,
+    forChild: child => outFor(issues, warnings, sourceOf(child) ?? loc),
+  };
+}
 
 /**
  * The order the figure checks run in: every phase goes over all the bands, then the next one starts, so the findings of one kind
@@ -34,7 +48,7 @@ export interface VerifyHandler<B> {
   rects?(band: B): CheckRect[];
   // `tones` comes last so a check that draws on no tone colour can leave it off
   check?: {phase: CheckPhase; run(band: B, d: LaidOutDiagram, out: VerifyOut, tones: ToneEnv): void};
-  contrast?(band: B, d: LaidOutDiagram, tones: ToneEnv): string[];
+  contrast?(band: B, d: LaidOutDiagram, tones: ToneEnv, out: VerifyOut): void;
 }
 
 // ---- rects: every checkable rect (captions with no ink box are skipped: no background, and their width is already wrap-constrained) ----
@@ -50,7 +64,10 @@ const overlappingFigureRects = (band: Anchored): CheckRect[] => anchorRects(band
 const ownRect = (band: Rect & {id?: string}): CheckRect[] => [{id: band.id ?? null, label: labelOf(band), x: band.x, y: band.y, w: band.w, h: band.h}];
 const holdsFigure = (band: {id?: string}) => band.id ? {holds: [band.id]} : {};
 const frameRects = (band: {anchors: (Rect & {id: string})[]}): CheckRect[] => band.anchors.map(a => ({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h}));
-const childRects = (band: {children: (Rect & {id?: string})[]}): CheckRect[] => band.children.map(c => ({id: c.id ?? null, label: labelOf(c), x: c.x, y: c.y, w: c.w, h: c.h}));
+const childRects = (band: {children: LaidOutBox[]}): CheckRect[] => band.children.map(c => {
+  const loc = sourceOf(c);
+  return {id: c.id ?? null, label: labelOf(c), x: c.x, y: c.y, w: c.w, h: c.h, ...(loc ? {loc} : {})};
+});
 
 // ---- figure checks ----
 
@@ -268,28 +285,26 @@ const checkPlane = (band: LaidOutOf<'plane'>, _d: LaidOutDiagram, {problems}: Ve
 
 const lum = (d: LaidOutDiagram, tones: ToneEnv) => { const paint = paintOf(tones, d.appearance); return (hex: string) => lightLuminance(paint(hex)); }; // judged on the colours as drawn
 
-function contrastFor(band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone: EmphasisTone | null, d: LaidOutDiagram, tones: ToneEnv): string[] {
+function contrastFor(band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone: EmphasisTone | null, d: LaidOutDiagram, tones: ToneEnv, {problems}: VerifyOut): void {
   const luminance = lum(d, tones);
   const boxFill = band.dim ? PALETTE.bg : boxTone ? resolveBoxStyle(tones, boxTone, d.day).fill : PALETTE.bg;
-  const found: string[] = [];
   for (const run of band.wrappedRuns ?? []) {
     const fg = band.dim ? PALETTE.muted : runColorOf(tones, run.tone, boxTone ?? undefined, d.day); // dim first: a dimmed solid box is white
     const delta = Math.abs(luminance(fg) - luminance(boxFill));
     if (delta < CONTRAST_THRESHOLD) {
-      found.push(`"${run.text.slice(0, 20)}" (${fg} on ${boxFill}, in "${labelOf(band)}") has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
+      problems.push(`"${run.text.slice(0, 20)}" (${fg} on ${boxFill}, in "${labelOf(band)}") has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
     }
     // a coloured piece of the run is its own text colour on the same fill (a dimmed box paints every piece muted: the run's check covers it)
     if (!band.dim) for (const sp of run.spans ?? []) {
       if (!sp.tone) continue;
       const spanFg = resolveTextColor(tones, sp.tone, d.day), spanDelta = Math.abs(luminance(spanFg) - luminance(boxFill));
-      if (spanDelta < CONTRAST_THRESHOLD) found.push(`"${sp.text.slice(0, 20)}" (${spanFg} on ${boxFill}, in "${labelOf(band)}") has low contrast (delta=${spanDelta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
+      if (spanDelta < CONTRAST_THRESHOLD) problems.push(`"${sp.text.slice(0, 20)}" (${spanFg} on ${boxFill}, in "${labelOf(band)}") has low contrast (delta=${spanDelta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
     }
   }
-  return found;
 }
 
-function barsContrast(band: LaidOutOf<'bars'>, d: LaidOutDiagram, tones: ToneEnv): string[] {
-  const luminance = lum(d, tones), problems: string[] = [];
+function barsContrast(band: LaidOutOf<'bars'>, d: LaidOutDiagram, tones: ToneEnv, {problems}: VerifyOut): void {
+  const luminance = lum(d, tones);
   for (const b of band.labelBoxes) {
     if (!b.background) continue;
     const dim = b.bar !== undefined && must(band.bars[b.bar]).dim; // a dimmed bar draws its label muted on bg (on the pale fill when spotlight dim is 'fill')
@@ -297,28 +312,35 @@ function barsContrast(band: LaidOutOf<'bars'>, d: LaidOutDiagram, tones: ToneEnv
     const delta = Math.abs(luminance(fg) - luminance(bg));
     if (delta < CONTRAST_THRESHOLD) problems.push(`bars: value label "${b.label}" (${fg} on ${bg}) has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
   }
-  return problems;
 }
 
-function imageContrast(band: LaidOutOf<'image'>, d: LaidOutDiagram, tones: ToneEnv): string[] {
-  const luminance = lum(d, tones), problems: string[] = [];
+function imageContrast(band: LaidOutOf<'image'>, d: LaidOutDiagram, tones: ToneEnv, {problems}: VerifyOut): void {
+  const luminance = lum(d, tones);
   for (const p of band.plates) {
     const st = plateStyle(tones, p.tone), fg = colorOf(st.text, d.day), bg = colorOf(st.fill, d.day), delta = Math.abs(luminance(fg) - luminance(bg));
     if (!p.dim && !band.dim && delta < CONTRAST_THRESHOLD) problems.push(`image: label "${p.text}" (${fg} on ${bg}) has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
   }
-  return problems;
 }
 
 const flowCheck = {phase: 'flow', run: checkFlowShape} as const;
+const childChecks: VerifyHandler<LaidOutOf<'row' | 'grid'>> = {
+  rects: childRects,
+  check: {phase: 'nowrap', run: (band, _d, out) => {
+    for (const c of band.children) checkNoWrap(c, out.forChild(c));
+  }},
+  contrast: (band, d, tones, out) => {
+    for (const c of band.children) contrastFor(c, c.tone ?? 'plain', d, tones, out.forChild(c));
+  },
+};
 
 export const VERIFY_HANDLERS = {
-  caption: {rects: band => band.inkBox ? [{id: null, label: `group title "${band.text}"`, ...band.inkBox}] : [], contrast: (band, d, tones) => contrastFor(band, null, d, tones)},
-  box: {rects: ownRect, check: {phase: 'nowrap', run: (band, _d, out) => checkNoWrap(band, out)}, contrast: (band, d, tones) => contrastFor(band, band.tone ?? 'plain', d, tones)},
-  banner: {rects: ownRect, contrast: (band, d, tones) => contrastFor(band, band.tone ?? 'accent', d, tones)},
+  caption: {rects: band => band.inkBox ? [{id: null, label: `group title "${band.text}"`, ...band.inkBox}] : [], contrast: (band, d, tones, out) => contrastFor(band, null, d, tones, out)},
+  box: {rects: ownRect, check: {phase: 'nowrap', run: (band, _d, out) => checkNoWrap(band, out)}, contrast: (band, d, tones, out) => contrastFor(band, band.tone ?? 'plain', d, tones, out)},
+  banner: {rects: ownRect, contrast: (band, d, tones, out) => contrastFor(band, band.tone ?? 'accent', d, tones, out)},
   group: {},
   legend: {rects: ownRect},
-  row: {rects: childRects, check: {phase: 'nowrap', run: (band, _d, out) => { for (const c of band.children) checkNoWrap(c, out); }}, contrast: (band, d, tones) => band.children.flatMap(c => contrastFor(c, c.tone ?? 'plain', d, tones))},
-  grid: {rects: childRects, check: {phase: 'nowrap', run: (band, _d, out) => { for (const c of band.children) checkNoWrap(c, out); }}, contrast: (band, d, tones) => band.children.flatMap(c => contrastFor(c, c.tone ?? 'plain', d, tones))},
+  row: childChecks,
+  grid: childChecks,
   raw: {rects: ownRect},
   status: {rects: band => [{id: null, label: 'status badge', ...band.pill}]},
   pyramid: {rects: ownRect},
@@ -377,7 +399,8 @@ const handlerOf = (band: LaidOutDiagram['laidOut'][number]): VerifyHandler<LaidO
 /** Every checkable rect, in band order. */
 export function collectRects(d: LaidOutDiagram): CheckRect[] {
   return d.laidOut.flatMap(band => {
-    const rects = handlerOf(band).rects?.(band) ?? [], scope = scopeOf(band);
+    const scope = scopeOf(band), loc = sourceOf(band);
+    const rects = (handlerOf(band).rects?.(band) ?? []).map(r => loc && !r.loc ? {...r, loc} : r);
     return scope ? rects.map(r => scopedRect(band, scope, r)) : rects;
   });
 }
@@ -390,14 +413,16 @@ function scopedRect(band: {type: string; id?: string}, scope: string, r: CheckRe
 }
 
 /** The figure checks of one phase, over every band in order. */
-export function runCheckPhase(d: LaidOutDiagram, tones: ToneEnv, phase: CheckPhase, out: VerifyOut): void {
+export function runCheckPhase(d: LaidOutDiagram, tones: ToneEnv, phase: CheckPhase, issues: Issue[], warnings: string[]): void {
   for (const band of d.laidOut) {
     const check = handlerOf(band).check;
-    if (check?.phase === phase) check.run(band, d, out, tones);
+    if (check?.phase === phase) check.run(band, d, outFor(issues, warnings, sourceOf(band)), tones);
   }
 }
 
 /** The contrast problems of every band, in band order. */
-export function contrastProblems(d: LaidOutDiagram, tones: ToneEnv): string[] {
-  return d.laidOut.flatMap(band => handlerOf(band).contrast?.(band, d, tones) ?? []);
+export function contrastProblems(d: LaidOutDiagram, tones: ToneEnv): Issue[] {
+  const issues: Issue[] = [], warnings: string[] = [];
+  for (const band of d.laidOut) handlerOf(band).contrast?.(band, d, tones, outFor(issues, warnings, sourceOf(band)));
+  return issues;
 }

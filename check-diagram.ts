@@ -54,7 +54,7 @@ import type {FindingData} from './lib/types/verdicts.ts';
 import type {MapRow} from './lib/docs-check.ts';
 import type {SourceLoc} from './lib/source-location.ts';
 import {installResolveHook} from './lib/resolve-hook.ts';
-import {installStackCapture, locateError} from './lib/source-location-io.ts';
+import {installStackCapture, locateError, locateSource} from './lib/source-location-io.ts';
 import {captureSourceLocations} from './lib/source-capture.ts';
 installResolveHook();
 installStackCapture();
@@ -166,10 +166,15 @@ if (changedArg) {
 }
 type CheckFinding = {
   file: string; line?: number; column?: number; location?: SourceLoc; via?: Omit<SourceLoc, 'file'>[];
+  related?: SourceLoc[];
   rule: string; severity: 'error' | 'warn' | 'info'; message: string;
   /** What was measured against which threshold, and how to fix it (JSON only). */
   data?: FindingData;
 };
+function findingLocation(file: string, {loc, via}: ReturnType<typeof locateError>): Pick<CheckFinding, 'line' | 'column' | 'location' | 'via'> {
+  const at = loc && (loc.file === file ? {line: loc.line, column: loc.column} : {location: loc});
+  return {...at, ...(via.length ? {via: via.map(({line, column}) => ({line, column}))} : {})};
+}
 const findings: CheckFinding[] = [];
 let bad = 0, warned = 0;
 // a source that does not load is one finding, however many times it is reached (named as an argument and behind a figure): counted once
@@ -178,13 +183,11 @@ const reportBuildError = (file: string, err: unknown) => {
   const key = path.resolve(file);
   if (failedSources.has(key)) return;
   failedSources.add(key);
-  const {loc, via} = locateError(err, file);
-  const at = loc && (loc.file === file ? {line: loc.line, column: loc.column} : {location: loc});
+  const at = locateError(err, file);
   add({
-    file, rule: 'build-error', severity: 'error', message: errorMessage(err), ...at,
-    ...(via.length ? {via: via.map(({line, column}) => ({line, column}))} : {}),
+    file, rule: 'build-error', severity: 'error', message: errorMessage(err), ...findingLocation(file, at),
   });
-  complain(formatBuildError(buildErrorSite(file, loc), err));
+  complain(formatBuildError(buildErrorSite(file, at.loc), err));
 };
 // --baseline: warnings recorded in the baseline file become info (errors never do), so --strict fails only on new ones
 const fingerprint = (f: {file: string; rule: string; message: string}) => `${f.file}\u0000${f.rule}\u0000${f.message}`;
@@ -433,7 +436,20 @@ try {
     }
     const d = await loadDiagram(abs, config);
     const {verdict} = await checkDiagram(d);
-    if (!verdict.ok) { for (const p of verdict.problems) add({file: src, rule: 'layout', severity: 'error', message: p}); complain(`✗ ${src}:\n  ${verdict.problems.join('\n  ')}`); return; }
+    if (!verdict.ok) {
+      const lines = verdict.issues.map(issue => {
+        const at = locateSource(issue.loc, src);
+        const related = issue.related?.flatMap(ref => {
+          const {loc} = locateSource(ref, src);
+          return loc ? [loc] : [];
+        });
+        add({file: src, rule: 'layout', severity: 'error', message: issue.message, ...findingLocation(src, at), ...(related?.length ? {related} : {})});
+        const loc = at.loc;
+        return loc ? `${loc.file}:${loc.line}:${loc.column}: ${issue.message}` : issue.message;
+      });
+      complain(`✗ ${src}:\n  ${lines.join('\n  ')}`);
+      return;
+    }
     // --forbid-draft (a publishing job): a figure still marked as a draft is a warning (an accepted one stays info)
     const shown = verdict.findings
       .map(f => forbidDraft && f.rule === 'draft-status' && !f.message.includes('（許容:') ? {...f, severity: 'warn' as const, message: `${f.message}（--forbid-draft）`} : f)
@@ -480,19 +496,20 @@ if (writeBaseline) {
 if (format === 'sarif') {
   const ruleIds = [...new Set(findings.map(f => f.rule))].sort();
   const docs: Record<string, string> = {...RULE_DOCS, ...NON_DIAGRAM_RULES};
+  const physicalLocation = ({file, line, column}: Pick<CheckFinding, 'file' | 'line' | 'column'>) => ({
+    artifactLocation: {uri: file.split(path.sep).join('/')},
+    ...(line ? {region: {startLine: line, ...(column ? {startColumn: column} : {})}} : {}),
+  });
   console.log(JSON.stringify({
     $schema: 'https://json.schemastore.org/sarif-2.1.0.json', version: '2.1.0',
     runs: [{
       tool: {driver: {name: 'svg-diagram check', rules: ruleIds.map(id => ({id, shortDescription: {text: docs[id] ?? id}}))}},
       results: findings.map(f => {
-        const {file, line, column} = f.location ?? f;
         const message = f.location ? `${f.file}: ${f.message}` : f.message;
         return {
           ruleId: f.rule, level: f.severity === 'error' ? 'error' : f.severity === 'warn' ? 'warning' : 'note', message: {text: message},
-          locations: [{physicalLocation: {
-            artifactLocation: {uri: file.split(path.sep).join('/')},
-            ...(line ? {region: {startLine: line, ...(column ? {startColumn: column} : {})}} : {}),
-          }}],
+          locations: [{physicalLocation: physicalLocation(f.location ?? f)}],
+          ...(f.related ? {relatedLocations: f.related.map((loc, i) => ({id: i + 1, physicalLocation: physicalLocation(loc)}))} : {}),
           partialFingerprints: {'svg-diagram/v1': baselineFingerprints.get(f) ?? fingerprint(f)},
         };
       }),
