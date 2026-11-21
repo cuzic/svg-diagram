@@ -118,6 +118,15 @@ function orderOf(legs: readonly Legs[], ranks: readonly number[], sep: number): 
   return out;
 }
 
+/**
+ * ADR 0073 D3 rule 6: whether a moved tail is kept. (i) (crossings, bends) strictly better; (ii) the new straight line is not along another arrow's run (`along`); (iii) no pair of runs added
+ * when no crossing went away (`gains`); (iv) the AND's own arrows do not cross more (`groupGrowth`, the crossings among them after minus before). The checks after (i) are asked only when it holds.
+ */
+export function tailMoveKept(before: {crossings: number; bends: number}, after: {crossings: number; bends: number}, along: () => boolean, gains: () => boolean, groupGrowth: () => number): boolean {
+  if (!(after.crossings < before.crossings || (after.crossings === before.crossings && after.bends < before.bends))) return false;
+  return !along() && !gains() && groupGrowth() <= 0;
+}
+
 /** The crossings among the arrows of each AND (the arrows of one group into one head), summed: the AND's arc reads wrongly over arrows that cross (ADR 0015). */
 function groupCrossings(routes: Map<number, Pt[]>, groupOf?: (edge: number) => number | undefined): number {
   if (!groupOf) return 0;
@@ -157,6 +166,8 @@ export interface HeadRoom {
   turnRun?: number;
   /** The ports next to an AND group (between two groups, or a group and another arrow) are two steps apart; the rest keep one step. Default false. */
   andPorts?: boolean;
+  /** ADR 0073 D3: the tail of an arrow into an AND's head is moved onto its head's height. Only where `andPorts` is (a cause tree's own band); false switches it off (the order search judges without it). Default true. */
+  tailAlign?: boolean;
   /** Tests only: the bits of the hash a gap's stage is remembered by (0: every stage has the same key), to check that a collision plays back nothing. */
   stageHashBits?: number;
 }
@@ -772,14 +783,18 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
   const centreY = (id: string): number => { const n = nodeOf(id); return n.y + n.h / 2; };
   const endY = (i: number, end: 0 | 1): number => { const e = edgeAt(i); return centreY(end === 0 ? e.from : e.to) + (portOf.get((i * 2 + end)) ?? 0); };
   const pairOf = (i: number): string => { const e = edgeAt(i); return `${Math.min(layerOf(e.from), layerOf(e.to))}`; };
-  /** Moves both ports of arrow `i` to one height; returns how to take it back, or undefined when no such height exists. */
-  const align = (i: number): (() => void) | undefined => {
+  /**
+   * Moves both ports of arrow `i` to one height; returns how to take it back, or undefined when no such height exists.
+   * `tailOnly` (ADR 0073 D3, an arrow into an AND's head): the head's port stays (the ports at the head and the arc keep their ADR 0070 D3/D8 values); only the
+   * tail's port moves, onto the head's height, and only when that height is inside the tail's box.
+   */
+  const align = (i: number, tailOnly = false): (() => void) | undefined => {
     const e = edgeAt(i), A = nodeOf(e.from), B = nodeOf(e.to);
     const ya = endY(i, 0), yb = endY(i, 1);
     if (Math.abs(ya - yb) < 0.5) return undefined;
     // (1) both boxes reach this height, 6px inside their edges (the same margin as the ports'); (2) the neighbours on each side keep a step
-    let lo = Math.max(A.y, B.y) + 6, hi = Math.min(A.y + A.h, B.y + B.h) - 6;
-    for (const end of [0, 1] as const) {
+    let lo = tailOnly ? A.y + 6 : Math.max(A.y, B.y) + 6, hi = tailOnly ? A.y + A.h - 6 : Math.min(A.y + A.h, B.y + B.h) - 6;
+    for (const end of tailOnly ? [0] as const : [0, 1] as const) {
       const slot = must(slotOf.get((i * 2 + end)));
       const near = (k: number): number | undefined => { const o = slot.list[k]; return o ? endY(o.edge, o.end) : undefined; };
       const prev = near(slot.k - 1), next = near(slot.k + 1);
@@ -787,7 +802,9 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       if (next !== undefined) hi = Math.min(hi, next - slot.after);
     }
     if (lo > hi) return undefined;
-    const y = Math.min(hi, Math.max(lo, (ya + yb) / 2));
+    // the target is the head's height as it is, never clamped into the range (a clamped tail would only move the step)
+    if (tailOnly && (yb < lo - 0.01 || yb > hi + 0.01)) return undefined;
+    const y = tailOnly ? yb : Math.min(hi, Math.max(lo, (ya + yb) / 2));
     // (3) no other arrow of this pair of layers has a port at this height (their runs would line up as one line)
     const own = new Set([i * 2, i * 2 + 1]);
     for (const [j, o] of lay.edges.entries()) {
@@ -795,7 +812,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
       for (const end of [0, 1] as const) if (!own.has((j * 2 + end)) && Math.abs(endY(j, end) - y) < 3) return undefined;
     }
     const was = [portOf.get((i * 2)), portOf.get((i * 2 + 1))];
-    portOf.set((i * 2), y - centreY(e.from)); portOf.set((i * 2 + 1), y - centreY(e.to));
+    portOf.set((i * 2), y - centreY(e.from)); if (!tailOnly) portOf.set((i * 2 + 1), y - centreY(e.to));
     return () => { for (const end of [0, 1] as const) { if (was[end] === undefined) portOf.delete((i * 2 + end)); else portOf.set((i * 2 + end), was[end]); } };
   };
   /** Does the straight run of arrow `i` lie along a horizontal run of another arrow (within 3px, sharing more than a point)? */
@@ -831,6 +848,17 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
     if (!undo) continue;
     const trial = build(), score = rescore(routes, best, trial, crossCache);
     if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i) && !gains(trial, score.crossings)) { routes = trial; best = score; } else undo();
+  }
+  // ADR 0073 D3: an arrow into an AND's head (skipped above: `direct` leaves them, the head's ports are the AND's) gets its tail's port moved onto its head's height,
+  // so the step between the two ports (one port step, or any size) goes. Kept only when (crossings, bends) get strictly better, the new line is not along another
+  // arrow's run, no pair of runs is added (`gains`), and the AND's own arrows do not cross each other more
+  if (groupOf && heads.andPorts && heads.tailAlign !== false) {
+    for (const i of lay.edges.map((_e, k) => k).filter(k => { const e = edgeAt(k); return straighten && !e.self && !e.outer && e.points.length === 2 && groupOf(k) !== undefined && !round?.(e.from) && !round?.(e.to); })) {
+      const undo = align(i, true);
+      if (!undo) continue;
+      const trial = build(), score = rescore(routes, best, trial, crossCache);
+      if (tailMoveKept(best, score, () => alongOther(trial, i), () => gains(trial, score.crossings), () => groupCrossings(trial, groupOf) - groupCrossings(routes, groupOf))) { routes = trial; best = score; } else undo();
+    }
   }
   // the arrows that became straight lines no longer take a lane: the others take their lanes again, over the room that is left
   if (spread) {

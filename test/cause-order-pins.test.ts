@@ -56,6 +56,7 @@ for (const [name, canvas] of [['幅 1800', false], ['canvas 2400x1800 (倍率 1.
       if (n) { // U1 で変わる図: 得た交差を保つ。高さは U1 の値を超えない
         assert.ok(x.c <= n[1] && x.cc <= n[2] && x.and <= n[3], `${tag}: U1 で得た交差 ${n.slice(1, 4)} が戻った (${x.c},${x.cc},${x.and})`);
         assert.ok(x.h <= n[6], `${tag}: 高さ ${n[6]} -> ${x.h}`);
+        assert.ok(x.bends <= n[5], `${tag}: 折れ ${n[5]} -> ${x.bends} (U3 で得た折れが戻った)`);
         if (x.c < m[1]) gained++;
       }
     }

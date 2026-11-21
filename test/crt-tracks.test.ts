@@ -203,17 +203,18 @@ test('constrainedOrder: a run along the layers within the span of another turn p
 });
 
 /** The fixed-size layered layout of a cause tree's routes: AND arrows (`and`, by edge index) into one head, the room before a head of D8. */
-const andRoutes = (boxes: [string, number, number][], es: [string, string][], and: number[], tracks: boolean) => {
+const andRoutes = (boxes: [string, number, number][], es: [string, string][], and: number[], tracks: boolean, tailAlign = true) => {
   const l = layoutWithLanes(boxes.map(([id, w, h]) => ({id, size: {w, h}})), es.map(([from, to]) => ({from, to})), {dir: 'right', gap: 28, levelGap: 64});
   const group = new Set(and);
-  const routes = routeLayered(l, p => p, 22, i => group.has(l.edges[i]!.index) ? 0 : undefined, undefined, true, false, false, false, false, 1, false, {headRun: 26, turnRun: 30, andPorts: true}, tracks);
+  const routes = routeLayered(l, p => p, 22, i => group.has(l.edges[i]!.index) ? 0 : undefined, undefined, true, false, false, false, false, 1, false, {headRun: 26, turnRun: 30, andPorts: true, tailAlign}, tracks);
   return {l, routes, and: [...routes].filter(([i]) => group.has(l.edges[i]!.index)).map(([, r]) => r)};
 };
 
 test("U4b, the ADR's u4: the two direct arrows of an AND in a gap with arrows into other heads do not cross (they did with the fan-out order)", () => {
   const boxes: [string, number, number][] = [['n00', 40, 180], ['n01', 60, 140], ['n10', 60, 100], ['n11', 50, 140], ['n20', 50, 180], ['n21', 60, 180]];
   const es: [string, string][] = [['n01', 'n20'], ['n00', 'n10'], ['n00', 'n20'], ['n00', 'n11'], ['n01', 'n10']];
-  const old = andRoutes(boxes, es, [0, 2], false), now = andRoutes(boxes, es, [0, 2], true);
+  // the lanes' order is under test: the tails stay where the ports put them (ADR 0073 D3 would straighten these elbows, and there would be no lanes to order)
+  const old = andRoutes(boxes, es, [0, 2], false, false), now = andRoutes(boxes, es, [0, 2], true, false);
   assert.ok(old.and.every(r => r.length === 4) && new Set(old.l.edges.map(e => e.to)).size > 1, 'two direct arrows, and the gap has arrows into other heads');
   assert.equal(crossingsOf(old.and), 2, 'without tracks (the old lane order) the AND\'s arrows cross');
   assert.equal(crossingsOf(now.and), 0);

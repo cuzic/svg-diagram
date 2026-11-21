@@ -7,9 +7,9 @@
   </style>
   <rect x="0" y="0" width="940" height="621" fill="#ffffff"/>
 
-  <path d="M160,60 L208,60 L208,84 L272,84" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M160,84 L272,84" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M284,84 L272,89 L272,79 z" fill="#22201b"/>
-  <path d="M160,164 L236,164 L236,108 L272,108" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M160,164 L208,164 L208,108 L272,108" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M284,108 L272,113 L272,103 z" fill="#22201b"/>
   <path d="M408,84 L528,84" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M540,84 L528,89 L528,79 z" fill="#22201b"/>
