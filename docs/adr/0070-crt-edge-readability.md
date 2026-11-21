@@ -224,6 +224,11 @@ AND の弧と矢じり(P3、alap。asap も同じ形): 弧は 2 次曲線で、�
 
   なお、`routeOnce` の中の `STUB`・`LANE` は `stubOf(space)`・`laneStepOf(space)` で既に `space` が掛かっている(`:68` で影を作る)。`space` が届いていないのは 3〜13 のうちの素の数字で、U5 でそれらを `unit` の倍数に書き換える(`density: 'compact'` でも同じく縮む)。
 - `GAP`(箱と箱の間)は `max(GAP × space, 2 × LANE × unit)` にする(層の中のダミーの間隔 `gap` が、倍率を掛けたレーンの間隔を下回らないため。`s ≤ 1.0` では今の `GAP = 28` のまま。`2 × LANE × unit` が 28 を超えるのは `unit > 1` のとき)。それ以外の `GAP`・`LEVEL` は変えない(隙間の高さは `gapFor` が線の値から決めるので、線に合わせて広がる)。矢じりの大きさ(`ARROW_L`、emitter の定数)は変えない。
+- **U5 の実装メモ**(U5 で追記):
+  - 倍率 `s` は `WrapEnv.lineScale`(`layoutCauseOrCloud` が canvas のとき `max(1, canvasFontScale)` を入れる)で `layoutCauseBand` に届き、`layeredAttempt` の `AttemptOpts.scale` として `space` と別に渡る。経路の中の `unit = space × scale`。表の 1・2・3・4(`gapFor` の `16`)は `unit`、`space` がもともと掛かっていなかった素の数字(4 の `26`、9 の `±6`・`4`、10、11 の `margin`、13)は **`scale` だけ**を掛ける(`density: 'compact'` で canvas の無い図の出力を変えないため。表の「compact でも縮む」は取り下げ)。5 は `PORT × s`(箱の幅 `need` も同じ)。6〜8 の AND の頭の手前の run は D8 の `andArc(s)` 由来で `s` が掛かり、AND の無い頭の `22`・`26`(矢じりの置き場)は固定。12 の detour `tail` も同じ。テスト専用の `arcScale` は外した。
+  - **`GAP` の下限は `2 × LANE × unit` ではなく `LANE × unit` にした**。報告の図そのもの(canvas・`minText: 18`)で、`2 × LANE × unit` = 36 にすると層の幅が canvas を 1 px 余らせ、交差の少ない BK の案が `fits` で落ちて素の案になり、交差 5 → 8・折れ 56 → 76・並走 4.5px になった(GAP 34 までは 5/56、36 以上は 8/76。幅の探索の閾値にあたる)。ダミー(長い矢印の通り道)の間隔の保証に要るのは 1 レーン分で、28 のままで最小間隔 ÷ `minText` = 1.0 を満たす。`s ≤ 2` では `GAP` は今のまま 28。
+  - 倍率を掛けた図が、古い間隔なら収まるのに収まらない(`NoFit`)ときは、倍率なしで描き直す(`layoutCauseBand`。`toc.test.ts` の `tt` の図が 1080px の canvas に収まらなくなった)。倍率が「描けていた図をエラーにする」ことは無い。
+  - `trackLoad` の `crowdOf`・`corridorLoad` は U5 でも入れない(U6)。canvas 1.29 の乱数の CRT 80 枚で、倍率のレーン(18px)の組は合計 143 → 30 だが、2 枚(#0・#4)で増え、交差が増える図が 2 枚(#4・#75)ある。順序は同じでも経路の座標が動くため。図ごとの単調性は U6 に回す。
 - canvas の無い図、pdpc・relationDiagram・whyWhyTree は不変。canvas の `causeTree` だけが動く。
 - 報告の図(`minText: 18`、`s = 1.29`)では、`LANE` 14 → 18、`PORT` 22 → 28、`GAP` 28 → 36。並走の最小間隔 ÷ `minText` は 0.78 → 1.0。この比は図を縮めて見ても変わらない(文字と線が同じ倍率で縮む)ので、「縮小して見ると線が詰まって見える」の基準になる。
 

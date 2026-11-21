@@ -245,9 +245,6 @@ export interface CauseBand extends Omit<CauseOpts, 'focus'> {
   unanchored?: readonly string[];
   /** Which maker built this band, when it is not causeTree() (ADR 0070 D2): pdpc(), relationDiagram() or whyWhyTree(). Set by the DSL, not by the author; carried to `LaidOutCause.origin`. */
   origin?: CauseOrigin;
-  /** Tests only (ADR 0070 U3): the scale of the AND arc (`andArc(s)`) and of the room before the AND heads that follows from it. Not set by the DSL;
-   *  ADR 0070 D7 (U5) replaces it with the canvas scale. Default 1. */
-  arcScale?: number;
 }
 /** The makers of a cause band other than causeTree() (ADR 0070 D2). */
 export type CauseOrigin = 'pdpc' | 'relation' | 'whywhy';

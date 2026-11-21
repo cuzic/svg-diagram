@@ -8,6 +8,7 @@ import {causeTree, checkDiagram, closeMeasurer, diagram} from '../lib/dsl.ts';
 import type {Diagram} from '../lib/dsl.ts';
 import type {LaidOutCause} from '../lib/types/diagrams.ts';
 import {andArc} from '../lib/toc.ts';
+import {canvasFontScale} from '../lib/tokens.ts';
 import {ARROW_L} from '../lib/cause-hop.ts';
 import {CRT_REPORT_LINKS, CRT_REPORT_NODES, CRT_REPORT_OPTIONS, crtReportShape} from './fixtures/crt-report-shape.ts';
 
@@ -78,7 +79,7 @@ test("the reported CRT's shape: every AND is drawn, its last runs hold AND_END +
   const groups = CRT_REPORT_LINKS.filter(l => typeof l.from !== 'string');
   assert.equal(t.ands.length, groups.length, 'no AND loses its arc');
   assert.deepEqual(t.loose, []);
-  const {end, reach} = andArc();
+  const {end, reach} = andArc(canvasFontScale(18)); // the fixture's canvas (ADR 0070 D7: the arc scales with the text)
   for (const a of t.ands) for (const e of t.edges.filter(e => e.to === a.to && a.from.includes(e.from))) {
     const p = e.points, last = Math.hypot(p.at(-1)!.x - p.at(-2)!.x, p.at(-1)!.y - p.at(-2)!.y);
     assert.ok(last >= end + 1, `${e.from}->${e.to}: last run ${last} < AND_END + 1 = ${end + 1}`);
@@ -100,10 +101,10 @@ const lastRunsOfAnds = (t: LaidOutCause): number[] => t.ands.flatMap(a => t.edge
   return Math.hypot(p.at(-1)!.x - p.at(-2)!.x, p.at(-1)!.y - p.at(-2)!.y);
 }));
 
-test("at arc scale 1.29 (ADR 0070 U3, a test-only band key until D7): the reported CRT's shape draws every AND, every last run holds AND_END + 1", async () => {
+test("at line scale 1.29 (ADR 0070 U3 / D7: the canvas's minText 18): the reported CRT's shape draws every AND, every last run holds AND_END + 1", async () => {
   const s = 1.29, {end} = andArc(s);
   for (const opts of [{}, {layer: 'asap' as const}]) {
-    const band = {...causeTree(CRT_REPORT_NODES, CRT_REPORT_LINKS, {...CRT_REPORT_OPTIONS, ...opts}), arcScale: s};
+    const band = causeTree(CRT_REPORT_NODES, CRT_REPORT_LINKS, {...CRT_REPORT_OPTIONS, ...opts});
     const t = await laid(diagram({theme: 'blue', canvas: {width: 2600, height: 2000, minText: 18, fit: 'content'}}).add(band));
     assert.equal(t.ands.length, CRT_REPORT_LINKS.filter(l => typeof l.from !== 'string').length, `${JSON.stringify(opts)}: no AND loses its arc`);
     assert.deepEqual(t.loose, []);
@@ -115,9 +116,10 @@ test("at arc scale 1.29 (ADR 0070 U3, a test-only band key until D7): the report
 test('a three-arrow AND (with an ordinary arrow beside it and a long arrow in it): drawn, last runs hold AND_END + 1, the middle arrow clears the arc by 0.4 x 14', async () => {
   for (const s of [1, 1.29]) {
     const {end} = andArc(s);
-    const band = {...causeTree([N('h', {role: 'ude'}), N('m'), N('a'), N('b'), N('c'), N('d'), N('r', {role: 'root'})],
-      [{from: 'r', to: 'm'}, {from: ['a', 'b', 'm'], to: 'h'}, {from: 'c', to: 'h'}, {from: 'd', to: 'c'}], {tree: 'crt', dir: 'up'}), arcScale: s};
-    const t = await laid(diagram({theme: 'blue'}).add(band));
+    const band = causeTree([N('h', {role: 'ude'}), N('m'), N('a'), N('b'), N('c'), N('d'), N('r', {role: 'root'})],
+      [{from: 'r', to: 'm'}, {from: ['a', 'b', 'm'], to: 'h'}, {from: 'c', to: 'h'}, {from: 'd', to: 'c'}], {tree: 'crt', dir: 'up'});
+    // the canvas's text size sets the scale: 14 -> 1, 18 -> 1.29 (`canvasFontScale`)
+    const t = await laid((s === 1 ? diagram({theme: 'blue'}) : diagram({theme: 'blue', canvas: {width: 2600, height: 2000, minText: 18, fit: 'content'}})).add(band));
     assert.equal(t.ands.length, 1, `s = ${s}`);
     assert.deepEqual(t.loose, []);
     for (const r of lastRunsOfAnds(t)) assert.ok(r >= end + 1, `s = ${s}: last run ${r} < ${end + 1}`);
