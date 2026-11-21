@@ -4,7 +4,7 @@
 import test from 'node:test';
 import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
-import {causeTree, checkDiagram, closeMeasurer, diagram, pdpc} from '../lib/dsl.ts';
+import {caption, causeTree, checkDiagram, closeMeasurer, diagram, pdpc} from '../lib/dsl.ts';
 import type {Diagram} from '../lib/dsl.ts';
 import type {CauseBand, LaidOutCause} from '../lib/types/diagrams.ts';
 import {LANE, gapFor, laneStepOf, layoutWithLanes, routeLayered, stubOf} from '../lib/layered-route.ts';
@@ -174,4 +174,49 @@ test('canvas の高さ: 広げた線で内容が canvas を超えるが、広げ
   assert.equal(bandOf(enough).lineScaleDropped, undefined);
   assert.deepEqual(lintDiagram(enough.laidOut).filter(f => f.rule === 'cause-line-scale-dropped'), []);
   assert.ok(!lintDiagram(enough.laidOut).some(f => f.rule === 'slide-canvas-overflow'));
+});
+
+test('canvas の高さ (ADR 0070 U5): 下の帯 (凡例・出典) と合わせて広げた線で canvas を超え、広げない線なら収まる図は、図全体を広げない線で描き直す', async () => {
+  const mk = (height: number) => diagram({theme: 'blue', title: 'タイトル', showTitle: true, legend: 'auto', sourceLine: '出典: ダミー', canvas: {width: 2600, height, minText: 18, fit: 'content'}})
+    .add(causeTree(CRT_REPORT_NODES, CRT_REPORT_LINKS, CRT_REPORT_OPTIONS));
+  const bandOf = (r: Awaited<ReturnType<typeof checkDiagram>>) => r.laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause;
+  const overflow = (r: Awaited<ReturnType<typeof checkDiagram>>) => r.verdict.warnings.some(w => w.includes('slide-canvas-overflow')) || lintDiagram(r.laidOut).some(f => f.rule === 'slide-canvas-overflow');
+  const dropped = (r: Awaited<ReturnType<typeof checkDiagram>>) => lintDiagram(r.laidOut).filter(f => f.rule === 'cause-line-scale-dropped').length;
+  const tryHeight = async (h: number) => { try { return await checkDiagram(mk(h)); } catch { return undefined; } };
+  // 高さは測った値から決める (CI のフォントで px が違う)
+  const roomy = (await tryHeight(100000))!, scaledC = roomy.laidOut.contentHeight!;
+  assert.equal(bandOf(roomy).lineScaleDropped, undefined);
+  let lo = 1, hi = scaledC; // 図全体が収まる最小の canvas の高さ = 広げない線の内容の高さ
+  while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2), r = await tryHeight(mid); if (r && r.laidOut.contentHeight! <= mid) hi = mid; else lo = mid; }
+  const oldC = (await tryHeight(hi))!.laidOut.contentHeight!;
+  assert.ok(oldC < scaledC, `old ${oldC} < scaled ${scaledC}`);
+  // 広げた図は内容の高さが canvas を 1px 超える (cause 帯だけなら予算に収まる): 下の帯のせいで超える
+  const between = scaledC - 1, r = await checkDiagram(mk(between));
+  assert.equal(bandOf(r).lineScaleDropped, true);
+  assert.ok(r.laidOut.contentHeight! <= between);
+  assert.equal(dropped(r), 1);
+  assert.ok(!overflow(r), r.verdict.warnings.join('\n'));
+  // 十分高い canvas: どちらも出ない
+  const enough = await checkDiagram(mk(scaledC));
+  assert.equal(bandOf(enough).lineScaleDropped, undefined);
+  assert.equal(dropped(enough), 0);
+  assert.ok(!overflow(enough));
+  // 広げない線でも超える (下に帯が多い図): 広げた線のまま、overflow の警告が出る (cause-line-scale-dropped は出ない)
+  const tall = (height: number) => { const d = mk(height); for (let k = 0; k < 14; k++) d.add(caption(`下の帯 ${k}`)); return d; };
+  const tryTall = async (h: number) => { try { return await checkDiagram(tall(h)); } catch { return undefined; } };
+  const scaledT = (await tryTall(100000))!.laidOut.contentHeight!;
+  let lo2 = 1, hi2 = scaledT;
+  while (hi2 - lo2 > 1) { const mid = Math.floor((lo2 + hi2) / 2), t = await tryTall(mid); if (t && t.laidOut.contentHeight! <= mid) hi2 = mid; else lo2 = mid; }
+  assert.ok(hi2 < scaledT, 'the old lines fit a shorter canvas');
+  const both = await tryTall(hi2 - 1)!; // hi2: the least canvas the old lines fit; one px under it, neither fits (and the cause band alone fits the canvas)
+  assert.ok(both, 'laid out');
+  assert.equal(bandOf(both).lineScaleDropped, undefined);
+  assert.equal(dropped(both), 0);
+  assert.ok(overflow(both));
+  assert.equal(both.laidOut.contentHeight, scaledT);
+  // 下の帯のせいで超える図も、広げない線で収まる高さなら描き直す
+  const fits = await checkDiagram(tall(hi2));
+  assert.equal(bandOf(fits).lineScaleDropped, true);
+  assert.ok(!overflow(fits));
+  void oldC;
 });
