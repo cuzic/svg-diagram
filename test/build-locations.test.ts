@@ -7,6 +7,9 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {isDeepStrictEqual} from 'node:util';
 import {assertBuildOutput} from '../lib/build-verdict.ts';
+import {frameGeometry} from '../lib/emit-boxes.ts';
+import {ganttBarGeometry} from '../lib/emit-figures.ts';
+import {primRectGeometry} from '../lib/emit-tables.ts';
 import {readProvenance} from '../lib/freshness.ts';
 import {layoutFinding} from '../lib/layout-issues.ts';
 import {SourceRef} from '../lib/source-ref.ts';
@@ -62,6 +65,13 @@ function svgFrames(svg: string, radius = 8) {
     .filter(match => Number(match[5]) === radius)
     .map(([, x, y, w, h]) => ({x: Number(x), y: Number(y), w: Number(w), h: Number(h)}));
 }
+
+test('frame, gantt bar and primitive geometry use their respective SVG snapping rules', () => {
+  const rect = {x: 3, y: 3, w: 6, h: 6};
+  assert.deepEqual(frameGeometry(rect), {x: 4, y: 4, w: 4, h: 8});
+  assert.deepEqual(ganttBarGeometry(rect), {x: 4, y: 4, w: 8, h: 6});
+  assert.deepEqual(primRectGeometry(rect), {x: 4, y: 4, w: 4, h: 4});
+});
 
 test('build --locations maps rows, boxes and connections in layout order', t => {
   const p = fixture(t, {'figure.ts': source});
