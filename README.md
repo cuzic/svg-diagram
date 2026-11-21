@@ -1304,6 +1304,7 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
 
 ## ルールの説明・ベースライン・SARIF（`check`）
 - **ソースが読み込めない・`define()` やレイアウトで例外が出るとき**: `build` と同じ失敗の行を出し、**残りのファイルも検査して**、最後に `N 件中 M 件が検査できなかった` を出す。exit は 1（`--strict` なしでも）。位置が検査したソース内なら `✗ src/a.ts:12:5: <メッセージ>`、別ファイル内なら `✗ src/a.ts: src/_parts.ts:12:5: <メッセージ>`、位置が分からなければ `✗ src/a.ts: <メッセージ>` になる。スタックも見るには `SVG_DIAGRAM_DEBUG=1` を使う。`--drift --rebuild` と `--docs --src-dir` の中で読み込めないソースも同じ扱い。
+  図のレイアウトや描画で `throw 'x'` のように `Error` 以外の値を投げると、`Error` に包まれ、`check` や `build` の `✗` の行にメッセージが出る。
 - **`build-error` の位置**: `--format json` では `findings` の `error` に、検査したファイル内の位置なら 1 始まりの `line` / `column` が入る。別ファイル内の位置なら `location: {file, line, column}` が入り、指摘の `file` は検査したファイルを指す。同じソース内の外側の呼び出しは `via: [{line, column}]` に内側から最大 5 件入る。`--format github` は `line=` / `col=` を、`--format sarif` は `region.startLine` / `region.startColumn` を、誤りがあるファイルに付ける。どちらも位置が別ファイルにあるときは、メッセージの先頭に `src/a.ts: ` のように検査したソースの名前を付ける。
 - `svg-diagram check --rules` はルール ID の一覧、`svg-diagram check --explain edge-crossings` は 1 つのルールの意味と、`accept`（案件全体は `.svg-diagram.json`、1 つの図は `diagram({accept})`）の書き方を出す。
 - **ベースライン**: 警告が多い案件に段階導入する。`check --write-baseline .svg-diagram.baseline.json diagrams/*.ts` で今ある警告を記録し、以後 `check --strict --baseline .svg-diagram.baseline.json diagrams/*.ts` は、**記録にない新しい警告**だけを失敗にする（記録済みは info になり「ベースライン済み」と添える）。照合はファイル・ルール・メッセージで、行番号は見ない。エラーはベースラインに入らない。

@@ -357,11 +357,10 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
     setBox, claimed, register, placeBoxLike, gapForLabels, areasGapFor,
     stack: (bands, padX, cw) => {
       for (const band of bands) atBand(band, () => {
-        const start = laidOut.length, firstConnect = connects.length;
+        const start = laidOut.length;
         layoutHandlerFor(band.type)(band as never, ctx, padX, cw);
+        // resolveConnect spreads the input band, keeping its own SOURCE for immediate and deferred connections.
         carryLayoutSources(band, laidOut, start);
-        const ref = sourceOf(band);
-        if (ref) for (let i = firstConnect; i < connects.length; i++) withSource(must(connects[i]), ref);
         const extra = bandGaps.get(band); // room for a label on the arrow down to the next band (ADR 0069 D1)
         if (extra) ctx.y += extra;
       });
@@ -371,8 +370,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
   // the framed groups, for connect({via}) (ADR 0069 D2): their final rectangles (a row / areas() has stretched them by now)
   const frames = laidOut.flatMap(b => b.type === 'group' && b.frame !== false ? [{x: b.x, y: b.y, w: b.w, h: b.h, id: b.id}] : []);
   for (const band of deferred) atBand(band, () => {
-    const resolved = resolveConnect(band, anchors, areaIds, widthOf, roles, nodeBottoms, scopes, frames);
-    connects.push(withSource(resolved, sourceOf(band)));
+    connects.push(resolveConnect(band, anchors, areaIds, widthOf, roles, nodeBottoms, scopes, frames));
   });
 
   const contentHeight = Math.round(ctx.y - d.gap + d.pad);

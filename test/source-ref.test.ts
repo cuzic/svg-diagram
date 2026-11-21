@@ -3,6 +3,7 @@ import {readdirSync} from 'node:fs';
 import path from 'node:path';
 import {test} from 'node:test';
 import {fileURLToPath} from 'node:url';
+import {nestedBandsOf} from '../lib/band-children.ts';
 import {areas, box, connect, diagram, gantt, grid, group, image, raw, row} from '../lib/dsl.ts';
 import {detachData} from '../lib/dsl/diagram.ts';
 import {checkDiagram, renderDiagram} from '../lib/dsl/render.ts';
@@ -31,36 +32,76 @@ function stampDiagram(d: Diagram) {
   return {diagramRef, refs};
 }
 
-function sourceProblems(name: string, d: LaidOutDiagram, {diagramRef, refs}: ReturnType<typeof stampDiagram>): string[] {
-  const inputs = [...refs.keys()];
-  const inputByRef = new Map([...refs].map(([band, ref]) => [ref, band]));
+interface ExpectedBand {
+  type: LaidOutDiagram['laidOut'][number]['type'];
+  owner: Band | Diagram;
+  children?: readonly Band[];
+}
+
+function expectedBands(input: Diagram, laidOut: LaidOutDiagram): ExpectedBand[] {
+  const expected: ExpectedBand[] = [];
+  const visit = (band: Band): void => {
+    if (band.type === 'spacer' || band.type === 'connect') return;
+    if (band.type === 'areas' || band.type === 'grouprow') {
+      for (const cell of band.children) {
+        // A box cell has a synthetic row around it. The box itself keeps its own mark.
+        if (cell.type === 'box') expected.push({type: 'row', owner: band, children: [cell]});
+        else visit(cell);
+      }
+      return;
+    }
+    if (band.type === 'grid' && band.canvas?.title) expected.push({type: 'caption', owner: band});
+    if (band.type === 'row' || band.type === 'grid') {
+      expected.push({type: band.type, owner: band, children: band.children});
+      return;
+    }
+    expected.push({type: band.type, owner: band});
+    // Layout emits the group title after its frame and before its authored children.
+    if (band.type === 'group' && band.title) expected.push({type: 'caption', owner: band});
+    for (const child of nestedBandsOf(band)) visit(child);
+  };
+
+  if (input.status) expected.push({type: 'status', owner: input});
+  if (input.showTitle) expected.push({type: 'caption', owner: input});
+  for (const band of input.bands) visit(band);
+  // The pre-layout pass appends a legend only when there is missing notation and no top-level legend.
+  if (input.legend === 'auto' && !input.bands.some(b => b.type === 'legend') && laidOut.bands.some(b => b.type === 'legend')) {
+    expected.push({type: 'legend', owner: input});
+  }
+  if (input.sourceLine !== undefined) expected.push({type: 'caption', owner: input});
+  return expected;
+}
+
+function sourceProblems(name: string, input: Diagram, d: LaidOutDiagram, {diagramRef, refs}: ReturnType<typeof stampDiagram>): string[] {
   const problems: string[] = [];
-  const check = (target: object, label: string, expected?: SourceRef): void => {
+  const check = (target: object, label: string, ...expected: (SourceRef | undefined)[]): void => {
     const ref = refOf(target);
     if (!ref) problems.push(`${name} ${label}: missing SOURCE`);
-    else if (expected ? ref !== expected : !inputByRef.has(ref)) problems.push(`${name} ${label}: wrong SOURCE`);
+    else if (!expected.includes(ref)) problems.push(`${name} ${label}: wrong SOURCE`);
   };
+  const expected = expectedBands(input, d);
+  if (d.laidOut.length !== expected.length) problems.push(`${name}: expected ${expected.length} bands, got ${d.laidOut.length}`);
   for (const [i, band] of d.laidOut.entries()) {
-    const generated = band.type === 'status'
-      || (band.type === 'caption' && (band.titleLine || band.sourceLine))
-      || (band.type === 'legend' && !inputs.some(b => b.type === 'legend'));
+    const match = expected[i];
     const label = `laidOut[${i}] ${band.type}`;
-    const sameId = 'id' in band && band.id !== undefined
-      ? inputs.filter(b => 'id' in b && b.id === band.id && b.type === band.type) : [];
-    check(band, label, generated ? diagramRef : sameId.length === 1 ? refs.get(sameId[0]!) : undefined);
-    const ref = refOf(band);
-    const owner = ref && inputByRef.get(ref);
-    const children = band.type === 'row' || band.type === 'grid' ? band.children : [];
-    for (const [j, child] of children.entries()) {
-      const sameBox = inputs.filter(b => b.type === 'box' && b.id === child.id && b.title === child.title);
-      const input = owner?.type === 'row' || owner?.type === 'grid' ? owner.children[j]
-        : sameBox.length === 1 ? sameBox[0] : undefined;
-      check(child, `${label} child[${j}]`, input && refs.get(input));
+    if (!match || match.type !== band.type) {
+      problems.push(`${name} ${label}: expected ${match?.type ?? 'no band'}`);
+      continue;
+    }
+    check(band, label, 'type' in match.owner ? refs.get(match.owner) : diagramRef);
+    if (band.type === 'row' || band.type === 'grid') {
+      const children = match.children ?? [];
+      if (band.children.length !== children.length) problems.push(`${name} ${label}: expected ${children.length} children, got ${band.children.length}`);
+      for (const [j, child] of band.children.entries()) {
+        check(child, `${label} child[${j}]`, children[j] && refs.get(children[j]));
+      }
     }
   }
   for (const c of d.connects) {
-    const matching = inputs.filter(b => b.type === 'connect' && b.from === c.fromLabel && b.to === c.toLabel && b.label === c.label);
-    check(c, `connect ${c.fromLabel} -> ${c.toLabel}`, matching.length === 1 ? refs.get(matching[0]!) : undefined);
+    const candidates = [...refs].filter(([band]) => c.loopBack
+      ? (band.type === 'row' || band.type === 'chevron') && band.loopBack
+      : band.type === 'connect' && band.from === c.fromLabel && band.to === c.toLabel && band.label === c.label);
+    check(c, `connect ${c.fromLabel} -> ${c.toLabel}`, ...candidates.map(([, ref]) => ref));
   }
   return problems;
 }
@@ -79,7 +120,7 @@ test('checkDiagram carries source references in every example', async () => {
     const d = await example(name);
     const expected = stampDiagram(d);
     const {laidOut} = await checkDiagram(d);
-    problems.push(...sourceProblems(name, laidOut, expected));
+    problems.push(...sourceProblems(name, d, laidOut, expected));
   }
   assert.deepEqual(problems, []);
 });
@@ -91,7 +132,7 @@ test('renderDiagram carries source references and emits the same SVG', async () 
     const {svg} = await renderDiagram(d, opts);
     const expected = stampDiagram(d);
     const result = await renderDiagram(d, opts);
-    assert.deepEqual(sourceProblems(name, result.laidOut, expected), []);
+    assert.deepEqual(sourceProblems(name, d, result.laidOut, expected), []);
     assert.equal(result.svg, svg, name);
   }
 });
@@ -119,6 +160,23 @@ test('connectDefaults copies the reference when rebuilding a connection', async 
   assert.equal(refOf(laidOut.connects[0]!), ref);
 });
 
+test('group connectors keep only their own marks whether resolved immediately or deferred', async () => {
+  const deferred = connect('a:right', 'b:left', {label: 'deferred'});
+  const markedDeferred = connect('a:right', 'b:left', {label: 'marked deferred'});
+  const immediate = connect('a:right', 'b:left', {label: 'immediate'});
+  const markedImmediate = connect('a:right', 'b:left', {label: 'marked immediate'});
+  const section = group([deferred, markedDeferred, box({id: 'a', title: 'A'}), box({id: 'b', title: 'B'}), immediate, markedImmediate]);
+  mark(section);
+  const deferredRef = mark(markedDeferred), immediateRef = mark(markedImmediate);
+  const {laidOut: {connects}} = await checkDiagram(diagram({theme: 'blue'}).add(section));
+  const expected = [
+    ['immediate', undefined], ['marked immediate', immediateRef],
+    ['deferred', undefined], ['marked deferred', deferredRef],
+  ] as const;
+  assert.deepEqual(connects.map(c => c.label), expected.map(([label]) => label));
+  for (const [i, [label, ref]] of expected.entries()) assert.equal(refOf(connects[i]!), ref, label);
+});
+
 test('loopBack and diagram-generated bands inherit the reference from their origin', async () => {
   const steps = row([box({title: 'A', tone: 'new'}), box({title: 'B'})], {loopBack: {from: 2, to: 1}});
   const d = diagram({theme: 'blue', title: 'Title', showTitle: true, sourceLine: 'Source', status: 'draft', legend: 'auto'}).add(steps);
@@ -130,6 +188,15 @@ test('loopBack and diagram-generated bands inherit the reference from their orig
   assert.equal(refOf(laidOut.connects[0]!), refs.get(steps));
 });
 
+function checkError(band: object, d: Diagram, message: RegExp) {
+  const ref = mark(band);
+  return assert.rejects(checkDiagram(d), (error: Error) => {
+    assert.match(error.message, message);
+    assert.equal(refOf(error), ref);
+    return true;
+  });
+}
+
 test('band errors carry the source of the part that failed', async () => {
   const missingAnchor: Band = connect('a', 'missing');
   const missingImage = image(new URL('./fixtures/source-ref-missing.png', import.meta.url), {alt: 'Missing picture'});
@@ -139,14 +206,6 @@ test('band errors carry the source of the part that failed', async () => {
   const autoToday = gantt([{label: 'A', start: '2026-01-01', days: 1}], {today: 'auto'});
   const invalidAreas = areas('a', {a: group([box({title: 'A'})])});
   invalidAreas.place.length = 0; // A missing cell is found in layout's first walk, before stack dispatch.
-  const checkError = (band: object, d: Diagram, message: RegExp) => {
-    const ref = mark(band);
-    return assert.rejects(checkDiagram(d), (error: Error) => {
-      assert.match(error.message, message);
-      assert.equal(refOf(error), ref);
-      return true;
-    });
-  };
   await checkError(missingAnchor, diagram({theme: 'blue'}).add(box({id: 'a', title: 'A'}), missingAnchor), /unknown anchor id/);
   await checkError(missingImage, diagram({theme: 'blue'}).add(missingImage), /image\(\): cannot read/);
   const nested = group([invalidBox]);
@@ -155,6 +214,21 @@ test('band errors carry the source of the part that failed', async () => {
   await checkError(autoToday, diagram({theme: 'blue'}).add(autoToday), /needs a date/);
   await checkError(invalidAreas, diagram({theme: 'blue'}).add(invalidAreas), /expected a value|undefined/i);
   await checkError(invalidConnect, diagram({theme: 'blue'}).add(box({id: 'a', title: 'A', reveal: 3}), box({id: 'b', title: 'B'}), invalidConnect), /until 2 must be later than its reveal 3/);
+});
+
+test('layout handler tags a too-wide stamp error with the inner group source', async () => {
+  const tooWide = group([box({title: 'Stamped'})], {stamp: 'wide stamp '.repeat(10).trim()});
+  const outer = group([tooWide]);
+  mark(outer);
+  await checkError(tooWide, diagram({theme: 'blue', width: 300}).add(outer), /stamp .* is wider than its group/);
+});
+
+test('layout handler tags a duplicate anchor error with the second box source', async () => {
+  const first = box({id: 'duplicate', title: 'First'}), second = box({id: 'duplicate', title: 'Second'});
+  const duplicates = group([first, second]);
+  mark(first);
+  mark(duplicates);
+  await checkError(second, diagram({theme: 'blue'}).add(duplicates), /duplicate anchor id "duplicate"/);
 });
 
 test('spotlight errors from renderDiagram and checkDiagram have only DIAGRAM_SOURCE', async () => {
