@@ -18,8 +18,8 @@
   <path d="M53,78 L912,78" fill="none" stroke="#e0d6c5" stroke-width="2"/>
   <path d="M59,78 L59,302" fill="none" stroke="#e0d6c5" stroke-width="2"/>
   <path d="M59,302 L912,302" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M169.47,194.69 H233.47 V302.4 H169.47 Z" fill="#1d5fa8"/>
-  <path d="M453.68,167.76 H517.68 V302.4 H453.68 Z" fill="#1d5fa8"/>
+  <path d="M169.43,194.69 H233.43 V302.4 H169.43 Z" fill="#1d5fa8"/>
+  <path d="M453.66,167.76 H517.66 V302.4 H453.66 Z" fill="#1d5fa8"/>
   <path d="M737.89,113.9 H801.89 V302.4 H737.89 Z" fill="#1d5fa8"/>
   <text x="49" y="307" text-anchor="end" font-size="14" fill="#6f6659">0</text>
   <text x="49" y="263" text-anchor="end" font-size="14" fill="#6f6659">50</text>

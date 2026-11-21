@@ -43,7 +43,7 @@
   <text x="444" y="210" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">機能</text>
   <text x="601" y="154" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">バーコード</text>
   <text x="608" y="210" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">発注アラート</text>
-  <text x="597" y="266" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">CSV 出力</text>
+  <text x="596" y="266" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">CSV 出力</text>
   <text x="444" y="350" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">課題</text>
   <text x="622" y="322" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">既存システム連携</text>
   <text x="601" y="378" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">現場の端末</text>

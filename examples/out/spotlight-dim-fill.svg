@@ -10,23 +10,23 @@
   <text x="470" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">spotlight: {dim: "fill"} と bars の tone</text>
 
   <path d="M102,56 L102,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M258,56 L258,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M413,56 L413,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M569,56 L569,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M725,56 L725,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M880,56 L880,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M102,176 L880,176" fill="none" stroke="#e0d6c5" stroke-width="2"/>
-  <path d="M102,56 H693.4 V84 H102 Z" fill="#b91c1c"/>
-  <path d="M102,102 H343.23 V130 H102 Z" fill="#e0d6c5"/>
-  <path d="M102,148 H242.07 V176 H102 Z" fill="#e0d6c5"/>
+  <path d="M257,56 L257,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M412,56 L412,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M568,56 L568,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M723,56 L723,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M878,56 L878,182" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M102,176 L878,176" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M102,56 H691.76 V84 H102 Z" fill="#b91c1c"/>
+  <path d="M102,102 H342.56 V130 H102 Z" fill="#e0d6c5"/>
+  <path d="M102,148 H241.68 V176 H102 Z" fill="#e0d6c5"/>
   <text x="102" y="198" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
-  <text x="258" y="198" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
-  <text x="413" y="198" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
-  <text x="569" y="198" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
-  <text x="725" y="198" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
-  <text x="880" y="198" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
+  <text x="257" y="198" text-anchor="middle" font-size="14" fill="#6f6659">20</text>
+  <text x="412" y="198" text-anchor="middle" font-size="14" fill="#6f6659">40</text>
+  <text x="568" y="198" text-anchor="middle" font-size="14" fill="#6f6659">60</text>
+  <text x="723" y="198" text-anchor="middle" font-size="14" fill="#6f6659">80</text>
+  <text x="878" y="198" text-anchor="middle" font-size="14" fill="#6f6659">100</text>
   <text x="94" y="75" text-anchor="end" font-size="14" fill="#22201b">許可待ち</text>
-  <text x="687" y="75" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">76%</text>
+  <text x="686" y="75" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">76%</text>
   <text x="94" y="121" text-anchor="end" font-size="14" fill="#6f6659">確認済み</text>
   <text x="337" y="121" text-anchor="end" font-size="14" font-weight="700" fill="#6f6659">31%</text>
   <text x="94" y="167" text-anchor="end" font-size="14" fill="#6f6659">自動で通る</text>

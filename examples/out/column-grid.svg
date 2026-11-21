@@ -49,11 +49,11 @@
   <text x="478" y="381" font-size="14" fill="#22201b">強調</text>
 
   <path d="M70,149 L70,162 L150,162 L150,176" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
-  <rect x="88" y="152" width="44" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <rect x="88" y="152" width="40" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
   <text x="110" y="169" text-anchor="middle" font-size="14" fill="#22201b">RTP</text>
 
   <path d="M472,149 L472,162 L472,176" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>
-  <rect x="448" y="152" width="48" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <rect x="448" y="152" width="44" height="24" rx="12" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
   <text x="472" y="169" text-anchor="middle" font-size="14" fill="#22201b">UDP</text>
 
   <path d="M792,149 L792,162 L549,162 L549,176" fill="none" stroke="#22201b" stroke-width="2" marker-end="url(#dsl-arrow)"/>

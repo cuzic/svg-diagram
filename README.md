@@ -1543,3 +1543,23 @@ MIT
 
 全ソースは TypeScript（`.ts`）。ビルド工程はなく、Node の型ストリップ（Node ≥ 22.18）でそのまま実行する。このため `enum` / `namespace` などの非消去構文は使えない（`erasableSyntaxOnly`）。
 型検査は `pnpm typecheck`（`tsc -p .`）、`strict: true`。図・画面の型は `lib/types.ts` にまとまっている（`Band`、`WfNode`、`LaidOutDiagram` など）。図のソースを `.ts` で書くと `import {diagram, box} from 'svg-diagram'` にも型が付く（`tsconfig` の `paths` で `lib/dsl.ts` を指す）。
+
+### golden（`examples/out`）の検査と作り直し
+
+`examples/out/*.svg` は golden（正解の出力）で、CI の `golden (examples/out)` のジョブが `pnpm golden --no-cache`（`check --drift --rebuild`。何も書き換えない）で、今のコードの再生成と 1 バイトずつ比べる。違えば CI が落ちる。
+
+**golden は、固定した Noto Sans JP で測る。** 文字幅はフォントのファイルから測る（fontconfig が選ぶファイル。`lib/font-metrics.ts`）ので、フォントが違うと幅が変わり、golden と一致しない。golden の文字幅は、Worker（MCP）が同梱して測るのと同じ Noto Sans JP（`notofonts/noto-cjk` の `f8d15753` の SubsetOTF。SHA-256 を固定）で測る。CI の golden のジョブと Docker は、`scripts/golden-docker/install-noto-sans-jp.sh` でこのフォントを fontconfig に入れる。このスクリプトは、`'Noto Sans JP'` がこのファイルに解決されることも確かめ、解決されなければ失敗する。CI の golden のジョブ（`pptx-golden` も）は、Docker と同じ環境にするため、`ubuntu-24.04` と Node 22.23.5 に固定している（`ubuntu-latest` は使わない。変えるときは Dockerfile も一緒に変える）。そのほかのフォント（等幅の Liberation Mono、絵文字の Noto Color Emoji など）は、test ジョブと同じ（`fonts-noto-cjk` と `playwright install --with-deps chromium` が入れるもの）。
+
+`fonts-noto-cjk` だけでは足りない（ファミリー名が `Noto Sans CJK JP` で、`'Noto Sans JP'` に一致しない。`sans-serif` に落ちて DejaVu Sans で測られる）。
+
+手元に同じ Noto Sans JP（Regular と Bold）が入っていれば、手元の `pnpm golden` もほぼ一致する。2026-11 の時点で、Noto Sans JP を入れ、Noto Color Emoji の無い Ubuntu では、191 枚のうち `icons` の 1 枚だけがずれた（絵文字の幅が違い、行の折り返しが変わる）。フォントが違う手元（macOS の Hiragino など）では、多くの図がずれる。迷ったら Docker の結果を正とする。
+
+CI と同じフォントの Docker で、検査と作り直しをする（Docker が要る。イメージは `scripts/golden-docker/Dockerfile` から初回に作る）。
+
+    scripts/golden-docker.sh            # CI と同じ検査（pnpm golden）
+    scripts/golden-docker.sh --write    # 検査で一致しなかった図を examples/out に作り直す
+
+- `--write` は、ずれた図を作り直したあと、もう一度検査する（まだずれていれば失敗する）。古い段階表示のフレーム（`drift-orphan-reveal`）は消さないので、`git rm` で消す。
+- `--write` のあとは、`git diff --stat examples/out` で変わった図を確かめ、`contact-sheet.ts` で前後を並べて目で見てからコミットする（前の版は `git show HEAD:examples/out/x.svg > /tmp/old.svg` で取り出す。`svg-diagram diff /tmp/old.svg examples/out/x.svg` は違いを言葉で説明する）。意図しない図が変わっていたら、作り直さずに原因を調べる。
+- コンテナの `node_modules` と pnpm のストアは `.cache/golden-docker/` に置く（手元の `node_modules` は別の OS 用のことがあるため使わない）。`docker` に sudo が要るなら `DOCKER="sudo docker" scripts/golden-docker.sh`。
+- PowerPoint の golden（`examples/out/pptx-golden.json`、`pnpm golden:pptx`）も、同じ測り方（同じ Noto Sans JP）で決まる。こちらは手で動かす workflow `pptx-golden`（`update=true`）で比べて作り直す（ADR 0027）。Docker でも `pnpm golden:pptx` で比べられる。

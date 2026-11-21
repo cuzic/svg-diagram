@@ -60,18 +60,18 @@
   <text x="255" y="203" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手戻り作業</text>
   <path d="M64.86,88.51 H180.86 V136.51 H64.86 Z" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
   <text x="123" y="118" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">残業の常態化</text>
-  <path d="M674.8,59 H689.2 V77 H674.8 Z" fill="#ffffff"/>
-  <text x="682" y="73" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M820.8,155 H835.2 V173 H820.8 Z" fill="#ffffff"/>
-  <text x="828" y="169" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M462.8,216 H477.2 V234 H462.8 Z" fill="#ffffff"/>
+  <path d="M674.87,59 H687.13 V77 H674.87 Z" fill="#ffffff"/>
+  <text x="681" y="73" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M820.87,155 H833.13 V173 H820.87 Z" fill="#ffffff"/>
+  <text x="827" y="169" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M463.87,216 H476.13 V234 H463.87 Z" fill="#ffffff"/>
   <text x="470" y="230" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M104.8,155 H119.2 V173 H104.8 Z" fill="#ffffff"/>
-  <text x="112" y="169" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M250.8,59 H265.2 V77 H250.8 Z" fill="#ffffff"/>
-  <text x="258" y="73" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
-  <path d="M784.35,153 H799.65 V171 H784.35 Z" fill="#ffffff"/>
-  <text x="792" y="167" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
-  <path d="M459.09,127 H480.91 V145 H459.09 Z" fill="#ffffff"/>
+  <path d="M106.87,155 H119.13 V173 H106.87 Z" fill="#ffffff"/>
+  <text x="113" y="169" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M252.87,59 H265.13 V77 H252.87 Z" fill="#ffffff"/>
+  <text x="259" y="73" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">+</text>
+  <path d="M786.86,153 H799.14 V171 H786.86 Z" fill="#ffffff"/>
+  <text x="793" y="167" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">||</text>
+  <path d="M459.1,127 H480.9 V145 H459.1 Z" fill="#ffffff"/>
   <text x="470" y="141" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">R1</text>
 </svg>

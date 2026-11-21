@@ -21,7 +21,7 @@
   <path d="M302,287 L702,184" fill="none" stroke="#22201b" stroke-width="2"/>
   <polygon points="302,287 311,279 313,289" fill="#22201b"/>
   <polygon points="702,184 694,192 692,182" fill="#22201b"/>
-  <rect x="476" y="224" width="56" height="24" rx="12" fill="#ffffff"/>
+  <rect x="472" y="224" width="60" height="24" rx="12" fill="#ffffff"/>
   <path d="M296,344 L296,330" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
   <path d="M696,344 L696,330" fill="none" stroke="#6f6659" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round"/>
   <path d="M296,330 L696,330" fill="none" stroke="#22201b" stroke-width="2"/>

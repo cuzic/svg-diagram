@@ -1,70 +1,70 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="520" viewBox="0 0 940 520" role="img" aria-labelledby="svg-title">
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="528" viewBox="0 0 940 528" role="img" aria-labelledby="svg-title">
   <title id="svg-title">着手の枠を入れる移行ツリー</title>
   <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/toc-tt.ts","sourceSha256":"8ad09b3ae99b3e6ad463acd3e3ba48ee7c742069b1e03a0cb9b5c87dddb9dfa6"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
   </style>
-  <rect x="0" y="0" width="940" height="520" fill="#ffffff"/>
+  <rect x="0" y="0" width="940" height="528" fill="#ffffff"/>
 
-  <path d="M184,388 L184,372 L284,372 L284,320" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M284,308 L289,320 L279,320 z" fill="#22201b"/>
-  <path d="M400,388 L400,356 L304,356 L304,320" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M304,308 L309,320 L299,320 z" fill="#22201b"/>
-  <path d="M596,388 L596,344 L328,344 L328,320" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M328,308 L333,320 L323,320 z" fill="#22201b"/>
-  <path d="M292,272 L292,256 L408,256 L408,204" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M408,192 L413,204 L403,204 z" fill="#22201b"/>
-  <path d="M488,272 L488,240 L432,240 L432,204" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M432,192 L437,204 L427,204 z" fill="#22201b"/>
-  <path d="M664,272 L664,228 L452,228 L452,204" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M452,192 L457,204 L447,204 z" fill="#22201b"/>
-  <path d="M420,156 L420,124 L584,124 L584,88" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M584,76 L589,88 L579,88 z" fill="#22201b"/>
-  <path d="M596,156 L596,140 L604,140 L604,88" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M604,76 L609,88 L599,88 z" fill="#22201b"/>
-  <path d="M768,156 L768,112 L628,112 L628,88" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M628,76 L633,88 L623,88 z" fill="#22201b"/>
-  <path d="M272,328 Q304,316 336,328" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M400,212 Q432,200 464,212" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M572,96 Q604,84 636,96" fill="none" stroke="#22201b" stroke-width="2"/>
-  <rect x="88" y="388" width="196" height="36" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="6,4"/>
-  <rect x="312" y="388" width="180" height="36" rx="8" fill="#1d5fa8" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="520" y="388" width="156" height="36" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="204" y="272" width="180" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="412" y="272" width="156" height="36" rx="8" fill="#1d5fa8" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="596" y="272" width="140" height="36" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="336" y="156" width="168" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="532" y="156" width="124" height="36" rx="8" fill="#1d5fa8" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="684" y="156" width="168" height="36" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="540" y="20" width="112" height="56" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <rect x="544" y="24" width="104" height="48" rx="5" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <text x="185" y="410" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">着手が受注順になっている</text>
-  <text x="402" y="410" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">枠の考え方を共有したい</text>
-  <text x="598" y="410" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">営業と枠を話し合う</text>
-  <text x="293" y="294" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">枠の考え方を共有できた</text>
-  <text x="489" y="294" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">枠を運用に乗せたい</text>
-  <text x="664" y="294" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">週次で枠を見直す</text>
-  <text x="419" y="178" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">枠の運用が回り始めた</text>
-  <text x="594" y="178" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">納期を守りたい</text>
-  <text x="769" y="178" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仕掛りを見える化する</text>
-  <text x="594" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">納期を守れる</text>
-  <text x="594" y="62" text-anchor="middle" font-size="14" fill="#22201b">【ゴール】</text>
+  <path d="M184,396 L184,380 L284,380 L284,328" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M284,316 L289,328 L279,328 z" fill="#22201b"/>
+  <path d="M400,396 L400,364 L304,364 L304,328" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M304,316 L309,328 L299,328 z" fill="#22201b"/>
+  <path d="M596,396 L596,352 L328,352 L328,328" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M328,316 L333,328 L323,328 z" fill="#22201b"/>
+  <path d="M292,280 L292,264 L408,264 L408,212" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M408,200 L413,212 L403,212 z" fill="#22201b"/>
+  <path d="M488,280 L488,248 L432,248 L432,212" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M432,200 L437,212 L427,212 z" fill="#22201b"/>
+  <path d="M664,280 L664,236 L452,236 L452,212" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M452,200 L457,212 L447,212 z" fill="#22201b"/>
+  <path d="M420,164 L420,132 L584,132 L584,96" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M584,84 L589,96 L579,96 z" fill="#22201b"/>
+  <path d="M596,164 L596,148 L604,148 L604,96" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M604,84 L609,96 L599,96 z" fill="#22201b"/>
+  <path d="M768,164 L768,120 L628,120 L628,96" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M628,84 L633,96 L623,96 z" fill="#22201b"/>
+  <path d="M272,340 Q304,328 336,340" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M400,224 Q432,212 464,224" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M572,108 Q604,96 636,108" fill="none" stroke="#22201b" stroke-width="2"/>
+  <rect x="88" y="396" width="196" height="36" rx="8" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <rect x="312" y="396" width="180" height="36" rx="8" fill="#1d5fa8" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="520" y="396" width="156" height="36" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="204" y="280" width="180" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="412" y="280" width="156" height="36" rx="8" fill="#1d5fa8" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="596" y="280" width="140" height="36" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="336" y="164" width="168" height="36" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="532" y="164" width="124" height="36" rx="8" fill="#1d5fa8" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="684" y="164" width="168" height="36" rx="8" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="540" y="20" width="112" height="64" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="544" y="24" width="104" height="56" rx="5" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="185" y="418" text-anchor="middle" font-size="14" font-weight="700" fill="#6f6659">着手が受注順になっている</text>
+  <text x="402" y="418" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">枠の考え方を共有したい</text>
+  <text x="598" y="418" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">営業と枠を話し合う</text>
+  <text x="293" y="302" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">枠の考え方を共有できた</text>
+  <text x="489" y="302" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">枠を運用に乗せたい</text>
+  <text x="664" y="302" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">週次で枠を見直す</text>
+  <text x="419" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">枠の運用が回り始めた</text>
+  <text x="594" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">納期を守りたい</text>
+  <text x="769" y="186" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仕掛りを見える化する</text>
+  <text x="594" y="46" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">納期を守れる</text>
+  <text x="594" y="66" text-anchor="middle" font-size="14" fill="#22201b">【ゴール】</text>
 
-  <rect x="148" y="444" width="28" height="16" rx="4" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="6,4"/>
-  <text x="188" y="457" font-size="14" fill="#22201b">現状の事実</text>
-  <rect x="288" y="444" width="28" height="16" rx="4" fill="#1d5fa8" stroke="#1d5fa8" stroke-width="2.5"/>
-  <text x="330" y="457" font-size="14" fill="#22201b">ニーズ</text>
-  <rect x="404" y="444" width="28" height="16" rx="4" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
-  <text x="444" y="457" font-size="14" fill="#22201b">行動</text>
-  <rect x="504" y="444" width="28" height="16" rx="4" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
-  <text x="544" y="457" font-size="14" fill="#22201b">中間目標</text>
-  <path d="M628,448 L652,448" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M664,448 L652,453 L652,443 z" fill="#22201b"/>
-  <path d="M628,456 L652,456" fill="none" stroke="#22201b" stroke-width="2"/>
+  <rect x="148" y="452" width="28" height="16" rx="4" fill="#f6f8fa" stroke="#6f6659" stroke-width="2.5" stroke-dasharray="6,4"/>
+  <text x="189" y="465" font-size="14" fill="#22201b">現状の事実</text>
+  <rect x="292" y="452" width="28" height="16" rx="4" fill="#1d5fa8" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="331" y="465" font-size="14" fill="#22201b">ニーズ</text>
+  <rect x="404" y="452" width="28" height="16" rx="4" fill="#ffffff" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="445" y="465" font-size="14" fill="#22201b">行動</text>
+  <rect x="504" y="452" width="28" height="16" rx="4" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <text x="545" y="465" font-size="14" fill="#22201b">中間目標</text>
+  <path d="M628,456 L656,456" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M664,456 L652,461 L652,451 z" fill="#22201b"/>
-  <path d="M640,447 Q648,452 640,457" fill="none" stroke="#22201b" stroke-width="2"/>
-  <text x="672" y="457" font-size="14" fill="#22201b">合わせて原因(AND)</text>
+  <path d="M628,464 L656,464" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M664,464 L652,469 L652,459 z" fill="#22201b"/>
+  <path d="M644,455 Q648,460 644,465" fill="none" stroke="#22201b" stroke-width="2"/>
+  <text x="673" y="465" font-size="14" fill="#22201b">合わせて原因(AND)</text>
 
-  <text x="20" y="494" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
+  <text x="20" y="502" font-size="14" font-weight="400" fill="#6f6659">出典: 説明用の例</text>
 </svg>
