@@ -1137,7 +1137,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     const before = parallels(a);
     if (!before) return a;
     const {opts, laneShare, near} = must(optsOf.get(a)), b = build(opts, laneShare, true, near);
-    if (parallels(b) >= before || worse(a, b) || andCrossings(b) > andCrossings(a)) return a;
+    if (rejectsAside(a, b, {before, parallels, andCrossings, worse})) return a;
     b.asided = true;
     return b;
   };
@@ -1148,7 +1148,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     // with tracks (ADR 0070 D4, U4b) the long arrows' last turns are placed with the lanes of their gap: sharing the lanes is no other figure
     if (o.tracks) return o.aside === false ? a : aside(a);
     const b = build(must(optsOf.get(a)).opts, true, false, must(optsOf.get(a)).near);
-    const chosen = parallels(b) >= before || worse(a, b) ? a : b;
+    const chosen = rejectsSharing(a, b, {before, parallels, worse}) ? a : b;
     return o.aside === false ? chosen : aside(chosen);
   };
   // ADR 0016 D14: what is chosen gets the runs of arrows with no end in common that lie along each other moved apart, once; kept only when nothing else gets worse
@@ -1166,7 +1166,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     if ([...routes].every(([i, r]) => r === a.routes.get(i))) return a;
     const b: Attempt = {...a, routes, score: scoreP(routes), loose: o.looseOf ? o.looseOf(routes, a.lay) : []};
     optsOf.set(b, must(optsOf.get(a)));
-    if (worse(a, b) || (o.groupOf !== undefined && (andCrossings(b) > andCrossings(a) || parallels(b) > parallels(a)))) return a;
+    if (rejectsApart(a, b, {grouped: o.groupOf !== undefined, parallels, andCrossings, worse})) return a;
     // the search of the orders is entered on the first figure's crossings (toc.ts): a move that takes the last crossing away would skip it where it ran
     if (a.score.crossings > 0 && b.score.crossings === 0) return a;
     // an AND crossing it took away is judged like D12/D13's: toc.ts decides whether to search the orders on the figure without these moves
@@ -1189,13 +1189,8 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
   const far = pick('far');
   if (!o.returns || o.straighten === false || !far.lay.edges.some(e => e.outer)) return far; // straighten: false keeps the old coordinates, lanes included
   // not bigger than the far one: the width and the height are the caller's budget (a taller figure may not fit the canvas), and lanes on both sides take more room than on one
-  // (ADR 0073 D2: the sides are one list, `selectAttempt` picks from it; a side joins the list when it is no worse than the pick so far in the rest)
-  const sides = [far];
-  let result = far;
-  for (const side of ['near', 'low'] as const) {
-    const c = pick(side);
-    if (c.lay.edges.some(e => e.outer) && c.lay.w <= far.lay.w + 0.01 && c.lay.h <= far.lay.h + 0.01 && !worse(result, c)) { sides.push(c); result = selectAttempt(sides, o.heightKey); }
-  }
+  // (ADR 0073 D2: `selectSides` chooses from the sides as one list)
+  const result = selectSides(far, (['near', 'low'] as const).map(pick).filter(c => c.lay.edges.some(e => e.outer) && c.lay.w <= far.lay.w + 0.01 && c.lay.h <= far.lay.h + 0.01), worse, o.heightKey);
   // a return that enters its head's face instead of its right side, only when that takes crossings away (fewer bends alone moves nothing) and nothing else gets worse
   laneHeads = true;
   const c = pick(must(optsOf.get(result)).near);
@@ -1215,6 +1210,25 @@ export const attemptKey = (a: Attempt, heightKey: boolean | undefined): number[]
  */
 export const worseThan = (a: Attempt, b: Attempt, piercingsOf: (x: Attempt) => number, heightKey?: boolean): boolean =>
   b.loose.length > a.loose.length || (a.fits && !b.fits) || selectIndex([attemptKey(b, heightKey), attemptKey(a, heightKey)]) === 1 || piercingsOf(b) > piercingsOf(a);
+
+/**
+ * The side a return's lane goes to (ADR 0073 D2): `far` and the sides that passed the size checks are one list that `selectAttempt` chooses from; a side joins it only when it is no worse than the pick so far
+ * (`worse`). Of the three (far, near, low) the choice is the same in whatever order the sides come.
+ */
+export function selectSides(far: Attempt, sides: readonly Attempt[], worse: (a: Attempt, b: Attempt) => boolean, heightKey?: boolean): Attempt {
+  const list = [far];
+  let result = far;
+  for (const c of sides) if (!worse(result, c)) { list.push(c); result = selectAttempt(list, heightKey); }
+  return result;
+}
+/** ADR 0016 D12/D13 (`aside`): the move is kept out when it does not take a side-by-side AND run away, or is worse (pairs included, `worse`), or crosses the AND's arrows more. */
+export const rejectsAside = (a: Attempt, b: Attempt, c: {before: number; parallels: (x: Attempt) => number; andCrossings: (x: Attempt) => number; worse: (a: Attempt, b: Attempt) => boolean}): boolean =>
+  c.parallels(b) >= c.before || c.worse(a, b) || c.andCrossings(b) > c.andCrossings(a);
+/** ADR 0016 D11 (`sharing`): the lanes' sharing is kept out when it does not take a side-by-side AND run away, or is worse (`worse`, pairs included). */
+export const rejectsSharing = (a: Attempt, b: Attempt, c: {before: number; parallels: (x: Attempt) => number; worse: (a: Attempt, b: Attempt) => boolean}): boolean => c.parallels(b) >= c.before || c.worse(a, b);
+/** ADR 0016 D14 (`apartOf`): the runs moved apart are kept out when worse (`worse`, pairs included), or, for a figure with ANDs, when they cross the AND's arrows more or run side by side more. */
+export const rejectsApart = (a: Attempt, b: Attempt, c: {grouped: boolean; parallels: (x: Attempt) => number; andCrossings: (x: Attempt) => number; worse: (a: Attempt, b: Attempt) => boolean}): boolean =>
+  c.worse(a, b) || (c.grouped && (c.andCrossings(b) > c.andCrossings(a) || c.parallels(b) > c.parallels(a)));
 
 /** How many more bends than the least (among the figures with the least C) a figure may have and still be chosen for having fewer pairs (ADR 0073 D1-4: +4). */
 export const BEND_WINDOW = 4;

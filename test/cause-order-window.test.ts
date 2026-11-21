@@ -5,7 +5,7 @@ import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {causeTree, closeMeasurer} from '../lib/dsl.ts';
-import {BEND_WINDOW, attemptKey, selectAttempt, selectIndex, windowOf, worseThan} from '../lib/layered-route.ts';
+import {BEND_WINDOW, attemptKey, selectAttempt, selectIndex, windowOf, worseThan, rejectsAside, rejectsApart, rejectsSharing, selectSides} from '../lib/layered-route.ts';
 import type {Attempt} from '../lib/layered-route.ts';
 import {pairsOf, parallelRuns} from '../lib/polyline-metrics.ts';
 import {bandSep, layoutCauseBand, windowPool} from '../lib/toc.ts';
@@ -67,6 +67,37 @@ test('worseThan (worse: aside・sharing・apartOf が使う): 組が多い・窓
   const pa = at(2, 5, 1), pb = at(2, 5, 1);
   assert.equal(worseThan(pa, pb, x => x === pb ? 1 : 0), true, '箱を貫く矢印が多い');
   assert.equal(worseThan(pa, pb, x => x === pa ? 1 : 0), false);
+});
+
+const fake = (crossings: number, bends: number, pairs: number, over: Partial<Attempt> = {}): Attempt => ({score: {crossings, bends, pairs}, size: {w: 1, h: 400}, fits: true, loose: [], ...over} as Attempt);
+const realWorse = (a: Attempt, b: Attempt): boolean => worseThan(a, b, () => 0);
+
+test('selectSides (返しの辺の選び far・near・low): 循環の 3 案 a(0, 9) b(1, 5) c(2, 1) は、worse の関門が無ければどの順でも b。worse の辺は一覧に入らない', () => {
+  const x = fake(2, 9, 0), y = fake(2, 5, 1), z = fake(2, 1, 2);
+  for (const [far, ...rest] of perms([x, y, z])) assert.equal(selectSides(far!, rest, () => false), y, 'worse が無ければ、並べ順に依らず y');
+  // 実際の worse (組・窓つき) の入る辺は、今までの順 (far のあと near、low) に、そのときの選びと比べて worse でないものだけ
+  assert.equal(selectSides(x, [y], realWorse), x, 'y は x より worse (x は組が少なく、折れ +4 の窓の内): 一覧に入らない');
+  assert.equal(selectSides(x, [z], realWorse), z, 'z は折れ 1: x は窓の外。z は worse でなく、一覧に入って勝つ');
+  assert.equal(selectSides(y, [x, z], () => false), y);
+  assert.equal(selectSides(y, [fake(1, 40, 9)], () => false).score.crossings, 1, '交差が少ない辺は、組・折れに依らず勝つ');
+  assert.equal(selectSides(y, [fake(1, 40, 9)], () => true), y, 'worse の辺は採らない');
+  assert.equal(selectSides(y, [], () => false), y);
+});
+
+test('rejectsAside・rejectsSharing・rejectsApart: 組の多い動きは、それぞれの場所で退ける (worse を通る)', () => {
+  const a = fake(2, 5, 1), more = fake(2, 5, 2), same = fake(2, 5, 1), none = (): number => 0, hi = (x: Attempt): number => x === more ? 1 : 0;
+  const ctxA = {before: 1, parallels: none, andCrossings: none, worse: realWorse};
+  assert.equal(rejectsAside(a, more, {...ctxA, before: 1, parallels: () => 0}), true, 'aside: 組が増える動き');
+  assert.equal(rejectsAside(a, fake(2, 5, 0), {...ctxA, parallels: () => 0}), false, 'aside: 組が減る動きは採る');
+  assert.equal(rejectsAside(a, fake(2, 5, 0), {...ctxA, parallels: () => 1}), true, 'aside: 並走が減らなければ退ける');
+  assert.equal(rejectsAside(a, fake(2, 5, 0), {...ctxA, parallels: () => 0, andCrossings: hi}), false);
+  assert.equal(rejectsAside(a, more, {...ctxA, parallels: () => 0, worse: () => false}), false, '前提: worse が組を見なければ、組が増える動きが通る (変異の確認)');
+  assert.equal(rejectsSharing(a, more, {before: 1, parallels: () => 0, worse: realWorse}), true, 'sharing: 組が増える');
+  assert.equal(rejectsSharing(a, fake(2, 5, 0), {before: 1, parallels: () => 0, worse: realWorse}), false);
+  assert.equal(rejectsApart(a, more, {grouped: false, parallels: none, andCrossings: none, worse: realWorse}), true, 'apartOf: 組が増える動き');
+  assert.equal(rejectsApart(a, same, {grouped: false, parallels: none, andCrossings: none, worse: realWorse}), false);
+  assert.equal(rejectsApart(a, same, {grouped: true, parallels: none, andCrossings: x => x === same ? 1 : 0, worse: realWorse}), true, 'apartOf: AND の交差が増える');
+  assert.equal(rejectsApart(a, same, {grouped: false, parallels: none, andCrossings: x => x === same ? 1 : 0, worse: realWorse}), false, 'AND の組が無い図では見ない');
 });
 
 // 並びの探索の状態: 採点は [AND の交差, AND の並走, 交差, 組, 折れ, 高さ] (C は先頭の 3 つ)
