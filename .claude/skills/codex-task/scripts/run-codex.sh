@@ -34,11 +34,11 @@ tmp=""
 trap 'rmdir "$lock" 2>/dev/null; [ -n "$tmp" ] && rm -rf "$tmp"' EXIT
 trap 'exit 130' INT TERM
 # An earlier clone with the same label is moved aside, never deleted and never touched by git here: the sandbox could write its
-# .git/config (core.fsmonitor, an ext:: remote ...), which git would run outside the sandbox. Look into it, then delete it by hand.
+# .git/config (core.fsmonitor, an ext:: remote ...), which git would run outside the sandbox. Delete it unread (Codex pushes its work).
 if [ -e "$d" ]; then
   old="$d.old-$(date +%Y%m%d%H%M%S)"
   mv "$d" "$old"
-  echo "moved the previous clone to $old (it may hold unpushed work; delete it when done)" >&2
+  echo "moved the previous clone to $old: do not run git or pnpm in it; delete it with rm -rf" >&2
 fi
 rm -f "$report" "$log"
 git clone -q --reference "$repo_git" "$url" "$d"
@@ -60,7 +60,7 @@ done
 # directory that holds only the packageManager field (not the branch's files), so Codex never writes the package-manager store.
 export pnpm_config_store_dir="$work/pnpm-store"
 pm=$(node -e 'process.stdout.write(require(process.argv[1]).packageManager ?? "")' "$d/package.json" 2>/dev/null || true)
-case $pm in pnpm@[0-9]*.[0-9]*.[0-9]*) case $pm in *[!A-Za-z0-9@.+-]*) pm= ;; esac ;; *) pm= ;; esac  # only a plain pnpm@x.y.z[+sha...] goes into the warm-up
+case $pm in pnpm@[0-9]*.[0-9]*.[0-9]*) case $pm in *[!A-Za-z0-9@.+-]*) pm= ;; esac ;; *) pm= ;; esac  # only pnpm@<version> made of letters, digits and @.+- goes into the warm-up
 if [ -n "$pm" ]; then
   warm="$work/pm-warm"; mkdir -p "$warm"
   printf '{"packageManager":"%s"}\n' "$pm" >"$warm/package.json"

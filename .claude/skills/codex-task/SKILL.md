@@ -61,7 +61,7 @@ CODEX_WORK=<scratchpad>/codex sh .claude/skills/codex-task/scripts/run-codex.sh 
 - **Codex の clone(`cx-*`、`cx-*.old-*`)の中で git・gh・pnpm・node を走らせない**(sandbox がその `.git/config` やファイルを書けたので、
   走らせると sandbox の外で任意のコマンドが動きうる)。Codex は blocked でも途中の作業を push するので、結果は origin のブランチと PR で見る。
   `.old` の clone は、読まずに `rm -rf` で消す(origin に無いものが要るときだけ、`cat` で ref のファイルを読んで `git ls-remote` と比べる)。
-- 同じ label が走っている間は断る。ブランチに `.codex/` か `.pnpmfile.cjs` があれば断る(sandbox の外で走るため)。
+- 同じ label が走っている間は断る。ブランチに `.codex/` か `.pnpmfile.cjs` があれば断る(Codex は clone を信頼して `.codex/` を読み、`.pnpmfile.cjs` は後でそこで pnpm を走らせる人の手元で動くため)。
 - sandbox で書けるのは clone、その `.git`、run ごとの TMPDIR(`/tmp/cx-<label>.*`)、Codex 専用の pnpm ストアと npm のキャッシュ、pnpm のロックだけ。`/tmp` 全体と利用者の pnpm ストアは書けない。
 - 終了コードが 0 でも報告が無ければ失敗として扱う(スクリプトが 1 を返す)。
 
