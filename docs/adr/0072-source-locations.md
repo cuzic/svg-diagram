@@ -1,6 +1,6 @@
 # ADR 0072: 指摘と図の部品に、ソースの位置(ファイル・行・桁)を持たせる
 
-- 状態: 起草(2026-11-21。Opus のレビュー 1 回目(`0072-opus-review-round1.md`)の Blocker 1・Major 5・Minor 10・Nit 7 を反映)
+- 状態: 起草(2026-11-21。Opus のレビュー 1 回目(`0072-opus-review-round1.md`)の Blocker 1・Major 5・Minor 10・Nit 7 を反映。2 回目(`0072-opus-review-round2.md`)は Blocker なし、D2 の運び方は全例で動くと確かめた上で、Major 3・Minor 5・Nit 6 を反映)
 - 基点: `main`(950584b、PR #398 まで)
 - 関連: ADR 0013(失敗の伝え方)、ADR 0025/0026(検査の重大度)、ADR 0034(SVG の `data-node`)、ADR 0038(ドリフトの検査)、ADR 0045(ブラウザの入口)、ADR 0071(JSON Schema)、svg-diagram-vscode(VS Code 拡張。Phase 2)
 
@@ -32,28 +32,30 @@ VS Code 拡張は `check --format json` の指摘をエディタの波線にし�
 
 **D2. 位置を取り、描くまで運ぶ。** 取る所と、運ぶ所の両方を決める。運ぶ所の方が漏れやすい(背景)。
 
-- **持ち方**: 部品に、**列挙できるシンボルのキー** `SOURCE` で、小さなクラスのインスタンス `SourceRef` を置く。中身は `captureStackTrace` を受けた物。そのスタックは列挙できない性質なので、深い写しで中まで写すと消える。だから `SourceRef` はどこでも**参照のまま**渡す。シンボルなので、JSON・`Object.keys`・SVG・PPTX には出ない。描いた結果は 1 バイトも変わらない。
-- **取る所 1: 公開の入口。** `lib/dsl-pure.ts` は、関数を `export *` でなく名前を並べて出し、部品を返すものを `located(fn)` で包む。包みの規則は次のとおり。
+- **持ち方**: 部品に、**列挙できるシンボルのキー** `SOURCE`(`Symbol.for('svg-diagram.source')`。`svg-diagram/spec` などの入口が `node_modules` から別の写しで読まれても同じキーになる)で、小さなクラスのインスタンス `SourceRef` を置く(型の取り除きで動くよう、引数のプロパティでなく普通のフィールドで書く)。中身は `captureStackTrace` を受けた物。そのスタックは列挙できない性質なので、深い写しで中まで写すと消える。だから `SourceRef` はどこでも**参照のまま**渡す。シンボルなので、JSON・`Object.keys`・SVG・PPTX には出ない。描いた結果は 1 バイトも変わらない。`SourceRef` と `located` はブラウザの入口からも届くので `node:*` を使わない。行と桁に解く所(D3。`fileURLToPath`・`realpath`)は CLI だけの別のモジュールに置く。
+- **取る所 1: 公開の入口。** `lib/dsl-pure.ts` は、関数を `export *` でなく名前を並べて出し、部品を返すものを `located(fn)` で包む。`lib/dsl/io.ts` の部品を返す関数(`image`・`math`)も包む。包みの規則は次のとおり。
   - 文字列の `type` を持つ物(と、それを並べた配列の各要素)にだけ付ける。関数(`styled`)と部品でない物は素通しにする。
   - **すでに `SOURCE` があれば上書きしない**(`rewrite` が返す、変わらなかった部品は元の位置のまま)。
   - 返した部品の中の部品(`steps` の箱、`swimlane` の段、`versus` の中身)で `SOURCE` のない物には、外の呼び出しの `SourceRef` を付ける(`nestedBandsOf` で歩く)。
   - `wf.*` は対象外(ワイヤーフレームの部品の位置になる)。
+  - 関数そのものに付いたプロパティは写し、関数なら同じく包む(`quadrant.preset`。写さないと `quadrant.preset is not a function` になる。型は変わらないので `tsc` では気づけない)。
+  - `diagram()` は特別に扱う。返す `Diagram` には `type` がないが、`SOURCE` を付ける(`detachData` の spread で残る)。図全体の位置(D4)はこれを読む。`diagram()` の設定から足される部品(`withTitleLine`・`withSourceLine`・`withStatus` の見出しと出典、自動の凡例)は、`diagram()` の `SOURCE` を受け継ぐ。
 - **取る所 2: `Diagram` のメソッド。** `d.connect(...)` は公開の `connect` を通らないので、自分で取る。`d.add(...)` は、`SOURCE` のない部品に `add()` を呼んだ位置を付ける(手で組んだ物への最後の受け皿)。
 - **運ぶ所**:
   - `cloneData` は `SOURCE` だけを参照のまま写す。ほかのシンボル(`NUMBERING`・`GIVEN`・`RICH`)は、今のとおり捨てる。
   - `applyConnectDefaults` は、作り直した接続に元の `SOURCE` を写す。
   - 戻りの矢印(`expandLoopBacks`)は、`loopBack` を書いた部品の `SOURCE` を写す。
-  - 自動の凡例は位置を持たない(図全体の位置になる。D4)。
   - レイアウトは、**部品を振り分ける 1 か所**(`lib/layout.ts` の `ctx.stack`)で、処理の前後の `ctx.laidOut` を比べる。新しくできた部品のうち `SOURCE` のない物に、元の部品の `SOURCE` を付ける。後で解く接続(`deferred`)も同じにする。中の `ctx.stack`(`group` の中身など)が先に付けた、より細かい位置は上書きしない。各レイアウトの処理は直さない。
 - **`WeakMap` にしない理由**: 写す所(`cloneData`・`cloneBand`・`rewrite`・`mapBands`・レイアウト)すべてで、写した物を登録し直すことになる。シンボルなら spread と記述子の写しで付いていく。付いていかない所は、上の 2 か所(`cloneData` と `ctx.stack`)だけ。
-- **取るのは、要るときだけ。** `check` と、`build --locations`(D6)だけが、ソースを読む前に `captureSourceLocations(true)` を呼ぶ。ほかの CLI(`show`・`serve`・`notes`・`md`・`pptx`・`deck`・`site`)と、ライブラリとして使う人(Workers の `renderSpecEdge`、ブラウザのページ、MCP)は取らない。手間も、振る舞いの変化もない。`captureStackTrace` がない環境では、有効にしても何もしない。並列の `--drift --rebuild` の子(`drift-pool.ts`)は `check` と同じファイルなので、同じに動く。
+- **取るのは、要るときだけ。** `check` と、`build --locations`(D6)だけが、ソースを読む前に `captureSourceLocations(true)` を呼ぶ。ほかの CLI(`show`・`serve`・`notes`・`md`・`pptx`・`deck`・`site`)と、ライブラリとして使う人(Workers の `renderSpecEdge`、ブラウザのページ、MCP)は取らない。手間も、振る舞いの変化もない。`captureStackTrace` がない環境では、有効にしても何もしない。`check` でも、図の指摘を出さない調べ方(`--drift`・`--docs`・`--covers` だけのとき)では取らない。
 
 **D3. どのフレームを位置にするか。**
 
-- フレームは、文字のスタックを正規表現で読まず、V8 の CallSite で読む(`Error.prepareStackTrace` を、`SourceRef` から読むときだけ差し替える)。括弧のあるパス、`async` / `new` のフレーム、名前のないフレームも同じに扱える。
+- フレームは、まず V8 の CallSite で読む。括弧のあるパス、`async` / `new` のフレーム、名前のないフレームも同じに扱える。CallSite は、`stack` を一度でも文字にすると取れない(`SVG_DIAGRAM_DEBUG`、利用者の `catch (e) { console.error(e); throw e; }` など)。そこで `check` と `build` は、起動のときに CLI 全体の `Error.prepareStackTrace` を 1 つ入れる。それは CallSite を誤りのシンボルに残し、いつもの文字のスタックを返す。
+- **文字のスタックも読む(CallSite がないとき)。** 構文の誤り(書きかけの `return a +;`)、型の取り除きで扱えない構文(`enum` など)、ない名前の import は、Node が読み込みのときに作る誤りで、`stack` はすでに文字になっている(26.13 と 25.9 で確かめた)。位置は先頭の `path:line` の行(パスのことも `file://` の URL のこともある)と、`^` の行(桁)にしかない。この行と、`at …:行:桁` のフレームを読む。エディタで保存した書きかけのファイルがいちばん多く出す誤りなので、U1 に入れる。
 - パスは `fileURLToPath` で戻す(日本語・空白のパスは URL では `%E6…` になる)。その前に、読み直しの問い合わせ(`?svg-diagram-fresh=…`、`lib/resolve-hook.ts`)を外す。
 - **パッケージの中のフレーム**は読み飛ばす。それは、`located` を定義したモジュールのディレクトリ(`lib/` か `dist/lib/`)より下と、CLI の入口のファイル、それに `node:` のフレーム。パッケージの根では決めない。clone で動かすと、`examples/` やテストの図まで「中」になってしまうため。
-- ソースのフレームかどうかは、フレームのパスとソースのパスを、どちらも `realpath` にして比べる(シンボリックリンクを通すと、スタックは実際のパスになる)。出力には、引数に書かれたとおりのパスを使う。
+- ソースのフレームかどうかは、フレームのパスとソースのパスを、どちらも `realpath` にして比べる(シンボリックリンクを通すと、スタックは実際のパスになる)。出力には、引数に書かれたとおりのパスを使う。別のファイルの位置(`location`)は、スタックの実際のパスになる。そこで、カレントディレクトリ(とその realpath)の下にあれば、カレントディレクトリからの論理的なパスに直して出す。シンボリックリンクを通して開いたワークスペースでも、拡張が開いた文書と合わせられるようにするため。
 - **`loc` は、検査しているソースの中のいちばん内側のフレーム。** ソースの中の外側のフレームは、内から外の順に `via` に入れる(5 つまで)。`loc` が共通の関数の中の 1 行になるとき(背景の `head`)、拡張は `loc` の呼び出しの範囲でラベルを探す。見つからないとき、または同じ `loc` の部品が複数あるときは、`via` を外へたどる。いちばん外を `loc` にしない理由がある。`.map(t => box(...))` を何行にも書くと、外側は `.map` の行になり、部品ごとの行を失うからだ。
 - ソースのフレームがなければ、利用者の別のファイル(`_parts.ts` など)のいちばん内側のフレームを `loc` にする。
 - `check` と `build` は、起動のときに `Error.stackTraceLimit = 50` にする(包みの中だけでなく、投げた誤りのスタックも深く取るため)。
@@ -61,10 +63,13 @@ VS Code 拡張は `check --format json` の指摘をエディタの波線にし�
 **D4. 指摘の位置を、その元から取る。**
 
 - `build-error`:
-  - 誤りに `SOURCE` があればそれを使う。なければ、誤りの `stack` から D3 で取る。
+  - 誤りに `SOURCE` があればそれを使う。なければ、誤りの CallSite か `stack` の文字から D3 で取る。
+  - 文字列など、`Error` でない物を投げたときは、一度だけ `new Error(String(e), {cause: e})` に包む(そのままでは位置を付けられない)。
   - `define()` で投げた誤りは、スタックに利用者のフレームがある(U1。位置の捕捉は要らない)。
   - レイアウトで投げた誤りは、`ctx.stack` と、後で解く接続の繰り返しで受け止める。そこで処理していた部品の `SOURCE` を誤りに付けて(すでにあれば付けない)、投げ直す(U2a)。
-- **中の受け渡しを、文字列から構造にする。** `verify` の誤りは、どこでも `{message, loc?, related?}` で作る。`verdict.problems` の文字列は、最後にそこから作る(今の利用者のため)。文字列と構造を 2 本並べて持つことはしない(順番や重複の除き方がずれる)。最初に、四角を集める 1 か所(`collectRects`。重なり・はみ出し・接続)を直す。四角(`CheckRect`)は元の部品の `loc` を持ち、2 つの部品の重なりは、1 つ目を `loc`、2 つ目を `related` にする。
+  - レイアウトの外で、部品ごとに回る所も同じにする(小さな `atBand(band, fn)` で)。`detach` の `resolveImages`(ない画像のファイル)、`prepareReveal`(`reveal` / `until`)、`fillAutoToday`(gantt の `today`)、`layoutBands` の最初の歩み(1 回目)。
+  - どれにも当たらない、図の設定の誤り(`spotlight` の知らない id、`slide` のない `fill`、測る所の誤り)は、`renderDiagram` / `checkDiagram` が受け止めて、`diagram()` の `SOURCE` を付ける。
+- **中の受け渡しを、文字列から構造にする。** `Verdict.issues: {message, loc?, related?}[]` をただ 1 つの元にする。`verdict.problems` の文字列は、`verifyDiagram` の最後で `issues` から作る(`problems` を読む今の利用者 `check`・`show`・`serve`・spec・Worker のため)。各処理の `out.problems.push(文字列)`(`lib/verify-handlers.ts` に 53 か所)は直さない。`runCheckPhase` / `contrastProblems` が部品ごとの `out` を渡し、そこに入れた文字列を `{message, loc: band[SOURCE]}` にする。`loc` はプロセスの中では `SourceRef` のまま持ち、CLI で解く。`build()` が検査に落ちて投げる誤りにも `issues` を付ける(プレビューと `drift-rebuild-failed` が位置を出せるように)。文字列と構造を 2 本並べて持つことはしない(順番や重複の除き方がずれる)。最初に、四角を集める 1 か所(`collectRects`。重なり・はみ出し・接続)を直す。四角(`CheckRect`)は元の部品の `loc` を持ち、2 つの部品の重なりは、1 つ目を `loc`、2 つ目を `related` にする。
 - 規則の指摘: `Finding` に `loc?: SourceLoc` を足す。部品を見る規則は、`at(band)` で位置を付ける。図全体を見る規則(幅・密度など)は `diagram()` の位置を使う。規則ごとに位置の付いた割合を `examples/*.ts` で数えるテストを置き、下がったら分かるようにする。
 - 重複を除く所(`headlineLength` の `seen`、`appearance: 'auto'` の `mergeSides`)は、文言だけでなく位置もキーに入れる。同じ文言の別の部品が、1 つにまとめられないように。
 - 位置を解けないとき(`SOURCE` がない、スタックにソースのフレームがない)は、位置を付けない。今と同じに戻るだけで、誤った位置は出さない。
@@ -84,6 +89,7 @@ VS Code 拡張は `check --format json` の指摘をエディタの波線にし�
   - `node` は ADR 0034 の名前。
 - 接続は、線と見出しの外接の四角に加えて、`segments`(線の区切り)を書く。
 - 図全体は `diagram()` の位置で 1 つ。
+- **検査に落ちても書く。** 重なりやはみ出しがあると `build` は SVG を書かずに落ちる。直す所があるときこそプレビューに地図が要るので、`--locations` は、レイアウトまで進んだなら地図と `issues`(位置つき)を書いてから落ちる。
 
 拡張のプレビューでの使い方:
 
@@ -91,16 +97,23 @@ VS Code 拡張は `check --format json` の指摘をエディタの波線にし�
 - **ソースから図へ**(カーソルから部品を光らせる): 同じ地図を逆に引く。
 - SVG に `data-src` を書かない理由: ソースの行が変わるだけで SVG が変わり、ドリフトの検査(ADR 0038)が落ちるため。
 
-**D7. JSON の spec(MCP・デッキの `.json` の図)は、行ではなく JSON の場所(JSON Pointer)を位置にする。** `specToDiagram` が部品に `/parts/3` を置き、指摘は `path: "/parts/3"` を持つ。デッキのファイルの中の図は、`/slides/4/diagram/parts/3` のように前にデッキの中の場所が付く。スタックは要らないので、**いつも付ける**。MCP の `check_diagram` も、ライブラリの道のまま返せる。行と桁は、エディタが JSON を読んで出す(テキストを持っているのはエディタ)。
+**D7. JSON の spec は、今ある `path`(`parts[3].links[1]`)を、文言の推測でなく部品の印から出す。** spec にはすでに位置の仕組みがある。`locateMessage` / `locateVerdict`(`lib/spec.ts`)が、メッセージの中の引用された文言から部品を探し、`LocatedMessage.path` に `parts[3]` の形で入れる。MCP の `check_diagram` / `render_diagram`、`spec-edge`、`pptx-edge` がそれを返し、デッキは前に `slides[i].figure.` / `slides[i].columns[j].figure.` を付ける。この形と欄の名前は変えない。
+
+- 印は `SOURCE` に乗せる(ほかのシンボルは `cloneData` で消える)。`SourceRef` の一種 `{specPath}` とする。
+- `assemble()` は `partDef.build(part, at)` のあと、返った部品とその中の部品に `{specPath: 'parts[3]'}` を付ける。spec の部品は包んだ入口の関数で作るので、捕捉が有効なら先にスタックの印が付いている。spec の印は、スタックの印より強い(上書きしてよい)とする。
+- `locateMessage` / `locateVerdict` は、`issues` の `loc` に spec の印があればそれを使い、なければ今の文言の推測に戻る。
+- スタックは要らないので、**いつも付ける**(ライブラリの道でも)。
+- `issues` の構造が要るので、U3 の後(U4)にする。
+- 使うのは MCP・`spec-edge`・デッキの検査。`check` は `.ts` しか受け取らないので、VS Code 拡張の波線はこれを使わない(JSON の誤りは ADR 0071 のスキーマで出る)。
 
 ## 実装の順
 
 - **U0**(この ADR): 背景の試し。
-- **U1**: `define()` で投げた `build-error` の位置。D3 のフレームの選び方、`stackTraceLimit`、D5 の出力の形を作る。捕捉はまだ要らず、これだけで拡張の後退の大半が直る(レイアウトで投げた誤りは U2a)。`test/cli.test.ts` に、投げた行のテストを足す。共通の関数から投げたとき(同じファイル・別のファイル)の `loc` と `via`、日本語と空白のあるパスのテストも足す。
-- **U2a**: 運ぶ所(D2 の「運ぶ所」・`Diagram` のメソッド・レイアウトの誤りに位置を付ける)。テストでは、手で `SOURCE` を付けた部品を `checkDiagram()` / `renderDiagram()` に通し、レイアウトのあとのすべての部品が `SOURCE` を持つことを確かめる。危ないのはここ。
-- **U2b**: 公開の入口の包み(`located`、名前を並べた export)。`.ts` の試しの図に、部品を返す関数ごとに最小の引数を書いた表を置き、それぞれの位置がその行に解けることを確かめる。`Object.entries(dslPure)` のうち、表にない関数があれば落ちる(`partCatalog()` は JSON の部品だけで、`box`・`row`・`connect` などがないので使わない)。
+- **U1**: 読み込みと `define()` で投げた `build-error` の位置。D3 のフレームの選び方(CallSite と文字のスタックの両方)、CLI 全体の `prepareStackTrace` と `stackTraceLimit`、D5 の出力の形を作る。捕捉はまだ要らず、今の拡張がすでに `line` を使うので、これだけで拡張の後退の大半が直る(レイアウトとその前後で投げた誤りは U2a)。`test/cli.test.ts` に、投げた行のテストと、構文の誤り・`enum`・ない名前の import のテストを足す。共通の関数から投げたとき(同じファイル・別のファイル)の `loc` と `via`、日本語と空白のあるパスのテストも足す。CI の Node 22 の job でも回す(試しは 25 と 26 でしかしていない)。
+- **U2a**: 運ぶ所(D2 の「運ぶ所」・`Diagram` のメソッド・`diagram()` の印・D4 の、レイアウトとその前後で投げた誤りに位置を付ける所)。ない画像・`until` の誤り・`spotlight` の知らない id・知らない anchor id のテストを置く。テストでは、手で `SOURCE` を付けた部品を `checkDiagram()` / `renderDiagram()` に通し、レイアウトのあとのすべての部品が `SOURCE` を持つことを確かめる。危ないのはここ。
+- **U2b**: 公開の入口の包み(`located`、名前を並べた export)。`.ts` の試しの図に、部品を返す関数ごとに最小の引数を書いた表を置き、それぞれの位置がその行に解けることを確かめる。`lib/dsl.ts` の実行時の export(関数に付いたプロパティ `quadrant.preset` も)のうち、表にも「部品を返さない」一覧(`build`・`renderDiagram`・`checkDiagram`・`closeMeasurer` など)にもない関数があれば落ちる(`partCatalog()` は JSON の部品だけで、`box`・`row`・`connect` などがないので使わない)。
 - **U3**: 指摘の構造化と位置(D4 の残り、D5)。拡張は、`line` があればそれを使い、なければ今のようにラベルを探す(古い core でも動く)。
-- **U4**: `build --locations`(D6)と JSON の spec の場所(D7)。拡張のプレビューの「クリックでソースへ」と一緒に。
+- **U4**: `build --locations`(D6)と spec の印(D7)。拡張のプレビューの「クリックでソースへ」と一緒に。
 
 テストの注意: `assert.deepStrictEqual` は列挙できるシンボルも比べる(ゆるい `deepEqual` は比べない)。捕捉は既定で切ってあるので、今のテストは変わらない。捕捉を有効にするテストでは、部品を比べる前に `SOURCE` を外すか、CLI のプロセスの外から確かめる。
 
@@ -116,7 +129,7 @@ VS Code 拡張は `check --format json` の指摘をエディタの波線にし�
 
 ## 結果
 
-- 拡張の波線が、指摘の元の部品の行に付く。同じ文言の部品が 2 つあっても、1 行目に落ちない。`build-error` は投げた行(レイアウトの誤りなら、その部品の行)に戻る。0.8.0 での後退が直る。
+- 拡張の波線が、指摘の元の部品の行に付く。同じ文言の部品が 2 つあっても、1 行目に落ちない。`build-error` は投げた行に戻る。構文の誤りはその行と桁、部品で投げた誤り(レイアウト・画像・`reveal` など)はその部品の行、図の設定の誤りは `diagram()` の行になる。0.8.0 での後退が直る。
 - CI の注釈(`github` / SARIF)が、PR の差分の行に付く。
 - 描いた SVG・PPTX・JSON は変わらない。位置はシンボルのキーにあり、外に出るのは CLI の出力と `--locations` の地図だけ。
 - `check` の負担は、部品 1 つにつき数 µs と 1〜2 KB。ほかの CLI とライブラリは取らないので、負担はない。
