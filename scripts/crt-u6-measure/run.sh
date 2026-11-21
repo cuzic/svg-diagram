@@ -7,7 +7,7 @@
 #           ROOT=<scratch worktree> <repo>/scripts/crt-u6-measure/run.sh <tag> '<json toggles>'   # ~40-70 s (150 + 80 figures in parallel)
 #           node <repo>/scripts/crt-u6-measure/compare.mjs <tagA> <tagB>   # sums and the figures that went up/down
 #           node <repo>/scripts/crt-u6-measure/perfig.mjs <tagA> <tagB>    # per-figure maxima: bends, height, pairs; figures that got worse
-#           node <repo>/scripts/crt-u6-measure/pins.mjs <tagMain> <tagNew> > pins.json   # the per-figure values the ADR 0073 tests pin
+#           node <repo>/scripts/crt-u6-measure/pins.mjs <tagMain> <tagNew> [<tagNoPairs>] > pins.json   # the per-figure values the ADR 0073 tests pin
 # The proposal of ADR 0073 (D1 + D2 + D3):  '{"height":"xcross","axis":"rank","pairs":"mid","sPairs":"mid","andAlign":"tail"}'   (main = '{}')
 # Toggles: noShift noTurn noApart (D12-D14) | pairs/sPairs: mid|last (run pairs in better() / the order search) | height: off|soft|key|xdrop|xcross (+cap, capBudget) | tieH (height as the last key)
 #          axis: off|rank (rankEps: ranks joined by gaps over 0.5px) | patience patienceQuiet maxOrders patLaid noProxy noSearch | andAlign: both|tail | gapTracks crowdTracks | epAll | proxyScan
