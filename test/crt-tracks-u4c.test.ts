@@ -8,7 +8,7 @@ import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {register} from 'node:module';
 import {corridorLoad, laneStepOf, layeredAttempt, layoutWithLanes, routeLayered} from '../lib/layered-route.ts';
-import {crossingsOf, crossingsWith, gainsRunPairs, parallelRuns, runPairGain, runPairWays, type runsOfPath, runsOfRoute, scoreOf} from '../lib/polyline-metrics.ts';
+import {crossingsOf, crossingsWith, gainsRunPairs, pairsOf, parallelRuns, runPairGain, runPairWays, type runsOfPath, runsOfRoute, scoreOf} from '../lib/polyline-metrics.ts';
 import type {RoutedRuns} from '../lib/polyline-metrics.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import type {Pt} from '../lib/graph-layout.ts';
@@ -200,13 +200,16 @@ for (const [g, crossings] of [[7, 1], [33, 7], [93, 0]] as const) {
     const {t} = await causeOf(diagram({theme: 'blue', width: 1800}).add(causeTree(nodes, links as never, {tree: 'crt', dir})));
     const routes = t.edges.map(e => e.points);
     assert.ok(crossingsOf(routes) <= crossings, `${crossingsOf(routes)} crossings`);
-    assert.deepEqual(parallelRuns(routes, 4), []);
+    // ADR 0073 U2: #93 trades two pairs under a lane step (one 4px apart over 44px long, one on a line with its ends near) for one pair on one line over 14px: one pair fewer, which the pairs key takes.
+    // Whether a pair on one line (under 4px) should weigh more than a pair side by side is an open question of the PR; the other two figures keep no pair on one line
+    if (g === 93) assert.ok(pairsOf(routes, 14) <= 1 && parallelRuns(routes, 4).length <= 1, `${pairsOf(routes, 14)} pairs`);
+    else assert.deepEqual(parallelRuns(routes, 4), []);
   });
 }
 
 // ---- the examples: edge-parallel in examples/toc-* ----------------------------------------------------------------------------------------------------
 
-test('edge-parallel in examples/toc-*: none but toc-hop and toc-hop-all, whose pair is a long arrow\'s way point 8 to 10px from another arrow\'s last run / a return\'s lane', async () => {
+test('edge-parallel in examples/toc-*: none but toc-hop-all (the pair of toc-hop went with ADR 0073 U2), whose pair is a long arrow\'s way point 8 to 10px from another arrow\'s last run / a return\'s lane', async () => {
   const EXAMPLES = path.resolve(import.meta.dirname, '../examples');
   const config = loadConfig();
   const found: Record<string, number> = {};
@@ -214,7 +217,7 @@ test('edge-parallel in examples/toc-*: none but toc-hop and toc-hop-all, whose p
     const r = await checkDiagram(await loadDiagram(path.join(EXAMPLES, `${name}.ts`), config));
     found[name] = lintDiagram(r.laidOut).filter(f => f.rule === 'edge-parallel').length;
   }
-  assert.deepEqual(Object.fromEntries(Object.entries(found).filter(([, n]) => n > 0)), {'toc-hop-all': 1, 'toc-hop': 1});
+  assert.deepEqual(Object.fromEntries(Object.entries(found).filter(([, n]) => n > 0)), {'toc-hop-all': 1});
 });
 
 // ---- the random layered graphs, against origin/main's totals ---------------------------------------------------------------------------------------

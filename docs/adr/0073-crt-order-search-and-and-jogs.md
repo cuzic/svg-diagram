@@ -1,6 +1,6 @@
 # ADR 0073: CRT の並びの探索(高さ・並走の組・打ち切り)、AND の矢印の段差、D12〜D14 の整理、`edge-parallel` の範囲
 
-- 状態: 承認(Accepted。2026-11-21。レビュー 4 回で収束。決める人の決定をすべて記録済み(Q1〜Q4 と、レビューで出た 5 点)。U1 は実装済み。下の「U1 の実装メモ」)
+- 状態: 承認(Accepted。2026-11-21。レビュー 4 回で収束。決める人の決定をすべて記録済み(Q1〜Q4 と、レビューで出た 5 点)。U1・U2 は実装済み。下の「U1 の実装メモ」「U2 の実装メモ」)
 - 日付: 2026-11-21
 - 基点: `main`(PR #402 まで)。数値はすべて ADR 0070「U6 測定結果」(同じ PR)の測定と、同じ PR の `scripts/crt-u6-measure/` の再測定による(測定した版の `lib/` は `probe.patch`。基点は `456ef142`)
 - 関連: ADR 0070(CRT の辺の読みやすさ。U6 の残り)、ADR 0019 D4(並びの再探索)、ADR 0053(探索の費用。**実装済み**。D1 の費用はその予算の中で測る)、ADR 0016 D12〜D14(並走のずらし)、ADR 0015(AND の弧)、Issue #397(探索が高さを見ない)、PR #402(倍率の線を外す再配置)
@@ -298,3 +298,16 @@ D1 の規則 (a)〜(g) と高さの最後の key(D1-2)を実装した(PR は U1 
 - **P2 の基準**: ADR は `1.25 × max(main の高さ, 最初の並びの高さ)`。ピンは最初の並びの高さを持たないので、`1.25 × main の高さ` で見る(より厳しい側。実測の最大は #106 の 1.242 倍)。最初の並びの高さからの上限は、`test/cause-order-search.test.ts` の「交換」のテストが、固定の字幅の図で直接確かめる。
 - **P1 の AND の交差**: 例外の判定に使う AND の交差は、探索の採点と同じ `andClashes(…)` の `crosses` の数(1 つの AND の矢印どうしの交差ではない)。ピンのラベルを「あ」だけにした図では、**#33 が AND の交差 1 → 0(`cause-crossing` 1 → 0)と引き換えに、交差が 6 → 7 になる**(幅 1800 と canvas。(b) の既存の規則による。D1-3 の意図した動き)。
 - **#397**: 下の PR で閉じてよい。テスト(`toc-hop-all` の 505px、高さの最後の key の #99)が通る。残ること: 高さを交差・組と重みづけて交換することはしない。採った高い候補が main の最終の図より高いまま残る図は、幅 1800 で #42(+51px、組 +1)、canvas で #13・#37・#42(+20〜+57px)の 4 枚(探索の道の変化。同点の高さの比べでは直らない)。
+
+## U2 の実装メモ(2026-11-21)
+
+D2(組と折れの窓)を実装した(PR は U2 の 1 本。U3・U4 は含まない)。
+
+- **選択(`lib/layered-route.ts`)**: 候補の key は末尾が (組, 折れ, 高さ)、その前が C。`windowOf`(C が最小で、折れが b* + 4 以下の案の添字)と `selectIndex`(窓の中の (組, 折れ, 高さ) の最小。同じなら一覧の先)を export した。`selectAttempt(list)` は `Attempt` の一覧への薄い包み。`better(a, b)` は 2 案の一覧 `[b, a]` への選択(同点は b が残る)。`worse` は `worseThan`(取り出して単体で試す)で、`aside`・`sharing`・`apartOf` が使う。**`better()` の C は交差だけ**(`probe.patch` と同じ。ADR 本文の「AND の組がある図では先に `andCrossings` を比べる」は `better()` には当てはまらない: main の `better()` は AND を持たず、`aside`・`apartOf` が `andCrossings` を別に守る)。組は `pairsKey`(`heads` のある帯 = causeTree の自分の帯だけ。高さの key と同じ範囲)で `Attempt.score.pairs` に入り、`pairsOf(routes, laneStepOf(space × scale))`(`polyline-metrics.ts`)で数える。
+- **折れが 3 案以上の畳み込み(監査)**: (1) `layeredAttempt` の返しの `near`/`low` の選び(far・near・low)を `selectAttempt` の一覧にした(各辺は今までの `!worse(result, c)` などの条件を通ったものだけ一覧に入る)。(2) `toc.ts` の並びの探索ループ(`adopts` の畳み込み)を `windowPool` に直した(`add` が選択の変化を返し、変化したとき `lastBetter` を更新する。窓の外の図は手放す)。(3) `toc.ts` の最終の選び `pickFinal`(first・found・best)を同じ `windowPool` にした。`pick0`(plain・cand)・`aside`・`sharing`・`apartOf` は 2 案で、選択は 2 案の一覧。畳み込みだが直さないもの: `fit-width.ts` の `fitWidth`(`best` モード。`FitResult.score` の (交差, 折れ) で、`better()` ではなく、向き・幅の当てはめの選び。組は持たない。範囲外)。
+- **探索の採点(`lib/toc.ts`)**: `[AND の交差, AND の並走, 交差, 組, 折れ, 高さ]`。組と高さは causeTree の自分の帯だけ(ほかの帯は 0 で、選択は今までの辞書式と同じ)。`sep` は `bandSep(band, env)`(`laneStepOf(space × 線の倍率)`)で、探索の採点と `layeredAttempt` の `unit` が同じ値になる。`adopts` は `passesHeight`(高さのふるい)になり、採るかどうかは `windowPool` が決める。`inFrame` は探索ループと最終の選びが共有する(U1 の round 2 の Minor)。
+- **折れの上限 +4 の効き**: 上限を外した版との比較(幅 1800 の 142 枚 / canvas の 80 枚)は PR 本文。外すと #34・#48・#106・#120・#143 と canvas の #34・#42・#51・#75 が変わり、#106 は交差が 1 → 2 になる。#143・#75 は ADR の見込みどおり、#61 は U1 の後の探索の道では組だけの交換が出ない。#48 の AND の交差の消えるのは、上限が無いときだけ(`better()` の C に AND が無いため。上の C の項)。
+- **ピン**: `test/fixtures/crt-random-pins.json` を作り直した(`main` は #406 の行のまま、`now` は U2、`nopairs` は組の key を切った版、`laneStep` は組を 14px で数えると経路が変わる図の hash)。P3・P4 を `test/cause-order-pins.test.ts` に足した。**`worse`・`apartOf` の組の key は、乱数の 700 枚でも出力が変わる図が無い**ので、`worseThan` の単体で守る(それぞれの場所だけを外す変異は生き残る。共通の関数の変異は落ちる)。
+- **ADR の規則からの違い(Open question。PR 本文)**: 探索の `lastBetter` は「選択が替わったとき」に加えて、**組を除いた (C, 折れ, 高さ) の最小が下がったときも**更新する(`windowPool.add`)。規則どおりだと、組が少ない案が選ばれ続ける間、折れだけが下がる案が待ちを延ばさず、探索が早く切れて、交差の少ない並びを見つけ損ねる図が出た(`test/toc-fit.test.ts` の現状の CRT の図: 交差 1 → 2)。組を key に入れる前の待ち方を、そのまま残す形。
+- **U2 で期待を直した既存のテスト**: `test/crt-tracks-u4c.test.ts` の `toc-hop` の `edge-parallel` は 1 → 0(組 1 → 0 で、golden と同じ)。同じファイルの乱数の #93(Latin の ID つきラベル)は、組 2 つ(4px 離れて 44px、端が近い同じ線の上)を、同じ線の上で 14px 重なる組 1 つに替える(組は 1 つ減るが「同じ線の上(4px 未満)」の組が残る)。同じ線の上の組を重く数えるかは Open question。
+
