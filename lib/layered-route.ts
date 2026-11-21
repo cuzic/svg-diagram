@@ -3,7 +3,7 @@
 // it for a 'down' diagram).
 import {layoutLayered} from './graph-layout.ts';
 import type {LayeredEdge, LayeredEdgeOut, LayeredLayout, LayeredNode, LayeredOpts, Placed, Pt} from './graph-layout.ts';
-import {bendsOf, crossingsOf, crossingsOfRuns, crossingsWith, gainsRunPairs, runPairGain, rescore, runsOfPath, runsTogether, scoreOf, simplify} from './polyline-metrics.ts';
+import {bendsOf, crossingsOf, crossingsOfRuns, crossingsWith, gainsRunPairs, pairsOf, runPairGain, rescore, runsOfPath, runsTogether, scoreOf, simplify} from './polyline-metrics.ts';
 import type {RoutedRuns, Runs} from './polyline-metrics.ts';
 import {headCrossings, searchRoute} from './route-search.ts';
 import {moveApart} from './route-apart.ts';
@@ -1052,13 +1052,15 @@ export interface AttemptOpts {
   tracks?: boolean;
   /** ADR 0073 D1-2: the figure's height (`Attempt.size.h`, rounded) is the last key when two attempts are compared. A cause tree's own band only. */
   heightKey?: boolean;
+  /** ADR 0073 D2: the run pairs under one lane step of the figure's lines (`laneStepOf(space x scale)`) are a key of `better()` (crossings, pairs, bends, height), with the window of D1-4 on the bends. A cause tree's own band only. */
+  pairsKey?: boolean;
 }
 
 export interface Attempt {
   lay: LayeredLayout;
   routes: Map<number, Pt[]>;
   /** Corners and crossings of the routed arrows (placed points); lower is better. */
-  score: {crossings: number; bends: number};
+  score: {crossings: number; bends: number; /** run pairs at the lane step (`pairsKey` only) */ pairs?: number};
   /** The figure's width and height (transposed back when `transpose`). */
   size: {w: number; h: number};
   /** Whether `size.w` is within `maxAcross` (true when none is given). */
@@ -1096,7 +1098,10 @@ function piercings(a: Attempt, place: (p: Pt) => Pt): number {
  */
 export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layoutOpts: LayeredOpts & {start?: string[]; back?: readonly number[]}, o: AttemptOpts): Attempt {
   const unit = (o.space ?? 1) * (o.scale ?? 1); // ADR 0070 D7
-  const better = (a: Attempt, b: Attempt): boolean => betterAttempt(a, b, o.heightKey);
+  const scoreP = (routes: ReadonlyMap<number, Pt[]>): Attempt['score'] => { const pts = [...routes.values()], sc = scoreOf(pts); return o.pairsKey ? {...sc, pairs: pairsOf(pts, laneStepOf(unit))} : sc; };
+  const keyOf = (a: Attempt): number[] => attemptKey(a, o.heightKey);
+  // ADR 0073 D2: one attempt is better than another when the selection of the two (window and all) is the first: the list is [b, a], so that a tie keeps b
+  const better = (a: Attempt, b: Attempt): boolean => selectIndex([keyOf(b), keyOf(a)]) === 1;
   type Side = 'far' | 'near' | 'low';
   let laneHeads = false; // the returns end on the face of their head that looks at the lane (routeLayered's `laneHeads`); set only for the last try below
   const optsOf = new WeakMap<Attempt, {opts: typeof layoutOpts; laneShare: boolean; near: Side}>();
@@ -1106,7 +1111,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     const size = sizeOf(lay);
     const groupOf = o.groupOf;
     const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(at(lay.edges, i).index)), o.round, o.straighten !== false, laneShare, aside, o.detour === true && opts.coord === 'bk', o.detour === true, o.space, laneHeads, o.heads, o.tracks === true, o.scale); // the search for a way around the boxes only in the straightened candidate (it competes with the plain one on bends); a lone port is straightened in both
-    const made = {lay, routes, score: scoreOf([...routes.values()]), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
+    const made = {lay, routes, score: scoreP(routes), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
     optsOf.set(made, {opts, laneShare, near});
     return made;
   };
@@ -1159,7 +1164,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     if (groupOf && run !== undefined) a.lay.edges.forEach(e => { if (!e.self && groupOf(e.index) !== undefined) andHeads.add(e.to); });
     const routes = moveApart({routes: a.routes, edges: new Map(a.lay.edges.map((e, i) => [i, {from: e.from, to: e.to, self: e.self, outer: e.outer}])), rects, ...(run === undefined ? {} : {headRun: (i: number) => andHeads.has(at(a.lay.edges, i).to) ? run : 22}), ...(o.scale === undefined ? {} : {scale: o.scale}), ...(o.tracks ? {sep: laneStepOf(unit)} : {})});
     if ([...routes].every(([i, r]) => r === a.routes.get(i))) return a;
-    const b: Attempt = {...a, routes, score: scoreOf([...routes.values()]), loose: o.looseOf ? o.looseOf(routes, a.lay) : []};
+    const b: Attempt = {...a, routes, score: scoreP(routes), loose: o.looseOf ? o.looseOf(routes, a.lay) : []};
     optsOf.set(b, must(optsOf.get(a)));
     if (worse(a, b) || (o.groupOf !== undefined && (andCrossings(b) > andCrossings(a) || parallels(b) > parallels(a)))) return a;
     // the search of the orders is entered on the first figure's crossings (toc.ts): a move that takes the last crossing away would skip it where it ran
@@ -1178,16 +1183,18 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
   if (piercings(cand, o.place(cand.size)) > piercings(plain, o.place(plain.size))) return sharing(plain);
   if (!plain.fits) return sharing(cand.fits || cand.size.w < plain.size.w && better(cand, plain) ? cand : plain);
   if (!cand.fits) return sharing(plain);
-  return sharing(better(cand, plain) ? cand : plain);
+  return sharing(selectAttempt([plain, cand], o.heightKey));
   };
   // a return's lane goes to the side its ends are nearer to, only when that is strictly better in (crossings, bends) and nothing else gets worse (the far side is the way it always was)
   const far = pick('far');
   if (!o.returns || o.straighten === false || !far.lay.edges.some(e => e.outer)) return far; // straighten: false keeps the old coordinates, lanes included
   // not bigger than the far one: the width and the height are the caller's budget (a taller figure may not fit the canvas), and lanes on both sides take more room than on one
+  // (ADR 0073 D2: the sides are one list, `selectAttempt` picks from it; a side joins the list when it is no worse than the pick so far in the rest)
+  const sides = [far];
   let result = far;
   for (const side of ['near', 'low'] as const) {
     const c = pick(side);
-    if (c.lay.edges.some(e => e.outer) && c.lay.w <= far.lay.w + 0.01 && c.lay.h <= far.lay.h + 0.01 && !worse(result, c) && better(c, result)) result = c;
+    if (c.lay.edges.some(e => e.outer) && c.lay.w <= far.lay.w + 0.01 && c.lay.h <= far.lay.h + 0.01 && !worse(result, c)) { sides.push(c); result = selectAttempt(sides, o.heightKey); }
   }
   // a return that enters its head's face instead of its right side, only when that takes crossings away (fewer bends alone moves nothing) and nothing else gets worse
   laneHeads = true;
@@ -1196,7 +1203,34 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
   return c.lay.edges.some(e => e.outer) && c.lay.w <= result.lay.w + 0.01 && c.lay.h <= result.lay.h + 0.01 && !worse(result, c) && c.score.crossings < result.score.crossings ? c : result;
 }
 
-/** (crossings, bends) in lexicographic order: strictly better only. */
-const betterScore = (a: {crossings: number; bends: number}, b: {crossings: number; bends: number}): boolean => a.crossings < b.crossings || (a.crossings === b.crossings && a.bends < b.bends);
-/** (crossings, bends, height) in lexicographic order, strictly better only: the height (`size.h`, rounded) is the last key when `heightKey` (ADR 0073 D1-2). */
-const betterAttempt = (a: Attempt, b: Attempt, heightKey: boolean | undefined): boolean => betterScore(a.score, b.score) || (heightKey === true && a.score.crossings === b.score.crossings && a.score.bends === b.score.bends && Math.round(a.size.h) < Math.round(b.size.h));
+/**
+ * The key of an attempt for the selection (ADR 0073 D2): [crossings, pairs, bends, height]. The pairs are 0 without `pairsKey`, the height (`size.h`, rounded) is 0 without `heightKey` (ADR 0073 D1-2).
+ * C, the part the window is measured on, is the crossings alone: `better()` has no AND key of its own (`apartOf` and `aside` guard the AND crossings apart).
+ */
+export const attemptKey = (a: Attempt, heightKey: boolean | undefined): number[] => [a.score.crossings, a.score.pairs ?? 0, a.score.bends, heightKey === true ? Math.round(a.size.h) : 0];
+
+/** How many more bends than the least (among the figures with the least C) a figure may have and still be chosen for having fewer pairs (ADR 0073 D1-4: +4). */
+export const BEND_WINDOW = 4;
+/** `a` before `b` in lexicographic order. */
+export const lexLess = (a: readonly number[], b: readonly number[]): boolean => { for (let i = 0; i < a.length; i++) { const x = a[i], y = b[i]; if (x !== y) return x !== undefined && y !== undefined && x < y; } return false; };
+/**
+ * The window of a list of candidates (ADR 0073 D2, the whole-list selection): each key ends with (pairs, bends, height), what comes before is C. The window is the candidates with the least C
+ * (lexicographic) whose bends are at most the least bends (b*) among those + 4. Returns their indexes, in list order. A fold of two-way comparisons that had this window would be no order at all
+ * (it is not transitive: pairs 0 / bends 9, pairs 1 / bends 5, pairs 2 / bends 1 go round), so every stage chooses from its whole list.
+ */
+export function windowOf(keys: readonly (readonly number[])[]): number[] {
+  const cOf = (k: readonly number[]): readonly number[] => k.slice(0, -3), bendsOfKey = (k: readonly number[]): number => k.at(-2) ?? 0;
+  let c: readonly number[] | undefined;
+  for (const k of keys) if (c === undefined || lexLess(cOf(k), c)) c = cOf(k);
+  const same = keys.flatMap((k, i) => c !== undefined && !lexLess(cOf(k), c) && !lexLess(c, cOf(k)) ? [i] : []);
+  const least = Math.min(...same.map(i => bendsOfKey(must(keys[i]))));
+  return same.filter(i => bendsOfKey(must(keys[i])) <= least + BEND_WINDOW);
+}
+/** The index of the chosen candidate: of the window, the least (pairs, bends, height); the first of equals. -1 for an empty list. Independent of the order of the list (up to equal keys). */
+export function selectIndex(keys: readonly (readonly number[])[]): number {
+  let pick = -1;
+  for (const i of windowOf(keys)) if (pick < 0 || lexLess(must(keys[i]).slice(-3), must(keys[pick]).slice(-3))) pick = i;
+  return pick;
+}
+/** The attempt chosen from a list (ADR 0073 D2): `pick0` and the lanes' sides call it once on their list. */
+export const selectAttempt = (list: readonly Attempt[], heightKey?: boolean): Attempt => must(list[selectIndex(list.map(a => attemptKey(a, heightKey)))]);
