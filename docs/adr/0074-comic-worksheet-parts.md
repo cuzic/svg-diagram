@@ -122,14 +122,7 @@ claude.ai の Artifact(1 枚の HTML。`svg-diagram/browser` を jsDelivr から
 
 ### D3. キャラクターの素材
 
-**素材の形(規範)**
-
-```
-character/<id>/character.json
-character/<id>/<expression>.svg        (表情ごとに 1 ファイル。例: neutral.svg, smile.svg)
-```
-
-`character.json`:
+**素材の形(規範)**。渡す `CharacterManifest` は表情ごとの SVG 断片を含む 1 つの JSON。
 
 ```json
 {
@@ -138,14 +131,14 @@ character/<id>/<expression>.svg        (表情ごとに 1 ファイル。例: ne
   "box": [0, 0, 200, 240],
   "anchors": {"head": {"cx": 100, "cy": 90, "r": 56}, "mouth": [100, 112], "hand": [150, 190]},
   "bubbleSides": ["top-left", "top", "top-right"],
-  "expressions": ["neutral", "smile", "laugh", "surprise", "worry", "angry", "think", "sad"],
+  "expressions": {"neutral": "<circle cx=\"100\" cy=\"90\" r=\"56\"/>", "smile": "<path d=\"M82 108q18 16 36 0\"/>"},
   "license": {"spdx": "CC-BY-4.0", "author": "…", "url": "https://…"}
 }
 ```
 
 - `box` は座標の基準。表情の SVG はこの `viewBox` で描く。`anchors` は `box` の座標で、描くときに倍率をかけてコマの座標へ移す。`bubbleSides` は、ふきだしを置いてよい側(`anchor` の上書きの検査に使う。`comic-bubble-side`)。`license` は必須。
 - **読み込み。** `icon-store` の `glyphFromBody` をそのままは使わない。(a) `glyphFromBody` は表情を**正方形**の viewBox の中に中央寄せするので、200×240 の `box` で x が 20px ずれ、アンカーが合わなくなる。読み込みは `box` をそのまま保つ。(b) `sanitizeBody` は、名前つきの色(`fill="white"`)・`<text>`・`<use>`・`<style>`・mask・filter を拒む。一般の描画ソフトの出力はこれに当たるので、素材を作る人向けに「許す要素」の一覧を `character.json` の説明に書く。(c) `<defs>` の id は、人物の 1 回の登場ごとに書き換える(同じ人物が 1 つのマンガに 2 回出ても、グラデーションの id が重ならない。ADR 0012 の考え方)。
-- **渡し方。** `renderComic(sheet, {characters})` で素材を渡す(1 回の描画ごと。`icon.use` のようなモジュールの大域の状態にしない。1 つのページで別の素材を使う描画が混ざらない)。`character.use(manifest)` は用意しない。ライセンスの欠落は、素材を読み込むときに投げる(`comic-license-missing` は、検査の経路で同じことを見る)。
+- **渡し方。** U2 は `comic(sheet, {characters})` で素材を渡す。U3 の `renderComic(sheet, {characters})` も同じ引数を使う(1 回の描画ごと。`icon.use` のようなモジュールの大域の状態にしない。1 つのページで別の素材を使う描画が混ざらない)。`character.use(manifest)` は用意しない。ライセンスの欠落は素材を読み込むときに `comic-license-missing` で投げる。検査経路への登録は U4。
 - manifest は 1 つの JSON(表情の断片を入れたもの)で、パッケージの `characters/` に入れて配るか、ページが自分で取得して渡す。
 
 **既定: パラメトリックな簡単な顔。** 目(4 種)・眉(傾きと高さ)・口(8 種)の組み合わせで 8 表情(`neutral` / `smile` / `laugh` / `surprise` / `worry` / `angry` / `think` / `sad`)を、頭の円・髪・肩から数値だけで描く(スパイクの `face()`)。人物の違いは髪と服の色相(0〜359)と髪型(2 種で始める)で出す。アンカーは式で出す。**絵師がいなくても PoC が動き、決定的で、ライセンスの問題がない。** 素材の形と同じインタフェース(`{fragment(expression), anchors, box}`)を持つので、あとで絵師の素材に差し替えても、コマ・ふきだし・検査は変わらない。入口に内蔵し、ファイルを読まない。
@@ -299,7 +292,7 @@ type Values = Record<string, string | null>;   // 値は別(状態)。無い = �
 
 - 場所: `lib/comic/`(`layout.ts` 配置、`reserve.ts` 行分け、`width.ts` 幅の数え方、`template.ts` `{id}` の解析、`check.ts` 顔としっぽの検査、`emit.ts` 描画、`measure.ts` 1 回目の測定、`balloon-path.ts` ふきだしの輪郭)。`lib/dsl/comic.ts` が `comic()` と `speechBubble()`。
 - **`bubble()` は `speechBubble()` にした。** `bubble` はバブルチャートの公開名で、同じ名前を取れない。
-- 検査: 問題は `verify-handlers.ts` の `comic` の段階(`[comic-…]` の規則名つき)、助言(`comic-bubble-wide` / `comic-orphan-line` / `comic-follower-split`)は `lib/rules.ts` の規則。U1 に入れたのは、スパイクで「試」がついたものと `comic-panel-count`。`comic-asset-missing` / `comic-license-missing` / `comic-cast-unused` / `comic-id-collision`(ほかの帯との衝突は帯の `id` の登録が投げる)/ `comic-bubble-side` / `comic-reading-order`(`anchor` の上書き)は U4。`anchor` の上書き自体は未実装。
+- 検査: 問題は `verify-handlers.ts` の `comic` の段階(`[comic-…]` の規則名つき)、助言(`comic-bubble-wide` / `comic-orphan-line` / `comic-follower-split`)は `lib/rules.ts` の規則。U1 に入れたのは、スパイクで「試」がついたものと `comic-panel-count`。U2 で `comic-asset-missing` を追加した。`comic-license-missing` の検査経路への登録、`comic-cast-unused` / `comic-id-collision`(ほかの帯との衝突は帯の `id` の登録が投げる)/ `comic-bubble-side` / `comic-reading-order`(`anchor` の上書き)は U4。`anchor` の上書き自体は未実装。
 - ふきだしの輪郭は、本体としっぽを 1 本の閉じた経路にする(`balloonPath(本体の矩形, 種類, {tip})`)。しっぽは、本体の中心から先へ引いた線が通る辺の、まっすぐな部分に付く(まっすぐな部分がしっぽより狭いと、しっぽを細くする。無ければ付けない。先が本体の中か、数でないときも付けない)。`think` の角丸は `say` と同じ(破線にするだけ)。
 - 番号の札は、コマの左上の角に半分はみ出して置く(24px。コマの中は、ふきだしの帯の上端 16px から始まるので重ならない)。
 - `think` のしっぽは、第 1 版は破線の三角(丸 3 つは試していない)。`shout` は太い枠の四角(ぎざぎざは試していない)。
@@ -317,7 +310,7 @@ type Values = Record<string, string | null>;   // 値は別(状態)。無い = �
 - **内蔵の顔**: 頭の円(半径 36px)、顔(目・眉・口で 8 表情)、髪(`short` / `long`)、肩。髪と服は色相(`hsl()`)から、肌は `COLOR.skin`(U1 と同じトークン)。**`face` の無い人物の色相は、`cast` の並びの位置から決める**(`(210 + 70 × 位置) mod 360`。同じ人物は全コマで同じ、最初の 5 人は違う色)。`face.hue` は 0〜359 の整数、`face.hair` は `short` / `long`(それ以外は `comic()` が投げる)。
 - **体の境目の 3 層(ADR 0076 A2 / Q16。U2 に取り込んだ)**: 頭と服、髪の生え際、長い髪の房の内側と服にかかる所は、**紙色のキーライン 1.5px・インク 2.5px・紙色のキーライン 1.5px** で描く。外側の縁はインクの線だけ(クリップパスで、内側の境目だけに 3 層を出す。ID は人物ごとに `ch-<コマ>-<人物>-…`)。眼鏡は U4。これで、**U1 の例の golden が変わる**(仮の丸が顔になる)。
 - **素材**: `CharacterManifest` は 1 つの JSON(`{id, name, box, anchors: {head, mouth, hand?}, bubbleSides?, expressions: {表情: SVG の断片}, license: {spdx, author, url}}`)。読み込み(`loadCharacter`)は、(a) 箱を正方形にせず、そのまま保つ、(b) 断片を `sanitizeBody`(`icon-store`)の許す要素だけにする(`<text>` `<use>` `<style>` `<script>` `<image>` mask・filter・外への参照・名前つきの色は投げる)、(c) 描くときに id に接頭辞を付ける(`prefixIds`)。**ライセンスが無い(`spdx` `author` `url` のどれかが空)と投げる**(`comic-license-missing`)。
-- **置き方**: 箱の頭の円が、舞台の頭の円(半径 36px)に重なるように拡大し、アンカー(口・手)を同じ倍率で移す。**ふきだしとしっぽの配置はアンカーだけで決まる**(`tailOf` は素材の口へ向く)。断片は入れ子の `<svg viewBox=箱>` で置く(`transform` を使わない。`lint-svg` の `group-transform` を避けるため)。胸から下はコマの枠で切る(素材は `clip-path`)。
+- **置き方**: 箱の頭の円が、舞台の頭の円(半径 36px)に重なるように倍率を決める。箱の原点とアンカー(口・手)は同じ式でコマの座標に写す。ふきだしの本体は舞台の頭の位置を基準に置き、しっぽは素材の口へ向ける(`tailOf`)。断片は入れ子の `<svg viewBox=箱>` で置き、胸から下はコマの枠で切る(`clip-path`)。SVG の id はコマと人物に加え、帯の scope でも区別する。素材の色も図の `appearance` にかかわらず保つ。
 - **検査**: `comic-asset-missing`(問題): `cast` の `asset` が `characters` に無い、素材にその表情が無い。どちらも内蔵の顔で描く。`renderComic({characters})` は U3 の関数なので、U2 は `comic(sheet, {characters})` で渡す(帯のデータに入るのは読み込んだあとの JSON。1 回の描画ごとに渡し、大域の状態にしない点は同じ)。U3 の `renderComic` は、この引数を `comic()` に渡せばよい。
 - 手のアンカー(`ComicLaidHead.hand`)は、素材が持つときだけ(内蔵の顔は無い)。マンプと小道具(ADR 0076 U1)が使う。
 
@@ -356,7 +349,7 @@ type Values = Record<string, string | null>;   // 値は別(状態)。無い = �
 
 ### U2: 顔と素材の形
 
-- 範囲: パラメトリックな顔(8 表情、髪型 2 種、色相)、`character.json` の型と読み込み(D3 の 3 点の規則)、`renderComic({characters})`、アンカー。
+- 範囲: パラメトリックな顔(8 表情、髪型 2 種、色相)、`CharacterManifest` の型と読み込み(D3 の 3 点の規則)、`comic(sheet, {characters})`、アンカー。
 - 完了の基準: 8 表情が描ける。同じ入力は同じ SVG。素材に差し替えても、コマ・ふきだしの配置がアンカーだけで決まる(200×240 の素材でずれない)。ライセンスが無いと投げる。
 - テスト: 表情ごとの golden、掃除(外部参照や `script` を落とす。名前つきの色を拒む)、`box` が正方形でないときのアンカー、`<defs>` の id の書き換え、ライセンス欠落。
 
