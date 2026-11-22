@@ -1,34 +1,47 @@
 8 directions x 4 shapes: 32 balloons; deterministic=true; every path closed=true
-rect/round/ellipse: max distance of a base point from the outline = 7.93e-8 px; min distance of a rect/round base point from a corner (minus the corner radius) = 4.0 px
-cloud: gap between the outline envelope and the first trail circle, 8 directions: min 0.9, max 3.0 px
-| shape | gap to the outline (px) | tail length (px) | inside | note |
-| rect | -20 | 20.0 | true |  |
-| rect | 0 | 0.0 | false | tail shorter than 6px: too short |
-| rect | 2 | 2.0 | false | tail shorter than 6px: too short |
-| rect | 4 | 4.0 | false | tail shorter than 6px: too short |
-| rect | 8 | 8.0 | false |  |
-| rect | 16 | 16.0 | false |  |
-| round | -20 | 20.0 | true |  |
-| round | 0 | 0.0 | false | tail shorter than 6px: too short |
-| round | 2 | 2.0 | false | tail shorter than 6px: too short |
-| round | 4 | 4.0 | false | tail shorter than 6px: too short |
-| round | 8 | 8.0 | false |  |
-| round | 16 | 16.0 | false |  |
-| ellipse | -20 | 18.2 | true |  |
-| ellipse | 0 | 1.8 | false | tail shorter than 6px: too short |
-| ellipse | 2 | 3.8 | false | tail shorter than 6px: too short |
-| ellipse | 4 | 5.8 | false | tail shorter than 6px: too short |
-| ellipse | 8 | 9.8 | false |  |
-| ellipse | 16 | 17.8 | false |  |
-| cloud | -20 | 8.3 | true |  |
-| cloud | 0 | 11.7 | false |  |
-| cloud | 2 | 13.7 | false |  |
-| cloud | 4 | 15.7 | false |  |
-| cloud | 8 | 19.7 | false |  |
-| cloud | 16 | 27.7 | false |  |
-corner target 1: side=top base x=294.7..322.7 y=120.0..120.0
-corner target 2: side=top base x=294.7..322.7 y=120.0..120.0
-corner target 3: side=right base x=340.0..340.0 y=137.3..157.3
-corner target 4: side=right base x=340.0..340.0 y=137.3..157.3
-Office wedgeRectCallout (ECMA-376 gdLst, literal) vs balloon('rect', office mode): 1779/1779 random tips give the same polygon (same vertex set within 0.02 px, the path text is rounded to 0.01); adj rounding moves a tip by at most 1.9e-3 px
+regression (checks the code against itself): max distance of a rect / round / ellipse base point from the outline = 7.9e-8 px (one-decimal rounding for rect / round: <= 0.07); min distance of a rect / round base point from a corner, minus the radius = 2.6 px
+cloud, trail started from the real outline, 360 directions: first circle overlaps the outline in 0/360; gap min 2.00, max 2.25 px; smallest gap between circles 10.84 px
+cloud minimum tail length over the 360 directions (ss = 80): 30.4..42.7 px (the closed form 0.306 ss + 6 = 30.4 is the lower end; the first circle moves out where a bump is in the way)
+cloud minimum tail length for ss = 80: 30.4 px (= 0.306 ss + 6; Office's own limit g9 = 24.4 px). Trail circle gaps (direction 0) by length:
+  length 23.7: gap(1,2) 2.0, gap(2,3) -4.8
+  length 31.7: gap(1,2) 2.0, gap(2,3) 3.2
+  length 39.7: gap(1,2) 4.4, gap(2,3) 8.8
+  length 42.7: gap(1,2) 5.9, gap(2,3) 10.3
+  length 47.7: gap(1,2) 8.4, gap(2,3) 12.8
+cloud circles at the smallest body (72x48, ss 48): radii 4.0 / 2.7 / 1.3 px
+| shape | gap (px) | tail length | apex angle | inside |
+| rect | -20 | 0.0 | 0 | true |
+| rect | 0 | 0.0 | 180 | false |
+| rect | 2 | 2.0 | 157 | false |
+| rect | 4 | 4.0 | 136 | false |
+| rect | 8 | 8.0 | 103 | false |
+| rect | 16 | 16.0 | 64 | false |
+| round | -20 | 0.0 | 0 | true |
+| round | 0 | 0.0 | 180 | false |
+| round | 2 | 2.0 | 157 | false |
+| round | 4 | 4.0 | 136 | false |
+| round | 8 | 8.0 | 103 | false |
+| round | 16 | 16.0 | 64 | false |
+| ellipse | -20 | 0.0 | 0 | true |
+| ellipse | 0 | 1.8 | 153 | false |
+| ellipse | 2 | 3.8 | 127 | false |
+| ellipse | 4 | 5.8 | 105 | false |
+| ellipse | 8 | 9.8 | 76 | false |
+| ellipse | 16 | 17.8 | 46 | false |
+| cloud | -20 | 0.0 | 0 | true |
+| cloud | 0 | 11.7 | 0 | false |
+| cloud | 2 | 13.7 | 0 | false |
+| cloud | 4 | 15.7 | 0 | false |
+| cloud | 8 | 19.7 | 0 | false |
+| cloud | 16 | 27.7 | 0 | false |
+apex angle by tail length, base width 16 / 28: len 4 -> 127 / 148, 8 -> 90 / 121, 14 -> 59 / 90, 30 -> 30 / 50, 80 -> 11 / 20, 160 -> 6 / 10, 300 -> 3 / 5
+share of the tail's bounding box that the triangle really covers (round, 8 directions, tip 50 px out): 0deg: 40%, 45deg: 40%, 90deg: 41%, 135deg: 40%, 180deg: 40%, 225deg: 40%, 270deg: 41%, 315deg: 40%
+a skewed tail (tip 40 px right of the body's right edge and 60 below it): the triangle covers 18% of its bounding box; a 30x20 neighbour inside the bounding box but off the triangle: AABB overlap=true, SAT hit=false
+corner target 1: side=top base x=304.0..332.0 y=120.0..120.0
+corner target 2: side=top base x=304.0..332.0 y=120.0..120.0
+corner target 3: side=right base x=340.0..340.0 y=128.0..148.0
+corner target 4: side=right base x=340.0..340.0 y=128.0..148.0
+tip in the corner cutout (round r=8, 1.5 px in from both edges): inside=false, as a rect: true
+balloonOutline('round', {radius: min(h/2,24), halfWidth: 8}) vs PR #436 balloonPath('say'): 2726/2726 random tips give the identical path text; 2 exact diagonal ties: 2 differ (the tie leaves through a left / right side here, through top / bottom in #436)
+Office wedgeRectCallout (ECMA-376 gdLst, literal) vs balloonOutline('rect', base 'office'): 1779/1779 random tips (outside the body by >= 3 px) give the same polygon (4 corners + base, tip, base; 0.1 px). adj rounding moves a tip by at most 1.9e-3 px. Covered: rect + office only
 default adj1=-20833 adj2=62500 on 200x80 -> tip (58.3, 90.0); officeAdj of that tip = -20833,62500
