@@ -138,7 +138,7 @@ index 00000000..3e511820
 +  return {rows: bestRows.map(r => r.map(n => ids[n]!)), c0, c1: best, p1, moves: nMoves, ...(more.length ? {more} : {}), ...(alt ? {alt: alt.map(r => r.map(n => ids[n]!))} : {})};
 +}
 diff --git a/lib/toc.ts b/lib/toc.ts
-index 53e886c3..7065a3c6 100644
+index 53e886c3..55f50b94 100644
 --- a/lib/toc.ts
 +++ b/lib/toc.ts
 @@ -4,13 +4,14 @@
@@ -204,7 +204,7 @@ index 53e886c3..7065a3c6 100644
    // then more orders when the fixed ones left a crossing: shuffles from a fixed seed (the same figure always gets the same answer), then swaps of two neighbours of the best order so far.
    // `straighten: false` keeps to the fixed ones (it is the way back to the old figure)
    const queue = [...orders], seen = new Set<string>([ids.join('\u0000'), ...orders.map(o => o.join('\u0000'))]);
-@@ -167,21 +186,50 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+@@ -167,21 +186,55 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
      // the selection changed (a better candidate, or a window that shrank and left the old pick out): the wait starts again
      if (pool.add({t, order, proxy}, score)) { const cur = must(pool.best.item); bestScore = pool.best.score; bestOrder = cur.order; bestProxy = cur.proxy; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
    }
@@ -247,23 +247,28 @@ index 53e886c3..7065a3c6 100644
  }
  
 +/**
-+ * ADR 0075 D3: the final pick in two stages. M = main's own pick, made exactly as on main (`first` and main's candidates only). R = the best of the rows candidates alone. R replaces M only when it is strictly better
-+ * in the lexicographic order of the score (AND crossings, AND side by side, crossings, pairs, bends, height; a tie keeps M) and passes the same frame and height rules and, with `ovOf`, has no more sub-4px overlaps than M. So a rows candidate that is not chosen never moves the pick to another main candidate (the window of one `pickFinal`
++ * ADR 0075 D3: the final pick in two stages. M = main's own pick, made exactly as on main (`first` and main's candidates only). R = the best of the rows candidates alone. R replaces M only when the 0073 window over the pair [M, R] selects R
++ * (so a pairs-only gain costs at most +4 bends, D1-4; a lower C wins; a tie keeps M) and R passes the frame, height and overlap checks and, with `ovOf`, has no more sub-4px overlaps than M. So a rows candidate that is not chosen never moves the pick to another main candidate (the window of one `pickFinal`
 + * over all of them is not monotone), and the figure changes only when a rows candidate is strictly better.
 + */
 +export function pickTwoStage<T>(first: T, main: readonly (T | undefined)[], rows: readonly (T | undefined)[], base: {h: number; layers: readonly number[]; loose: number; fits: number | undefined}, exchange: boolean, view: (t: T) => Judged, ovOf?: (t: T) => number): T {
-+  const m = pickFinal(first, main, base, exchange, view);
-+  const rs = rows.filter((t): t is T => t !== undefined && (!ovOf || ovOf(t) <= ovOf(m)));
++  const m = pickFinal(first, main, base, exchange, view), vm = view(m);
++  // each rows candidate is checked first (frame, height against M's score, overlaps); the survivors are pooled, so no unchecked candidate seeds the pool
++  const rs = rows.filter((t): t is T => t !== undefined && inFrame(view(t), base) && passesHeight(view(t).h, view(t).score, base, vm.score, exchange) && (!ovOf || ovOf(t) <= ovOf(m)));
 +  if (!rs.length) return m;
-+  const r = pickFinal(must(rs[0]), rs.slice(1), base, exchange, view);
-+  const vr = view(r), vm = view(m);
-+  return inFrame(vr, base) && passesHeight(vr.h, vr.score, base, vm.score, exchange) && lexLess(vr.score, vm.score) ? r : m;
++  const rp = windowPool<T>(must(rs[0]), view(must(rs[0])).score);
++  for (const t of rs.slice(1)) rp.add(t, view(t).score);
++  const r = must(rp.best.item);
++  // R replaces M only when the window of ADR 0073 D2 (the least bends + 4 among the least C) over [M, R] selects R: a pairs-only gain stays within +4 bends (D1-4), a lower C wins, a tie keeps M
++  const pair = windowPool<T>(m, vm.score);
++  pair.add(r, view(r).score);
++  return pair.best.item === r ? r : m;
 +}
 +
  /** What the final pick reads of a figure: its height, its score, the ranks of its layers, how many ANDs were left undrawn and how many size limits were applied. */
  export interface Judged {h: number; score: readonly number[]; layers: readonly number[]; loose: number; fits: number | undefined}
  /** Whether a figure is in the frame of the figures the search compares (D1 (a), (e)): the same layers by rank, no more ANDs left undrawn, the same number of size limits applied. The search loop and the final pick both ask it. */
-@@ -231,7 +279,8 @@ export function windowPool<T>(first: T, score: readonly number[]): {readonly bes
+@@ -231,7 +284,8 @@ export function windowPool<T>(first: T, score: readonly number[]): {readonly bes
  }
  
  /** A count of the orders the search laid out (a measure of its cost that does not depend on the load of the machine; read by the tests and by scripts/crt-u6-measure). */
@@ -275,12 +280,13 @@ index 53e886c3..7065a3c6 100644
  /** How many orders in a row may fail to get better before the search stops (with and without AND arrows crossing). */
 diff --git a/test/pick-final-two-stage.test.ts b/test/pick-final-two-stage.test.ts
 new file mode 100644
-index 00000000..33ce98e8
+index 00000000..fe92d622
 --- /dev/null
 +++ b/test/pick-final-two-stage.test.ts
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,42 @@
 +// ADR 0075 D3: the final pick in two stages. One `pickFinal` over main's candidates and the rows candidates together is not monotone: a rows candidate that is not chosen can still move the pick to another
-+// main candidate (its fewer bends shrink the window). `pickTwoStage` picks main's figure exactly as on main and lets a rows candidate replace it only when it is strictly better (and has no more overlaps).
++// main candidate (its fewer bends shrink the window). `pickTwoStage` picks main's figure M exactly as on main, takes the best rows candidate R, and lets R replace M only when the ADR 0073 window over [M, R] selects R
++// (a pairs-only gain costs at most +4 bends, a lower C wins, a tie keeps M) and R has no more overlaps than M. The final figure is always M or R, never another main candidate.
 +import test from 'node:test';
 +import assert from 'node:assert/strict';
 +import {pickFinal, pickTwoStage, type Judged} from '../lib/toc.ts';
@@ -289,25 +295,34 @@ index 00000000..33ce98e8
 +const J = (name: string, score: number[]): Judged & {name: string} => ({name, h: score[5]!, score, layers: [0], loose: 0, fits: undefined});
 +const frame = {h: 100, layers: [0], loose: 0, fits: undefined};
 +const view = (t: Judged): Judged => t;
++const name = (t: unknown): string => (t as {name: string}).name;
 +const first = J('first', [0, 0, 3, 0, 20, 100]), M = J('M', [0, 0, 2, 0, 12, 100]), N = J('N', [0, 0, 2, 1, 8, 100]), R = J('R', [0, 0, 2, 2, 7, 100]);
 +
-+test('one pickFinal over all candidates is not monotone: main alone picks M, main + R picks N (a main candidate R did not even win)', () => {
-+  assert.equal((pickFinal(first, [M, N], frame, true, view) as typeof M).name, 'M');
-+  assert.equal((pickFinal(first, [M, N, R], frame, true, view) as typeof M).name, 'N');
++test('one pickFinal over all candidates is not monotone: main alone picks M, main + R picks N, a main candidate that R did not even win', () => {
++  assert.equal(name(pickFinal(first, [M, N], frame, true, view)), 'M');
++  assert.equal(name(pickFinal(first, [M, N, R], frame, true, view)), 'N');
 +});
 +
-+test('pickTwoStage: an unchosen rows candidate never changes main\'s pick', () => {
-+  assert.equal((pickTwoStage(first, [M, N], [R], frame, true, view) as typeof M).name, 'M');
-+  assert.equal((pickTwoStage(first, [M, N], [], frame, true, view) as typeof M).name, 'M');
++test('pickTwoStage: the pick is main\'s M, or R when the window over [M, R] selects it; never N', () => {
++  assert.equal(name(pickTwoStage(first, [M, N], [], frame, true, view)), 'M');
++  assert.equal(name(pickTwoStage(first, [M, N], [R], frame, true, view)), 'R'); // M's 12 bends are 5 over R's 7: M leaves the window
++  const R2 = J('R2', [0, 0, 2, 2, 9, 100]); // M's 12 bends are within R2's 9 + 4: M stays in the window and keeps the lower pairs
++  assert.equal(name(pickTwoStage(first, [M, N], [R2], frame, true, view)), 'M');
 +});
 +
-+test('pickTwoStage: a strictly better rows candidate replaces main\'s pick; a tie keeps main\'s', () => {
-+  const better = J('better', [0, 0, 1, 0, 14, 100]), tie = J('tie', [...M.score]);
-+  assert.equal((pickTwoStage(first, [M, N], [better], frame, true, view) as typeof M).name, 'better');
-+  assert.equal((pickTwoStage(first, [M, N], [tie], frame, true, view) as typeof M).name, 'M');
++test('pickTwoStage: a pairs-only gain may not cost more than +4 bends (ADR 0073 D1-4)', () => {
++  const m = J('m', [0, 0, 2, 1, 8, 100]), r = J('r', [0, 0, 2, 0, 20, 100]), r4 = J('r4', [0, 0, 2, 0, 12, 100]);
++  assert.equal(name(pickFinal(first, [m, r], frame, true, view)), 'm'); // the window rule
++  assert.equal(name(pickTwoStage(first, [m], [r], frame, true, view)), 'm'); // +12 bends: not taken
++  assert.equal(name(pickTwoStage(first, [m], [r4], frame, true, view)), 'r4'); // +4 bends: taken
 +});
 +
-+test('pickTwoStage: a rows candidate with more overlaps than main\'s pick is not taken', () => {
-+  const better = J('better', [0, 0, 1, 0, 14, 100]), ov = new Map<unknown, number>([[M, 0], [N, 0], [better, 1], [first, 0]]);
-+  assert.equal((pickTwoStage(first, [M, N], [better], frame, true, view, t => ov.get(t) ?? 0) as typeof M).name, 'M');
++test('pickTwoStage: a lower C wins whatever the bends; a tie keeps main\'s; more overlaps are not taken; an out-of-frame candidate is not taken', () => {
++  const better = J('better', [0, 0, 1, 0, 30, 100]), tie = J('tie', [...M.score]);
++  assert.equal(name(pickTwoStage(first, [M, N], [better], frame, true, view)), 'better');
++  assert.equal(name(pickTwoStage(first, [M, N], [tie], frame, true, view)), 'M');
++  const ov = new Map<unknown, number>([[M, 0], [N, 0], [better, 1], [first, 0]]);
++  assert.equal(name(pickTwoStage(first, [M, N], [better], frame, true, view, t => ov.get(t) ?? 0)), 'M');
++  const out = {...J('out', [0, 0, 0, 0, 0, 100]), layers: [1]};
++  assert.equal(name(pickTwoStage(first, [M, N], [out, better], frame, true, view)), 'better'); // `out` does not seed the pool
 +});
