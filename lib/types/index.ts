@@ -31,6 +31,7 @@ export * from './wireframe.ts';
 export * from './wireframe-nodes.ts';
 export * from './verdicts.ts';
 export * from './project.ts';
+export * from './inventory.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import type {FlowShapeBand, LaidOutFlowShape} from '../flow-shapes.ts';
 import type {LaidOutWordArt, WordArtBand} from '../wordart.ts';
@@ -42,6 +43,7 @@ import type {ComicBand, LaidOutComic} from './comic.ts';
 import type {BowtieBand, LaidOutBowtie, BpmnBand, FtaBand, LaidOutFta, CauseBand, ClassesBand, CloudBand, LaidOutBpmn, LaidOutCause, LaidOutClasses, LaidOutCloud, LaidOutStates, LaidOutTree, StatesBand, TreeBand} from './diagrams.ts';
 import type {CurveBand, LaidOutCurve, LaidOutPlane, LaidOutPyramid, PlaneBand, PyramidBand} from './figures.ts';
 import type {ImageBand, LaidOutImage} from './image.ts';
+import type {ContentInventory} from './inventory.ts';
 import type {LaidOutMath, MathBand} from './math.ts';
 import type {DotsBand, LaidOutDots, LaidOutPeople, PeopleBand} from './people-dots.ts';
 import type {LaidOutSequence, LaidOutSwimlane, LaidOutTable, SequenceBand, SwimlaneBand, TableBand} from './sequence-table-swimlane.ts';
@@ -63,6 +65,7 @@ export type LaidOutBand = (
 /** layoutDiagram() output: the diagram data plus everything layout computed. */
 export interface LaidOutDiagram extends DiagramData {
   laidOut: LaidOutBand[];
+  inventory: ContentInventory;
   /** wrap: 'bunsetsu-soft' did not fit the figure, so it was laid out as 'phrase' (the rule wrap-fell-back says so). */
   wrapFellBack?: true;
   canvasHeight: number;

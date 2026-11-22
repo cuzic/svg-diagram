@@ -53,8 +53,13 @@ export function renderBoxIcon(band: LaidOutBox, day: Theme, tones: ToneEnv): str
 }
 
 
+export function captionTextPlacement(band: LaidOutCaption): {originX: number; originY: number; w: number; align: Align} {
+  return {originX: band.x, originY: band.y, w: band.w, align: band.align ?? 'center'};
+}
+
+
 export function renderCaption(band: LaidOutCaption, day: Theme, tones: ToneEnv): string {
-  return renderTextRuns(band.wrappedRuns, {originX: band.x, originY: band.y, w: band.w, align: band.align ?? 'center', day, tones, dim: band.dim});
+  return renderTextRuns(band.wrappedRuns, {...captionTextPlacement(band), day, tones, dim: band.dim});
 }
 
 
@@ -75,26 +80,40 @@ export function renderBoxRect(band: BoxLike, day: Theme, tones: ToneEnv, default
 }
 
 
-export function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, tones: ToneEnv, defaultAlign: Align): string {
-  const align = band.align ?? defaultAlign;
+export function boxTextPlacement(band: LaidOutBox | LaidOutBanner): {originX: number; originY: number; w: number; align: Align} {
+  const align = band.align ?? (band.type === 'banner' || band.iconAt === 'top' ? 'center' : 'left');
   const px = band.padX ?? BOX_PAD_X, py = band.padY ?? BOX_PAD_Y;
-  const originX = band.x + px;
-  return renderTextRuns(band.wrappedRuns, {originX, originY: band.y + py, w: band.w - 2 * px, align, day, tones, dim: band.dim, boxTone: band.tone});
+  return {originX: band.x + px, originY: band.y + py, w: band.w - 2 * px, align};
+}
+
+
+function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, tones: ToneEnv): string {
+  return renderTextRuns(band.wrappedRuns, {...boxTextPlacement(band), day, tones, dim: band.dim, boxTone: band.tone});
+}
+
+
+export function tagGeometry({x, y, w, h}: Rect): Rect {
+  return {x: snap4(x), y: snap4(y), w: snap4(w), h};
 }
 
 
 export function renderTag(band: LaidOutBox, day: Theme, tones: ToneEnv, roles: Roles): string {
   const t = band.tagBox as Rect; // caller checked tagBox
   const fill = band.dim ? PALETTE.muted : colorOf(toneStyle(tones, band.tagTone === 'danger' || band.tagTone === 'muted' ? band.tagTone : 'accent').ink, day);
-  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, rawY: t.y, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: (roles.tag ?? TAG_SIZE), labelHtml: emojiSpan(band.tag as string)});
+  return pillSvg({...tagGeometry(t), fill, cx: t.x + t.w / 2, baseline: t.y + 17, rawY: t.y, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: (roles.tag ?? TAG_SIZE), labelHtml: emojiSpan(band.tag as string)});
 }
 
 
-// The stamp chip: bottom-right inside the shape (layout reserved the strip; rows may have stretched the shape since, so it follows the bottom edge).
+// The stamp chip follows the bottom edge even when layout stretches the frame.
+export function stampGeometry(band: Rect, stampW: number): Rect {
+  return {x: snap4(band.x + band.w - 8 - stampW), y: snap4(band.y + band.h - 6 - 24), w: snap4(stampW), h: 24};
+}
+
+
 export function renderStamp(band: Rect & {stamp?: string; stampW?: number}, roles: Roles): string {
   if (!band.stamp || band.stampW === undefined) return '';
-  const x = snap4(band.x + band.w - 8 - band.stampW), y = snap4(band.y + band.h - 6 - 24);
-  return `\n  <rect x="${x}" y="${y}" width="${snap4(band.stampW)}" height="24" rx="4" fill="${PALETTE.bg}" stroke="${PALETTE.border}" stroke-width="1"/>\n  <text x="${snap4(band.x + band.w - 8 - band.stampW / 2)}" y="${y + 17}" font-size="${roles.note}" text-anchor="middle" fill="${PALETTE.muted}">${emojiSpan(band.stamp)}</text>`;
+  const {x, y, w, h} = stampGeometry(band, band.stampW);
+  return `\n  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${PALETTE.bg}" stroke="${PALETTE.border}" stroke-width="1"/>\n  <text x="${snap4(band.x + band.w - 8 - band.stampW / 2)}" y="${y + 17}" font-size="${roles.note}" text-anchor="middle" fill="${PALETTE.muted}">${emojiSpan(band.stamp)}</text>`;
 }
 
 
@@ -103,7 +122,7 @@ export function renderBox(band: LaidOutBox, day: Theme, tones: ToneEnv, roles: R
   const iconText = band.icon ? renderBoxIcon(band, day, tones) : '';
   const tag = band.tagBox ? `\n  ${renderTag(band, day, tones, roles)}` : '';
   const frame = band.frame === false ? '' : `${renderBoxRect(band, day, tones, 'plain')}\n  `;
-  return `${frame}${renderBoxText(band, day, tones, band.iconAt === 'top' ? 'center' : 'left')}${badge}${iconText}${tag}${renderStamp(band, roles)}`;
+  return `${frame}${renderBoxText(band, day, tones)}${badge}${iconText}${tag}${renderStamp(band, roles)}`;
 }
 
 
@@ -158,7 +177,7 @@ export function renderLegend(band: LaidOutLegend, day: Theme, tones: ToneEnv, ro
 
 
 export function renderBanner(band: LaidOutBanner, day: Theme, tones: ToneEnv, roles: Roles): string {
-  return `${renderBoxRect(band, day, tones, 'accent')}\n  ${renderBoxText(band, day, tones, 'center')}${renderStamp(band, roles)}`;
+  return `${renderBoxRect(band, day, tones, 'accent')}\n  ${renderBoxText(band, day, tones)}${renderStamp(band, roles)}`;
 }
 
 

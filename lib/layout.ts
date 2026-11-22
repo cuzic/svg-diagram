@@ -23,6 +23,7 @@ import {layoutHandlerFor} from './layout-handlers.ts';
 import type {LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
 import {childrenOf, stackWidthOf} from './band-children.ts';
 import {layoutBoxContent, lineWidth} from './layout-text.ts';
+import {buildInventory} from './inventory.ts';
 import {parseRef, resolveConnect} from './layout-connect.ts';
 import {ceil4, labelRoom} from './connect-rules.ts';
 import type {LabelAxis} from './connect-rules.ts';
@@ -41,14 +42,22 @@ import {TAG_SIZE, toneEnv} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 
 import {must} from './must.ts';
+
+type LayoutResult = Omit<LaidOutDiagram, 'inventory'>;
+
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
 export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
-  const lay = (mode: WrapMode): LaidOutDiagram => fitLineScale(data, lines => layoutBands(data, roles, widthOf, toneEnv(data.tones), mode, data.keepWords === true, spaceOf(data.density), lines));
+  const lay = (mode: WrapMode): LayoutResult => fitLineScale(data, lines => layoutBands(data, roles, widthOf, toneEnv(data.tones), mode, data.keepWords === true, spaceOf(data.density), lines));
   const setting = data.wrap ?? 'phrase';
-  if (setting !== 'bunsetsu-soft') return lay(setting);
-  // 'bunsetsu-soft': break at phrase boundaries (hiragana kept with the character before it); a figure that does not fit that way is laid out as 'phrase' instead of failing.
-  // A real mistake of the author (a bad id ...) fails again in the second layout, with its own message.
-  try { return lay('bunsetsu'); } catch { return {...lay('phrase'), wrapFellBack: true}; }
+  const layWithFallback = (): LayoutResult => {
+    if (setting !== 'bunsetsu-soft') return lay(setting);
+    // A figure that does not fit with bunsetsu wrapping is retried with phrase wrapping.
+    // A real mistake of the author (a bad id ...) fails again in the second layout, with its own message.
+    try { return lay('bunsetsu'); } catch { return {...lay('phrase'), wrapFellBack: true}; }
+  };
+  const out = layWithFallback();
+  // Inventory errors propagate after layout has selected its final geometry.
+  return {...out, inventory: buildInventory(out.laidOut, out.connects, widthOf, roles.connectLabel)};
 }
 
 /**
@@ -57,15 +66,15 @@ export function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): L
  * The cause bands are dropped one more at a time in the order they are laid out (top to bottom) until the figure fits; if it never fits, the first layout is kept
  * (the overflow is then not the scale's, and `slide-canvas-overflow` says it). A dropped band is `lineScaleDropped` (the `cause-line-scale-dropped` finding).
  */
-export function fitLineScale(data: DiagramData, layout: (lines: {seen: number; drop: number; exchange: boolean; taller: boolean}) => LaidOutDiagram): LaidOutDiagram {
+export function fitLineScale<T extends LayoutResult>(data: DiagramData, layout: (lines: {seen: number; drop: number; exchange: boolean; taller: boolean}) => T): T {
   const first = {seen: 0, drop: 0, exchange: true, taller: false}, out = layout(first);
   if (!data.canvas || out.contentHeight === undefined || out.contentHeight <= data.canvas.height) return out;
   // ADR 0073 D1 (g): when a band took a taller order (they cross less), the figure that overflows is laid out again without that, with the scaled lines, before any line scale is dropped
   // (so a taller order never costs a band its scale), then the bands are dropped one at a time (with no taller orders either). With no taller order the first layout is that layout: no retry (2).
   // If nothing fits, the figure is the first one laid without taller orders (the one main keeps), not the taller one.
-  let fallback: LaidOutDiagram | undefined;
+  let fallback: T | undefined;
   for (let drop = first.taller ? 0 : 1; drop <= first.seen; drop++) {
-    let again: LaidOutDiagram;
+    let again: T;
     try { again = layout({seen: 0, drop, exchange: false, taller: false}); } catch { return fallback ?? out; } // a retry that cannot be laid out keeps the figure that was (the retry never turns a drawn figure into an error)
     if (again.contentHeight !== undefined && again.contentHeight <= data.canvas.height) return again;
     if (drop === 0) fallback = again;
@@ -76,7 +85,7 @@ export function fitLineScale(data: DiagramData, layout: (lines: {seen: number; d
 /** The scale of the gaps of the layered figures (`WrapEnv.space`): 'compact' closes them by a quarter. */
 const spaceOf = (density: 'normal' | 'compact' | undefined): number => density === 'compact' ? 0.75 : 1;
 
-function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean, space = 1, lines = {seen: 0, drop: 0, exchange: true, taller: false}): LaidOutDiagram {
+function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean, space = 1, lines = {seen: 0, drop: 0, exchange: true, taller: false}): LayoutResult {
   const d = withStatus(withSourceLine(withTitleLine(data)));
   const contentWidth = d.width - 2 * d.pad;
 

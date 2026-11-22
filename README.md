@@ -1560,6 +1560,8 @@ MIT
 全ソースは TypeScript（`.ts`）。ビルド工程はなく、Node の型ストリップ（Node ≥ 22.18）でそのまま実行する。このため `enum` / `namespace` などの非消去構文は使えない（`erasableSyntaxOnly`）。
 型検査は `pnpm typecheck`（`tsc -p .`）、`strict: true`。図・画面の型は `lib/types.ts` にまとまっている（`Band`、`WfNode`、`LaidOutDiagram` など）。図のソースを `.ts` で書くと `import {diagram, box} from 'svg-diagram'` にも型が付く（`tsconfig` の `paths` で `lib/dsl.ts` を指す）。
 
+`LaidOutDiagram.inventory.items` には、配置後の内容の目録が入る。箱とキャプションの文字は余白をつけた行ごとの矩形で記録する。コネクタは折れ線・矢じり・ラベルの矩形を持ち、`row()` や `steps()` の箱を結ぶ矢印も目録に入る。タグの矩形は描画時の格子に合わせる。個別の目録に未対応の帯は、帯全体を表す `whole` として記録する。段階表示で隠れる内容も含む（ADR 0078 D3）。
+
 ### golden（`examples/out`）の検査と作り直し
 
 `examples/out/*.svg` は golden（正解の出力）で、CI の `golden (examples/out)` のジョブが `pnpm golden --no-cache`（`check --drift --rebuild`。何も書き換えない）で、今のコードの再生成と 1 バイトずつ比べる。違えば CI が落ちる。

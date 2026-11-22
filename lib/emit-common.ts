@@ -66,6 +66,20 @@ export function spanTspans(spans: Span[], run: WrappedRun, color: string, day: T
 }
 
 
+export function runLineOrigin(
+  run: WrappedRun,
+  {originX, w, align}: {originX: number; w: number; align: Align},
+): {lx: number; anchor: 'start' | 'middle' | 'end'} {
+  // A step badge indents the title run, and a left icon can indent multiple runs.
+  const indent = run.indent ?? 0;
+  const runOriginX = originX + indent;
+  const runW = w - indent;
+  if (align === 'center') return {lx: runOriginX + runW / 2, anchor: 'middle'};
+  if (align === 'right') return {lx: runOriginX + runW, anchor: 'end'};
+  return {lx: runOriginX, anchor: 'start'};
+}
+
+
 export function renderTextRuns(
   wrappedRuns: WrappedRun[],
   {originX, originY, w, align, day, tones, dim, boxTone}: {originX: number; originY: number; w: number; align: Align; day: Theme; tones: ToneEnv; dim?: boolean; boxTone?: EmphasisTone},
@@ -75,17 +89,12 @@ export function renderTextRuns(
     // the dimmed look comes first: a solid box that is dimmed is a white box, so its (white) text would vanish
     const color = dim ? PALETTE.muted : runColorOf(tones, run.tone, boxTone, day);
     const cls = run.mono ? ' class="mono"' : '';
-    const anchor = align === 'center' ? ' text-anchor="middle"' : align === 'right' ? ' text-anchor="end"' : '';
-    // A step() badge only ever indents the title run (see layout.ts's
-    // textRuns) — every other run's indent is 0, so this is a no-op there.
-    const indent = run.indent ?? 0;
-    const runOriginX = originX + indent;
-    const runW = w - indent;
-    const lx = align === 'center' ? runOriginX + runW / 2 : align === 'right' ? runOriginX + runW : runOriginX;
+    const {lx, anchor} = runLineOrigin(run, {originX, w, align});
+    const anchorAttr = anchor === 'start' ? '' : ` text-anchor="${anchor}"`;
     run.lines.forEach((line, i) => {
       const y = originY + must(run.lineYs[i]);
       const content = run.lineSpans ? spanTspans(must(run.lineSpans[i]), run, color, day, tones, dim) : emojiSpan(line);
-      parts.push(`<text x="${lx}" y="${y}"${anchor}${cls} font-size="${run.size}" font-weight="${run.weight}" fill="${color}">${content}</text>`);
+      parts.push(`<text x="${lx}" y="${y}"${anchorAttr}${cls} font-size="${run.size}" font-weight="${run.weight}" fill="${color}">${content}</text>`);
     });
   }
   return parts.join('\n  ');
