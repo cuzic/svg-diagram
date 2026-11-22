@@ -75,6 +75,7 @@ for (const [name, canvas] of [['幅 1800', false], ['canvas 2400x1800 (倍率 1.
     for (const m of set.main) {
       const g = m[0], x = await drawn(g, canvas), tag = `#${g}`, n = now.get(g) ?? m, o = off.get(g)!;
       total += x.pairs; pinnedTotal += n[4];
+      // These pins compare with the PR #406 baseline. cause-layer-order.test.ts checks P3 against main immediately before ADR 0075 U1.
       assert.ok(x.pairs <= m[4] || x.c < m[1] || x.and < m[3] || recorded.has(g), `${tag}: 組 ${m[4]} -> ${x.pairs} (増えてよいのは交差か AND の交差が減った図 (ADR 0075 の P3) と、ピンに記録した図 (ADR 0073))`); // 名前の一覧は持たない (ADR 0073)
       // plain #179 (ADR 0073 U3 review m3): the tails moved onto the heads make `first` leave the +4 window of the version without the pairs key, and it wins the pick; it gains a pair (recorded above), crossings unchanged
       if (!(g === 179 && !canvas)) assert.ok(x.bends <= o[5] + 4 || x.and < o[3] || x.c < o[1], `${tag}: 折れ ${o[5]} (組の key を切った版) -> ${x.bends} (+4 の上限、AND の交差 ${o[3]} -> ${x.and}、交差 ${o[1]} -> ${x.c})`); // ADR 0075 M5: the exception is a fall of the crossings too (a crossing reduction is not a pairs-only improvement)

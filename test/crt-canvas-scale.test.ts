@@ -10,7 +10,7 @@ import type {CauseBand, LaidOutCause} from '../lib/types/diagrams.ts';
 import {LANE, gapFor, laneStepOf, layoutWithLanes, routeLayered, stubOf} from '../lib/layered-route.ts';
 import {andArc, layoutCauseBand} from '../lib/toc.ts';
 import {canvasFontScale} from '../lib/tokens.ts';
-import {crossingsOf, parallelRuns} from '../lib/polyline-metrics.ts';
+import {bendsOf, crossingsOf, parallelRuns} from '../lib/polyline-metrics.ts';
 import {ARROW_L} from '../lib/cause-hop.ts';
 import {CRT_REPORT_LINKS, CRT_REPORT_NODES, CRT_REPORT_OPTIONS, crtReportShape} from './fixtures/crt-report-shape.ts';
 
@@ -70,15 +70,22 @@ test('the table of ADR 0070 D7: ports, boxes, the AND arc and the box gap take t
   assert.ok(gapFor(3, 0, 1, 1.29) > gapFor(3, 0, 1, 1));
 });
 
-test("a canvas with small text keeps today's spacing (s >= 1): minText 10 and 14 draw what no canvas draws, spacing-wise", async () => {
-  for (const minText of [10, 14]) {
-    const {t} = await checked(crtFigure({minText}));
-    // ADR 0075: at minText 10 the row search draws this figure with 7 crossings (main: 8), 1 cause-crossing (2) and 52 bends (66), and one pair of runs 10px apart (main: none). A pair may rise where the crossings fall
-    // (ADR 0075 Q1), so this case is open for the owner (the PR's Open questions); minText 14 keeps today's spacing.
-    const fewer = minText === 10 && crossingsOf(routesOf(t)) < 8;
-    assert.ok(fewer || minSpacing(t) >= laneStepOf(1), `minText ${minText}: ${minSpacing(t)}`);
-    if (!fewer) assert.equal(parallelRuns(routesOf(t), laneStepOf(1)).length, 0);
-  }
+test('minText 14 keeps at least one unscaled lane step between parallel runs', async () => {
+  const {t} = await checked(crtFigure({minText: 14}));
+  assert.ok(minSpacing(t) >= laneStepOf(1), `spacing ${minSpacing(t)}`);
+  assert.equal(parallelRuns(routesOf(t), laneStepOf(1)).length, 0);
+});
+
+test('minText 10 keeps the crossing, bend and spacing limits accepted for ADR 0075 U1', async () => {
+  const {r, t} = await checked(crtFigure({minText: 10}));
+  const points = routesOf(t);
+  assert.equal(crossingsOf(points), 7);
+  assert.equal(causeCrossings(r), 1);
+  const bends = points.reduce((sum, route) => sum + bendsOf(route), 0);
+  assert.ok(bends <= 52, `bends ${bends}`);
+  const pairs = parallelRuns(points, laneStepOf(1)).length;
+  assert.ok(pairs <= 1, `pairs ${pairs}`);
+  assert.ok(minSpacing(t) >= 10, `spacing ${minSpacing(t)}`);
 });
 
 // a causeTree's band alone, with a fixed text width: a band with no canvas is the figure that was, and the bands that are not a causeTree's own ignore the scale

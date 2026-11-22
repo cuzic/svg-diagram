@@ -186,7 +186,7 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
   // ADR 0075 D2: the order search above ran exactly as on main (nothing below touches `lastBetter`, `tried` or the queue); the row candidates join its pool afterwards.
   const mainOrder = bestOrder, mainPick = must(pool.best.item), found0 = search1.result;
   // the forecast: lay a candidate out only if its layer crossings (weight 1) are at most the best order's forecast `bestProxy`. As in the loop above, it does not filter while AND crossings remain (the forecast does not see the AND arrows)
-  const forecastOk = (r: RowSearchResult): boolean => bestScore[0]! > 0 || r.plainCrossings < bestProxy + 1;
+  const forecastOk = (r: RowSearchResult): boolean => (bestScore[0] ?? 0) > 0 || r.plainCrossings < bestProxy + 1;
   if (rowSearchOn && found0) { searchStats.rowSearches++; searchStats.moves += found0.moves; if (forecastOk(found0)) tryRows(found0.rows); }
   // the second search: the rows the sweeps leave for the best order the search found are its start (one more placement)
   if (rowSearchOn && found0 && bestOrder) {
