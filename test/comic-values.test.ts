@@ -1,7 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {renderComicBand} from '../lib/comic/emit.ts';
-import {valueFindings} from '../lib/comic/slot-values.ts';
+import {slotMax} from '../lib/comic/layout.ts';
+import {slotFontSize, slotValue, valueAtoms, valueFindings} from '../lib/comic/slot-values.ts';
 import {lay, slotSvg, widthOf, withDay, withoutSlotsAndTitles} from './helpers/comic-values.ts';
 import {SAMPLE} from './helpers/comic-sample.ts';
 
@@ -47,6 +48,52 @@ test('values shrink by ratio, stay at 14px if clipped, or fit at 18px', () => {
   }
 });
 
+test('rounding near the floor cannot keep a clipped value above 14px', () => {
+  const laid = lay();
+  // Independent rounding at 18px and 14px can make the narrowest text overflow.
+  const nearFloor = (_text: string, size: number) => size === 18 ? 69 : 55;
+  const svg = slotSvg(renderComicBand(laid, {day: 'ABCD'}, nearFloor), 'day');
+  assert.match(svg, /font-size="14"/);
+  assert.ok(valueFindings(SAMPLE, laid, {day: 'ABCD'}, nearFloor).some(f => f.rule === 'slot-overflow'));
+});
+
+test('the shrink ratio is clamped to 14px even when 14px just fits', () => {
+  const laid = lay();
+  const nearFloor = (_text: string, size: number) => size === 18 ? 70 : 54;
+  const slot = laid.bubbles[0]!.slots[0]!;
+  assert.equal(slotFontSize(slot, {text: 'ABC', weight: 700}, nearFloor), 14);
+  assert.deepEqual(valueFindings(SAMPLE, laid, {day: 'ABC'}, nearFloor), []);
+});
+
+test('slotMax uses the supplied maximum or the longest choice', () => {
+  const def = {prompt: '曜日', choices: ['月曜日', '火曜']};
+  assert.equal(slotMax(def), 3);
+  assert.equal(slotMax({...def, max: 4}), 4);
+  assert.equal(slotMax({prompt: '曜日'}), undefined);
+  const [first, ...others] = SAMPLE.panels;
+  const sheet = {...SAMPLE, panels: [{...first!, dialogue: [{...first!.dialogue[0]!, slots: {day: def}}]}, ...others]};
+  assert.deepEqual(valueFindings(sheet, lay(sheet), {day: '木曜日'}, widthOf), []);
+  assert.ok(valueFindings(sheet, lay(sheet), {day: '火曜日曜'}, widthOf).some(f => f.rule === 'comic-value-invalid'));
+});
+
+test('slotValue uses own keys and chooses text and weight for a filled or skipped slot', () => {
+  const slot = lay().bubbles[0]!.slots[0]!;
+  assert.equal(slotValue(slot, Object.create({day: '水曜'})), undefined);
+  assert.deepEqual(slotValue(slot, {day: '水曜'}), {text: '水曜', weight: 700});
+  assert.deepEqual(slotValue(slot, {day: null}), {text: '…', weight: 400});
+});
+
+test('valueAtoms requests regular fallback and bold value atoms at 18px and 14px', () => {
+  const laid = lay(withDay({fallback: 'Mon'}));
+  const requests = [...valueAtoms(laid, {day: null, what: '月AB', unknown: 'XX'})];
+  assert.deepEqual(requests, [
+    {text: 'Mon', size: 18, weight: 400, font: 'sans'},
+    {text: 'Mon', size: 14, weight: 400, font: 'sans'},
+    {text: 'AB', size: 18, weight: 700, font: 'sans'},
+    {text: 'AB', size: 14, weight: 700, font: 'sans'},
+  ]);
+});
+
 test('a fallback uses normal weight and the same width and clipping rules', () => {
   const sheet = withDay({fallback: 'ABC'});
   const laid = lay(sheet);
@@ -54,7 +101,7 @@ test('a fallback uses normal weight and the same width and clipping rules', () =
   const width = (_text: string, size: number, weight: number) => { measured.push(weight); return size * 4; };
   const svg = slotSvg(renderComicBand(laid, {day: null}, width), 'day');
   assert.match(svg, /font-size="14"[^>]*>ABC<\/text>/);
-  assert.deepEqual(measured, [400]);
+  assert.deepEqual(measured, [400, 400]);
   assert.deepEqual(valueFindings(sheet, laid, {day: null}, width).map(f => f.rule), ['slot-overflow']);
 });
 
@@ -91,8 +138,7 @@ test('width quantization rounds each measured atom before summing it', () => {
   const laid = lay();
   const roundingEdge = (w: number) => (text: string, size: number) => {
     assert.equal(text, 'AB');
-    assert.equal(size, 18);
-    return w;
+    return size === 18 ? w : size;
   };
   const under = slotSvg(renderComicBand(laid, {day: '月AB水'}, roundingEdge(18.124)), 'day');
   const over = slotSvg(renderComicBand(laid, {day: '月AB水'}, roundingEdge(18.125)), 'day');

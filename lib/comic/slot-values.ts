@@ -31,7 +31,9 @@ const valueWidth = ({text, weight}: {text: string; weight: FontWeight}, size: nu
 
 export function slotFontSize(slot: ComicLaidSlot, value: {text: string; weight: FontWeight}, widthOf = noMeasure): number {
   const w18 = valueWidth(value, FONT, widthOf);
-  return w18 > slot.w ? Math.max(MIN_FONT_SIZE, f1(FONT * slot.w / w18)) : FONT;
+  if (w18 <= slot.w) return FONT;
+  if (valueWidth(value, MIN_FONT_SIZE, widthOf) > slot.w) return MIN_FONT_SIZE;
+  return Math.max(MIN_FONT_SIZE, f1(FONT * slot.w / w18));
 }
 
 /** Both sizes are requested up front so rendering and verification can be synchronous. */

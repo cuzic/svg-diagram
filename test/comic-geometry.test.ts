@@ -1,5 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {bandWidth} from '../lib/comic/constants.ts';
 import {comicGeometry} from '../lib/comic/geometry.ts';
 import {box, comic, connect, diagram, renderInBrowser} from '../lib/web.ts';
 import type {ComicWorksheet} from '../lib/types/comic.ts';
@@ -7,6 +8,11 @@ import {lay, measure} from './helpers/comic-values.ts';
 import {SAMPLE} from './helpers/comic-sample.ts';
 
 const rect = ({x, y, w, h}: {x: number; y: number; w: number; h: number}) => ({x, y, w, h});
+
+test('bandWidth includes the side margins and only the gutters between columns', () => {
+  assert.equal(bandWidth(1, 420), 452);
+  assert.equal(bandWidth(2, 360), 768);
+});
 
 test('comic geometry maps exact panel, bubble, slot and head coordinates', () => {
   const laid = lay();
@@ -45,6 +51,9 @@ test('a comic slot is an anchor and colliding anchors are rejected', async () =>
   const doc = () => diagram({theme: 'blue', width: 500, legend: false});
   const drawn = await renderInBrowser(doc().add(box({id: 'note', title: '注記'}), comic(SAMPLE), connect('note:bottom', 'day:top')), {measure});
   assert.equal(drawn.laidOut.connects.length, 1);
+  const laid = drawn.laidOut.laidOut.find(b => b.type === 'comic')!;
+  const day = comicGeometry(laid).slots['day']!;
+  assert.deepEqual(drawn.laidOut.connects[0]!.to, {x: day.x + day.w / 2, y: day.y});
   const duplicate = box({id: 'day', title: '注記'});
   await assert.rejects(renderInBrowser(doc().add(duplicate, comic(SAMPLE)), {measure}), /another anchor already has/);
   await assert.rejects(renderInBrowser(doc().add(comic(SAMPLE), duplicate), {measure}), /duplicate anchor id "day"/);
