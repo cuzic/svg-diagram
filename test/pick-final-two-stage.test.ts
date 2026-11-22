@@ -40,3 +40,10 @@ test('pickTwoStage: a lower C wins whatever the bends; a tie keeps main\'s; more
   const out = {...J('out', [0, 0, 0, 0, 0, 100]), layers: [1]};
   assert.equal(name(pickTwoStage(first, [M, N], [out, better], frame, true, view)), 'better'); // `out` does not seed the pool
 });
+
+test('pickTwoStage: a taller R can replace M only with fewer crossings than M', () => {
+  const equalCrossings = J('equal crossings', [0, 0, 2, 0, 7, 110]);
+  const fewerCrossings = J('fewer crossings', [0, 0, 1, 0, 7, 110]);
+  assert.equal(pickTwoStage(first, [M], [equalCrossings], frame, true, view), M, 'fewer bends alone cannot justify the extra height');
+  assert.equal(pickTwoStage(first, [M], [fewerCrossings], frame, true, view), fewerCrossings);
+});
