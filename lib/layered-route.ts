@@ -1094,8 +1094,6 @@ export interface Attempt {
   /** Whether `size.w` is within `maxAcross` (true when none is given). */
   fits: boolean;
   loose: string[];
-  /** ADR 0016 D12/D13 moved side-by-side runs aside in this candidate. */
-  asided?: true;
 }
 
 /** How many arrows run through the inside of a box that is not one of their two ends (the boxes and routes are in the placed figure). */
@@ -1166,7 +1164,6 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     if (!before) return a;
     const {opts, laneShare, near} = must(optsOf.get(a)), b = build(opts, laneShare, true, near);
     if (rejectsAside(a, b, {before, parallels, andCrossings, worse})) return a;
-    b.asided = true;
     return b;
   };
   const sharing = (a: Attempt): Attempt => {
@@ -1197,8 +1194,6 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
     if (rejectsApart(a, b, {grouped: o.groupOf !== undefined, parallels, andCrossings, worse})) return a;
     // the search of the orders is entered on the first figure's crossings (toc.ts): a move that takes the last crossing away would skip it where it ran
     if (a.score.crossings > 0 && b.score.crossings === 0) return a;
-    // an AND crossing it took away is judged like D12/D13's: toc.ts decides whether to search the orders on the figure without these moves
-    if (o.groupOf !== undefined && andCrossings(b) < andCrossings(a)) b.asided = true;
     return b;
   };
   // an attempt that does not fit is set aside by the fitting (only its width and its layers are read, for the message): the work that only moves its routes is not done (ADR 0053)
