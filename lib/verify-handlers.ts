@@ -2,7 +2,7 @@
 // (`rects`), the figure-internal checks it runs (`check`, in the `phase` it belongs to) and its text-contrast check (`contrast`).
 // One entry per laid-out band type, each checked against its own band type; a band type without one fails to compile.
 
-import {qualify, scopeOf} from './anchor-scope.ts';
+import {bareNameIn, qualify, scopeOf} from './anchor-scope.ts';
 import {plateStyle} from './image.ts';
 import {segHitsRect} from './bars.ts';
 import {checkChart} from './charts-verify.ts';
@@ -16,6 +16,7 @@ import {sourceOf} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
 import {CONTRAST_THRESHOLD, dxdy, eachOverlap, issueAt, labelOf, neverTogether, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes, statesProblems} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
+import type {ComicLaidBubble, LaidOutComic} from './types/comic.ts';
 import type {EmphasisTone, Rect} from './types/core.ts';
 import type {LaidOutDiagram} from './types/index.ts';
 import type {LaidOutBanner, LaidOutBox, LaidOutCaption} from './types/text-bands.ts';
@@ -68,6 +69,24 @@ const childRects = (band: {children: LaidOutBox[]}): CheckRect[] => band.childre
   const loc = sourceOf(c);
   return {id: c.id ?? null, label: labelOf(c), x: c.x, y: c.y, w: c.w, h: c.h, ...(loc ? {loc} : {})};
 });
+
+function comicSlotOwners(band: LaidOutComic): Map<string, ComicLaidBubble> {
+  const owners = new Map<string, ComicLaidBubble>();
+  for (const bubble of band.bubbles) for (const {id} of bubble.slots) {
+    // Layout registers only the first anchor when a worksheet repeats a slot id.
+    if (!owners.has(id)) owners.set(id, bubble);
+  }
+  return owners;
+}
+
+function comicRects(band: LaidOutComic): CheckRect[] {
+  const scope = scopeOf(band), owners = comicSlotOwners(band);
+  return band.panels.map(({id, x, y, w, h}) => {
+    const holds = band.id ? [band.id] : [];
+    for (const [slot, bubble] of owners) if (bubble.panel === id) holds.push(qualify(scope, slot));
+    return {id: qualify(scope, id), label: `comic panel ${id}`, x, y, w, h, holds};
+  });
+}
 
 // ---- figure checks ----
 
@@ -190,8 +209,23 @@ const checkCloud = (band: LaidOutOf<'cloud'>, _d: LaidOutDiagram, {problems}: Ve
 };
 
 // A comic's data and layout problems (ADR 0074 D6): the findings of its layout that are mistakes (the advice ones are lint findings, lib/rules.ts).
-const checkComic = (band: LaidOutOf<'comic'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
+const checkComic = (band: LaidOutComic, d: LaidOutDiagram, {problems}: VerifyOut): void => {
   for (const f of band.findings) if (f.severity === 'problem') problems.push(`comic: ${f.message} [${f.rule}]`);
+  if (!d.connects.length) return;
+  const scope = scopeOf(band), owners = comicSlotOwners(band);
+  for (const c of d.connects) {
+    const fromId = bareNameIn(scope, c.fromId), toId = bareNameIn(scope, c.toId);
+    const from = fromId === undefined ? undefined : owners.get(fromId), to = toId === undefined ? undefined : owners.get(toId);
+    if (!from && !to) continue;
+    // Other panels are checked by their frames. Inside the endpoint panels, check the bubbles individually.
+    for (const b of band.bubbles) {
+      if (b.panel !== from?.panel && b.panel !== to?.panel) continue;
+      if (b === from || b === to || b.id === fromId || b.id === toId) continue;
+      if (c.pathSegments.some(seg => rectOverlap(seg, b))) {
+        problems.push(`connect(${c.fromLabel} -> ${c.toLabel}) の経路がふきだし "${qualify(scope, b.id)}" に重なります。接続の辺か経路を変えてください`);
+      }
+    }
+  }
 };
 
 const checkBars = (band: LaidOutOf<'bars'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
@@ -379,8 +413,7 @@ export const VERIFY_HANDLERS = {
   valueChain: {rects: figureRects, check: flowCheck},
   timeline: {rects: ownRect, check: {phase: 'timeline', run: checkTimeline}},
   bowtie: {rects: band => band.nodes.map((n, i) => ({id: null, label: band.labelBoxes[i]?.label ?? 'box', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
-  // a panel is the obstacle a connector must not run through; the bubbles in it are not rects of their own (they sit inside it by design)
-  comic: {rects: band => band.panels.map(pn => ({id: pn.id, label: `comic panel ${pn.id}`, x: pn.x, y: pn.y, w: pn.w, h: pn.h, ...holdsFigure(band)})), check: {phase: 'comic', run: checkComic}},
+  comic: {rects: comicRects, check: {phase: 'comic', run: checkComic}},
   fta: {rects: band => band.nodes.map((n, i) => ({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'event', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
   // a band node has no label box and is checked as the band it is (its own rects), so the label boxes count only the text nodes
   tree: {rects: band => { let li = 0; return band.nodes.flatMap(n => n.band ? [] : [{id: n.id ?? null, label: band.labelBoxes[li++]?.label ?? 'node', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}]); }},
@@ -406,7 +439,8 @@ const handlerOf = (band: LaidOutDiagram['laidOut'][number]): VerifyHandler<LaidO
 /** Every checkable rect, in band order. */
 export function collectRects(d: LaidOutDiagram): CheckRect[] {
   return d.laidOut.flatMap(band => {
-    const scope = scopeOf(band), loc = sourceOf(band);
+    // comicRects names panels and slots explicitly: a bare band id can have the same spelling as either.
+    const scope = band.type === 'comic' ? undefined : scopeOf(band), loc = sourceOf(band);
     const rects = (handlerOf(band).rects?.(band) ?? []).map(r => loc && !r.loc ? {...r, loc} : r);
     return scope ? rects.map(r => scopedRect(band, scope, r)) : rects;
   });

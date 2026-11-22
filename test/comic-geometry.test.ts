@@ -59,6 +59,39 @@ test('a comic slot is an anchor and colliding anchors are rejected', async () =>
   await assert.rejects(renderInBrowser(doc().add(comic(SAMPLE), duplicate), {measure}), /duplicate anchor id "day"/);
 });
 
+test('a connector can reach a slot inside its panel and bubble', async () => {
+  const doc = () => diagram({theme: 'blue', width: 500, legend: false});
+  const note = box({id: 'note', title: '注記'});
+  const toSlot = doc().add(note, comic(SAMPLE), connect('note:bottom', 'day:top'));
+  const fromScopedSlot = doc().add(note, comic(SAMPLE, {id: 'day', scope: 'c'}), connect('c.day:top', 'note:bottom'));
+  for (const figure of [toSlot, fromScopedSlot]) {
+    const {verdict} = await renderInBrowser(figure, {measure});
+    assert.deepEqual(verdict.problems, []);
+    assert.equal(verdict.ok, true);
+  }
+});
+
+test('a connector to a slot still reports crossing another panel', async () => {
+  const figure = diagram({theme: 'blue', width: 500, legend: false}).add(
+    comic(SAMPLE), box({id: 'note', title: '注記'}), connect('note:bottom', 'day:top'),
+  );
+  const {verdict} = await renderInBrowser(figure, {measure});
+  assert.ok(verdict.problems.some(p => p.includes('path overlaps "comic panel p2"')), verdict.problems.join('\n'));
+  assert.ok(!verdict.problems.some(p => p.includes('path overlaps "comic panel p1"')), verdict.problems.join('\n'));
+});
+
+test('a connector to a slot still reports crossing another bubble in its panel', async () => {
+  const sheet: ComicWorksheet = {...SAMPLE, panels: SAMPLE.panels.map(panel => panel.id === 'p1' ? {...panel, dialogue: [
+    {id: 'intro', kind: 'narration', tpl: '今週の予定について話します。'}, ...panel.dialogue,
+  ]} : panel)};
+  const figure = diagram({theme: 'blue', width: 500, legend: false}).add(
+    box({id: 'note', title: '注記'}), comic(sheet), connect('note:bottom', 'day:top'),
+  );
+  const {verdict} = await renderInBrowser(figure, {measure});
+  assert.ok(verdict.problems.some(p => p.includes('経路がふきだし "p1.intro"')), verdict.problems.join('\n'));
+  assert.ok(!verdict.problems.some(p => p.includes('経路がふきだし "p1.d1"')), verdict.problems.join('\n'));
+});
+
 test('comic data-node names the visible panel frame, bubble outline and slot group on request', async () => {
   const scope = 'c&"';
   const doc = (s?: string) => diagram({theme: 'blue', width: 500}).add(comic(SAMPLE, s ? {scope: s} : {}));
