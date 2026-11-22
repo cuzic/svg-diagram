@@ -32,7 +32,7 @@ const res = await page.evaluate(async ({version, ws}) => {
   // the comic prototype with the browser's own measurer
   const widths = (text, size, weight = 400) => measure({text, size, weight, font: 'sans'}).w;
   const laid = Proto.layoutComic(ws, widths);
-  const filled = {day: '水曜', what: '引継ぎ', prep: '資料を共有', change: '早く帰る', wish: '週に一度は早く帰る'};
+  const filled = {day: '水曜', what: '引き継ぎ', prep: '資料を共有', change: '早く帰る', wish: '週に一度は早く帰る'};
   const svgs = [laid.svg({}), laid.svg(filled)];
   const nowMs = () => performance.now();
   let u0 = nowMs(); laid.svg({...filled, change: 'のんびりしている'}); const updateOne = nowMs() - u0; // one new value, real svgMeasurer

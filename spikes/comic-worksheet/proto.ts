@@ -30,20 +30,24 @@ const segs = (tpl: string): Seg[] => tpl.split(/(\{[A-Za-z][\w-]*\})/).filter(Bo
 
 const isCjk = (ch: string): boolean => [...ch].length === 1 && /[\u3000-\u30ff\u3400-\u9fff\uf900-\ufaff\uff00-\uffef]/.test(ch);
 const isHira = (ch: string): boolean => [...ch].length === 1 && /[\u3041-\u309f]/.test(ch);
-/** Width rule (comic / chat only): a CJK atom is exactly 1 em, never measured; any other atom is rounded up to a whole px after forgiving 0.03px of engine noise. */
-export const atomWidth = (a: string, widths: Widths): number => isCjk(a) ? FONT : Math.ceil(widths(a, FONT) - 0.03);
+/** Width rule (comic / chat only): a CJK atom is exactly 1 em, never measured; any other atom is quantized to 1/4 px first and then rounded up to a whole px (a quantizer has a cliff wherever it is put; this one sits at k + 0.125). */
+export const atomWidth = (a: string, widths: Widths): number => isCjk(a) ? FONT : Math.ceil(Math.round(widths(a, FONT) * 4) / 4);
 
 interface Atom {text: string; slot?: string; w: number; glue?: boolean}
 interface LaidLine {atoms: Atom[]; w: number}
 interface Reserved {lines: LaidLine[]; inner: number; notes: string[]}
 
 /** Wrap the template with every slot reserved at its maximum width, the slot an unbreakable unit that keeps the hiragana after it (bunsetsu). */
-function reserve(line: Line, widths: Widths): Reserved {
+export type GlueMode = 'all' | 'two' | 'particle' | 'fit2' | 'fit2p';
+const PARTICLES = new Set([...'はがをにでのともへや']);
+/** How much of the hiragana after a slot is bound to it: 'all' (the whole run), 'two' (at most two), 'particle' (only a particle: は が を に で の と も へ や), 'fit2' (at most two, and never past INNER_MAX), 'fit2p' (like fit2, but a particle right after the slot is always bound). */
+function glueAllowed(mode: GlueMode, n: number, ch: string, unitW: number): boolean { return mode === 'all' || (mode === 'two' ? n < 2 : mode === 'fit2' ? n < 2 && unitW + FONT <= INNER_MAX : mode === 'fit2p' ? n < 2 && (unitW + FONT <= INNER_MAX || (n === 0 && PARTICLES.has(ch))) : n === 0 && PARTICLES.has(ch)); }
+function reserve(line: Line, widths: Widths, mode: GlueMode): Reserved {
   const atoms: Atom[] = [];
-  let afterSlot = false;
+  let afterSlot = false, bound = 0, unitW = 0;
   for (const s of segs(line.tpl)) {
-    if ('slot' in s) { atoms.push({text: `{${s.slot}}`, slot: s.slot, w: (line.slots?.[s.slot]?.max ?? 4) * FONT}); afterSlot = true; }
-    else for (const a of splitAtoms(s.lit)) { const glue = afterSlot && isHira(a); if (!glue) afterSlot = false; atoms.push({text: a, w: atomWidth(a, widths), ...(glue ? {glue: true} : {})}); }
+    if ('slot' in s) { atoms.push({text: `{${s.slot}}`, slot: s.slot, w: (line.slots?.[s.slot]?.max ?? 4) * FONT}); afterSlot = true; bound = 0; unitW = (line.slots?.[s.slot]?.max ?? 4) * FONT; }
+    else for (const a of splitAtoms(s.lit)) { const glue = afterSlot && isHira(a) && glueAllowed(mode, bound, a, unitW); if (glue) { bound++; unitW += FONT; } else afterSlot = false; atoms.push({text: a, w: atomWidth(a, widths), ...(glue ? {glue: true} : {})}); }
   }
   // the widest unbreakable unit: a slot with the hiragana glued to it
   let unit = 0, widest = 0;
@@ -55,6 +59,7 @@ function reserve(line: Line, widths: Widths): Reserved {
   for (const extra of [FONT, 2 * FONT]) {
     const last = lines[lines.length - 1];
     if (lines.length < 2 || !last || last.w > 2 * FONT) break;
+    if (Math.max(INNER_MAX, widest) + extra > INNER_MAX + 2 * FONT) break; // never widen past the bubble-wide threshold
     const t = wrap(Math.max(INNER_MAX, widest) + extra), tl = t[t.length - 1];
     if (t.length < lines.length || (tl && tl.w > 2 * FONT)) { lines = t; inner = Math.max(INNER_MAX, widest) + extra; }
   }
@@ -126,7 +131,8 @@ export interface Laid {
   stats: {valueMeasures: number};
 }
 
-export function layoutComic(ws: Worksheet, widths: Widths): Laid {
+export function layoutComic(ws: Worksheet, widths: Widths, opts: {glue?: GlueMode} = {}): Laid {
+  const glueMode = opts.glue ?? 'fit2p';
   const W = PW + 2 * MARGIN, H = MARGIN + ws.panels.length * (PH + GUT) - GUT + MARGIN;
   const geo: Geometry = {panels: {}, bubbles: {}, slots: {}, heads: {}, points: {}};
   const findings: Finding[] = [];
@@ -162,7 +168,7 @@ export function layoutComic(ws: Worksheet, widths: Widths): Laid {
     const placed: Rect[] = [];
     p.lines.forEach((ln, li) => {
       const bid = `${p.id}.b${li}`;
-      const R = reserve(ln, widths);
+      const R = reserve(ln, widths, glueMode);
       const laid = R.lines, iw = R.inner, ih = laid.length * LH;
       wrapped[bid] = {lines: laid.map(l => l.atoms.map(a => a.text).join('')), inner: iw, notes: R.notes};
       for (const n of R.notes) bad(`comic-${n}`, bid, n, 'warn');

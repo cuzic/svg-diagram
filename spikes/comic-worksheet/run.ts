@@ -10,8 +10,8 @@ let t = performance.now();
 const laid = layoutComic(sample, hb);
 const tLayout = performance.now() - t;
 const empty: Values = {};
-const filled: Values = {day: '水曜', what: '引継ぎ', prep: '資料を共有', change: '早く帰る', wish: '週に一度は早く帰る'};
-const skipped: Values = {day: null, what: '引継ぎ', prep: undefined, change: null, wish: '素敵'};
+const filled: Values = {day: '水曜', what: '引き継ぎ', prep: '資料を共有', change: '早く帰る', wish: '週に一度は早く帰る'};
+const skipped: Values = {day: null, what: '引き継ぎ', prep: undefined, change: null, wish: '素敵'};
 const long: Values = {...filled, change: 'とてもとてもながいへんか'};
 const strip = (s: string) => s.replace(/<g data-slot="[^"]*">.*?<\/g>/g, '<slot/>').replace(/<title>.*?<\/title>/g, '');
 const states = [empty, filled, skipped, long].map(v => laid.svg(v));
@@ -38,3 +38,9 @@ if (out) { fs.mkdirSync(out, {recursive: true}); fs.writeFileSync(`${out}/empty.
 const badWs = {panels: [{id: 'x1', chars: [{id: 'a', side: 'left' as const, face: 'smile' as const, hue: 1}, {id: 'b', side: 'left' as const, face: 'smile' as const, hue: 2}],
   lines: [{speaker: 'zz', kind: 'say' as const, tpl: '{one}と{two}と{three}', slots: {one: {max: 12, prompt: 'あ'}, two: {max: 2, prompt: 'いろはにほ'}}}]}]};
 console.log('bad:', layoutComic(badWs, hb).findings.map(f => f.rule).join(' '));
+
+// the cliff of the Latin-atom rule: how much of a pixel's span an engine difference of 0.0156px can flip
+import {atomWidth} from './proto.ts';
+let flips = 0, n = 0;
+for (let w = 10; w < 11; w += 0.001) { n++; if (atomWidth('A', () => w) !== atomWidth('A', () => w + 0.0156)) flips++; }
+console.log('latin cliff: share of widths a 0.0156px difference can flip =', (flips / n * 100).toFixed(1) + '%');
