@@ -15,11 +15,11 @@
   <path d="M432,188 L437,200 L427,200 z" fill="#22201b"/>
   <path d="M532,280 L532,196" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M532,188 L537,200 L527,200 z" fill="#22201b"/>
-  <path d="M372,152 L372,104 L392,104 L392,68" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M372,152 L372,112 L392,112 L392,68" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M392,56 L397,68 L387,68 z" fill="#22201b"/>
   <path d="M392,152 L392,132 L516,132 L516,68" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M516,56 L521,68 L511,68 z" fill="#22201b"/>
-  <path d="M580,152 L580,120 L540,120 L540,68" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M540,152 L540,68" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M540,56 L545,68 L535,68 z" fill="#22201b"/>
   <path d="M368,56 L368,76 L280,76 L280,540 L468,540 L468,552" fill="none" stroke="#22201b" stroke-width="3"/>
   <path d="M468,560 L463,548 L473,548 z" fill="#22201b"/>

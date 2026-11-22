@@ -103,7 +103,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
 
 
 function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause | NoFit {
-  const once = (order?: readonly string[], plainRoutes = false, noDetour = false, sameFit?: {width: number; folded: boolean}) => tryLayoutCause(prep, band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, plainRoutes, noDetour, sameFit);
+  const once = (order?: readonly string[], plainRoutes = false, noDetour = false, sameFit?: {width: number; folded: boolean}, tailOff = false) => tryLayoutCause(prep, band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, plainRoutes, noDetour, sameFit, tailOff);
   const prep = prepareCause(band);
   const sep = bandSep(band, env); // one lane step for the search's score and for `better()` (ADR 0073 D2)
   const first = once();
@@ -120,7 +120,7 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
   const ids = band.nodes.map(n => n.id);
   // The search scores the figures without the detours of the long arrows (route-search.ts: slow, and the search lays a figure out up to MAX_ORDERS times); the order it
   // finds is laid out once more with them, and replaces the first figure only if it is strictly better in the same score.
-  const base = band.straighten === false ? first : once(undefined, false, true);
+  const base = band.straighten === false ? first : once(undefined, false, true, undefined, true);
   if (isNoFit(base)) return base;
   // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
   const orders = [ids.toReversed(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
@@ -166,7 +166,7 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
     // the forecast does not see the arrows of an AND, which only the routes show: while some of them cross, every order is laid out
     if (bestScore[0] === 0 && proxy > bestProxy) continue;
     searchStats.laid++;
-    const t = once(order, false, true, sameFit);
+    const t = once(order, false, true, sameFit, true);
     if (isNoFit(t)) continue; // another order widens a layer: it does not fit where the written one does
     // the same layers (a different order must not change which edge of a cycle is cut, or fold the figure), the same size limits, no AND the first drew left undrawn (ADR 0073 D1 (a)-(c))
     if (!inFrame({layers: layerRank(axisOf(t)), loose: t.loose.length, fits: t.fitApplied?.length}, baseFrame)) continue;
@@ -175,6 +175,8 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
     // the selection changed (a better candidate, or a window that shrank and left the old pick out): the wait starts again
     if (pool.add({t, order, proxy}, score)) { const cur = must(pool.best.item); bestScore = pool.best.score; bestOrder = cur.order; bestProxy = cur.proxy; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
   }
+  // ADR 0073 D3: the search judges the orders with the tails of the arrows into an AND left where the ports put them (`tailOff`: the same scores as before D3, so the search finds the same orders);
+  // `first` and `found` below are laid out with them moved, and the final pick is made among those
   const best = must(pool.best.item).t;
   if (band.straighten === false) { if (best.h > base.h + 0.5) env.tallerSeen?.(); return best; }
   const withDetours = bestOrder ? once(bestOrder) : undefined;
@@ -349,7 +351,7 @@ function alapOf(band: CauseBand): {keep: string[]} | undefined {
 }
 
 /** One whole layout of a cause tree; the figure that fits none of the ways is returned as `NoFit`; a mistake of the author's or a broken invariant still throws. */
-function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false, sameFit?: {width: number; folded: boolean}): LaidOutCause | NoFit {
+function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false, sameFit?: {width: number; folded: boolean}, tailOff = false): LaidOutCause | NoFit {
   const {arrows, groups} = prep;
   // a cause tree's own band (not pdpc / relationDiagram / whyWhyTree, ADR 0070 D1/M1): the AND arc of D8, the room before the heads that it
   // needs (`headRun` = AND_END + 1, and the old 4px more for a last turn), and the ports of D3
@@ -358,7 +360,7 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
   const s = own ? Math.max(1, env.lineScale ?? 1) : 1, PORT_S = Math.round(PORT * s);
   const {end: AND_END, peak: AND_PEAK, reach: AND_REACH} = own ? andArc(s) : OLD_ARC;
   const headRun = AND_END + 1;
-  const heads = own ? {headRun: Math.max(22, headRun), turnRun: Math.max(26, headRun + 4), andPorts: true} : undefined;
+  const heads = own ? {headRun: Math.max(22, headRun), turnRun: Math.max(26, headRun + 4), andPorts: true, ...(tailOff ? {tailAlign: false} : {})} : undefined;
   // the last run of each arrow of an AND, when they can carry one arc (see below): the arrows arrive on one side, all heading the
   // same way, with room before the head for the arc
   const andEnds = (g: {arrows: number[]}, pointsOf: (k: number) => Pt[]) => {

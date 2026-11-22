@@ -306,7 +306,7 @@ test('causeTree(): the arrows of a current reality tree bend little: the figure 
   const sum = (a: number[]): number => a.reduce((x, y) => x + y, 0);
   assert.ok(sum(bends(now)) <= 20, `${sum(bends(now))} bends: ${bends(now)}`);
   // the limit of 2 bends an arrow (before ADR 0070 U4b: 16 bends, 2 crossings) is 4 here, for one arrow: the search now finds an order of 1 crossing
-  // (18 bends), where a3 -> u1 passes u2's layer off the line of its ports (4 bends); every other arrow keeps to 2
+  // (16 bends with ADR 0073 D3), where a3 -> u1 passes u2's layer off the line of its ports (4 bends); every other arrow keeps to 2
   assert.equal(bends(now).filter(b => b > 2).length, 1, `${bends(now)}`);
   assert.ok(Math.max(...bends(now)) <= 4, `${bends(now)}`);
   assert.ok(scoreOf(now.edges.map(e => e.points)).crossings <= 1);

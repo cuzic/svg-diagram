@@ -7,15 +7,15 @@
   </style>
   <rect x="0" y="0" width="940" height="680" fill="#ffffff"/>
 
-  <path d="M176,560 L176,504 L396,504 Q404,516 408,504 L600,504 L600,476" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M176,560 L176,524 L396,524 Q404,536 408,524 L600,524 L600,476" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M600,468 L605,480 L595,480 z" fill="#22201b"/>
   <path d="M600,432 L600,336" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M600,328 L605,340 L595,340 z" fill="#22201b"/>
   <path d="M596,292 L596,196" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M596,188 L601,200 L591,200 z" fill="#22201b"/>
-  <path d="M804,560 L804,548 L828,548 L828,488" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M828,560 L828,488" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M828,476 L833,488 L823,488 z" fill="#22201b"/>
-  <path d="M440,576 L440,524 L804,524 L804,488" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M440,576 L440,548 L804,548 L804,488" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M804,476 L809,488 L799,488 z" fill="#22201b"/>
   <path d="M804,420 L804,348" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M804,336 L809,348 L799,348 z" fill="#22201b"/>
