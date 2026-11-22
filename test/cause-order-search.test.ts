@@ -88,14 +88,14 @@ for (const g of [70, 86, 101, 106, 132]) {
     const on = lay(band), off = lay(band, {exchange: false});
     assert.ok(off.h <= base.h + 0.5, `交換なし ${off.h} は最初の並び ${base.h} + 0.5px 以下 (今までのふるい)`);
     assert.ok(crossings(on) < crossings(off), `交差 ${crossings(off)} -> ${crossings(on)}`);
-    assert.ok(on.h > base.h + 0.5, `交換ありは高い: ${base.h} -> ${on.h} (前提: ふるいを通らない並びが採られた)`);
+    if (g !== 101) assert.ok(on.h > base.h + 0.5, `交換ありは高い: ${base.h} -> ${on.h} (前提: ふるいを通らない並びが採られた)`); // #101 (ADR 0075): the row search finds a lower-crossing order at the first order's height, so the exchange is not taller than `base` any more; the old sieve (exchange off) still gets 16 crossings
     assert.ok(on.h <= 1.25 * base.h, `高さ ${on.h} は最初の並び ${base.h} の 1.25 倍以内`);
   });
 }
 
 test('whyWhyTree の帯は探索の規則 (交換・高さの key) の外: 旗に依らず同じ (ADR 0073 は causeTree の帯だけ)', () => {
-  // #53: causeTree の帯では旗で図が変わる (交換あり 0 交差、なし 3 交差)。規則の外の宣言 (`own`) を外すと whyWhyTree の帯もこの 13 枚 (#28 #37 #42 #50 #53 #90 #92 #101 #108 #124 #130 #137 #149) で変わる
-  const g = 53, why = (env: object): LaidOutCause => layoutCauseBand({...bandOf(g), layerFrom: 'effect'} as CauseBand, 0, 0, 1800, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false, ...env});
+  // #101: causeTree の帯では旗で図が変わる (交換あり 6 交差、なし 16 交差。ADR 0075 の層の並びの探索の後は #101 と #130 だけ。その前は #53 など 13 枚)。規則の外の宣言 (`own`) を外すと whyWhyTree の帯もそのとき変わる
+  const g = 101, why = (env: object): LaidOutCause => layoutCauseBand({...bandOf(g), layerFrom: 'effect'} as CauseBand, 0, 0, 1800, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false, ...env});
   assert.ok(crossings(lay(bandOf(g))) < crossings(lay(bandOf(g), {exchange: false})), '前提: causeTree の帯では旗で交差が変わる');
   assert.deepEqual(why({}).edges, why({exchange: false}).edges, 'whyWhyTree の帯は、交換ありでもなしでも同じ');
 });

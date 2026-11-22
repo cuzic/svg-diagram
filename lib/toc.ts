@@ -4,13 +4,14 @@
 //               figure: an arrow across an AND arc means "together", separate arrows mean "either".
 //  cloud():     the Evaporating Cloud: five boxes in a fixed place (A the common objective, B and C the needs, D and D' the
 //               conflicting wants), the arrows between them with their assumptions numbered, and the numbered list under the figure.
-import {orderCrossings} from './graph-layout.ts';
+import {orderCrossings, type LayeredOpts} from './graph-layout.ts';
+import type {RowSearchResult} from './layer-order-search.ts';
 import {textWidth} from './atoms.ts';
 import {andClashes} from './cause-clash.ts';
 import {routesThroughNodes} from './verify-base.ts';
 import {ARROW_L, causeCrossings} from './cause-hop.ts';
 import {fitOrThrow, isNoFit, type NoFit, planFit, NARROWING} from './fit-width.ts';
-import {pairsOf, scoreOf} from './polyline-metrics.ts';
+import {pairsOf, parallelRuns, scoreOf} from './polyline-metrics.ts';
 import {gapFor, laneStepOf, layeredAttempt, lexLess, selectIndex, windowOf} from './layered-route.ts';
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
@@ -100,7 +101,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
 
 
 function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause | NoFit {
-  const once = (order?: readonly string[], plainRoutes = false, noDetour = false, sameFit?: {width: number; folded: boolean}, tailOff = false) => tryLayoutCause(prep, band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, plainRoutes, noDetour, sameFit, tailOff);
+  const once = (order?: readonly string[], plainRoutes = false, noDetour = false, sameFit?: {width: number; folded: boolean}, tailOff = false, rows?: RowsCtl) => (searchStats.layouts++, tryLayoutCause(prep, band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, plainRoutes, noDetour, sameFit, tailOff, rows));
   const prep = prepareCause(band);
   const sep = bandSep(band, env); // one lane step for the search's score and for `better()` (ADR 0073 D2)
   const first = once();
@@ -112,7 +113,10 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
   const ids = band.nodes.map(n => n.id);
   // The search scores the figures without the detours of the long arrows (route-search.ts: slow, and the search lays a figure out up to MAX_ORDERS times); the order it
   // finds is laid out once more with them, and replaces the first figure only if it is strictly better in the same score.
-  const base = band.straighten === false ? first : once(undefined, false, true, undefined, true);
+  // ADR 0075: a cause tree's own band that searches (not whyWhyTree, not `straighten: false`) also searches the order of the rows, once, in this first placement
+  const rowSearchOn = band.straighten !== false && band.layerFrom === undefined;
+  const search1: RowsCtl['search'] = {andTo: new Set(prep.groups.map(g => must(prep.arrows[must(g.arrows[0])]).to))};
+  const base = band.straighten === false ? first : once(undefined, false, true, undefined, true, rowSearchOn ? {search: search1} : undefined);
   if (isNoFit(base)) return base;
   // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
   const orders = [ids.toReversed(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
@@ -131,9 +135,21 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
   const baseWidth = base.fitApplied?.find(a => a.what === 'maxNodeW')?.to;
   const sameFit = {width: typeof baseWidth === 'number' ? baseWidth : (band.maxNodeW === undefined || band.maxNodeW === 'auto' ? NARROWING[0] as number : band.maxNodeW), folded: !!base.fitApplied?.some(a => a.what === 'fold')};
   // ADR 0073 D2: every order that passed the height gate keeps its score; the figure only while it is in the window. The pick (`best`) is the selection of the whole list, whatever came first
-  type Pick = {t: LaidOutCause; order?: string[]; proxy: number};
+  type Pick = {t: LaidOutCause; order?: string[]; rows?: string[][]; proxy: number};
   const pool = windowPool<Pick>({t: base, proxy: bestProxy}, scoreOfCause(base, own, sep));
-  let bestScore = pool.best.score, bestOrder: string[] | undefined;
+  let bestScore = pool.best.score, bestOrder: string[] | undefined, bestRows: string[][] | undefined;
+  // ADR 0075 D2/D3: a candidate is the figure laid out with the rows the search found forced in. It joins the pool like any order: the same frame, the same height rule, the same score; and never with more sub-4px overlaps than the pick so far.
+  const overlapsOf = (t: LaidOutCause): number => parallelRuns(t.edges.map(e => e.points), 4).length;
+  const tryRows = (rows: string[][], seedOrder?: readonly string[]): void => {
+    const force: NonNullable<LayeredOpts['forceRows']> = {rows}, t = once(seedOrder, false, true, sameFit, true, {force});
+    searchStats.rowCandidates++;
+    if (!force.took || isNoFit(t)) return; // the last layoutLayered call did not take the rows (other layers or nodes): not a candidate
+    if (!inFrame({layers: layerRank(axisOf(t)), loose: t.loose.length, fits: t.fitApplied?.length}, baseFrame)) return;
+    const score = scoreOfCause(t, own, sep);
+    if (overlapsOf(t) > overlapsOf(must(pool.best.item).t)) return;
+    if (!passesHeight(t.h, score, base, bestScore, exchange)) return;
+    if (pool.add({t, rows, ...(seedOrder ? {order: [...seedOrder]} : {}), proxy: bestProxy}, score)) { const cur = must(pool.best.item); bestScore = pool.best.score; bestOrder = cur.order; bestRows = cur.rows; bestProxy = cur.proxy; searchStats.rowsWon++; }
+  };
   // then more orders when the fixed ones left a crossing: shuffles from a fixed seed (the same figure always gets the same answer), then swaps of two neighbours of the best order so far.
   // `straighten: false` keeps to the fixed ones (it is the way back to the old figure)
   const queue = [...orders], seen = new Set<string>([ids.join('\u0000'), ...orders.map(o => o.join('\u0000'))]);
@@ -167,19 +183,48 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
     // the selection changed (a better candidate, or a window that shrank and left the old pick out): the wait starts again
     if (pool.add({t, order, proxy}, score)) { const cur = must(pool.best.item); bestScore = pool.best.score; bestOrder = cur.order; bestProxy = cur.proxy; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
   }
-  // ADR 0073 D3: the search judges the orders with the tails of the arrows into an AND left where the ports put them (`tailOff`: the same scores as before D3, so the search finds the same orders);
-  // `first` and `found` below are laid out with them moved, and the final pick is made among those
+  // ADR 0075 D2: the order search above ran exactly as on main (nothing below touches `lastBetter`, `tried` or the queue); the row candidates join its pool afterwards.
+  const mainOrder = bestOrder, mainPick = must(pool.best.item), found0 = search1.result;
+  // the forecast: lay a candidate out only if its layer crossings (weight 1) are at most the best order's forecast `bestProxy`. As in the loop above, it does not filter while AND crossings remain (the forecast does not see the AND arrows)
+  const forecastOk = (r: RowSearchResult): boolean => bestScore[0]! > 0 || r.plainCrossings < bestProxy + 1;
+  if (rowSearchOn && found0) { searchStats.rowSearches++; searchStats.moves += found0.moves; if (forecastOk(found0)) tryRows(found0.rows); }
+  // the second search: the rows the sweeps leave for the best order the search found are its start (one more placement)
+  if (rowSearchOn && found0 && bestOrder) {
+    const search2: RowsCtl['search'] = {andTo: search1.andTo}, again = once(bestOrder, false, true, sameFit, true, {search: search2}), found1 = search2.result;
+    if (!isNoFit(again) && found1) { searchStats.rowSearches++; searchStats.moves += found1.moves; if (forecastOk(found1)) tryRows(found1.rows, bestOrder); }
+  }
   const best = must(pool.best.item).t;
   if (band.straighten === false) { if (best.h > base.h + 0.5) env.tallerSeen?.(); return best; }
-  const withDetours = bestOrder ? once(bestOrder) : undefined;
-  const found = withDetours && !isNoFit(withDetours) ? withDetours : undefined;
-  // the best of: the first figure, the best order with the detours, the best figure without them (the one the search judged; the base itself when no order beat it): the first one wins a tie.
-  // The detours can make AND arrows cross (they are judged by the whole figure's crossings), so the figure without them must stay a candidate
-  // the same frame as the figures the search compared (the plain ones: the detours may have made `first` lower than any order would be without them)
+  // the final pick, in two stages (D3): M is main's own pick; R the best rows candidate, which replaces M only when the window of ADR 0073 D2 over [M, R] selects it
+  const detour = (order: readonly string[] | undefined, rows?: string[][]): LaidOutCause | undefined => {
+    const force: NonNullable<LayeredOpts['forceRows']> | undefined = rows ? {rows} : undefined, f = once(order, false, false, undefined, false, force ? {force} : undefined);
+    return isNoFit(f) || (force && !force.took) ? undefined : f;
+  };
+  const foundMain = mainOrder ? detour(mainOrder) : undefined;
+  const rowsWon = must(pool.best.item) !== mainPick;
+  const foundRows = rowsWon ? detour(bestOrder, bestRows) : undefined;
   const viewOf = (t: LaidOutCause): Judged => ({h: t.h, score: scoreOfCause(t, own, sep), layers: layerRank(axisOf(t)), loose: t.loose.length, fits: t.fitApplied?.length});
-  const picked = pickFinal(first, [found, best], {h: base.h, layers: baseRank, loose: base.loose.length, fits: base.fitApplied?.length}, exchange, viewOf);
+  const picked = pickTwoStage(first, [foundMain, mainPick.t], rowsWon ? [foundRows, best] : [], {h: base.h, layers: baseRank, loose: base.loose.length, fits: base.fitApplied?.length}, exchange, viewOf, overlapsOf, (m, r) => { searchStats.replaced++; searchHooks.onReplace?.({score: viewOf(m).score, overlaps: overlapsOf(m)}, {score: viewOf(r).score, overlaps: overlapsOf(r)}); });
   if (picked.h > base.h + 0.5) env.tallerSeen?.();
   return picked;
+}
+
+/**
+ * ADR 0075 D3: the final pick in two stages. M = main's own pick (`first` and the candidates of the order search only). R = the best of the rows candidates alone, each checked first (frame, height against M's score, overlaps not above M's).
+ * R replaces M only when the window of ADR 0073 D2 over the pair [M, R] selects R: a pairs-only gain costs at most +4 bends (D1-4), a lower C wins, a tie keeps M. So the final figure is M or R, never another candidate of the order search
+ * (one `pickFinal` over all of them is not monotone: a rows candidate that is not chosen could shrink the window and move the pick to another one), and a figure differs from main's only when the window selects R.
+ */
+export function pickTwoStage<T>(first: T, main: readonly (T | undefined)[], rows: readonly (T | undefined)[], base: {h: number; layers: readonly number[]; loose: number; fits: number | undefined}, exchange: boolean, view: (t: T) => Judged, ovOf?: (t: T) => number, onReplace?: (m: T, r: T) => void): T {
+  const m = pickFinal(first, main, base, exchange, view), vm = view(m);
+  const rs = rows.filter((t): t is T => t !== undefined && inFrame(view(t), base) && passesHeight(view(t).h, view(t).score, base, vm.score, exchange) && (!ovOf || ovOf(t) <= ovOf(m)));
+  if (!rs.length) return m;
+  const rp = windowPool<T>(must(rs[0]), view(must(rs[0])).score);
+  for (const t of rs.slice(1)) rp.add(t, view(t).score);
+  const r = must(rp.best.item), pair = windowPool<T>(m, vm.score);
+  pair.add(r, view(r).score);
+  if (pair.best.item !== r) return m;
+  onReplace?.(m, r);
+  return r;
 }
 
 /** What the final pick reads of a figure: its height, its score, the ranks of its layers, how many ANDs were left undrawn and how many size limits were applied. */
@@ -231,7 +276,13 @@ export function windowPool<T>(first: T, score: readonly number[]): {readonly bes
 }
 
 /** A count of the orders the search laid out (a measure of its cost that does not depend on the load of the machine; read by the tests and by scripts/crt-u6-measure). */
-export const searchStats = {laid: 0};
+export const searchStats = {laid: 0,
+  /** Every placement `layoutCauseBandAt` made (the cost of ADR 0075 D5: it does not depend on the load of the machine). */ layouts: 0,
+  /** The row searches run, the candidates laid out, the ones that won the pool, the figures a rows candidate replaced main's pick in, and the annealing moves tried. */ rowSearches: 0, rowCandidates: 0, rowsWon: 0, replaced: 0, moves: 0};
+/** For the tests (ADR 0075 U1): called with the score and the sub-4px overlaps of main's pick M and of the rows candidate R each time R replaces M. */
+export const searchHooks: {onReplace?: (m: {score: readonly number[]; overlaps: number}, r: {score: readonly number[]; overlaps: number}) => void} = {};
+/** What a placement is given for the row search (ADR 0075): to search (the result lands in `search.result`) or to force rows in (`force.took` says whether the last layout call took them). */
+type RowsCtl = {search?: NonNullable<LayeredOpts['rowSearch']>; force?: NonNullable<LayeredOpts['forceRows']>};
 /** The most orders the search tries for one figure. */
 const MAX_ORDERS = 60;
 /** How many orders in a row may fail to get better before the search stops (with and without AND arrows crossing). */
@@ -343,7 +394,7 @@ function alapOf(band: CauseBand): {keep: string[]} | undefined {
 }
 
 /** One whole layout of a cause tree; the figure that fits none of the ways is returned as `NoFit`; a mistake of the author's or a broken invariant still throws. */
-function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false, sameFit?: {width: number; folded: boolean}, tailOff = false): LaidOutCause | NoFit {
+function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false, anotherOrder?: readonly string[], plainRoutes = false, noDetour = false, sameFit?: {width: number; folded: boolean}, tailOff = false, rows?: RowsCtl): LaidOutCause | NoFit {
   const {arrows, groups} = prep;
   // a cause tree's own band (not pdpc / relationDiagram / whyWhyTree, ADR 0070 D1/M1): the AND arc of D8, the room before the heads that it
   // needs (`headRun` = AND_END + 1, and the old 4px more for a last turn), and the ports of D3
@@ -412,7 +463,7 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
     // ADR 0070 D7: the gap between the boxes of a layer holds the dummies of the long arrows, so it is never under one lane step of the scaled lines
     // (U5: the ADR's `2 x LANE x unit` made the real CRT wider than its canvas at s = 1.29 and the straightened layout lost; see the PR)
     const boxGap = Math.max(Math.round(GAP * (env.space ?? 1)), laneStepOf((env.space ?? 1) * s));
-    const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: boxGap, levelGap: Math.max(Math.round(LEVEL * (env.space ?? 1)), gapFor(degree, 0, env.space, s)), ...(declared.length ? {back: declared} : {}), ...(alap ? {alap} : {}), ...(fold === undefined ? {} : {fold})}, {
+    const attemptWith = (returns: 'all' | 'declared' | undefined) => layeredAttempt(nodes, arrows.map(a => ({from: a.from, to: a.to})), {dir: 'right', gap: boxGap, levelGap: Math.max(Math.round(LEVEL * (env.space ?? 1)), gapFor(degree, 0, env.space, s)), ...(declared.length ? {back: declared} : {}), ...(alap ? {alap} : {}), ...(fold === undefined ? {} : {fold}), ...(rows?.search ? {rowSearch: rows.search} : {}), ...(rows?.force ? {forceRows: rows.force} : {})}, {
       portStep: PORT_S, ...(env.space === undefined || env.space === 1 ? {} : {space: env.space}), ...(s > 1 ? {scale: s} : {}), groupOf: k => groupIndex.get(k), round: id => hexIds.has(id), transpose: vertical, maxAcross: iw + 0.5, place: placeIn, ...(returns ? {returns} : {}), ...(heads ? {heads, heightKey: true, pairsKey: true} : {}), ...(heads && band.straighten !== false ? {tracks: true} : {}), ...(band.straighten === false ? {straighten: false} : {}), ...(band.straighten === false || noDetour ? {} : {detour: true}), ...(plainRoutes ? {aside: false} : band.straighten === false ? {} : {apart: true}),
       looseOf: (rts, ly) => {
         const route = new Map<number, Pt[]>();

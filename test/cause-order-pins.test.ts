@@ -18,7 +18,7 @@ import {randomCrts} from './helpers/random-crt.ts';
 test.after(() => closeMeasurer());
 
 type Row = [g: number, crossings: number, causeCrossing: number, andCrossings: number, pairs: number, bends: number, height: number, lineScaleDropped: number, laid: number, overlaps: number];
-interface Set_ {laneStep?: Record<string, string>; main: Row[]; now: Row[]; nopairs: Row[]; laid: {main: number; now: number}}
+interface Set_ {pairsRecorded?: number[]; laneStep?: Record<string, string>; main: Row[]; now: Row[]; nopairs: Row[]; laid: {main: number; now: number}}
 interface Pins {plain: Set_; canvas: Set_}
 const pins = JSON.parse(readFileSync(new URL('./fixtures/crt-random-pins.json', import.meta.url), 'utf8')) as Pins;
 const figures = randomCrts(300);
@@ -68,15 +68,14 @@ for (const [name, canvas] of [['幅 1800', false], ['canvas 2400x1800 (倍率 1.
 
 for (const [name, canvas] of [['幅 1800', false], ['canvas 2400x1800 (倍率 1.29)', true]] as const) {
   const set = canvas ? pins.canvas : pins.plain;
-  test(`ピンの図 (${name}): P3 組はピンの記録の図以外で増えず、合計も増えない。同じ線の上の重なり (4px 未満) が main より増えない。P4 折れは「組の key を切った版 + 4」以下 (AND の交差・交差が減った図は除く)`, async () => {
+  test(`ピンの図 (${name}): P3 組は交差か AND の交差が減った図以外で増えず、合計も増えない。同じ線の上の重なり (4px 未満) が main より増えない。P4 折れは「組の key を切った版 + 4」以下 (AND の交差・交差が減った図は除く)`, async () => {
     const now = new Map(set.now.map(r => [r[0], r])), off = new Map(set.nopairs.map(r => [r[0], r]));
-    // 組が増える図 = ピンの記録 (now) が main より組の多い図。名前の一覧は持たず、ピンから決める
-    const recorded = new Set(set.main.filter(m => (now.get(m[0])?.[4] ?? 0) > m[4]).map(m => m[0]));
+    const recorded = new Set(set.pairsRecorded ?? []); // ADR 0073: the figures whose pairs rise with the crossings unchanged (the pairs key's exchange); recorded in the pins
     let total = 0, pinnedTotal = 0;
     for (const m of set.main) {
       const g = m[0], x = await drawn(g, canvas), tag = `#${g}`, n = now.get(g) ?? m, o = off.get(g)!;
       total += x.pairs; pinnedTotal += n[4];
-      assert.ok(x.pairs <= (recorded.has(g) ? n[4] : m[4]), `${tag}: 組 ${m[4]} -> ${x.pairs} (記録の図 ${recorded.has(g)})`);
+      assert.ok(x.pairs <= m[4] || x.c < m[1] || x.and < m[3] || recorded.has(g), `${tag}: 組 ${m[4]} -> ${x.pairs} (増えてよいのは交差か AND の交差が減った図 (ADR 0075 の P3) と、ピンに記録した図 (ADR 0073))`); // 名前の一覧は持たない (ADR 0073)
       // plain #179 (ADR 0073 U3 review m3): the tails moved onto the heads make `first` leave the +4 window of the version without the pairs key, and it wins the pick; it gains a pair (recorded above), crossings unchanged
       if (!(g === 179 && !canvas)) assert.ok(x.bends <= o[5] + 4 || x.and < o[3] || x.c < o[1], `${tag}: 折れ ${o[5]} (組の key を切った版) -> ${x.bends} (+4 の上限、AND の交差 ${o[3]} -> ${x.and}、交差 ${o[1]} -> ${x.c})`); // ADR 0075 M5: the exception is a fall of the crossings too (a crossing reduction is not a pairs-only improvement)
       assert.equal(x.pairs, n[4], `${tag}: 組はピンのとおり`);
