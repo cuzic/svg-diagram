@@ -81,21 +81,21 @@ test('layerRank: 隙間の大きさが違うだけの配置は同じ層、0.5px 
   assert.deepEqual(layerRank([3, 1, 2, 1]), [2, 0, 1, 0], '昇順の順位。入力の順のまま返す');
 });
 
-// 順序探索 (小さい図): 乱数の CRT のうち、高さの交換で交差が減る図 (固定の字幅。#70 #86 #101 #106 #132)
-for (const g of [70, 86, 101, 106, 132]) {
+// The exchange reduces crossings in these figures. For #101 the row search then lowers the winning height (ADR 0075).
+for (const g of [70, 86, 101, 106, 130, 132]) {
   test(`交換: #${g} は高さが最初の並びの 1.25 倍以内で交差が減る並びを採り、交換なし (旧来のふるい) では採らない`, () => {
     const band = bandOf(g), base = baseOf(band);
     const on = lay(band), off = lay(band, {exchange: false});
     assert.ok(off.h <= base.h + 0.5, `交換なし ${off.h} は最初の並び ${base.h} + 0.5px 以下 (今までのふるい)`);
     assert.ok(crossings(on) < crossings(off), `交差 ${crossings(off)} -> ${crossings(on)}`);
-    assert.ok(on.h > base.h + 0.5, `交換ありは高い: ${base.h} -> ${on.h} (前提: ふるいを通らない並びが採られた)`);
+    if (g !== 101) assert.ok(on.h > base.h + 0.5, `交換ありは高い: ${base.h} -> ${on.h} (前提: ふるいを通らない並びが採られた)`);
     assert.ok(on.h <= 1.25 * base.h, `高さ ${on.h} は最初の並び ${base.h} の 1.25 倍以内`);
   });
 }
 
 test('whyWhyTree の帯は探索の規則 (交換・高さの key) の外: 旗に依らず同じ (ADR 0073 は causeTree の帯だけ)', () => {
-  // #53: causeTree の帯では旗で図が変わる (交換あり 0 交差、なし 3 交差)。規則の外の宣言 (`own`) を外すと whyWhyTree の帯もこの 13 枚 (#28 #37 #42 #50 #53 #90 #92 #101 #108 #124 #130 #137 #149) で変わる
-  const g = 53, why = (env: object): LaidOutCause => layoutCauseBand({...bandOf(g), layerFrom: 'effect'} as CauseBand, 0, 0, 1800, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false, ...env});
+  // The flag changes #101's causeTree (6 crossings with exchange, 16 without). Forcing `own = true` makes it change 13 whyWhyTree bands, including #101, both before and after ADR 0075.
+  const g = 101, why = (env: object): LaidOutCause => layoutCauseBand({...bandOf(g), layerFrom: 'effect'} as CauseBand, 0, 0, 1800, fixedW as never, ROLES, {wrap: 'phrase', keepWords: false, ...env});
   assert.ok(crossings(lay(bandOf(g))) < crossings(lay(bandOf(g), {exchange: false})), '前提: causeTree の帯では旗で交差が変わる');
   assert.deepEqual(why({}).edges, why({exchange: false}).edges, 'whyWhyTree の帯は、交換ありでもなしでも同じ');
 });
