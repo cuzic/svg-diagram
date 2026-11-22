@@ -1,67 +1,74 @@
-// node spikes/balloon-overlay/run.ts   — places one balloon per box of three example figures, measures, and writes out/*.svg (ADR 0078).
+// node spikes/balloon-overlay/run.ts   — places one balloon per box of six example figures, measures, and writes out/*.svg (ADR 0078, round 2).
 import fs from 'node:fs';
 import {renderSource} from '../../lib/render-source.ts';
 import {balloonPath} from '../../lib/comic/balloon-path.ts';
-import {score as bestOne, best, bodySize, candidates, placeAll, sceneOf, type Balloon, type Cand, type Scene} from './place.ts';
-import {clipArea, rectPoly, type Rect} from './geom.ts';
+import {best, candidates, placeAll, score, sceneOf, type Balloon, type Cand, type Scene} from './place.ts';
+import type {Pt, Rect} from './geom.ts';
 
 const out = new URL('./out/', import.meta.url).pathname; fs.mkdirSync(out, {recursive: true});
 const NAMES = ['flowchart', 'why-why', 'state-diagram', 'steps', 'canvas-swot', 'canvas-bmc'], TEXTS = ['要確認', 'ここが変更点'];
 const lines: string[] = []; const rep = (s: string): void => { lines.push(s); console.log(s); };
 let seed = 12345; const rnd = (): number => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 2 ** 32; };
-const jig = (r: Rect, e: number): Rect => { const s = (): number => (rnd() < 0.5 ? -e : e); return {x: r.x + s(), y: r.y + s(), w: r.w + s(), h: r.h + s()}; };
+const sg = (e: number): number => (rnd() < 0.5 ? -e : e);
+const jig = (r: Rect, e: number): Rect => ({x: r.x + sg(e), y: r.y + sg(e), w: r.w + sg(e), h: r.h + sg(e)});
+const jigP = (p: Pt[], e: number): Pt[] => p.map(q => [q[0] + sg(e), q[1] + sg(e)] as Pt);
+/** noise on EVERY input the placement reads: text rects, boxes, shapes, arrowheads and connector paths */
+const jigScene = (sc: Scene, e: number): Scene => ({...sc, texts: sc.texts.map(t => jig(t, e)), boxes: sc.boxes.map(t => jig(t, e)), shapes: sc.shapes.map(p => jigP(p, e)), heads: sc.heads.map(p => jigP(p, e)), lines: sc.lines.map(p => jigP(p, e))});
 const key = (c: Cand | undefined): string => c ? `${c.dir}${c.d}` : 'none';
 
-const draw = (sc: Scene, placed: {c: Cand; text: string}[], extra = ''): string => {
+const draw = (sc: Scene, placed: {c: Cand; text: string}[]): string => {
   const g = placed.map(({c, text}) => { const p = balloonPath(c.body, 'say', {tip: c.tip, halfWidth: 8});
-    return `<g class="overlay"><path d="${p.d}" fill="#fff4c2" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/><text x="${c.body.x + c.body.w / 2}" y="${c.body.y + 23}" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">${text}</text></g>`; }).join('');
-  return sc.svg.replace('</svg>', `<g id="overlay-layer">${g}${extra}</g></svg>`);
+    return `<g class="overlay"><path d="${p.d}" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/><path d="${p.d}" fill="#fff4c2" stroke="#22201b" stroke-width="2" stroke-linejoin="round"/><text x="${c.body.x + c.body.w / 2}" y="${c.body.y + 23}" text-anchor="middle" font-size="15" font-weight="700" fill="#22201b">${text}</text></g>`; }).join('');
+  return sc.svg.replace('</svg>', `<g id="overlay-layer">${g}</g></svg>`);
 };
 
-const feas = {cands: 0, clean: 0};
-const total = {n: 0, none: 0, zeroText: 0, covText: 0, ms: 0};
-const flips: Record<number, {n: number; flip: number}> = {0: {n: 0, flip: 0}, 1: {n: 0, flip: 0}, 4: {n: 0, flip: 0}};
-const perFig: string[] = [];
+const T = {n: 0, none: 0, zero: 0, ms: 0, diag: 0, flat: 0, corner: 0, tieTier4: 0, tieAll: 0, clean: 0, cands: 0, fixedAngleFallback: 0};
+const flips: Record<number, {n: number; flip: number}> = {0: {n: 0, flip: 0}, 0.5: {n: 0, flip: 0}, 1: {n: 0, flip: 0}, 4: {n: 0, flip: 0}};
+const perFig: string[] = [], figs: [Scene, Balloon][] = [];
 for (const name of NAMES) {
-  const r = await renderSource(new URL(`../../examples/${name}.ts`, import.meta.url).pathname); const sc = sceneOf(r.svg);
-  let n = 0, zero = 0, nothing = 0, other0 = 0;
-  sc.boxes.forEach((T, bi) => {
-    const b: Balloon = {text: TEXTS[bi % 2]!, target: T, id: `t${bi}`};
-    const t0 = performance.now(); const res = best(candidates(b), sc, 0.5); total.ms += performance.now() - t0;
-    n++; total.n++;
-    for (const c of candidates(b)) { const sc1 = bestOne(c, sc as never); if (sc1) { feas.cands++; if (sc1.text <= 0.5) feas.clean++; } }
-    if (!res) { nothing++; total.none++; return; }
-    if (res.s.text <= 0.5) { zero++; total.zeroText++; } else total.covText++;
-    if (res.s.other === 0) other0++;
-    for (const eps of [0, 1, 4]) {
+  const sc = sceneOf((await renderSource(new URL(`../../examples/${name}.ts`, import.meta.url).pathname)).svg);
+  let n = 0, zero = 0, nothing = 0;
+  sc.boxes.forEach((Tg, bi) => {
+    const b: Balloon = {text: TEXTS[bi % 2]!, target: Tg, id: `t${bi}`}; figs.push([sc, b]);
+    const t0 = performance.now(); const res = best(candidates(b), sc, 0.5); T.ms += performance.now() - t0;
+    n++; T.n++;
+    for (const c of candidates(b)) { const s1 = score(c, sc); if (s1) { T.cands++; if (s1.content <= 0.5) T.clean++; } }
+    if (!res) { nothing++; T.none++; return; }
+    if (res.s.content <= 0.5) { zero++; T.zero++; }
+    if (res.c.diag) T.diag++;
+    if (res.c.angle < 30) T.flat++;
+    if (Math.min(...[[Tg.x, Tg.y], [Tg.x + Tg.w, Tg.y], [Tg.x, Tg.y + Tg.h], [Tg.x + Tg.w, Tg.y + Tg.h]].map(q => Math.hypot(res.c.tip[0] - q[0], res.c.tip[1] - q[1]))) <= 6) T.corner++;
+    // how often is the winner decided only by the fixed order? (runner-up equal on tiers 1-4, then also on distance and crossings)
+    const ranked = candidates(b).map(c => ({c, s: score(c, sc)})).filter((q): q is {c: Cand; s: Score} => !!q.s && q.c.angle >= 30).sort((p, q) => p.s.content - q.s.content || p.s.ends - q.s.ends || p.s.other - q.s.other || p.s.diag - q.s.diag || p.s.d - q.s.d || p.s.cross - q.s.cross || p.s.i - q.s.i);
+    const [a1, a2] = ranked; if (a1 && a2 && Math.abs(a1.s.content - a2.s.content) <= 0.5 && a1.s.ends === a2.s.ends && Math.abs(a1.s.other - a2.s.other) <= 2 && a1.s.diag === a2.s.diag) { T.tieTier4++; if (a1.s.d === a2.s.d && a1.s.cross === a2.s.cross) T.tieAll++; }
+    for (const eps of [0, 0.5, 1, 4]) {
       const base = key(best(candidates(b), sc, eps)?.c);
-      for (let k = 0; k < 60; k++) {
-        const o = {...sc, texts: sc.texts.map(t => jig(t, 0.0156))}; // measurement noise on every text rectangle
-        flips[eps]!.n++; if (key(best(candidates(b), o, eps)?.c) !== base) flips[eps]!.flip++;
-      }
+      for (let k = 0; k < 60; k++) { flips[eps]!.n++; if (key(best(candidates(b), jigScene(sc, 0.0156), eps)?.c) !== base) flips[eps]!.flip++; }
     }
   });
-  perFig.push(`| ${name} | ${sc.boxes.length} | ${sc.texts.length} | ${sc.lines.length} | ${n} | ${zero} | ${nothing} | ${other0} |`);
-  // three balloons in declaration order on the first three boxes (the later ones see the earlier ones as obstacles)
-  const bs: Balloon[] = sc.boxes.slice(0, 3).map((T, i) => ({text: TEXTS[i % 2]!, target: T, id: `t${i}`}));
+  perFig.push(`| ${name} | ${sc.boxes.length} | ${sc.texts.length} | ${sc.shapes.length} | ${sc.lines.length} | ${n} | ${zero} | ${nothing} |`);
+  const bs: Balloon[] = sc.boxes.slice(0, 3).map((Tg, i) => ({text: TEXTS[i % 2]!, target: Tg, id: `t${i}`}));
   const res = placeAll(sc, bs, 0.5);
   fs.writeFileSync(`${out}${name}-3balloons.svg`, draw(sc, res.flatMap((q, i) => q ? [{c: q.c, text: bs[i]!.text}] : [])));
-  rep(`${name}: 3 balloons -> ${res.map(q => q ? `${key(q.c)} (text ${q.s.text.toFixed(1)}, other ${q.s.other.toFixed(0)})` : 'none').join(', ')}`);
+  rep(`${name}: 3 balloons -> ${res.map(q => q ? `${key(q.c)} (content ${q.s.content.toFixed(1)}, other ${q.s.other.toFixed(0)}, angle ${q.c.angle.toFixed(0)})` : 'none').join(', ')}`);
 }
-rep('\n| figure | boxes | texts | connectors | balloons | covers no text | no candidate | also covers nothing else |\n|---|---|---|---|---|---|---|---|');
+rep('\n| figure | boxes | texts | shapes (diamonds, circles) | connectors | balloons | covers no content | no candidate |\n|---|---|---|---|---|---|---|---|');
 for (const l of perFig) rep(l);
-rep(`\nbest candidate covers no text (<= 0.5px^2): ${total.zeroText} / ${total.n}; covers some text: ${total.covText}; no candidate fits the canvas: ${total.none}`);
-for (const e of [0, 1, 4]) rep(`stability under +-0.0156px noise on every text rect, eps=${e}px^2: ${flips[e]!.flip} flips / ${flips[e]!.n} trials = ${(100 * flips[e]!.flip / flips[e]!.n).toFixed(2)}%`);
-rep(`candidates that fit the canvas and cover no text: ${feas.clean} / ${feas.cands} = ${(100 * feas.clean / feas.cands).toFixed(1)}%`);
-rep(`time per balloon (24 candidates, ${total.n} balloons): ${(total.ms / total.n).toFixed(3)} ms`);
-// where would it start to flip? the same test with the noise scaled up (eps = 0.5px^2, the proposed rule)
+const pc = (a: number, b: number): string => `${a} / ${b} = ${(100 * a / b).toFixed(1)}%`;
+rep(`\nbest candidate covers no content (text, shapes; footprint incl. 3px halo; <= 0.5px^2): ${pc(T.zero, T.n)}; no candidate fits the canvas: ${T.none}`);
+rep(`candidates that fit the canvas and cover no content: ${pc(T.clean, T.cands)}`);
+rep(`chosen placements: diagonal ${pc(T.diag, T.n)}; tail angle to its edge under 30 degrees ${pc(T.flat, T.n)}; tip within 6px of a target corner ${pc(T.corner, T.n)}`);
+rep(`runner-up equal on content, ends, other, diag (decided by distance / crossings / fixed order): ${pc(T.tieTier4, T.n)}; equal also on distance and crossings (fixed order alone): ${pc(T.tieAll, T.n)}`);
+for (const e of [0, 0.5, 1, 4]) rep(`stability, +-0.0156px noise on ALL inputs (texts, boxes, shapes, arrowheads, connectors), eps=${e}: ${pc(flips[e]!.flip, flips[e]!.n)} flips`);
+for (const scale of [16, 64, 256]) {
+  let f = 0, n = 0;
+  for (const [sc, b] of figs) { const base = key(best(candidates(b), sc, 0.5)?.c); for (let k = 0; k < 20; k++) { n++; if (key(best(candidates(b), jigScene(sc, 0.0156 * scale), 0.5)?.c) !== base) f++; } }
+  rep(`noise x${scale} (+-${(0.0156 * scale).toFixed(2)}px) on all inputs, eps=0.5: ${pc(f, n)} flips`);
+}
+rep(`time per balloon (24 candidates, ${T.n} balloons): ${(T.ms / T.n).toFixed(3)} ms`);
+// the @at override: the tip is the author's anchor point (+ normal * gap), whatever the nearest edge point says
 {
-  const figs: [Scene, Balloon][] = [];
-  for (const name of NAMES) { const sc = sceneOf((await renderSource(new URL(`../../examples/${name}.ts`, import.meta.url).pathname)).svg); sc.boxes.forEach((T, bi) => figs.push([sc, {text: TEXTS[bi % 2]!, target: T, id: 't'}])); }
-  for (const scale of [1, 16, 64, 256]) {
-    let f = 0, n = 0;
-    for (const [sc, b] of figs) { const base = key(best(candidates(b), sc, 0.5)?.c); for (let k = 0; k < 20; k++) { n++; if (key(best(candidates(b), {...sc, texts: sc.texts.map(t => jig(t, 0.0156 * scale))}, 0.5)?.c) !== base) f++; } }
-    rep(`noise x${scale} (+-${(0.0156 * scale).toFixed(2)}px), eps=0.5: ${f} flips / ${n} = ${(100 * f / n).toFixed(2)}%`);
-  }
+  const [sc, b] = figs[0]!; const a: Balloon = {...b, anchor: {side: 'top', at: 0.3}}, r = best(candidates(a), sc, 0.5)!;
+  rep(`@at override (top@0.3 of the first box): tip ${r.c.tip.map(v => v.toFixed(1)).join(',')} (expected x ${(b.target.x + b.target.w * 0.3).toFixed(1)}, y ${(b.target.y - 4).toFixed(1)}); placed ${key(r.c)}`);
 }
 fs.writeFileSync(`${out}measurements-place.txt`, lines.join('\n') + '\n');

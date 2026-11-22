@@ -1,11 +1,15 @@
-| overlap depth d (px) | cases that fit the zone (of 324) | text of 2nd covered if 1st on top | text of 1st covered if 2nd on top | tail of 1st crosses the 2nd body | ... of those, the 2nd (on top) hides >= 20% of the tail | ... of those, the 1st tail (on top) covers the 2nd text (conservative: whole inner box) | ... of those, >= 90% of the tail is hidden by the 2nd (on top) |
-|---|---|---|---|---|---|---|---|
-| -6 (today: 6px gap) | 324 | 108 | 0 | 177 | 140 | 177 | 0 |
-| 0 | 324 | 108 | 0 | 180 | 143 | 180 | 24 |
-| 4 | 324 | 108 | 0 | 180 | 145 | 180 | 12 |
-| 8 | 324 | 108 | 0 | 180 | 146 | 180 | 12 |
-| 12 | 324 | 252 | 252 | 180 | 146 | 180 | 12 |
-| 16 | 324 | 252 | 252 | 180 | 144 | 180 | 12 |
+combinations: 324 (3x3 speaker places, 1-3 lines each, widths 188 / 204); stacked by the real rule of layout.ts: 297; of those same speaker 108, different speakers 189
 
-line budget at 6:5: 6 lines; zone 16..236 (220px). 3+2 lines: 100+72 = 172px stacked with a 6px gap = 178px (zone 220px) -> overlap 8: 164px
-PAD_Y = 10px: text starts 10px (1 line: 11px) inside the top edge; the rounded corner (r = 24) leaves the corner area empty.
+| overlap depth (px) | same-speaker pairs (upper tail dropped) | text of 2nd covered, 1st on top | text of 1st covered, 2nd on top | different-speaker pairs | text of 2nd covered, 1st on top | text of 1st covered, 2nd on top |
+|---|---|---|---|---|---|---|
+| 0 | 108 | 0 | 0 | 189 | 0 | 0 |
+| 4 | 108 | 0 | 0 | 189 | 0 | 0 |
+| 8 | 108 | 0 | 0 | 189 | 0 | 0 |
+| 12 | 108 | 108 | 108 | 189 | 144 | 144 |
+| 16 | 108 | 108 | 108 | 189 | 144 | 144 |
+
+different-speaker pairs (stacked), depth 8: the upper tail crosses the lower body in 72 of 189 (today's comic-tail-crosses-bubble, a problem; unchanged); the lower bubble on top would hide >= 20% of that tail in 38, and in 72 of them the tip comes out outside the lower bubble (the tail passes behind it and reads as that bubble's own tail); the upper bubble on top would paint the tail over the lower text in 72.
+different-speaker pairs with no crossing tail: 117 of 189; of those, the bodies overlap at depth 8 (x ranges meet, upper tail clear of the lower bubble) in 72. Same-speaker pairs: 108, upper tail dropped, bodies overlap in all of them.
+text starts 11px (1 line) to 10px (more lines) inside the top edge: depth <= PAD_Y - 2 = 8 is a rule with margin, not a threshold.
+demo same-speaker: center/center, 2+1 lines, depth 8: bodies overlap by 1376px^2 (x ranges 106..310 and 106..310)
+demo two-speakers: left/center, 1+1 lines, depth 8: bodies overlap by 474px^2 (x ranges 10..198 and 114..302)

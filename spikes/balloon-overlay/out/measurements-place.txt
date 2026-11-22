@@ -1,26 +1,29 @@
-flowchart: 3 balloons -> se12 (text 0.0, other 0), se28 (text 0.0, other 0), s12 (text 0.0, other 0)
-why-why: 3 balloons -> se12 (text 0.0, other 0), se12 (text 0.0, other 0), se12 (text 0.0, other 0)
-state-diagram: 3 balloons -> s12 (text 0.0, other 0), se12 (text 0.0, other 0), se12 (text 0.0, other 0)
-steps: 3 balloons -> s12 (text 0.0, other 0), nw12 (text 0.0, other 0), se28 (text 0.0, other 0)
-canvas-swot: 3 balloons -> n12 (text 0.0, other 0), nw12 (text 0.0, other 0), se12 (text 0.0, other 0)
-canvas-bmc: 3 balloons -> ne12 (text 0.0, other 0), ne12 (text 0.0, other 0), se48 (text 0.0, other 2160)
+flowchart: 3 balloons -> s12 (content 0.0, other 647, angle 90), n28 (content 0.0, other 504, angle 90), s12 (content 0.0, other 0, angle 90)
+why-why: 3 balloons -> s12 (content 0.0, other 479, angle 90), s28 (content 0.0, other 936, angle 90), n12 (content 0.0, other 0, angle 90)
+state-diagram: 3 balloons -> s12 (content 0.0, other 0, angle 90), s12 (content 0.0, other 0, angle 90), s12 (content 0.0, other 0, angle 90)
+steps: 3 balloons -> s12 (content 0.0, other 0, angle 90), n12 (content 0.0, other 0, angle 90), s48 (content 1017.8, other 201, angle 90)
+canvas-swot: 3 balloons -> n12 (content 0.0, other 0, angle 90), n12 (content 0.0, other 0, angle 90), s12 (content 0.0, other 0, angle 90)
+canvas-bmc: 3 balloons -> ne12 (content 0.0, other 0, angle 30), ne12 (content 0.0, other 0, angle 30), se48 (content 0.0, other 2160, angle 39)
 
-| figure | boxes | texts | connectors | balloons | covers no text | no candidate | also covers nothing else |
+| figure | boxes | texts | shapes (diamonds, circles) | connectors | balloons | covers no content | no candidate |
 |---|---|---|---|---|---|---|---|
-| flowchart | 5 | 22 | 8 | 5 | 5 | 0 | 5 |
-| why-why | 13 | 14 | 11 | 13 | 13 | 0 | 13 |
-| state-diagram | 7 | 13 | 7 | 7 | 7 | 0 | 7 |
-| steps | 6 | 19 | 5 | 6 | 6 | 0 | 5 |
-| canvas-swot | 5 | 23 | 0 | 5 | 5 | 0 | 5 |
-| canvas-bmc | 10 | 46 | 0 | 10 | 10 | 0 | 8 |
+| flowchart | 5 | 22 | 3 | 8 | 5 | 5 | 0 |
+| why-why | 13 | 14 | 0 | 11 | 13 | 13 | 0 |
+| state-diagram | 7 | 13 | 1 | 7 | 7 | 7 | 0 |
+| steps | 6 | 19 | 5 | 5 | 6 | 5 | 0 |
+| canvas-swot | 5 | 23 | 0 | 0 | 5 | 5 | 0 |
+| canvas-bmc | 10 | 46 | 0 | 0 | 10 | 10 | 0 |
 
-best candidate covers no text (<= 0.5px^2): 46 / 46; covers some text: 0; no candidate fits the canvas: 0
-stability under +-0.0156px noise on every text rect, eps=0px^2: 0 flips / 2760 trials = 0.00%
-stability under +-0.0156px noise on every text rect, eps=1px^2: 0 flips / 2760 trials = 0.00%
-stability under +-0.0156px noise on every text rect, eps=4px^2: 0 flips / 2760 trials = 0.00%
-candidates that fit the canvas and cover no text: 386 / 588 = 65.6%
-time per balloon (24 candidates, 46 balloons): 0.465 ms
-noise x1 (+-0.02px), eps=0.5: 0 flips / 920 = 0.00%
-noise x16 (+-0.25px), eps=0.5: 0 flips / 920 = 0.00%
-noise x64 (+-1.00px), eps=0.5: 0 flips / 920 = 0.00%
-noise x256 (+-3.99px), eps=0.5: 37 flips / 920 = 4.02%
+best candidate covers no content (text, shapes; footprint incl. 3px halo; <= 0.5px^2): 45 / 46 = 97.8%; no candidate fits the canvas: 0
+candidates that fit the canvas and cover no content: 315 / 522 = 60.3%
+chosen placements: diagonal 3 / 46 = 6.5%; tail angle to its edge under 30 degrees 0 / 46 = 0.0%; tip within 6px of a target corner 0 / 46 = 0.0%
+runner-up equal on content, ends, other, diag (decided by distance / crossings / fixed order): 13 / 46 = 28.3%; equal also on distance and crossings (fixed order alone): 9 / 46 = 19.6%
+stability, +-0.0156px noise on ALL inputs (texts, boxes, shapes, arrowheads, connectors), eps=0: 38 / 2760 = 1.4% flips
+stability, +-0.0156px noise on ALL inputs (texts, boxes, shapes, arrowheads, connectors), eps=0.5: 0 / 2760 = 0.0% flips
+stability, +-0.0156px noise on ALL inputs (texts, boxes, shapes, arrowheads, connectors), eps=1: 0 / 2760 = 0.0% flips
+stability, +-0.0156px noise on ALL inputs (texts, boxes, shapes, arrowheads, connectors), eps=4: 0 / 2760 = 0.0% flips
+noise x16 (+-0.25px) on all inputs, eps=0.5: 6 / 920 = 0.7% flips
+noise x64 (+-1.00px) on all inputs, eps=0.5: 15 / 920 = 1.6% flips
+noise x256 (+-3.99px) on all inputs, eps=0.5: 134 / 920 = 14.6% flips
+time per balloon (24 candidates, 46 balloons): 0.622 ms
+@at override (top@0.3 of the first box): tip 332.8,16.0 (expected x 332.8, y 16.0); placed sw12

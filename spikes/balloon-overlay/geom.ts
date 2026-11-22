@@ -18,14 +18,26 @@ export function clipArea(subject: Pt[], clip: Pt[]): number {
   }
   return out.length < 3 ? 0 : Math.abs(area(out));
 }
-/** Length of the polyline `pts` that lies inside the rectangle (sampled every 0.5px). */
-export function lengthIn(pts: Pt[], r: Rect): number {
-  let len = 0;
+/** Length of the polyline `pts` inside a convex polygon (exact: each segment is clipped by the polygon's edges, Cyrus-Beck). */
+export function lengthInPoly(pts: Pt[], poly: Pt[]): number {
+  const c = orient(poly); let len = 0;
   for (let i = 0; i + 1 < pts.length; i++) {
-    const a = pts[i]!, b = pts[i + 1]!, L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(L / 0.5));
-    for (let k = 0; k < n; k++) { const t = (k + 0.5) / n, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t; if (x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) len += L / n; }
+    const a = pts[i]!, b = pts[i + 1]!, dx = b[0] - a[0], dy = b[1] - a[1]; let t0 = 0, t1 = 1;
+    for (let j = 0; j < c.length && t0 < t1; j++) {
+      const p = c[j]!, q = c[(j + 1) % c.length]!, ex = q[0] - p[0], ey = q[1] - p[1];
+      const num = ex * (a[1] - p[1]) - ey * (a[0] - p[0]), den = ex * dy - ey * dx; // inside: num + t*den >= 0
+      if (Math.abs(den) < 1e-12) { if (num < 0) t0 = t1; continue; }
+      const t = -num / den; if (den > 0) t0 = Math.max(t0, t); else t1 = Math.min(t1, t);
+    }
+    if (t1 > t0) len += (t1 - t0) * Math.hypot(dx, dy);
   }
   return len;
+}
+export const lengthIn = (pts: Pt[], r: Rect): number => lengthInPoly(pts, rectPoly(r));
+/** The polygon pushed outwards by `d` px (vertices move away from the centroid; exact for a rectangle's corners only up to the corner shape: the spike's stand-in for an offset curve). */
+export function inflate(poly: Pt[], d: number): Pt[] {
+  const cx = poly.reduce((s, p) => s + p[0], 0) / poly.length, cy = poly.reduce((s, p) => s + p[1], 0) / poly.length;
+  return poly.map(p => { const L = Math.hypot(p[0] - cx, p[1] - cy) || 1; return [p[0] + (p[0] - cx) / L * d, p[1] + (p[1] - cy) / L * d] as Pt; });
 }
 /** A rounded rectangle as a convex polygon (4 points per corner). */
 export function roundPoly(r: Rect, rad: number): Pt[] {
