@@ -1,6 +1,6 @@
 # ADR 0077: 吹き出しのオートシェイプ — `balloon()`(Office の `wedge*Callout` / `cloudCallout` に当たる箱の部品)と、`speechBubble()` と分け合う 1 つの輪郭の生成
 
-- 状態: 承認(Accepted。2026-11-22。レビュー 3 回で収束。Q1・Q3・Q6・Q7・Q8・Q10・Q14 は決める人がすべて推奨どおりに決定。下の「決定済み」。**実装は U1 から始めてよい**。設計と小さなスパイク)。**U1 完了**
+- 状態: 承認(Accepted。2026-11-22。レビュー 3 回で収束。Q1・Q3・Q6・Q7・Q8・Q10・Q14 は決める人がすべて推奨どおりに決定。下の「決定済み」。**実装は U1 から始めてよい**。設計と小さなスパイク)。**U1 完了**。**ADR 0078 が一部変更**: `balloon()` の既定は `place: 'overlay'`(図の上に浮かべる)。この ADR の D2 の箱(行・格子の子)は `place: 'flow'` を書く。詳細は 0078 の「他の ADR への変更」M1〜M9、M17〜M19 を参照。
 - 日付: 2026-11-22
 - 基点: `main`(PR #436 まで)
 - 関連: ADR 0074(`comic()` / `speechBubble()`。D2 のしっぽ。実装は PR #436 = U1)、ADR 0076(PR #434。マンガの拡張。幾何の地図の `tails` と層の順)、ADR 0069(freeform / `board`)、ADR 0012(id のスコープ)、ADR 0034(`data-node`)、ADR 0050(組み合わせられる帯)、ADR 0007(純粋な核)、ADR 0071(JSON Schema)
@@ -92,6 +92,7 @@ ECMA-376 第 5 版 Part 1(2016)の `OfficeOpenXML-DrawingMLGeometries.zip` の `
 
 ```ts
 balloon({
+  place: 'flow',          // ADR 0078: 既定は 'overlay'(図の上に浮かべる)。この ADR の D2 の箱(行・格子の子)は 'flow'
   title: 'ここが変更点',
   id: 'note1',
   to: 'step2.top',        // 目標。箱の id と side / at(connect と同じ文字列)

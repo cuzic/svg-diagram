@@ -1,6 +1,6 @@
 # ADR 0075: causeTree の層の並びの探索(焼きなましを、順序探索の後ろの候補として足す)
 
-- 状態: 承認(Accepted。2026-11-22。レビュー 3 回で収束。決める人は「スパイクが通ったので ADR を書く。範囲は e1 に絞る」と決定し、Q1〜Q5 を推奨どおりに承認した。下の「決定済み」)
+- 状態: 承認(Accepted。2026-11-22。レビュー 3 回で収束。決める人は「スパイクが通ったので ADR を書く。範囲は e1 に絞る」と決定し、Q1〜Q5 を推奨どおりに承認した。下の「決定済み」。**U1 は実装済み**(下の「U1 の実装メモ」)。U2 は未着手)
 - 日付: 2026-11-22
 - 基点: `main`(eec05f8c)。試作の測定は cb55027d と eec05f8c の上(差は `movedAside` の削除だけで、出力は変わらない)。測定の道具と試作は PR #432(`docs/spikes/layer-order-search.md`、`scripts/crt-u6-measure/q3-layer-order.patch`、`lo-run.sh`・`lo-compare.mjs`・`lo-bench.sh`)
 - 関連: ADR 0073(順序探索の採点・U5 の Q3。この ADR はその「層の並びを直接探す探索」。D1-6・P4 に、この ADR で改訂の注記を足した)、ADR 0070(CRT の辺の読みやすさ。完了の基準)、ADR 0053(探索の費用)、ADR 0019 D4(並びの再探索)
@@ -215,6 +215,15 @@ ADR 0073 D1-4(決める人: 「組だけが良くなる交換は、折れの増�
 ### U2
 
 U1 の上で、上の測定を測り直す(合計、図ごとの悪化、配置の数、60/120 節、fixture・報告の図、種のばらつき)。結果を ADR 0073・0070 の注記に書く。配置の数が +30% を超えたら、U1 の予報の閾値(`p1 < bestProxy` など)を締める。
+
+### U1 の実装メモ(2026-11-22)
+
+- **場所**: `lib/layer-order-search.ts`(D1。定数 5 × 3000 手・温度 2 → 0.05・重み 6・種 7・しぼり込み 8 回)、`lib/graph-layout.ts`(`LayeredOpts.rowSearch` / `forceRows`。呼び出しごとの結果を引数のオブジェクトに返す。グローバルは持たない)、`lib/toc.ts`(D2・D3・D4・D5。`pickTwoStage`、`searchStats.layouts`・`rowSearches`・`rowCandidates`・`rowsWon`・`replaced`・`moves`、テスト用の `searchHooks.onReplace`)。
+- **測定(試作と同じ数)**: 乱数の CRT の plain 286 枚 / canvas 150 枚で、交差 571 → 458 / 359 → 291、`cause-crossing` 51 → 40 / 33 → 25(増える図 0)、折れ +0.2% / +0.6%、組 81 → 76 / 56 → 50、重なり 14 → 12 / 5 → 3(増える図 0)、配置の数 4057 → 4533 / 2385 → 2650(最大 +4/図)、手 1,178,736 / 752,437。60 節 plain・AND・canvas と 120 節 plain・AND・canvas の配置の数は 16 → 18、38 → 42、34 → 38、8 → 9、44 → 47、44 → 47。fixture・`examples/toc-*`・報告の図の 20 図は点列が main と同じ。golden の差分は 0。
+- **`post` の条件**: 2 回目の探索は、1 回目の候補を足した**後**の `bestOrder`(順序探索の最良の並び。1 回目の候補が勝つとプールの選びに並びは無いので `undefined`)があるときだけ走る(試作と同じ。ADR 本文の「最良の並びがある図」はこの意味)。
+- **テストの変更**: (a) `test/crt-canvas-scale.test.ts` の minText 10 の fixture(`CRT_REPORT_*` の形、canvas 2600x2000、倍率なし)は、層の探索で**交差 8 → 7、`cause-crossing` 2 → 1、折れ 66 → 52** になる代わりに、**間隔 10px の組が 1 つ**できる(main は 0)。ADR 0075 の fixture の測定(minText 14・24 だけ)に無かった図で、ADR 0070 の「組 0」の基準を minText 10 では満たさない。Q1 の規則(交差が減る図では組が増えてよい)の内だが、ADR 0070 の基準の変更なので、決める人の確認が要る(PR の Open questions)。テストは minText 10 に限り「交差が減っていれば組を許す」とした。(b) `test/cause-order-search.test.ts`: 層の探索で交換の旗が効く図が減った(旗で交差が変わるのは #101・#130 だけ)ので、#101 の「交換ありは高い」の前提を外し、whyWhyTree の帯のテストの図を #53 から #101 に変えた。
+- **ピン**: `test/fixtures/crt-layer-order-pins.json`(標本の全図の main の行と、点列が変わる図の行。plain 64 枚・canvas 41 枚)と、`test/cause-layer-order.test.ts`(P1・P3・P4・費用・最終の選びの性質)。`crt-random-pins.json` は、層の探索で変わる図の `now` の行(25 行)と `laneStep` の hash 3 つ(canvas #3・#34・#103)を更新し、ADR 0073 の P3 の記録の図を `pairsRecorded` に移した。P3 のテストは、規則(交差か AND の交差が減る図で組が増えてよい)と `pairsRecorded` の和。
+- **変異の確認**(テストが落ちる): 2 段の選びを 1 段の `pickFinal` に戻す、予報の AND の免除を外す、`ov` の保護を外す。
 
 ## 完了の基準
 
