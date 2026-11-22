@@ -1,6 +1,6 @@
 // ADR 0076 spike: reading-order / crossing-tail / unclear-speaker checks that read only the geometry map (plus the speaker of each bubble).
 import type {Geometry, Rect} from '../comic-worksheet/proto.ts';
-import {tailPolygon} from './manpu.ts';
+import {tailOf, tailPolygon} from './manpu.ts';
 
 export interface PanelInfo {id: string; speakers: (string | null)[]} // the speaker of each bubble in dialogue order (null: narration)
 export interface Found {rule: string; where: string; message: string}
@@ -22,7 +22,7 @@ export function checkOrderAndTails(geo: Geometry, panels: PanelInfo[]): Found[] 
     const keys = p.speakers.map((_, i) => `${p.id}.b${i}`), rects = keys.map(k => geo.bubbles[k]!);
     const want = readingOrder(rects);
     if (want.some((v, i) => v !== i)) out.push({rule: 'comic-reading-order', where: p.id, message: `bubbles read in the order ${want.map(i => i + 1).join(',')} but are written in the order ${rects.map((_, i) => i + 1).join(',')}`});
-    const tails = keys.map((k, i) => p.speakers[i] ? tailPolygon(geo, k, `${p.id}.${p.speakers[i]}`) : null);
+    const tails = keys.map((k, i) => p.speakers[i] ? tailPolygon(tailOf(geo, k, `${p.id}.${p.speakers[i]}`)) : null);
     tails.forEach((t, i) => { if (!t) return;
       tails.forEach((u, j) => { if (j > i && u && edges(t).some(([a, b]) => edges(u).some(([c, d]) => segHit(a, b, c, d)))) out.push({rule: 'comic-tail-cross', where: `${keys[i]}~${keys[j]}`, message: 'two tails cross'}); });
       rects.forEach((r, j) => { if (j !== i && edges(t).some(([a, b]) => segInRect(a, b, r))) out.push({rule: 'comic-tail-cross', where: `${keys[i]}>${keys[j]}`, message: 'a tail runs through another bubble'}); });

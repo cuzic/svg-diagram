@@ -1,4 +1,4 @@
-// ADR 0076 spike: comic symbols (manpu) and props, anchored to the geometry map of ADR 0074, with a collision check.
+// ADR 0076 spike (round 2): comic symbols (manpu) and props, anchored to the geometry map of ADR 0074, with a collision check.
 // Not part of lib/. It imports the ADR 0074 prototype unchanged and adds a layer on top of its Geometry.
 // Placement depends only on the geometry (which never depends on slot values), so it is value-independent by construction.
 import type {Geometry, Rect} from '../comic-worksheet/proto.ts';
@@ -7,10 +7,13 @@ export type ManpuKind = 'sweat' | 'anger' | 'sparkle' | 'question' | 'exclaim' |
 export type PropKind = 'pc' | 'coffee' | 'calendar' | 'clock' | 'documents' | 'phone';
 export type HeadAnchor = 'top-out' | 'top-in' | 'top' | 'side-out' | 'side-in';
 export type PropAnchor = 'hand' | 'floor' | 'wall-out' | 'wall-in';
+export type Pt = [number, number];
+/** The tail as ADR 0074 U1 / ADR 0077 name it: two base points, a tip, and where it starts. The collision shape is the triangle base[0], tip, base[1]. */
+export interface Tail {base: [Pt, Pt]; tip: Pt; from: Pt}
 export interface ManpuSpec {kind: ManpuKind; on: string; at?: HeadAnchor; size?: 's' | 'm'}
 export interface PropSpec {kind: PropKind; on: string; at?: PropAnchor}
 export interface PanelExtras {panel: string; side: Record<string, 'left' | 'center' | 'right'>; manpu?: ManpuSpec[]; props?: PropSpec[]}
-export interface Placed {id: string; kind: string; layer: 'manpu' | 'prop'; box: Rect; at: string; triedBefore: number; svg: string}
+export interface Placed {id: string; kind: string; layer: 'manpu' | 'prop'; box: Rect; at: string; wanted: string; triedBefore: number; svg: string}
 export interface ExtraFinding {rule: string; where: string; message: string}
 
 const INK = '#222';
@@ -37,85 +40,88 @@ const PROP: Record<PropKind, {name: string; body: string}> = {
   phone: {name: 'スマホ', body: `<rect x="-9" y="-16" width="18" height="32" rx="3" fill="#2d3340" stroke="${INK}" stroke-width="2"/><rect x="-6" y="-11" width="12" height="20" fill="#bfe3ff"/>`},
 };
 
-const GAP = 8; // gap between head and symbol (head radius comes from the geometry map)
-const PH = 300, PW = 420;
-const f1 = (n: number) => Math.round(n * 10) / 10;
-const rad = (deg: number) => deg * Math.PI / 180;
-
-/** Head anchors on the head circle. `out` is the side away from the panel centre, `in` towards it. */
-function headPoint(head: [number, number, number], side: 'left' | 'center' | 'right', a: HeadAnchor, half: number): [number, number] {
-  const [cx, cy, r] = head, o = side === 'left' ? -1 : 1, d = r + GAP + half;
-  const [deg, dir] = ({'top-out': [52, 1], 'top-in': [52, -1], top: [90, 0], 'side-out': [8, 1], 'side-in': [8, -1]} as const)[a];
-  return [cx + o * dir * d * Math.cos(rad(deg)), cy - d * Math.sin(rad(deg))];
+const q4 = (n: number) => Math.round(n * 4) / 4; // every coordinate is a multiple of 1/4 px, so two engines cannot disagree on a digit
+/** Head anchors: offsets from the head centre for the two mark sizes (d = r + 8 + half the size, then the 52 deg / 8 deg direction, rounded once, here). `in` mirrors x. */
+const HEAD_OFFSET: Record<'s' | 'm', Record<'top-out' | 'top' | 'side-out', Pt>> = {s: {'top-out': [33, -43], top: [0, -54], 'side-out': [53, -8]}, m: {'top-out': [36, -46], top: [0, -58], 'side-out': [57, -8]}};
+/** `out` is away from the panel centre; for a `center` character it is the right (`in` is the left). One convention for marks and props. */
+const outSign = (side: 'left' | 'center' | 'right') => side === 'left' ? -1 : 1;
+function headPoint(head: [number, number, number], side: 'left' | 'center' | 'right', a: HeadAnchor, size: 's' | 'm'): Pt {
+  const base = a === 'top-in' ? 'top-out' : a === 'side-in' ? 'side-out' : a, [dx, dy] = HEAD_OFFSET[size][base], o = a.endsWith('-in') ? -outSign(side) : outSign(side);
+  return [q4(head[0] + (dx === 0 ? 0 : o * dx)), q4(head[1] + dy)];
 }
-/** The tail triangle of a bubble (same formula as the ADR 0074 prototype; U1 should expose it as geometry.tails). */
-export function tailPolygon(geo: Geometry, bubble: string, speakerKey: string): [number, number][] {
+/** The tail of a bubble from the geometry map (the formula of the ADR 0074 prototype; U1 holds it as ComicLaidBubble.tail, which the placement should read instead). */
+export function tailOf(geo: Geometry, bubble: string, speakerKey: string): Tail {
   const b = geo.bubbles[bubble]!, p = geo.points[speakerKey]!, m = p.mouth, [hx0, hy0, hr] = p.head;
   const bcx = b.x + b.w / 2, bcy = b.y + b.h / 2, dx = m[0] - bcx, dy = m[1] - bcy, len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
   const hx = hx0 - bcx, hy = hy0 - bcy, proj = hx * ux + hy * uy, perp = Math.hypot(hx - proj * ux, hy - proj * uy);
-  const tipT = proj - Math.sqrt(Math.max(hr * hr - perp * perp, 0)) - 6, tip: [number, number] = [bcx + ux * tipT, bcy + uy * tipT];
-  const edgeT = Math.min(b.w / 2 / Math.abs(ux || 1e-9), b.h / 2 / Math.abs(uy || 1e-9)), nx = -uy, ny = ux, base = [bcx + ux * edgeT * 0.8, bcy + uy * edgeT * 0.8] as const;
-  return [[base[0] + nx * 8, base[1] + ny * 8], tip, [base[0] - nx * 8, base[1] - ny * 8]];
+  const tipT = proj - Math.sqrt(Math.max(hr * hr - perp * perp, 0)) - 6, tip: Pt = [q4(bcx + ux * tipT), q4(bcy + uy * tipT)];
+  const edgeT = Math.min(b.w / 2 / Math.abs(ux || 1e-9), b.h / 2 / Math.abs(uy || 1e-9)), nx = -uy, ny = ux, mid: Pt = [bcx + ux * edgeT * 0.8, bcy + uy * edgeT * 0.8];
+  return {base: [[q4(mid[0] + nx * 8), q4(mid[1] + ny * 8)], [q4(mid[0] - nx * 8), q4(mid[1] - ny * 8)]], tip, from: [q4(bcx), q4(bcy)]};
 }
+/** The polygon a tail occupies. Only this triangle and the bubble's bounding box are obstacles, so a balloon shape (ADR 0077) that keeps the same base / tip changes nothing here. */
+export const tailPolygon = (t: Tail): [Pt, Pt, Pt] => [t.base[0], t.tip, t.base[1]];
 const inflate = (r: Rect, m: number): Rect => ({x: r.x - m, y: r.y - m, w: r.w + 2 * m, h: r.h + 2 * m});
 const rectsHit = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 const rectHitsCircle = (r: Rect, cx: number, cy: number, rr: number) => { const dx = Math.max(r.x - cx, 0, cx - (r.x + r.w)), dy = Math.max(r.y - cy, 0, cy - (r.y + r.h)); return dx * dx + dy * dy < rr * rr; };
 const inRect = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
-function rectHitsPolygon(r: Rect, poly: [number, number][]): boolean {
-  for (let i = 0; i < poly.length; i++) { const [x0, y0] = poly[i]!, [x1, y1] = poly[(i + 1) % poly.length]!; for (let t = 0; t <= 16; t++) if (inRect(r, x0 + (x1 - x0) * t / 16, y0 + (y1 - y0) * t / 16)) return true; }
-  const [cx, cy] = [r.x + r.w / 2, r.y + r.h / 2]; // the rect lies wholly inside the triangle
-  const [a, b, c] = poly as [[number, number], [number, number], [number, number]]; const s = (p: number[], q: number[], x: number, y: number) => (q[0]! - p[0]!) * (y - p[1]!) - (q[1]! - p[1]!) * (x - p[0]!);
-  const d = [s(a, b, cx, cy), s(b, c, cx, cy), s(c, a, cx, cy)]; return d.every(v => v >= 0) || d.every(v => v <= 0);
+const orient = (a: Pt, b: Pt, c: Pt) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+const segsCross = (p: Pt, q: Pt, r: Pt, s: Pt) => { const d1 = orient(p, q, r), d2 = orient(p, q, s), d3 = orient(r, s, p), d4 = orient(r, s, q); return d1 * d2 < 0 && d3 * d4 < 0; };
+const inTriangle = (t: Pt[], x: number, y: number) => { const p: Pt = [x, y], d = [orient(t[0]!, t[1]!, p), orient(t[1]!, t[2]!, p), orient(t[2]!, t[0]!, p)]; return d.every(v => v >= 0) || d.every(v => v <= 0); };
+/** Exact: a polygon vertex inside the rect, a rect corner inside the polygon, or an edge crossing an edge. */
+export function rectHitsPolygon(r: Rect, poly: Pt[]): boolean {
+  const corners: Pt[] = [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]];
+  if (poly.some(p => inRect(r, p[0], p[1])) || corners.some(c => inTriangle(poly, c[0], c[1]))) return true;
+  return poly.some((p, i) => corners.some((c, j) => segsCross(p, poly[(i + 1) % poly.length]!, c, corners[(j + 1) % 4]!)));
 }
 
-export interface Obstacles {bubbles: Rect[]; tails: [number, number][][]; heads: [number, number, number][]; panel: Rect; placed: Rect[]}
+export interface Obstacles {bubbles: Rect[]; tails: Pt[][]; heads: [number, number, number][]; panel: Rect; placed: Rect[]}
 /** Why a candidate box is rejected (empty: free). Margins: bubble 4, head 2, tail 2, other symbol 2, panel edge 8, number badge 24+4. */
-export function hits(box: Rect, o: Obstacles, ignoreHead?: number): string[] {
+export function hits(box: Rect, o: Obstacles): string[] {
   const why: string[] = [], inf = inflate(box, 2);
   if (box.x < o.panel.x + 8 || box.y < o.panel.y + 8 || box.x + box.w > o.panel.x + o.panel.w - 8 || box.y + box.h > o.panel.y + o.panel.h - 8) why.push('panel-edge');
   if (rectsHit(box, {x: o.panel.x, y: o.panel.y, w: 28, h: 28})) why.push('badge');
   if (o.bubbles.some(b => rectsHit(box, inflate(b, 4)))) why.push('bubble');
   if (o.tails.some(t => rectHitsPolygon(inf, t))) why.push('tail');
-  if (o.heads.some((h, i) => i !== ignoreHead && rectHitsCircle(box, h[0], h[1], h[2] + 2))) why.push('head');
+  if (o.heads.some(h => rectHitsCircle(box, h[0], h[1], h[2] + 2))) why.push('head');
   if (o.placed.some(p => rectsHit(inf, p))) why.push('symbol');
   return why;
 }
 
 export interface Layer {placed: Placed[]; findings: ExtraFinding[]; stats: {candidates: number; firstChoiceHits: number; resolved: number; unresolved: number}}
-/** Place manpu and props. `nudge: false` tries only the first candidate (to count how often the first choice collides). */
+/** Place props first (scene objects, fewer candidates), then marks (decoration yields). Within a kind, in the order written.
+ *  `nudge: false` tries only the first candidate (to count how often the first choice collides). */
 export function placeExtras(geo: Geometry, panels: {id: string; lineSpeakers: string[]}[], extras: PanelExtras[], opts: {nudge: boolean} = {nudge: true}): Layer {
   const placed: Placed[] = [], findings: ExtraFinding[] = [], stats = {candidates: 0, firstChoiceHits: 0, resolved: 0, unresolved: 0};
   for (const ex of extras) {
     const panel = geo.panels[ex.panel]!, pk = panels.find(p => p.id === ex.panel)!;
     const keys = Object.keys(ex.side), heads = keys.map(k => geo.points[`${ex.panel}.${k}`]!.head);
-    const bubbles = Object.entries(geo.bubbles).filter(([k]) => k.startsWith(`${ex.panel}.`)).map(([, r]) => r);
-    const tails = Object.keys(geo.bubbles).filter(k => k.startsWith(`${ex.panel}.`)).flatMap((k, i) => { const sp = pk.lineSpeakers[i]; return sp ? [tailPolygon(geo, k, `${ex.panel}.${sp}`)] : []; });
-    const obs: Obstacles = {bubbles, tails, heads, panel, placed: []};
-    const settle = (id: string, kind: string, layer: 'manpu' | 'prop', size: number, cands: {at: string; c: [number, number]}[], draw: (x: number, y: number) => string, ignoreHead?: number) => {
+    const bubbleKeys = Object.keys(geo.bubbles).filter(k => k.startsWith(`${ex.panel}.`));
+    const tails = bubbleKeys.flatMap((k, i) => { const sp = pk.lineSpeakers[i]; return sp ? [tailPolygon(tailOf(geo, k, `${ex.panel}.${sp}`))] : []; });
+    const obs: Obstacles = {bubbles: bubbleKeys.map(k => geo.bubbles[k]!), tails, heads, panel, placed: []};
+    const settle = (id: string, kind: string, layer: 'manpu' | 'prop', size: number, wanted: string, cands: {at: string; c: Pt}[], draw: (x: number, y: number) => string) => {
       let tried = 0, last: string[] = [];
       for (const cand of cands) {
-        const box: Rect = {x: f1(cand.c[0] - size / 2), y: f1(cand.c[1] - size / 2), w: size, h: size};
-        stats.candidates++; const why = hits(box, obs, ignoreHead); last = why;
-        if (!why.length) { if (tried > 0) stats.resolved++; obs.placed.push(box); placed.push({id, kind, layer, box, at: cand.at, triedBefore: tried, svg: draw(f1(cand.c[0]), f1(cand.c[1]))}); return; }
+        const box: Rect = {x: q4(cand.c[0] - size / 2), y: q4(cand.c[1] - size / 2), w: size, h: size};
+        stats.candidates++; const why = hits(box, obs); last = why;
+        if (!why.length) { if (tried > 0) stats.resolved++; obs.placed.push(box); placed.push({id, kind, layer, box, at: cand.at, wanted, triedBefore: tried, svg: draw(cand.c[0], cand.c[1])}); return; }
         if (tried === 0) stats.firstChoiceHits++;
         tried++; if (!opts.nudge) break;
       }
-      stats.unresolved++; findings.push({rule: layer === 'manpu' ? 'comic-manpu-no-room' : 'comic-prop-no-room', where: id, message: `${kind}: no free position (${last.join('+')}), tried ${tried}`});
+      stats.unresolved++; findings.push({rule: layer === 'manpu' ? 'comic-mark-no-room' : 'comic-prop-no-room', where: id, message: `${kind}: no free position (${last.join('+')}), tried ${tried}`});
     };
-    (ex.manpu ?? []).forEach((m, i) => {
-      const side = ex.side[m.on]!, head = geo.points[`${ex.panel}.${m.on}`]!.head, size = m.size === 's' ? 20 : 28, def = MANPU[m.kind];
-      const order = [...new Set([m.at, ...def.prefer, 'top', 'top-out', 'top-in', 'side-out', 'side-in'].filter(Boolean) as HeadAnchor[])];
-      settle(`${ex.panel}.${m.on}.m${i}`, m.kind, 'manpu', size, order.map(a => ({at: a, c: headPoint(head, side, a, size / 2)})), (x, y) => `<g data-manpu="${ex.panel}.${m.on}.m${i}" transform="translate(${x} ${y}) scale(${f1(size / 24)})" aria-hidden="true">${def.body}</g>`, keys.indexOf(m.on) );
-    });
-    (ex.props ?? []).forEach((p, i) => {
-      const side = ex.side[p.on]!, head = geo.points[`${ex.panel}.${p.on}`]!.head, out = side === 'right' ? 1 : -1, def = PROP[p.kind];
-      const hand: [number, number] = [head[0] - out * 58, panel.y + PH - 30], floor: [number, number] = [head[0] - out * 108, panel.y + PH - 30];
-      const wall: [number, number] = [head[0] + out * 76, panel.y + 40], wallIn: [number, number] = [head[0] - out * 76, panel.y + 40];
-      const all: Record<PropAnchor, [number, number]> = {hand, floor, 'wall-out': wall, 'wall-in': wallIn};
+    const nth = new Map<string, number>(), next = (kind: string, on: string) => { const k = `${kind}:${on}`, n = (nth.get(k) ?? 0) + 1; nth.set(k, n); return n; }; // ids count per character, so adding a mark to another character renumbers nothing
+    (ex.props ?? []).forEach(p => {
+      const side = ex.side[p.on]!, head = geo.points[`${ex.panel}.${p.on}`]!.head, inn = -outSign(side), def = PROP[p.kind], id = `${ex.panel}.${p.on}.o${next('o', p.on)}`;
+      const y = panel.y + panel.h - 30, all: Record<PropAnchor, Pt> = {hand: [head[0] + inn * 58, y], floor: [head[0] + inn * 108, y], 'wall-out': [head[0] - inn * 76, panel.y + 56], 'wall-in': [head[0] + inn * 76, panel.y + 56]};
       const order = [...new Set<PropAnchor>([p.at ?? 'hand', 'hand', 'floor', 'wall-out', 'wall-in'])];
-      settle(`${ex.panel}.${p.on}.o${i}`, p.kind, 'prop', 40, order.map(a => ({at: a, c: all[a]})), (x, y) => `<g data-prop="${ex.panel}.${p.on}.o${i}" transform="translate(${x} ${y})"><title>${def.name}</title>${def.body}</g>`);
+      settle(id, p.kind, 'prop', 40, p.at ?? 'hand', order.map(a => ({at: a, c: all[a]})), (x, yy) => `<g data-prop="${id}" transform="translate(${x} ${yy})"><title>${def.name}</title>${def.body}</g>`);
+    });
+    (ex.manpu ?? []).forEach(m => {
+      const side = ex.side[m.on]!, head = geo.points[`${ex.panel}.${m.on}`]!.head, sz = m.size ?? 'm', size = sz === 's' ? 20 : 28, def = MANPU[m.kind], id = `${ex.panel}.${m.on}.m${next('m', m.on)}`;
+      const order = [...new Set([m.at, ...def.prefer, 'top', 'top-out', 'top-in', 'side-out', 'side-in'].filter(Boolean) as HeadAnchor[])];
+      settle(id, m.kind, 'manpu', size, m.at ?? def.prefer[0]!, order.map(a => ({at: a, c: headPoint(head, side, a, sz)})), (x, y) => `<g data-manpu="${id}" transform="translate(${x} ${y}) scale(${Math.round(size / 24 * 100) / 100})" aria-hidden="true">${def.body}</g>`);
     });
   }
   return {placed, findings, stats};
 }
-export const PANEL_W = PW;
+export const MARK_PREFER = Object.fromEntries(Object.entries(MANPU).map(([k, v]) => [k, v.prefer])) as Record<ManpuKind, HeadAnchor[]>;
