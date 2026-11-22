@@ -1,12 +1,16 @@
 // The drawing of a comic() band (ADR 0074 D1 / D2 / D4): the panels, the characters, the bubbles and their tails, the blanks in
-// their empty state. The text is not outlined and not measured here: a line is one <text> drawn from its start, and every atom's width came from the layout.
-import {escapeXml} from '../emit-common.ts';
-import {scopeOf} from '../scope-name.ts';
+// their three states. Text widths come from the layout or the supplied value measurements.
+import {escapeAttr, escapeXml} from '../emit-common.ts';
+import {qualify, scopeOf} from '../scope-name.ts';
 import {balloonPath} from './balloon-path.ts';
-import {BADGE, COLOR, FONT, FRAME, SLOT_FONT, TAIL_HALF, f1} from './constants.ts';
+import {BADGE, BADGE_OVERHANG, COLOR, FONT, FRAME, SLOT_FONT, TAIL_HALF, f1} from './constants.ts';
 import {characterSvg} from './character.ts';
 import {faceSvg} from './face.ts';
+import {slotFontSize, slotValue} from './slot-values.ts';
+import type {ValueTable} from './slot-values.ts';
+import {fillTemplate, parseTemplate} from './template.ts';
 import type {ComicLaidBubble, ComicLaidHead, ComicLaidPanel, ComicLaidSlot, LaidOutComic} from '../types/comic.ts';
+import type {WidthOf} from '../types/core.ts';
 
 const tintOf = (p: ComicLaidPanel): string => p.tint === 'warm' ? COLOR.warm : p.tint === 'cool' ? COLOR.cool : COLOR.paper;
 
@@ -23,34 +27,56 @@ function personSvg(h: ComicLaidHead, p: ComicLaidPanel, characters: LaidOutComic
   return `<g data-head="${h.id}">${faceSvg(h, face.hue, face.hair, p.y + p.h, prefix)}</g>`;
 }
 
-function panelSvg(p: ComicLaidPanel, characters: LaidOutComic['characters'], namespace: string): string {
+function panelSvg(p: ComicLaidPanel, characters: LaidOutComic['characters'], namespace: string, node: string): string {
   const clipId = `pc-${namespace}${p.id}`;
-  const out = [`<g data-panel="${p.id}"><clipPath id="${clipId}"><rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}"/></clipPath><rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" fill="${tintOf(p)}" stroke="${COLOR.ink}" stroke-width="${FRAME}"/>`];
-  if (p.label !== undefined) out.push(`<rect x="${p.x - 8}" y="${p.y - 8}" width="${BADGE}" height="${BADGE}" fill="${COLOR.ink}"/><text x="${p.x - 8 + BADGE / 2}" y="${p.y - 8 + 17}" text-anchor="middle" font-size="${SLOT_FONT}" font-weight="700" fill="${COLOR.paper}">${escapeXml(p.label)}</text>`);
+  const out = [`<g data-panel="${p.id}"><clipPath id="${clipId}"><rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}"/></clipPath><rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" fill="${tintOf(p)}" stroke="${COLOR.ink}" stroke-width="${FRAME}"${node}/>`];
+  if (p.label !== undefined) {
+    const x = p.x - BADGE_OVERHANG, y = p.y - BADGE_OVERHANG;
+    out.push(`<rect x="${x}" y="${y}" width="${BADGE}" height="${BADGE}" fill="${COLOR.ink}"/><text x="${x + BADGE / 2}" y="${y + 17}" text-anchor="middle" font-size="${SLOT_FONT}" font-weight="700" fill="${COLOR.paper}">${escapeXml(p.label)}</text>`);
+  }
   for (const h of p.heads) out.push(personSvg(h, p, characters, namespace, clipId));
   out.push('</g>');
   return out.join('');
 }
 
-function slotSvg(s: ComicLaidSlot, blank: 'prompt' | 'line'): string {
+function slotSvg(s: ComicLaidSlot, blank: 'prompt' | 'line', node: string, value: ReturnType<typeof slotValue>, widthOf?: WidthOf): string {
+  const group = `<g data-slot="${s.id}"${node}>`;
+  const cx = f1(s.x + s.w / 2);
+  if (value) {
+    const clip = `slot-clip-${s.id}`;
+    const size = slotFontSize(s, value, widthOf);
+    const filled = value.weight === 700;
+    return group + `<clipPath id="${clip}"><rect x="${s.x}" y="${f1(s.y - 4)}" width="${s.w}" height="${s.h + 8}"/></clipPath>`
+      + `<text x="${cx}" y="${f1(s.y + s.h / 2)}" text-anchor="middle" dominant-baseline="central" xml:space="preserve" font-size="${size}"${filled ? ' font-weight="700"' : ''} fill="${filled ? COLOR.filled : COLOR.prompt}" clip-path="url(#${clip})">${escapeXml(value.text)}</text></g>`;
+  }
   const line = `<line x1="${s.x}" y1="${f1(s.y + s.h)}" x2="${f1(s.x + s.w)}" y2="${f1(s.y + s.h)}" stroke="${COLOR.prompt}" stroke-width="2" stroke-dasharray="2 3"/>`;
-  const prompt = blank === 'line' ? '' : `<text x="${f1(s.x + s.w / 2)}" y="${f1(s.y + s.h - 5)}" text-anchor="middle" font-size="${SLOT_FONT}" fill="${COLOR.prompt}">${escapeXml(s.prompt)}</text>`;
-  return `<g data-slot="${s.id}">${line}${prompt}</g>`;
+  const prompt = blank === 'line' ? '' : `<text x="${cx}" y="${f1(s.y + s.h - 5)}" text-anchor="middle" font-size="${SLOT_FONT}" fill="${COLOR.prompt}">${escapeXml(s.prompt)}</text>`;
+  return group + line + prompt + '</g>';
 }
 
 /** The body and the tail are one closed path (lib/comic/balloon-path.ts). */
-function outlineSvg(b: ComicLaidBubble): string {
+function outlineSvg(b: ComicLaidBubble, node: string): string {
   const {d} = balloonPath(b, b.kind, b.tail ? {tip: b.tail.tip, halfWidth: TAIL_HALF} : undefined);
   const style = b.kind === 'think' ? ' stroke-dasharray="6 3"' : '';
-  return `<path d="${d}" fill="${COLOR.bubble}" stroke="${COLOR.ink}" stroke-width="${b.kind === 'shout' ? 3.5 : b.kind === 'narration' ? 2 : 2.5}" stroke-linejoin="round"${style}/>`;
+  return `<path d="${d}" fill="${COLOR.bubble}" stroke="${COLOR.ink}" stroke-width="${b.kind === 'shout' ? 3.5 : b.kind === 'narration' ? 2 : 2.5}" stroke-linejoin="round"${style}${node}/>`;
 }
 
-const bubbleSvg = (b: ComicLaidBubble, blank: 'prompt' | 'line'): string => `<g data-bubble="${b.id}"><title>${escapeXml(b.title)}</title>${outlineSvg(b)}`
-  + b.runs.map(r => `<text x="${r.x}" y="${r.y}" font-size="${FONT}" fill="${COLOR.ink}">${escapeXml(r.text)}</text>`).join('') + b.slots.map(s => slotSvg(s, blank)).join('') + '</g>';
+function bubbleSvg(b: ComicLaidBubble, blank: 'prompt' | 'line', node: (id: string) => string, values: ValueTable, widthOf?: WidthOf): string {
+  const texts = new Map<string, string>();
+  const slots = b.slots.map(s => {
+    const value = slotValue(s, values);
+    if (value) texts.set(s.id, value.text);
+    return slotSvg(s, blank, node(s.id), value, widthOf);
+  }).join('');
+  const title = b.template && texts.size ? fillTemplate(parseTemplate(b.template), id => texts.get(id) ?? '＿＿') : b.title;
+  return `<g data-bubble="${b.id}"><title>${escapeXml(title)}</title>${outlineSvg(b, node(b.id))}`
+    + b.runs.map(r => `<text x="${r.x}" y="${r.y}" font-size="${FONT}" fill="${COLOR.ink}">${escapeXml(r.text)}</text>`).join('') + slots + '</g>';
+}
 
-export function renderComicBand(b: LaidOutComic): string {
+export function renderComicBand(b: LaidOutComic, values: ValueTable = {}, widthOf?: WidthOf): string {
   const scope = scopeOf(b);
   // A leading hyphen reserves the scoped namespace. Scope names can contain characters that are unsafe in url(#id).
   const namespace = scope ? `-${scope.split('').map(c => c.charCodeAt(0).toString(16)).join('_')}-` : '';
-  return `<g data-comic="${b.layout}"><title>${escapeXml(b.title)}</title>${b.panels.map(p => panelSvg(p, b.characters, namespace)).join('')}${b.bubbles.map(x => bubbleSvg(x, b.blank)).join('')}</g>`;
+  const node = (id: string) => b.nodeIds ? ` data-node="${escapeAttr(qualify(scope, id))}"` : '';
+  return `<g data-comic="${b.layout}"><title>${escapeXml(b.title)}</title>${b.panels.map(p => panelSvg(p, b.characters, namespace, node(p.id))).join('')}${b.bubbles.map(x => bubbleSvg(x, b.blank, node, values, widthOf)).join('')}</g>`;
 }

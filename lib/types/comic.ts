@@ -1,5 +1,5 @@
 // The types of comic() (ADR 0074): the meaning-first data (templates and who stands where; no coordinates), and the laid-out band.
-import type {Anchor, Dimmed, RevealOpts, ScopeOpts} from './core.ts';
+import type {Anchor, Dimmed, Rect, RevealOpts, ScopeOpts} from './core.ts';
 
 export type ComicLayoutName = '1x4' | '2x2' | '1x3' | '1x2';
 /** The width : height of a panel. */
@@ -22,7 +22,7 @@ export interface CharacterManifest {
     head: {cx: number; cy: number; r: number};
     mouth: readonly [number, number];
     hand?: readonly [number, number];
-    /** The highest artwork y across expressions. The bubble check defaults to the head circle's top. */
+    /** The highest artwork y across expressions, between the box top and the head top. The check spans the box's full width, so crop the box to the artwork to avoid hits from bubbles beside it. Defaults to the head top. */
     top?: number;
   };
   bubbleSides?: readonly BubbleSide[];
@@ -42,6 +42,8 @@ export interface ComicCharacter {
 }
 /** A blank of a template (`{id}`): how many full-width characters it may take, and what the empty blank says. */
 export interface ComicSlotDef {max?: number; prompt: string; fallback?: string; choices?: readonly string[]; strict?: boolean}
+/** A worksheet's filled (string) and skipped (null) slots. An absent key leaves its slot empty. */
+export type Values = Record<string, string | null>;
 /** One line of speech (shared with the chat band): a template with blanks, and who says it. */
 export interface ComicDialogue {
   id: string;
@@ -91,13 +93,23 @@ export interface ComicBand extends Omit<ComicOpts, 'characters'> {
 export type ComicRule =
   | 'comic-speaker-unknown' | 'comic-at-collision' | 'comic-panel-count' | 'comic-slots-per-panel' | 'comic-slot-duplicate' | 'comic-slot-undefined'
   | 'comic-slot-max' | 'comic-slot-prompt' | 'comic-bubble-covers-face' | 'comic-tail-off-speaker' | 'comic-tail-crosses-bubble' | 'comic-bubble-zone' | 'comic-text-budget'
-  | 'comic-asset-missing' | 'comic-bubble-wide' | 'comic-orphan-line' | 'comic-follower-split';
-/** A problem is a mistake in the data or the layout (the check fails); an advice is a hint (a lint finding). */
+  | 'comic-asset-missing' | 'comic-bubble-wide' | 'comic-orphan-line' | 'comic-follower-split'
+  | 'comic-value-invalid' | 'comic-values-unknown' | 'slot-overflow';
+/** Layout findings feed the verdict or lint. Value findings are returned separately by renderComic. */
 export interface ComicFinding {rule: ComicRule; severity: 'problem' | 'advice'; where: string; message: string}
+
+/** ViewBox coordinates by scoped comic id. */
+export interface ComicGeometry {
+  panels: Record<string, Rect>;
+  bubbles: Record<string, Rect>;
+  slots: Record<string, Rect>;
+  heads: Record<string, Rect>;
+  points: Record<string, {mouth: [number, number]; head: [number, number, number]}>;
+}
 
 /** A run of text on one line: the literal atoms between two blanks, drawn as one <text>. */
 export interface ComicRun {x: number; y: number; text: string}
-export interface ComicLaidSlot {id: string; x: number; y: number; w: number; h: number; max: number; prompt: string; fallback: string}
+export interface ComicLaidSlot {id: string; x: number; y: number; w: number; h: number; max: number; prompt: string; fallback: string; defined?: false}
 export interface ComicLaidBubble {
   /** `panel.dialogue` (a scope qualifies it in the registry, not here). */
   id: string;
@@ -113,6 +125,8 @@ export interface ComicLaidBubble {
   tail?: {base: [[number, number], [number, number]]; tip: [number, number]; from: [number, number]};
   /** The text of the `<title>`: the template with the blanks empty. */
   title: string;
+  /** Source of the title when a value is drawn. */
+  template?: string;
 }
 /** How a head is drawn: the built-in face (hue and hair), or an artist's character (its manifest id). */
 export type ComicLook = {kind: 'face'; hue: number; hair: 'short' | 'long'} | {kind: 'asset'; asset: string};
@@ -135,8 +149,10 @@ export interface LaidOutComic extends Dimmed {
   blank: 'prompt' | 'line';
   panels: ComicLaidPanel[];
   bubbles: ComicLaidBubble[];
-  /** The panels and the bubbles, as the names connect() uses (`p1`, `p1.d2`). */
+  /** The panels, bubbles and slots, as the names connect() uses (`p1`, `p1.d2`, `day`). */
   anchors: Anchor[];
+  /** Set only on the copy prepared for SVG output with nodeIds. */
+  nodeIds?: true;
   /** The text sizes the band draws (the fit check reads them). */
   texts: ComicText[];
   findings: ComicFinding[];

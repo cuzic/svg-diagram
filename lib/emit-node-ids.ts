@@ -19,6 +19,7 @@ const nameBox = (b: LaidOutBox): LaidOutBox => b.id && b.frame !== false ? {...b
 export function withNodeIdsBand(band: LaidOutBand): LaidOutBand {
   const scope = scopeOf(band);
   switch (band.type) {
+    case 'comic': return {...band, nodeIds: true};
     case 'box': return nameBox(band) as LaidOutBand;
     case 'row': case 'grid': return {...band, children: band.children.map(nameBox)} as LaidOutBand;
     case 'tree': return {...band, nodes: band.nodes.map(n => n.id ? {...n, dataNode: qualify(scope, n.id)} : n)};

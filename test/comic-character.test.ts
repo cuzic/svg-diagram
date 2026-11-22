@@ -209,7 +209,7 @@ test('the artwork overhang ends at the stage head’s upper edge', () => {
     return characterOverhang(asset, stageHead);
   };
   assert.deepEqual(placed(10), {x: 250, y: 160, w: 100, h: 4});
-  for (const top of [undefined, 18, 19]) assert.equal(placed(top), undefined);
+  for (const top of [undefined, 18]) assert.equal(placed(top), undefined);
 });
 
 test('a missing asset or a missing expression is a problem (comic-asset-missing), and the built-in face is drawn in its place', () => {
@@ -250,4 +250,11 @@ test('the same character twice in one SVG never shares an id: gradients and thei
 test('the same data and the same characters draw the same SVG', () => {
   const draw = () => renderComicBand(lay(sheet('colleague-a'), {'colleague-a': ARTIST}));
   assert.equal(draw(), draw());
+});
+
+test('anchors.top lies between the box top and the head top, inclusive', () => {
+  const load = (top: number) => loadCharacter({...ARTIST, anchors: {...ARTIST.anchors, top}});
+  for (const top of [-50, 500]) assert.throws(() => load(top), /anchors\.top/);
+  for (const top of [0, 34]) assert.equal(load(top).anchors.top, top);
+  assert.equal(loadCharacter(ARTIST).anchors.top, undefined);
 });

@@ -201,9 +201,13 @@ test('graph-disconnected points to the nodes outside the largest component', asy
   assert.deepEqual(hits[0]?.related, [sourceOf(fifth)]);
 });
 
-// Document rules report Markdown lines via --docs and do not run through lintDiagram.
+// These rules are reported by entry points outside lintDiagram.
 const DOC_LOCATION = 'Markdown location from --docs; no diagram() call';
+const COMIC_VALUE_LOCATION = 'slot id in renderComic findings; no lintDiagram source location';
 const OUTSIDE_FIGURE = {
+  'comic-value-invalid': COMIC_VALUE_LOCATION,
+  'comic-values-unknown': COMIC_VALUE_LOCATION,
+  'slot-overflow': COMIC_VALUE_LOCATION,
   'doc-image-missing': DOC_LOCATION,
   'doc-alt-empty': DOC_LOCATION,
   'doc-alt-long': DOC_LOCATION,
@@ -281,6 +285,9 @@ const EXPECTED_SCOPE = {
   'comic-bubble-wide': 'band',
   'comic-orphan-line': 'band',
   'comic-follower-split': 'band',
+  'comic-value-invalid': 'band',
+  'comic-values-unknown': 'band',
+  'slot-overflow': 'band',
   'fta-single-point': 'band',
   'toc-source-has-cause': 'band',
   'toc-chain-only': 'band',

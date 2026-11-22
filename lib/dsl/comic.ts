@@ -6,7 +6,7 @@ import {EXPRESSIONS, loadCharacter} from '../comic/character.ts';
 import type {Declares, HandleOf} from '../strict.ts';
 import type {BubbleKind, ComicAspect, ComicAt, ComicBand, ComicDialogue, ComicOpts, ComicPanel, ComicSlotDef, ComicWorksheet} from '../types/comic.ts';
 import {revealOf, scopeOpt, withHandle} from './shared.ts';
-export type {BubbleKind, CharacterManifest, ComicAspect, ComicAt, ComicBand, ComicCast, ComicDialogue, ComicExpression, ComicLayoutName, ComicOpts, ComicPanel, ComicSlotDef, ComicStage, ComicWorksheet} from '../types/comic.ts';
+export type {BubbleKind, CharacterManifest, ComicAspect, ComicAt, ComicBand, ComicCast, ComicDialogue, ComicExpression, ComicFinding, ComicGeometry, ComicLayoutName, ComicOpts, ComicPanel, ComicSlotDef, ComicStage, ComicWorksheet, Values} from '../types/comic.ts';
 
 const LAYOUTS = ['1x4', '2x2', '1x3', '1x2'] as const;
 const KINDS: readonly BubbleKind[] = ['say', 'think', 'shout', 'narration'];
@@ -55,13 +55,18 @@ function panelOf(p: ComicPanel): ComicPanel {
   return {id: p.id, ...(p.bg === undefined ? {} : {bg: {...p.bg}}), ...(p.thumb === undefined ? {} : {thumb: p.thumb}), stage, dialogue};
 }
 
+// A literal worksheet declares its slot keys. Worksheets loaded at runtime have string keys.
+type SlotIds<D> = D extends {slots?: infer Slots} ? Extract<keyof NonNullable<Slots>, string> : never;
+
 /**
  * A comic with blanks: panels in a named layout, people at fixed places (left / center / right), bubbles over their heads. The values of the blanks are
  * not part of it (ADR 0074 D5).
  *   comic({version: 1, title: '早く帰る', layout: '1x4', cast: {me: {name: '私'}, col: {name: '同僚'}},
  *     panels: [{id: 'p1', stage: [{who: 'me', at: 'left', expression: 'neutral'}], dialogue: [{id: 'd1', who: 'me', kind: 'say', tpl: '週に一度は早く帰る'}]}, ...]})
  */
-export function comic<const Id extends string = never>(sheet: ComicWorksheet, opts?: ComicOpts & {id?: Id}): ComicBand & Declares<Id> & HandleOf<Id>;
+export function comic<const Id extends string = never, const Sheet extends ComicWorksheet = ComicWorksheet>(
+  sheet: Sheet, opts?: ComicOpts & {id?: Id},
+): ComicBand & Declares<Id | SlotIds<Sheet['panels'][number]['dialogue'][number]>> & HandleOf<Id>;
 export function comic(sheet: ComicWorksheet, opts: ComicOpts = {}): ComicBand {
   if (!sheet || typeof sheet !== 'object') throw new Error('comic(sheet) needs the worksheet: {version, title, layout, cast, panels}');
   if (sheet.version !== 1) throw new Error(`comic(): version must be 1 (got ${JSON.stringify(sheet.version)})`);

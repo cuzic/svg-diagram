@@ -8,6 +8,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {build} from 'esbuild';
 import {comic, diagram, renderDiagram, closeMeasurer} from '../lib/dsl.ts';
+import {measureWithFonts} from '../lib/font-metrics.ts';
+import {renderComic} from '../lib/web.ts';
 import {SAMPLE} from './helpers/comic-sample.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -42,5 +44,11 @@ test('the comic is drawn as the same SVG by Node and by Chromium through lib/web
     const a = fragment(got.svg), b = fragment(node.svg);
     assert.ok(a.length > 3000 && a.includes('data-bubble="p2.d2"'), 'the fragment was found');
     assert.equal(a, b);
+
+    const values = {day: '水曜', what: null, change: '早く帰る'};
+    const browserSvg = await page.evaluate(() => (globalThis as any).drawFilledComic()) as string;
+    const filled = await renderComic(SAMPLE, {values, measure: req => measureWithFonts(new Map([['atom', req]])).get('atom')!});
+    assert.match(fragment(browserSvg), /font-weight="700"[^>]*>水曜<\/text>/);
+    assert.equal(fragment(browserSvg), fragment(filled.svg));
   } finally { await browser.close(); }
 });

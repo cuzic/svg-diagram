@@ -1,6 +1,6 @@
 # ADR 0074: 穴(空欄)のあるマンガの部品 — `comic()`(コマ)、`bubble()`(ふきだし)、キャラクター、穴(slot)、Artifact との受け渡し、`chat()`
 
-- 状態: 承認(Accepted。2026-11-22。レビュー 3 回で収束。Q1〜Q10 は決める人がすべて推奨どおりに決定。下の「決定済み」。**実装は U1 から始めてよい**。U1(`comic()` と台詞 1 つの `speechBubble()`)と U2(顔と素材の形)は実装した(`lib/comic/`。下の「U1 の実装メモ」「U2 の実装メモ」)。U2 は PR #442 の round 1 と round 2 の素材検査、および補足仕様の `anchors.top` の公開型を反映。レビューの反映: 1 回目 Blocker 1・Major 7、2 回目 Major 2(穴の後ろのひらがなの結び方、値に依存する検査と `verdict` の関係)、3 回目 Major 1(`update` の差分の基準))
+- 状態: 承認(Accepted。2026-11-22。レビュー 3 回で収束。Q1〜Q10 は決める人がすべて推奨どおりに決定。下の「決定済み」。一部実装済み。U1(`comic()` と台詞 1 つの `speechBubble()`)、U2(顔と素材の形)、U3a(穴の値・値の検査・幾何の地図・最初の `renderComic`)は実装した(`lib/comic/`。下の各実装メモ)。U2 は PR #442 の round 1 と round 2 の素材検査、および補足仕様の `anchors.top` の公開型を反映。レビューの反映: 1 回目 Blocker 1・Major 7、2 回目 Major 2(穴の後ろのひらがなの結び方、値に依存する検査と `verdict` の関係)、3 回目 Major 1(`update` の差分の基準))
 - 日付: 2026-11-22
 - 基点: `main`(eec05f8c、PR #431 まで)
 - 関連: ADR 0045(`svg-diagram/browser`、測定を外から渡す)、ADR 0057(spec の `canvas`)、ADR 0071(JSON Schema をパッケージに入れる)、ADR 0034(`data-node`)、ADR 0050(組み合わせられる帯)、ADR 0012(id のスコープ)、ADR 0009(縦書き)、ADR 0007(Ports)
@@ -316,7 +316,14 @@ type Values = Record<string, string | null>;   // 値は別(状態)。無い = �
 - **置き方**: 箱の頭の円が、舞台の頭の円(半径 36px)に重なるように倍率を決める。箱の原点とアンカー(口・手)は同じ式でコマの座標に写す。ふきだしの本体は舞台の頭の位置を基準に置き、しっぽは素材の口へ向ける(`tailOf`)。断片は入れ子の `<svg viewBox=箱>` で置き、胸から下はコマの枠で切る(`clip-path`)。SVG の id はコマと人物に加え、帯の scope でも区別する。素材の色も図の `appearance` にかかわらず保つ。
 - **検査**: `comic-asset-missing`(問題): `cast` の `asset` が `characters` に無い、素材にその表情が無い。どちらも内蔵の顔で描く。`renderComic({characters})` は U3 の関数なので、U2 は `comic(sheet, {characters})` で渡す(帯のデータに入るのは読み込んだあとの JSON。1 回の描画ごとに渡し、大域の状態にしない点は同じ)。U3 の `renderComic` は、この引数を `comic()` に渡せばよい。
 - 手のアンカー(`ComicLaidHead.hand`)は、素材が持つときだけ(内蔵の顔は無い)。マンプと小道具(ADR 0076 U1)が使う。
-- PR #442 の round 1・2: `license.spdx` と `license.author` は空でない文字列にする。素材には紙色とインク色を十六進表記で指定する(`currentColor` は使えない)。箱と頭の円の範囲、および素材の上端を使う `comic-bubble-zone` の検査は D3 のとおり。
+- PR #442 の round 1・2: `license.spdx` と `license.author` は空でない文字列にする。素材には紙色とインク色を十六進表記で指定する(`currentColor` は使えない)。箱と頭の円の範囲、および素材の上端を使う `comic-bubble-zone` の検査は D3 のとおり。U3a で `box[1] <= anchors.top <= head.cy - head.r` を検証するようにした。確かめる範囲は箱の幅いっぱい。絵が箱より狭いと横のふきだしでも `comic-bubble-zone` が出るので、箱を絵に合わせて切る。
+
+### U3 の実装メモ(前半 U3a。Issue #449)
+
+- `renderComic(sheet, {measure, values, characters, aspect, nodeIds})` をブラウザ入口に追加した。帯の固定幅(コマ幅 × 列数 + 溝 + 左右の帯余白)に図の左右の余白 20px ずつを足す。幅は縦の列で 492px、2×2 で 808px。
+- `renderInBrowser` で配置して検査し、SVG の元のマンガの断片が 1 つだけあることを確かめて差し替える。飛ばした穴は `fallback`(既定 `…`)を絵と `<title>` に使う。値の検査は `findings` に入れ、値の書記素数と ADR 0071 の `ONE_LINE`(空白だけの値も不可)を確認する。
+- コマ・ふきだし・穴を接続のアンカーと `data-node` に使う。地図の鍵に帯の `scope` を付け、頭の矩形と口・頭の点を持つ。値のクリップ ID は仕様どおり `slot-clip-<穴の id>`。同じ穴の id のある複数のマンガを 1 つの SVG に入れる場合には重複しうる。
+- 縮小図は同じ配置から 1 コマを取り出し、番号札の分だけ各辺を 8px 広げ、穴は下線だけで描く。`update` と測定時間は U3b、`toClientRect` は U6(調整役が Issue #449 で確認)。
 
 ## 代替案
 

@@ -18,7 +18,9 @@ export const PANEL_W = 420;
 export const PANEL_W_2X2 = 360;
 export const GUTTER = 16;
 export const MARGIN = 16;
+export const bandWidth = (cols: number, panelWidth: number): number => 2 * MARGIN + cols * panelWidth + (cols - 1) * GUTTER;
 export const BADGE = 24;
+export const BADGE_OVERHANG = 8;
 export const FRAME = 3;
 /** The bubbles start this far below the top of a panel and keep this far from the sides. */
 export const ZONE_TOP = 16;
