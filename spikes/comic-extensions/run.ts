@@ -39,17 +39,21 @@ for (const r of chars) for (const k of kinds) { const l = one(r, {manpu: [{kind:
 // props: for each requested anchor, how often is it honoured, and where do the others go
 const propReport: Record<string, {cases: number; honoured: number; fell: Record<string, number>; lost: number}> = {};
 for (const r of chars) for (const a of anchors) for (const k of propKinds) { const l = one(r, {props: [{kind: k, on: r.who, at: a}]}); const e = (propReport[a] ??= {cases: 0, honoured: 0, fell: {}, lost: 0}); e.cases++; const p = l.placed[0]; if (!p) e.lost++; else if (p.at === a) e.honoured++; else e.fell[p.at] = (e.fell[p.at] ?? 0) + 1; }
+// a caption panel: the caption box (x 32.., y 16..44, 140px wide here) is an obstacle; the wall anchors at y = 72 must clear it
+const capReport: Record<string, {cases: number; honoured: number}> = {};
+for (const r of chars) for (const a of ['wall-out', 'wall-in'] as const) for (const k of propKinds) { const l = one(r, {caption: {w: 140}, props: [{kind: k, on: r.who, at: a}]}); const e = (capReport[a] ??= {cases: 0, honoured: 0}); e.cases++; if (l.placed[0]?.at === a) e.honoured++; }
 const centerRows = chars.filter(r => r.side === 'center').length;
 
-// timing: the median and the worst of 41 runs of the whole scene (the first runs are warm-up and are dropped)
-const times: number[] = []; for (let i = 0; i < 51; i++) { const t = performance.now(); place('two', scene); if (i >= 10) times.push((performance.now() - t) * 1000); }
+// timing: the median and the worst of 200 runs of the whole scene (the first runs are warm-up and are dropped)
+const times: number[] = []; for (let i = 0; i < 251; i++) { const t = performance.now(); place('two', scene); if (i >= 50) times.push((performance.now() - t) * 1000); }
 times.sort((a, b) => a - b);
 const deterministic = JSON.stringify(nudged.placed) === JSON.stringify(place('two', scene).placed);
-const moved = (l: {placed: Placed[]}) => l.placed.filter(p => p.at !== p.wanted).map(p => `${p.id} ${p.kind}: ${p.wanted} -> ${p.at}`);
+const written = new Set(scene.flatMap(e => [...(e.manpu ?? []).filter(m => m.at).map(m => m.kind), ...(e.props ?? []).filter(p => p.at).map(p => p.kind)]));
+const moved = (l: {placed: Placed[]}) => l.placed.filter(p => written.has(p.kind as never) && p.at !== p.wanted).map(p => `${p.id} ${p.kind}: ${p.wanted} -> ${p.at}`);
 console.log(JSON.stringify({
   scene: {requested, markRequested: scene.reduce((n, e) => n + (e.manpu?.length ?? 0), 0), propRequested: scene.reduce((n, e) => n + (e.props?.length ?? 0), 0), placed: nudged.placed.length, notPlaced: nudged.findings.map(f => `${f.rule} ${f.where}`), firstChoiceOnly: first.stats, withCandidates: nudged.stats, notAtRequestedAnchor: moved(nudged)},
   sweepMarks: {cases: m1.n, firstChoiceCollisions: m1.bad, noRoomAfterCandidates: m2.bad, noRoomCharacters: m2.lost, firstChoiceCollisionsBySide: bySide, centerCharacters: centerRows},
-  sweepPropsByRequestedAnchor: propReport,
+  sweepPropsByRequestedAnchor: propReport, wallAnchorsWithCaption: capReport,
   deterministic, microsecondsPerScene: {median: Math.round(times[Math.floor(times.length / 2)]!), p90: Math.round(times[Math.floor(times.length * 0.9)]!), max: Math.round(times.at(-1)!)}, extraSvgBytes: nudged.placed.reduce((n, p) => n + p.svg.length, 0), baseSvgBytes: laid.two.svg({}).length,
 }, null, 1));
 

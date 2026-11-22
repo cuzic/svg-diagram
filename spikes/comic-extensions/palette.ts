@@ -32,6 +32,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const worst: [string, string][] = [[HAIR.black, SKIN.dark], [HAIR.blond, SKIN.medium], [HAIR.gray, SKIN.tan]];
     const cell = (i: number, plain: boolean, h: string, s: string) => { const x = 20 + i * 130, y = plain ? 20 : 140; const edge = plain ? `<path d="M${x} ${y + 40}h100" stroke="${INK}" stroke-width="${LINE}"/>` : `<path d="M${x} ${y + 40}h100" stroke="${PAPER}" stroke-width="${LINE + 2 * KEYLINE}"/><path d="M${x} ${y + 40}h100" stroke="${INK}" stroke-width="${LINE}"/>`; return `<rect x="${x}" y="${y}" width="100" height="40" fill="${h}"/><rect x="${x}" y="${y + 40}" width="100" height="40" fill="${s}"/>${edge}`; };
     fs.mkdirSync(out, {recursive: true});
+    // n9: a real head (r = 36, the size of ADR 0074 D1) for the three worst pairs, at full size and at thumbnail scale (160 / 420)
+    // the stack is drawn on the inner boundary only (the hairline); the outer silhouette is a plain ink line, so there is no doubled edge
+    const head = (cx: number, cy: number, h: string, sk: string) => { const r = 36, y0 = cy - r * 0.15, hair = `M${cx - r} ${y0}A${r} ${r} 0 0 1 ${cx + r} ${y0}Q${cx} ${cy - r * 0.62} ${cx - r} ${y0}z`, inner = `M${cx - r} ${y0}Q${cx} ${cy - r * 0.62} ${cx + r} ${y0}`;
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${sk}"/><path d="${hair}" fill="${h}"/><path d="${inner}" fill="none" stroke="${PAPER}" stroke-width="${LINE + 2 * KEYLINE}" stroke-linecap="butt"/><path d="${inner}" fill="none" stroke="${INK}" stroke-width="${LINE}"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${INK}" stroke-width="2.5"/>`; };
+    fs.writeFileSync(`${out}/avatar-heads.svg`, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 170" width="400" height="170"><rect width="400" height="170" fill="${PAPER}"/>${worst.map(([h, sk], i) => head(50 + i * 100, 50, h, sk)).join('')}<g transform="translate(300 10) scale(0.381)">${worst.map(([h, sk], i) => head(50, 50 + i * 90, h, sk)).join('')}</g></svg>`);
     fs.writeFileSync(`${out}/avatar-keyline.svg`, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 410 240" width="410" height="240"><rect width="410" height="240" fill="${PAPER}"/>${worst.map(([h, s], i) => cell(i, true, h, s) + cell(i, false, h, s)).join('')}</svg>`);
   }
 }

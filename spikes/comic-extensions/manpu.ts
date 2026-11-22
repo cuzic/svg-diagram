@@ -12,7 +12,7 @@ export type Pt = [number, number];
 export interface Tail {base: [Pt, Pt]; tip: Pt; from: Pt}
 export interface ManpuSpec {kind: ManpuKind; on: string; at?: HeadAnchor; size?: 's' | 'm'}
 export interface PropSpec {kind: PropKind; on: string; at?: PropAnchor}
-export interface PanelExtras {panel: string; side: Record<string, 'left' | 'center' | 'right'>; manpu?: ManpuSpec[]; props?: PropSpec[]}
+export interface PanelExtras {panel: string; caption?: {w: number}; side: Record<string, 'left' | 'center' | 'right'>; manpu?: ManpuSpec[]; props?: PropSpec[]}
 export interface Placed {id: string; kind: string; layer: 'manpu' | 'prop'; box: Rect; at: string; wanted: string; triedBefore: number; svg: string}
 export interface ExtraFinding {rule: string; where: string; message: string}
 
@@ -97,7 +97,7 @@ export function placeExtras(geo: Geometry, panels: {id: string; lineSpeakers: st
     const keys = Object.keys(ex.side), heads = keys.map(k => geo.points[`${ex.panel}.${k}`]!.head);
     const bubbleKeys = Object.keys(geo.bubbles).filter(k => k.startsWith(`${ex.panel}.`));
     const tails = bubbleKeys.flatMap((k, i) => { const sp = pk.lineSpeakers[i]; return sp ? [tailPolygon(tailOf(geo, k, `${ex.panel}.${sp}`))] : []; });
-    const obs: Obstacles = {bubbles: bubbleKeys.map(k => geo.bubbles[k]!), tails, heads, panel, placed: []};
+    const obs: Obstacles = {bubbles: [...bubbleKeys.map(k => geo.bubbles[k]!), ...(ex.caption ? [{x: panel.x + 32, y: panel.y + 16, w: ex.caption.w, h: 28}] : [])], tails, heads, panel, placed: []}; // the caption box (ADR 0076 D3a) is an obstacle like a bubble (4px margin)
     const settle = (id: string, kind: string, layer: 'manpu' | 'prop', size: number, wanted: string, cands: {at: string; c: Pt}[], draw: (x: number, y: number) => string) => {
       let tried = 0, last: string[] = [];
       for (const cand of cands) {
@@ -112,7 +112,7 @@ export function placeExtras(geo: Geometry, panels: {id: string; lineSpeakers: st
     const nth = new Map<string, number>(), next = (kind: string, on: string) => { const k = `${kind}:${on}`, n = (nth.get(k) ?? 0) + 1; nth.set(k, n); return n; }; // ids count per character, so adding a mark to another character renumbers nothing
     (ex.props ?? []).forEach(p => {
       const side = ex.side[p.on]!, head = geo.points[`${ex.panel}.${p.on}`]!.head, inn = -outSign(side), def = PROP[p.kind], id = `${ex.panel}.${p.on}.o${next('o', p.on)}`;
-      const y = panel.y + panel.h - 30, all: Record<PropAnchor, Pt> = {hand: [head[0] + inn * 58, y], floor: [head[0] + inn * 108, y], 'wall-out': [head[0] - inn * 76, panel.y + 56], 'wall-in': [head[0] + inn * 76, panel.y + 56]};
+      const y = panel.y + panel.h - 30, all: Record<PropAnchor, Pt> = {hand: [head[0] + inn * 58, y], floor: [head[0] + inn * 108, y], 'wall-out': [head[0] - inn * 76, panel.y + 72], 'wall-in': [head[0] + inn * 76, panel.y + 72]};
       const order = [...new Set<PropAnchor>([p.at ?? 'hand', 'hand', 'floor', 'wall-out', 'wall-in'])];
       settle(id, p.kind, 'prop', 40, p.at ?? 'hand', order.map(a => ({at: a, c: all[a]})), (x, yy) => `<g data-prop="${id}" transform="translate(${x} ${yy})"><title>${def.name}</title>${def.body}</g>`);
     });

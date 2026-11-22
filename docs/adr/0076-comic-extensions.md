@@ -1,6 +1,6 @@
 # ADR 0076: マンガのワークシートの拡張 — マンプと小道具、選択肢とヒント、時間の札と大ゴマ、自分のアバター、LLM の場面生成と検査
 
-- 状態: 提案(Draft。レビュー 1 回目の指摘 9 Major を反映。決める人の質問は末尾の表)
+- 状態: 提案(Draft。レビュー 2 回で収束(Blocker・Major なし)。決める人の質問は末尾の表(Q1〜Q16。決定済みの行に印あり))
 - 日付: 2026-11-22
 - 基点: `main`(23e43e16。ADR 0074 が入った時点)。名前と型は、ADR 0074 の文面、U1 の PR #436(`lib/comic/`、`lib/types/comic.ts`)、ADR 0077 の PR #435 に合わせた
 - 関連: ADR 0074(コマ・ふきだし・人物・穴。この ADR はその型を広げる。**変える所は「ADR 0074 への変更」の表にすべて書く**)、ADR 0077(ふきだしの輪郭)、ADR 0072(source locations)、ADR 0071(JSON Schema)、ADR 0069(`partCatalog` と MCP の `list_diagram_parts`)、ADR 0057(spec の `canvas`)
@@ -15,7 +15,7 @@ ADR 0074 は、台詞に穴のあるマンガの土台(`comic()` の帯、`bubbl
 
 **方針は 3 つ。**
 
-- ADR 0074 の型の**任意の項目を足す**。`version: 1` のまま。足した項目が無いデータは、今までと同じ SVG になる(ADR 0074 の golden を変えない)。例外は 1 つで、髪の輪郭(D4)。これは ADR 0074 U2 が入る前に決める(下の「ADR 0074 への変更」)。
+- ADR 0074 の型の**任意の項目を足す**。`version: 1` のまま。足した項目が無いデータは、今までと同じ SVG になる(ADR 0074 の golden を変えない)。例外は 1 つで、体の境目の 3 層(D4。髪の輪郭だけではない)。これは ADR 0074 U2 が入る前に決める(下の「ADR 0074 への変更」)。
 - 意味が先(ADR 0074 の方針)。データに座標や大きさを置かない。位置は幾何の地図と決まった規則から出す。
 - 決定的で、SVG だけ(`<text>` と `<use>` とフィルタを使わない)。`update` で値が変わっても、足した要素の位置は動かない。座標は、**1/4px の倍数にそろえる**(エンジンで三角関数の最後の桁が違っても、結果が変わらないように)。
 
@@ -26,17 +26,17 @@ ADR 0074 は、台詞に穴のあるマンガの土台(`comic()` の帯、`bubbl
 | `geometry`: `panels` / `bubbles` / `slots` / `heads` / `points`(`mouth`、`head: [cx, cy, r]`) | 0074 D5 | D1、D2 の置き場所 |
 | しっぽ `{base: [Pt, Pt], tip, from}`(`ComicLaidBubble.tail`。ADR 0077 も同じ名前) | PR #436 `lib/types/comic.ts`、PR #435 | D1 のぶつかりの検査 |
 | 頭の円の半径 36px、頭の中心は下から 76px、人物の `at` は 3 か所。コマの幅は 1 列で 420px、2×2 で 360px | 0074 D1、`lib/comic/constants.ts` | 頭のアンカー |
-| ふきだしの高さの予算。縦横比は **6:5 で確定**(0074 Q10。U1 が測った。PR #436) | 0074 D1、Q10 | D3 の札が帯を縮める |
+| ふきだしの高さの予算。縦横比は **6:5**(0074 U1 の測定で確定。PR #436)。コマは 420×352px(`snap4`)、ふきだしの帯は 220px | 0074 D1、Q10 | D3 の札が帯を縮める |
 | `Cast.face = {hue, hair}`、素材の `anchors`(`head` / `mouth` / `hand`) | 0074 D3、D6 | D4、手のアンカー |
 | 穴の `max` / `choices` / `strict`、`update` の `seq` と `stale` | 0074 D4、D5 | D2 |
-| 検査の `ComicFinding = {rule, severity: 'problem' \| 'advice', where, message}`(U1)と、共通の `Finding = {message, loc?, related?, rule, severity, data?}`(`lib/types/verdicts.ts`)、`RULE_DOCS`(規則名 → 説明の文字列) | PR #436、`lib/schema-files.ts:127` | D5 |
+| 検査の `ComicFinding = {rule, severity: 'problem' \| 'advice', where, message}`(U1)と、共通の `Finding = {message, loc?, related?, rule, severity: 'warn' \| 'info', data?: FindingData}`、`FindingData = {band?, measured, threshold, fix?}`(`lib/types/verdicts.ts`)、`RULE_DOCS`(規則名 → 説明の文字列) | PR #436、`lib/schema-files.ts:127` | D5 |
 
-### ADR 0074 への変更(この ADR が変える所のすべて)
+### ADR 0074 への変更(この ADR が変える所。型・規則・幾何の地図・id・Schema の項目ごとに 1 行)
 
 | # | 項目 | ADR 0074 の文面 | この ADR | 変える単位 |
 |---|---|---|---|---|
-| A1 | `Face.hue` | D6: `face?: {hue: number; hair?}`(`face` があれば `hue` は必須) | `hue` は任意。`hue` が無いとき、`hairColor` の既定は `brown`、`top` の既定は `gray`(D4) | U4 |
-| A2 | 髪の輪郭 | D3 / スパイク: 髪に輪郭が無い。U2 は未マージ | **無条件で、すべての部品に輪郭とキーラインを付ける**(D4)。ADR 0074 U2 の PR が入る前なら U2 に取り込む。入ったあとなら U4 で golden を 1 回だけ更新する | U2(0074)または U4 |
+| A1 | `Face.hue` と `Face` の項目 | D6: `face?: {hue: number; hair?}`(`face` があれば `hue` は必須) | `hue` は任意。`hairColor` / `skin` / `glasses` / `top` を足す(D4)。`hue` が無いとき、`hairColor` の既定は `brown`、`top` の既定は `gray`。`hair` は 2 種から 4 種 | U4 |
+| A2 | 体の境目の描き方 | D3 / スパイク: 髪に輪郭が無い。顔・首・服の境目も塗りだけ。U2 は未マージ | **無条件で、2 つの塗りの境目(髪と顔、顔と首・服、髪と肩、眼鏡の枠)すべてに 3 層(紙色のキーライン・インク・キーライン)を付ける**(D4)。肌の `fair` は、U1 が使う肌色のトークン(`COLOR.skin` = `PALETTE.amber.soft`)とする。ADR 0074 U2 の PR が入る前なら U2 に取り込む。入ったあとなら U4 で golden を 1 回だけ更新する | U2(0074)または U4 |
 | A3 | `comic-panel-count` | D6: `panels` の数が `layout` と違う(問題) | `comic-grid-fill`(升の置き方の検査)に置き換え。スパンが無ければ同じ意味 | U3 |
 | A4 | `comic-slots-per-panel` | 1 コマ 2 個まで | `2 × cols` 個まで(幅 1 のコマは 2 個のまま) | U3 |
 | A5 | `comic-reading-order` | D1 / D6: `anchor` の上書きが読む順に反する(助言) | 幾何の地図を読む検査に広げる(D5c)。重さは助言のまま | U6 |
@@ -49,7 +49,13 @@ ADR 0074 は、台詞に穴のあるマンガの土台(`comic()` の帯、`bubbl
 | A12 | `renderComic` の引数 | `{measure, values, characters}` | `avatars` を足す。結果に `slotContext(id, values)` を足す | U2、U4 |
 | A13 | 素材の `character.json` | `anchors` ほか | 任意の `recolor` を足す(D4) | U4 |
 | A14 | `chat()`(D7) | 同じ `Dialogue` の列 | `marks` / `props` / `span` / 間奏は落とす。`caption` は中央の区切り | U7 |
-| A15 | コマの縦横比 | Q10(6:5 を既定。U1 で確定) | **変えない**。この ADR は 6:5 を前提にして、札の分の帯の計算(D3a)を足すだけ | — |
+| A15 | コマの縦横比 | Q10(6:5 を既定。U1 で確定) | **変えない**。この ADR は 6:5(0074 U1 の測定で確定。PR #436)を前提にして、札の分の帯の計算(D3a)を足すだけ | — |
+| A16 | `ComicPanel` の項目 | `{id, bg?, thumb?, stage, dialogue}` | `marks` / `props`(U1)、`span`・`kind`(U3)を足す。**`kind: 'interlude'` のとき `stage` は空**(Schema の `if` / `then`) | U1、U3 |
+| A17 | `SlotDef` の項目 | `{max?, prompt, fallback?, choices?, strict?}` | `hints` を足す | U2 |
+| A18 | 札のあるコマの高さの予算 | D1: 頭の上の帯(6:5 で 220px) | 札があるコマは帯が 32px 下がり **188px**。`comic-bubble-zone` と `comic-text-budget` はこの帯で見る | U3 |
+| A19 | `labels` と番号の札 | D1: `labels` は全コマに | 間奏には番号の札も `labels` も付かない。`labels` の数はふつうのコマの数 | U3 |
+| A20 | id の文法と幾何の地図の鍵 | コマ `p1`、ふきだし `p1.d2`、頭 `p1.me` | マンプ `p1.me.m1`、小道具 `p1.me.o1`(`n` は同じ人物・同じ種類の通し番号)。地図の `marks` / `props` / `captions` / `tails` の鍵は、その id(帯に scope があれば前に `scope.`) | U1、U3 |
+| A21 | `RULE_DOCS` の行と `FindingData` | 規則名 → 説明の文字列 | 形は変えず、**新しい規則ごとに行を足す**(各単位が自分の規則の行を持つ)。`FindingData` に任意の `where?: string` を足し、comic の検査は D5b のとおり `measured` / `threshold` を埋める | 各単位、U5 |
 
 0074 の「状態」の行には、この ADR が採用されたとき、「ADR 0076 が拡張・一部変更」の 1 行を足す(U0 のドキュメントの PR)。
 
@@ -62,17 +68,17 @@ ADR 0074 のスパイク(`spikes/comic-worksheet/proto.ts`)を**そのまま取�
 | `manpu.ts` | マンプ 10 種と小道具 6 種、整数の表のアンカー、厳密なぶつかりの検査(線分・矩形・円の交差)、しっぽ `{base, tip, from}`、候補を順に試す置き方 |
 | `run.ts` | 2 人のコマ 4 つ(0074 のサンプル)と、3 人(左・中央・右)のコマ 1 つで数える。`out/scene-resolved.svg`、`out/scene-first-choice.svg`、`out/three-people.svg` |
 | `checks.ts` / `run-checks.ts` | 読む順・しっぽの交差・話し手の不明(幾何の地図だけを読む) |
-| `palette.ts` | パレットのコントラストと、キーラインの測定。`out/avatar-keyline.svg` |
+| `palette.ts` | パレットのコントラストと、キーラインの測定。`out/avatar-keyline.svg`(平らな矩形)、`out/avatar-heads.svg`(最悪の 3 組の頭を原寸と縮小図の倍率で。キーラインは境目の線だけで、外側の輪郭は無い。縮小図では 0.57px のキーラインが細くなるが、インクの線は見える。縮小図は絵として扱う(0074 D5)ので、そのまま許す) |
 
 測った数:
 
 | 測ったこと | 結果 |
 |---|---|
 | 場面(要求したのは**マンプ 7 個と小道具 5 個の計 12 個**) | **11 個が置けた**。置けなかった 1 個は 2 コマ目の左の人物のマンプ。最初の候補でぶつかったのは 3 個。候補を試して 2 個が解決 |
-| 要求のアンカーに置けなかったもの | 12 個中 2 個(壁の時計と壁のカレンダーが `hand` に落ちた) |
+| 希望の `at` を書いたもののうち、そこに置けなかったもの | 12 個中 2 個(壁の時計と壁のカレンダーが `hand` に落ちた) |
 | マンプ 10 種 × 人物 11 人(2 人のコマ 8 人 + 3 人のコマ 3 人 = 110 通り。`center` は 1 人) | 最初の候補が衝突: 27 通り。左 17/50、右 7/50、中央 3/10。候補を試したあとに置けない: 10 通りで、**すべて 2 コマ目の左の人物**。このコマは 0074 のサンプルが 6:5 でなく 7:5 のまま `comic-bubble-zone` と `comic-text-budget` を出している(原因は積みきれないふきだしで、マンプが置けないのは結果) |
-| 小道具 6 種 × 人物 11 人 × 要求のアンカー 4 種(264 通り) | **1 つも消えなかった**。要求のアンカーに置けた割合: `hand` 60/66、`floor` 48/66、`wall-out` 30/66、`wall-in` 24/66。落ちた先は `hand` か `wall-out`(壁は、ふきだしの帯と同じ高さで、ふきだしにぶつかりやすい) |
-| 1 場面(12 個)の置く時間(41 回の中央値) | 中央値 約 60 マイクロ秒、90 パーセンタイルで約 110、最大で約 270(ホストの負荷で数倍ぶれる。数字は桁の目安) |
+| 小道具 6 種 × 人物 11 人 × 要求のアンカー 4 種(264 通り) | **1 つも消えなかった**。要求のアンカーに置けた割合: `hand` 60/66、`floor` 48/66、`wall-out` 24/66、`wall-in` 18/66。落ちた先は `hand` か `wall-out`(壁は、ふきだしの帯と同じ高さで、ふきだしにぶつかりやすい)。壁のアンカーの y を札の下(コマの上から 72px)に置き、札(x 32、幅 140px、y 16〜44)を障害物に足した場合も、同じ数(24/66、18/66)で、札にはぶつからない |
+| 1 場面(12 個)の置く時間(200 回の中央値を 5 回測った範囲) | 中央値 約 0.04 ms(0.036〜0.043)、90 パーセンタイル 0.06〜0.10 ms、最大 0.2〜0.3 ms。別の日の負荷の高いホストでは、中央値 0.07〜0.12 ms、ピークは数 ms。**桁の目安**(壁時計の基準にしない) |
 | 足した SVG の大きさ | 11 個で約 2.9 KB(土台の 10.4 KB の 28%) |
 | 新しい検査(読む順・しっぽの交差・話し手の不明) | 4 コマ・6 個のふきだしで約 1 ms。実際の幾何では 0 件。ふきだしを 2 つ入れ替え、1 つを話し手と反対側へ動かした複製では 6 件(読む順 1、しっぽの交差 2、話し手の不明 3) |
 | パレット(肌 6・髪 6・服 9) | 髪と肌の 36 組のうち、色の差が 3:1 未満は 19 組、インクの輪郭だけでは 3:1 に届かないのは 26 組。服と肌の 54 組では色の差 3:1 未満が 44 組、輪郭だけで足りないのが 19 組。**色の差でも輪郭だけでも保証できない**。そこで、紙色のキーラインをインクの線の両側に付ける(15.6:1。D4) |
@@ -118,8 +124,8 @@ interface Prop { id?: string; kind: PropKind; on: string; at?: PropAnchor; alt?:
   |---|---|---|
   | `hand` | 内側へ 58px | コマの下から 30px(素材があれば `anchors.hand` を倍率をかけて使う) |
   | `floor` | 内側へ 108px | コマの下から 30px |
-  | `wall-out` | 外側へ 76px | コマの上から **56px**(番号の札と重ならない高さ) |
-  | `wall-in` | 内側へ 76px | コマの上から 56px |
+  | `wall-out` | 外側へ 76px | コマの上から **72px**(番号の札と、札のあるコマの札(D3a。y が 16〜44px、余白 4px)の下) |
+  | `wall-in` | 内側へ 76px | コマの上から 72px |
 
   素材に `hand` が無いとき、`hand` を指定した小道具は `floor` から始める(助言 `comic-anchor-missing`)。頭のアンカーは `head` の円だけから出るので、素材に追加の印は要らない。
 
@@ -140,8 +146,9 @@ interface Prop { id?: string; kind: PropKind; on: string; at?: PropAnchor; alt?:
    | `idea` / `gloom` | `top`、`top-out`、`top-in` |
 
 4. 先頭から、**ぶつからない最初の位置**を採る。置いた箱は障害物に足す。
-5. 1 つも置けなければ: **マンプは描かず、助言**(`comic-mark-no-room`)。**小道具は描かず、問題**(`comic-prop-no-room`。場面の情報が消えるため)。ふきだしの帯が積みきれていて(`comic-bubble-zone`)置けないときは、その原因だけを報告し、これらは出さない(1 つの誤りは 1 回だけ。ADR 0074 と同じ)。
-6. 希望の `at` と違う位置に置いたときは、助言 `comic-extra-moved`(「壁のカレンダー」が「手に持つカレンダー」に変わると意味が変わるため)。置いた位置は地図に残る(下)。
+5. **1 人あたりの上限**: マンプは 3 個、小道具は 2 個まで(超えた分は `comic-extra-count`、助言。置かない)。
+6. 1 つも置けなければ: **マンプは描かず、助言**(`comic-mark-no-room`)。**小道具は描かず、問題**(`comic-prop-no-room`。場面の情報が消えるため)。ふきだしの帯が積みきれていて(`comic-bubble-zone`)置けないときは、その原因だけを報告し、これらは出さない(1 つの誤りは 1 回だけ。ADR 0074 と同じ)。
+7. **`at` を書いたものが**、書いた位置と違う所に置かれたときだけ、助言 `comic-extra-moved`(`at` を書かないものは、既定の候補の並びのどこに置かれても出さない。LLM はふつう `at` を書かないので、助言が増えるだけになる)(書き手が「壁のカレンダー」と指定したのが「手に持つカレンダー」に変わると、意味が変わるため)。置いた位置は地図に残る(下)。
 
 **ぶつかりの検査(ADR 0074 の検査を広げる)。** 置く箱(マンプは 20px か 28px、小道具は 40px の正方形)は、次のどれにも重ならない。判定は**厳密**(線分・矩形・円の交差。点を並べた近似にしない)。
 
@@ -235,7 +242,7 @@ acceptValue(sheet, slotId, text): Finding[]   // 1 行・制御文字なし・ma
 
 - 札は 1 コマに**1 つまで**(2 つ以上は `comic-caption-count`、問題)。**`dialogue` の先頭に置く**(先頭でなければ `comic-caption-order`、助言)。
 - 見た目: インク色の塗りに白い文字(14px 太字)の四角、高さ 28px、**x はコマの左から 32px、y はコマの上から 16px**(ふきだしの帯の上端と同じ高さ。番号の札(24px)の右)。しっぽなし。1 行、**穴を最大で数えて 10 字まで**(`comic-caption-wide`、問題)。穴は使える(札の穴も 1 コマの穴の数に数える)。札の矩形は `geometry.captions[id]` に載り(`bubbles` には入れない)、D1 の障害物になる。
-- **ふきだしの帯を縮める。** 札のあるコマは、帯の上端が **32px 下がる**(札 28px + 隙間 4px。帯は y = 48 から)。6:5(1 コマ 350px)の帯は 218px から **186px**。ふきだしの高さは 1 行 48、2 行 72、3 行 100(隙間 6px)なので、**6:5 では 3+2 行(178px)が入り、3+3 行は入らない**。7:5 に変えたときは帯が 168px から 136px になり、2+2 行(150px)が入らず 1+2 行(126px)まで(U3 で確かめる)。`comic-bubble-zone` と `comic-text-budget` は、札のあるコマではこの狭い帯で見る。
+- **ふきだしの帯を縮める。** 札のあるコマは、帯の上端が **32px 下がる**(札 28px + 隙間 4px。帯は y = 48 から)。6:5(0074 U1 の測定で確定。PR #436。1 コマ 420×352px)の帯は 220px から **188px**。ふきだしの高さは 1 行 48、2 行 72、3 行 100(隙間 6px)なので、**6:5 では 3+2 行(178px)が入り、3+3 行(206px)は入らない**。7:5(1 コマ 300px)に変えたときは帯が 168px から 136px になり、2+2 行(150px)が入らず 1+2 行(126px)まで(U3 で確かめる)。`comic-bubble-zone` と `comic-text-budget` は、札のあるコマではこの狭い帯で見る(A18)。
 - **`labels`**(0074 D1)は、**ふつうのコマ(間奏でないもの)だけ**に付く(間奏は番号の札を持たない)。`labels` の数もふつうのコマの数に合わせる。
 
 #### 3b. コマの割り(格子、スパン、コマ数)
@@ -244,7 +251,8 @@ ADR 0074 D1 は、名前つきの割り(B)を選び、自由な格子(C)を避�
 
 - **割りに `2x3`(2 列 3 行、6 コマ)を足す**(A9)。コマ数 2 / 4 / 6 は、`1x2` / `2x2` か `1x4` / `2x3`。
 - **`span?: {cols?: 1 | 2; rows?: 1 | 2}`**(既定 1×1)。使える形は 3 つだけ: 普通(1×1)、**全幅**(`cols: 2`。2 列の割りのみ)、**倍の高さ**(`rows: 2`)。`cols: 2` と `rows: 2` を同時に付けるのは禁止。コマの大きさは、幅 = `cols × 升の幅 + (cols − 1) × 溝`、高さ = `rows × 升の高さ + (rows − 1) × 溝`(升の幅は 0074 のとおり。1 列の割りは 420px、2 列は 360px)。
-- **置き方(規範。カーソル方式。決定的)。** 升を行ごと左から右に数える。カーソルは「**まだ空いている最初の升**」。`panels` を順に見て、各コマの左上をカーソルに置く。次のとき、そのコマを `comic-grid-fill`(問題。`where` はそのコマ)で止める。穴埋め(後ろのコマを空いた升へ戻して入れること)はしない。
+- **`2x3` の大きさ**: 幅 360px、既定の縦横比は 1:1(`2x2` と同じ。2 列の割りの既定)。
+- **置き方(規範。カーソル方式。決定的)。** 升を行ごと左から右に数える。カーソルは「**まだ空いている最初の升**」。`panels` を順に見て、各コマの左上をカーソルに置く。次のとき、そのコマを `comic-grid-fill`(問題。`where` はそのコマ)で止める。**最初の失敗で置くのをやめ、報告は 1 件だけ**(あとのコマの置き方は定めない。往復は 1 件ずつ直す)。穴埋め(後ろのコマを空いた升へ戻して入れること)はしない。
   1. コマの升(`cols × rows`)のどれかが、割りの外へ出る、または埋まっている。
   2. `cols: 2` のコマが、行の最初の升(左の列)以外にカーソルがあるとき(幅のコマは、行の頭に書く)。
   3. `rows: 2` のコマが、左の列以外にカーソルがあるとき。
@@ -257,7 +265,7 @@ ADR 0074 D1 は、名前つきの割り(B)を選び、自由な格子(C)を避�
 
 #### 3c. 場面の切り替えのコマ(間奏)
 
-`ComicPanel.kind?: 'scene' | 'interlude'`(既定 `scene`)を足す。**間奏は、格子の升を使わない、全幅の帯**で、`panels` の順に、コマの行の間へ入る。`stage` は空、`dialogue` は `caption` が 1 つだけ。高さ 96px、淡い色味(`bg.tint`)、文字は 24px 太字を中央に。**間奏は、カーソルが行の左の升にあり、その行の升がどれも埋まっていないとき**だけ置ける(上から続く倍の高さのコマがあるとき、行の途中のときは `comic-grid-fill`)。置かれた間奏は、あとの行の y を `96 + 溝` ずらす。`chat()` では中央の大きな区切りの文字になる。
+`ComicPanel.kind?: 'scene' | 'interlude'`(既定 `scene`)を足す。**間奏は、格子の升を使わない、全幅の帯**で、`panels` の順に、コマの行の間へ入る。`stage` は空、`dialogue` は `caption` が 1 つだけ。高さ 96px、淡い色味(`bg.tint`)、文字は 24px 太字を中央に。**間奏は、(a) カーソルが行の左の升にあり、その行の升がどれも埋まっていないとき、または (b) すべての升が埋まったあと(終わりの間奏。エピローグ)**に置ける(上から続く倍の高さのコマがあるとき、行の途中のときは `comic-grid-fill`)。最初のコマの前(カーソルが左上)も (a) で置ける。置かれた間奏は、あとの行の y を `96 + 溝` ずらす。`chat()` では中央の大きな区切りの文字になる。
 
 「全幅で高さが半分のコマ」を格子に入れる案は、升の高さが半分になり置き方が崩れる。帯にして格子の外に出すほうが単純(Q6)。
 
@@ -289,7 +297,7 @@ interface Face {   // 0074: {hue: number; hair?: 'short' | 'long'}
 ```
 
 - 色は**名前のついたパレットの鍵だけ**(`#rrggbb` は受け取らない)。肌 6・髪の色 6・服 9。値は `lib/tokens.ts` に置く(候補はスパイクの `palette.ts`)。同じデータは同じ SVG。
-- **既定(未指定の項目)**: `skin` は `fair`(0074 の肌 `#ffe3c8`)、`hair` は `short`、`glasses` は `none`。`hairColor` は、`hue` があれば従来どおり `hue` から(`hsl(hue 35% 28%)`)、無ければ `brown`。`top` は、`hue` があれば `hsl(hue 45% 62%)`、無ければ `gray`。**`face` の中のどの項目も必須でない**(A1)。
+- **既定(未指定の項目)**: `skin` は `fair`(0074 U1 が使う肌色のトークン `COLOR.skin` = `PALETTE.amber.soft`。ほかの肌色もトークンに置く)、`hair` は `short`、`glasses` は `none`。`hairColor` は、`hue` があれば従来どおり `hue` から(`hsl(hue 35% 28%)`)、無ければ `brown`。`top` は、`hue` があれば `hsl(hue 45% 62%)`、無ければ `gray`。**`face` の中のどの項目も必須でない**(A1)。
 - **同じ人物 id なら全コマで同じ**(`stage` が `who` で `cast` を引く)。表情はコマごとに変わり、アバターは変わらない。
 - **自分のアバターはページが決める。** `renderComic(sheet, {avatars: {me: {...}}})` で `cast[id].face` を**項目ごとに上書き**する(素材の `characters` と同じく、1 回の描画ごとに渡す。大域の状態にしない)。ライブラリは保存しない(`Face` は JSON なので、保存はページ)。アバターを変えても幾何は変わらない(頭の円は固定)。反映は `renderComic` をもう一度呼ぶ(測って遅ければ、差分の経路を足す)。
 
@@ -297,7 +305,7 @@ interface Face {   // 0074: {hue: number; hair?: 'short' | 'long'}
 
 > 紙色のキーライン 1.5px | インクの線 2.5px | 紙色のキーライン 1.5px
 
-インクの線の両側が必ず紙色なので、境目は塗りの色に関わらず 15.6:1(インクと紙の比)で見える。外側の輪郭(紙に接する縁)はインクの線だけ。対象は、髪と顔、顔と首・服、服と髪(長い髪が肩にかかる所)、眼鏡の枠。
+インクの線の両側が必ず紙色なので、境目は塗りの色に関わらず 15.6:1(インクと紙の比)で見える。**3 層を描くのは内側の境目だけ**で、外側の輪郭(紙に接する縁)はインクの線だけ(外側にも付けると、縁が二重になる。`out/avatar-heads.svg`)。対象は、髪と顔、顔と首・服、服と髪(長い髪が肩にかかる所)、眼鏡の枠。
 
 1. **眼鏡は枠だけ**(レンズの塗りは無い)。枠はインクの線 2px にキーラインを付ける。肌がどの色でも見える(`dark` でも 15.6:1)。
 2. すべての部品に輪郭が付く(髪も。0074 のスパイクは髪に輪郭が無かった)。
@@ -331,10 +339,13 @@ interface Face {   // 0074: {hue: number; hair?: 'short' | 'long'}
 
 **検査の結果の形。** 共通の `Finding` は `{message, loc?, related?, rule, severity, data?}` で、`where` は無い。comic の検査(ADR 0074 U1 の `ComicFinding`)は `where` を持つ(ふきだし `p2.d1`、コマ `p2`、マンプ `p2.me.m1`)。そこで、**`where` を `Finding.data.where` に載せる**(`FindingData` に任意の `where?: string` を足す)。`loc`(ADR 0072 D7 の spec の path)は、comic の部品の id から引く(今の `locateMessage` は文言からの推測なので、comic の id は引けない。U5 で、部品の印から path を出す)。`check_diagram` の出力に `data.where` と path が出ることを、わざと壊した例でテストする。
 
+**`FindingData` の必須項目(`measured`、`threshold`)の埋め方。** 共通の型は変えない(必須のまま)。数のある規則は、その数と限度を入れる(例: `comic-text-budget` は積んだ行数と 4、`comic-slot-max` は `max` と 9、`comic-caption-wide` は字数と 10)。数のない規則(置けない・id の衝突・順序など)は、**`measured` = 違反の件数(1 以上)、`threshold` = 0** を入れる。`severity` の対応は、ADR 0074 U4 が既存の `comic-*` に使うものに合わせる: 問題(`problem`)は検証の問題として、助言(`advice`)は `Finding` の `severity: 'warn'` として出す(`info` は使わない)。U5 の頭で 0074 U4 の実装を読んで、この対応を確かめる。
+
 **往復の規則(LLM への指示。`list_diagram_parts` の description に書く)**
 
 1. spec を出し、`check_diagram` を呼ぶ。
 2. `verdict` が `ok` でなければ、**問題の各件**を、規則の `scope`(下の表)で直す。
+   - `auto: 'advice'` の問題(素材のライセンスなど、人だけが直せるもの)は、直さずに人に伝える。
    - `dialogue` / `panel`: `where` が指すコマ(`panels[]` の 1 つ。id は変えない)だけを直す。ほかのコマは変えない。
    - `sheet`: `cast`・`span`・`panels` の並びを変えてよい。**直したあとは、すべての `where` を読み直す**(コマの数や並びが変わると、path が動く。`where` の id は動かさない)。
 3. 直したら 1 に戻る。**3 回で止める**。止めたら、残った問題を人に伝える。
@@ -364,15 +375,22 @@ interface RuleFix {
 | `comic-slot-duplicate` / `comic-slot-undefined` | 問題 | edit | dialogue | Give each blank one definition and one id; make the template and `slots` agree. |
 | `comic-speaker-unknown` / `comic-extra-target` | 問題 | edit | panel | Use a character that is on the stage of that panel, or add it to `stage`. |
 | `comic-at-collision` | 問題 | edit | panel | Move one character to another `at`. |
-| `comic-id-collision` | 問題 | edit | sheet | Rename the id (letters, digits, `_`, `-`). |
-| `comic-asset-missing` / `comic-license-missing` | 問題 | advice | sheet | Name an existing asset or use the built-in face (a human supplies assets). |
+| `comic-id-collision` | 問題 | edit | sheet | Rename the id (letters, digits, `_`, `-`); ids are unique across the sheet. |
+| `comic-asset-missing` | 問題 | edit | sheet | Drop the `asset` and use the built-in face (`face`), or name an asset that exists. |
+| `comic-license-missing` | 問題 | advice | sheet | A human supplies the licence; the loop cannot fix it (it appears only when assets are passed in). |
 | `comic-bubble-covers-face` / `comic-tail-off-speaker` | 問題 | regen | panel | Re-plan the bubbles of this panel (fewer or shorter lines, speakers on the stage). |
 | `comic-grid-fill` / `comic-span-invalid` | 問題 | regen | sheet | Drop the `span`, or put a full-width panel first in its row and a double-height panel in the left column. |
-| `comic-caption-count` / `comic-caption-wide` | 問題 | edit | dialogue | One caption per panel, at most 10 characters (blanks counted at `max`). |
+| `comic-caption-count` | 問題 | edit | panel | Keep one caption per panel. |
+| `comic-caption-wide` | 問題 | edit | dialogue | At most 10 characters (blanks counted at `max`). |
 | `comic-interlude-content` | 問題 | edit | panel | An interlude holds one caption and no characters. |
 | `comic-prop-no-room` | 問題 | regen | panel | Remove the prop, or free its anchor (fewer or shorter bubbles). |
 | `comic-bubble-wide` / `comic-orphan-line` / `comic-follower-split` | 助言 | edit | dialogue | Reword so the line breaks fall elsewhere. |
-| `comic-mark-no-room` / `comic-extra-moved` / `comic-anchor-missing` / `comic-slot-choices` / `comic-slot-hint-dup` / `comic-caption-order` / `comic-avatar-ignored` / `comic-cast-unused` / `comic-bubble-side` | 助言 | advice | panel(または sheet) | Optional; leave as is unless asked. |
+| `comic-mark-no-room` / `comic-extra-moved` / `comic-extra-count` | 助言 | advice | panel | Optional; remove a mark or leave it as is. |
+| `comic-anchor-missing` | 助言 | advice | panel | Optional; the prop was put on the floor. |
+| `comic-slot-choices` / `comic-slot-hint-dup` | 助言 | advice | dialogue | Optional; keep at most 8 choices and no repeats. |
+| `comic-caption-order` | 助言 | edit | dialogue | Move the caption to the first place of `dialogue`. |
+| `comic-bubble-side` | 助言 | advice | panel | Optional; the bubble leans to the wrong side of the speaker. |
+| `comic-avatar-ignored` / `comic-cast-unused` | 助言 | advice | sheet | Optional; remove the unused field or character. |
 | `comic-reading-order` / `comic-tail-cross` / `comic-speaker-unclear` | 助言 | regen | panel | Order the lines left to right, or swap who stands where. |
 | `comic-face-repeat` | 助言 | edit | sheet | Change the `expression` in one of the panels. |
 | `comic-cast-similar` | 助言 | edit | sheet | Change hair style, glasses or clothing colour of one character. |
@@ -404,7 +422,7 @@ ADR 0074 の `comic-reading-order` は、**幾何の地図を読む検査**に�
 - 型の追加(すべて任意): 「ADR 0074 への変更」の表(A1〜A15)のとおり。
 - Schema(`schema/comic.schema.json` と `spec.schema.json`)、`spec-parts` の登録、`dsl-exports`、`skills/svg-diagram/references` の項目は、**各単位が自分の項目の分を持つ**(U1: マンプ・小道具、U2: ヒント、U3: 札・スパン・間奏・`2x3`、U4: アバター)。`layout` と `panels` の数の対応は、升の合計で決まるようになるので、Schema には `maxItems` だけ残し、`comic-grid-fill` に任せる(A3)。
 - **golden は変えない**(足した項目が無いデータは同じ出力)。例外は A2(髪の輪郭)の 1 回だけ。足した要素を使う例は、新しい golden として足す。
-- 検査の規則が約 25 増える(D5b の表)。`RULE_FIX`(新)と `FindingData.where`(新)を足す。`RULE_DOCS` は変えない。
+- 検査の規則が約 25 増える(D5b の表)。`RULE_FIX`(新)と `FindingData.where`(新)を足す。`RULE_DOCS` の形(規則名 → 文字列)は変えず、新しい規則ごとに行を足す(A21)。
 - `chat()`(U7)、Artifact の見本(U8)、MCP のプラグイン(別のリポジトリ。U9)は、別の単位が持つ。
 
 ## 実装計画
@@ -416,7 +434,7 @@ ADR 0074 の `comic-reading-order` は、**幾何の地図を読む検査**に�
 | U0 | — | ADR 0074 の状態の行に「ADR 0076 が拡張・一部変更」を足す(この ADR の採用と同時) |
 | U1 | 配置・幾何・しっぽ: U1(PR #436)。幾何の地図: U3。規則・Schema: U4 | マンプと小道具 |
 | U2 | 穴・`update`・`renderComic`: U3。規則・Schema: U4 | 選択肢とヒント |
-| U3 | 割り・コマの置き方: U1。規則・Schema: U4。`chat()` の落とし方は U7 | 札、スパン、`2x3`、間奏 |
+| U3 | 割り・コマの置き方: U1。規則・Schema: U4。`chat()` の最小の対応は U3 が持つ(0074 U5 の有無に関わらず) | 札、スパン、`2x3`、間奏 |
 | U4 | 顔と素材: U2(髪の輪郭は A2)。規則・Schema: U4 | アバター |
 | U5 | 規則の一覧: U4。`partCatalog` と `locateMessage`(ADR 0069、0072) | LLM 向けの記述と往復の契約 |
 | U6 | 幾何: U1、U3。この ADR の U1(しっぽの地図)、U3(コマの置き方) | 読む順などの検査 |
@@ -427,7 +445,7 @@ ADR 0074 の `comic-reading-order` は、**幾何の地図を読む検査**に�
 ### U1: マンプと小道具
 
 - 範囲: D1 のすべて。`lib/comic/` に `marks.ts`(断片の表)、`anchors.ts`(整数の表)、`place-extras.ts`(置き方とぶつかりの検査)。幾何の地図に `tails` / `marks` / `props`。規則 `comic-mark-no-room`、`comic-prop-no-room`、`comic-extra-moved`、`comic-anchor-missing`、`comic-extra-target`。Schema と登録(マンプ・小道具の分)。
-- 完了の基準: (1) スパイクと同じ場面(マンプ 7、小道具 5)で、置いた箱と `at` の結果が一致する(11 個が置けて、1 個が `comic-mark-no-room`、2 個が `comic-extra-moved`)。(2) 置いたどの箱も、ふきだしの矩形・しっぽの三角形・頭・ほかの箱・コマの縁・番号の札と重ならない(性質のテスト。厳密な交差)。(3) 空・埋めた・飛ばし・長すぎるの 4 状態で、位置が同じ(`deepEqual`)。(4) 2 回置いて SVG が同じ。座標が 1/4px の倍数。(5) 帯が積みきれていないコマでは `comic-mark-no-room` / `comic-prop-no-room` を出さず、`comic-bubble-zone` だけ。(6) マンプと小道具のないデータの SVG が、U1 の前と**バイト単位で同じ**。(7) 素材の `anchors.hand` が小道具の位置になる。(8) 3 人のコマ(`center`)で、`out` が右になる。(9) 層の順が D1 のとおり(DOM の順)。
+- 完了の基準: (1) スパイクと同じ場面(マンプ 7、小道具 5)で、**おおよそ同じ結果**になる(目安は 11 個が置けて、1 個が `comic-mark-no-room`、`at` を書いた 2 個が `comic-extra-moved`)。スパイクのしっぽは 0074 のプロトタイプの式で、U1 の `tailOf`(`reach` を `edge + TAIL_MIN` で挟み、付け根は `balloonPath` から)とは違うので、**ビット単位の一致は求めない**。U1 の PR は、U1 のしっぽで場面を測り直して、数字をこの ADR に書き直す。(2) 置いたどの箱も、ふきだしの矩形・しっぽの三角形・頭・ほかの箱・コマの縁・番号の札と重ならない(性質のテスト。厳密な交差)。(3) 空・埋めた・飛ばし・長すぎるの 4 状態で、位置が同じ(`deepEqual`)。(4) 2 回置いて SVG が同じ。座標が 1/4px の倍数。(5) 帯が積みきれていないコマでは `comic-mark-no-room` / `comic-prop-no-room` を出さず、`comic-bubble-zone` だけ。(6) マンプと小道具のないデータの SVG が、U1 の前と**バイト単位で同じ**。(7) 素材の `anchors.hand` が小道具の位置になる。(8) 3 人のコマ(`center`)で、`out` が右になる。(9) 層の順が D1 のとおり(DOM の順)。
 - テスト: 種類 16 × 人物(左・中央・右)の網羅、候補の順(表を固定)、`aria-hidden` と `<title>`、断片が `<text>` / `<use>` / フィルタを含まない、線の紙に対する比が 3:1 以上、`chat()` では U7 で落ちる。
 
 ### U2: 選択肢とヒント
@@ -438,14 +456,14 @@ ADR 0074 の `comic-reading-order` は、**幾何の地図を読む検査**に�
 
 ### U3: 時間の札、スパン、`2x3`、間奏
 
-- 範囲: D3 のすべて(A3、A4、A7〜A9)。`caption`、帯の縮み、`span` とカーソルの置き方、`2x3`、`interlude`、検査 7 つ。Schema と登録。**縦横比は 0074 Q10 の 6:5 のまま**(確定済み)。
-- 完了の基準: (1) 札のあるコマの帯が 32px 縮み、6:5 で 3+2 行が通り、3+3 行が `comic-bubble-zone`。7:5 を指定したとき 2+2 行が `comic-bubble-zone`。(2) **置き方の網羅**: 2×2 と 2×3 と 1 列の割り(1×3、1×4)で、すべての並び(コマは 4 個以内、各コマは普通・全幅・倍の高さ)について、期待どおり「置けて `panels` の順 = 左上の升の行ごとの順」または `comic-grid-fill` になる(期待の表をテストに固定)。(3) 例: 2×2 で `[全幅, 普通, 普通]` は成立、`[普通, 全幅, 普通]` と `[普通, 倍の高さ, 普通]` は `comic-grid-fill`(`where` が 2 つ目のコマ)。(4) 間奏が、行の頭で置けて、行の途中と、上から続く倍の高さのコマがあるときは `comic-grid-fill`。置いたあとの行の y がずれる。(5) 全幅のコマで穴が 4 個まで通り、5 個で止まる。(6) **高いコマ・広いコマで、D1 の `hand` / `floor` / `wall-*` と頭のアンカーが、式のとおりに置かれる**(スパイクは固定の 420×300 でしか試していないので、ここで確かめる)。(7) スパンや札のないデータの出力が変わらない(golden)。(8) 4 状態で `geometry` が `deepEqual`(札の穴を含む)。(9) 札の矩形が番号の札と重ならない。
+- 範囲: D3 のすべて(A3、A4、A7〜A9)。`caption`、帯の縮み、`span` とカーソルの置き方、`2x3`、`interlude`、検査 7 つ。Schema と登録。**`chat()` の最小の対応も、この PR が持つ**(0074 U5 が先に入っていても後でも): 札(`who` なし)で `cast[who]` を引かない、間奏のコマの `stage` を読まない、`marks` / `props` / `span` を無視する。実行時に落ちないことを、この単位のテストで確かめる。仕上げ(区切りの見た目)は U7。**縦横比は 0074 Q10 の 6:5 のまま**(確定済み)。
+- 完了の基準: (1) 札のあるコマの帯が 32px 縮み、6:5 で 3+2 行が通り、3+3 行が `comic-bubble-zone`。7:5 を指定したとき 2+2 行が `comic-bubble-zone`。(2) **置き方の網羅**: 2×2 と 2×3 と 1 列の割り(1×3、1×4)で、すべての並び(コマは割りの升の数まで、2×3 なら 6 個まで。各コマは普通・全幅・倍の高さ。3⁶ = 729 通りで軽い)について、期待どおり「置けて `panels` の順 = 左上の升の行ごとの順」または `comic-grid-fill` になる(期待の表をテストに固定)。(3) 例: 2×2 で `[全幅, 普通, 普通]` は成立、`[普通, 全幅, 普通]` と `[普通, 倍の高さ, 普通]` は `comic-grid-fill`(`where` が 2 つ目のコマ)。(4) 間奏が、行の頭で置けて、行の途中と、上から続く倍の高さのコマがあるときは `comic-grid-fill`。置いたあとの行の y がずれる。(5) 全幅のコマで穴が 4 個まで通り、5 個で止まる。(6) **高いコマ・広いコマで、D1 の `hand` / `floor` / `wall-*` と頭のアンカーが、式のとおりに置かれる**(スパイクは固定の 420×300 でしか試していないので、ここで確かめる)。(7) スパンや札のないデータの出力が変わらない(golden)。(8) 4 状態で `geometry` が `deepEqual`(札の穴を含む)。(9) 札の矩形が番号の札と重ならない。(10) 札・間奏・スパンを含むデータで、`chat()` が例外なく描ける(最小の対応)。(11) 札のあるコマで、壁のアンカー(コマの上から 72px)が札の矩形と重ならない。(12) 最初の失敗で置くのをやめ、`comic-grid-fill` が 1 件だけ出る。終わりの間奏が置ける。
 - テスト: 上のとおり、幾何(コマの大きさの式)、`labels` が間奏を数えない、`comic-caption-count` / `comic-caption-wide` / `comic-caption-order`、`who` を省いた札が Schema を通る。
 
 ### U4: 自分のアバター
 
 - 範囲: D4 のすべて(A1、A2、A13)。`Face` の項目、パレット(`lib/tokens.ts`)、髪型 4 種・眼鏡 2 種、3 層の境目、`avatars`、素材の `recolor`。`comic-cast-similar`、`comic-avatar-ignored`。Schema と登録。
-- 完了の基準: (1) `hue` だけのデータの出力は、**髪の輪郭を足す以外は同じ**(A2。ADR 0074 U2 より前なら U2 の PR に取り込み、後なら U4 の PR で golden を 1 回だけ更新して、人が見て受け入れる)。(2) 同じ `cast` の人物が全コマで同じ見た目。(3) `avatars` で上書きしても `geometry` が `deepEqual`。(4) **すべての境目が 3 層**で、インクと紙の比が 3:1 以上(構造のテスト)。(5) 肌 × 髪 × 服 × 髪型 × 眼鏡の全部で、SVG が決定的で、境目の構造が崩れない。(6) 素材に `recolor` があればパレットの色に置き換わる。なければ `comic-avatar-ignored`。(7) `hue` なしの `face` で、既定の `hairColor` と `top` が使われる。
+- 完了の基準: (1) `hue` だけのデータの出力は、**体の境目に 3 層を足し、肌色が U1 のトークンのままである以外は同じ**(A2。ADR 0074 U2 より前なら U2 の PR に取り込み、後なら U4 の PR で golden を 1 回だけ更新して、人が見て受け入れる)。(2) 同じ `cast` の人物が全コマで同じ見た目。(3) `avatars` で上書きしても `geometry` が `deepEqual`。(4) **すべての境目が 3 層**で、インクと紙の比が 3:1 以上(構造のテスト)。(5) 肌 × 髪 × 服 × 髪型 × 眼鏡の全部で、SVG が決定的で、境目の構造が崩れない。(6) 素材に `recolor` があればパレットの色に置き換わる。なければ `comic-avatar-ignored`。(7) `hue` なしの `face` で、既定の `hairColor` と `top` が使われる。
 - テスト: パレットの網羅、`recolor` の置き換え、`#rrggbb` を Schema が拒む、`comic-cast-similar`。
 
 ### U5: LLM 向けの記述と往復の契約
@@ -462,7 +480,7 @@ ADR 0074 の `comic-reading-order` は、**幾何の地図を読む検査**に�
 
 ### U7: `chat()` が新しい項目を落とす
 
-- 範囲: `marks` / `props` / `span` / 間奏を落とし、`caption` を中央の区切り、間奏を大きな区切りの文字にする(A14)。0074 U5 が入っていること。
+- 範囲: U3 が持つ最小の対応(落ちない)の上に、`caption` を中央の区切り、間奏を大きな区切りの文字にする仕上げ(A14)。0074 U5 が入っていること。
 - 完了の基準: 新しい項目を足しても、`chat()` の幾何と SVG が変わらない(区切りの文字を除く)。`caption` の穴の値がチャットにも出る。
 - テスト: golden、同じ値での穴の一致。
 
@@ -485,33 +503,35 @@ ADR 0074 の `comic-reading-order` は、**幾何の地図を読む検査**に�
 - 「値で位置が動かない」を、状態の組ごとの `deepEqual` で、マンプ・小道具・札・入力欄の矩形にも広げる。
 - 時間の数字は、壁時計の基準にせず、作業量(判定の回数)で見る。
 
-## 質問と推奨(決める人へ)
+## 質問と推奨(決める人へ。最終)
 
-| # | 質問 | 推奨 |
-|---|---|---|
-| Q1 | データの項目の名前。`marks` か `manpu` か | `marks`。`manpu` は英語を話す LLM に通じにくい。説明に「漫符(comic symbols)」と書く |
-| Q2 | マンプや小道具が置けないとき(レビューの調整で決定済み) | マンプは描かずに助言。**小道具は問題**(場面の情報が消えるため)。希望の位置と違う所に置いたときは助言 `comic-extra-moved` |
-| Q3 | `hints` を `max` の既定に数えるか | 数えない(ヒントの長さでふきだしの箱が変わるのを避ける)。代わりに、ヒントは `max` 字以内(問題) |
-| Q4 | LLM への追加のヒントの取得 | ライブラリは材料(`r.slotContext`)と受け入れの検査(`acceptValue`)だけを出し、送信はページの仕事 |
-| Q5 | スパンを入れて、ADR 0074 D1 の「自由な格子はやらない」を一部見直すか | 見直す。ただし形は 3 つ(普通・全幅・倍の高さ)、全幅は行の頭、倍の高さは左の列だけ。カーソル方式で後戻りしない。LLM の説明には「頼まれたときだけ使う」と書く |
-| Q6 | 場面の切り替え(間奏)を、格子の外の全幅の帯にするか | する(升の高さが半分のコマを入れると置き方が崩れる) |
-| Q7 | 大きなコマで人物を大きくするか(寄り) | 第 1 版はしない。余白をマンプ・壁の小道具・札で使い、寄りは見た目を測ってから別の単位で |
-| Q8 | 縦横比の既定 | **0074 Q10 に従う**(U1 が測り、6:5 で確定。PR #436)。この ADR は 6:5 を前提にする(解決済み) |
-| Q9 | アバターのパレットの数 | 肌 6・髪の色 6・服 9・髪型 4・眼鏡 3。足すのは表を足すだけ |
-| Q10 | 自分のアバターの保存 | ライブラリは保存せず、`renderComic({avatars})` で渡す。保存先はページの仕事 |
-| Q11 | 素材の人物にアバターを効かせる範囲 | 素材が `recolor` を宣言した色(肌・髪・服)だけ。髪型・眼鏡は効かず、助言を出す |
-| Q12 | MCP に `render_comic` を足すか | 足さない。`render_diagram` / `check_diagram` / `list_diagram_parts` をそのまま使う |
-| Q13 | 直し方の形 | `RULE_DOCS` はそのまま、別に `RULE_FIX`(命令形の英語 1 文、`scope`、`auto`)。`where` は `Finding.data.where` に載せる |
-| Q14 | 新しい検査(読む順・交差・話し手の不明・同じ顔・似た人物)の重さ | すべて助言。往復が止まりやすくなるので問題にしない。必要になったものだけ、あとで問題に上げる |
-| Q15 | `comic-face-repeat` の閾値 | 3 コマ続けて |
-| Q16 | 髪の輪郭とキーライン(A2)の入れ方 | 無条件で全人物に付ける。ADR 0074 U2 が未マージなら U2 に取り込む。入ったあとなら U4 で golden を 1 回だけ更新して、人が見て受け入れる |
+印: **決定済み**はレビューの調整で決まったもの。**未決**は、決める人の答えが要る。推奨に従うなら、その行をそのまま採ればよい。
+
+| # | 質問 | 状態 | 推奨 / 決定 |
+|---|---|---|---|
+| Q1 | データの項目の名前。`marks` か `manpu` か | 未決 | 推奨: `marks`。`manpu` は英語を話す LLM に通じにくい。説明に「漫符(comic symbols)」と書く |
+| Q2 | マンプや小道具が置けないとき | 決定済み | マンプは描かずに助言(`comic-mark-no-room`)、**小道具は問題**(`comic-prop-no-room`。場面の情報が消えるため)。`at` を書いたものが違う位置に置かれたときだけ助言 `comic-extra-moved` |
+| Q3 | `hints` を `max` の既定に数えるか | 未決 | 推奨: 数えない(ヒントの長さでふきだしの箱が変わるのを避ける)。代わりに、ヒントは `max` 字以内(問題) |
+| Q4 | LLM への追加のヒントの取得 | 未決 | 推奨: ライブラリは材料(`r.slotContext`)と受け入れの検査(`acceptValue`)だけを出し、送信はページの仕事 |
+| Q5 | スパンを入れて、ADR 0074 D1 の「自由な格子はやらない」を一部見直すか | 未決 | 推奨: 見直す。形は 3 つ(普通・全幅・倍の高さ)、全幅は行の頭、倍の高さは左の列だけ。カーソル方式で後戻りしない。LLM の説明には「頼まれたときだけ使う」と書く |
+| Q6 | 場面の切り替え(間奏)を、格子の外の全幅の帯にするか | 未決 | 推奨: する(升の高さが半分のコマを入れると置き方が崩れる)。終わりの間奏も許す |
+| Q7 | 大きなコマで人物を大きくするか(寄り) | 未決 | 推奨: 第 1 版はしない。余白をマンプ・壁の小道具・札で使い、寄りは見た目を測ってから別の単位で |
+| Q8 | 縦横比の既定 | 決定済み | **0074 Q10 に従う**(0074 U1 の測定で 6:5 に確定。PR #436)。この ADR は 6:5 を前提にする |
+| Q9 | アバターのパレットの数 | 未決 | 推奨: 肌 6・髪の色 6・服 9・髪型 4・眼鏡 3。足すのは表を足すだけ |
+| Q10 | 自分のアバターの保存 | 未決 | 推奨: ライブラリは保存せず、`renderComic({avatars})` で渡す。保存先はページの仕事 |
+| Q11 | 素材の人物にアバターを効かせる範囲 | 未決 | 推奨: 素材が `recolor` を宣言した色(肌・髪・服)だけ。髪型・眼鏡は効かず、助言を出す |
+| Q12 | MCP に `render_comic` を足すか | 未決 | 推奨: 足さない。`render_diagram` / `check_diagram` / `list_diagram_parts` をそのまま使う |
+| Q13 | 直し方の形 | 決定済み | `RULE_DOCS` はそのまま(行だけ足す)、別に `RULE_FIX`(命令形の英語 1 文、規則ごとに 1 つの `scope`、`auto`)。`where` は `Finding.data.where`。`measured` / `threshold` の埋め方は D5b |
+| Q14 | 新しい検査(読む順・交差・話し手の不明・同じ顔・似た人物・個数)の重さ | 未決 | 推奨: すべて助言。往復が止まりやすくなるので問題にしない。必要になったものだけ、あとで問題に上げる |
+| Q15 | `comic-face-repeat` の閾値 | 未決 | 推奨: 3 コマ続けて |
+| Q16 | 体の境目の 3 層(A2)の入れ方 | 決定済み | 無条件で全人物に付ける。ADR 0074 U2 が未マージなら U2 に取り込む。入ったあとなら U4 で golden を 1 回だけ更新して、人が見て受け入れる |
 
 ## スパイクの再現
 
 ```
 node spikes/comic-extensions/run.ts [outdir]        # マンプと小道具: 衝突、アンカーごとの落ち先、center、決定性、大きさ、時間の中央値(out/*.svg)
 node spikes/comic-extensions/run-checks.ts          # 読む順・しっぽの交差・話し手の不明(実際の幾何と壊した複製)
-node spikes/comic-extensions/palette.ts [outdir]    # パレットのコントラストとキーライン(out/avatar-keyline.svg)
+node spikes/comic-extensions/palette.ts [outdir]    # パレットのコントラストとキーライン(out/avatar-keyline.svg、out/avatar-heads.svg)
 ```
 
 `spikes/comic-extensions/out/` に、解決後(`scene-resolved.svg`)、最初の候補だけ(`scene-first-choice.svg`)、3 人のコマ(`three-people.svg`)、キーラインの比較(`avatar-keyline.svg`)を置いた。これらは `lib/` の外で、ADR 0074 のスパイクと同じく、U1 の PR で `lib/comic/` に置き換えて消す。
