@@ -1,6 +1,6 @@
 # ADR 0077: 吹き出しのオートシェイプ — `balloon()`(Office の `wedge*Callout` / `cloudCallout` に当たる箱の部品)と、`speechBubble()` と分け合う 1 つの輪郭の生成
 
-- 状態: 承認(Accepted。2026-11-22。**ADR 0078 が一部変更**: `balloon()` の既定は `place: 'overlay'`(図の上に浮かべる)。この ADR の D2 の箱(行・格子の子)は `place: 'flow'` を書く。0078 の「他の ADR への変更」M1〜M9、M17〜M19)。レビュー 3 回で収束。Q1・Q3・Q6・Q7・Q8・Q10・Q14 は決める人がすべて推奨どおりに決定。下の「決定済み」。**実装は U1 から始めてよい**。設計と小さなスパイクで、`lib/` は変えていない)
+- 状態: 承認(Accepted。2026-11-22。レビュー 3 回で収束。Q1・Q3・Q6・Q7・Q8・Q10・Q14 は決める人がすべて推奨どおりに決定。下の「決定済み」。**実装は U1 から始めてよい**。設計と小さなスパイク)。**U1 完了**。**ADR 0078 が一部変更**: `balloon()` の既定は `place: 'overlay'`(図の上に浮かべる)。この ADR の D2 の箱(行・格子の子)は `place: 'flow'` を書く。詳細は 0078 の「他の ADR への変更」M1〜M9、M17〜M19 を参照。
 - 日付: 2026-11-22
 - 基点: `main`(PR #436 まで)
 - 関連: ADR 0074(`comic()` / `speechBubble()`。D2 のしっぽ。実装は PR #436 = U1)、ADR 0076(PR #434。マンガの拡張。幾何の地図の `tails` と層の順)、ADR 0069(freeform / `board`)、ADR 0012(id のスコープ)、ADR 0034(`data-node`)、ADR 0050(組み合わせられる帯)、ADR 0007(純粋な核)、ADR 0071(JSON Schema)
@@ -145,12 +145,16 @@ balloon({
 
 #### 縮退した入力(共有の生成の規則。`radius` を指定した場合も同じ)
 
+雲の尾は先までの最後の交点から始める。先が近くて空きが足りないときは、先を越える円の中心を先に置く。
+
 入力は有限な数(本体は `w, h > 0`)。次は**どの形でも** `NaN` を出さず、規則どおりに描く:
 
 1. **半径**: `radius = min(radius, w/2, h/2)`。
 2. **先が有限でない**: しっぽを描かない(本体だけの輪郭)。
 3. **先が本体の内側**: しっぽを描かない(`inside: true`)。判定は四角・角丸は**外接矩形の厳密な内側**(#436 と同じ。角の切り欠きも内側)、楕円・雲は輪郭の内側(雲は実際の輪郭の多角形)。`speechBubble()` が渡す先は、本体の外にある(`tailOf` が頭の円の手前で止める)ので、この規則は `comic` の出力を変えない。
 4. **狭い辺**: しっぽの付け根が置ける直線部 `straight = 辺の長さ − 2·max(radius, 4)` より、付け根の半幅 `half` が大きいとき、`half = min(half, straight/2)`(狭くする)。`half < 1` ならしっぽを描かない。付け根の中心は `[端 + max(radius,4) + half, 端 + 辺 − max(radius,4) − half]` に収める(上下限を入れ替えない)。`base: 'office'` も同じ(収まらない縮退では Office の多角形と一致しない)。
+
+`comic` の互換テストは `w ≥ 2r` かつ `h ≥ 2r` かつ `r ≥ 4` が対象。範囲外では D3 の縮退規則を優先するため、100×8 の `shout` のように出力が変わることがある。
 
 #### 目標の決め方(`to` と `gap`)
 
@@ -191,10 +195,12 @@ type BalloonShape = 'rect' | 'round' | 'ellipse' | 'cloud';
 interface BalloonOpts { radius?: number; halfWidth?: number; base?: 'follow' | 'office' }
 balloonOutline(shape: BalloonShape, body: Rect, tip?: Pt, opts?: BalloonOpts): Balloon
 // Balloon = {d, base?, tip?, side?, dots?, length, minLength?, apex, inside}
-officeAdj(body: Rect, tip: Pt): [number, number]   // D7
+officeAdj(body: Rect, tip: Pt): [number, number] | undefined   // D7
 ```
 
-名前は `balloonOutline`(DSL の `balloon` と紛れないように)。**契約: 入力は有限な数(本体は `w, h > 0`)で、縮退した入力(上の D3 の規則)でも `NaN` / `Infinity` を出さない。** スパイクの `balloon.ts` が原型で、四角・角丸の部分は #436 のコードの小数 1 桁の丸めと `H` / `V` の書き方を保ち、#436 の押された先頭と**同じパス文字列**を出す(スパイクの比較は上。固定の主張ではない)。
+名前は `balloonOutline`(DSL の `balloon` と紛れないように)。**契約: 座標・寸法・`radius`・`halfWidth` は絶対値が 1e6px 以下の有限な数(本体は `w, h > 0`)とし、範囲外は引数名と値を含む `RangeError` を投げる。有限でない先は D3 に従い、しっぽを省く。この範囲の縮退した入力でも輪郭の結果に `NaN` / `Infinity` を出さない。** 共有生成器の角丸の半径は指定がなければ `min(w, h) / 6`。Office との比較では ECMA の半径 `min(w, h) * 16667 / 100000` を明示する。 スパイクの `balloon.ts` が原型で、四角・角丸の部分は #436 のコードの小数 1 桁の丸めと `H` / `V` の書き方を保ち、#436 の押された先頭と**同じパス文字列**を出す(スパイクの比較は上。固定の主張ではない)。
+
+`officeAdj` も先が有限でないときは尾なしとし、`undefined` を返す。
 
 **`speechBubble()` 側は、薄い包みにする**(`lib/comic/balloon-path.ts` に残す): `balloonPath(body, kind, tail?)` が、`kind` から `radius`(`balloonRadius`)を決め、`balloonOutline('round', body, tip, {radius, halfWidth: tail.halfWidth ?? 8})` を呼ぶ。`narration` はしっぽ無し。したがって **`comic` の見た目は変わらない**(golden も変えない)。`think` と `shout` の形は ADR 0074 D2 のまま(破線の角丸の三角のしっぽ、太い枠の四角)で、この ADR では**写し替えない**。雲・ぎざぎざに寄せるかは、後の ADR で決める。
 
