@@ -117,6 +117,9 @@ export const RULE_DOCS = {
   'whywhy-single-chain': 'なぜなぜ分析が 1 本の鎖だけ(分岐が無い。原因が 1 つに決まっているか確かめる。常に info)',
   'whywhy-dig-below-root': 'なぜなぜの木で、真因(trueCause)の節の下にまだ「なぜ」がある(真因より下を掘っている。常に info)',
   'bowtie-barrier-missing': 'ボウタイ図(bowtie)で、脅威または結果にバリアが 1 つも無い(防ぐ・和らげる手が無い道)。diagram({rcaCheck: "strict"}) で warn',
+  'comic-bubble-wide': 'マンガ(comic)のふきだしの文が、全角 11 字(内側 198px)より広い(穴の長さ + 後ろのひらがな、または語が長い)。穴を短くするか、ひらがなを減らす',
+  'comic-orphan-line': 'マンガ(comic)のふきだしの最後の行が 2 字以下(「…」「ね。」)。広げても直らなかった。台詞を言い換えて、最後の行を長くするか前の行に収める',
+  'comic-follower-split': 'マンガ(comic)のふきだしで、穴の後ろのひらがなの連なり(3 字以下)が穴から切り離されている(助詞が次の行に回る、連なりの途中で割れる)。穴と一緒の行に収まるように言い換える',
   'fta-single-point': '故障の木に、単独で頂上事象を起こす事象(大きさ 1 のカットセット)がある。カットセットが多すぎて調べられないときもこの規則の info(常に info)',
   'toc-source-has-cause': '原因を持たない役割(crt の root、frt・nbr の injection、nbr の trim、precondition)の実体に、入る矢印がある。diagram({tocCheck: "strict"}) で warn',
   'toc-chain-only': 'crt / frt が分岐も合流も AND も無い 1 本鎖(途中の原因を飛ばしている可能性)。diagram({tocCheck: "strict"}) で warn',
@@ -236,6 +239,9 @@ export const RULE_LOCATION = {
   'whywhy-single-chain': 'band',
   'whywhy-dig-below-root': 'band',
   'bowtie-barrier-missing': 'band',
+  'comic-bubble-wide': 'band',
+  'comic-orphan-line': 'band',
+  'comic-follower-split': 'band',
   'fta-single-point': 'band',
   'toc-source-has-cause': 'band',
   'toc-chain-only': 'band',
@@ -768,6 +774,11 @@ export const tocSeverity = (d: Pick<DiagramData, 'tocCheck'>): 'warn' | 'info' =
 /** The severity of the cause-analysis findings (ADR 0025 D5 / ADR 0026 D1): info, or warn for a diagram that asked for diagram({rcaCheck: 'strict'}). A finding that carries its own `severity` keeps it. */
 export const rcaSeverity = (d: Pick<DiagramData, 'rcaCheck'>): 'warn' | 'info' => d.rcaCheck === 'strict' ? 'warn' : 'info';
 
+/** The advice of the comic bands' line breaks (ADR 0074 D2): the layout found them, the lint reports them. A mistake of the data is a check problem (lib/verify-handlers.ts), not a finding. */
+function comicRules(d: LintTarget, out: Finding[]): void {
+  for (const b of d.laidOut ?? []) if (b.type === 'comic') for (const f of b.findings) if (f.severity === 'advice') out.push({...at(b), rule: f.rule, severity: 'warn', message: f.message});
+}
+
 /** The checks of the cause-analysis figures. Empty on purpose: each figure (faultTree, isIsNot, whyWhy*, bowtie) adds its own branch, reported at `f.severity ?? rcaSeverity(d)` like tocRules. */
 function rcaRules(d: LintTarget, out: Finding[]): void {
   const severity = rcaSeverity(d);
@@ -1091,6 +1102,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   edgeParallelRules(d, out);
   tocRules(d, out);
   rcaRules(d, out);
+  comicRules(d, out);
   fitRules(d, out);
   densityRules(d, out);
   crossingRules(d, out);
