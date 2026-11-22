@@ -1,0 +1,147 @@
+diff --git a/lib/layered-route.ts b/lib/layered-route.ts
+index 386123aa..8c13df13 100644
+--- a/lib/layered-route.ts
++++ b/lib/layered-route.ts
+@@ -168,6 +168,8 @@ export interface HeadRoom {
+   andPorts?: boolean;
+   /** ADR 0073 D3: the tail of an arrow into an AND's head is moved onto its head's height. Only where `andPorts` is (a cause tree's own band); false switches it off (the order search judges without it). Default true. */
+   tailAlign?: boolean;
++  /** ADR 0073 U6 prototype: the jog moves (`U6J`) are tried. Set only for the final drawing of a chosen attempt (layeredAttempt's `jogPass`). */
++  jogAlign?: boolean;
+   /** Tests only: the bits of the hash a gap's stage is remembered by (0: every stage has the same key), to check that a collision plays back nothing. */
+   stageHashBits?: number;
+ }
+@@ -815,6 +817,54 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+     portOf.set((i * 2), y - centreY(e.from)); if (!tailOnly) portOf.set((i * 2 + 1), y - centreY(e.to));
+     return () => { for (const end of [0, 1] as const) { if (was[end] === undefined) portOf.delete((i * 2 + end)); else portOf.set((i * 2 + end), was[end]); } };
+   };
++  // ADR 0073 U6 prototype (scripts/crt-u6-measure/u6-jog-relax.patch; env U6J = push,long): `align` with the neighbours' ports pushed aside, and a long arrow's moving end put on its other end's height
++  const RELAX = new Set(heads.jogAlign === true ? (process.env['U6J'] ?? '').split(',').filter(Boolean) : []);
++  const boxOf = (end: 0 | 1, i: number): Placed => nodeOf(end === 0 ? edgeAt(i).from : edgeAt(i).to);
++  /** May the port of arrow end `o` be pushed (a direct arrow that is not straight, not into an AND, not round)? */
++  const pushable = (o: {edge: number; end: 0 | 1}): boolean => { const e2 = edgeAt(o.edge); return !e2.self && !e2.outer && e2.points.length === 2 && groupOf?.(o.edge) === undefined && !round?.(e2.from) && !round?.(e2.to) && Math.abs(endY(o.edge, 0) - endY(o.edge, 1)) >= 0.5; };
++  /** The heights end `end` of arrow `i` may take when the ports of its side that may move are pushed aside (the ones that may not are walls) */
++  const pushRange = (i: number, end: 0 | 1): {lo: number; hi: number; chain: {edge: number; end: 0 | 1; cum: number; dir: -1 | 1}[]} => {
++    const slot = must(slotOf.get((i * 2 + end))), N = boxOf(end, i), bl = N.y + 6, bh = N.y + N.h - 6;
++    let lo = bl, hi = bh; const chain: {edge: number; end: 0 | 1; cum: number; dir: -1 | 1}[] = [];
++    let cum = 0;
++    for (let j = slot.k - 1; j >= 0; j--) {
++      const o = must(slot.list[j]), nx = must(slotOf.get((must(slot.list[j + 1]).edge * 2 + must(slot.list[j + 1]).end)));
++      cum += nx.before;
++      if (!pushable(o)) { lo = Math.max(lo, endY(o.edge, o.end) + cum); break; }
++      lo = Math.max(lo, bl + cum); chain.push({edge: o.edge, end: o.end, cum, dir: -1});
++    }
++    cum = 0;
++    for (let j = slot.k + 1; j < slot.list.length; j++) {
++      const o = must(slot.list[j]), pv = must(slotOf.get((must(slot.list[j - 1]).edge * 2 + must(slot.list[j - 1]).end)));
++      cum += pv.after;
++      if (!pushable(o)) { hi = Math.min(hi, endY(o.edge, o.end) - cum); break; }
++      hi = Math.min(hi, bh - cum); chain.push({edge: o.edge, end: o.end, cum, dir: 1});
++    }
++    return {lo, hi, chain};
++  };
++  /** Puts the ports of `ends` at `y` (pushing the movable neighbours aside); returns how to take it back. Undefined when a port of another arrow of this pair of layers is within 3px of `y`. */
++  const movePorts = (i: number, ends: readonly (0 | 1)[], y: number): (() => void) | undefined => {
++    const own = new Set(ends.map(en => i * 2 + en)), owns = new Set([i * 2, i * 2 + 1]);
++    for (const [j, o] of lay.edges.entries()) {
++      if (j === i || o.self || pairOf(j) !== pairOf(i)) continue;
++      for (const en of [0, 1] as const) if (!owns.has(j * 2 + en) && Math.abs(endY(j, en) - y) < 3) return undefined;
++    }
++    const saved = new Map<number, number | undefined>(), set = (edge: number, end: 0 | 1, yy: number): void => { const key = edge * 2 + end; if (!saved.has(key)) saved.set(key, portOf.get(key)); portOf.set(key, yy - centreY(end === 0 ? edgeAt(edge).from : edgeAt(edge).to)); };
++    for (const en of ends) {
++      set(i, en, y);
++      for (const c of pushRange(i, en).chain) { const cur = endY(c.edge, c.end), want = c.dir < 0 ? Math.min(cur, y - c.cum) : Math.max(cur, y + c.cum); if (Math.abs(want - cur) > 0.01) set(c.edge, c.end, want); }
++    }
++    void own;
++    return () => { for (const [key, v] of saved) { if (v === undefined) portOf.delete(key); else portOf.set(key, v); } };
++  };
++  /** `align` for a direct arrow whose ports are held by the neighbours' steps: the neighbours move aside */
++  const alignPush = (i: number): (() => void) | undefined => {
++    const A = nodeOf(edgeAt(i).from), B = nodeOf(edgeAt(i).to), ya = endY(i, 0), yb = endY(i, 1);
++    if (Math.abs(ya - yb) < 0.5) return undefined;
++    const r0 = pushRange(i, 0), r1 = pushRange(i, 1), lo = Math.max(r0.lo, r1.lo, Math.max(A.y, B.y) + 6), hi = Math.min(r0.hi, r1.hi, Math.min(A.y + A.h, B.y + B.h) - 6);
++    if (lo > hi) return undefined;
++    return movePorts(i, [0, 1], Math.min(hi, Math.max(lo, (ya + yb) / 2)));
++  };
+   /** Does the straight run of arrow `i` lie along a horizontal run of another arrow (within 3px, sharing more than a point)? */
+   const alongOther = (routes: Map<number, Pt[]>, i: number): boolean => {
+     const r = must(routes.get(i));
+@@ -844,10 +894,26 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+   /** `trial` lies against a route in a way `routes` did not, and takes no crossing away (a crossing is worse than a pair: the move that removes one may add one) */
+   const gains = (trial: Map<number, Pt[]>, crossings = Infinity): boolean => tracks && crossings >= best.crossings && gainsRunPairs(routes, trial, LANE, runCache);
+   for (const i of direct) {
+-    const undo = align(i);
++    const plainUndo = align(i), undo = plainUndo ?? (RELAX.has('push') ? alignPush(i) : undefined);
+     if (!undo) continue;
+     const trial = build(), score = rescore(routes, best, trial, crossCache);
+-    if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i) && !gains(trial, score.crossings)) { routes = trial; best = score; } else undo();
++    // a relaxed move (the neighbours pushed aside) is never allowed to add a pair of runs, whatever it does to the crossings
++    if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i) && !gains(trial, plainUndo ? score.crossings : Infinity)) { routes = trial; best = score; } else undo();
++  }
++  if (RELAX.has('long')) {
++    for (const i of lay.edges.map((_e, k) => k)) {
++      const e = edgeAt(i), r = routes.get(i);
++      if (!r || r.length !== 4 || e.self || e.outer || e.points.length <= 2 || !straighten || groupOf?.(i) !== undefined || round?.(e.from) || round?.(e.to) || Math.abs(at(r, 0).y - at(r, 3).y) < 0.5) continue;
++      // the end whose height is the dummy's stays; the other end's port goes to it, when its box reaches that height
++      for (const end of [0, 1] as const) {
++        const y = end === 0 ? at(r, 3).y : at(r, 0).y, N = boxOf(end, i), rg = pushRange(i, end);
++        if (y < Math.max(rg.lo, N.y + 6) - 0.01 || y > Math.min(rg.hi, N.y + N.h - 6) + 0.01) continue;
++        const undo = movePorts(i, [end], y);
++        if (!undo) continue;
++        const trial = build(), score = rescore(routes, best, trial, crossCache);
++        if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i) && !gains(trial)) { routes = trial; best = score; break; } else undo();
++      }
++    }
+   }
+   // ADR 0073 D3: an arrow into an AND's head (skipped above: `direct` leaves them, the head's ports are the AND's) gets its tail's port moved onto its head's height,
+   // so the step between the two ports (one port step, or any size) goes. Kept only when (crossings, bends) get strictly better, the new line is not along another
+@@ -1130,15 +1196,16 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
+   const better = (a: Attempt, b: Attempt): boolean => selectIndex([keyOf(b), keyOf(a)]) === 1;
+   type Side = 'far' | 'near' | 'low';
+   let laneHeads = false; // the returns end on the face of their head that looks at the lane (routeLayered's `laneHeads`); set only for the last try below
+-  const optsOf = new WeakMap<Attempt, {opts: typeof layoutOpts; laneShare: boolean; near: Side}>();
++  const optsOf = new WeakMap<Attempt, {opts: typeof layoutOpts; laneShare: boolean; near: Side; asideOn: boolean; heads: boolean}>();
++  let jogOn = false;
+   const build = (opts: typeof layoutOpts, laneShare = false, aside = false, near: Side = 'far'): Attempt => {
+     const lay = layoutWithLanes(nodes, edges, o.returns ? {...opts, outer: {which: o.returns, gap: stubOf(unit), step: laneStepOf(unit), ...(near === 'far' ? {} : {side: near})}} : opts, 0, o.space, o.scale);
+     const sizeOf = (l: LayeredLayout): {w: number; h: number} => ({w: o.transpose ? l.h : l.w, h: o.transpose ? l.w : l.h});
+     const size = sizeOf(lay);
+     const groupOf = o.groupOf;
+-    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(at(lay.edges, i).index)), o.round, o.straighten !== false, laneShare, aside, o.detour === true && opts.coord === 'bk', o.detour === true, o.space, laneHeads, o.heads, o.tracks === true, o.scale); // the search for a way around the boxes only in the straightened candidate (it competes with the plain one on bends); a lone port is straightened in both
++    const routes = routeLayered(lay, o.place(size), o.portStep, groupOf && (i => groupOf(at(lay.edges, i).index)), o.round, o.straighten !== false, laneShare, aside, o.detour === true && opts.coord === 'bk', o.detour === true, o.space, laneHeads, jogOn && o.heads ? {...o.heads, jogAlign: true} : o.heads, o.tracks === true, o.scale); // the search for a way around the boxes only in the straightened candidate (it competes with the plain one on bends); a lone port is straightened in both
+     const made = {lay, routes, score: scoreP(routes), size, fits: o.maxAcross === undefined || size.w <= o.maxAcross, loose: o.looseOf ? o.looseOf(routes, lay) : []};
+-    optsOf.set(made, {opts, laneShare, near});
++    optsOf.set(made, {opts, laneShare, near, asideOn: aside, heads: laneHeads});
+     return made;
+   };
+   // ADR 0016 D11: arrows into a grouped head that run side by side. A candidate that shares the gap's lanes between the long and the direct arrows replaces the figure only
+@@ -1208,9 +1275,19 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
+   if (!cand.fits) return sharing(plain);
+   return sharing(selectAttempt([plain, cand], o.heightKey));
+   };
++  // ADR 0073 U6 prototype: the chosen attempt is drawn once more with the jog moves; kept only when no key of it is worse (crossings, pairs, bends, height, AND crossings, loose, piercings)
++  const jogPass = (a: Attempt): Attempt => {
++    if (!o.heads?.andPorts || o.heads.tailAlign === false || !a.fits || !(process.env['U6J'] ?? '')) return a; // the order search (tailOff) judges without it
++    const m = must(optsOf.get(a)), keep = laneHeads; laneHeads = m.heads; jogOn = true;
++    let b: Attempt;
++    try { b = build(m.opts, m.laneShare, m.asideOn, m.near); } finally { jogOn = false; laneHeads = keep; }
++    b = apartOf(b);
++    if (b.score.crossings > a.score.crossings || (b.score.pairs ?? 0) > (a.score.pairs ?? 0) || b.score.bends > a.score.bends || b.size.h > a.size.h + 0.5 || b.size.w > a.size.w + 0.5 || andCrossings(b) > andCrossings(a) || worse(a, b)) return a;
++    return b;
++  };
+   // a return's lane goes to the side its ends are nearer to, only when that is strictly better in (crossings, bends) and nothing else gets worse (the far side is the way it always was)
+   const far = pick('far');
+-  if (!o.returns || o.straighten === false || !far.lay.edges.some(e => e.outer)) return far; // straighten: false keeps the old coordinates, lanes included
++  if (!o.returns || o.straighten === false || !far.lay.edges.some(e => e.outer)) return jogPass(far); // straighten: false keeps the old coordinates, lanes included
+   // not bigger than the far one: the width and the height are the caller's budget (a taller figure may not fit the canvas), and lanes on both sides take more room than on one
+   // (ADR 0073 D2: `selectSides` chooses from the sides as one list)
+   const result = selectSides(far, (['near', 'low'] as const).map(pick).filter(c => c.lay.edges.some(e => e.outer) && c.lay.w <= far.lay.w + 0.01 && c.lay.h <= far.lay.h + 0.01), worse, o.heightKey);
+@@ -1218,7 +1295,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
+   laneHeads = true;
+   const c = pick(must(optsOf.get(result)).near);
+   laneHeads = false;
+-  return c.lay.edges.some(e => e.outer) && c.lay.w <= result.lay.w + 0.01 && c.lay.h <= result.lay.h + 0.01 && !worse(result, c) && c.score.crossings < result.score.crossings ? c : result;
++  return jogPass(c.lay.edges.some(e => e.outer) && c.lay.w <= result.lay.w + 0.01 && c.lay.h <= result.lay.h + 0.01 && !worse(result, c) && c.score.crossings < result.score.crossings ? c : result);
+ }
+ 
+ /**
