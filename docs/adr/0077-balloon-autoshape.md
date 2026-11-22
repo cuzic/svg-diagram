@@ -19,7 +19,7 @@
 | 接続の参照 | `resolveRef` / `anchorPoint`(`id.side@at`)、`scopes`(ADR 0012) | 目標の指し方をそのまま使う(D2) |
 | 箱 | `lib/dsl/text-bands.ts` の `box()` と `BOX_KEYS`、`lib/types/text-bands.ts` の `BoxChrome`、`lib/emit-boxes.ts` の `renderBoxRect`(`<rect rx="8">`、破線 `6,4`、`frameGeometry` で 4px に揃える) | 吹き出しは箱の一種として作る(D2) |
 | 型の検査 | `connect` / `callout` は `Ok<T>` を受け `Refers<T>` を返す(綴りの誤りがコンパイルで落ちる) | `balloon()` も同じ型にする(D2) |
-| `speechBubble()`(PR #436。この ADR は**押された先頭 52fd6fd6** を読んだ。#436 は続けて直されるので、数字の一致は固定せず、U1 の基準は「`comic` の golden が変わらない」にする) | `lib/comic/balloon-path.ts` の `balloonPath(body, kind, tail?) → {d, base?}`。角丸の四角 + しっぽの**1 本の閉じた path**。冒頭に「`lib/shapes/` へ移せる」とある。`kind` は `say` / `think` / `shout` / `narration`(角丸 `min(h/2, 24)`(`think` も同じ)/ `min(h/2, 24)` / 6 / 0。さらに `min(r, w/2)`)。しっぽの幅は 16(`halfWidth` 既定 8)で、**辺の直線部が狭ければ `half = min(half, 直線部/2)`、`half < 1` ならしっぽなし**。付け根は先の位置に寄せて角の弧から離す。先が**外接矩形の内側(厳密に)または有限でない**ときはしっぽなし。辺の選びは同点で上下 | 共通の輪郭の**起点**。これを `lib/shapes/` に移して広げる(D6) |
+| `speechBubble()`(PR #436。#436 は `main` に入った(8b047605)。数字の一致は固定せず、U1 の基準は「`comic` の golden が変わらない」にする) | `lib/comic/balloon-path.ts` の `balloonPath(body, kind, tail?) → {d, base?}`。角丸の四角 + しっぽの**1 本の閉じた path**。冒頭に「`lib/shapes/` へ移せる」とある。`kind` は `say` / `think` / `shout` / `narration`(角丸 `min(h/2, 24)`(`think` も同じ)/ `min(h/2, 24)` / 6 / 0。さらに `min(r, w/2)`)。しっぽの幅は 16(`halfWidth` 既定 8)で、**辺の直線部が狭ければ `half = min(half, 直線部/2)`、`half < 1` ならしっぽなし**。付け根は先の位置に寄せて角の弧から離す。先が**外接矩形の内側(厳密に)または有限でない**ときはしっぽなし。辺の選びは同点で上下 | 共通の輪郭の**起点**。これを `lib/shapes/` に移して広げる(D6) |
 | PPTX | `lib/pptx/bands.ts`(高さのある帯は、図形にできないとき `bandPicture` で SVG + PNG の絵にする。`row` / `grid` は図形) | 未対応の箱の扱い(D2) |
 
 ### Office の形の定義(ECMA-376 `presetShapeDefinitions.xml` で確かめた)
@@ -29,17 +29,17 @@ ECMA-376 第 5 版 Part 1(2016)の `OfficeOpenXML-DrawingMLGeometries.zip` の `
 - `wedgeRectCallout` / `wedgeRoundRectCallout`: `adj1`・`adj2` は**しっぽの先の、中心からのずれ**で、幅・高さの 1/100000(`dxPos = w*adj1/100000`、`dyPos = h*adj2/100000`、先は `(hc+dxPos, vc+dyPos)`)。既定は `adj1 = -20833`、`adj2 = 62500`(角丸は `adj3 = 16667`。角の半径は `ss*adj3/100000`、`ss = min(w, h)`。上限は 50000)。付け根の辺は、`|dyPos| > |dxPos*h/w|`(`dz > 0`)なら上下、そうでなければ左右(**同点は左右**)。付け根は**固定**: 辺の 2/12〜5/12(先が中心より左・上)か 7/12〜10/12(右・下)。付け根の幅は辺の 1/4。
 - `wedgeEllipseCallout`: 先の向きの媒介変数 `pang = atan2(dyPos*w, dxPos*h)` の ±660000(= ±11°)の 2 点が付け根。付け根から楕円の弧を長い側へ回って閉じる。
 - `cloudCallout`: 雲の本体は 43200 × 43200 の座標に固定の 11 個の弧。しっぽは 3 つの円で、半径は `ss/12`、`ss/18`、`ss/36`。いちばん小さい円の中心が先。しっぽの最小の長さの条件は `g9 = ss*6600/21600`(0.306 ss)。
-- 文字の矩形(`<rect l t r b>`): 角丸四角形は角の半径の 29.289% 内側、楕円は幅・高さの 70.7%、雲は幅の 13.8%〜79.1%・高さの 15.1%〜80.3%(約 65%)。
+- 文字の矩形(`<rect l t r b>`): 角丸四角形は角の半径の 29.289% 内側、楕円は幅・高さの 70.7%、雲は幅の 13.8%〜79.1%・高さの 15.1%〜80.3%(約 65%。**これは Office の雲の矩形で、この ADR の雲には当てはまらない**。D3)。
 - 線の吹き出し(`borderCallout1`、`accentCallout1`…)の `adj1`〜`adj4` は、線の始点 `(y1, x1)` と終点 `(y2, x2)` で、同じく高さ・幅の 1/100000。しっぽの輪郭は無く、箱 + 線。
 - ギザギザ(`irregularSeal1/2`)や `star*` には、しっぽ(`adj` の先)が無い。**Office には、しっぽのあるギザギザの吹き出しが無い**。
 
 ## スパイクの結果(`spikes/balloon-autoshape/`。`lib/` は触っていない)
 
-`balloon.ts`(共通の輪郭の原型。**PR #436 の `balloonPath` の四角・角丸の部分を土台にして**、`radius`、楕円、雲、Office の付け根を足した。純粋で import なし)、`office.ts`(`wedgeRectCallout` の `gdLst` を 1 行ずつ写した評価)、`pr436-balloon-path.ts`(#436 のファイルの写し。比較のためだけ)、`run.ts`(SVG と数字)。四角・角丸・楕円・雲を、本体 200×80 に、8 方向(45° ごと、縁から 50px)の目標で描いた。SVG は `spikes/balloon-autoshape/out/`。数字の出どころは `measurements.txt`。
+`balloon.ts`(共通の輪郭の原型。**PR #436 の `balloonPath` の四角・角丸の部分を土台にして**、`radius`、楕円、雲、Office の付け根を足した。純粋で import なし)、`office.ts`(`wedgeRectCallout` の `gdLst` を 1 行ずつ写した評価)、`run.ts`(SVG と数字)。四角・角丸・楕円・雲を、本体 200×80 に、8 方向(45° ごと、縁から 50px)の目標で描いた。SVG は `spikes/balloon-autoshape/out/`。数字の出どころは `measurements.txt`。
 
 | 測ったこと | 結果 |
 |---|---|
-| **#436 との一致**(押された先頭 52fd6fd6 に対して) | `say` / `think` / `shout`、高さ 30〜128、幅 60〜300(**辺が狭い本体を含む**)のランダムな先 6000 個で、`balloonOutline('round', {radius: balloonRadius(kind, h), halfWidth: 8})` が #436 の `balloonPath` と**パスの文字列まで同じ**(うち 1492 個は辺の直線部がしっぽの幅 16 より狭い縮退の場合)。ちがうのは、先が本体の対角線上に厳密にある場合(同点)だけで、左右の辺か上下の辺かが逆(D6 の表。2 例)。**この数は固定の主張ではない**(#436 はこのあとも直る)。U1 の基準は「#436 が入ったあと `comic` の golden が変わらない」と、同じ性質テストの再実行 |
+| **#436 との一致**(main の #436 のあと、`lib/comic/balloon-path.ts` に対して) | `say` / `think` / `shout`、高さ 30〜128、幅 60〜300(**辺が狭い本体を含む**)のランダムな先 6000 個で、`balloonOutline('round', {radius: balloonRadius(kind, h), halfWidth: 8})` が #436 の `balloonPath` と**パスの文字列まで同じ**(うち 1492 個は辺の直線部がしっぽの幅 16 より狭い縮退の場合)。ちがうのは、先が本体の対角線上に厳密にある場合(同点)だけで、左右の辺か上下の辺かが逆(D6 の表。2 例)。**この数は固定の主張ではない**(#436 はこのあとも直る)。U1 の基準は「#436 が入ったあと `comic` の golden が変わらない」と、同じ性質テストの再実行 |
 | 縮退した入力(`run.ts`) | 有限でない先、本体の内側の先、半径 0〜500、60×30 の本体の 4 形 × 4 先 × 4 半径 = 64 通りで、出力に `NaN` / `Infinity` は **0**。最初の版は有限でない先で `LNaN 3` を出していた |
 | Office の `wedgeRectCallout`(`gdLst` を写した評価)との一致 | `rect` + `office` の付け根で、ランダムな先(本体の外 3px 以上)1779 個が**同じ多角形**(4 つの角 + 付け根・先・付け根、0.1px 以内)。`adj` への丸め(1/100000)が先を動かすのは最大 0.002px。既定の `adj1 = -20833`、`adj2 = 62500` は、200×80 の先 (58.3, 90) の `officeAdj` と一致(D7 の式の確認)。**この比較は四角だけ**。角丸・楕円は、レビューが別の評価で付け根の一致を確かめたが、このスパイクの `run.ts` には入っていない(U1 で入れる) |
 | 回帰(コードを自分自身と比べるだけ。**忠実さの証拠ではない**) | 8 方向 × 4 形 = 32 個がすべて `M…Z` で閉じ、同じ入力で同じ文字列。四角・角丸・楕円の付け根が輪郭の上(最大 8e-8px。四角・角丸は小数 1 桁の丸めで ≤ 0.07px)。四角・角丸の付け根は角の弧に入らない(8 方向での最小は角から半径 + 2.6px。端でのクランプは U1 の単体テスト) |
@@ -107,7 +107,7 @@ balloon({
 
 **`box()` との対応(欠けは作らず、ない欄は明記する)**
 - 受ける欄: `id`、`tone`(`plain` / `accent` / `new` / `changed` / `removed` / `muted` / `danger` / `solid` / `solid-danger`。`box` と同じ表)、`dashed`(`box` と同じ欄。破線は `6,4`)、`align`、`padX` / `padY`、`flex` / `width` / `col` / `span`(行・grid での置き方)、`reveal` / `until`、`size`、`title` / `body` / `lines` / `note`、`titleTone` / `titleMono` / `bodyTone` / `bodyMono` / `noteTone`。
-- 受けない欄(`box()` と同じ文言のエラー。`balloon(): '…' is not supported — …`): `tag` / `tagTone` / `tagAt`(上の辺の札はしっぽと同じ辺で重なる)、`stamp`(右下の札は、楕円・雲の文字の矩形の外にはみ出す)、`icon` / `iconTone` / `iconAt` / `iconSize`、`step` / `stepWord`、`frame`。要望が出たら、輪郭の形ごとの置き場を決めて足す。
+- 受けない欄(`box()` と同じ文言のエラー。`balloon(): '…' is not supported — …`)。`radius` / `halfWidth` / `gap` が有限でない数(`NaN`、`±Infinity`)のときも、`box()` が大きさの欄でするのと同じに、`balloon(): 'radius' must be a finite number` のエラーで止める(生成器は有限な入力だけを受ける。D6): `tag` / `tagTone` / `tagAt`(上の辺の札はしっぽと同じ辺で重なる)、`stamp`(右下の札は、楕円・雲の文字の矩形の外にはみ出す)、`icon` / `iconTone` / `iconAt` / `iconSize`、`step` / `stepWord`、`frame`。要望が出たら、輪郭の形ごとの置き場を決めて足す。
 - 追加の欄: `balloon` の中身(`shape`、`to` / `tip`、`base`、`gap`、`radius`)。`to` と `tip` の両方は書けない。どちらも無い箱は、しっぽの無い箱(普通の箱と同じに描く)。
 - エラー: `to` の id が無い → `balloon(): unknown anchor id "x" (give the box an id)`(`callout()` と同じ)。`to` が**自分自身** → `balloon(): cannot point at itself`。`to` の目標と吹き出しが**重なる** → 下の D3(目標の決め方)。
 
@@ -120,12 +120,12 @@ balloon({
 | `rect` | 角の無い四角 | `wedgeRectCallout` | 100% | 三角 |
 | `round`(既定) | 角丸四角(`radius` 既定 8。`box` の `rx` と同じ) | `wedgeRoundRectCallout`(`adj3 = radius / min(w,h) * 100000`。**上限 50000**) | 各辺から半径の 29.289% 内側(さらに `padX` / `padY`) | 三角 |
 | `ellipse` | 楕円 | `wedgeEllipseCallout` | 幅・高さの 70.7% | 楕円に付く三角(付け根は媒介変数 ±11°) |
-| `cloud` | 雲(弧の連なり) | `cloudCallout`(**近いが同じではない**。下) | 幅・高さの約 65% | 3 つの小さな円(半径 `ss/12`、`ss/18`、`ss/36`) |
+| `cloud` | 雲(弧の連なり) | `cloudCallout`(**近いが同じではない**。下) | **この雲の輪郭から求める**(下。Office の 65% ではない) | 3 つの小さな円(半径 `ss/12`、`ss/18`、`ss/36`) |
 
 - **雲は Office に似せるだけで、同じ形ではない。** Office の雲の本体は 43200 角の座標に固定の 11 個の弧。この ADR の雲は、楕円に沿って**弧の長さで等間隔**に置いた点(個数は周の長さ ÷ 46px、8 個以上)を、**弦ごとの半径** `0.62·弦` の弧でつないだもの(弧の数と膨らみが違う。細長い本体でも弧がいつも存在する)。縦横比が 6:1 を超えても `NaN` は出ない(12.5:1 まで確認)が、そこまで細い雲は雲らしくない(見た目は決める人の判断。検査は足さない)。しっぽの円の半径と文字の矩形の割合は Office の式と同じ。PPTX のネイティブの雲(D7)に書き出すと、本体の形は Office のものに変わる。
 - **ぎざぎざ(`spiky`)は v1 に入れない。** Office に、しっぽのあるぎざぎざの形が無く(上)、スパイクでも試していない(刺の数・深さ、しっぽにする刺の選び方、内側の判定、本体の大きさの係数、PPTX の経路が未決)。型・Schema の列挙には**入れず**、「予約された値」としてここに書くだけにする(あとで値を足しても、後方互換を壊さない)。`speechBubble()` の `shout`(四角に近い太い枠)は ADR 0074 のまま。
 - **線の吹き出し(`borderCallout*`、`accentCallout*`、`accentBorderCallout*`)は `balloon()` にしない。** 「箱 + 線」で、しっぽが輪郭の一部ではない。`callout()`(線 + 札)が近いが、線が箱の側面から出る Office の見た目とは札の位置が逆。必要なら `box` + `connect` の線で描ける。
-- 本体の大きさ: `box` の文字の規則(折り返し・縮め)で出した文字の矩形(余白 `padX` / `padY` を含む)を、上の「文字の矩形の割合」で割る。楕円は各方向 1.41 倍、雲は約 1.53 倍になる(ADR 0074 が楕円を既定にしなかった理由と同じ)。本体は `frameGeometry` で 4px に揃える(揃えないと座標格子の検査が出る)。**雲の本体の最小は 72×48**(それより小さいと円の半径が 1.3px になり点に見える。スパイク)。暫定値(U1 で見た目を決める人に見せる)。
+- 本体の大きさ: `box` の文字の規則(折り返し・縮め)で出した文字の矩形(余白 `padX` / `padY` を含む)を、上の「文字の矩形の割合」で割る。楕円は各方向 1.41 倍になる(ADR 0074 が楕円を既定にしなかった理由と同じ)。**雲は割合を固定しない**: スパイクで、この ADR の雲の輪郭に入る最大の同じ縦横比の矩形(四隅と辺の中点が実際の輪郭の内側)を測ると、24 通りの大きさ(幅 100〜600 × 高さ 48〜120)で **幅・高さの 49%〜70%**(多くは 56〜65%。弧の位相で変わる。Office の雲の矩形は 65%)だった。Office の 65% を使うと、隅の文字が弧の外へ出る大きさがある。したがって U1 で `cloudTextRect(body)`(二分法で最大の矩形を求める純粋な関数)を足し、本体の大きさは「文字の矩形(余白込み)を 0.58 で割った大きさから始め、`cloudTextRect` に収まるまで 5% ずつ大きくする(最大 8 回)」で決める。収まる矩形の四隅が輪郭の内側にあることを U1 のテストにする。本体は `frameGeometry` で 4px に揃える(揃えないと座標格子の検査が出る)。**雲の本体の最小は 72×48**(それより小さいと円の半径が 1.3px になり点に見える。スパイク)。暫定値(U1 で見た目を決める人に見せる)。
 
 #### しっぽ(四角・角丸)
 
@@ -156,7 +156,7 @@ balloon({
 - `to` が**辺つき**(`step2.top`): 目標の点 = 矩形のその辺の `anchorPoint`(`@at` の位置)。**先 = 目標の点 + 外向きの法線 × `gap`**(`callout()` の `ANNOT_GAP` と同じ向きと既定の 4px)。
 - `to` が**辺なし**(`step2`): 目標の矩形のうち、**吹き出しの中心のほうを向く辺**を選ぶ(目標の中心から吹き出しの中心へのずれに、Office と同じ `dz` の規則を当てる)。辺の上の位置は、吹き出しの中心を辺に落とした点(辺の内側に収める)。吹き出しの中心が目標の矩形の中にあるときはエラー(`balloon(): the balloon lies inside its target "step2" — give a side, or move it`)。**中心は外だが本体が目標と一部重なる**ときは、しっぽは描くが、`balloon-tail-through-target` の文言を「**overlaps its target**」(吹き出しが目標に重なっている。配置を直す)にして報告する(しっぽが目標を通り抜ける場合と区別する)。
 - `tip: [dx, dy]`: 先 = 本体の中心 + `[dx, dy]` そのもの(`gap` は効かない。吹き出しが動いても向きが保たれる)。
-- 先が内側(`inside`。上の縮退の規則 3): **しっぽを描かず**、`balloon-target-inside`(問題)。
+- 先が内側(`inside`。上の縮退の規則 3): **しっぽを描かず**、`balloon-target-inside`(問題。文言は「the target lies within the body's bounding box」: 角の切り欠きも内側)。
 - **しっぽが自分の目標を通り抜ける**(辺つきの `to` で、吹き出しが目標の反対側にあるとき。例: 吹き出しが目標の下にあるのに `to: 'step2.top'`): 描くが、`balloon-tail-through-target`(問題)で報告する(目標を検査から除外しない)。
 
 #### しっぽの長さの限度(暫定。U3 で例の図で決める)
@@ -246,7 +246,7 @@ adj2 = round((tip.y - (body.y + body.h/2)) / body.h * 100000)
 
 | id | 重さ | 内容 |
 |---|---|---|
-| `balloon-target-inside` | 問題 | 先が輪郭の内側(しっぽを描けない) |
+| `balloon-target-inside` | 問題 | 先が本体の外接矩形の内側(しっぽを描けない。文言は「the target lies within the body's bounding box」。楕円・雲は輪郭の内側) |
 | `balloon-tail-box` | 問題 | しっぽが、自分と目標以外の箱を横切る。メッセージに、ほかの辺なら通らないか(同じ向きの別の辺)を添える(`unreachable` は別の検査にしない: 直す手は同じで、1 つの誤りに 1 つの報告) |
 | `balloon-tail-through-target` | 問題 | しっぽが自分の目標の箱を通り抜ける(D3)。吹き出しの本体が目標と一部重なるときは、同じ id で文言が「overlaps its target」 |
 | `balloon-tail-short` / `balloon-tail-long` | 助言 | D3 の暫定の限度 |
@@ -294,7 +294,7 @@ adj2 = round((tip.y - (body.y + body.h/2)) / body.h * 100000)
 
 - 前提: PR #436(ADR 0074 U1)が `main` に入っていること。
 - 範囲: `lib/comic/balloon-path.ts` を `lib/shapes/balloon.ts` へ移して広げる(`balloonOutline`: `radius`、楕円、雲、`base: 'office'`)。`lib/comic/balloon-path.ts` は薄い包み(D6)。`officeAdj()`。同点を Office に合わせる。
-- 完了の基準: (1) **#436 が入ったあと、`comic` の golden が変わらない**(固定の数の一致ではなく、この基準。補助として、#436 の `balloonPath` に対する性質テスト: `say` / `think` / `shout`、狭い辺・低い本体を含む範囲で、同点を除いてパス文字列が同じ)。(1b) 縮退した入力(有限でない先、内側の先、半径 0・40・500、辺が狭い本体、`half < 1`)で `NaN` / `Infinity` が出ない。(2) どの形・どの方向の先でも、付け根が輪郭の上にある(四角・角丸・楕円は誤差 0.1px 以内)。(3) 経路が `M` で始まり `Z` で終わる。(4) 同じ入力は同じ文字列。(5) 付け根の端が、角の弧と 4px から離れる(辺が短いときは付け根を縮める。端のクランプの単体テスト)。(6) `base: 'office'` が `wedgeRectCallout` の `gdLst` の評価と同じ多角形(**角丸と楕円も**。`office.ts` を `test/` に移して、`wedgeRoundRectCallout` と `wedgeEllipseCallout` の評価も足す)。(7) 先が輪郭の内側のとき `inside: true`(角丸の切り欠きは外)。(8) 雲: 幅 100〜600 × 高さ 48〜120(縦横比 6:1 まで)× 360 方向で、`NaN` が出ない、`inside` が正しい、1 つ目の円が実際の輪郭に重ならない、`minLength` を返す。本体の最小 72×48。(9) 既存の golden が変わらない。
+- 完了の基準: (1) **#436 が入ったあと、`comic` の golden が変わらない**(固定の数の一致ではなく、この基準。補助として、#436 の `balloonPath` に対する性質テスト: `say` / `think` / `shout`、狭い辺・低い本体を含む範囲で、同点を除いてパス文字列が同じ)。(1b) 縮退した入力(有限でない先、内側の先、半径 0・40・500、辺が狭い本体、`half < 1`)で `NaN` / `Infinity` が出ない。(2) どの形・どの方向の先でも、付け根が輪郭の上にある(四角・角丸・楕円は誤差 0.1px 以内)。(3) 経路が `M` で始まり `Z` で終わる。(4) 同じ入力は同じ文字列。(5) 付け根の端が、角の弧と 4px から離れる(辺が短いときは付け根を縮める。端のクランプの単体テスト)。(6) `base: 'office'` が `wedgeRectCallout` の `gdLst` の評価と同じ多角形(**角丸と楕円も**。`office.ts` を `test/` に移して、`wedgeRoundRectCallout` と `wedgeEllipseCallout` の評価も足す)。(7) 先が輪郭の内側のとき `inside: true`(角丸の切り欠きは外)。(8a) 雲の文字の矩形: `cloudTextRect` が返す矩形の四隅と辺の中点が実際の輪郭の内側にあり、余白込みの文字の矩形が収まる大きさを返す。(8) 雲: 幅 100〜600 × 高さ 48〜120(縦横比 6:1 まで)× 360 方向で、`NaN` が出ない、`inside` が正しい、1 つ目の円が実際の輪郭に重ならない、`minLength` を返す。本体の最小 72×48。(9) 既存の golden が変わらない。
 - テスト: 性質テスト(乱数の本体・先の組 1000 通り以上)、8 方向の固定の例、近い目標の表、Office との一致、`officeAdj` の逆変換(先 → `adj` → 先で 0.002px 以内)、同点の 2 例。
 
 ### U2: 部品とレイアウト
@@ -328,23 +328,32 @@ adj2 = round((tip.y - (body.y + body.h/2)) / body.h * 100000)
 - 「吹き出しを動かしてもしっぽが目標を指す」は、先の座標の差で見る。
 - `speechBubble()` の golden が変わらないことが、U1 の受け入れの核。
 
-## 質問と推奨
+## 質問と決定
+
+決めた行と、決める人の答えを待つ行を分ける。**未決の行にはすべて推奨がある**(答えがなければ推奨で進める)。
+
+**決定済み**(調整役の決定。レビュー 1〜3 回で収束)
+
+| # | 質問 | 決定 |
+|---|---|---|
+| Q2 | 付け根を先の真下に寄せる(`follow`)か、Office の固定(`office`)か | 既定は `follow`。`base: 'follow' \| 'office'` は**公開の欄**。ネイティブの書き出しは `follow` に警告 |
+| Q4 | 曲線のしっぽ | 第 1 版は直線。曲線は第 2 版 |
+| Q5 | ぎざぎざ(`spiky`) | v1 に入れない。予約された値として書くだけ(列挙・Schema に入れない) |
+| Q9 | 共通の輪郭の生成 | #436 の `balloon-path.ts` を `lib/shapes/` へ移して広げる(U1。#436 は `main` に入った)。`speechBubble()` は薄い包みで、`think` / `shout` は ADR 0074 のまま。基準は `comic` の golden が変わらないこと |
+| Q11 | 表現 | `BoxBand` の内部の欄(`balloon()` だけが設定)。PPTX は吹き出しの箱だけを絵にする |
+| Q12 | しっぽの長さの閾値(頂角 90° / 12°)、雲の最小 | **暫定**。U3 で例の図を測って決める(雲の文字の矩形は D3 のとおり U1 で輪郭から求める) |
+| Q13 | 辺の選びの同点 | Office に合わせる(#436 は上下 → 左右に。対角線上に厳密にあるときだけ変わる) |
+
+**未決**(決める人の答えを待つ。推奨つき)
 
 | # | 質問 | 推奨 |
 |---|---|---|
-| Q1 | 部品の名前を `balloon()` にするか | `balloon()`。`bubble` は泡グラフ、`callout` は既にある |
-| Q2 | しっぽの付け根を、先の真下に寄せる(`follow`)か、Office の固定(2/12〜5/12)にするか | 既定は `follow`。ただし `base: 'follow' \| 'office'` を**公開の欄**にし、PowerPoint で同じ絵にしたい作者は `office` を選べる。ネイティブの書き出しは `follow` に警告を出す(D7) |
-| Q3 | 線の吹き出し(`borderCallout*`、`accentCallout*`)を入れるか | 入れない(`callout()` / `connect` で足りる) |
-| Q4 | 曲線のしっぽ | 第 1 版は直線。要望が出たら `tail: 'curve'` を第 2 版で |
-| Q5 | ぎざぎざ(`spiky`) | v1 に入れない。予約された値として書くだけ(Office に無く、スパイクもしていない)。決める人が欲しければ、別のスパイクを先にして v1.1 |
-| Q6 | 目標を `tip: [dx, dy]`(中心からの相対)でも指定できるようにするか | 入れる |
-| Q7 | しっぽのために空きを確保するか | 確保しない(循環しうる)。検査で知らせる |
-| Q8 | 文字の折り返しに ADR 0074 の D2 の幅の規則を持ち込むか | 持ち込まない |
-| Q9 | 共通の輪郭の生成は、#436 のあとに `lib/shapes/` へ移して広げる(U1)。`speechBubble()` は薄い包みで見た目を変えない(基準は `comic` の golden が変わらないこと)。`think` / `shout` を雲・ぎざぎざへ寄せるのは後の ADR | そのとおり |
+| Q1 | 部品の名前を `balloon()` にするか | `balloon()`(`bubble` は泡グラフ、`callout` は既にある) |
+| Q3 | 線の吹き出し(`borderCallout*`、`accentCallout*`)を入れるか | 入れない(`callout()` / `connect` で足りる。要望が出たら別の ADR) |
+| Q6 | 目標を `tip: [dx, dy]`(中心からの相対)でも指定できるようにするか | 入れる(`to` で指せない自由な点用。吹き出しが動いても向きが保たれる) |
+| Q7 | しっぽのために空きを確保するか | 確保しない(目標が配置のあとでしか分からず循環しうる)。検査で知らせる |
+| Q8 | 文字の折り返しに ADR 0074 の D2 の幅の規則を持ち込むか | 持ち込まない(`comic` / `chat` の中だけ。`box` と同じ規則) |
 | Q10 | 吹き出しの ARIA | `role` と `<title>` は付けない。`data-balloon-to` だけ |
-| Q11 | 表現: 箱の欄(`BoxBand` + `balloon`)か、新しい帯か | 箱の欄(箱の機能がそのまま効く)。PPTX は絵に落とす |
-| Q12 | 雲の本体の最小(72×48)と、しっぽの長さの閾値(頂角 90° / 12°、`minLength`) | 暫定。U1 / U3 で例を見て決める |
-| Q13 | 辺の選びの同点を Office に合わせる(#436 は上下 → 左右に) | 合わせる。変わるのは対角線上に厳密にあるときだけ |
 | Q14 | しっぽがはみ出すとき、図を広げるか、検査で報告するか | 広げない。`balloon-out-of-bounds`(問題)で報告(広げると全帯の座標が動く) |
 
 ## スパイクの再現
@@ -353,4 +362,4 @@ adj2 = round((tip.y - (body.y + body.h/2)) / body.h * 100000)
 node spikes/balloon-autoshape/run.ts [outdir]   # SVG(8 方向・近い目標・角の近く・Office の付け根との比較)と、上の数字
 ```
 
-`spikes/balloon-autoshape/out/` に、形ごとの 8 方向の SVG、近い目標の SVG、`measurements.txt` を置いた。`pr436-balloon-path.ts` は、#436 の押された先頭 52fd6fd6 のファイルの写し(比較用)。`office.ts` の頭に Ecma の注意書きを付けた。この ADR を採るなら、`balloon.ts` と `office.ts` は U1 で `lib/shapes/` と `test/` に移して、スパイクは消す。
+`spikes/balloon-autoshape/out/` に、形ごとの 8 方向の SVG、近い目標の SVG、`measurements.txt` を置いた。`run.ts` は `main` の `lib/comic/balloon-path.ts` を直接読んで比べる(コピーは置かない)。`office.ts` の頭に Ecma の注意書きを付けた。この ADR を採るなら、`balloon.ts` と `office.ts` は U1 で `lib/shapes/` と `test/` に移して、スパイクは消す。

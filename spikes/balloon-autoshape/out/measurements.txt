@@ -8,6 +8,7 @@ cloud sweep, 24 sizes with width 100..600 x height 48..120 and aspect 1:1..6:1, 
   500x72 (6.9:1, beyond 6:1): NaN directions 0, overlaps 0
   600x72 (8.3:1, beyond 6:1): NaN directions 0, overlaps 0
   600x96 (6.3:1, beyond 6:1): NaN directions 0, overlaps 0
+cloud text rectangle (largest centred rectangle in the body's proportions with its corners and edge midpoints inside the real outline), 24 sizes: 49%..70% of width and height (Office's cloudCallout rectangle: 65%)
 the round-2 probe (cloud 300x120, tip (-111, 13), 111 px outside): inside=false, tail drawn=true, NaN in path=false
 200x80 cloud trail circle gaps by length (direction 0):
   length 23.7: gap(1,2) 2.0, gap(2,3) -4.8
@@ -49,6 +50,6 @@ corner target 2: side=top base x=304.0..332.0 y=120.0..120.0
 corner target 3: side=right base x=340.0..340.0 y=128.0..148.0
 corner target 4: side=right base x=340.0..340.0 y=128.0..148.0
 tip in the corner cutout (round r=8, 1.5 px in from both edges): inside=true, as a rect: true
-vs PR #436 balloonPath (pushed head 52fd6fd6), say / think / shout, h 30..128, w 60..300: identical path text for 6000/6000 random tips (1492/1492 of them with a side narrower than the wedge); NaN in my output: 0; 2 exact diagonal ties differ: 2; NaN or Infinity with non-finite tips, tips inside, radii 0..500 on a 60x30 body: 0 of 64
+vs PR #436 balloonPath (main after #436, lib/comic/balloon-path.ts), say / think / shout, h 30..128, w 60..300: identical path text for 6000/6000 random tips (1492/1492 of them with a side narrower than the wedge); NaN in my output: 0; 2 exact diagonal ties differ: 2; NaN or Infinity with non-finite tips, tips inside, radii 0..500 on a 60x30 body: 0 of 64
 Office wedgeRectCallout (ECMA-376 gdLst, literal) vs balloonOutline('rect', base 'office'): 1779/1779 random tips (outside the body by >= 3 px) give the same polygon (4 corners + base, tip, base; 0.1 px). adj rounding moves a tip by at most 1.9e-3 px. Covered: rect + office only
 default adj1=-20833 adj2=62500 on 200x80 -> tip (58.3, 90.0); officeAdj of that tip = -20833,62500

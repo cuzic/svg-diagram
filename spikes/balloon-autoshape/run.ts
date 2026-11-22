@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import {balloonOutline, cloudMinLength, cloudPolygon, distToPolygon, officeAdj, triangleHitsRect, type BalloonShape, type Pt, type Rect} from './balloon.ts';
 import {officeWedgeRect} from './office.ts';
-import {balloonPath, balloonRadius, type BalloonKind} from './pr436-balloon-path.ts';
+import {balloonPath, balloonRadius, type BalloonKind} from '../../lib/comic/balloon-path.ts';
 
 const out = process.argv[2] ?? new URL('./out/', import.meta.url).pathname;
 fs.mkdirSync(out, {recursive: true});
@@ -81,6 +81,16 @@ rep(`regression (checks the code against itself): max distance of a rect / round
   void within6;
   rep(`cloud sweep, ${sizes} sizes with width 100..600 x height 48..120 and aspect 1:1..6:1, 360 directions each: NaN directions ${nanCount}; wrong inside ${insideWrong}; first circle overlapping the real outline ${overlapAll}; clearance min ${minGapAll.toFixed(2)}, max ${maxGapAll.toFixed(2)} px; minimum tail length ${minLenRatio.toFixed(2)}..${maxLenRatio.toFixed(2)} x ss (200x80 alone: 30.4..42.7 px = 0.38..0.53 x ss); smallest gap between circles at the minimum length ${minCircleGap.toFixed(2)} px`);
   for (const row of rows) rep('  ' + row);
+  // the largest rectangle, centred and in the body's proportions, whose four corners and edge midpoints are inside the REAL cloud outline
+  const ks: number[] = []; let office = 0;
+  for (const h of HS) for (const w of WS) {
+    if (w < h || w / h > 6) continue;
+    const poly = cloudPolygon({x: 0, y: 0, w, h}), inP = (p: Pt) => balloonOutline('cloud', {x: 0, y: 0, w, h}, p).inside; void poly;
+    let lo = 0.3, hi = 1;
+    for (let it = 0; it < 30; it++) { const k = (lo + hi) / 2, x0 = w / 2 * (1 - k), x1 = w / 2 * (1 + k), y0 = h / 2 * (1 - k), y1 = h / 2 * (1 + k); const pts: Pt[] = [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [w / 2, y0], [w / 2, y1], [x0, h / 2], [x1, h / 2]]; if (pts.every(inP)) lo = k; else hi = k; }
+    ks.push(lo); if (process.env.KS) console.log(w + "x" + h, (lo * 100).toFixed(0)); void office;
+  }
+  rep(`cloud text rectangle (largest centred rectangle in the body's proportions with its corners and edge midpoints inside the real outline), ${ks.length} sizes: ${(Math.min(...ks) * 100).toFixed(0)}%..${(Math.max(...ks) * 100).toFixed(0)}% of width and height (Office's cloudCallout rectangle: 65%)`);
   const probe = balloonOutline('cloud', {x: 0, y: 0, w: 300, h: 120}, [-111, 13]);
   rep(`the round-2 probe (cloud 300x120, tip (-111, 13), 111 px outside): inside=${probe.inside}, tail drawn=${!!probe.dots}, NaN in path=${/NaN/.test(probe.d)}`);
   const tries = [[0, 12], [0, 20], [0, 28], [0, 31], [0, 36]];
@@ -140,7 +150,7 @@ for (const shape of SHAPES) {
   rep(`tip in the corner cutout (round r=8, 1.5 px in from both edges): inside=${balloonOutline('round', BODY, cut).inside}, as a rect: ${balloonOutline('rect', BODY, cut).inside}`);
 }
 
-// 6. the shared generator against PR #436's balloonPath (pushed head 52fd6fd6), over say / think / shout, h 30..128, w 60..300 (narrow bodies included)
+// 6. the shared generator against PR #436's balloonPath (main after #436, lib/comic/balloon-path.ts), over say / think / shout, h 30..128, w 60..300 (narrow bodies included)
 {
   let seed = 11; const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
   let same = 0, total = 0, narrow = 0, narrowSame = 0, nan = 0;
@@ -163,7 +173,7 @@ for (const shape of SHAPES) {
   // custom radius and degenerate input must never give NaN
   let bad = 0;
   for (const shape of SHAPES) for (const tip of [[NaN, 3], [3, Infinity], [140, 120], [300, 160]] as Pt[]) for (const radius of [0, 8, 40, 500]) if (/NaN|Infinity/.test(balloonOutline(shape, {x: 100, y: 100, w: 60, h: 30}, tip, {radius}).d)) bad++;
-  rep(`vs PR #436 balloonPath (pushed head 52fd6fd6), say / think / shout, h 30..128, w 60..300: identical path text for ${same}/${total} random tips (${narrowSame}/${narrow} of them with a side narrower than the wedge); NaN in my output: ${nan}; 2 exact diagonal ties differ: ${tieDiff}; NaN or Infinity with non-finite tips, tips inside, radii 0..500 on a 60x30 body: ${bad} of 64`);
+  rep(`vs PR #436 balloonPath (main after #436, lib/comic/balloon-path.ts), say / think / shout, h 30..128, w 60..300: identical path text for ${same}/${total} random tips (${narrowSame}/${narrow} of them with a side narrower than the wedge); NaN in my output: ${nan}; 2 exact diagonal ties differ: ${tieDiff}; NaN or Infinity with non-finite tips, tips inside, radii 0..500 on a 60x30 body: ${bad} of 64`);
 }
 
 // 7. Office oracles: wedgeRectCallout literal evaluation vs office mode (rect), 2000 random tips
