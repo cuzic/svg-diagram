@@ -1,0 +1,31 @@
+diff --git a/lib/graph-layout.ts b/lib/graph-layout.ts
+index 27f06e23..331850e0 100644
+--- a/lib/graph-layout.ts
++++ b/lib/graph-layout.ts
+@@ -513,6 +513,26 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts:
+     }
+   }
+ 
++  if (process.env.LMIN && !opts.orderOnly) { // ADR 0073 U5 scratch measurement (never committed): the fewest layered crossings found by annealing the rows (dummies included), within components; LMIN=force applies that order
++    const G = globalThis as any; let sd = 99991 + nLayers; const rnd = (): number => (sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0) / 4294967296;
++    const loc = (l: number): number => (l > 0 ? crossingsAt(l - 1) : 0) + (l + 1 < nLayers ? crossingsAt(l) : 0);
++    const l0 = allCrossings(), rows0 = rows.map(r => [...r]); let bestC = l0, bestRows = rows.map(r => [...r]);
++    for (let run = 0; run < 10 && bestC > 0; run++) {
++      if (run > 0) for (const r of rows) { for (let k = r.length - 1; k > 0; k--) { const j = Math.floor(rnd() * (k + 1)); [r[k], r[j]] = [r[j]!, r[k]!]; } r.sort((a, b) => must(compIdx.get(a)) - must(compIdx.get(b))); }
++      reindex(); let cur = allCrossings(), T = 2;
++      for (let k = 0; k < 4000; k++) {
++        const l = Math.floor(rnd() * nLayers), r = rowAt(l); if (r.length < 2) continue;
++        const i = Math.floor(rnd() * r.length), j = Math.floor(rnd() * r.length); if (i === j || compIdx.get(must(r[i])) !== compIdx.get(must(r[j]))) continue;
++        const before = loc(l); const a = must(r[i]), b = must(r[j]); r[i] = b; r[j] = a; pos.set(b, i); pos.set(a, j);
++        const d = loc(l) - before;
++        if (d <= 0 || rnd() < Math.exp(-d / T)) { cur += d; if (cur < bestC) { bestC = cur; bestRows = rows.map(q => [...q]); } } else { r[i] = a; r[j] = b; pos.set(a, i); pos.set(b, j); }
++        T = Math.max(0.05, T * 0.9993);
++      }
++    }
++    G.__lmin = Math.min(G.__lmin ?? Infinity, bestC); G.__l0 = Math.min(G.__l0 ?? Infinity, l0); G.__lcalls = (G.__lcalls ?? 0) + 1;
++    (process.env.LMIN === 'force' ? bestRows : rows0).forEach((r, l) => rowAt(l).splice(0, rowAt(l).length, ...r));
++    reindex();
++  }
+   if (opts.orderOnly) return {nodes: new Map(), edges: [], layers: new Map(), w: 0, h: 0, orderCrossings: allCrossings()} as unknown as LayeredLayout;
+ 
+   // 5. coordinates: layers along one axis, each layer centred on the widest, then relaxed toward the neighbours without overlap

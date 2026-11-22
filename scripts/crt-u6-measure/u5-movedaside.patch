@@ -1,0 +1,19 @@
+diff --git a/lib/toc.ts b/lib/toc.ts
+index d69e02ae..3babd8ba 100644
+--- a/lib/toc.ts
++++ b/lib/toc.ts
+@@ -112,10 +112,13 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+   // a crossing of any two arrows also starts it: the order only wins when it is strictly better in (AND crossings, AND side-by-side, crossings, bends)
+   if (band.base !== undefined) return first;
+   if (crossingsOf_(first) === 0 && scoreOf(first.edges.map(e => e.points)).crossings === 0) {
+-    if (!movedAside.has(first)) return first;
++    (globalThis as any).__ma0 = ((globalThis as any).__ma0 ?? 0) + 1;
++    if (process.env.NOMA || !movedAside.has(first)) return first;
++    (globalThis as any).__maHas = ((globalThis as any).__maHas ?? 0) + 1;
+     const plain = once(undefined, true);
+     if (isNoFit(plain)) return plain;
+     if (crossingsOf_(plain) === 0) return first;
++    (globalThis as any).__maEnter = ((globalThis as any).__maEnter ?? 0) + 1;
+   }
+   const ids = band.nodes.map(n => n.id);
+   // The search scores the figures without the detours of the long arrows (route-search.ts: slow, and the search lays a figure out up to MAX_ORDERS times); the order it
