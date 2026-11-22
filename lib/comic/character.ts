@@ -7,8 +7,6 @@ import {COMIC_ID} from './template.ts';
 import type {BubbleSide, CharacterManifest, ComicCharacter, ComicExpression, ComicLaidHead} from '../types/comic.ts';
 import type {Rect} from '../types/core.ts';
 
-type TopAnchor = {top?: number};
-
 export const EXPRESSIONS: readonly ComicExpression[] = ['neutral', 'smile', 'laugh', 'surprise', 'worry', 'angry', 'think', 'sad'];
 const SIDES: readonly BubbleSide[] = ['top-left', 'top', 'top-right', 'left', 'right'];
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -35,7 +33,7 @@ export function loadCharacter(m: CharacterManifest): ComicCharacter {
   if (!Array.isArray(box) || box.length !== 4 || ![...box].every(num) || !(box[2] > 0 && box[3] > 0)) throw new Error(`${at} の box は [x, y, width, height] で、幅と高さを正の数にしてください`);
   const [bx, by, bw, bh] = box;
   if (bw > 4096 || bh > 4096) throw new Error(`${at} の box は幅と高さをそれぞれ 4096 以下にしてください`);
-  const a: CharacterManifest['anchors'] & TopAnchor = m.anchors;
+  const a = m.anchors;
   const head = a?.head;
   if (!head || !num(head.cx) || !num(head.cy) || !num(head.r) || head.r <= 0) throw new Error(`${at} の anchors.head は box の座標で {cx, cy, r} を書き、r を正の数にしてください`);
   const shortSide = Math.min(bw, bh);
@@ -88,7 +86,7 @@ export function placement(c: ComicCharacter, head: StageHead): {scale: number; x
 
 /** The part of the artwork above the stage head, spanning the width of the placed viewBox. */
 export function characterOverhang(c: ComicCharacter, head: StageHead): Rect | undefined {
-  const source: ComicCharacter['anchors'] & TopAnchor = c.anchors;
+  const source = c.anchors;
   const top = source.top ?? source.head.cy - source.head.r;
   const [, y] = mapPoint(c, head, [source.head.cx, top]);
   const h = head.cy - head.r - y;

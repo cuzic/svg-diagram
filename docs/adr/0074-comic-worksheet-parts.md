@@ -1,6 +1,6 @@
 # ADR 0074: 穴(空欄)のあるマンガの部品 — `comic()`(コマ)、`bubble()`(ふきだし)、キャラクター、穴(slot)、Artifact との受け渡し、`chat()`
 
-- 状態: 承認(Accepted。2026-11-22。レビュー 3 回で収束。Q1〜Q10 は決める人がすべて推奨どおりに決定。下の「決定済み」。**実装は U1 から始めてよい**。U1(`comic()` と台詞 1 つの `speechBubble()`)と U2(顔と素材の形)は実装した(`lib/comic/`。下の「U1 の実装メモ」「U2 の実装メモ」)。U2 は PR #442 の round 1 と round 2 の素材検査を反映。レビューの反映: 1 回目 Blocker 1・Major 7、2 回目 Major 2(穴の後ろのひらがなの結び方、値に依存する検査と `verdict` の関係)、3 回目 Major 1(`update` の差分の基準))
+- 状態: 承認(Accepted。2026-11-22。レビュー 3 回で収束。Q1〜Q10 は決める人がすべて推奨どおりに決定。下の「決定済み」。**実装は U1 から始めてよい**。U1(`comic()` と台詞 1 つの `speechBubble()`)と U2(顔と素材の形)は実装した(`lib/comic/`。下の「U1 の実装メモ」「U2 の実装メモ」)。U2 は PR #442 の round 1 と round 2 の素材検査、および補足仕様の `anchors.top` の公開型を反映。レビューの反映: 1 回目 Blocker 1・Major 7、2 回目 Major 2(穴の後ろのひらがなの結び方、値に依存する検査と `verdict` の関係)、3 回目 Major 1(`update` の差分の基準))
 - 日付: 2026-11-22
 - 基点: `main`(eec05f8c、PR #431 まで)
 - 関連: ADR 0045(`svg-diagram/browser`、測定を外から渡す)、ADR 0057(spec の `canvas`)、ADR 0071(JSON Schema をパッケージに入れる)、ADR 0034(`data-node`)、ADR 0050(組み合わせられる帯)、ADR 0012(id のスコープ)、ADR 0009(縦書き)、ADR 0007(Ports)

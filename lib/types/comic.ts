@@ -18,7 +18,13 @@ export interface CharacterManifest {
   name: string;
   /** [x, y, width, height]: the viewBox the fragments are drawn in. Not made square. */
   box: readonly [number, number, number, number];
-  anchors: {head: {cx: number; cy: number; r: number}; mouth: readonly [number, number]; hand?: readonly [number, number]};
+  anchors: {
+    head: {cx: number; cy: number; r: number};
+    mouth: readonly [number, number];
+    hand?: readonly [number, number];
+    /** The highest artwork y across expressions. The bubble check defaults to the head circle's top. */
+    top?: number;
+  };
   bubbleSides?: readonly BubbleSide[];
   /** SVG fragments (shapes, groups, gradients and clip paths only), by expression; `neutral` at least. */
   expressions: Readonly<Partial<Record<ComicExpression, string>>>;
@@ -29,7 +35,7 @@ export interface ComicCharacter {
   id: string;
   name: string;
   box: [number, number, number, number];
-  anchors: {head: {cx: number; cy: number; r: number}; mouth: [number, number]; hand?: [number, number]};
+  anchors: {head: {cx: number; cy: number; r: number}; mouth: [number, number]; hand?: [number, number]; top?: number};
   bubbleSides: BubbleSide[];
   expressions: Partial<Record<ComicExpression, string>>;
   license: {spdx: string; author: string; url: string};

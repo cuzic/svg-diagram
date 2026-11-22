@@ -86,6 +86,13 @@ test('an explicit top anchor is a finite y coordinate and survives loading', () 
   for (const top of [NaN, Infinity]) assert.throws(() => loadCharacter(manifest(top)), /anchors\.top/);
 });
 
+test('comic() accepts a character literal with anchors.top and exposes it on the loaded character', () => {
+  const band = comic(sheet(ARTIST.id), {characters: {
+    [ARTIST.id]: {...ARTIST, anchors: {...ARTIST.anchors, top: 0}},
+  }});
+  assert.equal(band.characters?.[ARTIST.id]?.anchors.top, 0);
+});
+
 test('each viewBox dimension is at most 4096', () => {
   const manifest = (width: number, height: number) => withManifest({box: [0, 0, width, height]});
   assert.doesNotThrow(() => loadCharacter(manifest(4096, 200)));
