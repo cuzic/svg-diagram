@@ -45,7 +45,7 @@ for (const a1 of ATS) for (const a2 of ATS) for (const n1 of [1, 2, 3]) for (con
     if (cover(second, textRect(first)) > 0.5) R.textLastOnTop++;
     if (d === 8 && !isSame) {
       const over = first.tail ? clipArea(first.tail, bodyPoly(second)) : 0, tail = first.tail ? Math.abs(clipArea(first.tail, first.tail)) : 0;
-      if (over > 0.5) { cross++; if (over / tail >= 0.2) crossHidden20++; if (!(first.tail![1][0] > second.x && first.tail![1][0] < second.x + second.w && first.tail![1][1] > second.y && first.tail![1][1] < second.y + second.h)) crossEmerges++; if (clipArea(first.tail!, textRect(second)) > 0.5) tailTextFirstOnTop++; }
+      if (over > 0.5) { cross++; if (over / tail >= 0.2) crossHidden20++; if (!(first.tail![1][0] > second.x && first.tail![1][0] < second.x + second.w && first.tail![1][1] > second.y && first.tail![1][1] < second.y + second.h)) crossEmerges++; if (clipArea(first.tail!, rectPoly(textRect(second))) > 0.5) tailTextFirstOnTop++; }
       else { noCross++; if (clipArea(bodyPoly(first), bodyPoly(second)) > 0.5) noCrossOverlap++; }
     }
   }
@@ -54,7 +54,7 @@ for (const a1 of ATS) for (const a2 of ATS) for (const n1 of [1, 2, 3]) for (con
 rep(`combinations: ${total} (3x3 speaker places, 1-3 lines each, widths 188 / 204); stacked by the real rule of layout.ts: ${nStacked}; of those same speaker ${nSame}, different speakers ${nDiffStacked}`);
 rep('\n| overlap depth (px) | same-speaker pairs (upper tail dropped) | text of 2nd covered, 1st on top | text of 1st covered, 2nd on top | different-speaker pairs | text of 2nd covered, 1st on top | text of 1st covered, 2nd on top |\n|---|---|---|---|---|---|---|');
 for (const d of DEPTHS) rep(`| ${d} | ${same[d]!.pairs} | ${same[d]!.textFirstOnTop} | ${same[d]!.textLastOnTop} | ${diff[d]!.pairs} | ${diff[d]!.textFirstOnTop} | ${diff[d]!.textLastOnTop} |`);
-rep(`\ndifferent-speaker pairs (stacked), depth 8: the upper tail crosses the lower body in ${cross} of ${nDiffStacked} (today's comic-tail-crosses-bubble, a problem; unchanged); the lower bubble on top would hide >= 20% of that tail in ${crossHidden20}, and in ${crossEmerges} of them the tip comes out outside the lower bubble (the tail passes behind it and reads as that bubble's own tail); the upper bubble on top would paint the tail over the lower text in ${tailTextFirstOnTop}.`);
+rep(`\ndifferent-speaker pairs (stacked), depth 8: the upper tail crosses the lower body in ${cross} of ${nDiffStacked} (today's comic-tail-crosses-bubble, a problem; unchanged); the lower bubble on top would hide >= 20% of that tail in ${crossHidden20}, and in ${crossEmerges} of them the tip comes out outside the lower bubble (the tail passes behind it and reads as that bubble's own tail); the upper bubble on top would paint the tail across the lower BODY in ${cross} (over the lower text rectangle in ${tailTextFirstOnTop}: the tail crosses the body beside the text).`);
 rep(`different-speaker pairs with no crossing tail: ${noCross} of ${nDiffStacked}; of those, the bodies overlap at depth 8 (x ranges meet, upper tail clear of the lower bubble) in ${noCrossOverlap}. Same-speaker pairs: ${nSame}, upper tail dropped, bodies overlap in all of them.`);
 rep(`text starts ${(bubbleHeight(1) - LINE_H) / 2}px (1 line) to 10px (more lines) inside the top edge: depth <= PAD_Y - 2 = 8 is a rule with margin, not a threshold.`);
 
@@ -63,7 +63,7 @@ const draw = (title: string, bs: B[], order: B[], sameSp: boolean): string => {
   const heads = ATS.filter(a => bs.some(b => b.at === a)).map(a => { const h = head(a); return `<circle cx="${h.cx}" cy="${h.cy}" r="${h.r}" fill="#f6dcc0" stroke="#22201b" stroke-width="2.5"/>`; }).join('');
   const body = order.map(b => { const p = balloonPath(b, 'say', b.tail ? {tip: b.tail[1], halfWidth: 8} : undefined), tr = textRect(b);
     return `<g data-bubble="${b.id}"><path d="${p.d}" fill="#fff" stroke="#22201b" stroke-width="2.5" stroke-linejoin="round"/><rect x="${tr.x}" y="${tr.y}" width="${tr.w}" height="${tr.h}" fill="none" stroke="#c33" stroke-width="0.5" stroke-dasharray="3 2"/><text x="${b.x + b.w / 2}" y="${b.y + b.h / 2 + 6}" text-anchor="middle" font-size="18" fill="#22201b">${b.id.endsWith('d1') ? 'ここが変更点' : '要確認'}</text></g>`; }).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PW} ${PH + 24}" width="${PW}" height="${PH + 24}" font-family="sans-serif"><rect width="100%" height="100%" fill="#fff"/><text x="8" y="14" font-size="12">${title}${sameSp ? ' (same speaker: upper tail dropped)' : ''}</text><g transform="translate(0,24)"><rect x="1.5" y="1.5" width="${PW - 3}" height="${PH - 3}" fill="#fffdf5" stroke="#22201b" stroke-width="3"/>${heads}${body}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PW} ${PH + 24}" width="${PW}" height="${PH + 24}" font-family="sans-serif"><rect width="100%" height="100%" fill="#fff"/><text x="8" y="14" font-size="12">${title}</text><g transform="translate(0,24)"><rect x="1.5" y="1.5" width="${PW - 3}" height="${PH - 3}" fill="#fffdf5" stroke="#22201b" stroke-width="3"/>${heads}${body}</g></svg>`;
 };
 let diffDemo: [At, At, number, number, number] | undefined;
 for (const a1 of ATS) for (const a2 of ATS) if (a1 !== a2 && !diffDemo) for (const [n1, n2] of [[1, 1], [1, 2], [2, 1], [2, 2], [3, 2]] as [number, number][]) for (const w of [188, 204]) {
@@ -76,7 +76,7 @@ for (const [name, a1, a2, n1, n2, w] of demos) {
   if (a1 === a2) delete first.tail;
   const ov = clipArea(bodyPoly(first), bodyPoly(second));
   rep(`demo ${name}: ${a1}/${a2}, ${n1}+${n2} lines, depth 8: bodies overlap by ${ov.toFixed(0)}px^2 (x ranges ${first.x}..${first.x + first.w} and ${second.x}..${second.x + second.w})`);
-  fs.writeFileSync(`${out}comic-${name}-first-on-top.svg`, draw(`${name}: depth 8, first read on top`, [first, second], [second, first], a1 === a2));
-  fs.writeFileSync(`${out}comic-${name}-last-on-top.svg`, draw(`${name}: depth 8, last read on top (proposed default)`, [first, second], [first, second], a1 === a2));
+  fs.writeFileSync(`${out}comic-${name}-first-on-top.svg`, draw(`${name}, depth 8, first on top`, [first, second], [second, first], a1 === a2));
+  fs.writeFileSync(`${out}comic-${name}-last-on-top.svg`, draw(`${name}, depth 8, last on top (default)`, [first, second], [first, second], a1 === a2));
 }
 fs.writeFileSync(`${out}measurements-comic.txt`, lines.join('\n') + '\n');

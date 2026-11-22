@@ -34,7 +34,7 @@ export function sceneOf(svg: string): Scene {
 export interface Anchor {side: 'top' | 'right' | 'bottom' | 'left'; at: number} // 0077 D3: `id.side@at`
 export interface Balloon {text: string; target: Rect; id: string; anchor?: Anchor}
 export interface Cand {i: number; dir: string; d: number; diag: boolean; angle: number; body: Rect; tip: Pt; tri: Pt[]}
-export interface Score {content: number; ends: number; other: number; diag: number; d: number; cross: number; i: number}
+export interface Score {content: number; links: number; ends: number; legs: number; other: number; flat: number; diag: number; d: number; cross: number; i: number}
 export const DIRS: [string, number, number][] = [['e', 1, 0], ['se', 1, 1], ['s', 0, 1], ['sw', -1, 1], ['w', -1, 0], ['nw', -1, -1], ['n', 0, -1], ['ne', 1, -1]];
 export const DISTS = [12, 28, 48];
 export const GAP = 4, HALO = 3, MIN_ANGLE = 30, CORNER = 8;
@@ -60,7 +60,7 @@ export function candidates(b: Balloon, dists = DISTS): Cand[] {
   for (const d of dists) for (const [dir, ux, uy] of DIRS) {
     const x = ux > 0 ? T.x + T.w + d : ux < 0 ? T.x - d - bw : T.x + T.w / 2 - bw / 2, y = uy > 0 ? T.y + T.h + d : uy < 0 ? T.y - d - bh : T.y + T.h / 2 - bh / 2;
     const body = {x: snap(x), y: snap(y), w: bw, h: bh}, tip = tipOf(T, body, b.anchor);
-    const bp = balloonPath(body, 'say', {tip, halfWidth: 8});
+    const bp = balloonPath(body, 'shout', {tip, halfWidth: 8});
     const ang = bp.base ? tailAngle(bp.base, tip) : 0;
     out.push({i: i++, dir, d, diag: ux !== 0 && uy !== 0, angle: ang, body, tip, tri: bp.base ? [bp.base[0], tip, bp.base[1]] : []});
   }
@@ -71,6 +71,9 @@ export interface Obstacles {texts: Rect[]; boxes: Rect[]; shapes: Pt[][]; heads:
 const LINE_W = 12; // px^2 charged per px of connector covered
 /** The footprint = body + tail + the halo (3px, ADR 0078 D2 / D3): the polygons every coverage rule uses. */
 export const footprint = (c: Cand): Pt[][] => [rectPoly({x: c.body.x - HALO, y: c.body.y - HALO, w: c.body.w + 2 * HALO, h: c.body.h + 2 * HALO}), inflate(c.tri, HALO)];
+const LEG_FRAC = 0.5, LEG_PX = 40; // D3: a connector leg hidden by >= 50% of its length, or >= 40px, is a problem
+/** The length of one segment inside the footprint (the pieces summed, capped at the segment: a point in both the body halo and the tail halo counts once). */
+const hiddenLen = (a: Pt, b: Pt, fp: Pt[][]): number => Math.min(Math.hypot(b[0] - a[0], b[1] - a[1]), fp.reduce((t, f) => t + lengthInPoly([a, b], f), 0));
 export function score(c: Cand, o: Obstacles): Score | undefined {
   const pts = [...rectPoly(c.body), c.tip];
   if (c.tri.length === 0 || pts.some(p => p[0] < 0 || p[1] < 0 || p[0] > o.w || p[1] > o.h)) return undefined;
@@ -78,23 +81,27 @@ export function score(c: Cand, o: Obstacles): Score | undefined {
   const cov = (poly: Pt[]): number => fp.reduce((s, f) => s + clipArea(f, poly), 0);
   const content = o.texts.reduce((s, r) => s + cov(rectPoly(r)), 0) + o.shapes.reduce((s, p) => s + cov(p), 0);
   const ends = o.heads.filter(p => cov(p) > 0.5).length;
-  const other = o.boxes.reduce((s, r) => s + clipArea(bodyOnly, rectPoly(r)), 0) + LINE_W * o.lines.reduce((s, l) => s + fp.reduce((t, f) => t + lengthInPoly(l, f), 0), 0);
+  let legs = 0, conn = 0;
+  for (const l of o.lines) for (let k = 0; k + 1 < l.length; k++) { const L = Math.hypot(l[k + 1]![0] - l[k]![0], l[k + 1]![1] - l[k]![1]), h = hiddenLen(l[k]!, l[k + 1]!, fp); conn += h; if (L > 0 && (h >= LEG_FRAC * L || h >= LEG_PX)) legs++; }
+  const other = o.boxes.reduce((s, r) => s + clipArea(bodyOnly, rectPoly(r)), 0) + LINE_W * conn;
   const cross = o.lines.filter(l => lengthInPoly(l, c.tri) > 0).length;
-  return {content, ends, other, diag: c.diag ? 1 : 0, d: c.d, cross, i: c.i};
+  return {content, links: ends + legs, ends, legs, other, flat: c.angle < MIN_ANGLE ? 1 : 0, diag: c.diag ? 1 : 0, d: c.d, cross, i: c.i};
 }
-/** Lexicographic. Tiers 1 and 3 compare within `eps` px^2 (tier 3 too: a sub-pixel change in a box or line must not reorder). A tail leaving its edge at under MIN_ANGLE degrees is dropped unless nothing else is left. */
+/** D3's own problem rules applied to a footprint: what the checks of U3 would report (content area > 0.5px^2, a hidden arrowhead, a hidden connector leg). Chart marks are not in the spike's scene. */
+export const problemsOf = (s: Score): {content: boolean; ends: number; legs: number; any: boolean} => ({content: s.content > 0.5, ends: s.ends, legs: s.legs, any: s.content > 0.5 || s.ends > 0 || s.legs > 0});
+/** Lexicographic; every D3 problem has a tier of its own ahead of anything soft (the 30-degree tail rule is a tier after them, not a filter). Areas / lengths within `eps` are equal. */
 export function best(cs: Cand[], o: Obstacles, eps: number): {c: Cand; s: Score} | undefined {
-  const sc = cs.map(c => ({c, s: score(c, o)})).filter((q): q is {c: Cand; s: Score} => !!q.s);
-  const ok = sc.filter(q => q.c.angle >= MIN_ANGLE), pool = ok.length ? ok : sc;
+  const pool = cs.map(c => ({c, s: score(c, o)})).filter((q): q is {c: Cand; s: Score} => !!q.s);
   let win: {c: Cand; s: Score} | undefined;
   const less = (a: Score, b: Score): boolean => {
-    if (Math.abs(a.content - b.content) > eps) return a.content < b.content;
-    if (a.ends !== b.ends) return a.ends < b.ends;
-    if (Math.abs(a.other - b.other) > eps * 4) return a.other < b.other;
-    if (a.diag !== b.diag) return a.diag < b.diag;
-    if (a.d !== b.d) return a.d < b.d;
-    if (a.cross !== b.cross) return a.cross < b.cross;
-    return a.i < b.i;
+    if (Math.abs(a.content - b.content) > eps) return a.content < b.content;       // 1 content (text, shapes, marks)
+    if (a.links !== b.links) return a.links < b.links;                             // 2 other D3 problems: arrowheads, tips, hidden legs
+    if (Math.abs(a.other - b.other) > eps * 4) return a.other < b.other;          // 3 soft: box fill + connector length
+    if (a.flat !== b.flat) return a.flat < b.flat;                                 // 4 a tail under 30 degrees to its edge
+    if (a.diag !== b.diag) return a.diag < b.diag;                                 // 5 diagonal after orthogonal
+    if (a.d !== b.d) return a.d < b.d;                                             // 6 distance
+    if (a.cross !== b.cross) return a.cross < b.cross;                             // 7 connectors crossing the tail
+    return a.i < b.i;                                                              // 8 fixed order
   };
   for (const q of pool) if (!win || less(q.s, win.s)) win = q;
   return win;
