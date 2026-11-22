@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import {balloonOutline, cloudMinLength, cloudPolygon, distToPolygon, officeAdj, triangleHitsRect, type BalloonShape, type Pt, type Rect} from './balloon.ts';
 import {officeWedgeRect} from './office.ts';
-import {balloonPath} from './pr436-balloon-path.ts';
+import {balloonPath, balloonRadius, type BalloonKind} from './pr436-balloon-path.ts';
 
 const out = process.argv[2] ?? new URL('./out/', import.meta.url).pathname;
 fs.mkdirSync(out, {recursive: true});
@@ -51,23 +51,40 @@ for (const shape of SHAPES) {
 rep(`8 directions x 4 shapes: ${n} balloons; deterministic=${detAll}; every path closed=${closedAll}`);
 rep(`regression (checks the code against itself): max distance of a rect / round / ellipse base point from the outline = ${maxBaseOff.toExponential(1)} px (one-decimal rounding for rect / round: <= 0.07); min distance of a rect / round base point from a corner, minus the radius = ${minClear.toFixed(1)} px`);
 
-// 2. cloud against the REAL outline (not the envelope)
+// 2. cloud against the REAL outline, over widths 100..600 x heights 48..120 (aspect 1:1 .. 6:1, and beyond for information), 360 directions each
 {
-  const poly = cloudPolygon(BODY);
-  let overlap = 0, minGap = 1e9, maxGap = -1e9, minRun = 1e9, maxMin = 0, minMin = 1e9;
-  for (let deg = 0; deg < 360; deg++) {
-    const tip = target('cloud', deg, 60), bl = balloonOutline('cloud', BODY, tip), d1 = bl.dots![0]!, d2 = bl.dots![1]!, d3 = bl.dots![2]!;
-    const g = distToPolygon(d1.c, poly) - d1.r;
-    if (g < 0) overlap++;
-    maxMin = Math.max(maxMin, bl.minLength!); minMin = Math.min(minMin, bl.minLength!);
-    minGap = Math.min(minGap, g); maxGap = Math.max(maxGap, g);
-    const gap = (p: typeof d1, q: typeof d1) => Math.hypot(p.c[0] - q.c[0], p.c[1] - q.c[1]) - p.r - q.r;
-    minRun = Math.min(minRun, gap(d1, d2), gap(d2, d3));
+  const rows: string[] = [];
+  let sizes = 0, nanCount = 0, insideWrong = 0, overlapAll = 0, minGapAll = 1e9, maxGapAll = -1e9, minLenRatio = 1e9, maxLenRatio = 0, minCircleGap = 1e9, within6 = 0;
+  const WS = [100, 150, 200, 250, 300, 400, 500, 600], HS = [48, 72, 96, 120];
+  for (const h of HS) for (const w of WS) {
+    if (w < h) continue;
+    const body: Rect = {x: 0, y: 0, w, h}, poly = cloudPolygon(body), ccx = w / 2, ccy = h / 2, ss = Math.min(w, h), over6 = w / h > 6;
+    let ov = 0, nan = 0, mg = 1e9, xg = -1e9, mn = 1e9, mx = 0;
+    for (let deg = 0; deg < 360; deg++) {
+      const u: Pt = [Math.cos(deg * Math.PI / 180), Math.sin(deg * Math.PI / 180)], tip: Pt = [ccx + u[0] * (Math.max(w, h) + 60), ccy + u[1] * (Math.max(w, h) + 60)];
+      const bl = balloonOutline('cloud', body, tip);
+      if (/NaN/.test(bl.d) || poly.some(p => Number.isNaN(p[0]) || Number.isNaN(p[1])) || bl.dots!.some(d => Number.isNaN(d.c[0]) || Number.isNaN(d.r))) { nan++; continue; }
+      if (bl.inside) insideWrong++; // a tip 60 px beyond the longest half-axis is outside
+      const d1 = bl.dots![0]!, g = distToPolygon(d1.c, poly) - d1.r;
+      if (g < 0) ov++;
+      mg = Math.min(mg, g); xg = Math.max(xg, g); mn = Math.min(mn, bl.minLength!); mx = Math.max(mx, bl.minLength!);
+      const d2 = bl.dots![1]!, d3 = bl.dots![2]!, cg = (p: typeof d1, q: typeof d1) => Math.hypot(p.c[0] - q.c[0], p.c[1] - q.c[1]) - p.r - q.r;
+      const e = bl.base![0], at2 = balloonOutline('cloud', body, [e[0] + (tip[0] - ccx) / Math.hypot(tip[0] - ccx, tip[1] - ccy) * bl.minLength!, e[1] + (tip[1] - ccy) / Math.hypot(tip[0] - ccx, tip[1] - ccy) * bl.minLength!]);
+      minCircleGap = Math.min(minCircleGap, cg(at2.dots![0]!, at2.dots![1]!), cg(at2.dots![1]!, at2.dots![2]!)); // the tail exactly at its minimum length
+    }
+    // the centre of the body is inside; a point just beyond each end of the long axis is outside
+    const cIn = balloonOutline('cloud', body, [ccx, ccy]).inside, farOut = !balloonOutline('cloud', body, [-3, ccy]).inside && !balloonOutline('cloud', body, [w + 3, ccy]).inside;
+    if (!cIn || !farOut) insideWrong++;
+    if (!over6) { sizes++; within6++; nanCount += nan; overlapAll += ov; minGapAll = Math.min(minGapAll, mg); maxGapAll = Math.max(maxGapAll, xg); minLenRatio = Math.min(minLenRatio, mn / ss); maxLenRatio = Math.max(maxLenRatio, mx / ss); }
+    else rows.push(`${w}x${h} (${(w / h).toFixed(1)}:1, beyond 6:1): NaN directions ${nan}, overlaps ${ov}`);
   }
-  rep(`cloud, trail started from the real outline, 360 directions: first circle overlaps the outline in ${overlap}/360; gap min ${minGap.toFixed(2)}, max ${maxGap.toFixed(2)} px; smallest gap between circles ${minRun.toFixed(2)} px`);
-  rep(`cloud minimum tail length over the 360 directions (ss = 80): ${minMin.toFixed(1)}..${maxMin.toFixed(1)} px (the closed form 0.306 ss + 6 = ${cloudMinLength(80).toFixed(1)} is the lower end; the first circle moves out where a bump is in the way)`);
+  void within6;
+  rep(`cloud sweep, ${sizes} sizes with width 100..600 x height 48..120 and aspect 1:1..6:1, 360 directions each: NaN directions ${nanCount}; wrong inside ${insideWrong}; first circle overlapping the real outline ${overlapAll}; clearance min ${minGapAll.toFixed(2)}, max ${maxGapAll.toFixed(2)} px; minimum tail length ${minLenRatio.toFixed(2)}..${maxLenRatio.toFixed(2)} x ss (200x80 alone: 30.4..42.7 px = 0.38..0.53 x ss); smallest gap between circles at the minimum length ${minCircleGap.toFixed(2)} px`);
+  for (const row of rows) rep('  ' + row);
+  const probe = balloonOutline('cloud', {x: 0, y: 0, w: 300, h: 120}, [-111, 13]);
+  rep(`the round-2 probe (cloud 300x120, tip (-111, 13), 111 px outside): inside=${probe.inside}, tail drawn=${!!probe.dots}, NaN in path=${/NaN/.test(probe.d)}`);
   const tries = [[0, 12], [0, 20], [0, 28], [0, 31], [0, 36]];
-  rep(`cloud minimum tail length for ss = 80: ${cloudMinLength(80).toFixed(1)} px (= 0.306 ss + 6; Office's own limit g9 = ${(80 * 6600 / 21600).toFixed(1)} px). Trail circle gaps (direction 0) by length:`);
+  rep(`200x80 cloud trail circle gaps by length (direction 0):`);
   for (const [deg, gap] of tries) { const bl = balloonOutline('cloud', BODY, target('cloud', deg, gap)), g = (p: {c: Pt; r: number}, q: {c: Pt; r: number}) => Math.hypot(p.c[0] - q.c[0], p.c[1] - q.c[1]) - p.r - q.r; rep(`  length ${bl.length.toFixed(1)}: gap(1,2) ${g(bl.dots![0]!, bl.dots![1]!).toFixed(1)}, gap(2,3) ${g(bl.dots![1]!, bl.dots![2]!).toFixed(1)}`); }
   rep(`cloud circles at the smallest body (72x48, ss 48): radii ${[48 / 12, 48 / 18, 48 / 36].map(v => v.toFixed(1)).join(' / ')} px`);
 }
@@ -123,23 +140,30 @@ for (const shape of SHAPES) {
   rep(`tip in the corner cutout (round r=8, 1.5 px in from both edges): inside=${balloonOutline('round', BODY, cut).inside}, as a rect: ${balloonOutline('rect', BODY, cut).inside}`);
 }
 
-// 6. the shared generator against PR #436's balloonPath (say: radius min(h/2,24), wedge half 8)
+// 6. the shared generator against PR #436's balloonPath (pushed head 52fd6fd6), over say / think / shout, h 30..128, w 60..300 (narrow bodies included)
 {
   let seed = 11; const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
-  let same = 0, total = 0, tieDiff = 0;
-  for (let i = 0; i < 3000; i++) {
-    const w = 120 + rnd() * 200, h = 48 + rnd() * 80, b: Rect = {x: 20, y: 30, w, h};
+  let same = 0, total = 0, narrow = 0, narrowSame = 0, nan = 0;
+  const kinds: BalloonKind[] = ['say', 'think', 'shout'];
+  for (let i = 0; i < 6000; i++) {
+    const w = 60 + rnd() * 240, h = 30 + rnd() * 98, b: Rect = {x: 20, y: 30, w, h}, kind = kinds[i % 3]!;
     const tip: Pt = [b.x + w / 2 + (rnd() - 0.5) * w * 3, b.y + h / 2 + (rnd() - 0.5) * h * 4];
-    if (Math.abs(tip[0] - (b.x + w / 2)) < w / 2 + 3 && Math.abs(tip[1] - (b.y + h / 2)) < h / 2 + 3) continue;
-    const mine = balloonOutline('round', b, tip, {radius: Math.min(h / 2, 24), halfWidth: 8}), theirs = balloonPath(b, 'say', {tip});
+    const mine = balloonOutline('round', b, tip, {radius: balloonRadius(kind, h), halfWidth: 8}), theirs = balloonPath(b, kind, {tip});
+    if (/NaN/.test(mine.d)) nan++;
+    // a side narrower than the wedge: the straight part of the left / right side (h - 2 r) or top / bottom (w - 2 r) is under 16 px
+    const r = Math.min(balloonRadius(kind, h), w / 2), degenerate = h - 2 * r < 16 || w - 2 * r < 16;
     total++; if (mine.d === theirs.d) same++;
+    if (degenerate) { narrow++; if (mine.d === theirs.d) narrowSame++; }
   }
-  for (const b of [{x: 20, y: 30, w: 200, h: 100}, {x: 20, y: 30, w: 240, h: 60}]) { // exact ties: the tip on a diagonal of the body
+  let tieDiff = 0;
+  for (const b of [{x: 20, y: 30, w: 200, h: 100}, {x: 20, y: 30, w: 240, h: 60}]) {
     const tip: Pt = [b.x + b.w / 2 + b.w, b.y + b.h / 2 + b.h];
-    const mine = balloonOutline('round', b, tip, {radius: Math.min(b.h / 2, 24), halfWidth: 8}), theirs = balloonPath(b, 'say', {tip});
-    if (mine.d !== theirs.d) tieDiff++;
+    if (balloonOutline('round', b, tip, {radius: Math.min(b.h / 2, 24), halfWidth: 8}).d !== balloonPath(b, 'say', {tip}).d) tieDiff++;
   }
-  rep(`balloonOutline('round', {radius: min(h/2,24), halfWidth: 8}) vs PR #436 balloonPath('say'): ${same}/${total} random tips give the identical path text; 2 exact diagonal ties: ${tieDiff} differ (the tie leaves through a left / right side here, through top / bottom in #436)`);
+  // custom radius and degenerate input must never give NaN
+  let bad = 0;
+  for (const shape of SHAPES) for (const tip of [[NaN, 3], [3, Infinity], [140, 120], [300, 160]] as Pt[]) for (const radius of [0, 8, 40, 500]) if (/NaN|Infinity/.test(balloonOutline(shape, {x: 100, y: 100, w: 60, h: 30}, tip, {radius}).d)) bad++;
+  rep(`vs PR #436 balloonPath (pushed head 52fd6fd6), say / think / shout, h 30..128, w 60..300: identical path text for ${same}/${total} random tips (${narrowSame}/${narrow} of them with a side narrower than the wedge); NaN in my output: ${nan}; 2 exact diagonal ties differ: ${tieDiff}; NaN or Infinity with non-finite tips, tips inside, radii 0..500 on a 60x30 body: ${bad} of 64`);
 }
 
 // 7. Office oracles: wedgeRectCallout literal evaluation vs office mode (rect), 2000 random tips

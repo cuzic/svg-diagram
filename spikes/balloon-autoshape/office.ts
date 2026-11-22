@@ -1,3 +1,7 @@
+// This file transcribes the guide formulas of wedgeRectCallout from presetShapeDefinitions.xml (ECMA-376 Part 1, 5th edition, 2016).
+// (c) Ecma International. The default notice of Ecma's text copyright policy (version 3) applies: by obtaining and/or copying this work you agree to
+// comply with it. https://ecma-international.org/wp-content/uploads/Ecma_text_copyright_policy_version_3.pdf
+// Source: the unmodified copy in the public repository cuzic/ooxml-rs, reference/ecma-376-drawingml-geometries/ (commit d8741d4e).
 // A literal evaluation of ECMA-376 presetShapeDefinitions wedgeRectCallout (gdLst copied one to one), to compare with balloon.ts in 'office' mode.
 import type {Pt} from './balloon.ts';
 export function officeWedgeRect(w: number, h: number, adj1: number, adj2: number): Pt[] {

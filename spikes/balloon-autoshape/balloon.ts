@@ -36,37 +36,44 @@ const f2 = (n: number): number => Math.round(n * 100) / 100;
 const DELTA = 11 * Math.PI / 180; // Office wedgeEllipseCallout: the base spans +-11 degrees of the ellipse parameter
 const CLEAR_MIN = 4; // the base keeps at least this much of the straight part between itself and a corner arc (a rect has no arc)
 
+/**
+ * Finite numbers in (a body with w, h > 0; a tip that is not finite draws no tail), a string out. Degenerate input never gives NaN:
+ *  - a tip inside the body draws no tail (rect / round: strictly inside the bounding rectangle, as PR #436; ellipse / cloud: inside the outline);
+ *  - a side whose straight part is narrower than the wedge gets a narrower wedge (half = min(half, straight / 2)), and none below 1 px;
+ *  - radius = min(radius, w / 2, h / 2). This holds for a custom radius too.
+ */
 export function balloonOutline(shape: BalloonShape, body: Rect, tip?: Pt, o: BalloonOpts = {}): Balloon {
+  if (tip && !(Number.isFinite(tip[0]) && Number.isFinite(tip[1]))) tip = undefined;
   return shape === 'ellipse' ? ellipse(body, tip) : shape === 'cloud' ? cloud(body, tip) : wedgeRect(shape === 'round' ? Math.min(o.radius ?? 8, body.w / 2, body.h / 2) : 0, body, tip, o);
 }
 
-const insideRounded = (b: Rect, r: number, p: Pt): boolean => {
-  const qx = Math.abs(p[0] - (b.x + b.w / 2)) - (b.w / 2 - r), qy = Math.abs(p[1] - (b.y + b.h / 2)) - (b.h / 2 - r);
-  return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) < r;
-};
+/** rect / round: strictly inside the bounding rectangle (PR #436's rule; a tip in a corner cutout counts as inside, 3 px from the outline at most for r = 8). */
+const insideRect = (b: Rect, p: Pt): boolean => p[0] > b.x && p[0] < b.x + b.w && p[1] > b.y && p[1] < b.y + b.h;
 
 function wedgeRect(r: number, body: Rect, tip: Pt | undefined, o: BalloonOpts): Balloon {
   const {x, y, w, h} = body, right = x + w, bottom = y + h;
   const arc = (px: number, py: number): string => r > 0 ? `A${r} ${r} 0 0 1 ${f1(px)} ${f1(py)}` : '';
   let wedge: {side: Side; base: [[number, number], [number, number]]; tip: [number, number]; half: number} | undefined;
   const dxc = tip ? tip[0] - (x + w / 2) : 0, dyc = tip ? tip[1] - (y + h / 2) : 0;
-  const inside = tip ? insideRounded(body, r, tip) : false;
+  const inside = tip ? insideRect(body, tip) : false;
   if (tip && !inside) {
     // Office (dz > 0): top / bottom only when |dy| is strictly bigger than |dx| h / w; a tie leaves through a left / right side
     const side: Side = Math.abs(dyc) * w > Math.abs(dxc) * h ? (dyc > 0 ? 'bottom' : 'top') : (dxc > 0 ? 'right' : 'left');
     const along = side === 'top' || side === 'bottom', L = along ? w : h, o0 = along ? x : y;
+    const clear = Math.max(r, CLEAR_MIN), straight = L - 2 * clear; // the straight part of the side, less the 4 px a rect keeps from its corner
     let half: number, t: number;
     if (o.base === 'office') {
       const pos = along ? dxc : dyc; // the fractions of the side, 2/12..5/12 (tip on the low side) or 7/12..10/12
-      half = L / 8; t = o0 + (pos > 0 ? 8.5 : 3.5) / 12 * L;
+      half = Math.min(L / 8, straight / 2); t = o0 + (pos > 0 ? 8.5 : 3.5) / 12 * L;
     } else {
-      half = o.halfWidth ?? Math.min(Math.max(L / 4, 12), 28) / 2;
-      const clear = Math.max(r, CLEAR_MIN), lo = o0 + clear + half, hi = o0 + L - clear - half; // the wedge stays on the straight part
-      t = Math.min(Math.max(along ? tip[0] : tip[1], Math.min(lo, hi)), Math.max(lo, hi));
+      half = Math.min(o.halfWidth ?? Math.min(Math.max(L / 4, 12), 28) / 2, straight / 2);
+      t = along ? tip[0] : tip[1];
     }
+    t = Math.min(Math.max(t, o0 + clear + half), o0 + L - clear - half); // the wedge stays on the straight part; no swapping of the bounds
+    if (half < 1) half = 0;
     const at = (c: number): [number, number] => side === 'top' ? [c, y] : side === 'bottom' ? [c, bottom] : side === 'left' ? [x, c] : [right, c];
     const [a, b] = side === 'top' || side === 'right' ? [at(t - half), at(t + half)] : [at(t + half), at(t - half)];
-    wedge = {side, base: [a, b], tip: [tip[0], tip[1]], half};
+    if (half >= 1) wedge = {side, base: [a, b], tip: [tip[0], tip[1]], half};
   }
   const cut = (side: Side): string => wedge?.side === side ? `L${f1(wedge.base[0][0])} ${f1(wedge.base[0][1])}L${f1(wedge.tip[0])} ${f1(wedge.tip[1])}L${f1(wedge.base[1][0])} ${f1(wedge.base[1][1])}` : '';
   const d = `M${f1(x + r)} ${f1(y)}${cut('top')}H${f1(right - r)}${arc(right, y + r)}${cut('right')}V${f1(bottom - r)}${arc(right - r, bottom)}${cut('bottom')}H${f1(x + r)}${arc(x, bottom - r)}${cut('left')}V${f1(y + r)}${arc(x + r, y)}Z`;
@@ -91,17 +98,26 @@ function ellipse(b: Rect, tip?: Pt): Balloon {
 
 function cloudParams(b: Rect) {
   const a0 = b.w / 2, c0 = b.h / 2, per = Math.PI * (3 * (a0 + c0) - Math.sqrt((3 * a0 + c0) * (a0 + 3 * c0)));
-  const n = Math.max(8, Math.round(per / 46)), chord = per / n, R = chord * 0.62, bulge = R - Math.sqrt(R * R - chord * chord / 4);
-  return {n, R, a: a0 - bulge, c: c0 - bulge, cx: b.x + a0, cy: b.y + c0}; // the bumps stay inside the box
+  const n = Math.max(8, Math.round(per / 46)), nominal = per / n, bulge = 0.62 * nominal - Math.sqrt((0.62 * nominal) ** 2 - nominal * nominal / 4);
+  const a = Math.max(a0 - bulge, 1), c = Math.max(c0 - bulge, 1), cx = b.x + a0, cy = b.y + c0;
+  // the n points are spaced by ARC LENGTH along the envelope ellipse (equal parameter steps make the chords of a wide body very unequal)
+  const N = 4000, cum = [0]; let px = a, py = 0;
+  for (let k = 1; k <= N; k++) { const u = 2 * Math.PI * k / N, qx = a * Math.cos(u), qy = c * Math.sin(u); cum.push(cum[k - 1]! + Math.hypot(qx - px, qy - py)); px = qx; py = qy; }
+  const total = cum[N]!, us: number[] = [];
+  for (let i = 0, k = 0; i < n; i++) { const target = total * i / n; while (cum[k + 1]! < target) k++; us.push(2 * Math.PI * (k + (target - cum[k]!) / (cum[k + 1]! - cum[k]! || 1)) / N); }
+  const pts: Pt[] = us.map(u => [cx + a * Math.cos(u), cy + c * Math.sin(u)]);
+  // each bump's radius comes from its own chord: R_i = 0.62 chord_i >= chord_i / 2, so the arc always exists (no NaN)
+  const radii = pts.map((p, i) => 0.62 * Math.hypot(pts[(i + 1) % n]![0] - p[0], pts[(i + 1) % n]![1] - p[1]));
+  return {n, a, c, cx, cy, pts, radii};
 }
 /** The ellipse the bump arcs start and end on (not the outline: the bumps protrude past it). */
 export const cloudEnvelope = (b: Rect): Rect => { const {a, c, cx, cy} = cloudParams(b); return {x: cx - a, y: cy - c, w: 2 * a, h: 2 * c}; };
 /** The real outline of a cloud as a polygon (the bump arcs sampled `per` points each). */
 export function cloudPolygon(b: Rect, per = 16): Pt[] {
-  const {n, R, a, c, cx, cy} = cloudParams(b), at = (u: number): Pt => [cx + a * Math.cos(u), cy + c * Math.sin(u)], out: Pt[] = [];
+  const {n, cx, cy, pts, radii} = cloudParams(b), out: Pt[] = [];
   for (let i = 0; i < n; i++) {
-    const p0 = at(2 * Math.PI * i / n), p1 = at(2 * Math.PI * (i + 1) / n), mx = (p0[0] + p1[0]) / 2, my = (p0[1] + p1[1]) / 2;
-    const cdx = p1[0] - p0[0], cdy = p1[1] - p0[1], cl = Math.hypot(cdx, cdy), hh = Math.sqrt(R * R - cl * cl / 4);
+    const p0 = pts[i]!, p1 = pts[(i + 1) % n]!, R = radii[i]!, mx = (p0[0] + p1[0]) / 2, my = (p0[1] + p1[1]) / 2;
+    const cdx = p1[0] - p0[0], cdy = p1[1] - p0[1], cl = Math.hypot(cdx, cdy), hh = Math.sqrt(Math.max(R * R - cl * cl / 4, 0));
     let nx = -cdy / cl, ny = cdx / cl; if (nx * (mx - cx) + ny * (my - cy) < 0) { nx = -nx; ny = -ny; }
     const ccx = mx - nx * hh, ccy = my - ny * hh, s0 = Math.atan2(p0[1] - ccy, p0[0] - ccx);
     let da = Math.atan2(p1[1] - ccy, p1[0] - ccx) - s0; while (da <= -Math.PI) da += 2 * Math.PI; while (da > Math.PI) da -= 2 * Math.PI;
@@ -117,9 +133,9 @@ export const cloudRadii = (ss: number): [number, number, number] => [ss / 12, ss
 export const cloudMinLength = (ss: number): number => { const [r1, r2, r3] = cloudRadii(ss); return 2 * r1 + 2 * r2 + r3 + 6; };
 
 function cloud(b: Rect, tip?: Pt): Balloon {
-  const {n, R, a, c, cx, cy} = cloudParams(b), ss = Math.min(b.w, b.h), at = (u: number): Pt => [cx + a * Math.cos(u), cy + c * Math.sin(u)];
-  const P = (p: Pt): string => `${f2(p[0])} ${f2(p[1])}`, parts = [`M${P(at(0))}`];
-  for (let i = 1; i <= n; i++) parts.push(`A${f2(R)} ${f2(R)} 0 0 1 ${P(at(2 * Math.PI * i / n))}`);
+  const {n, cx, cy, pts, radii} = cloudParams(b), ss = Math.min(b.w, b.h);
+  const P = (p: Pt): string => `${f2(p[0])} ${f2(p[1])}`, parts = [`M${P(pts[0]!)}`];
+  for (let i = 1; i <= n; i++) parts.push(`A${f2(radii[i - 1]!)} ${f2(radii[i - 1]!)} 0 0 1 ${P(pts[i % n]!)}`);
   const d = parts.join('') + 'Z';
   if (!tip) return {d, length: 0, apex: 0, inside: false};
   const poly = cloudPolygon(b), inside = inPoly(tip, poly);
@@ -136,7 +152,7 @@ function cloud(b: Rect, tip?: Pt): Balloon {
   const e: Pt = [cx + ux * q, cy + uy * q], length = L - q, [r1, r2, r3] = cloudRadii(ss);
   // the first circle clears the real outline by 2 px (a bump next to the exit point can reach into a radial circle: push it out until it clears)
   let s1 = r1 + 2;
-  while (distToPolygon([e[0] + ux * s1, e[1] + uy * s1], poly) < r1 + 2 && s1 < 4 * r1) s1 += 0.25;
+  while (distToPolygon([e[0] + ux * s1, e[1] + uy * s1], poly) < r1 + 2 && s1 < 400) s1 += 0.25;
   const s3 = length, minLength = s1 + r1 + r2 + 2 + r2 + r3 + 2, s2 = Math.min(Math.max((s1 + s3) / 2, s1 + r1 + r2 + 2), s3);
   const dot = (s: number, r: number): {c: Pt; r: number} => ({c: [e[0] + ux * s, e[1] + uy * s], r});
   return {d, base: [e, e], tip, dots: [dot(s1, r1), dot(s2, r2), {c: tip, r: r3}], length, minLength, apex: 0, inside};

@@ -1,8 +1,15 @@
 8 directions x 4 shapes: 32 balloons; deterministic=true; every path closed=true
 regression (checks the code against itself): max distance of a rect / round / ellipse base point from the outline = 7.9e-8 px (one-decimal rounding for rect / round: <= 0.07); min distance of a rect / round base point from a corner, minus the radius = 2.6 px
-cloud, trail started from the real outline, 360 directions: first circle overlaps the outline in 0/360; gap min 2.00, max 2.25 px; smallest gap between circles 10.84 px
-cloud minimum tail length over the 360 directions (ss = 80): 30.4..42.7 px (the closed form 0.306 ss + 6 = 30.4 is the lower end; the first circle moves out where a bump is in the way)
-cloud minimum tail length for ss = 80: 30.4 px (= 0.306 ss + 6; Office's own limit g9 = 24.4 px). Trail circle gaps (direction 0) by length:
+cloud sweep, 24 sizes with width 100..600 x height 48..120 and aspect 1:1..6:1, 360 directions each: NaN directions 0; wrong inside 0; first circle overlapping the real outline 0; clearance min 2.00, max 2.25 px; minimum tail length 0.36..1.02 x ss (200x80 alone: 30.4..42.7 px = 0.38..0.53 x ss); smallest gap between circles at the minimum length 2.00 px
+  300x48 (6.3:1, beyond 6:1): NaN directions 0, overlaps 0
+  400x48 (8.3:1, beyond 6:1): NaN directions 0, overlaps 0
+  500x48 (10.4:1, beyond 6:1): NaN directions 0, overlaps 0
+  600x48 (12.5:1, beyond 6:1): NaN directions 0, overlaps 0
+  500x72 (6.9:1, beyond 6:1): NaN directions 0, overlaps 0
+  600x72 (8.3:1, beyond 6:1): NaN directions 0, overlaps 0
+  600x96 (6.3:1, beyond 6:1): NaN directions 0, overlaps 0
+the round-2 probe (cloud 300x120, tip (-111, 13), 111 px outside): inside=false, tail drawn=true, NaN in path=false
+200x80 cloud trail circle gaps by length (direction 0):
   length 23.7: gap(1,2) 2.0, gap(2,3) -4.8
   length 31.7: gap(1,2) 2.0, gap(2,3) 3.2
   length 39.7: gap(1,2) 4.4, gap(2,3) 8.8
@@ -41,7 +48,7 @@ corner target 1: side=top base x=304.0..332.0 y=120.0..120.0
 corner target 2: side=top base x=304.0..332.0 y=120.0..120.0
 corner target 3: side=right base x=340.0..340.0 y=128.0..148.0
 corner target 4: side=right base x=340.0..340.0 y=128.0..148.0
-tip in the corner cutout (round r=8, 1.5 px in from both edges): inside=false, as a rect: true
-balloonOutline('round', {radius: min(h/2,24), halfWidth: 8}) vs PR #436 balloonPath('say'): 2726/2726 random tips give the identical path text; 2 exact diagonal ties: 2 differ (the tie leaves through a left / right side here, through top / bottom in #436)
+tip in the corner cutout (round r=8, 1.5 px in from both edges): inside=true, as a rect: true
+vs PR #436 balloonPath (pushed head 52fd6fd6), say / think / shout, h 30..128, w 60..300: identical path text for 6000/6000 random tips (1492/1492 of them with a side narrower than the wedge); NaN in my output: 0; 2 exact diagonal ties differ: 2; NaN or Infinity with non-finite tips, tips inside, radii 0..500 on a 60x30 body: 0 of 64
 Office wedgeRectCallout (ECMA-376 gdLst, literal) vs balloonOutline('rect', base 'office'): 1779/1779 random tips (outside the body by >= 3 px) give the same polygon (4 corners + base, tip, base; 0.1 px). adj rounding moves a tip by at most 1.9e-3 px. Covered: rect + office only
 default adj1=-20833 adj2=62500 on 200x80 -> tip (58.3, 90.0); officeAdj of that tip = -20833,62500
