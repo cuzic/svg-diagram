@@ -38,6 +38,6 @@ export const TAIL_TOLERANCE = 0.17;
  * The comic keeps its paper and ink whatever the diagram's appearance (ADR 0074 D6: it is for print and export). The colours are the light
  * tokens, written as rgb() so that the dark recolouring (a hex-for-hex map, lib/tokens.ts recolor) does not touch them.
  */
-const rgb = (hex: string): string => `rgb(${[1, 3, 5].map(i => Number.parseInt(hex.slice(i, i + 2), 16)).join(',')})`;
+export const rgb = (hex: string): string => `rgb(${[1, 3, 5].map(i => Number.parseInt(hex.slice(i, i + 2), 16)).join(',')})`;
 export const COLOR = {ink: rgb(PALETTE.text), prompt: rgb(PALETTE.muted), filled: rgb(PALETTE.danger), paper: rgb(PALETTE.bg), warm: rgb(PALETTE.amber.soft), cool: rgb(PALETTE.blue.soft), bubble: rgb(PALETTE.bg), skin: rgb(PALETTE.amber.soft)} as const;
 export const f1 = (n: number): number => Math.round(n * 10) / 10;

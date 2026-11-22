@@ -29,20 +29,20 @@ test('loadCharacter keeps the box as it is (200 x 240, not made square) and the 
 
 test('a manifest with no licence is refused when it is loaded (comic-license-missing), whichever part is missing', () => {
   for (const lic of [undefined, {}, {spdx: 'CC-BY-4.0', author: 'x'}, {spdx: '', author: 'x', url: 'u'}, {spdx: 'a', author: 'b', url: 3}]) {
-    assert.throws(() => loadCharacter(withManifest({license: lic as never})), /comic-license-missing: character "colleague-a"/);
+    assert.throws(() => loadCharacter(withManifest({license: lic as never})), {message: /^comic-license-missing: 素材 "colleague-a"/});
   }
   assert.doesNotThrow(() => loadCharacter(ARTIST));
 });
 
 test('the shape is checked, naming the field: id, name, box, anchors, expressions', () => {
-  assert.throws(() => loadCharacter(withManifest({id: 'a.b'})), /id must be letters/);
-  assert.throws(() => loadCharacter(withManifest({name: ''})), /name is the display name/);
-  assert.throws(() => loadCharacter(withManifest({box: [0, 0, 0, 240] as never})), /box is \[x, y, width, height\]/);
+  assert.throws(() => loadCharacter(withManifest({id: 'a.b'})), /id が不正/);
+  assert.throws(() => loadCharacter(withManifest({name: ''})), /name に表示名/);
+  assert.throws(() => loadCharacter(withManifest({box: [0, 0, 0, 240] as never})), /box は \[x, y, width, height\]/);
   assert.throws(() => loadCharacter(withManifest({anchors: {head: {cx: 1, cy: 1, r: 0}, mouth: [0, 0]}})), /anchors\.head/);
   assert.throws(() => loadCharacter(withManifest({anchors: {head: {cx: 1, cy: 1, r: 5}, mouth: [0] as never}})), /anchors\.mouth/);
-  assert.throws(() => loadCharacter(withManifest({bubbleSides: ['bottom'] as never})), /bubbleSides "bottom"/);
-  assert.throws(() => loadCharacter(withManifest({expressions: {smile: '<g/>'}})), /at least neutral/);
-  assert.throws(() => loadCharacter(withManifest({expressions: {neutral: '<circle r="1"/>', grin: '<g/>'} as never})), /expression "grin"/);
+  assert.throws(() => loadCharacter(withManifest({bubbleSides: ['bottom'] as never})), /bubbleSides/);
+  assert.throws(() => loadCharacter(withManifest({expressions: {smile: '<g/>'}})), /少なくとも neutral/);
+  assert.throws(() => loadCharacter(withManifest({expressions: {neutral: '<circle r="1"/>', grin: '<g/>'} as never})), /表情 "grin"/);
 });
 
 test('the fragments are cleaned with the icon whitelist: no script, style, text, use, mask, filter, image, outside reference or named colour', () => {
@@ -59,18 +59,20 @@ test('the fragments are cleaned with the icon whitelist: no script, style, text,
   assert.throws(() => loadCharacter(frag('<circle r="1" fill="url(http://example.com/a.svg#g)"/>')), /only url\(#id\)/);
   assert.throws(() => loadCharacter(frag('<circle r="1" onclick="x()"/>')), /not supported/);
   assert.throws(() => loadCharacter(frag('<circle r="1" fill="url(#missing)"/>')), /does not define/);
+  assert.throws(() => loadCharacter(frag('<defs><linearGradient id="g"/><linearGradient id="g"/></defs><circle r="1" fill="url(#g)"/>')), /SVG の id が重複/);
   assert.doesNotThrow(() => loadCharacter(frag('<circle cx="1" cy="1" r="1" fill="#ffddbb" stroke="#222222"/>')));
 });
 
 test('the figure is placed so that the box\'s head circle is the stage head, and every anchor follows (a 200 x 240 box does not shift anything)', () => {
   const c = loadCharacter(ARTIST);
   const head = {cx: 300, cy: 200, r: 36};
-  const {scale, dx, dy} = placement(c, head);
-  assert.equal(scale, 0.643);
+  const {scale, x, y} = placement(c, head);
+  assert.equal(scale, 36 / 56);
+  assert.equal(Number(scale.toFixed(3)), 0.643);
   assert.deepEqual(mapPoint(c, head, [100, 90]), [300, 200], 'the head centre');
   assert.deepEqual(mapPoint(c, head, [100, 112]), [300, 214.1], 'the mouth, 22px below in the box = 14.1px on the panel');
   assert.deepEqual(mapPoint(c, head, [150, 190]), [332.1, 264.3], 'the hand');
-  assert.ok(Math.abs(dx - (300 - 100 * 36 / 56)) < 0.1 && Math.abs(dy - (200 - 90 * 36 / 56)) < 0.1);
+  assert.ok(Math.abs(x - (300 - 100 * 36 / 56)) < 0.1 && Math.abs(y - (200 - 90 * 36 / 56)) < 0.1);
   const svg = characterSvg(c, 'smile', head, 'x-')!;
   assert.match(svg, /^<svg data-character="colleague-a" x="[\d.]+" y="[\d.]+" width="128.6" height="154.3" viewBox="0 0 200 240" preserveAspectRatio="none" overflow="hidden">/);
   assert.ok(!svg.includes('transform='), 'no transform: the nested viewBox does the placing');
@@ -78,6 +80,19 @@ test('the figure is placed so that the box\'s head circle is the stage head, and
   const at = /x="([\d.]+)" y="([\d.]+)"/.exec(svg)!;
   assert.ok(Math.abs(Number(at[1]) + 100 * 0.643 - 300) < 0.2 && Math.abs(Number(at[2]) + 90 * 0.643 - 200) < 0.2);
   assert.equal(characterSvg(c, 'angry', head, 'x-'), undefined, 'an expression the character does not have');
+});
+
+test('moving the viewBox origin and its anchors together leaves the placed viewport and points in the same place', () => {
+  const head = {cx: 300, cy: 200, r: 36};
+  const original = loadCharacter(ARTIST);
+  const shifted = loadCharacter(withManifest({
+    box: [10000, -20000, 200, 240],
+    anchors: {head: {cx: 10100, cy: -19910, r: 56}, mouth: [10100, -19888]},
+  }));
+  const viewport = (c: typeof original) => /^<svg [^>]*? (x="[^"]+" y="[^"]+" width="[^"]+" height="[^"]+")/.exec(characterSvg(c, 'neutral', head, 'x-') ?? '')?.[1];
+  assert.ok(viewport(original));
+  assert.equal(viewport(shifted), viewport(original));
+  assert.deepEqual(mapPoint(shifted, head, shifted.anchors.mouth), [300, 214.1]);
 });
 
 test('the layout of a panel is the same with an artist\'s character as with the built-in face: the heads, the bubbles and the stacking come from the anchors alone', () => {
@@ -102,14 +117,16 @@ test('a missing asset or a missing expression is a problem (comic-asset-missing)
   assert.deepEqual(unknown.panels[0]!.heads[1]!.look.kind, 'face');
   const noExpression = lay(sheet('colleague-a', 'angry'), {'colleague-a': ARTIST});
   assert.deepEqual(noExpression.findings.map(f => [f.rule, f.where]), [['comic-asset-missing', 'p1.col']]);
-  assert.match(noExpression.findings[0]!.message, /no "angry" expression/);
+  assert.match(noExpression.findings[0]!.message, /表情 "angry" がありません/);
   assert.deepEqual(noExpression.panels[0]!.heads[1]!.look.kind, 'face');
   assert.deepEqual(noExpression.panels[1]!.heads[0]!.look, {kind: 'asset', asset: 'colleague-a'}, 'the other panel still has its character');
+  const inherited = lay(sheet('constructor'), {'colleague-a': ARTIST});
+  assert.deepEqual(inherited.findings.map(f => f.rule), ['comic-asset-missing', 'comic-asset-missing']);
 });
 
 test('comic() loads the characters it is given: a licence-less one throws, and a character is keyed by its id', () => {
   assert.throws(() => comic(sheet('colleague-a'), {characters: {'colleague-a': withManifest({license: undefined as never})}}), /comic-license-missing/);
-  assert.throws(() => comic(sheet('colleague-a'), {characters: {other: ARTIST}}), /key it by its id/);
+  assert.throws(() => comic(sheet('colleague-a'), {characters: {other: ARTIST}}), /キー "other" を素材の id "colleague-a" に/);
   const band = comic(sheet('colleague-a'), {characters: {'colleague-a': ARTIST}});
   assert.deepEqual(Object.keys(band.characters!), ['colleague-a']);
   assert.ok(!('characters' in comic(sheet())), 'no characters, no field');

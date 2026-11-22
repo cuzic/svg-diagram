@@ -65,16 +65,20 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
       taken.add(s.at);
       if (heads.has(s.who)) continue;
       const cx = px + headX(s.at, PW);
-      const head: ComicLaidHead = {id: `${p.id}.${s.who}`, who: s.who, name: sheet.cast[s.who]?.name ?? s.who, expression: s.expression, look: {kind: 'face', hue: 0, hair: 'short'}, cx, cy: headCy, r: HEAD_R, mouth: [cx, f1(headCy + HEAD_R * 0.42)]};
-      // who is drawn how: an artist's character when the cast names an asset (and it has this expression), else the built-in face
-      const cast = sheet.cast[s.who], ch = cast?.asset === undefined ? undefined : band.characters?.[cast.asset];
-      if (cast?.asset !== undefined && !ch) add('comic-asset-missing', head.id, `${head.id}: the asset "${cast.asset}" of ${s.who} is not among the characters given (pass it in comic(sheet, {characters}), or use face instead)`);
-      else if (ch && ch.expressions[s.expression] === undefined) add('comic-asset-missing', head.id, `${head.id}: the character "${ch.id}" has no "${s.expression}" expression (draw it, or use another expression)`);
+      const cast = sheet.cast[s.who], asset = cast?.asset;
+      const ch = asset !== undefined && band.characters && Object.hasOwn(band.characters, asset) ? band.characters[asset] : undefined;
+      const head: ComicLaidHead = {
+        id: `${p.id}.${s.who}`, who: s.who, name: cast?.name ?? s.who, expression: s.expression,
+        look: {kind: 'face', hue: cast?.face?.hue ?? defaultHue(sheet.cast, s.who), hair: cast?.face?.hair ?? 'short'},
+        cx, cy: headCy, r: HEAD_R, mouth: [cx, f1(headCy + HEAD_R * 0.42)],
+      };
+      if (asset !== undefined && !ch) add('comic-asset-missing', head.id, `${head.id} の素材 "${asset}" がありません。comic(sheet, {characters}) に素材を渡すか、cast の asset を外してください`);
+      else if (ch && ch.expressions[s.expression] === undefined) add('comic-asset-missing', head.id, `${head.id} の素材 "${ch.id}" に表情 "${s.expression}" がありません。断片を足すか、別の表情を指定してください`);
       if (ch?.expressions[s.expression] !== undefined) {
         head.look = {kind: 'asset', asset: ch.id};
         head.mouth = mapPoint(ch, head, ch.anchors.mouth);
         if (ch.anchors.hand) head.hand = mapPoint(ch, head, ch.anchors.hand);
-      } else head.look = {kind: 'face', hue: cast?.face?.hue ?? defaultHue(sheet.cast, s.who), hair: cast?.face?.hair ?? 'short'};
+      }
       heads.set(s.who, head);
     }
     const label = sheet.numbering === false ? undefined : sheet.labels?.[pi] ?? String(pi + 1);

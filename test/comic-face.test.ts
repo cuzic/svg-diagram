@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {faceSvg, clothesColor, hairColor} from '../lib/comic/face.ts';
 import {EXPRESSIONS} from '../lib/comic/character.ts';
-import {COLOR} from '../lib/comic/constants.ts';
+import {COLOR, rgb} from '../lib/comic/constants.ts';
 import {layoutComic} from '../lib/comic/layout.ts';
 import {comic} from '../lib/dsl-pure.ts';
 import {PALETTE, wcagRatio} from '../lib/tokens.ts';
@@ -59,18 +59,27 @@ test('the ink and the paper are far apart (the keyline makes every boundary read
   assert.ok(wcagRatio(PALETTE.text, PALETTE.bg) >= 15);
 });
 
-test('every hue and both hair styles keep the same structure (the boundaries do not depend on the colours)', () => {
+test('every hue, hair style and expression keeps the three-layer boundaries', () => {
   const shape = (svg: string) => svg.replace(/hsl\([^)]*\)/g, 'hsl').replace(/data-face="[a-z]+"/, '');
-  const base = shape(fig('neutral', 0));
-  for (let hue = 0; hue < 360; hue += 30) assert.equal(shape(fig('neutral', hue)), base);
-  for (const e of EXPRESSIONS) for (const hair of ['short', 'long'] as const) {
-    const svg = fig(e, 123, hair);
-    assert.equal(strokes(svg).filter(s => s.stroke === COLOR.paper).length, hair === 'long' ? 4 : 2, `${e} ${hair}`);
-    assert.ok(!/<(text|use|filter|style|script|image)[ >]/.test(svg));
+  const boundaries = (svg: string) => {
+    const lines = strokes(svg);
+    return lines.flatMap((line, i) => line.stroke === COLOR.paper ? [line, lines[i + 1]] : []);
+  };
+  for (const hair of ['short', 'long'] as const) {
+    const base = boundaries(fig('neutral', 0, hair));
+    assert.equal(base.length, hair === 'long' ? 8 : 4);
+    for (const expression of EXPRESSIONS) {
+      const svg = fig(expression, 0, hair);
+      const expected = shape(svg);
+      assert.deepEqual(boundaries(svg), base, `${expression} ${hair}`);
+      assert.doesNotMatch(svg, /<(text|use|filter|style|script|image)[ >]/);
+      for (let hue = 1; hue < 360; hue++) assert.equal(shape(fig(expression, hue, hair)), expected, `${expression} ${hair} ${hue}`);
+    }
   }
 });
 
 test('the colours: skin is the token U1 used, the hair and the clothes come from the hue', () => {
+  assert.equal(rgb('#a10BfF'), 'rgb(161,11,255)');
   assert.equal(COLOR.skin, 'rgb(241,227,211)');
   const s = fig('neutral', 210);
   assert.ok(s.includes(`fill="${COLOR.skin}"`) && s.includes(`fill="${hairColor(210)}"`) && s.includes(`fill="${clothesColor(210)}"`));
@@ -94,6 +103,7 @@ test('a person with no face gets a hue from the place in the cast (the same in e
 
 test('comic() checks the face: hue is a whole number from 0 to 359, hair is short or long', () => {
   for (const hue of [-1, 360, 1.5, Number.NaN]) assert.throws(() => comic(sheet({a: {name: 'A', face: {hue}}, b: {name: 'B'}, c: {name: 'C'}})), /face\.hue/);
+  assert.throws(() => comic(sheet({a: {name: 'A', face: null as never}, b: {name: 'B'}, c: {name: 'C'}})), /face\.hue/);
   assert.throws(() => comic(sheet({a: {name: 'A', face: {hue: 1, hair: 'bob' as 'short'}}, b: {name: 'B'}, c: {name: 'C'}})), /face\.hair/);
   assert.doesNotThrow(() => comic(sheet({a: {name: 'A', face: {hue: 359, hair: 'long'}}, b: {name: 'B'}, c: {name: 'C'}})));
 });
