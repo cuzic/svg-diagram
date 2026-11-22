@@ -148,7 +148,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 | `chevron` / `funnel` / `cycle` / `venn` / `concentric` / `emblem` / `valueChain` | 各項目の図形（矢羽根・段・丸・集合・輪・記号・活動の帯。concentric の印も）。項目の文字は付かない |
 | `quadrant` | 各項目の印（円・四角・菱形・三角）**と**名前の文字（折り返した行ごと） |
 
-`id` のない項目には付かない。**付かない部品**（`id` は `connect()` で使えるが、`data-node` は出ない）: `cloud`、`gantt`、`states`、`classes`、`fta` / `bowtie`、`chart` 系、`bars`、`image` の印、`causeTree` の六角形、`bpmn` のイベントとゲート。必要になったら `lib/emit-node-ids.ts` の `withNodeIdsBand` に足す。
+`id` のない項目には付かない。**付かない部品**（`id` は `connect()` で使えるが、`data-node` は出ない）: `cloud`、`gantt`、`states`、`classes`、`fta` / `bowtie`、`comic`、`chart` 系、`bars`、`image` の印、`causeTree` の六角形、`bpmn` のイベントとゲート。必要になったら `lib/emit-node-ids.ts` の `withNodeIdsBand` に足す。
 
 枠の上に重なる文字（`box` や flow shape の項目名）は、`<text>` が枠の兄弟として並ぶので、クリックの `event.target` は `<text>` になる。表示する側で `text { pointer-events: none }` にすると、クリックが枠に届く（`quadrant` は文字にも `data-node` が付くので不要）。
 
@@ -1334,6 +1334,7 @@ math(String.raw`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`, {role: 'stat
   - IS/IS NOT 表: `isisnot-no-isnot`（IS NOT が空の行）、`isisnot-no-distinct-at-all`（「違い」が 1 つも無い）、`isisnot-no-hypothesis-stands`（説明できない行が 0 の仮説が無い。常に info）。
   - なぜなぜ分析: `whywhy-no-root`（真因の無い鎖）、`whywhy-measure-without-root`（真因が無いのに対策がある）、`whywhy-single-chain`（鎖が 1 本だけ。常に info）、`whywhy-dig-below-root`（真因の下を掘っている。木のみ・常に info）。
   - ボウタイ図: `bowtie-barrier-missing`（バリアが 1 つも無い脅威・結果）。
+  - マンガ（`comic`）: `comic-bubble-wide`（ふきだしの文が全角 11 字より広い）、`comic-orphan-line`（最後の行が 2 字以下）、`comic-follower-split`（穴の後ろの短いひらがなが穴から切れている）。データの誤りと配置の誤り（話し手が舞台にいない、ふきだしが頭の上の帯に積みきれない、しっぽが口を向かない ほか）は規則名つき(`[comic-…]`)の問題として `check` が止める（ADR 0074）。
 
 ## 表記・数値の整合と差分だけの検査（`check`）
 - **表記の揺れ**（`term-variant`）: 1 つの図の中で、同じ語が `ユーザ` / `ユーザー`（末尾の長音）や `API` / `Api`（大文字・大小混在）のように揺れていると警告する。`Server` と `server` のような文頭の大文字だけの差、数字や `-` `_` を含む ID は見ない。
@@ -1515,6 +1516,7 @@ d.add(flow, connect(flow.anchors.a.right, flow.anchors.b.left));   // screens() 
 | `whyWhyTable(problem, chains, opts)` | なぜなぜ分析の表。`chains: {whys: string[], trueCause?, measure?}[]`（1 鎖 = 1 行）。列は 問題 | なぜ 1…N（最も長い鎖）| 真因 | 対策。同じ原因を共有する鎖は同じ文を繰り返す（表に行の結合は無い）。検査は `whywhy-*`。木で描く `whyWhyTree` は別の関数 |
 | `whyWhyTree(problem, whys, {id, maxNodeW, readingNote})` | なぜなぜ分析の木（`causeTree` で描く）。`whys: {why, because?, trueCause?: true, measure?, id?}[]`（`because` は「なぜ?」の答え）。問題を上に、答えを下へ並べ（辺は原因 → 結果で、矢印は問題へ向かう）、**なぜ n は枝が変わっても同じ段**（折り返さない。幅が足りなければ、折り返さずに理由つきで止まる）。真因（`trueCause: true`）は二重枠（役割 `root`）、`measure` は破線の箱で真因を「断つ」辺（棒）で結ぶ。`legend: 'auto'` では「根本原因」「対策」「断つ」が出る（`legendLabels: {'role:root': '真因'}` で言い換える）。返り値は木と、読む向きの 1〜2 行（`.add()` に渡す。`readingNote: false` で外す）。`opts.id` を付けると節は `<id>.problem`（問題）/ `<id>.w1` / `<id>.w1.1` / `<id>.w1.m`（対策）のアンカーになる（型も通る。ただし 1 回の `add()` に展開（`...`）と `connect()` を混ぜると型の追跡が切れるので、`.add(...whyWhyTree(...)).add(connect(...))` のように分けるか、展開せずに `.add(box, tree, connect(...))` と渡す）。付けない図では、自分で `id` を書いた節だけがアンカー（同じ図に 2 つ置いても衝突しない）。段が多いとスライドの高さを超えやすい（スライドなら `whyWhyTable`、または段を減らす）。例は `examples/why-why.ts` |
 | `bowtie({hazard?, top, threats, consequences}, {id, maxNodeW})` | ボウタイ図。中央が頂上事象（`top`。制御を失うこと。説明は矩形、結び目の円をその上に添える）で、上に `hazard`（何を制御しているか）。左は `threats: {label, barriers?}[]`（脅威から順に予防バリア）、右は `consequences`（頂上事象から順に低減バリア、最後が結果）。流れはすべて左から右で、矢じりは流れの先に付く。脅威と結果の行数が違うときは少ない側を縦に均等に置く。幅が足りないとき `maxNodeW` を省略すると縮めて警告（`'auto'` なら注、数値なら縮めず止まる）。収まる量の目安は、1 行（脅威 + 予防バリア + 頂上事象 + 低減バリア + 結果）の箱が左右合わせて 6 個ほどまで（既定の幅 900px。箱は 88px、頂上事象は 150px より縮まない）。劣化要因・バリアの種類の印・凡例は未実装。検査は `bowtie-barrier-missing`。例は `examples/bowtie.ts` |
+| `comic(sheet, {id, aspect, scope})` / `speechBubble(dialogue)` | 穴(空欄 `{id}`)のあるマンガ(ADR 0074、第 1 版: 配置まで)。`sheet` は意味が先のデータ(`{version: 1, title, layout: '1x4' \| '2x2' \| '1x3' \| '1x2', cast, panels: [{id, stage: [{who, at, expression}], dialogue: [{id, who, kind: 'say' \| 'think' \| 'shout' \| 'narration', tpl, slots}]}]}`)で、座標や大きさは書かない。コマ・人物(仮の丸)・ふきだし(しっぽは話し手の口へ)は決まりから置く。コマの縦横比 `aspect` は `'6:5'`(既定。2×2 は `'1:1'`)/ `'7:5'`。ふきだしの大きさは穴を最大の字数で数えて決めるので、値を入れても動かない(値を入れる `renderComic` は後の段階)。`speechBubble()` は台詞 1 つを検査して返す(ADR の名前は `bubble()` だが、バブルチャートの `bubble` がある)。1 つのコマに穴は 2 個まで。例は `examples/comic-column.ts`、`comic-grid.ts`。PowerPoint には、図 1 枚の絵(PNG と SVG)として出る |
 | `qfd(demands, characteristics, relations, opts)` | 要求 `{label, importance}` × 品質特性に `◎`(9) / `○`(3) / `△`(1) / `×`(0)。下段に得点（重要度 × 9 / 3 / 1 / 0 の列合計）と相対 %。単独首位の得点は太字（`highlight: false` で無効） |
 | `journeyMap(stages, lanes, opts)` | レーン `{id, label, cells}` をステージ横断で表示。`id: 'emotion'` は数値範囲（既定 -2〜+2）を検証し、行の上側に値と記号（中央より上 ◎、中央 △、下 ×）、その下に折れ線と点を描く。破線は範囲の中央。範囲は `emotionRange: [min, max]` |
 

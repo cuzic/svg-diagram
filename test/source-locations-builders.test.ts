@@ -17,6 +17,7 @@ const nonBuilders = {
   isType: 'returns a predicate',
   renderDiagram: 'returns a render result',
   rewrite: 'restyles existing parts',
+  speechBubble: 'returns a line of dialogue, not a band',
   stateRow: 'returns options for a state matrix row',
   styled: 'returns a builder',
   tally: 'returns a string',
