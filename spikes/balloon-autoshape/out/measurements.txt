@@ -1,0 +1,34 @@
+8 directions x 4 shapes: 32 balloons; deterministic=true; every path closed=true
+rect/round/ellipse: max distance of a base point from the outline = 7.93e-8 px; min distance of a rect/round base point from a corner (minus the corner radius) = 4.0 px
+cloud: gap between the outline envelope and the first trail circle, 8 directions: min 0.9, max 3.0 px
+| shape | gap to the outline (px) | tail length (px) | inside | note |
+| rect | -20 | 20.0 | true |  |
+| rect | 0 | 0.0 | false | tail shorter than 6px: too short |
+| rect | 2 | 2.0 | false | tail shorter than 6px: too short |
+| rect | 4 | 4.0 | false | tail shorter than 6px: too short |
+| rect | 8 | 8.0 | false |  |
+| rect | 16 | 16.0 | false |  |
+| round | -20 | 20.0 | true |  |
+| round | 0 | 0.0 | false | tail shorter than 6px: too short |
+| round | 2 | 2.0 | false | tail shorter than 6px: too short |
+| round | 4 | 4.0 | false | tail shorter than 6px: too short |
+| round | 8 | 8.0 | false |  |
+| round | 16 | 16.0 | false |  |
+| ellipse | -20 | 18.2 | true |  |
+| ellipse | 0 | 1.8 | false | tail shorter than 6px: too short |
+| ellipse | 2 | 3.8 | false | tail shorter than 6px: too short |
+| ellipse | 4 | 5.8 | false | tail shorter than 6px: too short |
+| ellipse | 8 | 9.8 | false |  |
+| ellipse | 16 | 17.8 | false |  |
+| cloud | -20 | 8.3 | true |  |
+| cloud | 0 | 11.7 | false |  |
+| cloud | 2 | 13.7 | false |  |
+| cloud | 4 | 15.7 | false |  |
+| cloud | 8 | 19.7 | false |  |
+| cloud | 16 | 27.7 | false |  |
+corner target 1: side=top base x=294.7..322.7 y=120.0..120.0
+corner target 2: side=top base x=294.7..322.7 y=120.0..120.0
+corner target 3: side=right base x=340.0..340.0 y=137.3..157.3
+corner target 4: side=right base x=340.0..340.0 y=137.3..157.3
+Office wedgeRectCallout (ECMA-376 gdLst, literal) vs balloon('rect', office mode): 1779/1779 random tips give the same polygon (same vertex set within 0.02 px, the path text is rounded to 0.01); adj rounding moves a tip by at most 1.9e-3 px
+default adj1=-20833 adj2=62500 on 200x80 -> tip (58.3, 90.0); officeAdj of that tip = -20833,62500
