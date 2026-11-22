@@ -3,13 +3,15 @@
 import {BADGE, FONT, GUTTER, HEAD_FROM_BOTTOM, HEAD_KEEP, HEAD_R, LINE_H, MARGIN, PAD_X, PAD_Y, PANEL_W, PANEL_W_2X2, NARRATION_LEFT, SIDE_KEEP, SLOT_FONT, SLOT_MAX, STACK_GAP, STAGE_X, TAIL_CLEAR, TAIL_HALF, TAIL_MIN, TAIL_STOP, ZONE_TOP, f1} from './constants.ts';
 import {ceil4} from '../connect-rules.ts';
 import {snap4} from '../emit-common.ts';
+import {rectOverlap} from '../verify-base.ts';
 import {comicAtomWidth} from './width.ts';
 import {fillTemplate, parseTemplate, slotIdsOf} from './template.ts';
 import {balloonPath} from './balloon-path.ts';
+import {characterOverhang, mapPoint} from './character.ts';
 import {reserveDialogue} from './reserve.ts';
 import type {Reserved} from './reserve.ts';
 import {checkBubbleFace, checkTail, tailCrosses} from './check.ts';
-import type {BubbleKind, ComicAspect, ComicAt, ComicBand, ComicFinding, ComicLaidBubble, ComicLaidHead, ComicLaidPanel, ComicLaidSlot, ComicLayoutName, ComicRule, ComicRun, ComicSlotDef, ComicText, LaidOutComic} from '../types/comic.ts';
+import type {BubbleKind, ComicAspect, ComicAt, ComicBand, ComicFinding, ComicLaidBubble, ComicLaidHead, ComicLaidPanel, ComicLaidSlot, ComicLayoutName, ComicRule, ComicRun, ComicSlotDef, ComicText, ComicWorksheet, LaidOutComic} from '../types/comic.ts';
 import type {Anchor, Rect, WidthOf} from '../types/core.ts';
 
 /** The panels of each named layout: columns x rows. */
@@ -35,6 +37,9 @@ const MAX_BUBBLE_LINES = 3;
 interface SlotInfo {max: number; def: ComicSlotDef | undefined}
 export const slotMax = (def: ComicSlotDef | undefined): number | undefined => def?.max ?? (def?.choices?.length ? Math.max(...def.choices.map(c => [...c].length)) : undefined);
 
+/** A fixed hue by cast position, stepping around the colour wheel by approximately the golden angle. */
+const defaultHue = (cast: ComicWorksheet['cast'], who: string): number => (210 + 137 * Math.max(0, Object.keys(cast).indexOf(who))) % 360;
+
 const headX = (at: ComicAt, w: number): number => at === 'left' ? STAGE_X : at === 'right' ? w - STAGE_X : Math.floor(w / 2 / 4) * 4;
 
 export function layoutComic(band: ComicBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutComic {
@@ -55,13 +60,30 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
   sheet.panels.forEach((p, pi) => {
     const px = bx + MARGIN + (pi % cols) * (PW + GUTTER), py = by + MARGIN + Math.floor(pi / cols) * (PH + GUTTER);
     const heads = new Map<string, ComicLaidHead>(), taken = new Set<ComicAt>();
+    const overhangs: {id: string; bounds: Rect}[] = [];
     const headCy = py + PH - HEAD_FROM_BOTTOM;
     for (const s of p.stage) {
       if (taken.has(s.at)) add('comic-at-collision', p.id, `two people stand at ${s.at} in ${p.id} (use left / center / right once each)`);
       taken.add(s.at);
       if (heads.has(s.who)) continue;
       const cx = px + headX(s.at, PW);
-      heads.set(s.who, {id: `${p.id}.${s.who}`, who: s.who, name: sheet.cast[s.who]?.name ?? s.who, expression: s.expression, cx, cy: headCy, r: HEAD_R, mouth: [cx, f1(headCy + HEAD_R * 0.42)]});
+      const cast = sheet.cast[s.who], asset = cast?.asset;
+      const ch = asset !== undefined && band.characters && Object.hasOwn(band.characters, asset) ? band.characters[asset] : undefined;
+      const head: ComicLaidHead = {
+        id: `${p.id}.${s.who}`, who: s.who, name: cast?.name ?? s.who, expression: s.expression,
+        look: {kind: 'face', hue: cast?.face?.hue ?? defaultHue(sheet.cast, s.who), hair: cast?.face?.hair ?? 'short'},
+        cx, cy: headCy, r: HEAD_R, mouth: [cx, f1(headCy + HEAD_R * 0.42)],
+      };
+      if (asset !== undefined && !ch) add('comic-asset-missing', head.id, `${head.id} の素材 "${asset}" がありません。comic(sheet, {characters}) に素材を渡すか、cast の asset を外してください`);
+      else if (ch && ch.expressions[s.expression] === undefined) add('comic-asset-missing', head.id, `${head.id} の素材 "${ch.id}" に表情 "${s.expression}" がありません。断片を足すか、別の表情を指定してください`);
+      if (ch?.expressions[s.expression] !== undefined) {
+        head.look = {kind: 'asset', asset: ch.id};
+        head.mouth = mapPoint(ch, head, ch.anchors.mouth);
+        if (ch.anchors.hand) head.hand = mapPoint(ch, head, ch.anchors.hand);
+        const bounds = characterOverhang(ch, head);
+        if (bounds) overhangs.push({id: head.id, bounds});
+      }
+      heads.set(s.who, head);
     }
     const label = sheet.numbering === false ? undefined : sheet.labels?.[pi] ?? String(pi + 1);
     panels.push({id: p.id, x: px, y: py, w: PW, h: PH, ...(label === undefined ? {} : {label}), tint: p.bg?.tint ?? 'plain', heads: [...heads.values()]});
@@ -85,10 +107,13 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
       // stacked under every earlier bubble it overlaps sideways, or that lies to its right (side by side only when the earlier ones are all to its left)
       const under = placed.filter(q => (q.x < left + bw + STACK_GAP && left < q.x + q.w + STACK_GAP) || left < q.x);
       const top = Math.max(py + zone.top, ...under.map(q => q.y + q.h + STACK_GAP));
-      placed.push({x: left, y: top, w: bw, h: bh, lines: R.lines.length});
+      const rect = {x: left, y: top, w: bw, h: bh};
+      placed.push({...rect, lines: R.lines.length});
       // the root causes first; the face and tail checks of a bubble that overflowed are its consequences, so they do not run (one mistake, one report)
-      const overflowed = top + bh > py + zone.bottom;
-      if (overflowed) add('comic-bubble-zone', id, `${id}: the stack ends ${top + bh - py}px from the top of the panel, but the band over the heads ends at ${zone.bottom}px (fewer or shorter lines: at most ${budget} lines in all)`);
+      const pastZone = top + bh > py + zone.bottom;
+      const overhang = pastZone ? undefined : overhangs.find(({bounds}) => rectOverlap(rect, bounds, 0));
+      if (pastZone) add('comic-bubble-zone', id, `${id}: the stack ends ${top + bh - py}px from the top of the panel, but the band over the heads ends at ${zone.bottom}px (fewer or shorter lines: at most ${budget} lines in all)`);
+      else if (overhang) add('comic-bubble-zone', id, `${id} が ${overhang.id} の素材の上部に重なります。台詞を短くするか、人物や素材の絵の位置を調整してください`);
       const stackLines = R.lines.length + under.reduce((n, q) => n + q.lines, 0);
       if (!budgetReported && (stackLines > budget || R.lines.length > MAX_BUBBLE_LINES)) {
         budgetReported = true;
@@ -131,12 +156,12 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
       });
       for (const r of runs) texts.push({x: r.x, y: r.y, size: FONT, text: r.text});
       for (const s of slots) texts.push({x: f1(s.x + s.w / 2), y: f1(s.y + s.h - 5), size: SLOT_FONT, text: s.prompt});
-      const bubble: ComicLaidBubble = {id, panel: p.id, kind: dlg.kind, ...(dlg.who === undefined ? {} : {who: dlg.who}), x: left, y: top, w: bw, h: bh, lines: R.lines.map(l => l.atoms.map(a => a.text).join('')), runs, slots, title: fillTemplate(parts, () => '＿＿')};
+      const bubble: ComicLaidBubble = {id, panel: p.id, kind: dlg.kind, ...(dlg.who === undefined ? {} : {who: dlg.who}), ...rect, lines: R.lines.map(l => l.atoms.map(a => a.text).join('')), runs, slots, title: fillTemplate(parts, () => '＿＿')};
       const tail = speaker && dlg.kind !== 'narration' ? tailOf(bubble, speaker) : undefined;
       if (tail) bubble.tail = tail;
       bubbles.push(bubble);
-      anchors.push({id, x: left, y: top, w: bw, h: bh});
-      if (overflowed) skipChecks.add(id);
+      anchors.push({id, ...rect});
+      if (pastZone || overhang) skipChecks.add(id);
       else for (const h of heads.values()) checkBubbleFace(bubble, h, add);
     }
     // the tails, once every bubble of the panel is placed. A tail that runs behind another bubble of its own speaker is dropped (the bubble below
@@ -154,7 +179,7 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
     if (panelSlots.size > 2) add('comic-slots-per-panel', p.id, `${p.id} has ${panelSlots.size} blanks (at most 2 in a panel: the reader fills them in one glance)`);
   });
   return {type: 'comic', ...(band.id === undefined ? {} : {id: band.id}), ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until}),
-    x: bx, y: by, w: W, h: H, title: sheet.title, layout: sheet.layout, aspect, blank: sheet.blank ?? 'prompt', panels, bubbles, anchors, texts, findings};
+    x: bx, y: by, w: W, h: H, title: sheet.title, layout: sheet.layout, aspect, blank: sheet.blank ?? 'prompt', panels, bubbles, anchors, texts, findings, characters: {...band.characters}};
 }
 
 const wrapNote = (n: 'orphan-line' | 'bubble-wide' | 'follower-split', id: string, r: Reserved): string => n === 'orphan-line' ? `${id}: the last line is two characters or fewer ("${r.lines.at(-1)?.atoms.map(a => a.text).join('') ?? ''}"); lengthen it or merge it into the line before`

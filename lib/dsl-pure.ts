@@ -151,6 +151,7 @@ export const flowchart = located(diagrams.flowchart);
 export const causeTree = located(diagrams.causeTree);
 export const whyWhyTree = located(diagrams.whyWhyTree);
 export const bowtie = located(diagrams.bowtie);
+export type * from './dsl/comic.ts';
 export const comic = located(comics.comic);
 export {speechBubble} from './dsl/comic.ts';
 export const arrowDiagram = located(diagrams.arrowDiagram);

@@ -2,14 +2,15 @@
 // them out (lib/comic/). The constructors throw on what cannot be drawn at all (an unknown layout, a malformed id or template); what a worksheet may
 // get wrong and still be drawn (a speaker not on the stage, too many lines) is a finding of the check, not an error here.
 import {COMIC_ID, parseTemplate} from '../comic/template.ts';
+import {EXPRESSIONS, loadCharacter} from '../comic/character.ts';
 import type {Declares, HandleOf} from '../strict.ts';
-import type {BubbleKind, ComicAspect, ComicAt, ComicBand, ComicDialogue, ComicExpression, ComicOpts, ComicPanel, ComicSlotDef, ComicWorksheet} from '../types/comic.ts';
+import type {BubbleKind, ComicAspect, ComicAt, ComicBand, ComicDialogue, ComicOpts, ComicPanel, ComicSlotDef, ComicWorksheet} from '../types/comic.ts';
 import {revealOf, scopeOpt, withHandle} from './shared.ts';
+export type {BubbleKind, CharacterManifest, ComicAspect, ComicAt, ComicBand, ComicCast, ComicDialogue, ComicExpression, ComicLayoutName, ComicOpts, ComicPanel, ComicSlotDef, ComicStage, ComicWorksheet} from '../types/comic.ts';
 
 const LAYOUTS = ['1x4', '2x2', '1x3', '1x2'] as const;
 const KINDS: readonly BubbleKind[] = ['say', 'think', 'shout', 'narration'];
 const ATS: readonly ComicAt[] = ['left', 'center', 'right'];
-const EXPRESSIONS: readonly ComicExpression[] = ['neutral', 'smile', 'laugh', 'surprise', 'worry', 'angry', 'think', 'sad'];
 const ASPECTS: readonly ComicAspect[] = ['7:5', '6:5', '1:1'];
 
 const assertId = (id: unknown, what: string): string => {
@@ -67,7 +68,15 @@ export function comic(sheet: ComicWorksheet, opts: ComicOpts = {}): ComicBand {
   if (typeof sheet.title !== 'string' || sheet.title === '') throw new Error('comic(): title is the name of the comic');
   oneOf(sheet.layout, LAYOUTS, 'comic(): layout');
   if (!sheet.cast || typeof sheet.cast !== 'object') throw new Error('comic(): cast is {id: {name}} of the people');
-  for (const k of Object.keys(sheet.cast)) assertId(k, 'comic(): cast');
+  for (const [k, c] of Object.entries(sheet.cast)) {
+    assertId(k, 'comic(): cast');
+    const f = c?.face;
+    if (f !== undefined) {
+      if (!f || !Number.isInteger(f.hue) || f.hue < 0 || f.hue > 359) throw new Error(`comic(): cast の "${k}" の face.hue に 0〜359 の整数を指定してください`);
+      if (f.hair !== undefined && f.hair !== 'short' && f.hair !== 'long') throw new Error(`comic(): cast の "${k}" の face.hair に short か long を指定してください`);
+    }
+    if (c?.asset !== undefined) assertId(c.asset, `comic(): cast ${k}: asset`);
+  }
   if (!Array.isArray(sheet.panels)) throw new Error('comic(): panels is a list');
   if (opts.aspect !== undefined) oneOf(opts.aspect, ASPECTS, 'comic(): aspect');
   if (opts.writing !== undefined && opts.writing !== 'horizontal') throw new Error("comic(): writing: 'vertical' is not implemented yet (only 'horizontal')");
@@ -81,6 +90,11 @@ export function comic(sheet: ComicWorksheet, opts: ComicOpts = {}): ComicBand {
   });
   const copy: ComicWorksheet = {version: 1, title: sheet.title, layout: sheet.layout, cast: {...sheet.cast}, panels,
     ...(sheet.numbering === undefined ? {} : {numbering: sheet.numbering}), ...(sheet.labels === undefined ? {} : {labels: [...sheet.labels]}), ...(sheet.blank === undefined ? {} : {blank: sheet.blank})};
-  const band: ComicBand = {type: 'comic', sheet: copy, ...(opts.aspect === undefined ? {} : {aspect: opts.aspect}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'comic()'), ...revealOf(opts)};
+  const characters = Object.fromEntries(Object.entries(opts.characters ?? {}).map(([key, manifest]) => {
+    const character = loadCharacter(manifest);
+    if (character.id !== key) throw new Error(`comic(): characters のキー "${key}" を素材の id "${character.id}" に合わせてください`);
+    return [key, character];
+  }));
+  const band: ComicBand = {type: 'comic', sheet: copy, ...(Object.keys(characters).length ? {characters} : {}), ...(opts.aspect === undefined ? {} : {aspect: opts.aspect}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'comic()'), ...revealOf(opts)};
   return withHandle(band, opts.id);
 }

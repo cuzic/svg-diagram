@@ -4,7 +4,8 @@ import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {box, checkDiagram, closeMeasurer, comic, connect, diagram, renderDiagram} from '../lib/dsl.ts';
 import {lintDiagram} from '../lib/rules.ts';
-import type {LaidOutComic} from '../lib/types/comic.ts';
+import type {ComicWorksheet, LaidOutComic} from '../lib/types/comic.ts';
+import {ARTIST} from './helpers/comic-character.ts';
 import {SAMPLE} from './helpers/comic-sample.ts';
 
 test.after(() => closeMeasurer());
@@ -15,6 +16,65 @@ const laid = async (d: ReturnType<typeof figure>) => {
   return {r, c: r.laidOut.laidOut.find(b => b.type === 'comic') as LaidOutComic};
 };
 const tags = (problems: readonly string[]) => problems.map(p => /\[(comic-[a-z-]+)\]$/.exec(p)?.[1]);
+
+test('the verdict reports only the missing asset and expression, and SVG renders their fallback faces', async () => {
+  const sheet: ComicWorksheet = {
+    version: 1, title: '素材', layout: '1x2',
+    cast: {me: {name: '私', asset: 'unknown'}, col: {name: '同僚', asset: ARTIST.id}},
+    panels: [
+      {id: 'p1', stage: [{who: 'me', at: 'left', expression: 'neutral'}, {who: 'col', at: 'right', expression: 'angry'}], dialogue: []},
+      {id: 'p2', stage: [{who: 'col', at: 'left', expression: 'neutral'}], dialogue: []},
+    ],
+  };
+  const d = figure(comic(sheet, {characters: {[ARTIST.id]: ARTIST}}));
+  const {r, c} = await laid(d);
+  assert.deepEqual(tags(r.verdict.problems), ['comic-asset-missing', 'comic-asset-missing']);
+  assert.deepEqual(c.findings.map(f => f.where), ['p1.me', 'p1.col']);
+  const svg = (await renderDiagram(d, {name: 'missing-characters', budget: 'cacheOnly'})).svg;
+  assert.match(svg, /data-head="p1\.me"><g data-face="neutral"/);
+  assert.match(svg, /data-head="p1\.col"><g data-face="angry"/);
+  assert.match(svg, /data-head="p2\.col"[^>]*><svg data-character="colleague-a"/);
+});
+
+test('scoped comics and hyphens in panel and cast ids keep all SVG ids distinct', async () => {
+  const sheet: ComicWorksheet = {
+    version: 1, title: '素材', layout: '1x2',
+    cast: {b: {name: 'B', asset: ARTIST.id}, 'a-b': {name: 'A B', asset: ARTIST.id}},
+    panels: [
+      {id: 'p-a', stage: [{who: 'b', at: 'left', expression: 'neutral'}], dialogue: []},
+      {id: 'p', stage: [{who: 'a-b', at: 'left', expression: 'neutral'}], dialogue: []},
+    ],
+  };
+  const characters = {[ARTIST.id]: ARTIST};
+  const d = figure(comic(sheet, {characters, scope: '上'}), comic(sheet, {characters, scope: '下'}));
+  const {svg, xml} = await renderDiagram(d, {name: 'scoped-characters', budget: 'cacheOnly'});
+  assert.deepEqual(xml, []);
+  const ids = [...svg.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
+  assert.equal(ids.filter(id => id?.endsWith('-cloth')).length, 4);
+  assert.equal(new Set(ids).size, ids.length);
+  for (const ref of svg.matchAll(/url\(#([^)]+)\)/g)) assert.ok(ids.includes(ref[1]), `${ref[1]} is defined`);
+});
+
+test('an asset keeps its own paint in a dark or auto diagram', async () => {
+  const artist = {...ARTIST, expressions: {neutral: '<circle r="5" fill="#ffffff" stroke="#22201b"/>'}};
+  const sheet: ComicWorksheet = {
+    version: 1, title: '素材', layout: '1x2', cast: {col: {name: '同僚', asset: artist.id}},
+    panels: [
+      {id: 'p1', stage: [{who: 'col', at: 'left', expression: 'neutral'}], dialogue: []},
+      {id: 'p2', stage: [], dialogue: []},
+    ],
+  };
+  const comicOf = async (appearance: 'light' | 'dark' | 'auto') => {
+    const d = diagram({theme: 'blue', title: '素材', width: 480, legend: false, appearance}).add(comic(sheet, {characters: {[artist.id]: artist}}));
+    const {svg} = await renderDiagram(d, {name: 'character-paint', budget: 'cacheOnly'});
+    const start = svg.indexOf('<svg data-character=');
+    assert.ok(start >= 0);
+    return svg.slice(start, svg.indexOf('</svg>', start));
+  };
+  const light = await comicOf('light');
+  assert.equal(await comicOf('dark'), light);
+  assert.equal(await comicOf('auto'), light);
+});
 
 test('the ADR sample is drawn at the default shape (6:5) with no problem and no finding', async () => {
   const {r, c} = await laid(figure(comic(SAMPLE)));
