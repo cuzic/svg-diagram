@@ -3,10 +3,11 @@
 import {BADGE, FONT, GUTTER, HEAD_FROM_BOTTOM, HEAD_KEEP, HEAD_R, LINE_H, MARGIN, PAD_X, PAD_Y, PANEL_W, PANEL_W_2X2, NARRATION_LEFT, SIDE_KEEP, SLOT_FONT, SLOT_MAX, STACK_GAP, STAGE_X, TAIL_CLEAR, TAIL_HALF, TAIL_MIN, TAIL_STOP, ZONE_TOP, f1} from './constants.ts';
 import {ceil4} from '../connect-rules.ts';
 import {snap4} from '../emit-common.ts';
+import {rectOverlap} from '../verify-base.ts';
 import {comicAtomWidth} from './width.ts';
 import {fillTemplate, parseTemplate, slotIdsOf} from './template.ts';
 import {balloonPath} from './balloon-path.ts';
-import {mapPoint} from './character.ts';
+import {mapPoint, placement} from './character.ts';
 import {reserveDialogue} from './reserve.ts';
 import type {Reserved} from './reserve.ts';
 import {checkBubbleFace, checkTail, tailCrosses} from './check.ts';
@@ -36,8 +37,8 @@ const MAX_BUBBLE_LINES = 3;
 interface SlotInfo {max: number; def: ComicSlotDef | undefined}
 export const slotMax = (def: ComicSlotDef | undefined): number | undefined => def?.max ?? (def?.choices?.length ? Math.max(...def.choices.map(c => [...c].length)) : undefined);
 
-/** The hue of a person with no `face`: a fixed one by the place in the cast, so the same person is the same in every panel (and no two of the first five share one). */
-const defaultHue = (cast: ComicWorksheet['cast'], who: string): number => (210 + 70 * Math.max(0, Object.keys(cast).indexOf(who))) % 360;
+/** A fixed hue by cast position, stepping around the colour wheel by approximately the golden angle. */
+const defaultHue = (cast: ComicWorksheet['cast'], who: string): number => (210 + 137 * Math.max(0, Object.keys(cast).indexOf(who))) % 360;
 
 const headX = (at: ComicAt, w: number): number => at === 'left' ? STAGE_X : at === 'right' ? w - STAGE_X : Math.floor(w / 2 / 4) * 4;
 
@@ -59,6 +60,7 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
   sheet.panels.forEach((p, pi) => {
     const px = bx + MARGIN + (pi % cols) * (PW + GUTTER), py = by + MARGIN + Math.floor(pi / cols) * (PH + GUTTER);
     const heads = new Map<string, ComicLaidHead>(), taken = new Set<ComicAt>();
+    const overhangs: {id: string; bounds: Rect}[] = [];
     const headCy = py + PH - HEAD_FROM_BOTTOM;
     for (const s of p.stage) {
       if (taken.has(s.at)) add('comic-at-collision', p.id, `two people stand at ${s.at} in ${p.id} (use left / center / right once each)`);
@@ -78,6 +80,10 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
         head.look = {kind: 'asset', asset: ch.id};
         head.mouth = mapPoint(ch, head, ch.anchors.mouth);
         if (ch.anchors.hand) head.hand = mapPoint(ch, head, ch.anchors.hand);
+        // Use the part of the placed viewBox above the head circle as the asset's upper bound.
+        const {x, y, scale} = placement(ch, head);
+        const h = head.cy - head.r - y;
+        if (h > 0) overhangs.push({id: head.id, bounds: {x, y, w: f1(ch.box[2] * scale), h}});
       }
       heads.set(s.who, head);
     }
@@ -103,10 +109,13 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
       // stacked under every earlier bubble it overlaps sideways, or that lies to its right (side by side only when the earlier ones are all to its left)
       const under = placed.filter(q => (q.x < left + bw + STACK_GAP && left < q.x + q.w + STACK_GAP) || left < q.x);
       const top = Math.max(py + zone.top, ...under.map(q => q.y + q.h + STACK_GAP));
-      placed.push({x: left, y: top, w: bw, h: bh, lines: R.lines.length});
+      const rect = {x: left, y: top, w: bw, h: bh};
+      placed.push({...rect, lines: R.lines.length});
       // the root causes first; the face and tail checks of a bubble that overflowed are its consequences, so they do not run (one mistake, one report)
-      const overflowed = top + bh > py + zone.bottom;
-      if (overflowed) add('comic-bubble-zone', id, `${id}: the stack ends ${top + bh - py}px from the top of the panel, but the band over the heads ends at ${zone.bottom}px (fewer or shorter lines: at most ${budget} lines in all)`);
+      const pastZone = top + bh > py + zone.bottom;
+      const overhang = pastZone ? undefined : overhangs.find(({bounds}) => rectOverlap(rect, bounds, 0));
+      if (pastZone) add('comic-bubble-zone', id, `${id}: the stack ends ${top + bh - py}px from the top of the panel, but the band over the heads ends at ${zone.bottom}px (fewer or shorter lines: at most ${budget} lines in all)`);
+      else if (overhang) add('comic-bubble-zone', id, `${id} が ${overhang.id} の素材の上部に重なります。台詞を短くするか、人物の位置や素材の box を調整してください`);
       const stackLines = R.lines.length + under.reduce((n, q) => n + q.lines, 0);
       if (!budgetReported && (stackLines > budget || R.lines.length > MAX_BUBBLE_LINES)) {
         budgetReported = true;
@@ -149,12 +158,12 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
       });
       for (const r of runs) texts.push({x: r.x, y: r.y, size: FONT, text: r.text});
       for (const s of slots) texts.push({x: f1(s.x + s.w / 2), y: f1(s.y + s.h - 5), size: SLOT_FONT, text: s.prompt});
-      const bubble: ComicLaidBubble = {id, panel: p.id, kind: dlg.kind, ...(dlg.who === undefined ? {} : {who: dlg.who}), x: left, y: top, w: bw, h: bh, lines: R.lines.map(l => l.atoms.map(a => a.text).join('')), runs, slots, title: fillTemplate(parts, () => '＿＿')};
+      const bubble: ComicLaidBubble = {id, panel: p.id, kind: dlg.kind, ...(dlg.who === undefined ? {} : {who: dlg.who}), ...rect, lines: R.lines.map(l => l.atoms.map(a => a.text).join('')), runs, slots, title: fillTemplate(parts, () => '＿＿')};
       const tail = speaker && dlg.kind !== 'narration' ? tailOf(bubble, speaker) : undefined;
       if (tail) bubble.tail = tail;
       bubbles.push(bubble);
-      anchors.push({id, x: left, y: top, w: bw, h: bh});
-      if (overflowed) skipChecks.add(id);
+      anchors.push({id, ...rect});
+      if (pastZone || overhang) skipChecks.add(id);
       else for (const h of heads.values()) checkBubbleFace(bubble, h, add);
     }
     // the tails, once every bubble of the panel is placed. A tail that runs behind another bubble of its own speaker is dropped (the bubble below

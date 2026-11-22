@@ -34,15 +34,38 @@ test('a manifest with no licence is refused when it is loaded (comic-license-mis
   assert.doesNotThrow(() => loadCharacter(ARTIST));
 });
 
+test('a licence names the invalid field and requires a non-blank SPDX value and an HTTP or HTTPS URL', () => {
+  for (const url of ['example.com/license', 'ftp://example.com/license', ' https://example.com/license']) {
+    assert.throws(() => loadCharacter(withManifest({license: {...ARTIST.license, url}})), /^Error: comic-license-missing: .*license\.url/);
+  }
+  assert.throws(() => loadCharacter(withManifest({license: {...ARTIST.license, spdx: ' \t'}})), /^Error: comic-license-missing: .*license\.spdx/);
+  assert.throws(() => loadCharacter(withManifest({license: {...ARTIST.license, author: ''}})), /^Error: comic-license-missing: .*license\.author/);
+  for (const protocol of ['http', 'https']) {
+    const url = `${protocol}://example.com/license`;
+    assert.equal(loadCharacter(withManifest({license: {...ARTIST.license, url}})).license.url, url);
+  }
+});
+
 test('the shape is checked, naming the field: id, name, box, anchors, expressions', () => {
   assert.throws(() => loadCharacter(withManifest({id: 'a.b'})), /id が不正/);
   assert.throws(() => loadCharacter(withManifest({name: ''})), /name に表示名/);
   assert.throws(() => loadCharacter(withManifest({box: [0, 0, 0, 240] as never})), /box は \[x, y, width, height\]/);
   assert.throws(() => loadCharacter(withManifest({anchors: {head: {cx: 1, cy: 1, r: 0}, mouth: [0, 0]}})), /anchors\.head/);
-  assert.throws(() => loadCharacter(withManifest({anchors: {head: {cx: 1, cy: 1, r: 5}, mouth: [0] as never}})), /anchors\.mouth/);
+  assert.throws(() => loadCharacter(withManifest({anchors: {...ARTIST.anchors, mouth: [0] as never}})), /anchors\.mouth/);
   assert.throws(() => loadCharacter(withManifest({bubbleSides: ['bottom'] as never})), /bubbleSides/);
   assert.throws(() => loadCharacter(withManifest({expressions: {smile: '<g/>'}})), /少なくとも neutral/);
   assert.throws(() => loadCharacter(withManifest({expressions: {neutral: '<circle r="1"/>', grin: '<g/>'} as never})), /表情 "grin"/);
+});
+
+test('the head circle fits in the viewBox and its radius is at most half its shorter side', () => {
+  const box: CharacterManifest['box'] = [-50, 25, 100, 140];
+  const manifest = (cx: number, cy: number, r: number) => withManifest({box, anchors: {...ARTIST.anchors, head: {cx, cy, r}}});
+  assert.doesNotThrow(() => loadCharacter(manifest(0, 75, 50)), 'a circle may touch the box edges');
+  assert.throws(() => loadCharacter(manifest(0, 95, 51)), /anchors\.head\.r.*短辺の半分/);
+  assert.throws(() => loadCharacter(withManifest({box: [25, -50, 140, 100], anchors: {...ARTIST.anchors, head: {cx: 95, cy: 0, r: 51}}})), /anchors\.head\.r.*短辺の半分/);
+  for (const [cx, cy] of [[-1, 95], [1, 95], [0, 74], [0, 116]] as const) {
+    assert.throws(() => loadCharacter(manifest(cx, cy, 50)), /anchors\.head.*円が box の中/);
+  }
 });
 
 test('the fragments are cleaned with the icon whitelist: no script, style, text, use, mask, filter, image, outside reference or named colour', () => {
@@ -61,6 +84,16 @@ test('the fragments are cleaned with the icon whitelist: no script, style, text,
   assert.throws(() => loadCharacter(frag('<circle r="1" fill="url(#missing)"/>')), /does not define/);
   assert.throws(() => loadCharacter(frag('<defs><linearGradient id="g"/><linearGradient id="g"/></defs><circle r="1" fill="url(#g)"/>')), /SVG の id が重複/);
   assert.doesNotThrow(() => loadCharacter(frag('<circle cx="1" cy="1" r="1" fill="#ffddbb" stroke="#222222"/>')));
+});
+
+test('a character refuses inherited currentColor paint and directs the artist to the paper and ink colours', () => {
+  for (const fragment of [
+    '<g fill = "currentColor"><circle r="5"/></g>',
+    '<circle r="5" stroke="currentColor"/>',
+    '<defs><linearGradient id="g"><stop offset="0" stop-color="currentColor"/></linearGradient></defs><circle r="5" fill="url(#g)"/>',
+  ]) {
+    assert.throws(() => loadCharacter(withManifest({expressions: {neutral: fragment}})), /表情 neutral.*currentColor.*紙色とインク色/);
+  }
 });
 
 test('the figure is placed so that the box\'s head circle is the stage head, and every anchor follows (a 200 x 240 box does not shift anything)', () => {
@@ -108,6 +141,22 @@ test('the layout of a panel is the same with an artist\'s character as with the 
   assert.deepEqual(head.hand, [332 + 50 * 36 / 56, 292 + 100 * 36 / 56].map(v => Math.round(v * 10) / 10));
   const b = art.bubbles[0]!;
   assert.ok(b.tail && tailAngle(b.tail, head.mouth) <= 0.17);
+});
+
+test('an asset protruding above the stage head reports a bubble-zone problem only for the bubble it overlaps', () => {
+  const s = sheet(ARTIST.id);
+  const tall = (cy: number) => withManifest({
+    box: [-25, -50, 200, 500],
+    anchors: {head: {cx: 75, cy, r: 56}, mouth: [75, cy + 22]},
+    expressions: {
+      neutral: '<rect x="35" y="-50" width="80" height="500" fill="#222222"/>',
+      smile: '<rect x="35" y="-50" width="80" height="500" fill="#222222"/>',
+    },
+  });
+  const hit = lay(s, {[ARTIST.id]: tall(300)});
+  assert.deepEqual(hit.findings.map(f => [f.rule, f.where, f.severity]), [['comic-bubble-zone', 'p1.d1', 'problem']]);
+  assert.match(hit.findings[0]!.message, /p1\.col/);
+  assert.deepEqual(lay(s, {[ARTIST.id]: tall(250)}).findings, [], 'the asset rises above the head but remains below the bubble');
 });
 
 test('a missing asset or a missing expression is a problem (comic-asset-missing), and the built-in face is drawn in its place', () => {

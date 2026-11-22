@@ -22,7 +22,7 @@ test('8 expressions are drawn, each different, and the same input is the same SV
 });
 
 // A golden for each expression (a hash of the SVG of the figure; short hair, hue 210), and one for long hair. A change to a face shows here and is looked at by a person.
-const GOLDEN: Record<string, string> = {neutral: '986018b80c2b', smile: '5503fb144de7', laugh: '8e9c93ecae05', surprise: '6dd259b8b387', worry: 'bfe1058e5ef4', angry: '0351338e7471', think: '2331fbdecdd8', sad: 'd5a8943aaf09', long: '71fe6c40a702'};
+const GOLDEN: Record<string, string> = {neutral: '986018b80c2b', smile: '5503fb144de7', laugh: '8e9c93ecae05', surprise: '6dd259b8b387', worry: 'bfb3df66f828', angry: '9274ff4d6a2c', think: '2331fbdecdd8', sad: '4fbdd85bccd7', long: '71fe6c40a702'};
 test('golden: each expression, and long hair', () => {
   const got = {...Object.fromEntries(EXPRESSIONS.map(e => [e, hash(fig(e))])), long: hash(fig('smile', 40, 'long'))};
   assert.deepEqual(got, GOLDEN);
@@ -33,6 +33,24 @@ const strokes = (svg: string) => [...svg.matchAll(/<(path|circle)\b([^>]*?)\/?>/
   const a = m[2]!, stroke = /stroke="([^"]+)"/.exec(a)?.[1], w = Number(/stroke-width="([\d.]+)"/.exec(a)?.[1]);
   const geometry = /\bd="([^"]+)"/.exec(a)?.[1] ?? /cx="([^"]+)" cy="([^"]+)" r="([^"]+)"/.exec(a)?.slice(1).join(',');
   return stroke === undefined || geometry === undefined || !a.includes('fill="none"') ? [] : [{d: geometry, stroke, w}];
+});
+
+test('angry lowers the inner ends of the brows, while worry and sad raise them', () => {
+  for (const [expression, direction] of [['angry', 1], ['worry', -1], ['sad', -1]] as const) {
+    const brows = strokes(fig(expression)).flatMap(({d}) => {
+      const line = /^M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)$/.exec(d);
+      return line ? [[Number(line[1]), Number(line[2]), Number(line[3]), Number(line[4])] as const] : [];
+    });
+    assert.equal(brows.length, 2, expression);
+    const sides = new Set<number>();
+    for (const [x1, y1, x2, y2] of brows) {
+      const side = Math.sign((x1 + x2) / 2 - 100);
+      sides.add(side);
+      const innerMinusOuter = Math.abs(x1 - 100) < Math.abs(x2 - 100) ? y1 - y2 : y2 - y1;
+      assert.ok(direction * innerMinusOuter > 0, `${expression}, side ${side}: inner y minus outer y is ${innerMinusOuter}`);
+    }
+    assert.deepEqual(sides, new Set([-1, 1]));
+  }
 });
 
 test('ADR 0076 A2: every inner boundary is a three-layer line (a paper keyline, the ink line, a paper keyline); the outer edge is the ink line alone', () => {
@@ -93,12 +111,30 @@ const sheet = (cast: ComicWorksheet['cast']): ComicWorksheet => ({version: 1, ti
 ]});
 const lay = (s: ComicWorksheet) => layoutComic(comic(s), 0, 0, 0, a => a.length * 9);
 
-test('a person with no face gets a hue from the place in the cast (the same in every panel, different for each of the first five); a face keeps its own', () => {
+test('a person with no face gets a hue from the place in the cast (the same in every panel); a face keeps its own', () => {
   const l = lay(sheet({a: {name: 'A'}, b: {name: 'B'}, c: {name: 'C', face: {hue: 99, hair: 'long'}}}));
   const looks = l.panels[0]!.heads.map(h => h.look);
-  assert.deepEqual(looks, [{kind: 'face', hue: 210, hair: 'short'}, {kind: 'face', hue: 280, hair: 'short'}, {kind: 'face', hue: 99, hair: 'long'}]);
+  assert.deepEqual(looks[0], {kind: 'face', hue: 210, hair: 'short'});
+  assert.ok(looks[1]?.kind === 'face' && looks[1].hue !== 210);
+  assert.deepEqual(looks[2], {kind: 'face', hue: 99, hair: 'long'});
   assert.deepEqual(l.panels[1]!.heads[0]!.look, looks[1], 'B looks the same in the second panel');
-  assert.equal(new Set([0, 1, 2, 3, 4].map(i => (210 + 70 * i) % 360)).size, 5);
+});
+
+test('adjacent default hues and the first six cast members are at least 30 degrees apart', () => {
+  const people = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  const cast = Object.fromEntries(people.map(who => [who, {name: who}]));
+  const hues = people.map(who => {
+    const s = sheet(cast);
+    s.panels[0]!.stage = [{who, at: 'left', expression: 'neutral'}];
+    const look = lay(s).panels[0]!.heads[0]!.look;
+    assert.equal(look.kind, 'face');
+    return look.hue;
+  });
+  const distance = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
+  for (const [i, hue] of hues.entries()) {
+    const others = i < 6 ? hues.slice(0, i) : hues.slice(i - 1, i);
+    for (const other of others) assert.ok(distance(hue, other) >= 30, `${hue} is too close to ${other}`);
+  }
 });
 
 test('comic() checks the face: hue is a whole number from 0 to 359, hair is short or long', () => {

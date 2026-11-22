@@ -22,14 +22,23 @@ export function loadCharacter(m: CharacterManifest): ComicCharacter {
   if (typeof m.id !== 'string' || !COMIC_ID.test(m.id)) throw new Error(`${at} の id が不正です。英字で始め、英数字と _ - を使ってください`);
   if (!text(m.name)) throw new Error(`${at} の name に表示名を書いてください`);
   const lic = m.license;
-  if (!lic || !text(lic.spdx) || !text(lic.author) || !text(lic.url)) {
-    throw new Error(`comic-license-missing: ${at} の license に spdx、author、url を文字列で書いてください`);
+  if (!text(lic?.spdx)) throw new Error(`comic-license-missing: ${at} の license.spdx に空でない SPDX 識別子を書いてください`);
+  if (!text(lic.author)) throw new Error(`comic-license-missing: ${at} の license.author に空でない作者名を書いてください`);
+  if (typeof lic.url !== 'string' || !/^https?:\/\//.test(lic.url)) {
+    const value = typeof lic.url === 'string' ? ` (${JSON.stringify(lic.url)})` : '';
+    throw new Error(`comic-license-missing: ${at} の license.url${value} に http:// または https:// で始まる URL を書いてください`);
   }
   const box = m.box;
   if (!Array.isArray(box) || box.length !== 4 || ![...box].every(num) || !(box[2] > 0 && box[3] > 0)) throw new Error(`${at} の box は [x, y, width, height] で、幅と高さを正の数にしてください`);
   const a = m.anchors;
   const head = a?.head;
   if (!head || !num(head.cx) || !num(head.cy) || !num(head.r) || head.r <= 0) throw new Error(`${at} の anchors.head は box の座標で {cx, cy, r} を書き、r を正の数にしてください`);
+  const [bx, by, bw, bh] = box;
+  if (head.r > Math.min(bw, bh) / 2) throw new Error(`${at} の anchors.head.r は ${head.r} です。box の短辺の半分以下にしてください`);
+  const hx = head.cx - bx, hy = head.cy - by;
+  if (hx < head.r || hx > bw - head.r || hy < head.r || hy > bh - head.r) {
+    throw new Error(`${at} の anchors.head は円が box の中に収まるように cx、cy、r を指定してください`);
+  }
   if (!point(a.mouth)) throw new Error(`${at} の anchors.mouth に [x, y] を書いてください`);
   if (a.hand !== undefined && !point(a.hand)) throw new Error(`${at} の anchors.hand に [x, y] を書いてください`);
   const sides = m.bubbleSides ?? [];
@@ -41,6 +50,7 @@ export function loadCharacter(m: CharacterManifest): ComicCharacter {
     if (typeof fragment !== 'string') throw new Error(`${at} の表情 ${name} に SVG 断片を文字列で書いてください`);
     const where = `${at} の表情 ${name}`;
     const {body} = sanitizeBody(fragment, where, true);
+    if (/\s(?:fill|stroke|stop-color)="currentColor"/.test(body)) throw new Error(`${where} に currentColor が使われています。紙色とインク色を十六進表記で指定してください`);
     const ids = [...body.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]);
     if (new Set(ids).size !== ids.length) throw new Error(`${where} の SVG の id が重複しています。各 id を一意にしてください`);
     expressions[name as ComicExpression] = body;

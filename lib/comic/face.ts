@@ -28,7 +28,7 @@ function features(kind: ComicExpression, cx: number, cy: number): string {
   };
   const brow = (s: -1 | 1): string => {
     const x = cx + s * ex;
-    const tilt = kind === 'angry' ? s * 5 : kind === 'worry' || kind === 'sad' ? -s * 5 : kind === 'surprise' ? -4 : 0;
+    const tilt = kind === 'angry' ? -s * 5 : kind === 'worry' || kind === 'sad' ? s * 5 : kind === 'surprise' ? -4 : 0;
     const y = ey - 8 + (kind === 'surprise' ? -4 : 0);
     return stroke(`M${n(x - 6)} ${n(y - tilt / 2)}L${n(x + 6)} ${n(y + tilt / 2)}`, 2.4);
   };
