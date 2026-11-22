@@ -1,7 +1,7 @@
 // ADR 0073 U1 (D1), U2 (D2): the order search of a CRT takes a taller order only when it crosses less, and judges the height last. The pinned figures are random CRTs of a fixed seed
 // (test/helpers/random-crt.ts; test/fixtures/crt-random-pins.json holds what lib/ of main (PR #406) drew for them and what this version draws). The labels are only 'あ' (full width in every Japanese font: CI's test job and
 // its golden job have different ones), so the numbers do not depend on a font. P1: no more crossings than main (the AND crossings and the cause-crossing findings too), except where an AND crossing went away.
-// P2: the height is within 1.25 x main's. P3 (U2): the run pairs do not grow, except in the figures the pins record, and not in total. P4 (U2): the bends are at most the bends of the same version with the pairs key off + 4, unless the AND crossings fell. The figures the search was changed for keep what they gained. The cost is counted in the orders the search laid out, not in time.
+// P2: the height is within 1.25 x main's. P3 (U2): the run pairs do not grow, except in the figures the pins record, and not in total. P4 (U2): the bends are at most the bends of the same version with the pairs key off + 4, unless the AND crossings or the crossings fell (ADR 0075: the crossings too). The figures the search was changed for keep what they gained. The cost is counted in the orders the search laid out, not in time.
 import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
@@ -68,7 +68,7 @@ for (const [name, canvas] of [['幅 1800', false], ['canvas 2400x1800 (倍率 1.
 
 for (const [name, canvas] of [['幅 1800', false], ['canvas 2400x1800 (倍率 1.29)', true]] as const) {
   const set = canvas ? pins.canvas : pins.plain;
-  test(`ピンの図 (${name}): P3 組はピンの記録の図以外で増えず、合計も増えない。同じ線の上の重なり (4px 未満) が main より増えない。P4 折れは「組の key を切った版 + 4」以下 (AND の交差が減った図は除く)`, async () => {
+  test(`ピンの図 (${name}): P3 組はピンの記録の図以外で増えず、合計も増えない。同じ線の上の重なり (4px 未満) が main より増えない。P4 折れは「組の key を切った版 + 4」以下 (AND の交差・交差が減った図は除く)`, async () => {
     const now = new Map(set.now.map(r => [r[0], r])), off = new Map(set.nopairs.map(r => [r[0], r]));
     // 組が増える図 = ピンの記録 (now) が main より組の多い図。名前の一覧は持たず、ピンから決める
     const recorded = new Set(set.main.filter(m => (now.get(m[0])?.[4] ?? 0) > m[4]).map(m => m[0]));
@@ -78,7 +78,7 @@ for (const [name, canvas] of [['幅 1800', false], ['canvas 2400x1800 (倍率 1.
       total += x.pairs; pinnedTotal += n[4];
       assert.ok(x.pairs <= (recorded.has(g) ? n[4] : m[4]), `${tag}: 組 ${m[4]} -> ${x.pairs} (記録の図 ${recorded.has(g)})`);
       // plain #179 (ADR 0073 U3 review m3): the tails moved onto the heads make `first` leave the +4 window of the version without the pairs key, and it wins the pick; it gains a pair (recorded above), crossings unchanged
-      if (!(g === 179 && !canvas)) assert.ok(x.bends <= o[5] + 4 || x.and < o[3], `${tag}: 折れ ${o[5]} (組の key を切った版) -> ${x.bends} (+4 の上限、AND の交差 ${o[3]} -> ${x.and})`);
+      if (!(g === 179 && !canvas)) assert.ok(x.bends <= o[5] + 4 || x.and < o[3] || x.c < o[1], `${tag}: 折れ ${o[5]} (組の key を切った版) -> ${x.bends} (+4 の上限、AND の交差 ${o[3]} -> ${x.and}、交差 ${o[1]} -> ${x.c})`); // ADR 0075 M5: the exception is a fall of the crossings too (a crossing reduction is not a pairs-only improvement)
       assert.equal(x.pairs, n[4], `${tag}: 組はピンのとおり`);
       assert.ok(x.ov <= m[9], `${tag}: 同じ線の上の重なり (4px 未満) ${m[9]} -> ${x.ov} (ADR 0070 U4c: 重なりを作らない)`);
     }
