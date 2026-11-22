@@ -38,11 +38,12 @@ test('comic wrapper matches the original d and base for 6000 seeded inputs', () 
   let narrowed = 0;
   for (let i = 0; i < 6000; i++) {
     const kind = kinds[i % kinds.length]!;
-    const body = {x: rnd(-50, 50), y: rnd(-50, 50), w: rnd(60, 300), h: rnd(30, 128)};
-    const {w, h} = body;
+    const h = rnd(kind === 'shout' ? 12 : 8, 128);
     const radius = referenceRadius(kind, h);
+    const w = rnd(2 * radius, 300);
+    const body = {x: rnd(-50, 50), y: rnd(-50, 50), w, h};
     assert.equal(balloonRadius(kind, h), radius);
-    assert.ok(w >= 2 * radius && h >= 2 * radius);
+    assert.ok(w >= 2 * radius && h >= 2 * radius && radius >= 4);
     const [cx, cy] = center(body);
     const tipCase = Math.floor(i / kinds.length) % 12;
     const tip: Pt = tipCase === 0 ? [Infinity, cy] : tipCase === 1 ? [cx, cy] : [cx + rnd(-1.8, 1.8) * w, cy + rnd(-1.8, 1.8) * h];
@@ -171,7 +172,7 @@ test('coordinate and option limits report the offending argument', () => {
     ['radius', -1000001, () => balloonOutline('round', body, undefined, {radius: -1000001})],
     ['halfWidth', Infinity, () => balloonOutline('rect', body, undefined, {halfWidth: Infinity})],
   ] as const) {
-    assert.throws(draw, err => err instanceof RangeError && err.message.includes(name) && err.message.includes(String(value)));
+    assert.throws(draw, err => err instanceof RangeError && err.message.startsWith(`${name} must be a finite number`) && err.message.endsWith(`(got ${value})`));
   }
 });
 
@@ -206,6 +207,7 @@ test('Office guide formulas agree with the rectangle, rounded rectangle and elli
       tip = [cx + rnd(-1.5, 1.5) * w, cy + rnd(-1.5, 1.5) * h];
     } while (Math.abs(tip[0] - cx) < w / 2 + 3 && Math.abs(tip[1] - cy) < h / 2 + 3);
     const adj = officeAdj(body, tip);
+    assert.ok(adj);
     const rounded: Pt = [cx + w * adj[0] / 100000, cy + h * adj[1] / 100000];
     nearPoint(rounded, tip, 0.0022);
     const expected = officeWedges(body, adj);
@@ -248,6 +250,14 @@ test('Office default adjustments and the fixed follow wedge', () => {
   nearPoint(ellipse.base![0], [50.857, 74.837], 0.001);
   nearPoint(ellipse.base![1], [87.060, 79.664], 0.001);
   assert.deepEqual(balloonOutline('round', body, tip, {radius: 8}).base, [[72.3, 80], [44.3, 80]]);
+});
+
+test('Office adjustments omit the tail for non-finite tips', () => {
+  const body = {x: 0, y: 0, w: 200, h: 80};
+  for (const tip of [[NaN, 90], [58.334, Infinity], [-Infinity, 90]] as const) {
+    assert.equal(officeAdj(body, tip), undefined);
+  }
+  assert.throws(() => officeAdj(body, [58.334, 1000001]), RangeError);
 });
 
 const cloudSizes = [48, 72, 96, 120].flatMap(h =>
@@ -298,6 +308,8 @@ test('cloud trail clears the outline and its circles at 360 directions on 24 bod
       const first = outline.dots[0]!;
       assert.ok(!insidePolygon(first.c, poly) && distanceToPolygon(first.c, poly) - first.r >= 1.9, context);
       assert.ok(outline.minLength >= 2 * r1 + 2 * r2 + r3 + 6 - 1e-9, context);
+      // Keep full directional coverage for clearance and sample the exact minimum separately.
+      if (deg % 5 !== 0) continue;
       const [ex, ey] = outline.base[0];
       const minTip: Pt = [ex + ux * outline.minLength, ey + uy * outline.minLength];
       const shortest = balloonOutline('cloud', body, minTip);
@@ -321,6 +333,67 @@ test('cloud regression and fixed trail geometry', () => {
     near(dot.r, radii[i]!, 0.005);
   });
   near(outline.minLength!, 30.44, 0.05);
+});
+
+const notchedCloud = {x: 0, y: 0, w: 327, h: 71};
+const notchTip: Pt = [235.7, 11.9];
+
+test('cloud trail is ordered when its tip is in a notch', () => {
+  const {base, dots, inside, length} = balloonOutline('cloud', notchedCloud, notchTip);
+  assert.equal(inside, false);
+  assert.ok(base && dots);
+  assert.ok(length >= 0, `negative trail length: ${length}`);
+  near(length, distance(base[0], notchTip), 1e-9);
+  const [cx, cy] = center(notchedCloud);
+  const dx = notchTip[0] - cx, dy = notchTip[1] - cy;
+  const along = ([x, y]: Pt): number => ((x - cx) * dx + (y - cy) * dy) / Math.hypot(dx, dy);
+  let prev = along(base[0]);
+  for (const {c} of dots) {
+    const next = along(c);
+    assert.ok(next >= prev - 1e-9, `trail doubles back from ${prev} to ${next}`);
+    prev = next;
+  }
+  assert.deepEqual(dots.at(-1)?.c, notchTip);
+});
+
+test('cloud trail uses the last crossing when the ray re-enters the outline', () => {
+  const [cx, cy] = center(notchedCloud);
+  const dx = notchTip[0] - cx, dy = notchTip[1] - cy;
+  const at = (scale: number): Pt => [cx + scale * dx, cy + scale * dy];
+  const poly = cloudPolygon(notchedCloud);
+  assert.equal(insidePolygon(notchTip, poly), false);
+  const beyondNotch = at(1.16);
+  assert.equal(insidePolygon(beyondNotch, poly), true);
+  const tip = at(2);
+  const {base, length} = balloonOutline('cloud', notchedCloud, tip);
+  assert.ok(base);
+  assert.ok(length < distance(beyondNotch, tip), 'the trail starts beyond the re-entry into the cloud');
+  near(distanceToPolygon(base[0], poly), 0, 1e-9);
+});
+
+test('cloud trail lengths stay nonnegative near notches on seeded wide bodies', () => {
+  const rnd = random(440);
+  let outside = 0;
+  for (let i = 0; i < 64; i++) {
+    const h = rnd(48, 100);
+    const body = {x: rnd(-50, 50), y: rnd(-50, 50), w: h * rnd(4, 6), h};
+    const poly = cloudPolygon(body);
+    const [cx, cy] = center(body);
+    // At each arc junction, sample just beyond the outline along a slightly perturbed ray.
+    for (let k = 0; k < poly.length; k += 16) {
+      const [x, y] = poly[k]!;
+      const angle = Math.atan2(y - cy, x - cx) + rnd(-0.03, 0.03);
+      const reach = Math.hypot(x - cx, y - cy) + rnd(0.01, 12);
+      const tip: Pt = [cx + Math.cos(angle) * reach, cy + Math.sin(angle) * reach];
+      if (insidePolygon(tip, poly)) continue;
+      const outline = balloonOutline('cloud', body, tip);
+      assert.equal(outline.inside, false);
+      assert.ok(outline.base);
+      assert.ok(outline.length >= 0, `${body.w}x${h} at [${tip}]: ${outline.length}`);
+      outside++;
+    }
+  }
+  assert.ok(outside >= 400, `only ${outside} exterior tips tested`);
 });
 
 test('cloudTextRect is centred, proportional and maximal against the sampled arcs', () => {

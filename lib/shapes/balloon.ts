@@ -1,4 +1,6 @@
 // Shared outlines for rectangular, rounded, elliptical and cloud balloons (ADR 0077).
+import {f1} from '../comic/constants.ts';
+
 export type Pt = readonly [number, number];
 export interface Rect {x: number; y: number; w: number; h: number}
 export type BalloonShape = 'rect' | 'round' | 'ellipse' | 'cloud';
@@ -35,14 +37,13 @@ const MAX_INPUT = 1e6;
 const CLEAR_MIN = 4;
 const CLOUD_GAP = 2;
 const DELTA = 11 * Math.PI / 180; // Office wedgeEllipseCallout uses the ellipse parameter.
-const f1 = (n: number): number => Math.round(n * 10) / 10;
 const f2 = (n: number): number => Math.round(n * 100) / 100;
 const svgPoint = ([x, y]: Pt): string => `${f2(x)} ${f2(y)}`;
 
 function validateNumber(name: string, value: number, positive = false): void {
   if (!Number.isFinite(value) || Math.abs(value) > MAX_INPUT || (positive && value <= 0)) {
-    const range = positive ? '0 より大きく 1000000 以下' : '-1000000 以上 1000000 以下';
-    throw new RangeError(`${name} が範囲外です (${value})。${range}の有限な数を指定してください。`);
+    const range = positive ? '(0, 1e6]' : '[-1e6, 1e6]';
+    throw new RangeError(`${name} must be a finite number in ${range} (got ${value})`);
   }
 }
 
@@ -65,7 +66,7 @@ export function balloonOutline(shape: BalloonShape, body: Rect, tip?: Pt, opts: 
   validateBody(body);
   if (opts.radius !== undefined) validateNumber('radius', opts.radius);
   if (opts.halfWidth !== undefined) validateNumber('halfWidth', opts.halfWidth);
-  if (tip && !(Number.isFinite(tip[0]) && Number.isFinite(tip[1]))) tip = undefined;
+  if (tip && !tip.every(Number.isFinite)) tip = undefined;
   if (tip) validateTip(tip);
 
   if (shape === 'ellipse') return ellipse(body, tip);
@@ -281,8 +282,8 @@ function cloud(body: Rect, tip?: Pt): Balloon {
   const dx = tip[0] - cx, dy = tip[1] - cy, reach = Math.hypot(dx, dy);
   if (reach === 0 || insidePolygon(tip, poly)) return noTail(d, true);
   const ux = dx / reach, uy = dy / reach;
-  // The trail starts at the farthest crossing of the ray from the centre towards the tip.
-  const exit = rayCrossings(poly, cx, cy, ux, uy).reduce((far, t) => Math.max(far, t), 0);
+  // The ray can cross the outline again beyond a tip in a notch.
+  const exit = rayCrossings(poly, cx, cy, ux, uy).reduce((last, t) => t <= reach ? Math.max(last, t) : last, 0);
   const e: Pt = [cx + ux * exit, cy + uy * exit];
   const length = reach - exit;
   const [r1, r2, r3] = cloudRadii(Math.min(body.w, body.h));
@@ -297,8 +298,10 @@ function cloud(body: Rect, tip?: Pt): Balloon {
   }
   const afterFirst = s1 + r1 + r2 + CLOUD_GAP;
   const minLength = afterFirst + r2 + r3 + CLOUD_GAP;
-  const s2 = Math.min(Math.max((s1 + length) / 2, afterFirst), length);
-  const dots = [{c: at(s1), r: r1}, {c: at(s2), r: r2}, {c: tip, r: r3}];
+  const s2 = Math.max((s1 + length) / 2, afterFirst);
+  // A short trail can lose clearance, but its dots must never pass the tip.
+  const dotAt = (s: number): Pt => s < length ? at(s) : tip;
+  const dots = [{c: dotAt(s1), r: r1}, {c: dotAt(s2), r: r2}, {c: tip, r: r3}];
   return {d, base: [e, e], tip, dots, length, minLength, apex: 0, inside: false};
 }
 
@@ -332,9 +335,10 @@ export function cloudTextRect(body: Rect): Rect {
   return {x: cx - hw * lo, y: cy - hh * lo, w: w * lo, h: h * lo};
 }
 
-/** Office adjustments express the offset from the centre in 1/100000 of the width and height. */
-export function officeAdj(body: Rect, tip: Pt): [number, number] {
+/** Office adjustments express the offset from the centre in 1/100000 of the width and height. A non-finite tip has no adjustments. */
+export function officeAdj(body: Rect, tip: Pt): [number, number] | undefined {
   validateBody(body);
+  if (!tip.every(Number.isFinite)) return undefined;
   validateTip(tip);
   const {x, y, w, h} = body;
   return [Math.round((tip[0] - (x + w / 2)) / w * 100000), Math.round((tip[1] - (y + h / 2)) / h * 100000)];
