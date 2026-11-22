@@ -15,7 +15,7 @@ for (const [tpl, max] of NINE) {
   rows.push(`literal  ${String(b.w).padStart(3)}x${b.h}  ${w.lines.join(' / ')}`);
 }
 const total: Record<string, {wide: number; split: number; afterSlot: number; sumW: number}> = {};
-for (const mode of ['all', 'two', 'particle', 'fit2', 'fit2p'] as GlueMode[]) for (const [tpl, max] of NINE) {
+for (const mode of ['all', 'two', 'particle', 'fit2', 'fit2p', 'fit2q'] as GlueMode[]) for (const [tpl, max] of NINE) {
   const ws = {panels: [{id: 'p1', chars: [{id: 'me', side: 'left' as const, face: 'smile' as const, hue: 10}], lines: [{speaker: 'me', kind: 'say' as const, tpl, slots: {p: {max, prompt: 'ほげ'}}}]}]};
   const l = layoutComic(ws, hb, {glue: mode}), w = Object.values(l.wrapped)[0]!, b = Object.values(l.geometry.bubbles)[0]!;
   // a break inside a run of hiragana: the line before ends in a hiragana (or a slot) and the next starts with a hiragana, and the break is not after 、。

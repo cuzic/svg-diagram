@@ -38,16 +38,19 @@ interface LaidLine {atoms: Atom[]; w: number}
 interface Reserved {lines: LaidLine[]; inner: number; notes: string[]}
 
 /** Wrap the template with every slot reserved at its maximum width, the slot an unbreakable unit that keeps the hiragana after it (bunsetsu). */
-export type GlueMode = 'all' | 'two' | 'particle' | 'fit2' | 'fit2p';
+export type GlueMode = 'all' | 'two' | 'particle' | 'fit2' | 'fit2p' | 'fit2q';
 const PARTICLES = new Set([...'はがをにでのともへや']);
 /** How much of the hiragana after a slot is bound to it: 'all' (the whole run), 'two' (at most two), 'particle' (only a particle: は が を に で の と も へ や), 'fit2' (at most two, and never past INNER_MAX), 'fit2p' (like fit2, but a particle right after the slot is always bound). */
-function glueAllowed(mode: GlueMode, n: number, ch: string, unitW: number): boolean { return mode === 'all' || (mode === 'two' ? n < 2 : mode === 'fit2' ? n < 2 && unitW + FONT <= INNER_MAX : mode === 'fit2p' ? n < 2 && (unitW + FONT <= INNER_MAX || (n === 0 && PARTICLES.has(ch))) : n === 0 && PARTICLES.has(ch)); }
+function glueAllowed(mode: GlueMode, n: number, ch: string, unitW: number, next?: string): boolean {
+  // 'fit2q': like 'fit2p', but で is not a particle in です (it is the copula: the break after the slot is the natural one)
+  if (mode === 'fit2q') return n < 2 && (unitW + FONT <= INNER_MAX || (n === 0 && PARTICLES.has(ch) && !(ch === 'で' && next === 'す')));
+  return mode === 'all' || (mode === 'two' ? n < 2 : mode === 'fit2' ? n < 2 && unitW + FONT <= INNER_MAX : mode === 'fit2p' ? n < 2 && (unitW + FONT <= INNER_MAX || (n === 0 && PARTICLES.has(ch))) : n === 0 && PARTICLES.has(ch)); }
 function reserve(line: Line, widths: Widths, mode: GlueMode): Reserved {
   const atoms: Atom[] = [];
   let afterSlot = false, bound = 0, unitW = 0;
   for (const s of segs(line.tpl)) {
     if ('slot' in s) { atoms.push({text: `{${s.slot}}`, slot: s.slot, w: (line.slots?.[s.slot]?.max ?? 4) * FONT}); afterSlot = true; bound = 0; unitW = (line.slots?.[s.slot]?.max ?? 4) * FONT; }
-    else for (const a of splitAtoms(s.lit)) { const glue = afterSlot && isHira(a) && glueAllowed(mode, bound, a, unitW); if (glue) { bound++; unitW += FONT; } else afterSlot = false; atoms.push({text: a, w: atomWidth(a, widths), ...(glue ? {glue: true} : {})}); }
+    else { const as = splitAtoms(s.lit); for (const [k, a] of as.entries()) { const glue = afterSlot && isHira(a) && glueAllowed(mode, bound, a, unitW, as[k + 1]); if (glue) { bound++; unitW += FONT; } else afterSlot = false; atoms.push({text: a, w: atomWidth(a, widths), ...(glue ? {glue: true} : {})}); } }
   }
   // the widest unbreakable unit: a slot with the hiragana glued to it
   let unit = 0, widest = 0;
@@ -132,7 +135,7 @@ export interface Laid {
 }
 
 export function layoutComic(ws: Worksheet, widths: Widths, opts: {glue?: GlueMode} = {}): Laid {
-  const glueMode = opts.glue ?? 'fit2p';
+  const glueMode = opts.glue ?? 'fit2q';
   const W = PW + 2 * MARGIN, H = MARGIN + ws.panels.length * (PH + GUT) - GUT + MARGIN;
   const geo: Geometry = {panels: {}, bubbles: {}, slots: {}, heads: {}, points: {}};
   const findings: Finding[] = [];
@@ -177,10 +180,18 @@ export function layoutComic(ws: Worksheet, widths: Widths, opts: {glue?: GlueMod
       if (!sp && ln.kind !== 'narration') bad('comic-speaker-unknown', bid, `${ln.speaker} is not on the stage of ${p.id}`);
       const cxWant = sp ? sp.x : px + PW / 2;
       const bx = snap4(Math.min(Math.max(cxWant - bw / 2, px + 8), px + PW - 8 - bw));
-      const by = Math.max(py + 16, ...placed.filter(q => (q.x < bx + bw + 6 && bx < q.x + q.w + 6) || bx < q.x).map(q => q.y + q.h + 6));
-      placed.push({x: bx, y: by, w: bw, h: bh});
+      const under = placed.filter(q => (q.x < bx + bw + 6 && bx < q.x + q.w + 6) || bx < q.x);
+      const by = Math.max(py + 16, ...under.map(q => q.y + q.h + 6));
+      placed.push({x: bx, y: by, w: bw, h: bh, lines: laid.length} as Rect);
+      // root causes first: a stack that does not fit the band over the heads, or too many lines in it. One mistake, one report:
+      // when the band overflows, the face and tail checks of this bubble (their consequences) are not run.
+      const stackLines = laid.length + under.reduce((n, q) => n + ((q as Rect & {lines: number}).lines ?? 0), 0);
+      const zoneBottom = py + HEAD_CY - HEAD_R - 4;
+      const overflowed = by + bh > zoneBottom;
+      if (overflowed) bad('comic-bubble-zone', bid, `the stack ends at ${by + bh - py}px, the band over the heads ends at ${zoneBottom - py}px`);
+      if (stackLines > 4 || laid.length > 3) bad('comic-text-budget', bid, `${stackLines} lines are stacked in this panel (at most 4; a bubble at most 3)`);
       geo.bubbles[bid] = {x: bx, y: by, w: bw, h: bh};
-      for (const [hid, h] of heads) if (rectHitsCircle({x: bx, y: by, w: bw, h: bh}, h.x, h.y, HEAD_R + 4)) bad('comic-bubble-covers-face', bid, `bubble covers the head of ${hid}`);
+      if (!overflowed) for (const [hid, h] of heads) if (rectHitsCircle({x: bx, y: by, w: bw, h: bh}, h.x, h.y, HEAD_R + 4)) bad('comic-bubble-covers-face', bid, `bubble covers the head of ${hid}`);
       const inTpl = new Set(segs(ln.tpl).flatMap(s => 'slot' in s ? [s.slot] : []));
       panelSlots += inTpl.size;
       for (const id of inTpl) {
@@ -212,7 +223,7 @@ export function layoutComic(ws: Worksheet, widths: Widths, opts: {glue?: GlueMod
         const nx = -uy, ny = ux, base: [number, number] = [bcx + ux * edgeT * 0.8, bcy + uy * edgeT * 0.8];
         tail = `<path d="M${f1(base[0] + nx * 8)} ${f1(base[1] + ny * 8)}L${tip[0]} ${tip[1]}L${f1(base[0] - nx * 8)} ${f1(base[1] - ny * 8)}z" fill="#fff" stroke="${COLOR.ink}" stroke-width="2"${ln.kind === 'think' ? ' stroke-dasharray="3 3"' : ''}/>`;
         const ang = Math.acos((((tip[0] - base[0]) * dx + (tip[1] - base[1]) * dy) / (Math.hypot(tip[0] - base[0], tip[1] - base[1]) * len)));
-        if (ang > 0.17) bad('comic-tail-off-speaker', bid, `tail is ${f1(ang * 57.3)} deg off the mouth anchor`);
+        if (ang > 0.17 && !overflowed) bad('comic-tail-off-speaker', bid, `tail is ${f1(ang * 57.3)} deg off the mouth anchor`);
       }
       const shape = ({oval: `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${Math.min(bh / 2, 24)}"`, cloud: `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${Math.min(bh / 2, 28)}" stroke-dasharray="6 3"`, spiky: `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="6" stroke-width="3.5"`, box: `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}"`} as const)[KIND_STYLE[ln.kind]];
       parts.push(v => {
