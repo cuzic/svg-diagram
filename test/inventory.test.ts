@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {banner, box, caption, causeTree, connect, diagram, em, grid, group, plane, row, steps} from '../lib/dsl-pure.ts';
-import {boxTextPlacement, captionTextPlacement, stampGeometry} from '../lib/emit-boxes.ts';
+import {boxTextPlacement, captionTextPlacement, stampGeometry, tagGeometry} from '../lib/emit-boxes.ts';
 import {runLineOrigin} from '../lib/emit-common.ts';
 import {EMIT_HANDLERS} from '../lib/emit-handlers.ts';
 import {emitSvg} from '../lib/emit.ts';
@@ -304,7 +304,10 @@ test('banner and group headings, grid children, and tag and stamp boxes are reco
   assert.ok(drawnTag);
   const [x, y, w, h] = drawnTag.slice(1).map(Number);
   const tagRect = {x, y, w, h};
-  assert.notDeepEqual(tagRect, g.children[0]!.tagBox);
+  const rawTag = g.children[0]!.tagBox;
+  assert.ok(rawTag);
+  assert.notDeepEqual(tagRect, rawTag);
+  assert.deepEqual(tagGeometry(rawTag), tagRect);
   assert.deepEqual(tags, [{kind: 'badge', owner: 'grid[3]/0', what: 'tag', rect: tagRect}]);
 
   const stamps = d.inventory.items.filter(item => item.kind === 'badge').filter(item => item.what === 'stamp');
