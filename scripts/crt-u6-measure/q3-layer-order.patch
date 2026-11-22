@@ -1,5 +1,5 @@
 diff --git a/lib/graph-layout.ts b/lib/graph-layout.ts
-index 27f06e23..f420677f 100644
+index 27f06e23..0d76baf8 100644
 --- a/lib/graph-layout.ts
 +++ b/lib/graph-layout.ts
 @@ -4,6 +4,7 @@ import {must} from './must.ts';
@@ -10,13 +10,14 @@ index 27f06e23..f420677f 100644
  export interface Size {w: number; h: number}
  export interface Placed extends Size {x: number; y: number}
  export interface Pt {x: number; y: number}
-@@ -513,6 +514,15 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts:
+@@ -513,6 +514,16 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts:
      }
    }
  
 +  if (!opts.orderOnly && (layerSpike.opts || layerSpike.force)) { // ADR 0073 Q3 spike: run the row search once (capture) or put a found order back (force)
 +    if (layerSpike.force) {
 +      const f = layerSpike.force, ok = f.length === nLayers && f.every((r, l) => r.length === rowAt(l).length && r.every(id => rowAt(l).includes(id)));
++      layerSpike.last = ok; // the placement counts only if its last layoutLayered call took the rows
 +      if (ok) { f.forEach((r, l) => rowAt(l).splice(0, rowAt(l).length, ...r)); reindex(); layerSpike.applied++; } else layerSpike.refused++;
 +    } else if (layerSpike.opts && !layerSpike.capture) {
 +      const t0 = performance.now(), res = searchRows(rows, succ, id => must(compIdx.get(id)), layerSpike.opts, layerSpike.andTo);
@@ -28,7 +29,7 @@ index 27f06e23..f420677f 100644
    // 5. coordinates: layers along one axis, each layer centred on the widest, then relaxed toward the neighbours without overlap
 diff --git a/lib/layer-order-spike.ts b/lib/layer-order-spike.ts
 new file mode 100644
-index 00000000..e9526796
+index 00000000..3e511820
 --- /dev/null
 +++ b/lib/layer-order-spike.ts
 @@ -0,0 +1,104 @@
@@ -38,9 +39,9 @@ index 00000000..e9526796
 +export interface SpikeCapture {p1: number; moves: number; rows: string[][]; c0: number; c1: number; ms: number; alt?: string[][]; more?: string[][][]}
 +export const layerSpike: {
 +  opts: SpikeOpts | null; // set by toc.ts for the capturing call only
-+  capture: SpikeCapture | null; andTo: ReadonlySet<string>;
++  capture: SpikeCapture | null; andTo: ReadonlySet<string>; last: boolean;
 +  force: string[][] | null; applied: number; refused: number;
-+} = {opts: null, capture: null, force: null, andTo: new Set<string>(), applied: 0, refused: 0};
++} = {opts: null, capture: null, force: null, andTo: new Set<string>(), last: false, applied: 0, refused: 0};
 +
 +export function searchRows(rows: readonly (readonly string[])[], succ: ReadonlyMap<string, readonly string[]>, comp: (id: string) => number, o: SpikeOpts, andTo: ReadonlySet<string> = new Set()): {rows: string[][]; c0: number; c1: number; p1: number; moves: number; alt?: string[][]; more?: string[][][]} {
 +  const ids: string[] = [], idx = new Map<string, number>();
@@ -137,7 +138,7 @@ index 00000000..e9526796
 +  return {rows: bestRows.map(r => r.map(n => ids[n]!)), c0, c1: best, p1, moves: nMoves, ...(more.length ? {more} : {}), ...(alt ? {alt: alt.map(r => r.map(n => ids[n]!))} : {})};
 +}
 diff --git a/lib/toc.ts b/lib/toc.ts
-index 53e886c3..33d647c4 100644
+index 53e886c3..7065a3c6 100644
 --- a/lib/toc.ts
 +++ b/lib/toc.ts
 @@ -4,13 +4,14 @@
@@ -187,10 +188,10 @@ index 53e886c3..33d647c4 100644
 +  let bestScore = pool.best.score, bestOrder: string[] | undefined, bestRows: string[][] | undefined;
 +  // ADR 0073 Q3 spike: a figure's layer order found once, laid out as one more candidate and judged by the same score and gates as any order
 +  const tryRows = (rows: string[][], seedOrder?: readonly string[]): void => {
-+    layerSpike.force = rows; layerSpike.applied = 0;
++    layerSpike.force = rows; layerSpike.applied = 0; layerSpike.last = false;
 +    const t = once(seedOrder, false, true, sameFit, true); layerSpike.force = null;
 +    searchStats.rowsLaid++;
-+    if (layerSpike.applied === 0 || isNoFit(t)) { searchStats.rowsRefused++; return; }
++    if (!layerSpike.last || isNoFit(t)) { searchStats.rowsRefused++; return; }
 +    if (!inFrame({layers: layerRank(axisOf(t)), loose: t.loose.length, fits: t.fitApplied?.length}, baseFrame)) { searchStats.whyFrame++; return; }
 +    const score = scoreOfCause(t, own, sep);
 +    if (LO?.ov && parallelRuns(t.edges.map(e => e.points), 4).length > parallelRuns(must(pool.best.item).t.edges.map(e => e.points), 4).length) { searchStats.whyOv++; return; } // two arrows on one line (a criterion of ADR 0073): never more than the pick so far
@@ -203,7 +204,7 @@ index 53e886c3..33d647c4 100644
    // then more orders when the fixed ones left a crossing: shuffles from a fixed seed (the same figure always gets the same answer), then swaps of two neighbours of the best order so far.
    // `straighten: false` keeps to the fixed ones (it is the way back to the old figure)
    const queue = [...orders], seen = new Set<string>([ids.join('\u0000'), ...orders.map(o => o.join('\u0000'))]);
-@@ -167,17 +186,36 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+@@ -167,21 +186,50 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
      // the selection changed (a better candidate, or a window that shrank and left the old pick out): the wait starts again
      if (pool.add({t, order, proxy}, score)) { const cur = must(pool.best.item); bestScore = pool.best.score; bestOrder = cur.order; bestProxy = cur.proxy; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
    }
@@ -212,7 +213,7 @@ index 53e886c3..33d647c4 100644
 +  // the existing search ran exactly as on main (same trajectory, same pick, nothing below touches `lastBetter`, `tried` or the queue); the row candidates join its pool afterwards
 +  const mainOrder = bestOrder, mainPick = must(pool.best.item);
 +  const wins0 = searchStats.rowsWon;
-+  const rowsOk = (cap: SpikeCapture): boolean => LO?.fc === undefined || cap.p1 < bestProxy + Number(LO.fc); // forecast: lay a rows candidate out only if its layered crossings are below the best order's forecast (ADR 0053's proxy)
++  const rowsOk = (cap: SpikeCapture): boolean => LO?.fc === undefined || (LO.nofc !== true && bestScore[0]! > 0) || cap.p1 < bestProxy + Number(LO.fc); // as in the order loop: while AND crossings remain, the forecast (which does not see the AND arrows) does not filter // forecast: lay a rows candidate out only if its layered crossings are below the best order's forecast (ADR 0053's proxy)
 +  if (LO && cap0) { searchStats.rowsFound++; searchStats.searchMs += cap0.ms; searchStats.moves += cap0.moves; if (rowsOk(cap0)) for (const r of [cap0.rows, ...(cap0.alt ? [cap0.alt] : []), ...(cap0.more ?? [])]) tryRows(r); }
 +  // `post`: seeded from the best order the search found (its own sweep rows are the start of the row search); `post: 'won'` only when the first rows candidate won
 +  if (LO?.post && cap0 && bestOrder && (LO.post !== 'won' || searchStats.rowsWon > wins0)) {
@@ -229,8 +230,8 @@ index 53e886c3..33d647c4 100644
 -  // the same frame as the figures the search compared (the plain ones: the detours may have made `first` lower than any order would be without them)
 +  // the final pick: main's own candidates first (a tie never changes main's figure), then the rows pick with its detours and without. A refused `force` (the layers or the rows differ) drops that candidate.
 +  const detour = (order: readonly string[] | undefined, rows: string[][] | undefined): LaidOutCause | undefined => {
-+    layerSpike.force = rows ?? null; layerSpike.applied = 0; const f = once(order); layerSpike.force = null;
-+    return isNoFit(f) || (rows && layerSpike.applied === 0) ? undefined : f;
++    layerSpike.force = rows ?? null; layerSpike.applied = 0; layerSpike.last = false; const f = once(order); layerSpike.force = null;
++    return isNoFit(f) || (rows && !layerSpike.last) ? undefined : f;
 +  };
 +  const foundMain = mainOrder ? detour(mainOrder, undefined) : undefined;
 +  const rowsWon = must(pool.best.item) !== mainPick;
@@ -239,22 +240,74 @@ index 53e886c3..33d647c4 100644
 -  const picked = pickFinal(first, [found, best], {h: base.h, layers: baseRank, loose: base.loose.length, fits: base.fitApplied?.length}, exchange, viewOf);
 +  const frame = {h: base.h, layers: baseRank, loose: base.loose.length, fits: base.fitApplied?.length};
 +  const mainCands = [foundMain, mainPick.t];
-+  let rowsCands: (LaidOutCause | undefined)[] = rowsWon ? [foundRows, best] : [];
-+  if (rowsCands.length) { // the overlap guard at the final level: no rows figure with more sub-4px overlaps than the figure main would pick
-+    const ovOf = (t: LaidOutCause): number => parallelRuns(t.edges.map(e => e.points), 4).length, ovMain = ovOf(pickFinal(first, mainCands, frame, exchange, viewOf));
-+    rowsCands = rowsCands.filter(t => t !== undefined && (!LO?.ov || ovOf(t) <= ovMain));
-+  }
-+  const picked = pickFinal(first, [...mainCands, ...rowsCands], frame, exchange, viewOf);
++  const ovOf = (t: LaidOutCause): number => parallelRuns(t.edges.map(e => e.points), 4).length;
++  const picked = pickTwoStage(first, mainCands, rowsWon ? [foundRows, best] : [], frame, exchange, viewOf, LO?.ov ? ovOf : undefined);
    if (picked.h > base.h + 0.5) env.tallerSeen?.();
    return picked;
  }
-@@ -231,7 +269,8 @@ export function windowPool<T>(first: T, score: readonly number[]): {readonly bes
+ 
++/**
++ * ADR 0075 D3: the final pick in two stages. M = main's own pick, made exactly as on main (`first` and main's candidates only). R = the best of the rows candidates alone. R replaces M only when it is strictly better
++ * in the lexicographic order of the score (AND crossings, AND side by side, crossings, pairs, bends, height; a tie keeps M) and passes the same frame and height rules and, with `ovOf`, has no more sub-4px overlaps than M. So a rows candidate that is not chosen never moves the pick to another main candidate (the window of one `pickFinal`
++ * over all of them is not monotone), and the figure changes only when a rows candidate is strictly better.
++ */
++export function pickTwoStage<T>(first: T, main: readonly (T | undefined)[], rows: readonly (T | undefined)[], base: {h: number; layers: readonly number[]; loose: number; fits: number | undefined}, exchange: boolean, view: (t: T) => Judged, ovOf?: (t: T) => number): T {
++  const m = pickFinal(first, main, base, exchange, view);
++  const rs = rows.filter((t): t is T => t !== undefined && (!ovOf || ovOf(t) <= ovOf(m)));
++  if (!rs.length) return m;
++  const r = pickFinal(must(rs[0]), rs.slice(1), base, exchange, view);
++  const vr = view(r), vm = view(m);
++  return inFrame(vr, base) && passesHeight(vr.h, vr.score, base, vm.score, exchange) && lexLess(vr.score, vm.score) ? r : m;
++}
++
+ /** What the final pick reads of a figure: its height, its score, the ranks of its layers, how many ANDs were left undrawn and how many size limits were applied. */
+ export interface Judged {h: number; score: readonly number[]; layers: readonly number[]; loose: number; fits: number | undefined}
+ /** Whether a figure is in the frame of the figures the search compares (D1 (a), (e)): the same layers by rank, no more ANDs left undrawn, the same number of size limits applied. The search loop and the final pick both ask it. */
+@@ -231,7 +279,8 @@ export function windowPool<T>(first: T, score: readonly number[]): {readonly bes
  }
  
  /** A count of the orders the search laid out (a measure of its cost that does not depend on the load of the machine; read by the tests and by scripts/crt-u6-measure). */
 -export const searchStats = {laid: 0};
 +export const searchStats = {laid: 0, rowsFound: 0, rowsLaid: 0, rowsRefused: 0, rowsWon: 0, rowsPost: 0, searchMs: 0, layouts: 0, moves: 0, whyFrame: 0, whyHeight: 0, whyAnd: 0, whyLose: 0, whyOv: 0};
-+function spikeCfg(): {search: SpikeOpts; px?: boolean; post?: boolean | 'won'; ov?: boolean; fc?: number | boolean; pg?: boolean} | undefined { const e = process.env['LO']; if (!e) return undefined; const j = JSON.parse(e); return {search: {mode: 'anneal', moves: 20000, keep: 0, restarts: 1, seed: 7, T0: 1, ...j}, px: j.px, post: j.post, ov: j.ov, fc: j.fc, pg: j.pg}; }
++function spikeCfg(): {search: SpikeOpts; px?: boolean; post?: boolean | 'won'; ov?: boolean; fc?: number | boolean; pg?: boolean; nofc?: boolean; two?: boolean} | undefined { const e = process.env['LO']; if (!e) return undefined; const j = JSON.parse(e); return {search: {mode: 'anneal', moves: 20000, keep: 0, restarts: 1, seed: 7, T0: 1, ...j}, px: j.px, post: j.post, ov: j.ov, fc: j.fc, pg: j.pg, nofc: j.nofc, two: j.two}; }
  /** The most orders the search tries for one figure. */
  const MAX_ORDERS = 60;
  /** How many orders in a row may fail to get better before the search stops (with and without AND arrows crossing). */
+diff --git a/test/pick-final-two-stage.test.ts b/test/pick-final-two-stage.test.ts
+new file mode 100644
+index 00000000..33ce98e8
+--- /dev/null
++++ b/test/pick-final-two-stage.test.ts
+@@ -0,0 +1,32 @@
++// ADR 0075 D3: the final pick in two stages. One `pickFinal` over main's candidates and the rows candidates together is not monotone: a rows candidate that is not chosen can still move the pick to another
++// main candidate (its fewer bends shrink the window). `pickTwoStage` picks main's figure exactly as on main and lets a rows candidate replace it only when it is strictly better (and has no more overlaps).
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {pickFinal, pickTwoStage, type Judged} from '../lib/toc.ts';
++
++// scores: [AND crossings, AND side by side, crossings, pairs, bends, height]
++const J = (name: string, score: number[]): Judged & {name: string} => ({name, h: score[5]!, score, layers: [0], loose: 0, fits: undefined});
++const frame = {h: 100, layers: [0], loose: 0, fits: undefined};
++const view = (t: Judged): Judged => t;
++const first = J('first', [0, 0, 3, 0, 20, 100]), M = J('M', [0, 0, 2, 0, 12, 100]), N = J('N', [0, 0, 2, 1, 8, 100]), R = J('R', [0, 0, 2, 2, 7, 100]);
++
++test('one pickFinal over all candidates is not monotone: main alone picks M, main + R picks N (a main candidate R did not even win)', () => {
++  assert.equal((pickFinal(first, [M, N], frame, true, view) as typeof M).name, 'M');
++  assert.equal((pickFinal(first, [M, N, R], frame, true, view) as typeof M).name, 'N');
++});
++
++test('pickTwoStage: an unchosen rows candidate never changes main\'s pick', () => {
++  assert.equal((pickTwoStage(first, [M, N], [R], frame, true, view) as typeof M).name, 'M');
++  assert.equal((pickTwoStage(first, [M, N], [], frame, true, view) as typeof M).name, 'M');
++});
++
++test('pickTwoStage: a strictly better rows candidate replaces main\'s pick; a tie keeps main\'s', () => {
++  const better = J('better', [0, 0, 1, 0, 14, 100]), tie = J('tie', [...M.score]);
++  assert.equal((pickTwoStage(first, [M, N], [better], frame, true, view) as typeof M).name, 'better');
++  assert.equal((pickTwoStage(first, [M, N], [tie], frame, true, view) as typeof M).name, 'M');
++});
++
++test('pickTwoStage: a rows candidate with more overlaps than main\'s pick is not taken', () => {
++  const better = J('better', [0, 0, 1, 0, 14, 100]), ov = new Map<unknown, number>([[M, 0], [N, 0], [better, 1], [first, 0]]);
++  assert.equal((pickTwoStage(first, [M, N], [better], frame, true, view, t => ov.get(t) ?? 0) as typeof M).name, 'M');
++});
