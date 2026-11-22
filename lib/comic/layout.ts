@@ -6,10 +6,11 @@ import {snap4} from '../emit-common.ts';
 import {comicAtomWidth} from './width.ts';
 import {fillTemplate, parseTemplate, slotIdsOf} from './template.ts';
 import {balloonPath} from './balloon-path.ts';
+import {mapPoint} from './character.ts';
 import {reserveDialogue} from './reserve.ts';
 import type {Reserved} from './reserve.ts';
 import {checkBubbleFace, checkTail, tailCrosses} from './check.ts';
-import type {BubbleKind, ComicAspect, ComicAt, ComicBand, ComicFinding, ComicLaidBubble, ComicLaidHead, ComicLaidPanel, ComicLaidSlot, ComicLayoutName, ComicRule, ComicRun, ComicSlotDef, ComicText, LaidOutComic} from '../types/comic.ts';
+import type {BubbleKind, ComicAspect, ComicAt, ComicBand, ComicFinding, ComicLaidBubble, ComicLaidHead, ComicLaidPanel, ComicLaidSlot, ComicLayoutName, ComicRule, ComicRun, ComicSlotDef, ComicText, ComicWorksheet, LaidOutComic} from '../types/comic.ts';
 import type {Anchor, Rect, WidthOf} from '../types/core.ts';
 
 /** The panels of each named layout: columns x rows. */
@@ -34,6 +35,9 @@ const MAX_BUBBLE_LINES = 3;
 
 interface SlotInfo {max: number; def: ComicSlotDef | undefined}
 export const slotMax = (def: ComicSlotDef | undefined): number | undefined => def?.max ?? (def?.choices?.length ? Math.max(...def.choices.map(c => [...c].length)) : undefined);
+
+/** The hue of a person with no `face`: a fixed one by the place in the cast, so the same person is the same in every panel (and no two of the first five share one). */
+const defaultHue = (cast: ComicWorksheet['cast'], who: string): number => (210 + 70 * Math.max(0, Object.keys(cast).indexOf(who))) % 360;
 
 const headX = (at: ComicAt, w: number): number => at === 'left' ? STAGE_X : at === 'right' ? w - STAGE_X : Math.floor(w / 2 / 4) * 4;
 
@@ -61,7 +65,17 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
       taken.add(s.at);
       if (heads.has(s.who)) continue;
       const cx = px + headX(s.at, PW);
-      heads.set(s.who, {id: `${p.id}.${s.who}`, who: s.who, name: sheet.cast[s.who]?.name ?? s.who, expression: s.expression, cx, cy: headCy, r: HEAD_R, mouth: [cx, f1(headCy + HEAD_R * 0.42)]});
+      const head: ComicLaidHead = {id: `${p.id}.${s.who}`, who: s.who, name: sheet.cast[s.who]?.name ?? s.who, expression: s.expression, look: {kind: 'face', hue: 0, hair: 'short'}, cx, cy: headCy, r: HEAD_R, mouth: [cx, f1(headCy + HEAD_R * 0.42)]};
+      // who is drawn how: an artist's character when the cast names an asset (and it has this expression), else the built-in face
+      const cast = sheet.cast[s.who], ch = cast?.asset === undefined ? undefined : band.characters?.[cast.asset];
+      if (cast?.asset !== undefined && !ch) add('comic-asset-missing', head.id, `${head.id}: the asset "${cast.asset}" of ${s.who} is not among the characters given (pass it in comic(sheet, {characters}), or use face instead)`);
+      else if (ch && ch.expressions[s.expression] === undefined) add('comic-asset-missing', head.id, `${head.id}: the character "${ch.id}" has no "${s.expression}" expression (draw it, or use another expression)`);
+      if (ch?.expressions[s.expression] !== undefined) {
+        head.look = {kind: 'asset', asset: ch.id};
+        head.mouth = mapPoint(ch, head, ch.anchors.mouth);
+        if (ch.anchors.hand) head.hand = mapPoint(ch, head, ch.anchors.hand);
+      } else head.look = {kind: 'face', hue: cast?.face?.hue ?? defaultHue(sheet.cast, s.who), hair: cast?.face?.hair ?? 'short'};
+      heads.set(s.who, head);
     }
     const label = sheet.numbering === false ? undefined : sheet.labels?.[pi] ?? String(pi + 1);
     panels.push({id: p.id, x: px, y: py, w: PW, h: PH, ...(label === undefined ? {} : {label}), tint: p.bg?.tint ?? 'plain', heads: [...heads.values()]});
@@ -154,7 +168,7 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
     if (panelSlots.size > 2) add('comic-slots-per-panel', p.id, `${p.id} has ${panelSlots.size} blanks (at most 2 in a panel: the reader fills them in one glance)`);
   });
   return {type: 'comic', ...(band.id === undefined ? {} : {id: band.id}), ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until}),
-    x: bx, y: by, w: W, h: H, title: sheet.title, layout: sheet.layout, aspect, blank: sheet.blank ?? 'prompt', panels, bubbles, anchors, texts, findings};
+    x: bx, y: by, w: W, h: H, title: sheet.title, layout: sheet.layout, aspect, blank: sheet.blank ?? 'prompt', panels, bubbles, anchors, texts, findings, characters: {...band.characters}};
 }
 
 const wrapNote = (n: 'orphan-line' | 'bubble-wide' | 'follower-split', id: string, r: Reserved): string => n === 'orphan-line' ? `${id}: the last line is two characters or fewer ("${r.lines.at(-1)?.atoms.map(a => a.text).join('') ?? ''}"); lengthen it or merge it into the line before`

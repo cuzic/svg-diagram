@@ -21,3 +21,4 @@ diagram({title: '例', width: 480, legend: false}).add(comic({
 - しっぽは話し手の口へ向く。同じ話し手のふきだしが 2 個あるときは下の 1 個だけに付く。別の話し手のふきだしの後ろを通る(`comic-tail-crosses-bubble`)ときは、話す順か立ち位置を変える。
 - 台詞の言い換えで直す: `comic-bubble-zone` / `comic-text-budget`(積みきれない)、`comic-orphan-line`(最後の行が 2 字以下)、`comic-follower-split`(穴の後ろの短いひらがなが切れる)。
 - `bubble()` はバブルチャートの名前なので、台詞 1 つの検査は `speechBubble()`。
+- 人物は `cast` に書く。`face: {hue: 0〜359, hair: 'short' | 'long'}` で内蔵の顔の色と髪型、`asset: '<id>'` で絵師の素材(`comic(sheet, {characters: {<id>: manifest}})` で渡す。manifest は `{id, name, box, anchors: {head, mouth, hand?}, expressions: {neutral: '<svg の断片>', …}, license: {spdx, author, url}}`。断片に使えるのは図形・グループ・グラデーション・クリップパスだけ、色は `#rrggbb`。ライセンスが無いと投げる)。何も書かない人物は、`cast` の順に色が決まる。表情は `neutral` `smile` `laugh` `surprise` `worry` `angry` `think` `sad`。

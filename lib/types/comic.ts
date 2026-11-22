@@ -9,6 +9,31 @@ export type ComicExpression = 'neutral' | 'smile' | 'laugh' | 'surprise' | 'worr
 export type BubbleKind = 'say' | 'think' | 'shout' | 'narration';
 
 export interface ComicCast {name: string; asset?: string; face?: {hue: number; hair?: 'short' | 'long'}}
+
+/** Which sides of a character the bubbles may lean to (the `anchor` override check of a later unit reads it). */
+export type BubbleSide = 'top-left' | 'top' | 'top-right' | 'left' | 'right';
+/** A character from an artist's material: one JSON with a fragment per expression (ADR 0074 D3). Coordinates are the box's. */
+export interface CharacterManifest {
+  id: string;
+  name: string;
+  /** [x, y, width, height]: the viewBox the fragments are drawn in. Not made square. */
+  box: readonly [number, number, number, number];
+  anchors: {head: {cx: number; cy: number; r: number}; mouth: readonly [number, number]; hand?: readonly [number, number]};
+  bubbleSides?: readonly BubbleSide[];
+  /** SVG fragments (shapes, groups, gradients and clip paths only), by expression; `neutral` at least. */
+  expressions: Readonly<Partial<Record<ComicExpression, string>>>;
+  license: {spdx: string; author: string; url: string};
+}
+/** A loaded character: the manifest with every fragment cleaned (plain JSON). */
+export interface ComicCharacter {
+  id: string;
+  name: string;
+  box: [number, number, number, number];
+  anchors: {head: {cx: number; cy: number; r: number}; mouth: [number, number]; hand?: [number, number]};
+  bubbleSides: BubbleSide[];
+  expressions: Partial<Record<ComicExpression, string>>;
+  license: {spdx: string; author: string; url: string};
+}
 /** A blank of a template (`{id}`): how many full-width characters it may take, and what the empty blank says. */
 export interface ComicSlotDef {max?: number; prompt: string; fallback?: string; choices?: readonly string[]; strict?: boolean}
 /** One line of speech (shared with the chat band): a template with blanks, and who says it. */
@@ -47,16 +72,20 @@ export interface ComicOpts extends RevealOpts, ScopeOpts {
   writing?: 'horizontal';
   /** 'ltr' only (a right-to-left reading order goes with vertical text). */
   dir?: 'ltr';
+  /** Artists' characters by manifest id, for the cast entries that name an `asset` (given per drawing, never kept in a global). */
+  characters?: Readonly<Record<string, CharacterManifest>>;
 }
-export interface ComicBand extends ComicOpts {
+export interface ComicBand extends Omit<ComicOpts, 'characters'> {
   type: 'comic';
   sheet: ComicWorksheet;
+  /** The loaded characters (cleaned; plain JSON). */
+  characters?: Readonly<Record<string, ComicCharacter>>;
 }
 
 export type ComicRule =
   | 'comic-speaker-unknown' | 'comic-at-collision' | 'comic-panel-count' | 'comic-slots-per-panel' | 'comic-slot-duplicate' | 'comic-slot-undefined'
   | 'comic-slot-max' | 'comic-slot-prompt' | 'comic-bubble-covers-face' | 'comic-tail-off-speaker' | 'comic-tail-crosses-bubble' | 'comic-bubble-zone' | 'comic-text-budget'
-  | 'comic-bubble-wide' | 'comic-orphan-line' | 'comic-follower-split';
+  | 'comic-asset-missing' | 'comic-bubble-wide' | 'comic-orphan-line' | 'comic-follower-split';
 /** A problem is a mistake in the data or the layout (the check fails); an advice is a hint (a lint finding). */
 export interface ComicFinding {rule: ComicRule; severity: 'problem' | 'advice'; where: string; message: string}
 
@@ -79,7 +108,9 @@ export interface ComicLaidBubble {
   /** The text of the `<title>`: the template with the blanks empty. */
   title: string;
 }
-export interface ComicLaidHead {id: string; who: string; name: string; expression: ComicExpression; cx: number; cy: number; r: number; mouth: [number, number]}
+/** How a head is drawn: the built-in face (hue and hair), or an artist's character (its manifest id). */
+export type ComicLook = {kind: 'face'; hue: number; hair: 'short' | 'long'} | {kind: 'asset'; asset: string};
+export interface ComicLaidHead {id: string; who: string; name: string; expression: ComicExpression; look: ComicLook; cx: number; cy: number; r: number; mouth: [number, number]; /** the character's hand anchor on the panel, when it has one */ hand?: [number, number]}
 export interface ComicLaidPanel {
   id: string; x: number; y: number; w: number; h: number;
   /** The badge text (a number or a label); left out with `numbering: false`. */
@@ -103,4 +134,6 @@ export interface LaidOutComic extends Dimmed {
   /** The text sizes the band draws (the fit check reads them). */
   texts: ComicText[];
   findings: ComicFinding[];
+  /** The characters of the cast's assets, loaded: the drawing needs their fragments. */
+  characters: Record<string, ComicCharacter>;
 }

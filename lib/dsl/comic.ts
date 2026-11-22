@@ -4,6 +4,8 @@
 import {COMIC_ID, parseTemplate} from '../comic/template.ts';
 import type {Declares, HandleOf} from '../strict.ts';
 import type {BubbleKind, ComicAspect, ComicAt, ComicBand, ComicDialogue, ComicExpression, ComicOpts, ComicPanel, ComicSlotDef, ComicWorksheet} from '../types/comic.ts';
+import {loadCharacter} from '../comic/character.ts';
+export type {BubbleKind, CharacterManifest, ComicAspect, ComicAt, ComicBand, ComicCast, ComicDialogue, ComicExpression, ComicLayoutName, ComicOpts, ComicPanel, ComicSlotDef, ComicStage, ComicWorksheet} from '../types/comic.ts';
 import {revealOf, scopeOpt, withHandle} from './shared.ts';
 
 const LAYOUTS = ['1x4', '2x2', '1x3', '1x2'] as const;
@@ -67,7 +69,15 @@ export function comic(sheet: ComicWorksheet, opts: ComicOpts = {}): ComicBand {
   if (typeof sheet.title !== 'string' || sheet.title === '') throw new Error('comic(): title is the name of the comic');
   oneOf(sheet.layout, LAYOUTS, 'comic(): layout');
   if (!sheet.cast || typeof sheet.cast !== 'object') throw new Error('comic(): cast is {id: {name}} of the people');
-  for (const k of Object.keys(sheet.cast)) assertId(k, 'comic(): cast');
+  for (const [k, c] of Object.entries(sheet.cast)) {
+    assertId(k, 'comic(): cast');
+    const f = c?.face;
+    if (f !== undefined) {
+      if (!Number.isInteger(f.hue) || f.hue < 0 || f.hue > 359) throw new Error(`comic(): cast ${k}: face.hue is a whole number from 0 to 359 (got ${JSON.stringify(f.hue)})`);
+      if (f.hair !== undefined) oneOf(f.hair, ['short', 'long'], `comic(): cast ${k}: face.hair`);
+    }
+    if (c?.asset !== undefined) assertId(c.asset, `comic(): cast ${k}: asset`);
+  }
   if (!Array.isArray(sheet.panels)) throw new Error('comic(): panels is a list');
   if (opts.aspect !== undefined) oneOf(opts.aspect, ASPECTS, 'comic(): aspect');
   if (opts.writing !== undefined && opts.writing !== 'horizontal') throw new Error("comic(): writing: 'vertical' is not implemented yet (only 'horizontal')");
@@ -81,6 +91,7 @@ export function comic(sheet: ComicWorksheet, opts: ComicOpts = {}): ComicBand {
   });
   const copy: ComicWorksheet = {version: 1, title: sheet.title, layout: sheet.layout, cast: {...sheet.cast}, panels,
     ...(sheet.numbering === undefined ? {} : {numbering: sheet.numbering}), ...(sheet.labels === undefined ? {} : {labels: [...sheet.labels]}), ...(sheet.blank === undefined ? {} : {blank: sheet.blank})};
-  const band: ComicBand = {type: 'comic', sheet: copy, ...(opts.aspect === undefined ? {} : {aspect: opts.aspect}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'comic()'), ...revealOf(opts)};
+  const characters = Object.fromEntries(Object.entries(opts.characters ?? {}).map(([k, m]) => { const c = loadCharacter(m); if (c.id !== k) throw new Error(`comic(): characters["${k}"] is the manifest of "${c.id}" (key it by its id)`); return [k, c]; }));
+  const band: ComicBand = {type: 'comic', sheet: copy, ...(Object.keys(characters).length ? {characters} : {}), ...(opts.aspect === undefined ? {} : {aspect: opts.aspect}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'comic()'), ...revealOf(opts)};
   return withHandle(band, opts.id);
 }

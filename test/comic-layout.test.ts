@@ -118,7 +118,7 @@ test('comic-tail-off-speaker: a tail turned away from the mouth is reported, and
 });
 
 test('comic-bubble-covers-face: a bubble within 4px of a head circle is reported; one 4px away is not', () => {
-  const h = {id: 'p1.me', who: 'me', name: '私', expression: 'neutral' as const, cx: 100, cy: 100, r: 36, mouth: [100, 115] as [number, number]};
+  const h = {id: 'p1.me', who: 'me', name: '私', expression: 'neutral' as const, look: {kind: 'face' as const, hue: 210, hair: 'short' as const}, cx: 100, cy: 100, r: 36, mouth: [100, 115] as [number, number]};
   const bubble = (y: number) => ({id: 'p1.d1', panel: 'p1', kind: 'say' as const, x: 60, y, w: 80, h: 40, lines: [], runs: [], slots: [], title: ''});
   const faceRules = (y: number): string[] => { const seen: string[] = []; checkBubbleFace(bubble(y), h, rule => seen.push(rule)); return seen; };
   assert.deepEqual(faceRules(100 - 36 - 4 - 40 + 1), ['comic-bubble-covers-face']);
@@ -256,7 +256,7 @@ test('a tail never enters the head: a flush stack of three 2-line bubbles at 2x2
   assert.ok(Math.hypot(last.tail.tip[0] - h.cx, last.tail.tip[1] - h.cy) >= h.r + 1 - 0.1, 'the tip is outside the circle');
   assert.deepEqual(l.bubbles.slice(0, 2).map(b => b.tail), [undefined, undefined], "the speaker's upper bubbles carry no tail");
   // with room: a bubble 13px above a head is 10px of tail, not 7 (TAIL_MIN) and not into the circle
-  const head = {id: 'p1.me', who: 'me', name: '私', expression: 'neutral' as const, cx: 50, cy: 97, r: 36, mouth: [50, 112] as [number, number]};
+  const head = {id: 'p1.me', who: 'me', name: '私', expression: 'neutral' as const, look: {kind: 'face' as const, hue: 210, hair: 'short' as const}, cx: 50, cy: 97, r: 36, mouth: [50, 112] as [number, number]};
   const t = tailOf({x: 0, y: 0, w: 100, h: 48, kind: 'say'}, head)!;
   assert.equal(t.tip[1] - 48, 10, 'the tail is 10px long (the tip 6px from the circle would make it 7)');
   const tight = tailOf({x: 0, y: 0, w: 100, h: 48, kind: 'say'}, {...head, cy: 48 + 4 + 36, mouth: [50, 48 + 4 + 36 + 15]})!;
@@ -275,7 +275,7 @@ test('comic-tail-off-speaker also reports a tail that ends inside the head', () 
 });
 
 test('the tilt of a tail: 9 degrees is within the limit, 11 degrees is reported', () => {
-  const h = {id: 'p1.me', who: 'me', name: '私', expression: 'neutral' as const, cx: 0, cy: 300, r: 36, mouth: [0, 100] as [number, number]};
+  const h = {id: 'p1.me', who: 'me', name: '私', expression: 'neutral' as const, look: {kind: 'face' as const, hue: 210, hair: 'short' as const}, cx: 0, cy: 300, r: 36, mouth: [0, 100] as [number, number]};
   const tilted = (deg: number) => {
     const a = deg * Math.PI / 180;
     const b = {id: 'p1.d1', panel: 'p1', kind: 'say' as const, x: -50, y: -40, w: 100, h: 40, lines: [], runs: [], slots: [], title: '', tail: {from: [0, 0] as [number, number], tip: [100 * Math.sin(a), 100 * Math.cos(a)] as [number, number], base: [[-8, 0], [8, 0]] as [[number, number], [number, number]]}};
@@ -334,4 +334,27 @@ test('balloonPath: a narrow body gets a narrower wedge, a side with no straight 
 
 test('f1 rounds to a tenth of a pixel (every coordinate of the SVG is written through it)', () => {
   assert.deepEqual([f1(1.26), f1(1.24), f1(-0.04), f1(100)], [1.3, 1.2, -0, 100]);
+});
+
+test('tailCrosses: a bubble beside the centre line but inside the wedge is hit through the wedge\'s edge; one outside the wedge is not', () => {
+  // the wedge leaves (-8, 0) and (8, 0) and ends at (0, 100); the centre line is x = 0
+  const tail = {from: [0, 0] as [number, number], tip: [0, 100] as [number, number], base: [[8, 0], [-8, 0]] as [[number, number], [number, number]]};
+  // the right edge of the wedge runs from (8, 0) to (0, 100): at y = 50 it is at x = 4. A box from x = 3 stands in the wedge; the centre line (x = 0) does not touch it
+  const inside = {x: 3, y: 40, w: 20, h: 20};
+  assert.equal(tailCrosses({...tail, base: [[8, 0], [8, 0]]}, inside), true, 'with the wedge collapsed onto one side, the right edge is the only thing that reaches it');
+  assert.equal(tailCrosses({from: tail.from, tip: tail.tip, base: [[0, 0], [0, 0]]}, inside), false, 'the centre line alone misses it: the test is about the wedge edge');
+  assert.equal(tailCrosses(tail, inside), true);
+  // beside the wedge: at y = 50 the wedge's edge is at x = 4, so a box from x = 6 is clear
+  assert.equal(tailCrosses(tail, {x: 6, y: 40, w: 20, h: 20}), false);
+  // the left edge works the same
+  assert.equal(tailCrosses(tail, {x: -23, y: 40, w: 20, h: 20}), true);
+});
+
+test('balloonPath: a body under 48px wide gets a smaller corner radius (half its width), so the outline never doubles back', async () => {
+  const {balloonPath} = await import('../lib/comic/balloon-path.ts');
+  const radii = (d: string) => [...d.matchAll(/A([\d.]+) ([\d.]+) /g)].map(m => Number(m[1]));
+  assert.deepEqual(radii(balloonPath({x: 0, y: 0, w: 100, h: 100}, 'say').d), [24, 24, 24, 24], 'a wide body: the corners of 24');
+  assert.deepEqual(radii(balloonPath({x: 0, y: 0, w: 40, h: 100}, 'say').d), [20, 20, 20, 20], '40 wide: half of it');
+  assert.deepEqual(radii(balloonPath({x: 0, y: 0, w: 30, h: 100}, 'think').d), [15, 15, 15, 15]);
+  assert.deepEqual(radii(balloonPath({x: 0, y: 0, w: 10, h: 100}, 'shout').d), [5, 5, 5, 5], 'a shout: 6 would not fit in 10');
 });
