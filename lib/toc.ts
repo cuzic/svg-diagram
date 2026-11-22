@@ -175,12 +175,9 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
     // the selection changed (a better candidate, or a window that shrank and left the old pick out): the wait starts again
     if (pool.add({t, order, proxy}, score)) { const cur = must(pool.best.item); bestScore = pool.best.score; bestOrder = cur.order; bestProxy = cur.proxy; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
   }
-  // ADR 0073 D3: the search judged the orders without the tails of the arrows into an AND moved onto their heads (`tailOff`): the tails' moves change the scores of the orders by
-  // a few bends each, which let the patience of the search run out before the order that crosses less (the same figures lose a crossing otherwise). The figure the search
-  // chose, and the base it started from, are laid out once more with them
-  const pooled = must(pool.best.item);
-  const withTails = band.straighten === false || !own ? undefined : once(pooled.order, false, true, pooled.order ? sameFit : undefined);
-  const best = withTails && !isNoFit(withTails) ? withTails : pooled.t;
+  // ADR 0073 D3: the search judges the orders with the tails of the arrows into an AND left where the ports put them (`tailOff`: the same scores as before D3, so the search finds the same orders);
+  // `first` and `found` below are laid out with them moved, and the final pick is made among those
+  const best = must(pool.best.item).t;
   if (band.straighten === false) { if (best.h > base.h + 0.5) env.tallerSeen?.(); return best; }
   const withDetours = bestOrder ? once(bestOrder) : undefined;
   const found = withDetours && !isNoFit(withDetours) ? withDetours : undefined;

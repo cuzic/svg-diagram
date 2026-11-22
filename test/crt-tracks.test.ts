@@ -218,6 +218,8 @@ test("U4b, the ADR's u4: the two direct arrows of an AND in a gap with arrows in
   assert.ok(old.and.every(r => r.length === 4) && new Set(old.l.edges.map(e => e.to)).size > 1, 'two direct arrows, and the gap has arrows into other heads');
   assert.equal(crossingsOf(old.and), 2, 'without tracks (the old lane order) the AND\'s arrows cross');
   assert.equal(crossingsOf(now.and), 0);
+  // what a user gets now (tracks on, tails moved onto the heads, ADR 0073 D3): the AND's arrows do not cross either
+  assert.equal(crossingsOf(andRoutes(boxes, es, [0, 2], true, true).and), 0);
   const a = scoreOf([...old.routes.values()]), b = scoreOf([...now.routes.values()]);
   assert.ok(b.crossings < a.crossings && b.bends <= a.bends, `${JSON.stringify(a)} -> ${JSON.stringify(b)}`);
 });
