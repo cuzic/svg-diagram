@@ -1,0 +1,234 @@
+diff --git a/lib/graph-layout.ts b/lib/graph-layout.ts
+index 27f06e23..5f1ff54b 100644
+--- a/lib/graph-layout.ts
++++ b/lib/graph-layout.ts
+@@ -4,6 +4,7 @@ import {must} from './must.ts';
+ // part measures its own boxes, calls one of these, and draws the result. Deterministic: the same input is the same output,
+ // ties are broken by input order.
+ 
++import {layerSpike, searchRows} from './layer-order-spike.ts';
+ export interface Size {w: number; h: number}
+ export interface Placed extends Size {x: number; y: number}
+ export interface Pt {x: number; y: number}
+@@ -513,6 +514,15 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts:
+     }
+   }
+ 
++  if (!opts.orderOnly && (layerSpike.opts || layerSpike.force)) { // ADR 0073 Q3 spike: run the row search once (capture) or put a found order back (force)
++    if (layerSpike.force) {
++      const f = layerSpike.force, ok = f.length === nLayers && f.every((r, l) => r.length === rowAt(l).length && r.every(id => rowAt(l).includes(id)));
++      if (ok) { f.forEach((r, l) => rowAt(l).splice(0, rowAt(l).length, ...r)); reindex(); layerSpike.applied++; } else layerSpike.refused++;
++    } else if (layerSpike.opts && !layerSpike.capture) {
++      const t0 = performance.now(), res = searchRows(rows, succ, id => must(compIdx.get(id)), layerSpike.opts, layerSpike.andTo);
++      layerSpike.capture = {rows: res.rows, c0: res.c0, c1: res.c1, ms: performance.now() - t0, ...(res.alt ? {alt: res.alt} : {}), ...(res.more ? {more: res.more} : {})};
++    }
++  }
+   if (opts.orderOnly) return {nodes: new Map(), edges: [], layers: new Map(), w: 0, h: 0, orderCrossings: allCrossings()} as unknown as LayeredLayout;
+ 
+   // 5. coordinates: layers along one axis, each layer centred on the widest, then relaxed toward the neighbours without overlap
+diff --git a/lib/layer-order-spike.ts b/lib/layer-order-spike.ts
+new file mode 100644
+index 00000000..fa297961
+--- /dev/null
++++ b/lib/layer-order-spike.ts
+@@ -0,0 +1,101 @@
++// ADR 0073 Q3 spike (never merged into main's lib/): a layer-order search over the rows of layoutLayered (dummies included), run once per figure.
++// Objective: the links that cross between adjacent layers. Moves are swaps of two neighbours in a row inside one component.
++export interface SpikeOpts {k?: number; freeze?: boolean; andW?: number; shuffle?: boolean; mode: 'anneal' | 'sift' | 'both'; moves: number; keep: number; restarts: number; seed: number; T0: number}
++export interface SpikeCapture {rows: string[][]; c0: number; c1: number; ms: number; alt?: string[][]; more?: string[][][]}
++export const layerSpike: {
++  opts: SpikeOpts | null; // set by toc.ts for the capturing call only
++  capture: SpikeCapture | null; andTo: ReadonlySet<string>;
++  force: string[][] | null; applied: number; refused: number;
++} = {opts: null, capture: null, force: null, andTo: new Set<string>(), applied: 0, refused: 0};
++
++export function searchRows(rows: readonly (readonly string[])[], succ: ReadonlyMap<string, readonly string[]>, comp: (id: string) => number, o: SpikeOpts, andTo: ReadonlySet<string> = new Set()): {rows: string[][]; c0: number; c1: number; alt?: string[][]; more?: string[][][]} {
++  const ids: string[] = [], idx = new Map<string, number>();
++  rows.forEach(r => r.forEach(id => { idx.set(id, ids.length); ids.push(id); }));
++  const N = ids.length, layerOf = new Int32Array(N), up: number[][] = Array.from({length: N}, () => []), down: number[][] = Array.from({length: N}, () => []);
++  rows.forEach((r, l) => r.forEach(id => { layerOf[idx.get(id)!] = l; }));
++  for (const [a, bs] of succ) for (const b of bs) { const x = idx.get(a), y = idx.get(b); if (x === undefined || y === undefined) continue; down[x]!.push(y); up[y]!.push(x); }
++  const cmp = ids.map(comp), real = ids.map(id => !id.startsWith('\u0000'));
++  const upEnd = new Int32Array(N).fill(-1), downEnd = new Int32Array(N).fill(-1);
++  const endUp = (n: number): number => real[n]! ? n : upEnd[n]! >= 0 ? upEnd[n]! : (upEnd[n] = up[n]!.length ? endUp(up[n]![0]!) : n);
++  const endDown = (n: number): number => real[n]! ? n : downEnd[n]! >= 0 ? downEnd[n]! : (downEnd[n] = down[n]!.length ? endDown(down[n]![0]!) : n);
++  const W = o.andW ?? 1, isAnd = ids.map(id => andTo.has(id));
++  // a pair of links that both belong to arrows into one AND effect weighs W: that crossing is an AND crossing, which the figure's score puts before everything
++  const wt = (x1: number, y1: number, x2: number, y2: number): number => {
++    if (W === 1) return 1;
++    const r1 = endDown(y1), r2 = endDown(y2), l1 = endUp(x1), l2 = endUp(x2);
++    return (isAnd[r1]! && r1 === r2) || (isAnd[l1]! && l1 === l2) ? W : 1;
++  };
++  // freeze: two nodes whose arrows run into one AND effect keep the order they have in the seed (their arrows would cross at the ports otherwise: an AND crossing, the first key of the figure's score)
++  const tgts: Set<number>[] = ids.map((_, n) => new Set(down[n]!.map(d => endDown(d)).filter(t => isAnd[t]!)));
++  const frozen = (a: number, b: number): boolean => { if (!o.freeze) return false; for (const t of tgts[a]!) if (tgts[b]!.has(t)) return true; return false; };
++  const R: number[][] = rows.map(r => r.map(id => idx.get(id)!)), pos = new Int32Array(N);
++  const reset = (src: number[][]): void => { src.forEach((r, l) => { R[l] = r.slice(); R[l]!.forEach((n, i) => { pos[n] = i; }); }); };
++  const seedPos = new Int32Array(N); R.forEach(r => r.forEach((n, i) => { pos[n] = i; seedPos[n] = i; }));
++  // crossings change when a (at p) and b (at p + 1) swap: pairs of links into a and b from each neighbouring layer
++  const delta = (a: number, b: number): number => {
++    let d = 0;
++    for (const [A, B] of [[up[a]!, up[b]!], [down[a]!, down[b]!]] as const) for (const u of A) { const pu = pos[u]!; for (const w of B) { const pw = pos[w]!; if (pu < pw) d += wt(u, a, w, b); else if (pu > pw) d -= wt(u, a, w, b); } }
++    return d;
++  };
++  const swap = (l: number, p: number): void => { const r = R[l]!, a = r[p]!, b = r[p + 1]!; r[p] = b; r[p + 1] = a; pos[b] = p; pos[a] = p + 1; };
++  const total = (): number => {
++    let c = 0;
++    for (let l = 0; l + 1 < R.length; l++) { const ls: number[][] = []; for (const u of R[l]!) for (const v of down[u]!) ls.push([pos[u]!, pos[v]!, u, v]); for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) if ((ls[i]![0]! - ls[j]![0]!) * (ls[i]![1]! - ls[j]![1]!) < 0) c += wt(ls[i]![2]!, ls[i]![3]!, ls[j]![2]!, ls[j]![3]!); }
++    return c;
++  };
++  const c0 = total();
++  let rnd = (o.seed >>> 0) || 1; const rand = (): number => (rnd = (Math.imul(rnd, 1664525) + 1013904223) >>> 0) / 4294967296;
++  const disp = (a: number, b: number, p: number): number => (Math.abs(p + 1 - seedPos[a]!) - Math.abs(p - seedPos[a]!)) + (Math.abs(p - seedPos[b]!) - Math.abs(p + 1 - seedPos[b]!)); // moving a right and b left by one
++  const K = o.keep; // weight of the displacement from the seed: 0 = crossings only
++  let cur = c0, best = c0, bestRows = R.map(r => r.slice());
++  const note = (): void => { if (cur < best) { best = cur; bestRows = R.map(r => r.slice()); } };
++  // sifting: each node goes to the position in its row (inside its component) with the fewest crossings, ties to the nearest to where it started
++  const sift = (): void => {
++    for (let pass = 0; pass < 8; pass++) {
++      const before = cur;
++      for (let l = 0; l < R.length; l++) {
++        const r = R[l]!; if (r.length < 2) continue;
++        for (const n of r.slice().sort((x, y) => (up[y]!.length + down[y]!.length) - (up[x]!.length + down[x]!.length))) {
++          const home = pos[n]!; let bestP = home, bestD = 0, acc = 0, p = home;
++          while (p + 1 < r.length && cmp[r[p + 1]!] === cmp[n] && !frozen(n, r[p + 1]!)) { acc += delta(n, r[p + 1]!); swap(l, p); p++; if (acc < bestD || (acc === bestD && Math.abs(p - home) < Math.abs(bestP - home))) { bestD = acc; bestP = p; } }
++          while (p > home) { p--; swap(l, p); } // back home
++          acc = 0; p = home;
++          while (p > 0 && cmp[r[p - 1]!] === cmp[n] && !frozen(r[p - 1]!, n)) { acc += delta(r[p - 1]!, n); swap(l, p - 1); p--; if (acc < bestD || (acc === bestD && Math.abs(p - home) < Math.abs(bestP - home))) { bestD = acc; bestP = p; } }
++          while (p < home) { swap(l, p); p++; }
++          while (pos[n]! < bestP) swap(l, pos[n]!); while (pos[n]! > bestP) swap(l, pos[n]! - 1);
++          cur += bestD;
++        }
++      }
++      note(); if (cur >= before) break;
++    }
++  };
++  const anneal = (moves: number): void => {
++    let T = o.T0; const cool = Math.pow(0.05 / o.T0, 1 / Math.max(1, moves));
++    const multi = R.map((r, l) => r.length >= 2 ? l : -1).filter(l => l >= 0);
++    if (!multi.length) return;
++    for (let k = 0; k < moves && cur > 0; k++, T *= cool) {
++      const l = multi[Math.floor(rand() * multi.length)]!, r = R[l]!, p = Math.floor(rand() * (r.length - 1)), a = r[p]!, b = r[p + 1]!;
++      if (cmp[a] !== cmp[b] || frozen(a, b)) continue;
++      const d = delta(a, b), e = d * 8 + K * disp(a, b, p);
++      if (e <= 0 || rand() < Math.exp(-e / (T * 8))) { swap(l, p); cur += d; note(); }
++    }
++  };
++  const wantAnneal = o.mode !== 'sift', wantSift = o.mode !== 'anneal';
++  const seedRows = R.map(r => r.slice());
++  let alt: number[][] | undefined;
++  if (wantSift) { sift(); if (o.mode === 'both') { alt = bestRows.map(r => r.slice()); } }
++  const runs: {c: number; rows: number[][]}[] = [];
++  if (wantAnneal) {
++    for (let run = 0; run < Math.max(1, o.restarts) && best > 0; run++) {
++      if (run > 0 || o.mode === 'both') { reset(run === 0 ? bestRows : seedRows); cur = run === 0 ? best : c0; }
++      if (run > 0 && o.shuffle && !o.freeze) { for (const r of R) { for (let k = r.length - 1; k > 0; k--) { const j = Math.floor(rand() * (k + 1)); [r[k], r[j]] = [r[j]!, r[k]!]; } r.sort((a, b) => cmp[a]! - cmp[b]!); r.forEach((n, i) => { pos[n] = i; }); } cur = total(); } // 'both' anneals on from the sifted order; a restart begins at the seed again
++      anneal(o.moves);
++      if (o.k && o.k > 1) runs.push({c: cur, rows: R.map(r => r.slice())});
++    }
++    reset(bestRows); cur = best; sift(); // polish
++  }
++  void alt;
++  const key = (rr: number[][]): string => rr.map(r => r.join(',')).join('|'), seen = new Set([key(bestRows)]), more: string[][][] = [];
++  for (const r of runs.sort((p, q) => p.c - q.c)) { if (more.length >= (o.k ?? 1) - 1) break; if (!seen.has(key(r.rows))) { seen.add(key(r.rows)); more.push(r.rows.map(x => x.map(n => ids[n]!))); } }
++  return {rows: bestRows.map(r => r.map(n => ids[n]!)), c0, c1: best, ...(more.length ? {more} : {}), ...(alt ? {alt: alt.map(r => r.map(n => ids[n]!))} : {})};
++}
+diff --git a/lib/toc.ts b/lib/toc.ts
+index d69e02ae..78731e19 100644
+--- a/lib/toc.ts
++++ b/lib/toc.ts
+@@ -4,13 +4,14 @@
+ //               figure: an arrow across an AND arc means "together", separate arrows mean "either".
+ //  cloud():     the Evaporating Cloud: five boxes in a fixed place (A the common objective, B and C the needs, D and D' the
+ //               conflicting wants), the arrows between them with their assumptions numbered, and the numbered list under the figure.
++import {layerSpike, type SpikeCapture, type SpikeOpts} from './layer-order-spike.ts';
+ import {orderCrossings} from './graph-layout.ts';
+ import {textWidth} from './atoms.ts';
+ import {andClashes} from './cause-clash.ts';
+ import {routesThroughNodes} from './verify-base.ts';
+ import {ARROW_L, causeCrossings} from './cause-hop.ts';
+ import {fitOrThrow, isNoFit, type NoFit, planFit, NARROWING} from './fit-width.ts';
+-import {pairsOf, scoreOf} from './polyline-metrics.ts';
++import {pairsOf, parallelRuns, scoreOf} from './polyline-metrics.ts';
+ import {gapFor, laneStepOf, layeredAttempt, lexLess, selectIndex, windowOf} from './layered-route.ts';
+ import type {Pt} from './graph-layout.ts';
+ import {measureNode, nodeRuns} from './tree.ts';
+@@ -120,7 +121,10 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+   const ids = band.nodes.map(n => n.id);
+   // The search scores the figures without the detours of the long arrows (route-search.ts: slow, and the search lays a figure out up to MAX_ORDERS times); the order it
+   // finds is laid out once more with them, and replaces the first figure only if it is strictly better in the same score.
++  const LO = band.straighten === false || band.layerFrom !== undefined ? undefined : spikeCfg(); // ADR 0073 Q3 spike (env LO, JSON): off by default
++  layerSpike.capture = null; layerSpike.force = null; layerSpike.opts = LO ? LO.search : null; layerSpike.andTo = new Set(prep.groups.map(g => must(prep.arrows[must(g.arrows[0])]).to));
+   const base = band.straighten === false ? first : once(undefined, false, true, undefined, true);
++  layerSpike.opts = null; const cap0 = layerSpike.capture as SpikeCapture | null; layerSpike.capture = null;
+   if (isNoFit(base)) return base;
+   // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
+   const orders = [ids.toReversed(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
+@@ -139,9 +143,23 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+   const baseWidth = base.fitApplied?.find(a => a.what === 'maxNodeW')?.to;
+   const sameFit = {width: typeof baseWidth === 'number' ? baseWidth : (band.maxNodeW === undefined || band.maxNodeW === 'auto' ? NARROWING[0] as number : band.maxNodeW), folded: !!base.fitApplied?.some(a => a.what === 'fold')};
+   // ADR 0073 D2: every order that passed the height gate keeps its score; the figure only while it is in the window. The pick (`best`) is the selection of the whole list, whatever came first
+-  type Pick = {t: LaidOutCause; order?: string[]; proxy: number};
++  type Pick = {t: LaidOutCause; order?: string[]; rows?: string[][]; proxy: number};
+   const pool = windowPool<Pick>({t: base, proxy: bestProxy}, scoreOfCause(base, own, sep));
+-  let bestScore = pool.best.score, bestOrder: string[] | undefined;
++  let bestScore = pool.best.score, bestOrder: string[] | undefined, bestRows: string[][] | undefined;
++  // ADR 0073 Q3 spike: a figure's layer order found once, laid out as one more candidate and judged by the same score and gates as any order
++  const tryRows = (rows: string[][], seedOrder?: readonly string[]): void => {
++    layerSpike.force = rows; layerSpike.applied = 0;
++    const t = once(seedOrder, false, true, sameFit, true); layerSpike.force = null;
++    searchStats.rowsLaid++;
++    if (layerSpike.applied === 0 || isNoFit(t)) { searchStats.rowsRefused++; return; }
++    if (!inFrame({layers: layerRank(axisOf(t)), loose: t.loose.length, fits: t.fitApplied?.length}, baseFrame)) { searchStats.whyFrame++; return; }
++    const score = scoreOfCause(t, own, sep);
++    if (LO?.ov && parallelRuns(t.edges.map(e => e.points), 4).length > parallelRuns(must(pool.best.item).t.edges.map(e => e.points), 4).length) { searchStats.whyOv++; return; } // two arrows on one line (a criterion of ADR 0073): never more than the pick so far
++    if (score[0]! > bestScore[0]!) searchStats.whyAnd++;
++    if (!passesHeight(t.h, score, base, bestScore, exchange)) { searchStats.whyHeight++; return; }
++    if (pool.add({t, rows, ...(seedOrder ? {order: [...seedOrder]} : {}), proxy: LO?.px && cap0 ? Math.min(bestProxy, cap0.c1) : bestProxy}, score)) { const cur = must(pool.best.item); bestScore = pool.best.score; bestOrder = cur.order; bestRows = cur.rows; bestProxy = cur.proxy; searchStats.rowsWon++; } else searchStats.whyLose++;
++  };
++
+   // then more orders when the fixed ones left a crossing: shuffles from a fixed seed (the same figure always gets the same answer), then swaps of two neighbours of the best order so far.
+   // `straighten: false` keeps to the fixed ones (it is the way back to the old figure)
+   const queue = [...orders], seen = new Set<string>([ids.join('\u0000'), ...orders.map(o => o.join('\u0000'))]);
+@@ -173,19 +191,28 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+     const score = scoreOfCause(t, own, sep);
+     if (!passesHeight(t.h, score, base, bestScore, exchange)) continue;
+     // the selection changed (a better candidate, or a window that shrank and left the old pick out): the wait starts again
+-    if (pool.add({t, order, proxy}, score)) { const cur = must(pool.best.item); bestScore = pool.best.score; bestOrder = cur.order; bestProxy = cur.proxy; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
++    if (pool.add({t, order, proxy}, score)) { const cur = must(pool.best.item); bestScore = pool.best.score; bestOrder = cur.order; bestRows = cur.rows; bestProxy = cur.proxy; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
+   }
++  // the existing search ran exactly as on main (same trajectory, same pick); the row candidates join its list afterwards (`early`: before the loop, which changes the trajectory)
++  const mainOrder = bestOrder, mainPick = pool.best.item;
++  if (LO && cap0) { searchStats.rowsFound++; searchStats.searchMs += cap0.ms; for (const r of [cap0.rows, ...(cap0.alt ? [cap0.alt] : []), ...(cap0.more ?? [])]) tryRows(r); }
+   // ADR 0073 D3: the search judges the orders with the tails of the arrows into an AND left where the ports put them (`tailOff`: the same scores as before D3, so the search finds the same orders);
+   // `first` and `found` below are laid out with them moved, and the final pick is made among those
++  if (LO?.post && cap0 && bestOrder) { // seeded from the best order the search found: its own sweep rows are the start of the row search
++    layerSpike.opts = LO.search; layerSpike.capture = null; layerSpike.force = null; searchStats.rowsPost++;
++    const again = once(bestOrder, false, true, sameFit, true); layerSpike.opts = null; const cap1 = layerSpike.capture as SpikeCapture | null; layerSpike.capture = null;
++    if (!isNoFit(again) && cap1) { searchStats.searchMs += cap1.ms; tryRows(cap1.rows, bestOrder); }
++  }
+   const best = must(pool.best.item).t;
+   if (band.straighten === false) { if (best.h > base.h + 0.5) env.tallerSeen?.(); return best; }
+-  const withDetours = bestOrder ? once(bestOrder) : undefined;
++  layerSpike.force = bestRows ?? null; const withDetours = bestOrder || bestRows ? once(bestOrder) : undefined; layerSpike.force = null;
+   const found = withDetours && !isNoFit(withDetours) ? withDetours : undefined;
+   // the best of: the first figure, the best order with the detours, the best figure without them (the one the search judged; the base itself when no order beat it): the first one wins a tie.
+   // The detours can make AND arrows cross (they are judged by the whole figure's crossings), so the figure without them must stay a candidate
+   // the same frame as the figures the search compared (the plain ones: the detours may have made `first` lower than any order would be without them)
+   const viewOf = (t: LaidOutCause): Judged => ({h: t.h, score: scoreOfCause(t, own, sep), layers: layerRank(axisOf(t)), loose: t.loose.length, fits: t.fitApplied?.length});
+-  const picked = pickFinal(first, [found, best], {h: base.h, layers: baseRank, loose: base.loose.length, fits: base.fitApplied?.length}, exchange, viewOf);
++  const foundMain = LO && mainPick && bestRows && mainOrder ? (() => { const f = once(mainOrder); return isNoFit(f) ? undefined : f; })() : undefined; // main's own pick with the detours, kept as a candidate: the rows pick never costs the figure the pick main would have made
++  const picked = pickFinal(first, [found, foundMain, best, ...(LO && mainPick && mainPick !== must(pool.best.item) ? [mainPick.t] : [])], {h: base.h, layers: baseRank, loose: base.loose.length, fits: base.fitApplied?.length}, exchange, viewOf);
+   if (picked.h > base.h + 0.5) env.tallerSeen?.();
+   return picked;
+ }
+@@ -239,7 +266,8 @@ export function windowPool<T>(first: T, score: readonly number[]): {readonly bes
+ }
+ 
+ /** A count of the orders the search laid out (a measure of its cost that does not depend on the load of the machine; read by the tests and by scripts/crt-u6-measure). */
+-export const searchStats = {laid: 0};
++export const searchStats = {laid: 0, rowsFound: 0, rowsLaid: 0, rowsRefused: 0, rowsWon: 0, rowsPost: 0, searchMs: 0, whyFrame: 0, whyHeight: 0, whyAnd: 0, whyLose: 0, whyOv: 0};
++function spikeCfg(): {search: SpikeOpts; px?: boolean; post?: boolean; ov?: boolean} | undefined { const e = process.env['LO']; if (!e) return undefined; const j = JSON.parse(e); return {search: {mode: 'anneal', moves: 20000, keep: 0, restarts: 1, seed: 7, T0: 1, ...j}, px: j.px, post: j.post, ov: j.ov}; }
+ /** The most orders the search tries for one figure. */
+ const MAX_ORDERS = 60;
+ /** How many orders in a row may fail to get better before the search stops (with and without AND arrows crossing). */
