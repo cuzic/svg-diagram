@@ -18,7 +18,6 @@ const KNOWN: {file: string; rule: string; removedIn: number}[] = [
 const CACHES: {file: string; rule: string; why: string}[] = [
   {file: 'tokens', rule: 'top-level mutable Map', why: 'MAPS: the dark colour table per appearance, keyed by the whole appearance'},
   {file: 'tokens', rule: 'top-level mutable WeakMap', why: 'ENVS: the resolved tone overrides, keyed by the overrides object'},
-  {file: 'toc', rule: 'top-level mutable WeakSet', why: 'movedAside: marks route arrays already moved, keyed by identity'},
   {file: 'dsl/wireframe-numbering', rule: 'top-level mutable WeakSet', why: 'SHELLED: marks bands already numbered, keyed by identity'},
 ];
 
