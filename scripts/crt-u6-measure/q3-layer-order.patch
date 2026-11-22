@@ -1,5 +1,5 @@
 diff --git a/lib/graph-layout.ts b/lib/graph-layout.ts
-index 27f06e23..5f1ff54b 100644
+index 27f06e23..f420677f 100644
 --- a/lib/graph-layout.ts
 +++ b/lib/graph-layout.ts
 @@ -4,6 +4,7 @@ import {must} from './must.ts';
@@ -20,7 +20,7 @@ index 27f06e23..5f1ff54b 100644
 +      if (ok) { f.forEach((r, l) => rowAt(l).splice(0, rowAt(l).length, ...r)); reindex(); layerSpike.applied++; } else layerSpike.refused++;
 +    } else if (layerSpike.opts && !layerSpike.capture) {
 +      const t0 = performance.now(), res = searchRows(rows, succ, id => must(compIdx.get(id)), layerSpike.opts, layerSpike.andTo);
-+      layerSpike.capture = {rows: res.rows, c0: res.c0, c1: res.c1, ms: performance.now() - t0, ...(res.alt ? {alt: res.alt} : {}), ...(res.more ? {more: res.more} : {})};
++      layerSpike.capture = {rows: res.rows, c0: res.c0, c1: res.c1, p1: res.p1, moves: res.moves, ms: performance.now() - t0, ...(res.alt ? {alt: res.alt} : {}), ...(res.more ? {more: res.more} : {})};
 +    }
 +  }
    if (opts.orderOnly) return {nodes: new Map(), edges: [], layers: new Map(), w: 0, h: 0, orderCrossings: allCrossings()} as unknown as LayeredLayout;
@@ -28,21 +28,21 @@ index 27f06e23..5f1ff54b 100644
    // 5. coordinates: layers along one axis, each layer centred on the widest, then relaxed toward the neighbours without overlap
 diff --git a/lib/layer-order-spike.ts b/lib/layer-order-spike.ts
 new file mode 100644
-index 00000000..fa297961
+index 00000000..e9526796
 --- /dev/null
 +++ b/lib/layer-order-spike.ts
-@@ -0,0 +1,101 @@
+@@ -0,0 +1,104 @@
 +// ADR 0073 Q3 spike (never merged into main's lib/): a layer-order search over the rows of layoutLayered (dummies included), run once per figure.
 +// Objective: the links that cross between adjacent layers. Moves are swaps of two neighbours in a row inside one component.
 +export interface SpikeOpts {k?: number; freeze?: boolean; andW?: number; shuffle?: boolean; mode: 'anneal' | 'sift' | 'both'; moves: number; keep: number; restarts: number; seed: number; T0: number}
-+export interface SpikeCapture {rows: string[][]; c0: number; c1: number; ms: number; alt?: string[][]; more?: string[][][]}
++export interface SpikeCapture {p1: number; moves: number; rows: string[][]; c0: number; c1: number; ms: number; alt?: string[][]; more?: string[][][]}
 +export const layerSpike: {
 +  opts: SpikeOpts | null; // set by toc.ts for the capturing call only
 +  capture: SpikeCapture | null; andTo: ReadonlySet<string>;
 +  force: string[][] | null; applied: number; refused: number;
 +} = {opts: null, capture: null, force: null, andTo: new Set<string>(), applied: 0, refused: 0};
 +
-+export function searchRows(rows: readonly (readonly string[])[], succ: ReadonlyMap<string, readonly string[]>, comp: (id: string) => number, o: SpikeOpts, andTo: ReadonlySet<string> = new Set()): {rows: string[][]; c0: number; c1: number; alt?: string[][]; more?: string[][][]} {
++export function searchRows(rows: readonly (readonly string[])[], succ: ReadonlyMap<string, readonly string[]>, comp: (id: string) => number, o: SpikeOpts, andTo: ReadonlySet<string> = new Set()): {rows: string[][]; c0: number; c1: number; p1: number; moves: number; alt?: string[][]; more?: string[][][]} {
 +  const ids: string[] = [], idx = new Map<string, number>();
 +  rows.forEach(r => r.forEach(id => { idx.set(id, ids.length); ids.push(id); }));
 +  const N = ids.length, layerOf = new Int32Array(N), up: number[][] = Array.from({length: N}, () => []), down: number[][] = Array.from({length: N}, () => []);
@@ -72,9 +72,9 @@ index 00000000..fa297961
 +    return d;
 +  };
 +  const swap = (l: number, p: number): void => { const r = R[l]!, a = r[p]!, b = r[p + 1]!; r[p] = b; r[p + 1] = a; pos[b] = p; pos[a] = p + 1; };
-+  const total = (): number => {
++  const total = (plain = false): number => {
 +    let c = 0;
-+    for (let l = 0; l + 1 < R.length; l++) { const ls: number[][] = []; for (const u of R[l]!) for (const v of down[u]!) ls.push([pos[u]!, pos[v]!, u, v]); for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) if ((ls[i]![0]! - ls[j]![0]!) * (ls[i]![1]! - ls[j]![1]!) < 0) c += wt(ls[i]![2]!, ls[i]![3]!, ls[j]![2]!, ls[j]![3]!); }
++    for (let l = 0; l + 1 < R.length; l++) { const ls: number[][] = []; for (const u of R[l]!) for (const v of down[u]!) ls.push([pos[u]!, pos[v]!, u, v]); for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) if ((ls[i]![0]! - ls[j]![0]!) * (ls[i]![1]! - ls[j]![1]!) < 0) c += plain ? 1 : wt(ls[i]![2]!, ls[i]![3]!, ls[j]![2]!, ls[j]![3]!); }
 +    return c;
 +  };
 +  const c0 = total();
@@ -103,11 +103,13 @@ index 00000000..fa297961
 +      note(); if (cur >= before) break;
 +    }
 +  };
++  let nMoves = 0;
 +  const anneal = (moves: number): void => {
 +    let T = o.T0; const cool = Math.pow(0.05 / o.T0, 1 / Math.max(1, moves));
 +    const multi = R.map((r, l) => r.length >= 2 ? l : -1).filter(l => l >= 0);
 +    if (!multi.length) return;
 +    for (let k = 0; k < moves && cur > 0; k++, T *= cool) {
++      nMoves++;
 +      const l = multi[Math.floor(rand() * multi.length)]!, r = R[l]!, p = Math.floor(rand() * (r.length - 1)), a = r[p]!, b = r[p + 1]!;
 +      if (cmp[a] !== cmp[b] || frozen(a, b)) continue;
 +      const d = delta(a, b), e = d * 8 + K * disp(a, b, p);
@@ -131,10 +133,11 @@ index 00000000..fa297961
 +  void alt;
 +  const key = (rr: number[][]): string => rr.map(r => r.join(',')).join('|'), seen = new Set([key(bestRows)]), more: string[][][] = [];
 +  for (const r of runs.sort((p, q) => p.c - q.c)) { if (more.length >= (o.k ?? 1) - 1) break; if (!seen.has(key(r.rows))) { seen.add(key(r.rows)); more.push(r.rows.map(x => x.map(n => ids[n]!))); } }
-+  return {rows: bestRows.map(r => r.map(n => ids[n]!)), c0, c1: best, ...(more.length ? {more} : {}), ...(alt ? {alt: alt.map(r => r.map(n => ids[n]!))} : {})};
++  reset(bestRows); const p1 = total(true);
++  return {rows: bestRows.map(r => r.map(n => ids[n]!)), c0, c1: best, p1, moves: nMoves, ...(more.length ? {more} : {}), ...(alt ? {alt: alt.map(r => r.map(n => ids[n]!))} : {})};
 +}
 diff --git a/lib/toc.ts b/lib/toc.ts
-index d69e02ae..78731e19 100644
+index 53e886c3..33d647c4 100644
 --- a/lib/toc.ts
 +++ b/lib/toc.ts
 @@ -4,13 +4,14 @@
@@ -153,7 +156,16 @@ index d69e02ae..78731e19 100644
  import {gapFor, laneStepOf, layeredAttempt, lexLess, selectIndex, windowOf} from './layered-route.ts';
  import type {Pt} from './graph-layout.ts';
  import {measureNode, nodeRuns} from './tree.ts';
-@@ -120,7 +121,10 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+@@ -100,7 +101,7 @@ export function layoutCauseBand(band: CauseBand, x: number, y: number, w: number
+ 
+ 
+ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, canvasBound = false): LaidOutCause | NoFit {
+-  const once = (order?: readonly string[], plainRoutes = false, noDetour = false, sameFit?: {width: number; folded: boolean}, tailOff = false) => tryLayoutCause(prep, band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, plainRoutes, noDetour, sameFit, tailOff);
++  const once = (order?: readonly string[], plainRoutes = false, noDetour = false, sameFit?: {width: number; folded: boolean}, tailOff = false) => (searchStats.layouts++, tryLayoutCause(prep, band, x, y, w, widthOf, roles, env, heightBudget, canvasBound, order, plainRoutes, noDetour, sameFit, tailOff));
+   const prep = prepareCause(band);
+   const sep = bandSep(band, env); // one lane step for the search's score and for `better()` (ADR 0073 D2)
+   const first = once();
+@@ -112,7 +113,10 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
    const ids = band.nodes.map(n => n.id);
    // The search scores the figures without the detours of the long arrows (route-search.ts: slow, and the search lays a figure out up to MAX_ORDERS times); the order it
    // finds is laid out once more with them, and replaces the first figure only if it is strictly better in the same score.
@@ -164,7 +176,7 @@ index d69e02ae..78731e19 100644
    if (isNoFit(base)) return base;
    // the written order reversed, then the written order turned by 1, 2, ... places (at most 6 of them)
    const orders = [ids.toReversed(), ...Array.from({length: Math.min(ids.length - 1, 6)}, (_, k) => [...ids.slice(k + 1), ...ids.slice(0, k + 1)])];
-@@ -139,9 +143,23 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+@@ -131,9 +135,24 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
    const baseWidth = base.fitApplied?.find(a => a.what === 'maxNodeW')?.to;
    const sameFit = {width: typeof baseWidth === 'number' ? baseWidth : (band.maxNodeW === undefined || band.maxNodeW === 'auto' ? NARROWING[0] as number : band.maxNodeW), folded: !!base.fitApplied?.some(a => a.what === 'fold')};
    // ADR 0073 D2: every order that passed the height gate keeps its score; the figure only while it is in the window. The pick (`best`) is the selection of the whole list, whatever came first
@@ -182,6 +194,7 @@ index d69e02ae..78731e19 100644
 +    if (!inFrame({layers: layerRank(axisOf(t)), loose: t.loose.length, fits: t.fitApplied?.length}, baseFrame)) { searchStats.whyFrame++; return; }
 +    const score = scoreOfCause(t, own, sep);
 +    if (LO?.ov && parallelRuns(t.edges.map(e => e.points), 4).length > parallelRuns(must(pool.best.item).t.edges.map(e => e.points), 4).length) { searchStats.whyOv++; return; } // two arrows on one line (a criterion of ADR 0073): never more than the pick so far
++    if (LO?.pg && score[3]! > bestScore[3]!) { searchStats.whyOv++; return; } // measured alternative: a rows candidate with more run pairs than the pick so far is not taken
 +    if (score[0]! > bestScore[0]!) searchStats.whyAnd++;
 +    if (!passesHeight(t.h, score, base, bestScore, exchange)) { searchStats.whyHeight++; return; }
 +    if (pool.add({t, rows, ...(seedOrder ? {order: [...seedOrder]} : {}), proxy: LO?.px && cap0 ? Math.min(bestProxy, cap0.c1) : bestProxy}, score)) { const cur = must(pool.best.item); bestScore = pool.best.score; bestOrder = cur.order; bestRows = cur.rows; bestProxy = cur.proxy; searchStats.rowsWon++; } else searchStats.whyLose++;
@@ -190,45 +203,58 @@ index d69e02ae..78731e19 100644
    // then more orders when the fixed ones left a crossing: shuffles from a fixed seed (the same figure always gets the same answer), then swaps of two neighbours of the best order so far.
    // `straighten: false` keeps to the fixed ones (it is the way back to the old figure)
    const queue = [...orders], seen = new Set<string>([ids.join('\u0000'), ...orders.map(o => o.join('\u0000'))]);
-@@ -173,19 +191,28 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
-     const score = scoreOfCause(t, own, sep);
-     if (!passesHeight(t.h, score, base, bestScore, exchange)) continue;
+@@ -167,17 +186,36 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
      // the selection changed (a better candidate, or a window that shrank and left the old pick out): the wait starts again
--    if (pool.add({t, order, proxy}, score)) { const cur = must(pool.best.item); bestScore = pool.best.score; bestOrder = cur.order; bestProxy = cur.proxy; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
-+    if (pool.add({t, order, proxy}, score)) { const cur = must(pool.best.item); bestScore = pool.best.score; bestOrder = cur.order; bestRows = cur.rows; bestProxy = cur.proxy; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
+     if (pool.add({t, order, proxy}, score)) { const cur = must(pool.best.item); bestScore = pool.best.score; bestOrder = cur.order; bestProxy = cur.proxy; lastBetter = tried; if (polished) { queue.length = 0; polished = false; } }
    }
-+  // the existing search ran exactly as on main (same trajectory, same pick); the row candidates join its list afterwards (`early`: before the loop, which changes the trajectory)
-+  const mainOrder = bestOrder, mainPick = pool.best.item;
-+  if (LO && cap0) { searchStats.rowsFound++; searchStats.searchMs += cap0.ms; for (const r of [cap0.rows, ...(cap0.alt ? [cap0.alt] : []), ...(cap0.more ?? [])]) tryRows(r); }
-   // ADR 0073 D3: the search judges the orders with the tails of the arrows into an AND left where the ports put them (`tailOff`: the same scores as before D3, so the search finds the same orders);
-   // `first` and `found` below are laid out with them moved, and the final pick is made among those
-+  if (LO?.post && cap0 && bestOrder) { // seeded from the best order the search found: its own sweep rows are the start of the row search
+-  // ADR 0073 D3: the search judges the orders with the tails of the arrows into an AND left where the ports put them (`tailOff`: the same scores as before D3, so the search finds the same orders);
+-  // `first` and `found` below are laid out with them moved, and the final pick is made among those
++  // the existing search ran exactly as on main (same trajectory, same pick, nothing below touches `lastBetter`, `tried` or the queue); the row candidates join its pool afterwards
++  const mainOrder = bestOrder, mainPick = must(pool.best.item);
++  const wins0 = searchStats.rowsWon;
++  const rowsOk = (cap: SpikeCapture): boolean => LO?.fc === undefined || cap.p1 < bestProxy + Number(LO.fc); // forecast: lay a rows candidate out only if its layered crossings are below the best order's forecast (ADR 0053's proxy)
++  if (LO && cap0) { searchStats.rowsFound++; searchStats.searchMs += cap0.ms; searchStats.moves += cap0.moves; if (rowsOk(cap0)) for (const r of [cap0.rows, ...(cap0.alt ? [cap0.alt] : []), ...(cap0.more ?? [])]) tryRows(r); }
++  // `post`: seeded from the best order the search found (its own sweep rows are the start of the row search); `post: 'won'` only when the first rows candidate won
++  if (LO?.post && cap0 && bestOrder && (LO.post !== 'won' || searchStats.rowsWon > wins0)) {
 +    layerSpike.opts = LO.search; layerSpike.capture = null; layerSpike.force = null; searchStats.rowsPost++;
 +    const again = once(bestOrder, false, true, sameFit, true); layerSpike.opts = null; const cap1 = layerSpike.capture as SpikeCapture | null; layerSpike.capture = null;
-+    if (!isNoFit(again) && cap1) { searchStats.searchMs += cap1.ms; tryRows(cap1.rows, bestOrder); }
++    if (!isNoFit(again) && cap1) { searchStats.searchMs += cap1.ms; searchStats.moves += cap1.moves; if (rowsOk(cap1)) tryRows(cap1.rows, bestOrder); }
 +  }
    const best = must(pool.best.item).t;
    if (band.straighten === false) { if (best.h > base.h + 0.5) env.tallerSeen?.(); return best; }
 -  const withDetours = bestOrder ? once(bestOrder) : undefined;
-+  layerSpike.force = bestRows ?? null; const withDetours = bestOrder || bestRows ? once(bestOrder) : undefined; layerSpike.force = null;
-   const found = withDetours && !isNoFit(withDetours) ? withDetours : undefined;
-   // the best of: the first figure, the best order with the detours, the best figure without them (the one the search judged; the base itself when no order beat it): the first one wins a tie.
-   // The detours can make AND arrows cross (they are judged by the whole figure's crossings), so the figure without them must stay a candidate
-   // the same frame as the figures the search compared (the plain ones: the detours may have made `first` lower than any order would be without them)
+-  const found = withDetours && !isNoFit(withDetours) ? withDetours : undefined;
+-  // the best of: the first figure, the best order with the detours, the best figure without them (the one the search judged; the base itself when no order beat it): the first one wins a tie.
+-  // The detours can make AND arrows cross (they are judged by the whole figure's crossings), so the figure without them must stay a candidate
+-  // the same frame as the figures the search compared (the plain ones: the detours may have made `first` lower than any order would be without them)
++  // the final pick: main's own candidates first (a tie never changes main's figure), then the rows pick with its detours and without. A refused `force` (the layers or the rows differ) drops that candidate.
++  const detour = (order: readonly string[] | undefined, rows: string[][] | undefined): LaidOutCause | undefined => {
++    layerSpike.force = rows ?? null; layerSpike.applied = 0; const f = once(order); layerSpike.force = null;
++    return isNoFit(f) || (rows && layerSpike.applied === 0) ? undefined : f;
++  };
++  const foundMain = mainOrder ? detour(mainOrder, undefined) : undefined;
++  const rowsWon = must(pool.best.item) !== mainPick;
++  const foundRows = rowsWon ? detour(bestOrder, bestRows) : undefined;
    const viewOf = (t: LaidOutCause): Judged => ({h: t.h, score: scoreOfCause(t, own, sep), layers: layerRank(axisOf(t)), loose: t.loose.length, fits: t.fitApplied?.length});
 -  const picked = pickFinal(first, [found, best], {h: base.h, layers: baseRank, loose: base.loose.length, fits: base.fitApplied?.length}, exchange, viewOf);
-+  const foundMain = LO && mainPick && bestRows && mainOrder ? (() => { const f = once(mainOrder); return isNoFit(f) ? undefined : f; })() : undefined; // main's own pick with the detours, kept as a candidate: the rows pick never costs the figure the pick main would have made
-+  const picked = pickFinal(first, [found, foundMain, best, ...(LO && mainPick && mainPick !== must(pool.best.item) ? [mainPick.t] : [])], {h: base.h, layers: baseRank, loose: base.loose.length, fits: base.fitApplied?.length}, exchange, viewOf);
++  const frame = {h: base.h, layers: baseRank, loose: base.loose.length, fits: base.fitApplied?.length};
++  const mainCands = [foundMain, mainPick.t];
++  let rowsCands: (LaidOutCause | undefined)[] = rowsWon ? [foundRows, best] : [];
++  if (rowsCands.length) { // the overlap guard at the final level: no rows figure with more sub-4px overlaps than the figure main would pick
++    const ovOf = (t: LaidOutCause): number => parallelRuns(t.edges.map(e => e.points), 4).length, ovMain = ovOf(pickFinal(first, mainCands, frame, exchange, viewOf));
++    rowsCands = rowsCands.filter(t => t !== undefined && (!LO?.ov || ovOf(t) <= ovMain));
++  }
++  const picked = pickFinal(first, [...mainCands, ...rowsCands], frame, exchange, viewOf);
    if (picked.h > base.h + 0.5) env.tallerSeen?.();
    return picked;
  }
-@@ -239,7 +266,8 @@ export function windowPool<T>(first: T, score: readonly number[]): {readonly bes
+@@ -231,7 +269,8 @@ export function windowPool<T>(first: T, score: readonly number[]): {readonly bes
  }
  
  /** A count of the orders the search laid out (a measure of its cost that does not depend on the load of the machine; read by the tests and by scripts/crt-u6-measure). */
 -export const searchStats = {laid: 0};
-+export const searchStats = {laid: 0, rowsFound: 0, rowsLaid: 0, rowsRefused: 0, rowsWon: 0, rowsPost: 0, searchMs: 0, whyFrame: 0, whyHeight: 0, whyAnd: 0, whyLose: 0, whyOv: 0};
-+function spikeCfg(): {search: SpikeOpts; px?: boolean; post?: boolean; ov?: boolean} | undefined { const e = process.env['LO']; if (!e) return undefined; const j = JSON.parse(e); return {search: {mode: 'anneal', moves: 20000, keep: 0, restarts: 1, seed: 7, T0: 1, ...j}, px: j.px, post: j.post, ov: j.ov}; }
++export const searchStats = {laid: 0, rowsFound: 0, rowsLaid: 0, rowsRefused: 0, rowsWon: 0, rowsPost: 0, searchMs: 0, layouts: 0, moves: 0, whyFrame: 0, whyHeight: 0, whyAnd: 0, whyLose: 0, whyOv: 0};
++function spikeCfg(): {search: SpikeOpts; px?: boolean; post?: boolean | 'won'; ov?: boolean; fc?: number | boolean; pg?: boolean} | undefined { const e = process.env['LO']; if (!e) return undefined; const j = JSON.parse(e); return {search: {mode: 'anneal', moves: 20000, keep: 0, restarts: 1, seed: 7, T0: 1, ...j}, px: j.px, post: j.post, ov: j.ov, fc: j.fc, pg: j.pg}; }
  /** The most orders the search tries for one figure. */
  const MAX_ORDERS = 60;
  /** How many orders in a row may fail to get better before the search stops (with and without AND arrows crossing). */
