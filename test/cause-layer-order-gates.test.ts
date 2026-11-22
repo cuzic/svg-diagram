@@ -1,9 +1,11 @@
-// ADR 0075 U1: where the row search runs and which forced layouts may enter the order pool.
+// ADR 0075 U1: where the row search runs and which forced layouts may enter the order pool and final pick.
+// Requires Node.js 22.18+ to run the TypeScript test (module.registerHooks was added in 22.15.0).
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {registerHooks} from 'node:module';
 import test from 'node:test';
 import {causeTree} from '../lib/dsl-pure.ts';
+import type {Pt} from '../lib/graph-layout.ts';
 import {layeredAttempt} from '../lib/layered-route.ts';
 import type {Attempt} from '../lib/layered-route.ts';
 import {must} from '../lib/must.ts';
@@ -37,10 +39,12 @@ for (const [name, g, extra, hash] of [
 
 type ForcedRows = NonNullable<Parameters<typeof layeredAttempt>[2]['forceRows']>;
 let forcedAttempt: ((attempt: Attempt, force: ForcedRows) => void) | undefined;
+let forcedDetour: typeof layeredAttempt | undefined;
 
 export const layeredAttemptForTest: typeof layeredAttempt = (nodes, edges, opts, routeOpts) => {
+  if (opts.forceRows && routeOpts.detour && forcedDetour) return forcedDetour(nodes, edges, opts, routeOpts);
   const attempt = layeredAttempt(nodes, edges, opts, routeOpts);
-  // Change only the forced attempt made for tryRows. The ordinary layouts and the final detour use the real router.
+  // The tryRows tests alter only the forced pool attempt.
   if (opts.forceRows && !routeOpts.detour) {
     assert.equal(opts.forceRows.took, true, 'the original forced layout accepts the rows');
     assert.equal(attempt.fits, true);
@@ -113,4 +117,36 @@ test('tryRows only admits a forced layout that meets the pool guards', async t =
   await t.test('refusal: a layout whose rows were refused cannot win the pool', () => {
     assert.equal(wins((_attempt, force) => { force.took = false; }), 0);
   });
+});
+
+test('final detour: a layout whose forced rows were refused cannot be selected as R', async () => {
+  const toc = await loadTocWithAttemptHook();
+  const band = bandOf(0); // The pool winner reaches the final detour with forced rows.
+  const selectsDetour = (acceptRows: boolean): boolean => {
+    const detourRoutes = new Set<Pt[]>();
+    forcedDetour = (nodes, edges, opts, routeOpts) => {
+      const force = must(opts.forceRows);
+      if (!acceptRows) force.rows = []; // A different layer count makes the router refuse the rows.
+      const attempt = layeredAttempt(nodes, edges, opts, routeOpts);
+      assert.equal(force.took, acceptRows);
+      assert.equal(attempt.fits, true);
+      // Give the final attempt a winning score independent of the rows the router used.
+      for (const i of attempt.routes.keys()) {
+        const y = i * 20;
+        const points = [{x: 20, y}, {x: 0, y}];
+        attempt.routes.set(i, points);
+        detourRoutes.add(points);
+      }
+      return attempt;
+    };
+    try {
+      const layout = toc.layoutCauseBand(band, ...args);
+      assert.ok(detourRoutes.size > 0, 'the pool winner reached the forced final detour');
+      return layout.edges.some(e => detourRoutes.has(e.points));
+    } finally {
+      forcedDetour = undefined;
+    }
+  };
+  assert.equal(selectsDetour(true), true, 'the final attempt wins when the router takes its rows');
+  assert.equal(selectsDetour(false), false, 'the final attempt is excluded when the router refuses its rows');
 });
