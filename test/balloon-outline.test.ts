@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import {test} from 'node:test';
 import {balloonPath, balloonRadius, type BalloonKind} from '../lib/comic/balloon-path.ts';
 import {balloonOutline, cloudPolygon, cloudRadii, cloudTextRect, officeAdj} from '../lib/shapes/balloon.ts';
 import type {Balloon, BalloonOpts, BalloonShape, Pt, Rect} from '../lib/shapes/balloon.ts';
 import {balloonPath as referencePath, balloonRadius as referenceRadius} from './helpers/balloon-path-ref.ts';
 import {officeWedges} from './helpers/office-wedge.ts';
+import {importsOf, LIB, libFiles, resolveLocal} from './helpers/purity.ts';
 
 const shapes: BalloonShape[] = ['rect', 'round', 'ellipse', 'cloud'];
 
@@ -31,6 +33,16 @@ function finite(outline: Balloon): void {
   const json = JSON.stringify(outline, (_, value: unknown) => typeof value === 'number' ? String(value) : value);
   assert.doesNotMatch(json, /NaN|Infinity/);
 }
+
+test('lib/shapes does not import lib/comic', () => {
+  const imports = libFiles(path.join(LIB, 'shapes'), 'shapes/').flatMap(file =>
+    importsOf(path.join(LIB, `${file}.ts`)).local
+      .map(spec => resolveLocal(file, spec))
+      .filter(target => target.startsWith('comic/'))
+      .map(target => `${file} → ${target}`),
+  );
+  assert.deepEqual(imports, []);
+});
 
 test('comic wrapper matches the original d and base for 6000 seeded inputs', () => {
   const rnd = random(438);
@@ -369,6 +381,17 @@ test('cloud trail uses the last crossing when the ray re-enters the outline', ()
   assert.ok(base);
   assert.ok(length < distance(beyondNotch, tip), 'the trail starts beyond the re-entry into the cloud');
   near(distanceToPolygon(base[0], poly), 0, 1e-9);
+});
+
+test('cloud trail starts on the outline when the tip is one pixel beyond it', () => {
+  const body = {x: 0, y: 0, w: 200, h: 80};
+  // The first arc starts on the horizontal ray from the centre to the right.
+  const exit = cloudPolygon(body)[0]!;
+  const tip: Pt = [exit[0] + 1, exit[1]];
+  const {base, length} = balloonOutline('cloud', body, tip);
+  assert.ok(base);
+  nearPoint(base[0], exit, 1e-9);
+  near(length, 1, 1e-9);
 });
 
 test('cloud trail lengths stay nonnegative near notches on seeded wide bodies', () => {

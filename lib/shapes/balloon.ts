@@ -1,5 +1,4 @@
 // Shared outlines for rectangular, rounded, elliptical and cloud balloons (ADR 0077).
-import {f1} from '../comic/constants.ts';
 
 export type Pt = readonly [number, number];
 export interface Rect {x: number; y: number; w: number; h: number}
@@ -37,6 +36,7 @@ const MAX_INPUT = 1e6;
 const CLEAR_MIN = 4;
 const CLOUD_GAP = 2;
 const DELTA = 11 * Math.PI / 180; // Office wedgeEllipseCallout uses the ellipse parameter.
+const f1 = (n: number): number => Math.round(n * 10) / 10;
 const f2 = (n: number): number => Math.round(n * 100) / 100;
 const svgPoint = ([x, y]: Pt): string => `${f2(x)} ${f2(y)}`;
 
