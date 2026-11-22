@@ -23,6 +23,7 @@ import {layoutHandlerFor} from './layout-handlers.ts';
 import type {LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
 import {childrenOf, stackWidthOf} from './band-children.ts';
 import {layoutBoxContent, lineWidth} from './layout-text.ts';
+import {buildInventory} from './inventory.ts';
 import {parseRef, resolveConnect} from './layout-connect.ts';
 import {ceil4, labelRoom} from './connect-rules.ts';
 import type {LabelAxis} from './connect-rules.ts';
@@ -382,7 +383,8 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
   // canvas: at least its height, unless fit: 'content' (then as tall as the content; an overflow is still drawn and warned)
   const canvasHeight = d.canvas && d.canvas.fit !== 'content' ? Math.max(contentHeight, d.canvas.height) : contentHeight;
 
-  return {...data, laidOut, canvasHeight, ...(data.canvas ? {contentHeight} : {}), connects, roles};
+  return {...data, laidOut, canvasHeight, ...(data.canvas ? {contentHeight} : {}), connects, roles,
+    inventory: buildInventory(laidOut, connects, widthOf, roles.connectLabel)};
 }
 
 /** Fill the parts a handler created, preserving more specific marks from nested stack calls. */
