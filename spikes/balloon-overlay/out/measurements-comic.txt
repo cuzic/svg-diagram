@@ -1,0 +1,11 @@
+| overlap depth d (px) | cases that fit the zone (of 324) | text of 2nd covered if 1st on top | text of 1st covered if 2nd on top | tail of 1st crosses the 2nd body | ... of those, the 2nd (on top) hides >= 20% of the tail | ... of those, the 1st tail (on top) covers the 2nd text (conservative: whole inner box) | ... of those, >= 90% of the tail is hidden by the 2nd (on top) |
+|---|---|---|---|---|---|---|---|
+| -6 (today: 6px gap) | 324 | 108 | 0 | 177 | 140 | 177 | 0 |
+| 0 | 324 | 108 | 0 | 180 | 143 | 180 | 24 |
+| 4 | 324 | 108 | 0 | 180 | 145 | 180 | 12 |
+| 8 | 324 | 108 | 0 | 180 | 146 | 180 | 12 |
+| 12 | 324 | 252 | 252 | 180 | 146 | 180 | 12 |
+| 16 | 324 | 252 | 252 | 180 | 144 | 180 | 12 |
+
+line budget at 6:5: 6 lines; zone 16..236 (220px). 3+2 lines: 100+72 = 172px stacked with a 6px gap = 178px (zone 220px) -> overlap 8: 164px
+PAD_Y = 10px: text starts 10px (1 line: 11px) inside the top edge; the rounded corner (r = 24) leaves the corner area empty.

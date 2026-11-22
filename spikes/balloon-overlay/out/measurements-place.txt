@@ -1,0 +1,26 @@
+flowchart: 3 balloons -> se12 (text 0.0, other 0), se28 (text 0.0, other 0), s12 (text 0.0, other 0)
+why-why: 3 balloons -> se12 (text 0.0, other 0), se12 (text 0.0, other 0), se12 (text 0.0, other 0)
+state-diagram: 3 balloons -> s12 (text 0.0, other 0), se12 (text 0.0, other 0), se12 (text 0.0, other 0)
+steps: 3 balloons -> s12 (text 0.0, other 0), nw12 (text 0.0, other 0), se28 (text 0.0, other 0)
+canvas-swot: 3 balloons -> n12 (text 0.0, other 0), nw12 (text 0.0, other 0), se12 (text 0.0, other 0)
+canvas-bmc: 3 balloons -> ne12 (text 0.0, other 0), ne12 (text 0.0, other 0), se48 (text 0.0, other 2160)
+
+| figure | boxes | texts | connectors | balloons | covers no text | no candidate | also covers nothing else |
+|---|---|---|---|---|---|---|---|
+| flowchart | 5 | 22 | 8 | 5 | 5 | 0 | 5 |
+| why-why | 13 | 14 | 11 | 13 | 13 | 0 | 13 |
+| state-diagram | 7 | 13 | 7 | 7 | 7 | 0 | 7 |
+| steps | 6 | 19 | 5 | 6 | 6 | 0 | 5 |
+| canvas-swot | 5 | 23 | 0 | 5 | 5 | 0 | 5 |
+| canvas-bmc | 10 | 46 | 0 | 10 | 10 | 0 | 8 |
+
+best candidate covers no text (<= 0.5px^2): 46 / 46; covers some text: 0; no candidate fits the canvas: 0
+stability under +-0.0156px noise on every text rect, eps=0px^2: 0 flips / 2760 trials = 0.00%
+stability under +-0.0156px noise on every text rect, eps=1px^2: 0 flips / 2760 trials = 0.00%
+stability under +-0.0156px noise on every text rect, eps=4px^2: 0 flips / 2760 trials = 0.00%
+candidates that fit the canvas and cover no text: 386 / 588 = 65.6%
+time per balloon (24 candidates, 46 balloons): 0.465 ms
+noise x1 (+-0.02px), eps=0.5: 0 flips / 920 = 0.00%
+noise x16 (+-0.25px), eps=0.5: 0 flips / 920 = 0.00%
+noise x64 (+-1.00px), eps=0.5: 0 flips / 920 = 0.00%
+noise x256 (+-3.99px), eps=0.5: 37 flips / 920 = 4.02%
