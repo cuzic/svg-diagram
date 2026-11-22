@@ -72,9 +72,6 @@ export const causesOf = (l: {from: string | readonly string[]}): string[] => typ
 
 type CauseDir = 'up' | 'down' | 'right' | 'left';
 
-/** Figures whose side-by-side runs were moved aside (ADR 0016 D12/D13): only these can have had an AND crossing cleared that way. */
-const movedAside = new WeakSet<object>();
-
 /**
  * A cause tree. When the arrows into an effect with an AND cross each other, or any two arrows cross, the order the entities are written in is tried again
  * in a few fixed ways (ADR 0019 D4); a figure with no crossing is never touched. Only a cause tree (not pdpc() / relationDiagram()).
@@ -111,12 +108,7 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
   // the search is for a figure whose AND arrows cross as first laid out: judged before the side-by-side runs are moved aside (ADR 0016 D12/D13), which also clears crossings
   // a crossing of any two arrows also starts it: the order only wins when it is strictly better in (AND crossings, AND side-by-side, crossings, bends)
   if (band.base !== undefined) return first;
-  if (crossingsOf_(first) === 0 && scoreOf(first.edges.map(e => e.points)).crossings === 0) {
-    if (!movedAside.has(first)) return first;
-    const plain = once(undefined, true);
-    if (isNoFit(plain)) return plain;
-    if (crossingsOf_(plain) === 0) return first;
-  }
+  if (crossingsOf_(first) === 0 && scoreOf(first.edges.map(e => e.points)).crossings === 0) return first;
   const ids = band.nodes.map(n => n.id);
   // The search scores the figures without the detours of the long arrows (route-search.ts: slow, and the search lays a figure out up to MAX_ORDERS times); the order it
   // finds is laid out once more with them, and replaces the first figure only if it is strictly better in the same score.
@@ -467,7 +459,6 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number, 
     nodes: [], edges: [], ands: [], loose: attempt.loose, texts: [], anchors: [], labelBoxes: [],
     ...(fitApplied.length ? {fitApplied} : {}), ...(band.tree === 'nbr' ? {nbr: {vertical}} : {}), ...(band.focused ? {focused: band.focused} : {}),
   };
-  if (attempt.asided) movedAside.add(out);
   for (const n of band.nodes) {
     const r = rectOf(n.id), role = CAUSE_ROLES[n.role ?? 'effect'];
     out.nodes.push({...r, tone: n.tone ?? role.tone, ...(role.double ? {double: true} : {}), ...(role.dashed ? {dashed: true} : {}), ...(n.core ? {core: true} : {}), ...(n.role === 'obstacle' || n.role === 'risk' ? {hex: true} : {})});
