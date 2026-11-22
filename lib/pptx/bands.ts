@@ -207,7 +207,7 @@ export const BAND_HANDLERS = {
   curve: 'image', plane: 'image', quadrant: quadrantBand, wordart: 'image', chevron: flowBand, funnel: flowBand, cycle: flowBand,
   venn: flowBand, concentric: flowBand, emblem: flowBand, valueChain: flowBand, bars: 'image', chart: 'image', image: 'image', people: 'image', dots: 'image', math: 'image',
   timeline: timelineBand, tree: treeBand, states: statesBand, cause: causeBand, cloud: 'image', gantt: 'image', classes: 'image', bpmn: 'image',
-  fta: 'image', status: 'image', bowtie: 'image',
+  fta: 'image', status: 'image', bowtie: 'image', comic: 'image',
 } satisfies {[T in LaidOutType]: BandXml<LaidOutOf<T>> | 'image'};
 
 export function bandXml(band: LaidOutBand, ctx: Ctx, index: number): string {

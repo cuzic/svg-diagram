@@ -1,6 +1,6 @@
 // Rule inputs reused from their behavioral tests, and focused inputs for the remaining producers.
 import {
-  bars, bowtie, box, canvas, caption, causeTree, concentric, connect, diagram, em,
+  bars, bowtie, box, canvas, comic, caption, causeTree, concentric, connect, diagram, em,
   faultTree, flowchart, funnel, isIsNot, isIsNotTests, legend, quadrant, raci, row, stat,
   stateMatrix, swimlane, table, wf, whyWhyTree, wireframe,
 } from '../../lib/dsl-pure.ts';
@@ -60,6 +60,12 @@ export function ruleLocationFixtures(): Case[] {
     whyWhyTree('問題 A', [{why: 'a', measure: '周知'}]),
     whyWhyTree('問題 B', [{why: 'a', trueCause: true, because: [{why: 'b', trueCause: true}]}]),
   ]);
+  // comic-rules.test.ts: the line-break advice of a comic's bubbles comes from the layout, so the input is laid out.
+  add(['comic-bubble-wide', 'comic-orphan-line', 'comic-follower-split'], [comic({version: 1, title: '図', layout: '1x2', cast: {me: {name: '私'}}, panels: [
+    {id: 'p1', stage: [{who: 'me', at: 'left', expression: 'neutral'}], dialogue: [
+      {id: 'd1', who: 'me', kind: 'say', tpl: 'Internationalization-supportあ'},
+      {id: 'd2', who: 'me', kind: 'say', tpl: '{a}なの？ご確認ください', slots: {a: {max: 8, prompt: '何か'}}}]},
+    {id: 'p2', stage: [], dialogue: []}]}, {aspect: '1:1'})], {width: 480}, true);
   add(['bowtie-barrier-missing'], [bowtie({top: '頂上', threats: [{label: '脅威'}], consequences: [{label: '結果'}]})]);
   add(['term-variant', 'term-avoid', 'table-sum-mismatch', 'table-share-not-100', 'rowheader-tone-collides', 'semantic-table-warning'], [
     box({title: 'ユーザと担当者'}), box({title: 'ユーザー'}),

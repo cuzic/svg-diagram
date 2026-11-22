@@ -316,6 +316,21 @@
           "minLength": 1,
           "description": "ボウタイ図(bowtie)で、脅威または結果にバリアが 1 つも無い(防ぐ・和らげる手が無い道)。diagram({rcaCheck: \"strict\"}) で warn（許容する理由を書く）"
         },
+        "comic-bubble-wide": {
+          "type": "string",
+          "minLength": 1,
+          "description": "マンガ(comic)のふきだしの文が、全角 11 字(内側 198px)より広い(穴の長さ + 後ろのひらがな、または語が長い)。穴を短くするか、ひらがなを減らす（許容する理由を書く）"
+        },
+        "comic-orphan-line": {
+          "type": "string",
+          "minLength": 1,
+          "description": "マンガ(comic)のふきだしの最後の行が 2 字以下(「…」「ね。」)。広げても直らなかった。台詞を言い換えて、最後の行を長くするか前の行に収める（許容する理由を書く）"
+        },
+        "comic-follower-split": {
+          "type": "string",
+          "minLength": 1,
+          "description": "マンガ(comic)のふきだしで、穴の後ろのひらがなの連なり(3 字以下)が穴から切り離されている(助詞が次の行に回る、連なりの途中で割れる)。穴と一緒の行に収まるように言い換える（許容する理由を書く）"
+        },
         "fta-single-point": {
           "type": "string",
           "minLength": 1,

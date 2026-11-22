@@ -24,6 +24,7 @@ import {classesTexts} from './classes.ts';
 import {bpmnTexts} from './bpmn.ts';
 import {ftaTexts} from './fta.ts';
 import {bowtieMeasure} from './bowtie.ts';
+import {comicMeasure} from './comic/measure.ts';
 import {chartTexts} from './charts.ts';
 import {collectTextRequests} from './seq-table.ts';
 import {collectTextRequests as wfTextRequests} from './wireframe.ts';
@@ -129,6 +130,7 @@ export const MEASURE_HANDLERS = {
   bpmn: fromTuples(bpmnTexts),
   fta: fromTuples(ftaTexts),
   bowtie: fromTuples(bowtieMeasure),
+  comic: fromTuples(comicMeasure),
   classes: fromTuples(classesTexts),
   gantt: fromTuples(ganttTexts),
   cause: fromTuples(causeTexts),

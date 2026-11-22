@@ -10,6 +10,7 @@ import {renderMath} from './emit-figures.ts';
 import {renderCaption, renderBox, renderGroup, renderLegend, renderBanner, renderRow, renderGrid, renderPyramid, renderPeople, renderDots, renderCurve, renderRaw, renderStatus, renderSwimlane} from './emit-boxes.ts';
 import {renderFta} from './emit-fta.ts';
 import {renderBowtie} from './emit-bowtie.ts';
+import {renderComicBand} from './comic/emit.ts';
 import {renderPlane, renderBars, renderImage, renderQuadrant, renderFlowShape, renderTimeline, renderTree, renderStates, renderCause, renderCloud, renderGantt, renderClasses, renderBpmn} from './emit-figures.ts';
 import {renderSequence, renderTable, renderPrims} from './emit-tables.ts';
 
@@ -62,6 +63,7 @@ export const EMIT_HANDLERS = {
   classes: {render: (b, day, tones) => renderClasses(b, day, tones), selfDimming: true},
   bpmn: {render: (b, day, tones) => renderBpmn(b, day, tones), selfDimming: true},
   fta: {render: (b, day, tones) => renderFta(b, day, tones), selfDimming: true},
+  comic: {render: b => renderComicBand(b)},
   bowtie: {render: (b, day, tones) => renderBowtie(b, day, tones), selfDimming: true},
 } satisfies {[T in LaidOutType]: EmitHandler<LaidOutOf<T>>};
 

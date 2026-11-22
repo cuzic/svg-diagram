@@ -41,7 +41,7 @@ function outFor(issues: Issue[], warnings: string[], loc?: SourceRef): VerifyOut
  * The order the figure checks run in: every phase goes over all the bands, then the next one starts, so the findings of one kind
  * stay together (and in band order) whichever band types produce them.
  */
-export const CHECK_PHASES = ['plane', 'quadrant', 'flow', 'wordart', 'bars', 'chart', 'image', 'timeline', 'states', 'cause', 'cloud', 'gantt', 'classes', 'bpmn', 'nowrap'] as const;
+export const CHECK_PHASES = ['plane', 'quadrant', 'flow', 'wordart', 'bars', 'chart', 'image', 'timeline', 'states', 'cause', 'cloud', 'gantt', 'classes', 'bpmn', 'comic', 'nowrap'] as const;
 export type CheckPhase = typeof CHECK_PHASES[number];
 
 export interface VerifyHandler<B> {
@@ -187,6 +187,11 @@ const checkCloud = (band: LaidOutOf<'cloud'>, _d: LaidOutDiagram, {problems}: Ve
     for (const e of band.edges) if (e.arrow !== c.arrow && routeHits(e.points, c)) problems.push(`cloud: ${c.conflict ? 'the conflict label' : `the number "${c.text}"`} sits on the ${e.arrow} arrow (shorten it)`);
     for (let j = i + 1; j < band.chips.length; j++) if (rectOverlap(c, must(band.chips[j]))) problems.push(`cloud: ${c.conflict || must(band.chips[j]).conflict ? 'the conflict label and the numbers' : `the numbers on the ${c.arrow} and ${must(band.chips[j]).arrow} arrows`} overlap`);
   }
+};
+
+// A comic's data and layout problems (ADR 0074 D6): the findings of its layout that are mistakes (the advice ones are lint findings, lib/rules.ts).
+const checkComic = (band: LaidOutOf<'comic'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
+  for (const f of band.findings) if (f.severity === 'problem') problems.push(`comic: ${f.message} [${f.rule}]`);
 };
 
 const checkBars = (band: LaidOutOf<'bars'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
@@ -374,6 +379,8 @@ export const VERIFY_HANDLERS = {
   valueChain: {rects: figureRects, check: flowCheck},
   timeline: {rects: ownRect, check: {phase: 'timeline', run: checkTimeline}},
   bowtie: {rects: band => band.nodes.map((n, i) => ({id: null, label: band.labelBoxes[i]?.label ?? 'box', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
+  // a panel is the obstacle a connector must not run through; the bubbles in it are not rects of their own (they sit inside it by design)
+  comic: {rects: band => band.panels.map(pn => ({id: pn.id, label: `comic panel ${pn.id}`, x: pn.x, y: pn.y, w: pn.w, h: pn.h, ...holdsFigure(band)})), check: {phase: 'comic', run: checkComic}},
   fta: {rects: band => band.nodes.map((n, i) => ({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'event', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
   // a band node has no label box and is checked as the band it is (its own rects), so the label boxes count only the text nodes
   tree: {rects: band => { let li = 0; return band.nodes.flatMap(n => n.band ? [] : [{id: n.id ?? null, label: band.labelBoxes[li++]?.label ?? 'node', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}]); }},
