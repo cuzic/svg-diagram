@@ -22,4 +22,7 @@ diagram({title: '例', width: 480, legend: false}).add(comic({
 - 台詞の言い換えで直す: `comic-bubble-zone` / `comic-text-budget`(積みきれない)、`comic-orphan-line`(最後の行が 2 字以下)、`comic-follower-split`(穴の後ろの短いひらがなが切れる)。
 - `bubble()` はバブルチャートの名前なので、台詞 1 つの検査は `speechBubble()`。
 - 人物は `cast` に書く。内蔵の顔は `face: {hue, hair?}` で指定する。`hue` は 0〜359 の整数、`hair` は `short`(既定)か `long`。`face` を省くと `cast` の順に色が決まる。表情は `neutral` `smile` `laugh` `surprise` `worry` `angry` `think` `sad`。
-- 絵師の素材は `cast` の `asset: id` で参照し、`comic(sheet, {characters: {[id]: manifest}})` で渡す。manifest は `{id, name, box, anchors: {head, mouth, hand?}, bubbleSides?, expressions: {neutral: '…', …}, license: {spdx, author, url}}`。表情には図形・グループ・グラデーション・クリップパスの SVG 断片を使い、色は十六進表記にする。ライセンスが欠けていると `comic-license-missing` で止まる。素材や表情が見つからない場合は `comic-asset-missing` を報告し、内蔵の顔を描く。
+- 絵師の素材は `cast` の `asset: id` で参照し、`comic(sheet, {characters: {[id]: manifest}})` で渡す。manifest は `{id, name, box, anchors: {head, mouth, hand?}, bubbleSides?, expressions: {neutral: '…', …}, license: {spdx, author, url}}`。
+- 素材の `anchors.head` の円は `box` に収め、半径は短辺の半分以下にする。コマに写した `box` のうち頭の円より上の部分がふきだしに重なると、`comic-bubble-zone` が出る。
+- 表情には図形・グループ・グラデーション・クリップパスの SVG 断片を使う。紙色とインク色は十六進表記で指定する(`currentColor` は使えない)。
+- `license.spdx` と `license.author` は空でない文字列、`license.url` は `http://` または `https://` で始まる文字列にする。ライセンスに不備があると `comic-license-missing` で止まる。素材や表情が見つからない場合は `comic-asset-missing` を報告し、内蔵の顔を描く。

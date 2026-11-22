@@ -1,6 +1,6 @@
 # ADR 0074: 穴(空欄)のあるマンガの部品 — `comic()`(コマ)、`bubble()`(ふきだし)、キャラクター、穴(slot)、Artifact との受け渡し、`chat()`
 
-- 状態: 承認(Accepted。2026-11-22。レビュー 3 回で収束。Q1〜Q10 は決める人がすべて推奨どおりに決定。下の「決定済み」。**実装は U1 から始めてよい**。U1(`comic()` と台詞 1 つの `speechBubble()`)と U2(顔と素材の形)は実装した(`lib/comic/`。下の「U1 の実装メモ」「U2 の実装メモ」)。レビューの反映: 1 回目 Blocker 1・Major 7、2 回目 Major 2(穴の後ろのひらがなの結び方、値に依存する検査と `verdict` の関係)、3 回目 Major 1(`update` の差分の基準))
+- 状態: 承認(Accepted。2026-11-22。レビュー 3 回で収束。Q1〜Q10 は決める人がすべて推奨どおりに決定。下の「決定済み」。**実装は U1 から始めてよい**。U1(`comic()` と台詞 1 つの `speechBubble()`)と U2(顔と素材の形)は実装した(`lib/comic/`。下の「U1 の実装メモ」「U2 の実装メモ」)。U2 は PR #442 の round 1 を反映。レビューの反映: 1 回目 Blocker 1・Major 7、2 回目 Major 2(穴の後ろのひらがなの結び方、値に依存する検査と `verdict` の関係)、3 回目 Major 1(`update` の差分の基準))
 - 日付: 2026-11-22
 - 基点: `main`(eec05f8c、PR #431 まで)
 - 関連: ADR 0045(`svg-diagram/browser`、測定を外から渡す)、ADR 0057(spec の `canvas`)、ADR 0071(JSON Schema をパッケージに入れる)、ADR 0034(`data-node`)、ADR 0050(組み合わせられる帯)、ADR 0012(id のスコープ)、ADR 0009(縦書き)、ADR 0007(Ports)
@@ -307,12 +307,14 @@ type Values = Record<string, string | null>;   // 値は別(状態)。無い = �
 ### U2 の実装メモ(2026-11-22。顔と素材の形)
 
 - 場所: `lib/comic/face.ts`(内蔵の顔)、`lib/comic/character.ts`(素材の読み込みと置き方)。`comic()` が `characters` を受け取り、読み込む。
-- **内蔵の顔**: 頭の円(半径 36px)、顔(目・眉・口で 8 表情)、髪(`short` / `long`)、肩。髪と服は色相(`hsl()`)から、肌は `COLOR.skin`(U1 と同じトークン)。**`face` の無い人物の色相は、`cast` の並びの位置から決める**(`(210 + 70 × 位置) mod 360`。同じ人物は全コマで同じ、最初の 5 人は違う色)。`face.hue` は 0〜359 の整数、`face.hair` は `short` / `long`(それ以外は `comic()` が投げる)。
+- **内蔵の顔**: 頭の円(半径 36px)、顔(目・眉・口で 8 表情)、髪(`short` / `long`)、肩。髪と服は色相(`hsl()`)から、肌は `COLOR.skin`(U1 と同じトークン)。`face.hue` は 0〜359 の整数、`face.hair` は `short` / `long`(それ以外は `comic()` が投げる)。
+- **既定の色相**: `face` の無い人物は `(210 + 137 × cast での位置) mod 360`。同じ人物は全コマで同じ色を使い、並びで隣り合う人物と最初の 6 人の各組は色相環で 30° 以上離れる。
 - **体の境目の 3 層(ADR 0076 A2 / Q16。U2 に取り込んだ)**: 頭と服、髪の生え際、長い髪の房の内側と服にかかる所は、**紙色のキーライン 1.5px・インク 2.5px・紙色のキーライン 1.5px** で描く。外側の縁はインクの線だけ(クリップパスで、内側の境目だけに 3 層を出す。ID は人物ごとに `ch-<コマ>-<人物>-…`)。眼鏡は U4。これで、**U1 の例の golden が変わる**(仮の丸が顔になる)。
 - **素材**: `CharacterManifest` は 1 つの JSON(`{id, name, box, anchors: {head, mouth, hand?}, bubbleSides?, expressions: {表情: SVG の断片}, license: {spdx, author, url}}`)。読み込み(`loadCharacter`)は、(a) 箱を正方形にせず、そのまま保つ、(b) 断片を `sanitizeBody`(`icon-store`)の許す要素だけにする(`<text>` `<use>` `<style>` `<script>` `<image>` mask・filter・外への参照・名前つきの色は投げる)、(c) 描くときに id に接頭辞を付ける(`prefixIds`)。**ライセンスが無い(`spdx` `author` `url` のどれかが空)と投げる**(`comic-license-missing`)。
 - **置き方**: 箱の頭の円が、舞台の頭の円(半径 36px)に重なるように倍率を決める。箱の原点とアンカー(口・手)は同じ式でコマの座標に写す。ふきだしの本体は舞台の頭の位置を基準に置き、しっぽは素材の口へ向ける(`tailOf`)。断片は入れ子の `<svg viewBox=箱>` で置き、胸から下はコマの枠で切る(`clip-path`)。SVG の id はコマと人物に加え、帯の scope でも区別する。素材の色も図の `appearance` にかかわらず保つ。
 - **検査**: `comic-asset-missing`(問題): `cast` の `asset` が `characters` に無い、素材にその表情が無い。どちらも内蔵の顔で描く。`renderComic({characters})` は U3 の関数なので、U2 は `comic(sheet, {characters})` で渡す(帯のデータに入るのは読み込んだあとの JSON。1 回の描画ごとに渡し、大域の状態にしない点は同じ)。U3 の `renderComic` は、この引数を `comic()` に渡せばよい。
 - 手のアンカー(`ComicLaidHead.hand`)は、素材が持つときだけ(内蔵の顔は無い)。マンプと小道具(ADR 0076 U1)が使う。
+- PR #442 の round 1: `license.spdx` と `license.author` は空でない文字列、`license.url` は `http://` または `https://` で始まる文字列にする。`anchors.head` の円は箱の中に収め、半径は箱の短辺の半分以下にする。素材には `currentColor` の代わりに紙色とインク色を十六進表記で指定する。コマに写した箱のうち頭の円より上の部分が帯のふきだしに重なれば、`comic-bubble-zone` を報告する。
 
 ## 代替案
 

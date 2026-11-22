@@ -19,9 +19,6 @@ const robot: CharacterManifest = {
   license: {spdx: 'CC0-1.0', author: 'この例のための作り話', url: 'https://example.com/characters/robot'},
 };
 
-const pair = (id: string, expression: 'neutral' | 'laugh') => ({id, stage: [
-  {who: 'me', at: 'left' as const, expression}, {who: 'bot', at: 'right' as const, expression: 'smile' as const}], dialogue: []});
-
 export default function define() {
   return diagram({theme: 'blue', title: '内蔵の顔と絵師の素材', width: 800, legend: false}).add(comic({
     version: 1,
@@ -29,8 +26,10 @@ export default function define() {
     layout: '2x2',
     cast: {me: {name: '私', face: {hue: 210, hair: 'long'}}, bot: {name: 'ロボ', asset: 'robot'}, col: {name: '同僚', face: {hue: 20}}},
     panels: [
-      pair('p1', 'neutral'),
-      pair('p2', 'laugh'),
+      {id: 'p1', stage: [{who: 'me', at: 'left', expression: 'neutral'}, {who: 'bot', at: 'right', expression: 'smile'}],
+        dialogue: [{id: 'd1', who: 'bot', kind: 'say', tpl: 'ここが変更点。'}]},
+      {id: 'p2', stage: [{who: 'me', at: 'left', expression: 'laugh'}, {who: 'bot', at: 'right', expression: 'neutral'}, {who: 'col', at: 'center', expression: 'think'}],
+        dialogue: [{id: 'd1', who: 'col', kind: 'think', tpl: '要確認です。'}]},
       {id: 'p3', stage: [{who: 'col', at: 'left', expression: 'surprise'}, {who: 'me', at: 'right', expression: 'worry'}], dialogue: []},
       {id: 'p4', stage: [{who: 'col', at: 'left', expression: 'angry'}, {who: 'me', at: 'right', expression: 'sad'}, {who: 'bot', at: 'center', expression: 'smile'}], dialogue: []},
     ],
