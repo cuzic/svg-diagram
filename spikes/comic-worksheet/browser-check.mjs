@@ -32,7 +32,11 @@ const res = await page.evaluate(async ({version, ws}) => {
   // the comic prototype with the browser's own measurer
   const widths = (text, size, weight = 400) => measure({text, size, weight, font: 'sans'}).w;
   const laid = Proto.layoutComic(ws, widths);
-  const svgs = [laid.svg({}), laid.svg({day: '水曜', what: '引き継ぎ'})];
+  const filled = {day: '水曜', what: '引継ぎ', prep: '資料を共有', change: '早く帰る', wish: '週に一度は早く帰る'};
+  const svgs = [laid.svg({}), laid.svg(filled)];
+  const nowMs = () => performance.now();
+  let u0 = nowMs(); laid.svg({...filled, change: 'のんびりしている'}); const updateOne = nowMs() - u0; // one new value, real svgMeasurer
+  u0 = nowMs(); laid.svg({day: '金曜', what: '残業', prep: '引き継ぎ表', change: '笑顔が増えた', wish: 'いい感じ'}); const updateFive = nowMs() - u0; // five new values
   document.getElementById('out').innerHTML = svgs[1];
   // SVG -> PNG in the page (canvas), the artifact's export path
   const img = new Image();
@@ -42,8 +46,10 @@ const res = await page.evaluate(async ({version, ws}) => {
   cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
   const png = cv.toDataURL('image/png');
   let imageThrows = false; try { sd.image('x.png'); } catch { imageThrows = true; }
-  return {tImport: Math.round(tImport), tRender: Math.round(tRender), ok: r.verdict?.ok ?? r.verdict, svgBytes: r.svg.length, hasGeometry: Object.keys(r).filter(k => k !== 'svg'), laidOutBands: r.laidOut.laidOut.length, exportsHave, imageThrows, comicGeometry: laid.geometry, comicFindings: laid.findings, pngBytes: png.length, fontOk: await document.fonts.ready.then(() => true)};
+  return {updateOneMs: +updateOne.toFixed(2), updateFiveMs: +updateFive.toFixed(2), filledSvg: svgs[1], tImport: Math.round(tImport), tRender: Math.round(tRender), ok: r.verdict?.ok ?? r.verdict, svgBytes: r.svg.length, hasGeometry: Object.keys(r).filter(k => k !== 'svg'), laidOutBands: r.laidOut.laidOut.length, exportsHave, imageThrows, comicGeometry: laid.geometry, comicFindings: laid.findings, pngBytes: png.length, fontOk: await document.fonts.ready.then(() => true)};
 }, {version, ws: sample.sample});
-console.log(JSON.stringify({...res, comicGeometry: undefined, comicBubbles: Object.fromEntries(Object.entries(res.comicGeometry.bubbles).map(([k, r]) => [k, `${r.w}x${r.h}`]))}, null, 1));
+const nodeSvg = (await import('node:fs')).readFileSync(path.join(here, 'out/filled.svg'), 'utf8');
+console.log('browser SVG identical to Node SVG (every atom position):', res.filledSvg === nodeSvg);
+console.log(JSON.stringify({...res, filledSvg: undefined, comicGeometry: undefined, comicBubbles: Object.fromEntries(Object.entries(res.comicGeometry.bubbles).map(([k, r]) => [k, `${r.w}x${r.h}`]))}, null, 1));
 console.log('logs:', logs.slice(0, 6));
 await browser.close();
