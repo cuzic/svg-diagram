@@ -1,0 +1,70 @@
+diff --git a/lib/layered-route.ts b/lib/layered-route.ts
+index 386123aa..e8fa9f7e 100644
+--- a/lib/layered-route.ts
++++ b/lib/layered-route.ts
+@@ -788,10 +788,11 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+    * `tailOnly` (ADR 0073 D3, an arrow into an AND's head): the head's port stays (the ports at the head and the arc keep their ADR 0070 D3/D8 values); only the
+    * tail's port moves, onto the head's height, and only when that height is inside the tail's box.
+    */
++  const why = new Map<number, string>(); let aw = '', ad = 0;
+   const align = (i: number, tailOnly = false): (() => void) | undefined => {
+     const e = edgeAt(i), A = nodeOf(e.from), B = nodeOf(e.to);
+     const ya = endY(i, 0), yb = endY(i, 1);
+-    if (Math.abs(ya - yb) < 0.5) return undefined;
++    if (Math.abs(ya - yb) < 0.5) { aw = 'level'; return undefined; }
+     // (1) both boxes reach this height, 6px inside their edges (the same margin as the ports'); (2) the neighbours on each side keep a step
+     let lo = tailOnly ? A.y + 6 : Math.max(A.y, B.y) + 6, hi = tailOnly ? A.y + A.h - 6 : Math.min(A.y + A.h, B.y + B.h) - 6;
+     for (const end of tailOnly ? [0] as const : [0, 1] as const) {
+@@ -801,7 +802,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+       if (prev !== undefined) lo = Math.max(lo, prev + slot.before);
+       if (next !== undefined) hi = Math.min(hi, next - slot.after);
+     }
+-    if (lo > hi) return undefined;
++    if (lo > hi) { ad = Math.round(lo - hi); aw = (tailOnly ? A.y + 6 : Math.max(A.y, B.y) + 6) > (tailOnly ? A.y + A.h - 6 : Math.min(A.y + A.h, B.y + B.h) - 6) ? 'no-overlap' : 'neighbour-step'; return undefined; }
+     // the target is the head's height as it is, never clamped into the range (a clamped tail would only move the step)
+     if (tailOnly && (yb < lo - 0.01 || yb > hi + 0.01)) return undefined;
+     const y = tailOnly ? yb : Math.min(hi, Math.max(lo, (ya + yb) / 2));
+@@ -809,7 +810,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+     const own = new Set([i * 2, i * 2 + 1]);
+     for (const [j, o] of lay.edges.entries()) {
+       if (j === i || o.self || pairOf(j) !== pairOf(i)) continue;
+-      for (const end of [0, 1] as const) if (!own.has((j * 2 + end)) && Math.abs(endY(j, end) - y) < 3) return undefined;
++      for (const end of [0, 1] as const) if (!own.has((j * 2 + end)) && Math.abs(endY(j, end) - y) < 3) { ad = Math.round(Math.abs(endY(j, end) - y)); aw = 'port-near'; return undefined; }
+     }
+     const was = [portOf.get((i * 2)), portOf.get((i * 2 + 1))];
+     portOf.set((i * 2), y - centreY(e.from)); if (!tailOnly) portOf.set((i * 2 + 1), y - centreY(e.to));
+@@ -837,6 +838,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+     else { constrainLanes = true; assignLanes(); turnOuter(); }
+   }
+   const direct = lay.edges.map((_e, i) => i).filter(i => { const e = edgeAt(i); return straighten && !e.self && !e.outer && e.points.length === 2 && groupOf?.(i) === undefined && !round?.(e.from) && !round?.(e.to) && (lonePorts || must(slotOf.get((i * 2))).list.length > 1 || must(slotOf.get((i * 2 + 1))).list.length > 1); });
++  lay.edges.forEach((e, i) => { if (e.self) why.set(i, 'self'); else if (e.outer) why.set(i, 'outer'); else if (e.points.length !== 2) why.set(i, 'long'); else if (groupOf?.(i) !== undefined) why.set(i, 'AND'); else if (round?.(e.from) || round?.(e.to)) why.set(i, 'round'); else if (!straighten) why.set(i, 'nostraighten'); else if (!direct.includes(i)) why.set(i, 'lone'); });
+   let best = scoreOf([...routes.values()]);
+   // ADR 0070 D4 (U4c, `tracks`): a move after the tracks are placed (this one, the routes around the boxes, D12-D14) may not add a pair of runs under a lane step
+   // apart, nor two runs on one line whose ends are under a lane step apart (the tracks' own spacing: what a move must not take away)
+@@ -844,10 +846,11 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+   /** `trial` lies against a route in a way `routes` did not, and takes no crossing away (a crossing is worse than a pair: the move that removes one may add one) */
+   const gains = (trial: Map<number, Pt[]>, crossings = Infinity): boolean => tracks && crossings >= best.crossings && gainsRunPairs(routes, trial, LANE, runCache);
+   for (const i of direct) {
+-    const undo = align(i);
+-    if (!undo) continue;
++    aw = ''; ad = 0; const undo = align(i);
++    if (!undo) { why.set(i, 'align:' + aw + '|' + ad); continue; }
+     const trial = build(), score = rescore(routes, best, trial, crossCache);
+-    if ((score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends)) && !alongOther(trial, i) && !gains(trial, score.crossings)) { routes = trial; best = score; } else undo();
++    const okScore = score.crossings < best.crossings || (score.crossings === best.crossings && score.bends < best.bends), oth = alongOther(trial, i), gn = gains(trial, score.crossings);
++    if (okScore && !oth && !gn) { routes = trial; best = score; why.set(i, 'kept'); } else { undo(); why.set(i, 'trial:' + (!okScore ? (score.crossings > best.crossings ? 'crossings-up' : score.crossings === best.crossings ? 'bends-not-better' : 'x') : oth ? 'alongOther' : 'gains')); }
+   }
+   // ADR 0073 D3: an arrow into an AND's head (skipped above: `direct` leaves them, the head's ports are the AND's) gets its tail's port moved onto its head's height,
+   // so the step between the two ports (one port step, or any size) goes. Kept only when (crossings, bends) get strictly better, the new line is not along another
+@@ -1002,7 +1005,10 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+       }
+     }
+   }
+-  return new Map([...routes].map(([i, pts]) => [i, pts.map(place)]));
++  for (const [i, r] of routes) if (why.get(i) === 'long' && r.length === 4) { const e = edgeAt(i), A = nodeOf(e.from), B = nodeOf(e.to), p0 = at(r, 0), p3 = at(r, 3), span = Math.abs(layerOf(e.to) - layerOf(e.from)); const tIn = p3.y >= A.y + 6 && p3.y <= A.y + A.h - 6, hIn = p0.y >= B.y + 6 && p0.y <= B.y + B.h - 6; why.set(i, `long:span${span}:${tIn && hIn ? 'both' : tIn ? 'tail' : hIn ? 'head' : 'none'}`); }
++  const fin = new Map([...routes].map(([i, pts]) => [i, pts.map(place)] as [number, Pt[]]));
++  { const G = globalThis as any; (G.__jog ??= []).push(lay.edges.map((e, i) => ({k: e.from + '>' + e.to, p: JSON.stringify((fin.get(i) ?? []).map(q => [Math.round(q.x), Math.round(q.y)])), w: why.get(i) ?? '?', sp: spread}))); }
++  return fin;
+ }
+ 
+ /**
