@@ -92,10 +92,15 @@ function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, tones: Tone
 }
 
 
+export function tagGeometry({x, y, w, h}: Rect): Rect {
+  return {x: snap4(x), y: snap4(y), w: snap4(w), h};
+}
+
+
 export function renderTag(band: LaidOutBox, day: Theme, tones: ToneEnv, roles: Roles): string {
   const t = band.tagBox as Rect; // caller checked tagBox
   const fill = band.dim ? PALETTE.muted : colorOf(toneStyle(tones, band.tagTone === 'danger' || band.tagTone === 'muted' ? band.tagTone : 'accent').ink, day);
-  return pillSvg({x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h, fill, cx: t.x + t.w / 2, baseline: t.y + 17, rawY: t.y, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: (roles.tag ?? TAG_SIZE), labelHtml: emojiSpan(band.tag as string)});
+  return pillSvg({...tagGeometry(t), fill, cx: t.x + t.w / 2, baseline: t.y + 17, rawY: t.y, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: (roles.tag ?? TAG_SIZE), labelHtml: emojiSpan(band.tag as string)});
 }
 
 

@@ -1,7 +1,11 @@
 import type {Point, Rect} from './core.ts';
 
 export type InventoryItem =
-  /** Wrapped lines use ink rectangles; connector labels keep the layout's labelBox (or chipBox), with baseline at labelY. */
+  /**
+   * Wrapped lines extend 1.0 times the font size above the baseline and 0.3 below,
+   * with 0.125 times the font size added to each side of the measured width.
+   * Connector labels keep the layout's labelBox (or chipBox), with baseline at labelY.
+   */
   | {kind: 'text'; owner: string; rect: Rect; size: number}
   /** A box's fill and border, as a clockwise polygon. */
   | {kind: 'frame'; owner: string; poly: Point[]}
