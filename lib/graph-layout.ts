@@ -1,4 +1,5 @@
 import {must} from './must.ts';
+import {searchLayerRows, type RowSearchResult} from './layer-order-search.ts';
 // Pure graph layout for the diagram parts that place themselves: org charts and trees (layoutTree), mind maps (layoutBalanced),
 // state machines and flows (layoutLayered). No bands, fonts or SVG here: sizes in, rectangles and edge polylines out, so each
 // part measures its own boxes, calls one of these, and draws the result. Deterministic: the same input is the same output,
@@ -174,6 +175,16 @@ export interface LayeredOpts {
   fold?: number;
   /** Stop once the order of each layer is found, and return only how many links cross between the layers (`orderCrossings`): a search ranks orders with it (ADR 0053). */
   orderOnly?: boolean;
+  /**
+   * ADR 0075 (a cause tree's search for the order of the rows): once the sweeps have ordered the rows, search a better order and leave it in `result` (the first call that has no `result` yet; the layout itself is not changed).
+   * `andTo` are the AND effects (their links weigh more). Not with `orderOnly`.
+   */
+  rowSearch?: {andTo: ReadonlySet<string>; result?: RowSearchResult};
+  /**
+   * ADR 0075: put these rows in place of the sweeps' order. They are taken only when they hold the same nodes and dummies in every layer; `took` says whether this call took them (a call that does not, lays out the sweeps' order).
+   * Not with `orderOnly`.
+   */
+  forceRows?: {rows: readonly (readonly string[])[]; took?: boolean};
 }
 export interface LayeredEdgeOut {from: string; to: string; /** index of this edge in the input list */ index: number; /** centre to centre, through the layers it skips; reversed edges are drawn from `from` anyway */ points: Pt[]; reversed: boolean; self: boolean; /** runs in an outer lane (see LayeredOpts.outer) */ outer?: true}
 export interface LayeredLayout {/** Only with `orderOnly`: the links that cross between the layers once they are ordered. */ orderCrossings?: number; nodes: Map<string, Placed>; edges: LayeredEdgeOut[]; /** layer index of each node (0 = first) */ layers: Map<string, number>; w: number; h: number; /** only with `fold`, when a layer was cut: its number before the cut (from 0) and the rows it became */ folded?: {layer: number; rows: number}[]}
@@ -513,6 +524,14 @@ export function layoutLayered(nodes: LayeredNode[], edges: LayeredEdge[], opts: 
     }
   }
 
+  if (!opts.orderOnly && opts.forceRows) {
+    const f = opts.forceRows.rows;
+    const same = f.length === nLayers && f.every((r, l) => r.length === rowAt(l).length && r.every(id => rowAt(l).includes(id)));
+    opts.forceRows.took = same;
+    if (same) { f.forEach((r, l) => rowAt(l).splice(0, rowAt(l).length, ...r)); reindex(); }
+  } else if (!opts.orderOnly && opts.rowSearch && !opts.rowSearch.result) {
+    opts.rowSearch.result = searchLayerRows(rows, succ, id => must(compIdx.get(id)), opts.rowSearch.andTo);
+  }
   if (opts.orderOnly) return {nodes: new Map(), edges: [], layers: new Map(), w: 0, h: 0, orderCrossings: allCrossings()} as unknown as LayeredLayout;
 
   // 5. coordinates: layers along one axis, each layer centred on the widest, then relaxed toward the neighbours without overlap
