@@ -1,6 +1,6 @@
 // The layout of a comic() band (ADR 0074 D1 / D2): panels on a grid, the people at fixed places in each, the bubbles over their heads. A pure
 // function of the data and a width function: the values of the blanks do not come in (they are drawn on top, ADR 0074 D5).
-import {BADGE, FONT, GUTTER, HEAD_FROM_BOTTOM, HEAD_KEEP, HEAD_R, LINE_H, MARGIN, PAD_X, PAD_Y, PANEL_W, PANEL_W_2X2, NARRATION_LEFT, SIDE_KEEP, SLOT_FONT, SLOT_MAX, STACK_GAP, STAGE_X, TAIL_CLEAR, TAIL_HALF, TAIL_MIN, TAIL_STOP, ZONE_TOP, f1} from './constants.ts';
+import {BADGE, FONT, GUTTER, HEAD_FROM_BOTTOM, HEAD_KEEP, HEAD_R, LINE_H, MARGIN, PAD_X, PAD_Y, PANEL_W, PANEL_W_2X2, NARRATION_LEFT, SIDE_KEEP, SLOT_FONT, SLOT_MAX, STACK_GAP, STAGE_X, TAIL_CLEAR, TAIL_HALF, TAIL_MIN, TAIL_STOP, ZONE_TOP, bandWidth, f1} from './constants.ts';
 import {ceil4} from '../connect-rules.ts';
 import {snap4} from '../emit-common.ts';
 import {rectOverlap} from '../verify-base.ts';
@@ -48,7 +48,7 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
   const aspect = aspectOf(sheet.layout, band.aspect);
   const {w: PW, h: PH} = panelSize(sheet.layout, band.aspect);
   const zone = zoneOf(PH), budget = lineBudget(PH);
-  const W = 2 * MARGIN + cols * PW + (cols - 1) * GUTTER, H = 2 * MARGIN + rows * PH + (rows - 1) * GUTTER;
+  const W = bandWidth(cols, PW), H = 2 * MARGIN + rows * PH + (rows - 1) * GUTTER;
   const bx = x + snap4(Math.max(0, w - W) / 2), by = y;
   const findings: ComicFinding[] = [];
   const add = (rule: ComicRule, where: string, message: string, severity: ComicFinding['severity'] = 'problem'): void => { findings.push({rule, severity, where, message}); };
@@ -96,7 +96,10 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
     for (const dlg of p.dialogue) {
       const id = `${p.id}.${dlg.id}`;
       const parts = parseTemplate(dlg.tpl, `comic(): ${id}`);
-      const info = (sid: string): SlotInfo => { const def = dlg.slots?.[sid]; return {max: slotMax(def) ?? 4, def}; };
+      const info = (sid: string): SlotInfo => {
+        const def = dlg.slots && Object.hasOwn(dlg.slots, sid) ? dlg.slots[sid] : undefined;
+        return {max: slotMax(def) ?? 4, def};
+      };
       const R = reserveDialogue(parts, sid => info(sid).max, atomWidth);
       const bw = ceil4(R.inner + 2 * PAD_X), bh = bubbleHeight(R.lines.length);
       const speaker = dlg.who === undefined ? undefined : heads.get(dlg.who);
@@ -148,7 +151,8 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
           if (a.slot) {
             open = false;
             const def = info(a.slot).def;
-            slots.push({id: a.slot, x: f1(ax), y: f1(ty0 + i * LINE_H + 2), w: a.w, h: LINE_H - 4, max: info(a.slot).max, prompt: def?.prompt ?? '', fallback: def?.fallback ?? '…'});
+            slots.push({id: a.slot, x: f1(ax), y: f1(ty0 + i * LINE_H + 2), w: a.w, h: LINE_H - 4, max: info(a.slot).max, prompt: def?.prompt ?? '', fallback: def?.fallback ?? '…',
+              ...(def === undefined ? {defined: false} : {})});
           } else if (open) (runs[runs.length - 1] as ComicRun).text += a.text;
           else { open = true; runs.push({x: f1(ax), y: f1(ty0 + i * LINE_H + 19), text: a.text}); }
           ax += a.w;
@@ -156,7 +160,8 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
       });
       for (const r of runs) texts.push({x: r.x, y: r.y, size: FONT, text: r.text});
       for (const s of slots) texts.push({x: f1(s.x + s.w / 2), y: f1(s.y + s.h - 5), size: SLOT_FONT, text: s.prompt});
-      const bubble: ComicLaidBubble = {id, panel: p.id, kind: dlg.kind, ...(dlg.who === undefined ? {} : {who: dlg.who}), ...rect, lines: R.lines.map(l => l.atoms.map(a => a.text).join('')), runs, slots, title: fillTemplate(parts, () => '＿＿')};
+      const bubble: ComicLaidBubble = {id, panel: p.id, kind: dlg.kind, ...(dlg.who === undefined ? {} : {who: dlg.who}), ...rect, lines: R.lines.map(l => l.atoms.map(a => a.text).join('')), runs, slots, title: fillTemplate(parts, () => '＿＿'),
+        ...(slots.length ? {template: dlg.tpl} : {})};
       const tail = speaker && dlg.kind !== 'narration' ? tailOf(bubble, speaker) : undefined;
       if (tail) bubble.tail = tail;
       bubbles.push(bubble);
@@ -178,6 +183,13 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
     }
     if (panelSlots.size > 2) add('comic-slots-per-panel', p.id, `${p.id} has ${panelSlots.size} blanks (at most 2 in a panel: the reader fills them in one glance)`);
   });
+  // Duplicate blanks already have a worksheet finding. Register the first occurrence so the sheet can still be drawn.
+  const anchoredSlots = new Set<string>();
+  for (const {slots} of bubbles) for (const {id, x, y, w, h} of slots) {
+    if (anchoredSlots.has(id)) continue;
+    anchoredSlots.add(id);
+    anchors.push({id, x, y, w, h});
+  }
   return {type: 'comic', ...(band.id === undefined ? {} : {id: band.id}), ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until}),
     x: bx, y: by, w: W, h: H, title: sheet.title, layout: sheet.layout, aspect, blank: sheet.blank ?? 'prompt', panels, bubbles, anchors, texts, findings, characters: {...band.characters}};
 }

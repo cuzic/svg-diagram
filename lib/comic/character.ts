@@ -45,7 +45,9 @@ export function loadCharacter(m: CharacterManifest): ComicCharacter {
   }
   if (!point(a.mouth)) throw new Error(`${at} の anchors.mouth に [x, y] を書いてください`);
   if (a.hand !== undefined && !point(a.hand)) throw new Error(`${at} の anchors.hand に [x, y] を書いてください`);
-  if (a.top !== undefined && !num(a.top)) throw new Error(`${at} の anchors.top に box の座標で絵の上端の y を書いてください`);
+  if (a.top !== undefined && (!num(a.top) || a.top < by || a.top > head.cy - head.r)) {
+    throw new Error(`${at} の anchors.top に box の上端から頭の円の上端までの範囲(${by}〜${head.cy - head.r})で絵の上端の y を書いてください`);
+  }
   const sides = m.bubbleSides ?? [];
   if (!Array.isArray(sides) || ![...sides].every(s => SIDES.includes(s))) throw new Error(`${at} の bubbleSides に ${SIDES.join(' / ')} から選んだ配列を書いてください`);
   if (!m.expressions || typeof m.expressions !== 'object') throw new Error(`${at} の expressions に表情と SVG 断片の対応を書いてください`);
