@@ -2,7 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {layoutComic, lineBudget, panelSize, tailOf, zoneOf} from '../lib/comic/layout.ts';
-import {checkBubbleFace, checkTail, tailAngle} from '../lib/comic/check.ts';
+import {f1} from '../lib/comic/constants.ts';
+import {checkBubbleFace, checkTail, tailAngle, tailCrosses} from '../lib/comic/check.ts';
 import {renderComicBand} from '../lib/comic/emit.ts';
 import {comic, speechBubble} from '../lib/dsl-pure.ts';
 import type {ComicAspect, ComicBand, ComicDialogue, ComicLayoutName, ComicPanel, ComicWorksheet} from '../lib/types/comic.ts';
@@ -84,9 +85,10 @@ test('a bubble sits over its speaker, kept inside the panel; earlier bubbles to 
 test('a narration sits in the corner and has no tail; the other kinds have a tail towards the speaker', () => {
   const l = lay(one([panel('p1', [['me', 'right']], [{id: 'n1', kind: 'narration', tpl: '次の日。'}, {id: 'd1', who: 'me', kind: 'think', tpl: 'ふむ。'}, {id: 'd2', who: 'me', kind: 'shout', tpl: 'やった！'}]), panel('p2', [], [])]), '7:5');
   const [n, t, s] = l.bubbles;
-  assert.equal(n!.x - l.panels[0]!.x, 8);
+  assert.equal(n!.x - l.panels[0]!.x, 20, 'clear of the number badge');
   assert.equal(n!.tail, undefined);
-  assert.ok(t!.tail && s!.tail);
+  assert.equal(t!.tail, undefined, 'the upper bubble of one speaker: its tail would run behind the bubble below, so the lower one carries it');
+  assert.ok(s!.tail);
   assert.deepEqual(l.bubbles.map(b => b.kind), ['narration', 'think', 'shout']);
   assert.deepEqual(rules(l), []);
 });
@@ -95,9 +97,10 @@ test('the tail aims at the speaker\'s mouth (within 10 degrees), its tip stays o
   const l = lay(SAMPLE, '7:5');
   for (const p of l.panels) for (const b of l.bubbles.filter(x => x.panel === p.id)) {
     const h = p.heads.find(x => x.who === b.who)!;
+    if (b.id === 'p2.d2') continue; // overflowed the zone: it reaches the head, so no tail can be drawn (the zone problem is the report)
     assert.ok(b.tail, b.id);
     assert.ok(tailAngle(b.tail, h.mouth) <= 0.17, `${b.id} ${tailAngle(b.tail, h.mouth)}`);
-    if (b.id !== 'p2.d2') assert.ok(Math.hypot(b.tail.tip[0] - h.cx, b.tail.tip[1] - h.cy) >= h.r + 6 - 0.2, `${b.id}: the tip stops 6px outside the head`);
+    assert.ok(Math.hypot(b.tail.tip[0] - h.cx, b.tail.tip[1] - h.cy) >= h.r + 6 - 0.2, `${b.id}: the tip stops 6px outside the head`);
     const [fx, fy] = b.tail.from;
     assert.ok(fx >= b.x && fx <= b.x + b.w && fy >= b.y && fy <= b.y + b.h && (fy === b.y || fy === b.y + b.h || fx === b.x || fx === b.x + b.w), `${b.id}: the wedge starts on the bubble's outline`);
   }
@@ -111,7 +114,7 @@ test('comic-tail-off-speaker: a tail turned away from the mouth is reported, and
   assert.deepEqual(tailRules(), []);
   b.tail!.tip = [b.tail!.tip[0] + 60, b.tail!.tip[1]]; // 60px sideways: well over 10 degrees
   assert.deepEqual(tailRules(), ['comic-tail-off-speaker']);
-  assert.ok(tailAngle(tailOf(b, h), h.mouth) < 0.17, 'the tail the layout makes is within the limit');
+  assert.ok(tailAngle(tailOf(b, h)!, h.mouth) < 0.17, 'the tail the layout makes is within the limit');
 });
 
 test('comic-bubble-covers-face: a bubble within 4px of a head circle is reported; one 4px away is not', () => {
@@ -238,5 +241,97 @@ test('balloonPath: body and tail are one closed path; the wedge leaves the side 
   assert.ok(nearCorner.base![1][0] >= 100 + balloonRadius('say', 60), 'not on the corner arc');
   assert.equal(balloonPath(body, 'narration', {tip: [0, 0]}).base, undefined, 'a narration has no tail');
   assert.equal(balloonPath(body, 'say').base, undefined);
-  assert.deepEqual([balloonRadius('say', 48), balloonRadius('say', 100), balloonRadius('think', 100), balloonRadius('shout', 100), balloonRadius('narration', 100)], [24, 24, 28, 6, 0]);
+  assert.deepEqual([balloonRadius('say', 48), balloonRadius('say', 100), balloonRadius('think', 100), balloonRadius('shout', 100), balloonRadius('narration', 100)], [24, 24, 24, 6, 0]);
+});
+
+const longLine = (n: number) => '漢'.repeat(n);
+
+test('a tail never enters the head: a flush stack of three 2-line bubbles at 2x2 (the fuzz case) leaves the tip outside the circle, and the minimum tail length holds when there is room', () => {
+  const l = lay(one([panel('p1', [['me', 'left']], [say('d1', 'me', longLine(15)), say('d2', 'me', longLine(15)), say('d3', 'me', longLine(15))]), panel('p2', [], []), panel('p3', [], []), panel('p4', [], [])], '2x2'));
+  assert.deepEqual(l.findings, []);
+  const h = l.panels[0]!.heads[0]!;
+  const last = l.bubbles[2]!;
+  assert.equal(last.y + last.h, l.panels[0]!.y + 244, 'the stack ends flush against the zone');
+  assert.ok(last.tail);
+  assert.ok(Math.hypot(last.tail.tip[0] - h.cx, last.tail.tip[1] - h.cy) >= h.r + 1 - 0.1, 'the tip is outside the circle');
+  assert.deepEqual(l.bubbles.slice(0, 2).map(b => b.tail), [undefined, undefined], "the speaker's upper bubbles carry no tail");
+  // with room: a bubble 13px above a head is 10px of tail, not 7 (TAIL_MIN) and not into the circle
+  const head = {id: 'p1.me', who: 'me', name: '私', expression: 'neutral' as const, cx: 50, cy: 97, r: 36, mouth: [50, 112] as [number, number]};
+  const t = tailOf({x: 0, y: 0, w: 100, h: 48, kind: 'say'}, head)!;
+  assert.equal(t.tip[1] - 48, 10, 'the tail is 10px long (the tip 6px from the circle would make it 7)');
+  const tight = tailOf({x: 0, y: 0, w: 100, h: 48, kind: 'say'}, {...head, cy: 48 + 4 + 36, mouth: [50, 48 + 4 + 36 + 15]})!;
+  assert.ok(tight.tip[1] <= 48 + 4 - 1 + 0.01 && tight.tip[1] > 48, 'with 4px to the circle the tip stays 1px short of it');
+});
+
+test('comic-tail-off-speaker also reports a tail that ends inside the head', () => {
+  const l = lay(SAMPLE, '7:5');
+  const b = structuredClone(l.bubbles.find(x => x.id === 'p1.d1')!);
+  const h = l.panels[0]!.heads[0]!;
+  b.tail!.tip = [h.cx, h.cy]; // straight down onto the head's centre: the direction is right, the length is wrong
+  const seen: string[] = [];
+  checkTail(b, h, (rule, _w, msg) => seen.push(`${rule}: ${msg}`));
+  assert.equal(seen.length, 1);
+  assert.match(seen[0]!, /inside the head/);
+});
+
+test('the tilt of a tail: 9 degrees is within the limit, 11 degrees is reported', () => {
+  const h = {id: 'p1.me', who: 'me', name: '私', expression: 'neutral' as const, cx: 0, cy: 300, r: 36, mouth: [0, 100] as [number, number]};
+  const tilted = (deg: number) => {
+    const a = deg * Math.PI / 180;
+    const b = {id: 'p1.d1', panel: 'p1', kind: 'say' as const, x: -50, y: -40, w: 100, h: 40, lines: [], runs: [], slots: [], title: '', tail: {from: [0, 0] as [number, number], tip: [100 * Math.sin(a), 100 * Math.cos(a)] as [number, number], base: [[-8, 0], [8, 0]] as [[number, number], [number, number]]}};
+    const seen: string[] = [];
+    checkTail(b, h, rule => seen.push(rule));
+    return seen;
+  };
+  assert.deepEqual(tilted(9), []);
+  assert.deepEqual(tilted(11), ['comic-tail-off-speaker']);
+});
+
+test("a speaker's two bubbles: the tail is on the lower one; a tail behind another speaker's bubble is reported (comic-tail-crosses-bubble)", () => {
+  const same = lay(one([panel('p1', [['me', 'left']], [say('d1', 'me', 'はい。'), say('d2', 'me', 'いいえ。')]), panel('p2', [], [])]), '6:5');
+  assert.deepEqual(same.bubbles.map(b => !!b.tail), [false, true]);
+  assert.deepEqual(same.findings, []);
+  // me stands in the middle, col at the left; col's short bubble sits between me's first bubble and me's head
+  const sheet = (): ComicWorksheet => ({...one([panel('p1', [['me', 'center'], ['col', 'left']], [say('d0', 'me', longLine(11)), say('d1', 'col', longLine(3)), say('d2', 'me', longLine(7))]), panel('p2', [], []), panel('p3', [], []), panel('p4', [], [])], '2x2')});
+  const l = lay(sheet());
+  assert.deepEqual(l.findings.map(f => [f.rule, f.where]), [['comic-tail-crosses-bubble', 'p1.d1']]);
+  const col = l.bubbles[1]!;
+  assert.ok(col.tail, 'the tail is drawn, and reported');
+  const behind = [l.bubbles[0]!, l.bubbles[2]!].filter(o => tailCrosses(col.tail!, o));
+  assert.equal(behind.length, 1);
+  assert.equal(tailCrosses(col.tail!, {...behind[0]!, x: behind[0]!.x + 1000}), false);
+});
+
+test('slots: a key of slots that the template does not use, and a fallback or a choice longer than max, are reported', () => {
+  const l = lay(one([panel('p1', [['me', 'left']], [say('d1', 'me', '{a}です', {a: {max: 3, prompt: 'あい', fallback: 'なしなしなし', choices: ['月曜日', '火曜日曜']}, b: {max: 2, prompt: 'あい'}})]), panel('p2', [], [])]));
+  assert.deepEqual(l.findings.map(f => f.rule), ['comic-slot-max', 'comic-slot-max', 'comic-slot-undefined']);
+  assert.match(l.findings[0]!.message, /fallback/);
+  assert.match(l.findings[1]!.message, /choice "火曜日曜"/);
+  assert.match(l.findings[2]!.message, /no \{b\}/);
+});
+
+test('one bubble of four lines is one too many (36 full-width characters), three lines are not', () => {
+  const four = lay(one([panel('p1', [['me', 'left']], [say('d1', 'me', longLine(36))]), panel('p2', [], [])]), '6:5');
+  assert.deepEqual(four.bubbles[0]!.lines.length, 4);
+  assert.deepEqual(four.findings.map(f => f.rule), ['comic-text-budget']);
+  assert.deepEqual(lay(one([panel('p1', [['me', 'left']], [say('d1', 'me', longLine(27))]), panel('p2', [], [])]), '6:5').findings, []);
+});
+
+test('balloonPath: a narrow body gets a narrower wedge, a side with no straight part gets none, and a tip inside the body or not a number draws no tail', async () => {
+  const {balloonPath} = await import('../lib/comic/balloon-path.ts');
+  const narrow = balloonPath({x: 0, y: 0, w: 60, h: 100}, 'say', {tip: [30, 300]}); // 24px corners leave 12px of straight edge: the wedge is 12 wide, not 16
+  assert.deepEqual(narrow.base, [[36, 100], [24, 100]]);
+  assert.equal(balloonPath({x: 0, y: 0, w: 40, h: 100}, 'say', {tip: [20, 300]}).base, undefined, 'no straight part at all');
+  const sideways = balloonPath({x: 0, y: 0, w: 200, h: 48}, 'say', {tip: [400, 24]}); // a 48px high body is all arc on its right side
+  assert.equal(sideways.base, undefined);
+  assert.ok(!sideways.d.includes('L'), 'no wedge');
+  assert.equal(balloonPath({x: 0, y: 0, w: 200, h: 100}, 'say', {tip: [100, 50]}).base, undefined, 'a tip inside the body');
+  const nan = balloonPath({x: 0, y: 0, w: 200, h: 100}, 'say', {tip: [Number.NaN, 300]});
+  assert.equal(nan.base, undefined);
+  assert.ok(!nan.d.includes('NaN'));
+  assert.equal(balloonPath({x: 0, y: 0, w: 10, h: 100}, 'say').d.includes('NaN'), false);
+});
+
+test('f1 rounds to a tenth of a pixel (every coordinate of the SVG is written through it)', () => {
+  assert.deepEqual([f1(1.26), f1(1.24), f1(-0.04), f1(100)], [1.3, 1.2, -0, 100]);
 });

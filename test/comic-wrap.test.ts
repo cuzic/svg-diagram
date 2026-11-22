@@ -80,6 +80,11 @@ test('the glue rule: a particle after a blank stays with it, but the で of で�
   assert.deepEqual(wrapped('今日は{p}の予定。', 9).lines, ['今日は', '{p}の', '予定。']);
 });
 
+test('the glue rule binds at most two hiragana after the blank (when more fit, the third is left to the line break)', () => {
+  assert.deepEqual(wrapped('ああ{p}してもらえます。', 5).lines, ['ああ{p}して', 'もらえます。']);
+  assert.deepEqual(wrapped('ああ{p}かもしれません。', 5).lines, ['ああ{p}かも', 'しれません。']);
+});
+
 test('a blank wider than the nine characters widens the text block to fit it (never narrower than 162px), and past 11 characters it is reported', () => {
   assert.equal(reserveDialogue(parseTemplate('{p}'), () => 9, a => comicAtomWidth(a, noMeasure)).inner, 162);
   const wide = reserveDialogue(parseTemplate('{p}'), () => 12, a => comicAtomWidth(a, noMeasure));
@@ -99,6 +104,11 @@ test('an orphan last line (2 characters or fewer) is cured by widening one or tw
   assert.deepEqual(stuck.notes, ['orphan-line']);
   assert.equal(stuck.inner, 190);
   assert.deepEqual(reserveAtoms([{text: 'W', w: 200}]).notes, ['bubble-wide']);
+  // a blank and its particle make the block 180px; two characters more would make it 216px, past the threshold, so the orphan is left (and reported)
+  const left = wrapped('{p}をああ', 9);
+  assert.deepEqual(left.lines, ['{p}を', 'ああ']);
+  assert.ok(left.notes.includes('orphan-line'));
+  assert.equal(left.box.split('x')[0], '204');
 });
 
 test('a short run of hiragana cut from its blank is reported (follower-split); one that stays with it, a particle, and a long run are not', () => {
@@ -107,6 +117,14 @@ test('a short run of hiragana cut from its blank is reported (follower-split); o
   assert.deepEqual(wrapped('最近、{p}ですね。', 9).notes, []);
   assert.deepEqual(wrapped('{p}を確認する。', 9).notes, []);
   assert.deepEqual(wrapped('{p}しておきます。', 6).notes, []); // cut inside a run longer than three: the ADR records it, no advice
+});
+
+test('half-width katakana are measured (drawn at about half an em), not counted as full-width', () => {
+  assert.equal(isFullWidth('ｱ'), false);
+  assert.equal(isFullWidth('ﾞ'), false);
+  assert.equal(comicAtomWidth('ｱ', () => 9), 9);
+  assert.equal(isFullWidth('ア'), true);
+  assert.equal(isFullWidth('Ａ'), true, 'a full-width Latin letter is a full em');
 });
 
 test('only the Latin runs of a template are measured (comicMeasure); full-width text and blanks never are', () => {

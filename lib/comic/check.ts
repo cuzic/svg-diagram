@@ -22,9 +22,29 @@ export function tailAngle(tail: NonNullable<ComicLaidBubble['tail']>, mouth: rea
   return n === 0 ? 0 : Math.acos(Math.min(1, Math.max(-1, (ax * bx + ay * by) / n)));
 }
 
-/** comic-tail-off-speaker: the tail points more than 10 degrees away from the speaker's mouth. */
+/** comic-tail-off-speaker: the tail points more than 10 degrees away from the speaker's mouth, or its tip is inside the head. */
 export function checkTail(b: ComicLaidBubble, speaker: ComicLaidHead, report: Report): void {
   if (!b.tail) return;
   const a = tailAngle(b.tail, speaker.mouth);
   if (a > TAIL_TOLERANCE) report('comic-tail-off-speaker', b.id, `the tail of ${b.id} points ${Math.round(a * 180 / Math.PI)} degrees away from the mouth of ${speaker.name} (limit 10)`);
+  if (Math.hypot(b.tail.tip[0] - speaker.cx, b.tail.tip[1] - speaker.cy) < speaker.r) report('comic-tail-off-speaker', b.id, `the tail of ${b.id} ends inside the head of ${speaker.name} (leave more room between the bubble and the face)`);
 }
+
+const onSegment = (p: readonly [number, number], q: readonly [number, number], r: Rect): boolean => {
+  // does the segment p-q touch the rectangle? (the rectangle shrunk by half a pixel, so a tail that only grazes a bubble's outline is not counted)
+  const x0 = r.x + 0.5, y0 = r.y + 0.5, x1 = r.x + r.w - 0.5, y1 = r.y + r.h - 0.5;
+  let t0 = 0, t1 = 1;
+  const dx = q[0] - p[0], dy = q[1] - p[1];
+  for (const [d, lo, hi, o] of [[dx, x0, x1, p[0]], [dy, y0, y1, p[1]]] as const) {
+    if (d === 0) { if (o < lo || o > hi) return false; continue; }
+    let a = (lo - o) / d, b = (hi - o) / d;
+    if (a > b) [a, b] = [b, a];
+    t0 = Math.max(t0, a); t1 = Math.min(t1, b);
+    if (t0 > t1) return false;
+  }
+  return true;
+};
+
+/** Does the tail (its centre line and both sides of the wedge) run through the rectangle of another bubble? */
+export const tailCrosses = (tail: NonNullable<ComicLaidBubble['tail']>, other: Rect): boolean =>
+  onSegment(tail.from, tail.tip, other) || onSegment(tail.base[0], tail.tip, other) || onSegment(tail.base[1], tail.tip, other);

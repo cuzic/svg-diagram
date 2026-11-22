@@ -774,12 +774,12 @@ export const tocSeverity = (d: Pick<DiagramData, 'tocCheck'>): 'warn' | 'info' =
 /** The severity of the cause-analysis findings (ADR 0025 D5 / ADR 0026 D1): info, or warn for a diagram that asked for diagram({rcaCheck: 'strict'}). A finding that carries its own `severity` keeps it. */
 export const rcaSeverity = (d: Pick<DiagramData, 'rcaCheck'>): 'warn' | 'info' => d.rcaCheck === 'strict' ? 'warn' : 'info';
 
-/** The checks of the cause-analysis figures. Empty on purpose: each figure (faultTree, isIsNot, whyWhy*, bowtie) adds its own branch, reported at `f.severity ?? rcaSeverity(d)` like tocRules. */
 /** The advice of the comic bands' line breaks (ADR 0074 D2): the layout found them, the lint reports them. A mistake of the data is a check problem (lib/verify-handlers.ts), not a finding. */
 function comicRules(d: LintTarget, out: Finding[]): void {
   for (const b of d.laidOut ?? []) if (b.type === 'comic') for (const f of b.findings) if (f.severity === 'advice') out.push({...at(b), rule: f.rule, severity: 'warn', message: f.message});
 }
 
+/** The checks of the cause-analysis figures. Empty on purpose: each figure (faultTree, isIsNot, whyWhy*, bowtie) adds its own branch, reported at `f.severity ?? rcaSeverity(d)` like tocRules. */
 function rcaRules(d: LintTarget, out: Finding[]): void {
   const severity = rcaSeverity(d);
   for (const b of walkBands(d.bands)) {

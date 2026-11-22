@@ -2,10 +2,9 @@
 // their empty state. The text is not outlined and not measured here: a line is one <text> drawn from its start, and every atom's width came from the layout.
 import {escapeXml} from '../emit-common.ts';
 import {balloonPath} from './balloon-path.ts';
-import {BADGE, COLOR, FONT, FRAME, SLOT_FONT, TAIL_HALF} from './constants.ts';
+import {BADGE, COLOR, FONT, FRAME, SLOT_FONT, TAIL_HALF, f1} from './constants.ts';
 import type {ComicLaidBubble, ComicLaidPanel, ComicLaidSlot, LaidOutComic} from '../types/comic.ts';
 
-const f1 = (n: number): number => Math.round(n * 10) / 10;
 const tintOf = (p: ComicLaidPanel): string => p.tint === 'warm' ? COLOR.warm : p.tint === 'cool' ? COLOR.cool : COLOR.paper;
 
 function panelSvg(p: ComicLaidPanel): string {

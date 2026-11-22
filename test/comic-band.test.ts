@@ -76,3 +76,15 @@ test('the same data and the same measures draw the same SVG, and reveal / spotli
   assert.deepEqual(a.xml, []);
   assert.ok(a.svg.includes('data-comic="1x4"'));
 });
+
+test("the comic keeps its paper and ink in a dark diagram (ADR 0074 D6: it is for print and export): the drawing of the band is the same for appearance 'dark' and 'auto'", async () => {
+  const draw = async (appearance?: 'dark' | 'auto') => (await renderDiagram(diagram({theme: 'blue', title: 'マンガ', width: 480, legend: false, ...(appearance ? {appearance} : {})}).add(comic(SAMPLE)), {name: 'a', budget: 'cacheOnly'})).svg;
+  const comicOf = (svg: string) => svg.slice(svg.indexOf('<g data-comic='), svg.indexOf('</svg>'));
+  const light = comicOf(await draw());
+  assert.ok(light.includes('rgb(34,32,27)') && light.includes('rgb(255,255,255)'), 'ink and paper');
+  for (const a of ['dark', 'auto'] as const) {
+    const svg = await draw(a);
+    assert.equal(comicOf(svg), light, a);
+    assert.ok(!/#[0-9a-f]{6}/i.test(comicOf(svg).replace(/<style[\s\S]*?<\/style>/g, '')), 'no hex colour of the dark map inside the band');
+  }
+});
