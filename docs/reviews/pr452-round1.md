@@ -1,0 +1,40 @@
+# svg-diagram PR #452 (ADR 0074 U3a: slot values, value checks, geometry map, renderComic) — round 1 review
+
+Head 2bd0b38b. CI green (golden, test 1/3 to 3/3). Local `pnpm test`: 3432 tests, 8 fail, the same 8 font failures as main. The 8 comic test files: 124 pass. `check --strict` clean on the three comic examples. Examples and goldens: no file under `examples/` changes. `test/web-entry.test.ts` passes, and nothing under `lib/comic`, `lib/dsl/comic.ts` or `lib/web.ts` reaches `node:*`. Leak grep over the diff (code, tests, docs): nothing; only made-up worksheet wording and `example.com`.
+
+Verdict: **converged in my view: no Blocker, no Major.** Five Minors and a few Nits, none of which break the issue's acceptance tests. They can be fixed in this PR or left for U3b.
+
+## Conformance with Issue #449, ADR 0074 D4 / D5 / U3
+Checked by reading and by running:
+- **Empty is unchanged.** `renderComicBand(laid)`, `(laid, {})` and `{day: undefined}` give one string; the three example goldens are byte-identical.
+- **Three states and shrink.** I rendered a sample empty / filled / skipped / too long (`r452/st-*.png`) with real fonts through resvg. Filled values are centred in the slot, bold, in `rgb(185,28,28)`, with no underline or prompt; skipped shows `…` in the muted colour at normal weight; a value wider than the slot is shrunk to the 14px floor (`18 × slot / w18`, rounded to 0.1), and one that still does not fit is cut by the slot's `clipPath` with `slot-overflow` (`day`, `what` and `change` in my "long" set). Nothing around a slot moves.
+- **Geometry does not change with values, slot widths come from `max`.** Over 31 hostile values for one slot, `comicGeometry` was identical to the empty sheet every time, and so was the rest of the SVG once slot groups and `<title>`s are removed. The geometry for the 5-slot sample is 1391 bytes (12-slot test under 4096).
+- **Value checks.** Grapheme counting (`👨‍👩‍👧` is 1, `e` + 7 combining marks is 1), `strict` + `choices`, blank / control characters / newline as `comic-value-invalid`, unknown keys as an advice (including `__proto__` and `constructor`, which do not leak into the layout), and `slot-overflow`. None of them touches `verdict.ok`.
+- **Measurement.** A single Latin atom in a value costs exactly 2 measurements (18px and 14px, weight 700); full-width values cost 0; the memo is per `renderComic` call; `values` is copied, so mutating the table afterwards changes nothing.
+- **`renderComic` pipeline.** 1x2, 2x2 and 1x3 all give `verdict.ok` with no XML problems and the right width; a thrown measurer error propagates; `thumbnail` throws on an unknown panel and on `width: 0`, does not measure, shows slots as underlines only.
+- **Map and anchors.** Keys follow the scope rule, slots are `connect()` anchors, `data-node` on panel frame, bubble outline and slot group.
+- **U2 carry-overs.** `anchors.top` range check is there (`box y <= top <= head top`), and the type comment, README, skill and ADR say the check covers the whole box width.
+
+## The obstacle exemption (`lib/verify-handlers.ts`, `comicRects`, `checkComic`): narrow enough
+- A panel's rect lists only the slots in that panel (plus the band id) as `holds`, so only a connector that ends on a slot of that panel skips that panel's frame. Everything else keeps the old behaviour.
+- I tried it (`r452/conn.ts`, `conn2.ts`): to a panel and to a slot in the first panel: ok. To a slot in a later panel from above: problem for each earlier panel it crosses. To a bubble anchor: still a problem (as on main). A route that must pass through another bubble of the same panel (a connector from above to the slot of a lower bubble, or from a slot down to a note below): `c.p1.d1` / `c.p1.d2` reported by the new bubble check. A route through the slot's own bubble is not reported (as decided).
+- Gap that follows from the decision, not a bug: inside its own panel a route is no longer stopped by anything except other bubbles, so it can cross the **people** and the tails. Heads were never obstacles on their own, but the whole panel used to protect them. Record it in the ADR note or add the head rects to the exemption check (see m2).
+
+## Minor
+- **m1. Slot clip ids are not namespaced.** `lib/comic/emit.ts` `slotSvg`: `slot-clip-${s.id}` (the raw slot id) while the panel clip ids go through the scope namespace. Two `renderComic` results inlined in one HTML page share `slot-clip-day` (and `pc-p1`, `svg-title`, 20 ids in all for my two test sheets); the second text is clipped by the first's rectangle when their geometry differs. The PR names it in the ADR note, but the library-wide `svg-title` clash means a page with two diagrams already has duplicate ids, so I do not rate it higher. Fix: put the same `namespace` as the panel clips in the slot clip id, and let `renderComic` take an `idPrefix` option (default none).
+- **m2. The exempted panel no longer protects its people and tails** (see above). Fix: in `checkComic`, also check the connector segments against the heads and the tail wedges of the endpoint panels, or state in the ADR that a route to a slot may pass over the people.
+- **m3. The drawn value text is not bounded.** `slotValue` keeps the whole string; a 100,000-character value (flagged `comic-value-invalid` and `slot-overflow`) still goes into the SVG in full and into the `<title>`, then is clipped. It rendered in 41ms here, but the output size follows the input. Fix: draw (and title) at most a few graphemes over `max` (the extra is clipped anyway), while the finding still sees the full string.
+- **m4. The thumbnail carries `data-node`** when `nodeIds` is true (5 attributes in my sample), so a page with the main drawing and the thumbnails has duplicate node names, and clicks resolve ambiguously. Fix: build the thumbnail from `laid` (without `nodeIds`), not from `emitted`.
+- **m5. Test gap.** Mutation: removing the "register only the first anchor for a repeated slot id" guard (`layout.ts`, `anchoredSlots`) fails no test. The guard is sound (a duplicate has its own `comic-slot-duplicate` finding), but a test for a worksheet that repeats a slot id and still draws should pin it.
+
+## Nits
+- Bidi override and isolate characters (U+202A to U+202E, U+2066 to U+2069) and U+FFFE / U+FFFF / lone surrogates are not `comic-value-invalid`; the last two are silently drawn as the replacement character. Harmless in a single `<text>` (the override stays inside it), but cheap to reject in `ONE_LINE`.
+- `render.ts` and `web.ts` import each other (`web.ts` re-exports `renderComic`, `render.ts` imports `renderInBrowser`). It works (the browser bundle test passes), but it is a cycle; moving the re-export to the browser entry file would remove it.
+- A measurer that returns `NaN` renders without an error (the text is drawn at 18px). Garbage in, garbage out; a finite-number check would say why.
+- The tabulated values after shrinking are not re-measured: the size `f1(18 × slot / w18)` assumes widths scale linearly, so a text can overshoot the slot by under a pixel and lose a hair of its last glyph to the clip. Visible only in the "long" render as a thin cut after the last character.
+
+## Mutations (12 of mine)
+Caught: `in` instead of `hasOwn`, the `holds` list, the own-bubble exemption, XML control-character replacement, the skipped `<title>`, the clip rectangle height, removing the slot anchors, the head rect size, the segmenter granularity. Surviving: `<=` to `<` at an exact fit (equivalent), checking all panels instead of the endpoint panels (equivalent, the others are obstacles anyway), and the repeated-slot guard (m5).
+
+## Values fuzz
+31 hostile values (emoji and ZWJ families, flags, skin tones, 500 combining marks, Hebrew, Arabic, RLO / RLM, 10,000 and 100,000 character strings, lone surrogate, NUL, U+2028, tab, newline, BOM, `</text><script>`, `]]>`, half-width kana, mixed full / half width, `null`): no exception, every SVG parses as XML in Chromium with no `<script>`, geometry unchanged, no measurement beyond 2 per Latin atom.
