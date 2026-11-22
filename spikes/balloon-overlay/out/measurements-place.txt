@@ -1,0 +1,35 @@
+flowchart: 3 balloons -> e12 (content 0.0, other 0, angle 90), sw48 (content 0.0, other 48, angle 32), s12 (content 0.0, other 0, angle 90)
+why-why: 3 balloons -> e12 (content 0.0, other 0, angle 90), e12 (content 0.0, other 0, angle 90), w12 (content 0.0, other 0, angle 90)
+state-diagram: 3 balloons -> s12 (content 0.0, other 0, angle 90), s12 (content 0.0, other 0, angle 90), s12 (content 0.0, other 0, angle 90)
+steps: 3 balloons -> s12 (content 0.0, other 0, angle 90), n12 (content 0.0, other 0, angle 90), se48 (content 0.0, other 66, angle 32)
+canvas-swot: 3 balloons -> n12 (content 0.0, other 0, angle 90), n12 (content 0.0, other 0, angle 90), s12 (content 0.0, other 0, angle 90)
+canvas-bmc: 3 balloons -> ne12 (content 0.0, other 0, angle 42), ne12 (content 0.0, other 0, angle 42), se48 (content 0.0, other 2160, angle 44)
+service-blueprint: 3 balloons -> se12 (content 0.0, other 171, angle 46), se12 (content 0.0, other 29, angle 13), se12 (content 0.0, other 171, angle 44)
+org-chart: 3 balloons -> e12 (content 0.0, other 0, angle 90), e12 (content 0.0, other 0, angle 90), w12 (content 0.0, other 0, angle 90)
+
+| figure | boxes | texts | shapes (diamonds, circles) | connectors | dividers | balloons | covers no content | no candidate |
+|---|---|---|---|---|---|---|---|
+| flowchart | 5 | 22 | 3 | 8 | 0 | 5 | 5 | 0 |
+| why-why | 13 | 14 | 0 | 11 | 0 | 13 | 13 | 0 |
+| state-diagram | 7 | 13 | 1 | 7 | 0 | 7 | 7 | 0 |
+| steps | 6 | 19 | 5 | 5 | 0 | 6 | 6 | 0 |
+| canvas-swot | 5 | 23 | 0 | 0 | 0 | 5 | 5 | 0 |
+| canvas-bmc | 10 | 46 | 0 | 0 | 0 | 10 | 10 | 0 |
+| service-blueprint | 12 | 21 | 0 | 8 | 11 | 12 | 12 | 0 |
+| org-chart | 10 | 15 | 0 | 9 | 0 | 10 | 10 | 0 |
+
+best candidate covers no content (text, shapes; footprint incl. 3px halo; <= 0.5px^2): 68 / 68 = 100.0%; no candidate fits the canvas: 0
+D3 problems on the chosen placements (content > 0.5px^2, hidden arrowhead, connector leg hidden >= 50% or >= 40px): none in 68 / 68; content 0, arrowheads 0, legs 0; chart marks are not in the spike's scene
+direction mix of the chosen placements: e 16, n 9, ne 2, nw 1, s 23, se 5, sw 1, w 11
+candidates that fit the canvas and cover no content: 689 / 1227 = 56.2%
+chosen placements: diagonal 9 / 68 = 13.2%; tail angle to its edge under 30 degrees 1 / 68 = 1.5%; tip within 6px of a target corner 0 / 68 = 0.0%
+runner-up equal on content, links, other, flat, diag (decided by distance / crossings / fixed order): 40 / 68 = 58.8%; equal also on distance and crossings (fixed order alone): 24 / 68 = 35.3%
+stability, +-0.0156px noise on ALL inputs (texts, boxes, shapes, arrowheads, connectors), eps=0: 76 / 4080 = 1.9% flips
+stability, +-0.0156px noise on ALL inputs (texts, boxes, shapes, arrowheads, connectors), eps=0.5: 21 / 4080 = 0.5% flips
+stability, +-0.0156px noise on ALL inputs (texts, boxes, shapes, arrowheads, connectors), eps=1: 10 / 4080 = 0.2% flips
+stability, +-0.0156px noise on ALL inputs (texts, boxes, shapes, arrowheads, connectors), eps=4: 18 / 4080 = 0.4% flips
+noise x16 (+-0.25px) on all inputs, eps=0.5: 18 / 1360 = 1.3% flips
+noise x64 (+-1.00px) on all inputs, eps=0.5: 35 / 1360 = 2.6% flips
+noise x256 (+-3.99px) on all inputs, eps=0.5: 123 / 1360 = 9.0% flips
+time per balloon (24 candidates, 68 balloons): 0.307 ms
+@at override (top@0.3 of the first box): tip 332.8,16.0 (expected x 332.8, y 16.0); placed w12
