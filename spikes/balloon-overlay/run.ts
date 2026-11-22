@@ -13,7 +13,7 @@ const sg = (e: number): number => (rnd() < 0.5 ? -e : e);
 const jig = (r: Rect, e: number): Rect => ({x: r.x + sg(e), y: r.y + sg(e), w: r.w + sg(e), h: r.h + sg(e)});
 const jigP = (p: Pt[], e: number): Pt[] => p.map(q => [q[0] + sg(e), q[1] + sg(e)] as Pt);
 /** noise on EVERY input the placement reads: text rects, boxes, shapes, arrowheads and connector paths */
-const jigScene = (sc: Scene, e: number): Scene => ({...sc, texts: sc.texts.map(t => jig(t, e)), boxes: sc.boxes.map(t => jig(t, e)), shapes: sc.shapes.map(p => jigP(p, e)), heads: sc.heads.map(p => jigP(p, e)), lines: sc.lines.map(p => jigP(p, e))});
+const jigScene = (sc: Scene, e: number): Scene => ({...sc, texts: sc.texts.map(t => jig(t, e)), boxes: sc.boxes.map(t => jig(t, e)), shapes: sc.shapes.map(p => jigP(p, e)), heads: sc.heads.map(p => jigP(p, e)), lines: sc.lines.map(p => jigP(p, e)), dividers: sc.dividers.map(p => jigP(p, e))});
 const key = (c: Cand | undefined): string => c ? `${c.dir}${c.d}` : 'none';
 
 const draw = (sc: Scene, placed: {c: Cand; text: string}[]): string => {
@@ -48,13 +48,13 @@ for (const name of NAMES) {
       for (let k = 0; k < 60; k++) { flips[eps]!.n++; if (key(best(candidates(b), jigScene(sc, 0.0156), eps)?.c) !== base) flips[eps]!.flip++; }
     }
   });
-  perFig.push(`| ${name} | ${sc.boxes.length} | ${sc.texts.length} | ${sc.shapes.length} | ${sc.lines.length} | ${n} | ${zero} | ${nothing} |`);
+  perFig.push(`| ${name} | ${sc.boxes.length} | ${sc.texts.length} | ${sc.shapes.length} | ${sc.lines.length} | ${sc.dividers.length} | ${n} | ${zero} | ${nothing} |`);
   const bs: Balloon[] = sc.boxes.slice(0, 3).map((Tg, i) => ({text: TEXTS[i % 2]!, target: Tg, id: `t${i}`}));
   const res = placeAll(sc, bs, 0.5);
   fs.writeFileSync(`${out}${name}-3balloons.svg`, draw(sc, res.flatMap((q, i) => q ? [{c: q.c, text: bs[i]!.text}] : [])));
   rep(`${name}: 3 balloons -> ${res.map(q => q ? `${key(q.c)} (content ${q.s.content.toFixed(1)}, other ${q.s.other.toFixed(0)}, angle ${q.c.angle.toFixed(0)})` : 'none').join(', ')}`);
 }
-rep('\n| figure | boxes | texts | shapes (diamonds, circles) | connectors | balloons | covers no content | no candidate |\n|---|---|---|---|---|---|---|---|');
+rep('\n| figure | boxes | texts | shapes (diamonds, circles) | connectors | dividers | balloons | covers no content | no candidate |\n|---|---|---|---|---|---|---|---|');
 for (const l of perFig) rep(l);
 const pc = (a: number, b: number): string => `${a} / ${b} = ${(100 * a / b).toFixed(1)}%`;
 rep(`\nbest candidate covers no content (text, shapes; footprint incl. 3px halo; <= 0.5px^2): ${pc(T.zero, T.n)}; no candidate fits the canvas: ${T.none}`);
