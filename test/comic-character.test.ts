@@ -2,13 +2,15 @@
 import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
-import {characterSvg, loadCharacter, mapPoint, placement} from '../lib/comic/character.ts';
+import {characterOverhang, characterSvg, loadCharacter, mapPoint, placement} from '../lib/comic/character.ts';
 import {layoutComic} from '../lib/comic/layout.ts';
 import {renderComicBand} from '../lib/comic/emit.ts';
 import {tailAngle} from '../lib/comic/check.ts';
 import {comic} from '../lib/dsl-pure.ts';
+import {installResolveHook} from '../lib/resolve-hook.ts';
 import type {CharacterManifest, ComicWorksheet} from '../lib/types/comic.ts';
 import {ARTIST} from './helpers/comic-character.ts';
+import {SAMPLE} from './helpers/comic-sample.ts';
 
 const widthOf = (a: string) => a.length * 9;
 const sheet = (asset?: string, expression: 'neutral' | 'smile' | 'angry' = 'smile'): ComicWorksheet => ({version: 1, title: '図', layout: '1x2', cast: {me: {name: '私', face: {hue: 210}}, col: {name: '同僚', ...(asset ? {asset} : {face: {hue: 20}})}}, panels: [
@@ -35,7 +37,8 @@ test('a manifest with no licence is refused when it is loaded (comic-license-mis
 });
 
 test('a licence names the invalid field and requires a non-blank SPDX value and an HTTP or HTTPS URL', () => {
-  for (const url of ['example.com/license', 'ftp://example.com/license', ' https://example.com/license']) {
+  for (const url of ['example.com/license', 'ftp://example.com/license', ' https://example.com/license',
+    'https://', 'https://example.com/a b', 'https://example.com/a\nb', 'https://example.com/a\n']) {
     assert.throws(() => loadCharacter(withManifest({license: {...ARTIST.license, url}})), /^Error: comic-license-missing: .*license\.url/);
   }
   assert.throws(() => loadCharacter(withManifest({license: {...ARTIST.license, spdx: ' \t'}})), /^Error: comic-license-missing: .*license\.spdx/);
@@ -66,6 +69,29 @@ test('the head circle fits in the viewBox and its radius is at most half its sho
   for (const [cx, cy] of [[-1, 95], [1, 95], [0, 74], [0, 116]] as const) {
     assert.throws(() => loadCharacter(manifest(cx, cy, 50)), /anchors\.head.*円が box の中/);
   }
+});
+
+test('the head radius is at least one fiftieth of the shorter viewBox side', () => {
+  const manifest = (r: number) => withManifest({anchors: {...ARTIST.anchors, head: {...ARTIST.anchors.head, r}}});
+  assert.doesNotThrow(() => loadCharacter(manifest(4)));
+  assert.throws(() => loadCharacter(manifest(3.99)), /anchors\.head\.r.*短辺の 1\/50/);
+});
+
+test('an explicit top anchor is a finite y coordinate and survives loading', () => {
+  const manifest = (top: number) => {
+    const anchors = {...ARTIST.anchors, top};
+    return withManifest({anchors});
+  };
+  assert.deepEqual(loadCharacter(manifest(0)).anchors, {...ARTIST.anchors, top: 0});
+  for (const top of [NaN, Infinity]) assert.throws(() => loadCharacter(manifest(top)), /anchors\.top/);
+});
+
+test('each viewBox dimension is at most 4096', () => {
+  const manifest = (width: number, height: number) => withManifest({box: [0, 0, width, height]});
+  assert.doesNotThrow(() => loadCharacter(manifest(4096, 200)));
+  assert.doesNotThrow(() => loadCharacter(manifest(200, 4096)));
+  assert.throws(() => loadCharacter(manifest(4097, 200)), /box.*4096/);
+  assert.throws(() => loadCharacter(manifest(200, 4097)), /box.*4096/);
 });
 
 test('the fragments are cleaned with the icon whitelist: no script, style, text, use, mask, filter, image, outside reference or named colour', () => {
@@ -143,20 +169,40 @@ test('the layout of a panel is the same with an artist\'s character as with the 
   assert.ok(b.tail && tailAngle(b.tail, head.mouth) <= 0.17);
 });
 
-test('an asset protruding above the stage head reports a bubble-zone problem only for the bubble it overlaps', () => {
+test('the example robot adds no bubble-zone problems to the ADR worksheet at 6:5', async () => {
+  installResolveHook();
+  const {default: define} = await import('../examples/comic-faces.ts');
+  const band = define().bands.find(b => b.type === 'comic');
+  const robot = band?.characters?.['robot'];
+  assert.ok(robot);
+  const sample = {...SAMPLE, cast: {...SAMPLE.cast, me: {...SAMPLE.cast['me']!, asset: robot.id}}};
+  const layout = layoutComic(comic(sample, {aspect: '6:5', characters: {robot}}), 0, 0, 0, widthOf);
+  assert.deepEqual(layout.panels[1]!.heads[0]!.look, {kind: 'asset', asset: 'robot'});
+  assert.deepEqual(layout.findings.filter(f => f.rule === 'comic-bubble-zone'), []);
+});
+
+test('artwork above the stage head reports a bubble-zone problem only for the bubble it overlaps', () => {
   const s = sheet(ARTIST.id);
-  const tall = (cy: number) => withManifest({
-    box: [-25, -50, 200, 500],
-    anchors: {head: {cx: 75, cy, r: 56}, mouth: [75, cy + 22]},
-    expressions: {
-      neutral: '<rect x="35" y="-50" width="80" height="500" fill="#222222"/>',
-      smile: '<rect x="35" y="-50" width="80" height="500" fill="#222222"/>',
-    },
-  });
-  const hit = lay(s, {[ARTIST.id]: tall(300)});
+  const tall = (top: number) => {
+    const anchors = {head: {cx: 75, cy: 300, r: 56}, mouth: [75, 322] as const, top};
+    const fragment = `<rect x="35" y="${top}" width="80" height="380" fill="#222222"/>`;
+    return withManifest({box: [-25, -50, 200, 500], anchors, expressions: {neutral: fragment, smile: fragment}});
+  };
+  const hit = lay(s, {[ARTIST.id]: tall(-50)});
   assert.deepEqual(hit.findings.map(f => [f.rule, f.where, f.severity]), [['comic-bubble-zone', 'p1.d1', 'problem']]);
   assert.match(hit.findings[0]!.message, /p1\.col/);
-  assert.deepEqual(lay(s, {[ARTIST.id]: tall(250)}).findings, [], 'the asset rises above the head but remains below the bubble');
+  assert.deepEqual(lay(s, {[ARTIST.id]: tall(-25)}).findings, [], 'the artwork remains below the bubble');
+});
+
+test('the artwork overhang ends at the stage head’s upper edge', () => {
+  const stageHead = {cx: 300, cy: 200, r: 36};
+  const placed = (top?: number) => {
+    const anchors = {head: {cx: 75, cy: 90, r: 72}, mouth: [75, 112] as const, top};
+    const asset = loadCharacter(withManifest({box: [-25, -50, 200, 500], anchors}));
+    return characterOverhang(asset, stageHead);
+  };
+  assert.deepEqual(placed(10), {x: 250, y: 160, w: 100, h: 4});
+  for (const top of [undefined, 18, 19]) assert.equal(placed(top), undefined);
 });
 
 test('a missing asset or a missing expression is a problem (comic-asset-missing), and the built-in face is drawn in its place', () => {

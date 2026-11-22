@@ -7,7 +7,7 @@ import {rectOverlap} from '../verify-base.ts';
 import {comicAtomWidth} from './width.ts';
 import {fillTemplate, parseTemplate, slotIdsOf} from './template.ts';
 import {balloonPath} from './balloon-path.ts';
-import {mapPoint, placement} from './character.ts';
+import {characterOverhang, mapPoint} from './character.ts';
 import {reserveDialogue} from './reserve.ts';
 import type {Reserved} from './reserve.ts';
 import {checkBubbleFace, checkTail, tailCrosses} from './check.ts';
@@ -80,10 +80,8 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
         head.look = {kind: 'asset', asset: ch.id};
         head.mouth = mapPoint(ch, head, ch.anchors.mouth);
         if (ch.anchors.hand) head.hand = mapPoint(ch, head, ch.anchors.hand);
-        // Use the part of the placed viewBox above the head circle as the asset's upper bound.
-        const {x, y, scale} = placement(ch, head);
-        const h = head.cy - head.r - y;
-        if (h > 0) overhangs.push({id: head.id, bounds: {x, y, w: f1(ch.box[2] * scale), h}});
+        const bounds = characterOverhang(ch, head);
+        if (bounds) overhangs.push({id: head.id, bounds});
       }
       heads.set(s.who, head);
     }
@@ -115,7 +113,7 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
       const pastZone = top + bh > py + zone.bottom;
       const overhang = pastZone ? undefined : overhangs.find(({bounds}) => rectOverlap(rect, bounds, 0));
       if (pastZone) add('comic-bubble-zone', id, `${id}: the stack ends ${top + bh - py}px from the top of the panel, but the band over the heads ends at ${zone.bottom}px (fewer or shorter lines: at most ${budget} lines in all)`);
-      else if (overhang) add('comic-bubble-zone', id, `${id} が ${overhang.id} の素材の上部に重なります。台詞を短くするか、人物の位置や素材の box を調整してください`);
+      else if (overhang) add('comic-bubble-zone', id, `${id} が ${overhang.id} の素材の上部に重なります。台詞を短くするか、人物や素材の絵の位置を調整してください`);
       const stackLines = R.lines.length + under.reduce((n, q) => n + q.lines, 0);
       if (!budgetReported && (stackLines > budget || R.lines.length > MAX_BUBBLE_LINES)) {
         budgetReported = true;

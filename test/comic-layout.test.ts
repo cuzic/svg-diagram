@@ -7,6 +7,7 @@ import {checkBubbleFace, checkTail, tailAngle, tailCrosses} from '../lib/comic/c
 import {renderComicBand} from '../lib/comic/emit.ts';
 import {comic, speechBubble} from '../lib/dsl-pure.ts';
 import type {ComicAspect, ComicBand, ComicDialogue, ComicLayoutName, ComicPanel, ComicWorksheet} from '../lib/types/comic.ts';
+import {ARTIST} from './helpers/comic-character.ts';
 import {SAMPLE} from './helpers/comic-sample.ts';
 
 const widthOf = (atom: string) => atom.length * 9;
@@ -130,8 +131,11 @@ test('ADR sample (7:5): the second panel stacks two 3-line bubbles, so exactly t
   assert.deepEqual(l.findings.map(f => [f.rule, f.where]), [['comic-bubble-zone', 'p2.d2'], ['comic-text-budget', 'p2.d2']]);
   assert.match(l.findings[0]!.message, /222px from the top.*184px/);
   assert.match(l.findings[1]!.message, /6 lines are stacked in p2 \(at most 4\)/);
-  // the face and tail checks do not run for the bubble that overflowed (their cause is the overflow)
-  assert.ok(!rules(l).includes('comic-bubble-covers-face') && !rules(l).includes('comic-tail-off-speaker'));
+  // The bubble would cover a face if the layout ran the face check after reporting the overflow.
+  const overflow = l.bubbles.find(b => b.id === 'p2.d2')!;
+  const faceRules: string[] = [];
+  checkBubbleFace(overflow, l.panels[1]!.heads[0]!, rule => faceRules.push(rule));
+  assert.deepEqual(faceRules, ['comic-bubble-covers-face']);
   assert.deepEqual(l.bubbles.map(b => [b.id, b.lines.length]), [['p1.d1', 3], ['p2.d1', 3], ['p2.d2', 3], ['p3.d1', 2], ['p3.d2', 1], ['p4.d1', 2]]);
 });
 
@@ -300,6 +304,18 @@ test("a speaker's two bubbles: the tail is on the lower one; a tail behind anoth
   const behind = [l.bubbles[0]!, l.bubbles[2]!].filter(o => tailCrosses(col.tail!, o));
   assert.equal(behind.length, 1);
   assert.equal(tailCrosses(col.tail!, {...behind[0]!, x: behind[0]!.x + 1000}), false);
+
+  // The artwork reaches d1 and d2. The crossing is still there, but d1 already reports its zone problem.
+  const withAsset = sheet();
+  withAsset.cast = {...withAsset.cast, col: {name: '同僚', asset: ARTIST.id}};
+  const anchors = {head: {cx: 75, cy: 240, r: 56}, mouth: [75, 262] as const, top: -45};
+  const asset = {...ARTIST, box: [-25, -50, 200, 500] as const, anchors,
+    expressions: {neutral: '<rect x="35" y="-45" width="80" height="400" fill="#222222"/>'}};
+  const overflow = layoutComic(comic(withAsset, {characters: {[asset.id]: asset}}), 0, 0, 0, widthOf);
+  assert.ok(tailCrosses(overflow.bubbles[1]!.tail!, overflow.bubbles[2]!));
+  assert.deepEqual(overflow.findings.map(f => [f.rule, f.where]), [
+    ['comic-bubble-zone', 'p1.d1'], ['comic-bubble-zone', 'p1.d2'],
+  ]);
 });
 
 test('slots: a key of slots that the template does not use, and a fallback or a choice longer than max, are reported', () => {

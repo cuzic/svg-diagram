@@ -121,7 +121,8 @@ test('a person with no face gets a hue from the place in the cast (the same in e
 });
 
 test('adjacent default hues and the first six cast members are at least 30 degrees apart', () => {
-  const people = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  // Include one complete turn of the integer hue sequence and the step back to its starting hue.
+  const people = ['a', 'b', 'c', ...Array.from({length: 358}, (_, i) => `person${i}`)];
   const cast = Object.fromEntries(people.map(who => [who, {name: who}]));
   const hues = people.map(who => {
     const s = sheet(cast);
