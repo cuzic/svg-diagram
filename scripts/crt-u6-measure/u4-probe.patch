@@ -1,0 +1,62 @@
+diff --git a/lib/layered-route.ts b/lib/layered-route.ts
+index 2b82a31f..2ca6d70b 100644
+--- a/lib/layered-route.ts
++++ b/lib/layered-route.ts
+@@ -401,6 +401,7 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+   };
+   turnOuter();
+   // the routes for the ports as they stand (in the layout's own axes)
++  const T = JSON.parse(process.env.U4 ?? '{}');
+   const shiftOf = new Map<number, number>(); // a long arrow's way points moved across the layers (ADR 0016 D12)
+   const turnAt = new Map<number, number>(); // a direct arrow's turn moved to another x in its gap (ADR 0016 D13)
+   const detours = new Map<number, Pt[]>(); // a long arrow's route found by searching around the boxes (`detour`): kept when the routes are built again
+@@ -981,8 +982,8 @@ function routeOnce(lay: LayeredLayout, place: (p: Pt) => Pt, portStep = 14, grou
+       const now = beside(routes, i);
+       if (!now.head) continue;
+       const tries: (() => void)[] = [];
+-      if (e.points.length > 2) for (const dz of [sc(8), -sc(8), sc(16), -sc(16)]) tries.push(() => shiftOf.set(i, dz));
+-      else {
++      if (e.points.length > 2) { if (!T.noShift) for (const dz of [sc(8), -sc(8), sc(16), -sc(16)]) tries.push(() => shiftOf.set(i, dz)); }
++      else if (!T.noTurn) {
+         const lo = Math.min(layerOf(e.from), layerOf(e.to)), gl = must(layerRight.get(lo)), gr = layerLeft.get(lo + 1) ?? gl + 2 * STUB;
+         for (const [j, o] of routes) {
+           if (j === i || edgeAt(j).to !== e.to || !segs(o).some(y => segs(must(routes.get(i))).some(x => runsTogether(x, y)))) continue;
+@@ -1181,7 +1182,7 @@ export function layeredAttempt(nodes: LayeredNode[], edges: LayeredEdge[], layou
+   };
+   // ADR 0016 D14: what is chosen gets the runs of arrows with no end in common that lie along each other moved apart, once; kept only when nothing else gets worse
+   const apartOf = (a: Attempt): Attempt => {
+-    if (!o.apart) return a;
++    if (!o.apart || JSON.parse(process.env.U4 ?? '{}').noApart) return a;
+     const place = o.place(a.size), rects = new Map<string, {x0: number; x1: number; y0: number; y1: number}>();
+     for (const [id, n] of a.lay.nodes) {
+       const p = place({x: n.x, y: n.y}), q = place({x: n.x + n.w, y: n.y + n.h});
+diff --git a/lib/toc.ts b/lib/toc.ts
+index d69e02ae..53f953fb 100644
+--- a/lib/toc.ts
++++ b/lib/toc.ts
+@@ -112,11 +112,14 @@ function layoutCauseBandAt(band: CauseBand, x: number, y: number, w: number, wid
+   // a crossing of any two arrows also starts it: the order only wins when it is strictly better in (AND crossings, AND side-by-side, crossings, bends)
+   if (band.base !== undefined) return first;
+   if (crossingsOf_(first) === 0 && scoreOf(first.edges.map(e => e.points)).crossings === 0) {
+-    if (!movedAside.has(first)) return first;
++    if (!movedAside.has(first)) { (globalThis as any).__ent = 4; return first; }
++    (globalThis as any).__ent = 1;
+     const plain = once(undefined, true);
+     if (isNoFit(plain)) return plain;
+-    if (crossingsOf_(plain) === 0) return first;
++    if (crossingsOf_(plain) === 0) { (globalThis as any).__ent = 2; return first; }
++    (globalThis as any).__ent = 3;
+   }
++  if (!(globalThis as any).__ent) (globalThis as any).__ent = 5;
+   const ids = band.nodes.map(n => n.id);
+   // The search scores the figures without the detours of the long arrows (route-search.ts: slow, and the search lays a figure out up to MAX_ORDERS times); the order it
+   // finds is laid out once more with them, and replaces the first figure only if it is strictly better in the same score.
+@@ -467,7 +470,7 @@ function tryLayoutCause(prep: CausePrep, band: CauseBand, x: number, y: number,
+     nodes: [], edges: [], ands: [], loose: attempt.loose, texts: [], anchors: [], labelBoxes: [],
+     ...(fitApplied.length ? {fitApplied} : {}), ...(band.tree === 'nbr' ? {nbr: {vertical}} : {}), ...(band.focused ? {focused: band.focused} : {}),
+   };
+-  if (attempt.asided) movedAside.add(out);
++  if (attempt.asided) { movedAside.add(out); (globalThis as any).__asd = ((globalThis as any).__asd ?? 0) + 1; }
+   for (const n of band.nodes) {
+     const r = rectOf(n.id), role = CAUSE_ROLES[n.role ?? 'effect'];
+     out.nodes.push({...r, tone: n.tone ?? role.tone, ...(role.double ? {double: true} : {}), ...(role.dashed ? {dashed: true} : {}), ...(n.core ? {core: true} : {}), ...(n.role === 'obstacle' || n.role === 'risk' ? {hex: true} : {})});
