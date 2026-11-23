@@ -74,11 +74,18 @@
     "vitepress": "^1.6.4"
   },
   "sideEffects": [
+    "./dist/build-diagram.js",
+    "./dist/check-diagram.js",
+    "./dist/contact-sheet.js",
+    "./dist/deck-diagram.js",
+    "./dist/diff-svg.js",
+    "./dist/init-project.js",
     "./dist/lib/bowtie.js",
     "./dist/lib/comic/constants.js",
     "./dist/lib/comic/slot-values.js",
     "./dist/lib/compose/canvas.js",
     "./dist/lib/deck-spec.js",
+    "./dist/lib/deck-viewer/viewer.js",
     "./dist/lib/dsl/charts-stats.js",
     "./dist/lib/dsl/figures.js",
     "./dist/lib/dsl/wireframe-numbering.js",
@@ -120,7 +127,18 @@
     "./dist/lib/wireframe.js",
     "./dist/lib/wordart-vertical.js",
     "./dist/lib/wordart.js",
-    "./dist/lib/wrap.js"
+    "./dist/lib/wrap.js",
+    "./dist/lint-svg.js",
+    "./dist/manage-icons.js",
+    "./dist/markdown-diagram.js",
+    "./dist/notes-diagram.js",
+    "./dist/pptx-deck-diagram.js",
+    "./dist/pptx-diagram.js",
+    "./dist/preview-svg.js",
+    "./dist/serve-diagram.js",
+    "./dist/show-diagram.js",
+    "./dist/site-diagram.js",
+    "./dist/typecheck.js"
   ],
   "types": "./dist/lib/dsl.d.ts",
   "exports": {

@@ -7,12 +7,13 @@ import {test} from 'node:test';
 import {auditSideEffects} from '../scripts/side-effects.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
-const known: Record<string, string> = JSON.parse(readFileSync(new URL('./fixtures/side-effects.json', import.meta.url), 'utf8'));
+const known: Record<string, {count: number; reason: string}> =
+  JSON.parse(readFileSync(new URL('./fixtures/side-effects.json', import.meta.url), 'utf8'));
 const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
 
 test('the side-effects inventory matches the TypeScript AST audit', () => {
-  assert.deepEqual([...auditSideEffects(root).keys()], Object.keys(known).sort());
-  for (const reason of Object.values(known)) assert.ok(reason.trim());
+  assert.deepEqual(auditSideEffects(root), new Map(Object.entries(known).map(([file, {count}]) => [file, count])));
+  for (const {reason} of Object.values(known)) assert.ok(reason.trim());
 });
 
 test('the DOM event listeners in lib/present/ui.ts are in the inventory', () => {
@@ -24,13 +25,16 @@ test('package.json sideEffects lists the dist paths from the inventory', () => {
   assert.deepEqual(pkg.sideEffects, Object.keys(known).sort().map(file => `./dist/${file.replace(/\.ts$/, '.js')}`));
 });
 
-test('the AST audit catches executed expressions, even inside pure initializers', () => {
+test('the AST audit counts executed expressions in published modules, including root CLI files', () => {
   const tmp = mkdtempSync(path.join(os.tmpdir(), 'side-effects-'));
   try {
     const lib = path.join(tmp, 'lib');
     const make = (file: string, source: string): void => writeFileSync(path.join(lib, file), source);
-    writeFileSync(path.join(tmp, 'tsconfig.json'), '{"include":["lib/*.ts"]}');
+    writeFileSync(path.join(tmp, 'tsconfig.json'), '{"include":["*.ts","lib/*.ts"]}');
     mkdirSync(lib);
+    const cli = path.join(tmp, 'cli.ts');
+    writeFileSync(cli, "process.on('exit', () => {});");
+    make('viewer.js', "document.addEventListener('click', () => {});");
     make('listener.ts', "globalThis.addEventListener('x', () => {})");
     make('initializer.ts', "export const x = Object.freeze({value: effect()})");
     make('control.ts', "if (condition) {}");
@@ -38,9 +42,15 @@ test('the AST audit catches executed expressions, even inside pure initializers'
     make('class.ts', "export class C { static value = prepare(); }");
     make('template.ts', "const x = tag\x60value\x60;");
     make('pure.ts', "'use strict'; const x = Object.freeze({value: () => effect(), list: [1, /x/, new RegExp(\"x\")]}); const map = new Map();");
-    assert.deepEqual([...auditSideEffects(tmp).keys()], [
-      'lib/await.ts', 'lib/class.ts', 'lib/control.ts', 'lib/initializer.ts', 'lib/listener.ts', 'lib/template.ts',
+    const expected = new Map([
+      ['cli.ts', 2], ['lib/await.ts', 1], ['lib/class.ts', 1], ['lib/control.ts', 1],
+      ['lib/initializer.ts', 1], ['lib/listener.ts', 2], ['lib/template.ts', 1], ['lib/viewer.js', 2],
     ]);
+    assert.deepEqual(auditSideEffects(tmp), expected);
+
+    writeFileSync(cli, "import './lib/initializer.ts';\nprocess.on('exit', () => {});");
+    expected.set('cli.ts', 3);
+    assert.deepEqual(auditSideEffects(tmp), expected);
   } finally {
     rmSync(tmp, {recursive: true});
   }

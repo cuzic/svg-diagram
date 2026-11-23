@@ -1,4 +1,4 @@
-// List lib modules with syntactically visible effects or unchecked work during initialization.
+// List published JS modules with visible effects or unchecked work during initialization.
 import {readdirSync} from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
@@ -23,6 +23,7 @@ function calleeName(node: ts.Expression): string | undefined {
 }
 
 function needsReview(node: ts.Node): boolean {
+  if (ts.isImportDeclaration(node)) return node.importClause === undefined;
   if (ts.isExpressionStatement(node)) return !ts.isStringLiteral(node.expression);
   if (ts.isCallExpression(node)) return !pureCalls.includes(calleeName(node.expression) ?? '');
   if (ts.isNewExpression(node)) return !pureConstructors.includes(calleeName(node.expression) ?? '');
@@ -52,9 +53,14 @@ function countSites(node: ts.Node): number {
 }
 
 export function auditSideEffects(root: string): Map<string, number> {
-  const lib = path.join(root, 'lib');
-  const files = readdirSync(lib, {recursive: true, withFileTypes: true})
-    .filter(file => file.isFile() && file.name.endsWith('.ts'))
+  // tsconfig.build.json emits root TS (including the CLI launcher targets) and lib TS.
+  // build:assets also copies the lib JS assets. The bin shell launcher invokes the
+  // emitted CLI scripts directly and does not go through a JS bundler.
+  const files = [
+    ...readdirSync(root, {withFileTypes: true}).filter(file => file.name.endsWith('.ts')),
+    ...readdirSync(path.join(root, 'lib'), {recursive: true, withFileTypes: true}),
+  ]
+    .filter(file => file.isFile() && /\.(ts|js)$/.test(file.name) && !file.name.endsWith('.d.ts'))
     .map(file => path.join(file.parentPath, file.name)).sort();
   const api = new API({cwd: root});
   try {
