@@ -1,6 +1,6 @@
 # ADR 0080: 帯の定義(`BandDef`)とプラグイン — 1 つの定義の形で、コアの帯も外部の帯も作り、使う帯・出力形式・重い依存だけを束ねる(tree shaking)
 
-- 状態: **承認**(2026-11-23。レビュー 6 回で収束(Opus)。**Q1〜Q18 は決める人がすべて推奨どおりに決定**。下の「決定済み」)。設計と小さなスパイクで、`lib/` は変えていない。実装は U1a から(Codex に渡す)。決める人の追加の要件(帯だけでなく、PPTX・Excel などの出力形式と重いバックエンドも tree shaking の対象にする)を含む
+- 状態: **一部実装済み**（U1a-1・U1a-2。帯の定義と構築、composer の移動、境界・副作用・バンドルサイズの検査）。2026-11-23 に承認され、Opus のレビュー 6 回を経て Q1〜Q18 はすべて推奨どおりに決定。帯に加え、PPTX・Excel などの出力形式と重いバックエンドも tree shaking の対象に含む。
 - 日付: 2026-11-23
 - 基点: `main`(74816524。ADR 0078 U0a まで)
 - 関連: ADR 0079(マンガ風の顔のライブラリ。PR #454)、ADR 0074(`comic()`、`CharacterManifest`、`loadCharacter`。**人物は図ごとに渡し、グローバルに持たない**)、ADR 0031(FCIS、`lib/` は純粋な core)、ADR 0007(Ports)、ADR 0045(`svg-diagram/browser`、`renderInBrowser`)、ADR 0077 / 0078(`balloon`、重ねの帯、`FlowBand`、内容の目録)、ADR 0068(Excel への書き出し。PR #373、Draft)、ADR 0012(id のスコープ)、ADR 0034(`data-node`)、ADR 0069(`partCatalog`)、ADR 0071(JSON Schema)、ADR 0027 / 0054(PPTX)
