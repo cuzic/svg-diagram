@@ -1,0 +1,88 @@
+{
+  "loadCharacter": "accepted a and b",
+  "fragmentBytes": {
+    "neutral": 5723,
+    "smile": 5723,
+    "laugh": 4867,
+    "surprise": 5585,
+    "worry": 5730,
+    "angry": 5769,
+    "think": 5721,
+    "sad": 5747
+  },
+  "manifestBytes": {
+    "a": 48668,
+    "b": 48906
+  },
+  "deterministic": true,
+  "galleryDeterministic": true,
+  "galleryBytes": 186859,
+  "comicDeterministic": true,
+  "comicSvgBytes": 53478,
+  "comicVerdict": {
+    "ok": true,
+    "problems": [],
+    "issues": [],
+    "warnings": [],
+    "findings": []
+  },
+  "comicHasFaces": {
+    "a": 4,
+    "b": 4
+  },
+  "anchors": {
+    "a": {
+      "declaredTop": -24,
+      "measuredTop": -22.3,
+      "ok": true,
+      "box": [
+        0,
+        -40,
+        300,
+        400
+      ],
+      "bbox": {
+        "top": -20,
+        "bottom": 360,
+        "left": 20,
+        "right": 280
+      }
+    },
+    "b": {
+      "declaredTop": 23,
+      "measuredTop": 23.7,
+      "ok": true,
+      "box": [
+        0,
+        -40,
+        300,
+        400
+      ],
+      "bbox": {
+        "top": 26,
+        "bottom": 360,
+        "left": 20,
+        "right": 280
+      }
+    }
+  },
+  "mouthAnchor": {
+    "a": [
+      150,
+      210
+    ],
+    "b": [
+      150,
+      210
+    ],
+    "headCircle": {
+      "cx": 150,
+      "cy": 140,
+      "r": 100
+    },
+    "mirrorExpected": [
+      150,
+      210
+    ]
+  }
+}
