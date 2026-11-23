@@ -71,5 +71,4 @@ export function prepareReveal(d: DiagramData): number {
   return max;
 }
 
-export const visibleAt = (x: object & {reveal?: number; until?: number}, stage: number | undefined): boolean =>
-  stage === undefined || ((x.reveal ?? 0) <= stage && (x.until === undefined || stage < x.until));
+export {visibleAt} from './reveal-visibility.ts';

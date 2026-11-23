@@ -11,10 +11,9 @@ import {applyWireframeDefaults} from './wireframe-numbering.ts';
 import {fillAutoToday} from '../today-auto.ts';
 import {walkBands} from '../rules.ts';
 import {rewrite} from './rewrite.ts';
-import {DIAGRAM_SOURCE, captureHere, sourceOf, withSource} from '../source-ref.ts';
+import {captureHere, sourceOf, withSource} from '../source-ref.ts';
 import type {SourceRef} from '../source-ref.ts';
-import {isDefKey} from '../band-def.ts';
-import {must} from '../must.ts';
+import {cloneData} from '../clone-data.ts';
 import {sourceCaptureEnabled} from '../source-capture.ts';
 
 // Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
@@ -117,36 +116,6 @@ export function detachData<D extends DiagramData>(d: D): D {
   if (fillAutoToday(walkBands(out.bands), out.today) && out.source) out.source = {...out.source, today: out.today};
   return out;
 }
-/**
- * A deep copy of plain data: arrays and plain objects (Object.prototype or null prototype) are copied; everything else is
- * shared — a function (a raw() band's draw), a string, a Map / Set / Date / RegExp, a class instance. (structuredClone throws
- * on raw()'s function; copying a class instance by hand breaks private fields and internal slots.) The same object met twice
- * is copied once, so a band placed in two spots stays one band in the copy, and a cycle ends.
- * Known gap: a class instance handed in as plan data (a point of plane({points})) is shared, so a reveal written into it by
- * prepareReveal can still show in another figure. Not copied: non-enumerable properties (the .left / .right / .at handles,
- * withAnchors' anchors) and symbol keys such as NUMBERING, GIVEN and RICH that add() has used up. Source marks and band definitions are copied by reference.
- */
-function cloneData<T>(v: T, seen = new WeakMap<object, unknown>()): T {
-  if (!v || typeof v !== 'object') return v;
-  if (seen.has(v)) return seen.get(v) as T;
-  const array = Array.isArray(v);
-  const proto = Object.getPrototypeOf(v);
-  if (!array && proto !== Object.prototype && proto !== null) return v;
-  const out = array ? [] : Object.create(proto);
-  seen.set(v, out);
-  if (array) {
-    for (const x of v) out.push(cloneData(x, seen));
-  } else {
-    for (const [k, x] of Object.entries(v)) out[k] = cloneData(x, seen);
-    withSource(out, sourceOf(v));
-    withSource(out, sourceOf(v, DIAGRAM_SOURCE), DIAGRAM_SOURCE);
-  }
-  for (const key of Object.getOwnPropertySymbols(v)) {
-    if (isDefKey(key)) Object.defineProperty(out, key, must(Object.getOwnPropertyDescriptor(v, key)));
-  }
-  return out;
-}
-
 /**
  * The layout, and for diagram({width: 'fit'}) once more at the width the content needs (`d.width` is set to it). The content may re-flow as it
  * narrows, so up to 3 rounds; a round that does not fit is dropped. check and build both come through here, so they judge the same figure.

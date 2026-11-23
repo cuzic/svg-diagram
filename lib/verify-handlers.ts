@@ -6,14 +6,15 @@ import {bareNameIn, qualify, scopeOf} from './anchor-scope.ts';
 import {plateStyle} from './image.ts';
 import {segHitsRect} from './bars.ts';
 import {checkChart} from './charts-verify.ts';
-import {PALETTE, colorOf, luminance as lightLuminance, runColorOf, paintOf} from './tokens.ts';
+import {PALETTE, colorOf, luminance as lightLuminance, paintOf} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
-import {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
+import {boxLikeContrastProblems, nowrapProblems} from './verify-box-like.ts';
 import {spotlightDim} from './spotlight.ts';
 import {legibilityProblem} from './wordart.ts';
 import {andClashes} from './cause-clash.ts';
 import {sourceOf} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
+import {ganttProblems} from './verify-gantt.ts';
 import {CONTRAST_THRESHOLD, dxdy, eachOverlap, issueAt, labelOf, neverTogether, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes, statesProblems} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import type {ComicLaidBubble, LaidOutComic} from './types/comic.ts';
@@ -105,23 +106,6 @@ const checkTimeline = (band: LaidOutOf<'timeline'>, _d: LaidOutDiagram, {problem
 // A transition must not run through a state it does not touch; its label chip must stay inside the figure and clear of states and other chips.
 const checkStates = (band: LaidOutOf<'states'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
   problems.push(...statesProblems(band));
-};
-
-// A gantt's texts must stay inside the figure and apart (the today label against the tick labels, a long tick against the edge).
-const checkGantt = (band: LaidOutOf<'gantt'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
-  for (const d of band.deps) { // a dependency arrow must not run through the bar of a task it does not join
-    for (const [k, bar] of band.bars.entries()) {
-      if (k === d.from || k === d.to) continue;
-      if (routeHits(d.points, bar)) problems.push(`gantt: the arrow "${must(band.bars[d.from]).label}" -> "${must(band.bars[d.to]).label}" runs through the bar "${bar.label}" (reorder the rows, or drop the dependency)`);
-    }
-  }
-  for (const [i, b] of band.labelBoxes.entries()) {
-    if (outsideX(b, band)) problems.push(`gantt: label "${b.label}" runs outside the figure (shorten it or widen the figure)`);
-    for (let j = i + 1; j < band.labelBoxes.length; j++) {
-      const o = rectOverlap(b, must(band.labelBoxes[j]));
-      if (o) problems.push(`gantt: label "${b.label}" overlaps label "${must(band.labelBoxes[j]).label}" by ${dxdy(o)}`);
-    }
-  }
 };
 
 // Relations must not run through a class they do not touch; labels and multiplicities must stay clear of classes and each other.
@@ -254,9 +238,7 @@ const checkImage = (band: LaidOutOf<'image'>, _d: LaidOutDiagram, {problems}: Ve
   eachOverlap(band.plates, (a, b, o) => problems.push(`image: label "${a.text}" overlaps label "${b.text}" by ${dxdy(o)} (move one: its position is a fraction of the picture)`));
 };
 
-const checkNoWrap = (b: LaidOutBox, out: VerifyOut): void => {
-  for (const o of b.nowrapOverflow ?? []) out.problems.push(`stat: value "${o.value}" does not fit its box even at the smallest size (${o.min}px: needs ${Math.ceil(o.width)}px, the box has ${Math.floor(o.avail)}px).\n  fix: widen the box (span / flex / width), shorten the value, or put the unit in the label.`);
-};
+const checkNoWrap = (band: LaidOutBox, out: VerifyOut): void => { out.problems.push(...nowrapProblems(band)); };
 
 // quadrant(): items keep clear of each other, of every label and of the arrows; every label stays inside the figure.
 const checkQuadrant = (band: LaidOutOf<'quadrant'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
@@ -325,21 +307,7 @@ const checkPlane = (band: LaidOutOf<'plane'>, _d: LaidOutDiagram, {problems}: Ve
 const lum = (d: LaidOutDiagram, tones: ToneEnv) => { const paint = paintOf(tones, d.appearance); return (hex: string) => lightLuminance(paint(hex)); }; // judged on the colours as drawn
 
 function contrastFor(band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone: EmphasisTone | null, d: LaidOutDiagram, tones: ToneEnv, {problems}: VerifyOut): void {
-  const luminance = lum(d, tones);
-  const boxFill = band.dim ? PALETTE.bg : boxTone ? resolveBoxStyle(tones, boxTone, d.day).fill : PALETTE.bg;
-  for (const run of band.wrappedRuns ?? []) {
-    const fg = band.dim ? PALETTE.muted : runColorOf(tones, run.tone, boxTone ?? undefined, d.day); // dim first: a dimmed solid box is white
-    const delta = Math.abs(luminance(fg) - luminance(boxFill));
-    if (delta < CONTRAST_THRESHOLD) {
-      problems.push(`"${run.text.slice(0, 20)}" (${fg} on ${boxFill}, in "${labelOf(band)}") has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
-    }
-    // a coloured piece of the run is its own text colour on the same fill (a dimmed box paints every piece muted: the run's check covers it)
-    if (!band.dim) for (const sp of run.spans ?? []) {
-      if (!sp.tone) continue;
-      const spanFg = resolveTextColor(tones, sp.tone, d.day), spanDelta = Math.abs(luminance(spanFg) - luminance(boxFill));
-      if (spanDelta < CONTRAST_THRESHOLD) problems.push(`"${sp.text.slice(0, 20)}" (${spanFg} on ${boxFill}, in "${labelOf(band)}") has low contrast (delta=${spanDelta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
-    }
-  }
+  problems.push(...boxLikeContrastProblems(band, boxTone, d.day, tones, d.appearance));
 }
 
 function barsContrast(band: LaidOutOf<'bars'>, d: LaidOutDiagram, tones: ToneEnv, {problems}: VerifyOut): void {
@@ -420,7 +388,7 @@ export const VERIFY_HANDLERS = {
   states: {rects: figureRects, check: {phase: 'states', run: checkStates}},
   cause: {rects: figureRects, check: {phase: 'cause', run: checkCause}},
   cloud: {rects: band => band.nodes.map(n => ({id: n.id ?? null, label: n.id ?? `cloud box ${n.key.toUpperCase()}`, x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)})), check: {phase: 'cloud', run: checkCloud}}, // every box is its own rect (also one without an id)
-  gantt: {rects: figureRects, check: {phase: 'gantt', run: checkGantt}},
+  gantt: {rects: figureRects, check: {phase: 'gantt', run: (band, _d, out) => { out.problems.push(...ganttProblems(band)); }}},
   classes: {rects: figureRects, check: {phase: 'classes', run: checkClasses}},
   bpmn: {rects: figureRects, check: {phase: 'bpmn', run: checkBpmn}},
   swimlane: {},

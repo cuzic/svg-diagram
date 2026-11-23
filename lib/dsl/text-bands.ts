@@ -1,14 +1,13 @@
-import {resolveIcon} from '../icon-registry.ts';
 import {walkBands} from '../rules.ts';
 import {CAUSE_ROLES} from '../toc.ts';
-import {assertSolidText, richBoxFields, richField} from '../rich.ts';
+import {assertSolidText, richField} from '../rich.ts';
 import {ROLES, HEADLINE_ROLES, OPT_IN_TEXT_MAX, isSolidTone} from '../tokens.ts';
 import type {GroupBand, GroupOpts, LegendBand, LegendItem, LegendOpts, RawBand, RawOpts} from '../types/containers.ts';
 import type {BandInput, TextTone} from '../types/core.ts';
 import type {Band} from '../types/index.ts';
-import type {BannerBand, BannerOpts, BoxBand, BoxOpts, CaptionBand, CaptionOpts, RichText, StatConfidence, StatOpts} from '../types/text-bands.ts';
-import type {BoxInput, Declares, IdsOf, HandleOf, Refers, RefsOf} from '../strict.ts';
-import {ALIGNS, assertBoxTone, assertFontSize, assertNoReveal, assertOneOf, assertTextRole, EMPHASIS_TONES, revealOf, TEXT_TONES, withHandle} from './shared.ts';
+import type {BannerBand, BannerOpts, BoxBand, CaptionBand, CaptionOpts, RichText, StatConfidence, StatOpts} from '../types/text-bands.ts';
+import type {Declares, IdsOf, HandleOf, Refers, RefsOf} from '../strict.ts';
+import {ALIGNS, assertBoxTone, assertNoReveal, assertOneOf, assertTextRole, EMPHASIS_TONES, revealOf, TEXT_TONES, withHandle} from './shared.ts';
 
 // text: a string (exactly its characters) or an array with em.* parts: caption(['Claude in ', em.b('Chrome')]).
 export function caption(text: RichText, opts: CaptionOpts = {}): CaptionBand {
@@ -19,39 +18,7 @@ export function caption(text: RichText, opts: CaptionOpts = {}): CaptionBand {
   const rich = richField(text, {field: 'caption()', bold: !!opts.bold, tone});
   return {type: 'caption', text: rich.text ?? '', ...(rich.spans ? {spans: {text: rich.spans}} : {}), align: opts.align ?? 'center', role: opts.role ?? 'label', tone, bold: !!opts.bold, mono: !!opts.mono, ...revealOf(opts)};
 }
-// `step`: a number/string drawn as a solid numbered badge over the title's
-// own baseline (requires `title` — the badge has nothing to align to
-// without it).
-//
-// Types: `step` requires `title`; `size` is one of FontSize (an integer >= 14); unknown keys are rejected; the
-// literal `id` is remembered so connect() refs to it can be checked by add().
-// Every key box() takes. `satisfies` makes tsc fail when BoxOpts gains or loses a key without this list following.
-const BOX_KEYS = {
-  id: 1, tone: 1, dashed: 1, align: 1, tag: 1, tagTone: 1, tagAt: 1, stamp: 1, padX: 1, padY: 1, flex: 1, width: 1, col: 1, span: 1, reveal: 1, until: 1,
-  titleTone: 1, titleMono: 1, bodyTone: 1, bodyMono: 1, noteTone: 1, step: 1, stepWord: 1, icon: 1, iconTone: 1, iconAt: 1, iconSize: 1, frame: 1, size: 1,
-  title: 1, body: 1, lines: 1, note: 1,
-} as const satisfies Record<keyof BoxOpts | 'id', 1>;
-export function box<const Id extends string = never>(opts: BoxInput<Id>): BoxBand & Declares<Id> & HandleOf<Id>;
-export function box(opts: BoxOpts): BoxBand {
-  assertOneOf(opts.tone, EMPHASIS_TONES, 'box() tone');
-  assertOneOf(opts.align, ALIGNS, 'box() align');
-  assertOneOf(opts.tagTone, ['accent', 'muted', 'danger'], 'box() tagTone');
-  for (const k of ['titleTone', 'bodyTone', 'noteTone', 'iconTone'] as const) assertOneOf(opts[k], TEXT_TONES, `box() ${k}`);
-  const unknown = Object.keys(opts).filter(k => !(k in BOX_KEYS));
-  if (unknown.length) throw new Error(`box(): unknown option ${unknown.map(k => `'${k}'`).join(', ')} — the text goes in title / body / lines / note (all options: ${Object.keys(BOX_KEYS).join(', ')})`);
-  if (opts.size !== undefined) {
-    assertFontSize(opts.size); // the px check stays; lint says the value has no effect (rule box-size-ignored)
-  }
-  // the plain text (and spans) of every rich field go over the copied options: a band never holds an array
-  const band = {type: 'box', ...opts, ...richBoxFields(opts)} as BoxBand;
-  assertSolidText(band, 'box()');
-  if (band.step != null && !band.title) throw new Error('box({step}) needs a title — the badge aligns to the title\'s first line');
-  // the glyph is resolved here (the shell) and carried on the band, so emit stays free of I/O
-  if (band.icon !== undefined) band.iconGlyph = resolveIcon(band.icon, 'box({icon})');
-  if ((band.iconAt !== undefined || band.iconSize !== undefined) && band.icon === undefined) throw new Error('box({iconAt, iconSize}) needs an icon');
-  if (band.iconAt !== undefined && band.iconAt !== 'left' && band.iconAt !== 'top') throw new Error(`box({iconAt}) is 'left' or 'top' (got ${JSON.stringify(band.iconAt)})`);
-  return withHandle(band, opts.id);
-}
+export {box} from './box.ts';
 /**
  * The largest scale fill: true may try. 1.8 as ever, but an opted-in size (banner headlineRole, bars / plane labelRole)
  * is not scaled past OPT_IN_TEXT_MAX px: a 'display' headline stops at 1.28x, a 'stat' label (34px) never reaches it.

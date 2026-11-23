@@ -11,11 +11,8 @@ type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
 
 export type Revealed = {reveal?: number; until?: number; id?: string};
 
-export function checked(value: number | undefined, where: string): number | undefined {
-  if (value === undefined) return undefined;
-  if (!Number.isInteger(value) || value < 1) throw new Error(`${where}: reveal must be a whole number >= 1 (got ${value})`);
-  return value;
-}
+import {checked} from './reveal-visibility.ts';
+export {checked} from './reveal-visibility.ts';
 
 // `until`: the click an element vanishes at (a group's until takes its children with it). It must come after the reveal it ends up with.
 export const earlier = (a: number | undefined, b: number | undefined): number | undefined => a === undefined ? b : b === undefined ? a : Math.min(a, b);

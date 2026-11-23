@@ -688,7 +688,8 @@ U0 は、この PR。U1 以降は、どの単位も Opus のレビューで Bloc
 
 - SVG のパイプラインから HTML の出力を分け、Node の `renderDiagram(d, {html: true})` が HTML を組み立てるようにした。HTML 出力は `svg-diagram/html`、ブラウザの測定器は `svg-diagram/measure/browser` から個別に利用できる。
 - デッキのファイル読み込みから、PPTX の列探索に使う文字サイズの計測を分けた。
-- 消費側の esbuild と Vite の検査を CI に追加した。配布用の `exports` から SVG・HTML・文字測定を束ね、出力に含まれるモジュールを調べる。文字測定のみの場合は両方で 4,000 バイトを上限にした。帯の表の分離と `svg-diagram/core` の公開は U1b の残り。
+- 消費側の esbuild と Vite の検査を CI に追加した。配布用の `exports` から SVG・HTML・文字測定を束ね、出力に含まれるモジュールを調べる。文字測定のみの場合は両方で 4,000 バイトを上限にした。
+- 選択的な SVG 描画の入口として `svg-diagram/core` の `renderBands` と `bands/box`・`bands/gantt` を公開した。配置・出力・検査を既存の帯と共有し、縦積みの処理は値が持つ定義から呼ぶ。esbuild と Vite の消費側の検査で、それぞれの帯を単独で描けることと、もう一方の帯および従来の全帯テーブルの除外を確認する。接続・入れ子と他の帯の移行は残っている。
 
 ## テスト方針
 

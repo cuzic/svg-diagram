@@ -18,27 +18,26 @@
 import {withStatus} from './status.ts';
 import {atBand, sourceOf, withSource} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
-import {textWidth} from './atoms.ts';
 import {layoutHandlerFor} from './layout-handlers.ts';
 import type {LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
 import {CHILD_BANDS, childrenOf, stackWidthOf} from './band-children.ts';
-import {layoutBoxContent, lineWidth} from './layout-text.ts';
+import {layoutBoxLike} from './layout-box-like.ts';
 import {buildInventory} from './inventory.ts';
 import {parseRef, resolveConnect} from './layout-connect.ts';
 import {ceil4, labelRoom} from './connect-rules.ts';
 import type {LabelAxis} from './connect-rules.ts';
 import {addScoped, qualify, scopesOf} from './anchor-scope.ts';
 import {
-  BOX_PAD_X, BOX_PAD_Y, CANVAS_MIN_REGION_W, ICON_H, STAMP_GAP, STAMP_H, TAG_H, TAG_PAD_X, TOP_ICON_GAP, TOP_ICON_SIZE,
-  anchorRect, colSlots, rowChildGeometry, snapGrid, stampChipW, topIcon, withSourceLine, withTitleLine,
+  BOX_PAD_Y, CANVAS_MIN_REGION_W,
+  anchorRect, colSlots, rowChildGeometry, topIcon, withSourceLine, withTitleLine,
 } from './layout-util.ts';
 import type {AreasBand, LaidOutConnect, ConnectBand} from './types/containers.ts';
 import {areasColumns} from './areas.ts';
 import {canvasSpan} from './canvas.ts';
 import type {DiagramData, Roles, WidthOf, Rect, WrapMode} from './types/core.ts';
-import type {LaidOutDiagram, LaidOutBand, LaidOutBox, Band} from './types/index.ts';
+import type {LaidOutDiagram, LaidOutBand, Band} from './types/index.ts';
 import type {CaptionBand, BoxBand, BannerBand, BoxChrome} from './types/text-bands.ts';
-import {TAG_SIZE, toneEnv} from './tokens.ts';
+import {toneEnv} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 
 import {must} from './must.ts';
@@ -327,41 +326,9 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
 
   const scopes = scopesOf(d.bands); // every scoped item, read before layout: a bare id is ambiguous whatever order the bands came in
   const placeBoxLike = <B extends CaptionBand | BoxBand | BannerBand>(band: B, x: number, y0: number, w: number, isBoxLike: boolean, scope?: string): Placed<B> => {
-    const y = snapGrid(y0); // the top sits on the grid, so its text (y + padY + line offset) is always the same distance below the frame the emitter draws
-    const chrome = band as BoxChrome; // caption has no padX / padY / tag / id: they read as undefined (its `tone` is a TextTone, unused here)
-    const wrapWidth = isBoxLike ? w - 2 * (chrome.padX ?? BOX_PAD_X) : w;
-    const content = layoutBoxContent(band, wrapWidth, widthOf, roles, wrap);
-    // an icon above the text pushes every line down by its own height; a left icon only sets a minimum height
-    const topShift = band.type === 'box' && topIcon(band) ? ((band as BoxBand).iconSize ?? TOP_ICON_SIZE) + TOP_ICON_GAP : 0;
-    // a left icon is taller than a line or two of text: the text is centred beside it, not hung from the top with the room left below
-    const leftIcon = band.type === 'box' && !!band.icon && !topShift;
-    const centre = leftIcon && content.textHeight < ICON_H ? Math.round((ICON_H - content.textHeight) / 2) : 0;
-    const shift = topShift + centre;
-    const wrappedRuns = shift ? content.wrappedRuns.map(r => ({...r, lineYs: r.lineYs.map(y => y + shift)})) : content.wrappedRuns;
-    const textHeight = leftIcon ? Math.max(content.textHeight, ICON_H) : content.textHeight + topShift;
-    const stamp = isBoxLike ? chrome.stamp : undefined;
-    const stampW = stamp ? stampChipW(widthOf, stamp, roles) : undefined;
-    if (stampW !== undefined && stampW > w - 16) throw new Error(`stamp "${stamp}" is wider than its box (${Math.round(w)}px): shorten it or widen the box`);
-    const h = (isBoxLike ? textHeight + 2 * (chrome.padY ?? BOX_PAD_Y) : textHeight) + (stamp ? STAMP_H + STAMP_GAP : 0);
-    const placed = {...band, x, y, w, h, wrappedRuns} as unknown as Placed<B>; // spreading a generic loses the intersection
-    if (stampW !== undefined) (placed as Placed<B> & {stampW?: number}).stampW = stampW;
-    // a centred / right-aligned title: the step badge sits just before its first line, so emit needs that line's width
-    if (band.type === 'box' && band.step != null && band.title && (band.align ?? (topIcon(band) ? 'center' : 'left')) !== 'left') (placed as Placed<B> & {titleW?: number}).titleW = lineWidth(widthOf, must(wrappedRuns[0]), 0);
-    if (band.type === 'box') {
-      const overflow: NonNullable<LaidOutBox['nowrapOverflow']> = [];
-      for (const r of wrappedRuns) {
-        if (!r.nowrap) continue;
-        const width = textWidth(widthOf, r.text, r.size, r.weight, r.mono ? 'mono' : 'sans'), avail = wrapWidth - (r.indent ?? 0);
-        if (width > avail + 0.5) overflow.push({value: r.text, width, avail, min: r.size}); // r.size: a value that may shrink is drawn at its floor by now
-      }
-      if (overflow.length) (placed as Placed<BoxBand> & {nowrapOverflow?: typeof overflow}).nowrapOverflow = overflow;
-      const shrunk = wrappedRuns.filter(r => r.shrunkFrom !== undefined).map(r => ({value: r.text, from: r.shrunkFrom ?? r.size, to: r.size}));
-      if (shrunk.length) (placed as Placed<BoxBand> & {statShrunk?: typeof shrunk}).statShrunk = shrunk;
-    }
-    if (chrome.tag) {
-      const tw = textWidth(widthOf, chrome.tag, (roles.tag ?? TAG_SIZE), 700) + 2 * TAG_PAD_X;
-      placed.tagBox = {x: chrome.tagAt === undefined ? x + w - tw - 12 : x + w * chrome.tagAt - tw / 2, y: y - TAG_H / 2, w: tw, h: TAG_H};
-    }
+    const placed = layoutBoxLike(band, x, y0, w, isBoxLike, widthOf, roles, wrap);
+    const {y, h} = placed;
+    const chrome = band as BoxChrome;
     const name = chrome.id ? qualify(scope, chrome.id) : undefined;
     if (chrome.id && name !== undefined && (areaIds.has(name) || anchors.has(name))) claimed(name, 'a box takes an id that another box, group or row already has');
     if (chrome.id && name !== undefined) { setBox(name, {...band, x, y, w, h} as never, h); if (scope) addScoped(scopes, scope, chrome.id); }

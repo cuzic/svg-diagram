@@ -20,6 +20,7 @@ export interface PublicEnv extends Pick<Rect, 'x' | 'y' | 'w'> {
   theme: Theme;
   tones: ToneEnv;
   wrap: WrapMode;
+  today?: string;
 }
 
 export interface TextItem {
@@ -39,14 +40,20 @@ export interface TextItem {
 
 interface MeasureEnv {
   readonly roles: Roles;
+  readonly today?: string;
   atoms(text: string, size: number, weight: number, font?: FontFamily): void;
 }
 
 interface EmitEnv {
+  readonly theme: Theme;
+  readonly roles: Roles;
+  readonly tones: ToneEnv;
   color(key: ColorKey): string;
 }
 
 interface VerifyCtx {
+  readonly theme: Theme;
+  readonly tones: ToneEnv;
   readonly connects: readonly {
     readonly fromId: string;
     readonly toId: string;
@@ -112,10 +119,12 @@ export function assertTrustedBandFields(def: BandDef): void {
   }
 }
 
-export function band<D extends {type: string}, L extends Rect>(def: BandDef<D, L>, data: D): D & {readonly [DEF]: BandDef<D, L>} {
+export type WithBandDef<D, L extends Rect> = D & {readonly [DEF]: BandDef<D, L>};
+
+export function band<D extends {type: string}, L extends Rect>(def: BandDef<D, L>, data: D): WithBandDef<D, L> {
   if (def.type !== data.type) throw new Error(`帯の定義の型 "${def.type}" とデータの型 "${data.type}" が一致しません。同じ型の定義とデータを渡してください`);
   assertTrustedBandFields(def);
-  return Object.defineProperty(copyBand(data), DEF, {value: def, enumerable: true, writable: true, configurable: true}) as D & {readonly [DEF]: BandDef<D, L>};
+  return Object.defineProperty(copyBand(data), DEF, {value: def, enumerable: true, writable: true, configurable: true}) as WithBandDef<D, L>;
 }
 
 export const isDefKey = (key: PropertyKey): boolean => typeof key === 'symbol' && key.description?.startsWith(DEF_PREFIX) === true;

@@ -10,7 +10,7 @@ import type {LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
 import type {LaidOutBox, LaidOutCaption, LaidOutBanner} from './types/text-bands.ts';
 import {iconSvg} from './icon-svg.ts';
 import {boundaryChipH, ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W, stepBadgeGeom} from './layout-util.ts';
-import {visibleAt} from './reveal.ts';
+import {visibleAt} from './reveal-visibility.ts';
 import {PERSON_BOX, PERSON_PATH} from './people.ts';
 import {tonedHead, arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
 import {ftaLegendSwatch} from './emit-fta.ts';

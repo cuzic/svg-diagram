@@ -18,12 +18,28 @@ try {
   mkdirSync(path.join(consumer, 'node_modules'));
   symlinkSync(root, path.join(consumer, 'node_modules/svg-diagram'), 'junction');
   const entry = path.join(consumer, 'entry.js');
+  const bandSource = (name: 'box' | 'gantt') => `
+    import {renderBands} from 'svg-diagram/core';
+    import {${name}} from 'svg-diagram/bands/${name}';
+    export const draw = () => renderBands([${name === 'box'
+      ? "box({title: 'Review'})"
+      : "gantt([{label: 'Review', start: '2026-11-23', days: 3}])"}], {
+      measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+    });
+  `;
+  const legacy = ['web.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'rules.js'];
   const cases = [
     {name: 'SVG', source: "export {renderInBrowser} from 'svg-diagram/browser';", include: 'web.js', exclude: ['emit-html.js']},
     {name: 'HTML', source: "export {emitHtml} from 'svg-diagram/html';", include: 'emit-html.js', exclude: ['web.js', 'web-measure.js']},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
+    {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
+      exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 13000, Vite: 16000}},
+    {name: 'Box', source: bandSource('box'), include: 'bands/box.js',
+      exclude: [...legacy, 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 49000, Vite: 56000}, draw: true},
+    {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',
+      exclude: [...legacy, 'box.js', 'emit-boxes.js', 'layout-box-like.js', 'timeline.js'], budget: {esbuild: 31000, Vite: 39000}, draw: true},
   ];
-  for (const {name, source, include, exclude} of cases) {
+  for (const {name, source, include, exclude, budget, draw} of cases) {
     writeFileSync(entry, source);
     const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true,
       platform: 'browser', format: 'esm', write: false, metafile: true});
@@ -34,15 +50,29 @@ try {
       build: {write: false, minify: 'esbuild', lib: {entry, formats: ['es']}}});
     const [chunk] = viteOutput.output;
     assert.equal(chunk.type, 'chunk');
-    for (const [bundler, bytes, files] of [
-      ['esbuild', esOutput.bytes, Object.keys(esOutput.inputs)],
-      ['Vite', Buffer.byteLength(chunk.code), Object.keys(chunk.modules)],
+    for (const [bundler, bytes, files, code] of [
+      ['esbuild', esOutput.bytes, Object.keys(esOutput.inputs), es.outputFiles[0]?.text],
+      ['Vite', Buffer.byteLength(chunk.code), Object.keys(chunk.modules), chunk.code],
     ] as const) {
       const label = `${bundler}: ${name}`;
-      const has = (filename: string) => files.some(file => path.basename(file) === filename);
+      const has = (filename: string) => files.some(file => ('/' + file.replaceAll('\\', '/')).endsWith('/' + filename));
       assert.ok(has(include), `${label} に ${include} が必要です`);
+      if (name === 'Core' || draw) {
+        const usedBands = files.flatMap(file => /(?:^|\/)bands\/([^/]+\.js)$/.exec(file.replaceAll('\\', '/'))?.[1] ?? []);
+        assert.deepEqual(usedBands, draw ? [path.basename(include)] : [], `${label} の帯`);
+      }
       for (const filename of exclude) assert.ok(!has(filename), `${label} に ${filename} が残っています`);
       if (name === '文字測定') assert.ok(bytes <= 4000, `${label} が 4000 バイトを超えています`);
+      const limit = budget?.[bundler];
+      if (limit !== undefined) assert.ok(bytes <= limit, `${label} が ${limit} バイトを超えています (${bytes})`);
+      if (draw) {
+        assert.ok(code);
+        const {draw: render} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+        const result = await render();
+        assert.match(result.svg, /<text[^>]*>Review<\/text>/, label);
+        assert.deepEqual(result.xml, [], label);
+        assert.equal(result.verdict.ok, true, label);
+      }
       console.log(`${label}: ${bytes} bytes`);
     }
   }

@@ -150,6 +150,18 @@
       "types": "./dist/lib/web.d.ts",
       "default": "./dist/lib/web.js"
     },
+    "./core": {
+      "types": "./dist/lib/core.d.ts",
+      "default": "./dist/lib/core.js"
+    },
+    "./bands/box": {
+      "types": "./dist/lib/bands/box.d.ts",
+      "default": "./dist/lib/bands/box.js"
+    },
+    "./bands/gantt": {
+      "types": "./dist/lib/bands/gantt.d.ts",
+      "default": "./dist/lib/bands/gantt.js"
+    },
     "./measure/browser": {
       "types": "./dist/lib/web-measure.d.ts",
       "default": "./dist/lib/web-measure.js"

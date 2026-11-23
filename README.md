@@ -139,6 +139,30 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 
 文字測定だけ使う場合は `svg-diagram/measure/browser` から `svgMeasurer` または `canvasMeasurer` を import できます。配置済みの図を HTML に書き出す場合は `svg-diagram/html` の `emitHtml(laidOut, {fontBox})` を使います。`fontBox` はフォントのサイズ・太さ・等幅かどうかを受け取り、アセントとディセントを返す関数です。
 
+### 使う帯だけをバンドルする
+
+`svg-diagram/core` の `renderBands` は、配列に渡した帯を縦に並べて SVG に描きます。帯ごとの入口は現在 `svg-diagram/bands/box` と `svg-diagram/bands/gantt` にあります。使う帯だけを import すると、esbuild や Vite は他方の実装をバンドルから除外できます。
+
+```ts
+import {renderBands} from 'svg-diagram/core';
+import {box} from 'svg-diagram/bands/box';
+import {svgMeasurer} from 'svg-diagram/measure/browser';
+
+await document.fonts.ready;
+const measure = svgMeasurer();
+try {
+  const {svg} = await renderBands([box({title: '設計', body: '仕様を確認する'})], {
+    measure,
+    width: 640,
+  });
+  document.querySelector('#diagram')!.innerHTML = svg;
+} finally {
+  measure.dispose();
+}
+```
+
+`renderBands` は縦積みの SVG に対応する実験的な入口です。行・グリッド・接続線などを含む図は、`svg-diagram/browser` の `diagram()` と `renderInBrowser()` で描けます。
+
 図を表示するページで「このノードをクリックした」を知りたいとき、`renderDiagram(d, {nodeIds: true})`（ブラウザ入口では `renderInBrowser(d, {measure, nodeIds: true})`）で、`id` を持つノードの図形に `data-node="名前"` が付く。既定は付けない（付けない SVG は 1 バイトも変わらない）。名前は `connect()` や spotlight が使うものと同じ（`scope` があれば `scope.id`）。HTML 出力（`--html`）には付かない。
 
 | 部品 | `data-node` が付く場所 |
