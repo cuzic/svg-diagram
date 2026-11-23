@@ -1,0 +1,9 @@
+render: 174 ms for 2 renders; deterministic (byte-equal svg): true
+core verdict: ok=true problems=[]
+plugin band drawn: true; connectors drawn: 2
+connect() to the plugin band id resolved (no throw, band at y=124, h=40); connect to a star ('rate.s2') is not possible with raw (anchors are not registered)
+core verdict alone: ok=true; merged with the plugin's: ok=false problems=["[rating-demo] value 7 is more than max 5 [rating-demo/value-over-max]"] findings=["rating-demo/stars-wider-than-band"]
+bad data -> rating-demo:stars: label is the name of what is rated
+not supplied -> true: the band type "rating-demo:stars" is a plugin band, but plugin "rating-demo" was not supplied: pass it as diagram({plugins: [...]}) / --plugin (a spec never loads code)
+spec part -> band type raw, id rate3
+connect to a star -> connect(): unknown anchor id "rate.s2" (give the target box an id: 'rate.s2')
