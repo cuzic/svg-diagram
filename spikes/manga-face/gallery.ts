@@ -4,10 +4,10 @@ import path from 'node:path';
 import {prefixIds} from '../../lib/icon-store.ts';
 import {ADR0074, BOX, CHARACTERS, faceFragment, type Character} from './face.ts';
 
-const SKINS = {light: '#fde0cc', tan: '#dca77a'};
+const SKINS = {light: 'light', brown: 'brown'};
 const base = (hair: 'short' | 'bob', skin: string): Character => {
   const src = hair === 'short' ? CHARACTERS.a : CHARACTERS.b;
-  return {...src, mirror: false, hair: {...src.hair}, palette: {...src.palette, skin}} as Character;
+  return {...structuredClone(src), mirror: false, palette: {...src.palette, skin}} as Character;
 };
 const rows = (['short', 'bob'] as const).flatMap(h => Object.entries(SKINS).map(([name, skin]) => ({label: `${h} / ${name}`, ch: base(h, skin)})));
 
@@ -31,5 +31,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const dir = process.argv[2] ?? path.join(import.meta.dirname, 'out');
   fs.mkdirSync(dir, {recursive: true});
   fs.writeFileSync(path.join(dir, 'gallery.svg'), sheet(ADR0074));
-  fs.writeFileSync(path.join(dir, 'extras.svg'), sheet(['shy', 'smug', 'deadpan', 'clench'], rows.slice(0, 2)));
+  fs.writeFileSync(path.join(dir, 'extras.svg'), sheet(['shy', 'smug', 'deadpan', 'clench', 'cry', 'blank'], rows.slice(0, 2)));
 }

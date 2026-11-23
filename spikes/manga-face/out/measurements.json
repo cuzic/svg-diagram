@@ -1,88 +1,171 @@
 {
-  "loadCharacter": "accepted a and b",
+  "loadCharacter": "accepted a, b (mirror), mature",
   "fragmentBytes": {
-    "neutral": 5723,
-    "smile": 5723,
-    "laugh": 4867,
-    "surprise": 5585,
-    "worry": 5730,
-    "angry": 5769,
-    "think": 5721,
-    "sad": 5747
+    "neutral": 8400,
+    "smile": 8414,
+    "laugh": 7602,
+    "surprise": 8280,
+    "worry": 8445,
+    "angry": 8454,
+    "think": 8412,
+    "sad": 8442
   },
   "manifestBytes": {
-    "a": 48668,
-    "b": 48906
+    "a": 71074,
+    "b": 78965,
+    "mature": 77587
   },
+  "pathCount": 57,
   "deterministic": true,
   "galleryDeterministic": true,
-  "galleryBytes": 186859,
-  "comicDeterministic": true,
-  "comicSvgBytes": 53478,
-  "comicVerdict": {
-    "ok": true,
-    "problems": [],
-    "issues": [],
-    "warnings": [],
-    "findings": []
-  },
-  "comicHasFaces": {
-    "a": 4,
-    "b": 4
-  },
+  "galleryBytes": 302800,
+  "chromiumIdentical": true,
+  "chromiumIdenticalAll": true,
   "anchors": {
     "a": {
-      "declaredTop": -24,
-      "measuredTop": -22.3,
+      "declaredTop": 23.2,
+      "rasterTop": 23.5,
       "ok": true,
-      "box": [
-        0,
-        -40,
-        300,
-        400
-      ],
-      "bbox": {
-        "top": -20,
-        "bottom": 360,
-        "left": 20,
-        "right": 280
-      }
+      "headTopMinusTop": 16.8
     },
     "b": {
-      "declaredTop": 23,
-      "measuredTop": 23.7,
+      "declaredTop": 23.2,
+      "rasterTop": 23.5,
       "ok": true,
-      "box": [
-        0,
-        -40,
-        300,
-        400
-      ],
-      "bbox": {
-        "top": 26,
-        "bottom": 360,
-        "left": 20,
-        "right": 280
-      }
+      "headTopMinusTop": 16.8
+    },
+    "mature": {
+      "declaredTop": 23.2,
+      "rasterTop": 23.5,
+      "ok": true,
+      "headTopMinusTop": 16.8
     }
   },
-  "mouthAnchor": {
-    "a": [
-      150,
-      210
-    ],
-    "b": [
-      150,
-      210
-    ],
-    "headCircle": {
-      "cx": 150,
-      "cy": 140,
-      "r": 100
+  "distinguishability": {
+    "threshold": 6,
+    "stage": "94x124px",
+    "a": {
+      "min": 9.629999999999999,
+      "lowest3": [
+        "neutral/worry=9.6",
+        "neutral/smile=10",
+        "smile/worry=10.5"
+      ],
+      "below": []
     },
-    "mirrorExpected": [
-      150,
-      210
+    "b": {
+      "min": 7.94,
+      "lowest3": [
+        "neutral/smile=7.9",
+        "neutral/worry=8.3",
+        "smile/worry=8.7"
+      ],
+      "below": []
+    },
+    "mature": {
+      "min": 7.19,
+      "lowest3": [
+        "smile/worry=7.2",
+        "neutral/worry=7.5",
+        "neutral/smile=7.6"
+      ],
+      "below": []
+    }
+  },
+  "contrast": {
+    "inkOnPaper": 16.3,
+    "skins": [
+      {
+        "skin": "fair",
+        "ink": 13.2,
+        "keyed": false
+      },
+      {
+        "skin": "light",
+        "ink": 11.2,
+        "keyed": false
+      },
+      {
+        "skin": "medium",
+        "ink": 8,
+        "keyed": false
+      },
+      {
+        "skin": "tan",
+        "ink": 5.7,
+        "keyed": false
+      },
+      {
+        "skin": "brown",
+        "ink": 3.3,
+        "keyed": true
+      },
+      {
+        "skin": "dark",
+        "ink": 2,
+        "keyed": true
+      }
+    ],
+    "everySkinPasses": true,
+    "hairOnSkinBelow3": "19 of 36 (not guaranteed; the hair-face boundary has a keyline)"
+  },
+  "allPalettePairs": {
+    "pairs": 36,
+    "consistent": 36,
+    "inconsistent": 0
+  },
+  "minStrokeUnits": {
+    "min": 2.8,
+    "px": 1,
+    "ok": true
+  },
+  "randomSeeds": {
+    "tried": 1000,
+    "valid": 1000,
+    "rejected": 0,
+    "retriedWithNextAttempt": 298,
+    "reasons": {}
+  },
+  "seedStable": true,
+  "invalidInputs": {
+    "strands0": [
+      "hair.strands must be an integer >= 1",
+      "hair.strands=0 is outside 1..9"
+    ],
+    "chin110": [
+      "head.chin=110 is outside 90..98"
     ]
+  },
+  "toManifestThrowsOnInvalid": true,
+  "expressionMapRejectsDifferentMeaning": "expressionMap: cry cannot stand for think (allowed: deadpan)",
+  "expressionMapAcceptsSameMeaning": 8,
+  "comic": {
+    "deterministic": true,
+    "svgBytes": 79786,
+    "verdictOk": true,
+    "faces": 8
+  },
+  "swapCompatibility": {
+    "lengthsTried": 30,
+    "builtin": {
+      "ok": 27,
+      "fail": 3
+    },
+    "manga": {
+      "ok": 27,
+      "fail": 3
+    },
+    "mangaTuft": {
+      "ok": 27,
+      "fail": 3
+    },
+    "regressions": []
+  },
+  "topAnchors": {
+    "a": 23.2,
+    "tuft": 23.2,
+    "b": 23.2,
+    "builtinTopIs": "head top = 40",
+    "limit": 23
   }
 }
