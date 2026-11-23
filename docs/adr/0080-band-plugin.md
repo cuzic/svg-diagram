@@ -1,19 +1,45 @@
-# ADR 0080: 帯のプラグイン — 外部パッケージが「汎用の新しい帯(band)」を足す仕組み(スパイク付き)
+# ADR 0080: 帯の定義(`BandDef`)とプラグイン — 1 つの定義の形で、コアの帯も外部の帯も作り、使う帯・出力形式・重い依存だけを束ねる(tree shaking)
 
-- 状態: 提案(Draft。2026-11-23。決める人の確認待ち。Q1〜Q15 は未決。設計と小さなスパイクで、`lib/` は変えていない。ラウンド 1 のレビュー(Major 8)を反映)
+- 状態: 提案(Draft。2026-11-23。決める人の確認待ち。Q は下の表。設計と小さなスパイクで、`lib/` は変えていない。ラウンド 1・2 のレビューの指摘を反映。**決める人の追加の要件(帯だけでなく、PPTX・Excel などの出力形式と重いバックエンドも tree shaking の対象にする)を反映した改訂**)
 - 日付: 2026-11-23
 - 基点: `main`(74816524。ADR 0078 U0a まで)
-- 関連: ADR 0079(マンガ風の顔のライブラリ。PR #454。この ADR が D1 の「別パッケージ」の渡し方を広げる)、ADR 0074(`comic()`、`CharacterManifest`、`loadCharacter`。**人物は図ごとに渡し、グローバルに持たない**)、ADR 0031(FCIS、`lib/` は純粋な core)、ADR 0007(Ports)、ADR 0045(`svg-diagram/browser`、`renderInBrowser`)、ADR 0077 / 0078(`balloon`、重ねの帯、`FlowBand`、内容の目録)、ADR 0012(id のスコープ)、ADR 0034(`data-node`)、ADR 0069(`partCatalog`)、ADR 0071(JSON Schema)
-- 範囲外: 外部パッケージが**既存の**帯の描き方を差し替えること(上書き)。プラグインの配布の場(レジストリ、検索)。プラグインの課金。他の帯を**持つ**帯(コンテナ)と重ねの帯は v1 では対象外(プラグインの帯が行・グループなどの**子になる**ことは許す。D4、Q5)。コアの帯を全部プラグインに移すこと(D6 で「しない」と決める)
-- 例のデータはすべてこの ADR のための作り話(星の評価の帯 `rating-demo:stars`、「使いやすさ」「新しい画面」など。顔の例は ADR 0079 の中立な作り話の範囲)
+- 関連: ADR 0079(マンガ風の顔のライブラリ。PR #454)、ADR 0074(`comic()`、`CharacterManifest`、`loadCharacter`。**人物は図ごとに渡し、グローバルに持たない**)、ADR 0031(FCIS、`lib/` は純粋な core)、ADR 0007(Ports)、ADR 0045(`svg-diagram/browser`、`renderInBrowser`)、ADR 0077 / 0078(`balloon`、重ねの帯、`FlowBand`、内容の目録)、ADR 0068(Excel への書き出し。PR #373、Draft)、ADR 0012(id のスコープ)、ADR 0034(`data-node`)、ADR 0069(`partCatalog`)、ADR 0071(JSON Schema)、ADR 0027 / 0054(PPTX)
+- 範囲外: 外部パッケージが**既存の**帯の描き方を差し替えること(上書き)。プラグインの配布の場(レジストリ、検索)。他の帯を**持つ**帯(コンテナ)の**プラグイン**と、重ねの帯のプラグインは v1 では対象外(プラグインの帯が行・グループなどの**子になる**ことは許す。D5、Q9)。フォントのファイルを JS に埋め込むこと(今も埋め込んでいない。D7)
+- 例のデータはすべてこの ADR のための作り話(星の評価の帯 `rating-demo:stars`、「使いやすさ」「新しい画面」、マンガは「ここが変更点です。」「要確認ですね。」など)
 
 ## 背景
 
-決める人の言葉: 「汎用の新しい band を足すことができる plugin として考えたい」。
+決める人の言葉が 3 つある。
 
-ADR 0079 は、マンガ風の顔のライブラリを**別のリポジトリ**に置き、出力を `CharacterManifest`(JSON)にして、svg-diagram は何も変えない案を推奨した。決める人は、それより一段広く、**外部パッケージが `comic` のような帯そのものを足せる**ことを求めている。顔を 1 つ描く帯(avatar)、顔の一覧の帯、そして `comic()` に渡す人物の提供元が、同じ 1 つのプラグインに入る。
+1. 「汎用の新しい band を足すことができる plugin として考えたい」(外部パッケージが `comic` のような帯を足せる)。
+2. 「ユースケースに合わせてミニマムな band だけを bundle できる仕組み」。マンガのワークシートの Artifact は `renderComic` と `svgMeasurer` だけを束ねたのに、**約 1 MB** になった。
+3. 「band だけでなくて、pptx とか excel 出力とかも含めて tree shaking できるようにしたい」。
 
-今の帯の足し方は、コアの中の**約 10 の型つきの表と、十数か所の `switch` / `if` の連なり**に、手で 1 行ずつ足すことである(次の表)。外部のパッケージからは足せない。足せるようにしつつ、**コアの帯の「抜けがあればコンパイルが落ちる」性質は残したい**。
+3 つは同じ構造の問題で、**帯の種類をキーにする中央の表が、全部の帯(と、出力形式ごとの処理)を import している**ことが原因である(次の「測ったこと」)。表を、**帯自身が持つ定義(`BandDef`)に移し、呼び出しは帯の値から**行えば、import していない帯のコードは束ねられない。外部の帯(プラグイン)は、この `BandDef` に名前空間をつけただけのものにできる。
+
+### 測ったこと — 今のバンドルの中身(esbuild の metafile。`spikes/band-plugin/bundle/`)
+
+ブラウザ向け(minify、ESM、依存は束ねる)。
+
+| 入口 | 大きさ | gzip | モジュール数 |
+|---|---|---|---|
+| 全部入り(`lib/web.ts`。`svg-diagram/browser`) | **1042.0 KB** | 368.8 KB | 186 |
+| `renderComic` + `svgMeasurer` だけ | **1036.2 KB** | 368.0 KB | 185 |
+| `box` + `row` + `diagram` + `renderInBrowser` + `svgMeasurer` | **1031.5 KB** | 365.0 KB | 183 |
+| `svgMeasurer` だけ | 2.5 KB | 1.3 KB | 2 |
+
+**どの入口も、ほぼ同じ大きさ(全部入りの 99%)で、tree shaking はほとんど効いていない。** マンガだけを使っても、`bowtie`・`fta`・`gantt`・`bpmn`・`charts`・`quadrant` などが全部入る(帯のモジュール 21 種が全部ある)。理由は、次の import の連鎖である(`comic-only` のバンドルの metafile から)。
+
+| 引き込まれる物 | 連鎖 |
+|---|---|
+| 全部の帯の配置(`layout-handlers.ts` 23 KB と、各帯の `layout*.ts`) | `comic/render.ts → web.ts → layout.ts → layout-handlers.ts` |
+| 全部の帯の測定(`bowtie`・`gantt`・`charts` ほか) | `comic/render.ts → web.ts → layout-measure.ts → bowtie.ts / gantt.ts / charts.ts …`(`MEASURE_HANDLERS`) |
+| 全部の帯の描画(`emit-handlers.ts`、`emit-figures.ts` 29 KB ほか) | `comic/render.ts → dsl/diagram.ts → rules.ts → emit.ts → emit-handlers.ts` |
+| 全部の帯の規則と検査(`rules.ts` **93 KB**、`verify-handlers.ts` 16 KB、`fta.ts`) | `dsl/diagram.ts → rules.ts → fta.ts …` |
+| `box()` の DSL そのもの | `dsl/text-bands.ts` が `walkBands`(`rules.ts` の 93 KB)と `toc.ts` を import する。**帯を 1 つ使うだけで、規則の本体が付いてくる** |
+| 小さな帯の道具が、別の帯を引く | `emit-boxes.ts → reveal.ts → band-ids.ts → quadrant.ts`(`visibleAt` を使うだけで `quadrant` と `reveal-handlers` が入る) |
+
+ライブラリの外の依存(HarfBuzz、resvg、MathJax、Playwright)は、ブラウザ向けのバンドルには**入っていない**(上の 1 MB は全部自前のコード)。出力形式と重いバックエンドは別の節(D6、D7)。
 
 ### コードで確かめたこと — 帯の種類をキーにする表と分岐の全部
 
@@ -32,336 +58,568 @@ ADR 0079 は、マンガ風の顔のライブラリを**別のリポジトリ**�
 | 7 | `VERIFY_HANDLERS` | `lib/verify-handlers.ts` | `LaidOutType` | 検査の長方形(`rects`)、図形の検査(`check` の phase)、コントラスト。`ALL_BANDS_VERIFIED` |
 | 8 | `FIT_HANDLERS` | `lib/fit-handlers.ts` | `LaidOutType` | 文字の大きさ(小さい文字の検査)。`ALL_BANDS_FITTED` |
 | 9 | `INVENTORY_HANDLERS` | `lib/inventory.ts` | `LaidOutType` | ADR 0078 の中身の目録(`text` / `frame` / `whole` …) |
-| 10 | `BAND_HANDLERS` | `lib/pptx/bands.ts` | `LaidOutType` | PPTX(ネイティブか `'image'`) |
+| 10 | `BAND_HANDLERS` | `lib/pptx/bands.ts` | `LaidOutType` | **PPTX**(ネイティブか `'image'`)。出力形式の側の表 |
 
 `comic` の行は、2・4・5・7・8・9 では `fromTuples(comicMeasure)` / `none` / `noStack` / `{rects, check: {phase: 'comic'}}` / `texts` / `whole`、10 は `'image'`、1 は `placedBand(…)`、6 は `renderComicBand`、3 は `plain`。
 
 **(B) 型で守られない表(キーが省略可、または `switch` / `if` の連なり)**
 
-| # | 場所 | 中身 | プラグインの帯で要ること |
+| # | 場所 | 中身 | `BandDef` の世界での扱い |
 |---|---|---|---|
-| 11 | `BandLayoutHandlers`(`lib/layout-ctx.ts`)の `layoutHandlerFor` | キーが省略可。**無い型は黙って box として配置される**(`?? layoutBoxLikeBand`) | **フォールバックを削除し、未知の型は投げる**(D3)。`plugin` を明示 |
-| 12 | `TEXT_RUNS`(`lib/layout-text.ts`) | 省略可(`caption` / `box` / `banner` のみ) | 不要 |
-| 13 | `itemIdsOf` / `bareNodeIds`(`lib/band-ids.ts`) | 配置**前**の帯から、節の id を `switch` で取る。reveal と anchor のスコープが使う | データから id を返す仕組み(下の `ids`) |
-| 14 | `withNodeIdsBand`(`lib/emit-node-ids.ts`) | `data-node` を付ける `switch` | **ホストが `anchors` から書く**(`sanitizeBody` は `data-*` を拒む。D5) |
-| 15 | `drawsFrame` / `itemRect`(`lib/locations-map.ts`) | ソースの位置の地図 | 既定(枠なし、anchor の長方形) |
-| 16 | スポットライトの `if` 連なり 2 か所(`lib/spotlight.ts`)、`lib/layout-metrics.ts` の連なり、`lib/focus.ts` | anchor を項目として数える帯の列挙 | `plugin` を anchor を持つ帯の側に足す |
-| 17 | `lib/rules.ts` の帯別の規則(`comicRules`、`rcaRules`、`FIT_WHO`) | 帯の種類で findings を取り出す | プラグインの findings を取り出す 1 か所 |
-| 18 | `RULE_DOCS` / `RULE_LOCATION`(`lib/rules.ts`)、`RuleId = keyof typeof RULE_DOCS` | 規則の id は**コンパイル時に閉じている**。`accept` もこの型 | プラグインの規則 id は開いた文字列(D2、D5) |
-| 19 | `CHECK_PHASES`(`lib/verify-handlers.ts`) | 検査の phase の列(`'comic'` もここ) | `'plugin'` を 1 つ足す |
-| 20 | spec: `PARTS`(`lib/spec.ts`、`lib/spec-parts/*.ts`)、`partCatalog()`、`specSchema`(**定数**)、`pnpm schema`(`lib/schema-files.ts`)、`validateOneOf` の `const` による分岐。検査器が理解するのはスキーマの部分集合(`const` / `enum` / `oneOf` / `type` / 大きさ / `items` / `properties` / `required`)で、`pattern` などは**黙って無視される** | JSON の入口。MCP の `list_diagram_parts` はここを読む | 新しい関数 `specSchemaFor({plugins})` と `partCatalog({plugins})`(既存の定数と API は変えない)。登録のとき、理解しないキーワードを拒む |
-| 21 | `IN_NO_SPEC_YET`(`test/spec.test.ts`)、`test/fixtures/untested-exports.json`、`test/fixtures/rule-locations.ts`、`test/band-registries.test.ts` | 「DSL にあるが spec に無い」の台帳と、表の実行時の網羅テスト | `plugin` の行。プラグイン用の適合テスト(U6) |
-| 22 | 型: `Band` / `LaidOutBand`(`lib/types/index.ts`)、`Declares<Id>` / `Refers`(`lib/strict.ts`) | 合併型、`connect()` の id の型検査 | `PluginBand`(D4) |
-| 23 | 公開 API: `lib/dsl-pure.ts`(`located(...)`)、`lib/web.ts`、`package.json` の `exports` | DSL の関数の置き場。ブラウザの入口は `node:*` を持たない(`test/web-entry.test.ts`) | `svg-diagram/plugin` の入口(D1、D8) |
-| 24 | ドキュメント: `README.md`、`skills/svg-diagram/references/*.md`、`docs/chatgpt-code-interpreter.md`、MCP の `list_diagram_parts` | 部品の説明 | プラグインが自分の説明を持つ(D2) |
-| 25 | `lib/dsl/rewrite.ts` の `KEYS` / `NO_REVEAL`、`lib/emit-html.ts` の `kindOf`(HTML の形)、`lib/dsl/containers.ts` の `row()`(箱でない子を `group` に包む)、`lib/located.ts`(ソースの位置。構築関数を包む) | 帯の種類で reveal の書き換え、HTML の形、行の子を決める | `plugin` の行。構築関数は `located()` で包む(D1) |
-| 26 | `lib/strict.ts` の `ElementCheck` / `Refers`、`lib/spec-edge.ts`(`renderSpecEdge`)、`lib/inventory.ts` の `whole` の `band: type` | 他の id の参照、MCP の Worker の入口、目録の帯の名前 | v1 に `Refers` の hook は無い(プラグインの帯は他の id を参照しない)。`plugins` を `renderSpecEdge` に通す。`whole` に plugin / kind を記録 |
+| 11 | `BandLayoutHandlers`(`lib/layout-ctx.ts`)の `layoutHandlerFor` | キーが省略可。**無い型は黙って box として配置される**(`?? layoutBoxLikeBand`) | **フォールバックを削除し、帯の定義が無ければ投げる**(D4) |
+| 12 | `TEXT_RUNS`(`lib/layout-text.ts`) | 省略可(`caption` / `box` / `banner` のみ) | `box` / `caption` / `banner` の帯の定義の中へ |
+| 13 | `itemIdsOf` / `bareNodeIds`(`lib/band-ids.ts`) | 配置**前**の帯から、節の id を `switch` で取る。reveal と anchor のスコープが使う。**`quadrant.ts` などを import する** | 帯の定義の `ids(data)` |
+| 14 | `withNodeIdsBand`(`lib/emit-node-ids.ts`) | `data-node` を付ける `switch` | ホストが `anchors` から書く(`sanitizeBody` は `data-*` を拒む。D8) |
+| 15 | `drawsFrame` / `itemRect`(`lib/locations-map.ts`) | ソースの位置の地図 | 既定(枠なし、anchor の長方形)。帯の定義の任意の hook |
+| 16 | スポットライトの `if` 連なり 2 か所(`lib/spotlight.ts`)、`lib/layout-metrics.ts`、`lib/focus.ts` | anchor を項目として数える帯の列挙 | 帯の定義の `anchors` から(列挙をやめる) |
+| 17 | `lib/rules.ts` の帯別の規則(`comicRules`、`rcaRules`、`FIT_WHO`) | 帯の種類で findings を取り出す。**`rules.ts` が各帯のモジュールを import する(93 KB)** | 帯の定義の `verify` / `rules`。`rules.ts` は枠組みだけ |
+| 18 | `RULE_DOCS` / `RULE_LOCATION`(`lib/rules.ts`)、`RuleId = keyof typeof RULE_DOCS` | 規則の id は**コンパイル時に閉じている**。`accept` もこの型 | 帯の定義が自分の規則の説明を持つ。`RuleId` は全部入りの入口で合成(D5) |
+| 19 | `CHECK_PHASES`(`lib/verify-handlers.ts`) | 検査の phase の列(`'comic'` もここ) | phase を帯の定義が名乗る |
+| 20 | spec: `PARTS`(`lib/spec.ts`、`lib/spec-parts/*.ts`)、`partCatalog()`、`specSchema`(**定数**)、`pnpm schema`(`lib/schema-files.ts`)、`validateOneOf` の `const` による分岐。検査器が理解するのはスキーマの部分集合(`const` / `enum` / `oneOf` / `type` / 大きさ / `items` / `properties` / `required`)で、`pattern` などは**黙って無視される**。`spec.ts` 単体で **483 KB** | JSON の入口。MCP の `list_diagram_parts` はここを読む | 帯の定義の `spec`(schema / example / build / check)。`specSchemaFor({bands})` と `partCatalog({bands})`(既存の定数と API は変えない)。登録のとき、理解しないキーワードを拒む |
+| 21 | `IN_NO_SPEC_YET`(`test/spec.test.ts`)、`test/fixtures/untested-exports.json`、`test/fixtures/rule-locations.ts`、`test/band-registries.test.ts` | 「DSL にあるが spec に無い」の台帳と、表の実行時の網羅テスト | 帯の定義の `spec: false`、定義の網羅テスト |
+| 22 | 型: `Band` / `LaidOutBand`(`lib/types/index.ts`)、`Declares<Id>` / `Refers`(`lib/strict.ts`) | 合併型、`connect()` の id の型検査 | D5 |
+| 23 | 公開 API: `lib/dsl-pure.ts`(`located(...)`)、`lib/web.ts`、`package.json` の `exports` | DSL の関数の置き場。ブラウザの入口は `node:*` を持たない(`test/web-entry.test.ts`) | D3 |
+| 24 | ドキュメント: `README.md`、`skills/svg-diagram/references/*.md`、`docs/chatgpt-code-interpreter.md`、MCP の `list_diagram_parts` | 部品の説明 | 帯の定義の `docs`。プラグインは自分の説明を持つ |
+| 25 | `lib/dsl/rewrite.ts` の `KEYS` / `NO_REVEAL`、`lib/emit-html.ts` の `kindOf`(HTML の形。**16 か所**)、`lib/dsl/containers.ts` の `row()`(箱でない子を `group` に包む)、`lib/located.ts`(ソースの位置) | 帯の種類で reveal の書き換え、HTML の形、行の子を決める | 帯の定義の hook / HTML の adapter(D6)。構築関数は `located()` で包む |
+| 26 | `lib/strict.ts` の `ElementCheck` / `Refers`、`lib/spec-edge.ts`(`renderSpecEdge`)、`lib/inventory.ts` の `whole` の `band: type` | 他の id の参照、MCP の Worker の入口、目録の帯の名前 | v1 に `Refers` の hook は無い。`bands` を `renderSpecEdge` に通す。`whole` に plugin / kind を記録 |
 
-つまり、1 つの帯を足す作業は、(A) の 10 か所、(B) の十数か所、型とテストに及ぶ。ADR 0074 の `comic` はこれを全部やった実例で、`lib/comic/` に 14 ファイル、表への 1 行が 10 個、`rules.ts` と `verify-handlers.ts` への分岐がある。
+つまり、1 つの帯を足す作業は、(A) の 10 か所、(B) の十数か所、型とテストに及ぶ。ADR 0074 の `comic` はこれを全部やった実例で、`lib/comic/` に 14 ファイル、表への 1 行が 10 個、`rules.ts` と `verify-handlers.ts` への分岐がある。**(A)(B) のどれもが、全部の帯を import するので、1 つの帯だけを束ねることができない。**
 
 ### ADR 0074 と 0031 から引き継ぐ約束
 
-- **人物は図ごとに渡し、グローバルに持たない**(ADR 0074 D3、`comic({characters})`)。→ プラグインも**呼び出しごと**に渡す(D3)。
-- `lib/` は純粋(`fs`・`child_process` なし。ブラウザの入口は `node:*` なし)。→ プラグインの帯も、純粋な関数だけで作れること(D2 の保証)。
-- 外部の SVG は `loadCharacter` が `sanitizeBody` で掃除する(図形・グループ・グラデーション・クリップパスだけ。`text`・`style`・`script`・`use`・`image`・`foreignObject`・外への参照・名前つきの色を拒む)。→ プラグインの SVG も同じ門を通す(D5)。
-- 配置の結果は、プレーンな JSON(`structuredClone` できる)。→ プラグインの `laid` も同じ(D2)。
+- **人物は図ごとに渡し、グローバルに持たない**(ADR 0074 D3、`comic({characters})`)。→ 帯の定義も**呼び出しごと**に渡す(D9)。
+- `lib/` は純粋(`fs`・`child_process` なし。ブラウザの入口は `node:*` なし)。→ 帯の定義の hook は純粋な関数だけで作る(D2 の保証)。
+- 外部の SVG は `loadCharacter` が `sanitizeBody` で掃除する。→ プラグインの SVG も同じ門を通す(D8)。
+- 配置の結果は、プレーンな JSON(`structuredClone` できる)。→ `laid` も同じ(D2)。
 
-## スパイク(`spikes/band-plugin/`。`lib/` は触っていない。ラウンド 2 で作り直した)
+## スパイク(`spikes/band-plugin/`。`lib/` は触っていない)
 
-約 350 行で、**コアの帯の隣と、`group` / `row` / `areas` の中に新しい帯を描き、`connect()` を受け、findings を出す**ところまで、ADR の API の形(**平らなデータの `PluginDef`**、コア側が作る DSL の関数 `pluginBands`、名前空間つきの型、呼び出しごとの登録)で試した。コアは、すでにある `raw` の帯(外のコードの描画を受ける唯一の帯)に、プラグインの封筒(`{type, data, id}`)を載せて通した。つまり**薄い変換器**で、コアの表には 1 行も足していない。**SVG の門は、本物の `sanitizeBody`(`lib/icon-store.ts`)を使った**(ラウンド 1 は正規表現の代用で、証拠にならなかった)。
+スパイクは 3 つの部分から成る。(1)プラグインの帯の変換器(ラウンド 1・2 で作った。`host.ts`、`rating-plugin.ts`、`run.ts`、`typing*.check.ts`)、(2)**`BandDef` の試作と、帯の値からの呼び出し**(`banddef/`)、(3)**バンドルの測定**(`bundle/`。esbuild の metafile と、Vite / Rollup)。
 
-| ファイル | 内容 |
-|---|---|
-| `host.ts` | コア側の代役: `PluginRegistry`(呼び出しごと。未供給は `PluginNotSuppliedError`。API の版の検査)、`pluginBands`(プラグインのデータから DSL の関数を作り、`located()` で包む)、`sanitizePluginSvg`(本物の `sanitizeBody` + 帯の中の id の重複 + `prefixIds` + `paper`)、`withPluginFindings`(配置後に verify を回し、verdict へ併合)、`conformance`(U6 の適合テストの試作) |
-| `rating-plugin.ts` | 新しい帯 `rating-demo:stars`(n / max の星)。実行時に `lib/` を import しない。**文字を出す口が無いので、ラベルは描いていない** |
-| `run.ts` | 描画、`connect()`、findings、門、ダークモード、コンテナ、配置の変種、spec、未供給、API の版 |
-| `typing.check.ts` | 型の全数性の実験(10 個の表に `'plugin'` を足したらどうなるか) |
-| `typing.containers.check.ts` | 構築関数の型(`Declares<Id>`)を、最上位・`group`・`row`・`areas` に置いた `connect()` の型検査(コンパイルが通る)。`@ts-expect-error` の 1 行(裸の綴り間違い)は誤りのまま |
-| `out/` | `ok.svg`、`measurements.txt`(時間は書かない) |
+### (1) プラグインの帯の変換器(`raw` の帯に載せた薄い変換器。コアの表には 1 行も足していない)
 
-測ったこと(Node 26。`node spikes/band-plugin/run.ts`、`node_modules/.bin/tsc --noEmit -p spikes/band-plugin/tsconfig.json`)。
+**SVG の門は本物の `sanitizeBody`**。測ったこと(Node 26。`node spikes/band-plugin/run.ts`、`node_modules/.bin/tsc --noEmit -p spikes/band-plugin/tsconfig.json`)。
 
 | 測ったこと | 結果 |
 |---|---|
 | コアの帯の隣 | 描けた。`verdict.ok = true`。2 回の描画の SVG は**バイト単位で同じ** |
-| コンテナの中 | `group([…])`、`row([box, プラグインの帯])`、`areas('a b', {a: box, b: プラグインの帯})` のどれも描けた(`verdict.ok = true`)。`areas` の欄に入れる帯は、`id` を持てない(0069 の規則: 欄の名前が id)。`row` は、箱でない子を `group` に包む(`containers.ts`) |
-| 構築関数 | `pluginBands(plugin)` が作る関数は `located()` で包まれ、帯に**ソースの位置**(ADR 0072)が付く |
-| `connect()` | 最上位・`group`・`row` の中で、プラグインの帯の id を終点にして**型が通る**(`Declares<Id>`)。裸の綴り間違い(`'r1x:right'`)は拒まれる。**ドット付きの `r4.s99` は型で拒まれない**(`IdProblem` が `a.b` を通す。ADR 0012 と同じで、部品の id は**実行時だけ**の検査。D4、D2) |
-| 星への `connect('a:bottom', 'rate.s2:top')` | **失敗**(`unknown anchor id "rate.s2"`)。`raw` は anchor を登録しないため。**配置の hook が要る**(D2 の `layout` が `anchors` を返し、ホストが `ctx.register`) |
-| 本物の門(`sanitizeBody` + 帯の中の id の重複) | `<text>`・`<style>`・`<image>`・`data-*`・`rgb()`・名前つきの色・重複した id は**すべて拒まれ**、素直な図形(`#hex` の `fill` / `stroke`)は通った。**`data-*` が拒まれる**ので、`data-anchor` のような規約は使えない: `data-node` はホストが `anchors` から書く(D2、D5) |
-| ダークモード | パレットのトークンの色(`env.color`)は**暗い側へ置き換わる**(`#1d5fa8 → #7ab2ee`)。`paper` の帯は、門を通した**後で** `#hex` を `rgb()` にし(comic と同じ)、白い下地を敷くと、`#hex` が残らず置き換えられない。**門は `rgb()` を拒む**ので、変換は門の後(D2 の 4) |
-| 配置の変種 | `canvas: 'slide'`、`width: 'fit'`、`width: 360` で描いても、同じ入力は同じ出力。ただし `raw` は配置の通過のたびには呼ばない(**スパイクでは、hook が配置の通過ごとに呼ばれることは再現できない**)。冪等であることは、`conformance()`(同じ `data` から 3 回の `layout`、深いコピー、`structuredClone`、`emit` の再実行が同じ)で確かめた |
-| findings | プラグインの検査が 2 件(`rating-demo/value-over-max` = 問題、`rating-demo/stars-wider-than-band` = 警告)。コアの `verifyDiagram` だけでは `ok = true`、**併合すると `ok = false`**。コアの verify に差し込む口が無いので変換器は配置後に自分で回した(`verify` の hook が要る)。説明の無い規則を出すと `rule-undocumented` |
-| 高さ | `raw` は高さが**構築時に固定**。幅で高さが変わる帯は、`height-drift` の警告になる。**配置の hook が要る** |
-| 文字 | `raw` の `<text>` は測定を通らない。門が `<text>` を拒むので、ラベルを描けない。**文字をデータで返す口(`texts`)が要る**。測定の厳密さ(測っていない文字は 0 幅で黙って通る)は、コアの側の挙動で、D2 の 3 で扱う(スパイクでは再現できない) |
-| 未供給 | `PluginNotSuppliedError`(使えるプラグインの一覧つき)。不正なデータ: `plugin rating-demo: rating-demo:stars: label is …` |
-| API の版 | `0.x` では minor が同じでないと受けない(`0.2` を `0.1` のホストに渡すとエラー) |
-| **コアの表に要る 1 行の数** | **10 個の型つきの表に各 1 行。** 型の実験(`typing.check.ts`)は、**ちょうど 10 件**(各表で `Property 'plugin' is missing`)、他は 0 件。**ラウンド 1 の確認**: レビューが実際に `lib/types/index.ts` の `Band` / `LaidOutBand` に封筒を足して `tsc -p .` を回すと **22 件**の診断が出て、すべて 10 個の表・派生の `ALL_BANDS_*` / 添字の行・`test/pptx-groups.test.ts:124` にあった。それ以外は壊れなかった |
-| 型の全数性 | コアの帯は今までどおり**全部のキーが必須**。`'plugin'` が 1 つ増えるだけ。プラグインの種類は型の合併型に入れない(D4) |
+| コンテナの中 | `group([…])`、`row([box, プラグインの帯])`、`areas('a b', {a: box, b: プラグインの帯})` のどれも描けた。`areas` の欄の帯は、`id` を**欄の名前と同じ**にできる(`containers.ts`)。**`grid` は箱だけを取る**ので、プラグインの帯は入れない |
+| 構築関数 | `pluginBands(plugin)` が作る関数は `located()` で包まれ、帯に**ソースの位置**(ADR 0072)が付く。`pluginBands(p)` と `diagram({plugins: [p']})` の**コピー / 版の食い違いは、エラー**にした |
+| `connect()` | 最上位・`group`・`row`・`areas` の中で、帯の id を終点にして**型が通る**(`Declares<Id>`)。裸の綴り間違いは拒まれる。**ドット付きの `r4.s99` は型で拒まれない**(`IdProblem` が `a.b` を通す。ADR 0012 と同じで、部品の id は**実行時だけ**の検査) |
+| 星への `connect('a:bottom', 'rate.s2:top')` | **失敗**(`unknown anchor id`)。`raw` は anchor を登録しないため。配置の hook が要る(D2) |
+| 本物の門 | `<text>`・`<style>`・`<image>`・`data-*`・`rgb()`・名前つきの色・帯の中の重複した id は**拒まれ**、素直な図形(3 桁を含む `#hex`)は通った。**`data-*` が拒まれる**ので、`data-node` はホストが `anchors` から書く |
+| ダークモード | パレットのトークンの色は**暗い側へ置き換わる**(`#1d5fa8 → #7ab2ee`)。`paper` の帯は、門を通した**後で**、`fill` / `stroke` / `stop-color` の値だけ `#hex`(3〜8 桁)を `rgb()` にし、`PALETTE.bg` の下地を敷く。**門は `rgb()` を拒む**ので、変換は門の後 |
+| id の接頭辞 | 帯の内容(型・id・データ)から決める(プロセスの中の構築の順に依らない)。本実装は、図の中の帯の位置から決める |
+| 適合テストの試作 `conformance()` | **`layout` を、幅・文字の倍率・折り返しの方式を変えた環境で A, B, C, A, B, A の順に呼び**、(i)共有の(深く凍結した)データでの結果が、**毎回新しく複製したデータでの結果と同じ**、(ii)同じ環境の結果が後でも同じ、を確かめ、`emit` を 2 回呼ぶ。**壊れた 3 つのプラグイン(環境を無視して結果を覚える、4 回目から高さが変わる、データを書き換える)を、すべて落とす**ことを確かめた。素直なプラグインは通る |
+| 配置の変種 | `canvas`、`width: 'fit'`、`width: 360` で描いても同じ。ただし `raw` は配置の通過のたびには呼ばないので、**コアの再配置の中で hook が何度も呼ばれることは、このスパイクでは再現できない**(U2 の後に、本物の `fill` / canvas / `width: 'fit'` の通過で確かめる) |
+| findings | プラグインの検査が 2 件。コアの `verifyDiagram` だけでは `ok = true`、**併合すると `ok = false`**。コアの verify に差し込む口が無いので、変換器は配置後に自分で回した(`verify` の hook が要る) |
+| 高さ・文字 | `raw` は高さが**構築時に固定**で、`<text>` が測定を通らない(門も拒む)。**配置の hook と、文字をデータで返す口(`texts`)が要る** |
+| 型 | `Band | PluginBand` / `LaidOutBand | LaidOutPlugin` に広げると、**ちょうど 10 件のエラー**(各表で `Property 'plugin' is missing`)、他は 0 件。レビューが実際の合併型を広げて `tsc -p .` を回すと **22 件**の診断が出て、すべて 10 個の表・派生の行・`test/pptx-groups.test.ts:124` にあった |
+
+### (2) `BandDef` の試作 — 帯の値から呼ぶ(`banddef/`。コアの表を通らない)
+
+- `band-def.ts`: 1 つの定義の形 `BandDef<D, L>`(`measure` / `layout` / `emit` / `verify`)と、**定義への参照を持つ帯の値** `{def, data, id?}`。
+- `mini-core.ts`(約 40 行): 測定 → 配置 → 検査 → 描画を、**`band.def.<hook>` を呼ぶだけ**で行う小さなパイプライン。帯を 1 つも import しない。測っていない文字は**エラー**(幅 0 で黙って通さない)。
+- `comic.ts`: **本物の** `lib/comic/*` と `lib/dsl/comic.ts` を 1 つの `BandDef` に包んだもの。
+- `box.ts`: **本物の** `layoutBoxContent` と `renderBox` を 1 つの `BandDef` に包んだもの(縮小版: アイコン・ステップ・タグ・スタンプの配置は含まない。DSL の `box()` は `rules.ts` を引くので使わない)。
+- `smoke.ts`: マンガ(4 コマ)と箱を試作のパイプラインで描き、本物の `renderInBrowser` のマンガと**ふきだしの数(4)とコマの数(12)が一致**することを確かめた。
+
+### (3) バンドルの測定(`bundle/`。esbuild の minify、ESM。依存は束ねるか外へ)
+
+**今の入口**(`measure.ts`、`entries.ts`)は背景の表のとおり。パッケージの入口ごと(Node 向け、依存は外):
+
+| 入口 | 自前のコード | 外部の依存 |
+|---|---|---|
+| `.`(`lib/dsl.ts`) | 1080.9 KB | `harfbuzzjs`、`playwright-chromium`、`node:*` |
+| `./browser` | 1042.0 KB | なし |
+| `./spec` | 483.0 KB | なし |
+| `./spec/edge`(MCP の Worker) | 1213.5 KB | なし |
+| `./pptx/edge` | 1301.1 KB | なし |
+| `./pptx/deck/edge` | 1328.1 KB | なし |
+| `./render` | 1254.8 KB | `harfbuzzjs`、`@resvg/resvg-js`、`playwright-chromium`、`node:*` |
+| `./markdown` | 1210.6 KB | `harfbuzzjs`、`playwright-chromium`、`node:*` |
+
+**出力形式と重いバックエンドの単体の大きさ**(`exporters.ts`。依存は外):
+
+| 部品 | 自前のコード | 備考 |
+|---|---|---|
+| PPTX(`lib/pptx/emit.ts` 単体) | 212.4 KB | うち **PPTX 自身 101.6 KB**(`template.ts` 39 KB は埋め込みの XML)、**共有の SVG 描画 110.7 KB**(`emit-figures.ts` 28.6 KB、`emit-boxes.ts` 11.8 KB など。`'image'` の貼り付けが各帯の描画を使うため) |
+| HTML(`lib/emit-html.ts` 単体) | 127.4 KB | `deck-html.ts` は 4.6 KB |
+| Node の測定器(`lib/measure.ts`) | 83.4 KB | `harfbuzzjs`(WASM)、`playwright-chromium`、`node:child_process` ほかを import |
+| ブラウザの測定器(`lib/web-measure.ts`) | 3.0 KB | 依存なし |
+| PNG(`lib/raster.ts`) | 100.6 KB | `@resvg/resvg-js`(ネイティブ)、Node の測定器を import |
+| フォントの箱(`lib/font-box.ts`) | 70.3 KB | HarfBuzz の測定を使う。**フォントのファイルは JS に埋め込まれていない**(`font-subset.ts` は 1.2 KB で、ファイルを読む) |
+| SVG 描画の枠(`lib/emit.ts` 単体) / 配置の枠(`lib/layout.ts` 単体) | 107.8 KB / 504.5 KB | どちらも**全部の帯を引く**(表のため) |
+| 検査(`verify.ts`)/ 規則(`rules.ts`) | 187.1 KB / 162.6 KB | 同上 |
+| Excel(ADR 0068) | **未実装**(Draft。コードなし) | D6 で設計に織り込む |
+
+**パッケージの入口 `.` の中身と理由**: `dsl/io.ts → pipeline.ts → emit-html.ts` で **HTML が 18.9 KB** 入る(`pipeline.ts` を単体で束ねると 306 KB。HTML・SVG の出力を全部持つため)。`dsl.ts → measure.ts` で **Node の測定器が入り**、`measure.ts → raster.ts` で PNG が少し入る(`harfbuzzjs`・`playwright-chromium` は外部の import として残る)。PPTX・spec・markdown は `.` には入らない。
+
+**出力形式が帯の種類で分岐している箇所(今)**: `lib/pptx/bands.ts`(表 `BAND_HANDLERS`。**各帯ごとの対応が 1 行**で、表の形のまま adapter の表に移せる)、`lib/pptx/slide.ts`(3 か所: `group` と `swimlane` の**入れ子の枠**を、後ろに続く帯の数 `span` でまとめる特別扱い)、`lib/pptx/geom.ts`(5 か所。コネクタの**図形名**で、帯の種類ではない)、`lib/pptx/svg-shapes.ts`(1 か所。矢じりの種類)、`lib/emit-html.ts`(16 か所: `native(b)` と `box()`/`caption()`/`banner()`/`group()`/`table()`/`row()`/`grid()` の分岐と `kindOf`。**ネイティブでない帯は、既定で「インラインの SVG」になる**)。つまり、**PPTX は「表を adapter に分ける」作業(`slide.ts` の `group` / `swimlane` の特別扱いは、その帯の adapter の hook に移す)、HTML は同じ形で、既定がすでに SVG**で、構造の作り直しは要らない。Excel(ADR 0068 D2)は、帯の種類ごとの表(「シートにする / 子をたどる / しない」)を**まだ書く前**なので、最初から adapter の形で書ける。
+
+**帯を使う側の最小のバンドル**(`prototype.ts`。試作のパイプライン。esbuild、ブラウザ向け、**`sideEffects` の指定なし**):
+
+| 試作の入口 | 大きさ | gzip | モジュール数 |
+|---|---|---|---|
+| マンガだけ(試作のパイプライン + `comic`) | **51.3 KB** | 20.4 KB | 38 |
+| 箱だけ | **29.2 KB** | 11.4 KB | 26 |
+| 箱 + マンガ | 67.4 KB | 26.4 KB | 47 |
+
+箱だけの 29.2 KB のうち、約 13 KB は**今の共有モジュールの付け根**による(`emit-boxes.ts → reveal.ts → band-ids.ts → quadrant.ts` の 7.3 KB と `reveal-handlers.ts` の 4.2 KB、`band-children.ts`)。**帯の定義の世界では、これらの付け根も切る**(`visibleAt` を小さなモジュールに出す、など。移行の基準 D10)。
+
+**`sideEffects: false` と入口ごとの `exports` で、本当に tree shaking が効くか**(`shaking.ts`。`lib/` と試作を、プレーンな ESM の JS にコンパイルした一時のパッケージを作り、esbuild と、**Vite(中身は Rollup)**でバンドルして大きさを比べる。入口はどれも**帯を 1 つだけ**使う):
+
+| ケース | esbuild | Rollup(Vite) |
+|---|---|---|
+| A. 全部の帯を再エクスポートする樽(barrel)、`sideEffects` の指定なし | 54.3 KB | 25.6 KB |
+| B. 同じ樽、`"sideEffects": false` | **16.4 KB** | **21.1 KB** |
+| C. 樽を使わず、帯ごとの入口を直接、`"sideEffects": false` | **16.4 KB** | **21.1 KB** |
+| C2. 同じ、`sideEffects` の指定なし | 29.3 KB | 25.3 KB |
+| F. マンガ 1 つだけ(帯ごとの入口、`sideEffects: false`) | 44.0 KB | 49.4 KB |
+| G. 箱 + マンガ(同上) | 55.3 KB | 64.0 KB |
+| D. **登録式**(帯のファイルを import すると自分を登録する)、指定なし | 54.4 KB | 54.0 KB |
+| D2. 登録式、`sideEffects: false` | 16.5 KB | 21.1 KB |
+| E. **今のコード**: `renderComic` だけ、`sideEffects: false` | 821.0 KB | 1034.2 KB |
+| E2. 今のコード、指定なし | 1035.0 KB | 1292.7 KB |
+
+読み取れること。
+
+1. **`sideEffects: false` は効く**(A→B で esbuild は 54 → 16 KB。Rollup も 26 → 21 KB)。付け根のモジュールを落とす。ただし**今の `package.json` には `sideEffects` の指定が無い**。
+2. **今のコードでは、フラグだけでは足りない**(E: 821〜1034 KB)。中央の表が全部の帯を**使っている**ので、落とせない。**表を無くすことが本体で、フラグは仕上げ**。
+3. **登録式(D)は危うい**: 指定なしでは全部の帯が束ねられ(54 KB)、`sideEffects: false` にすると**登録のモジュールが丸ごと落ちる**(import の結果を使わない import は消える)。登録に頼る帯が**黙って消える**。**帯の値が定義を持つ方式(この ADR の案)は、使う帯だけが import されるので、どちらのフラグでも正しい**。
+4. 帯ごとの入口を直接 import すれば、樽が無くても、フラグがあれば同じ(B = C)。樽は、フラグがある限り害が少ないが、**Rollup(Vite)は樽の再エクスポートの分析が esbuild より弱い**(F / G の差)ので、**帯ごとの入口を主にする**。
+5. Rollup(Vite)は、`package.json` の `sideEffects` を、**依存パッケージとして解決したとき**に読む(ケースはパッケージ内のファイルを直接指したので、同じ挙動の近似)。npm で配る版では、入口を `exports` に書き、`sideEffects: false` を入れた上で、**消費側のバンドラ(Vite / esbuild)で実際の入口をバンドルする試験**(下の予算の検査)を CI に入れる。
+
+**見積もり**(新しい世界。最小のバンドル、minify、KB。試作は本物より小さい中核を使っているので、**本物は幅で示す**)。
+
+| 組み合わせ | 今(測った) | 見積もり | 根拠 |
+|---|---|---|---|
+| マンガ + ブラウザの測定器(Artifact) | **1036** | **130〜160**(試作 51) | 中核(`svg-diagram/core`: パイプライン、測定、`connect`、検査と重ねの枠組み)は、そのまま残るモジュールを束ねて **81 KB**(`core-candidates.ts`。tokens、atoms、wrap、layout-text、layout-util、emit-common、スコープ、source-ref、`connect-rules`、`layout-connect`、経路探索、`verify-base`、svg-lint、appearance、located)+ reveal / spotlight / focus の表を切った後の約 20 KB ≈ **100 KB**。マンガの帯 ≈ 45 KB(試作で 37 KB + DSL・人物・`icon-store`)。ブラウザの測定器 3 KB |
+| 箱・行 + ブラウザの測定器 | **1032** | **120〜150**(試作 箱だけ 16〜29) | 中核 ≈ 100 KB + 箱 ≈ 16 KB(試作。フラグあり) + 行 ≈ 10 KB(`renderRow` と配置。見積もり)+ 3 KB |
+| 箱・行 + PPTX(Node。依存は外) | **1301**(`./pptx/edge`) | **240〜290** | 中核 100 + 箱・行 26 + **PPTX 自身 101.6 KB**(うち `template.ts` 39 KB)+ 箱・行の adapter ≈ 10 KB。**PPTX が今引いている共有の SVG 描画 110.7 KB は、「使う帯の描画」だけになる** |
+| 箱・行 + Excel | なし(未実装) | **170〜210**(見積もり) | 中核 100 + 箱・行 26 + Excel の書き出し(シートと書式の XML、zip は PPTX と共有。ADR 0068 D8)40〜60 KB。**コードが無いので根拠は弱い**。U の最初の測定で置き換える |
+| 全部入りのブラウザ(`./browser`) | **1042** | **1042 以下**(互換) | 全部の帯を含める。増やさない(予算) |
+| 全部入りの Node(`.`) | **1081** | 同じ | 同上 |
+
+**用心**: 「試作のパイプライン」は縮小版(縦の積みだけ、`connect()`・reveal・題・凡例なし)なので、**試作の大きさは本物の下限**で、見積もりは幅で書いた。本物は U1〜U5 で測り直し、予算(D12)を置く。
 
 ## 決定
 
-### D1. 形と API のバージョン — 平らなデータの `PluginDef`、コア側が DSL を作る、`id:kind`、別の semver
+### D1. 帯の定義は 1 つの形 `BandDef`。コアの帯も外部の帯も同じ形で、呼び出しは**帯の値**から行う
 
-**推奨(Q1、Q2、Q3):**
+**推奨(Q1、Q2):**
 
-**プラグインは「平らなデータ + 純粋な関数」。** 実行時に svg-diagram から何も import しない(`import type` だけ)。`definePlugin` / `defineBand` は**型のための恒等関数**で、返すのは入力のオブジェクトそのもの。DSL の関数は、**コアが**プラグインのデータから作る。
+1. **`BandDef<D, L>` が、帯の種類 1 つの全部の振る舞い**を持つ。コアの帯(`box`、`comic` …)も、外部の帯(`rating-demo:stars`)も、**同じ形**。違いは名前(外部の帯は `プラグインの id:帯の名前`)と、安全の約束(D8)だけ。
+2. **`BandDef` は出力形式に依らない hook だけを持つ**(Q5): `build`(構築と検査)、`measure`(測定の依頼)、`layout`(配置)、`emit`(**SVG**。SVG が基本の形式)、`verify` / `rules`(検査と規則)、`inventory`(ADR 0078 の目録)、`reveal`、`ids` / `anchors`、`spec`(schema、example、spec からの構築)、`docs`。**PPTX・Excel・HTML のコードは `BandDef` に入れない。** 帯を import しても、出力形式のコードは付いてこない(D6)。
+3. **呼び出しは帯の値を通す。** DSL の構築関数は、**定義への参照を持つ帯**を返す(`band[DEF]`。ソースの位置の `SOURCE` と同じ、`Symbol.for` のシンボル)。パイプラインは、中央の表を引かず、`band[DEF].layout(...)` のように**帯の値の定義を呼ぶ**。import していない帯のコードは、どこからも参照されないので、**束ねられない**。**何も登録しない**(登録式は、`sideEffects: false` で黙って消える。背景の測定 D)。
+4. **コアの帯の移行が主線**(Q2。D10)。表は、移行の間は**帯の定義から作る派生の見え方**になり、移行が終わったら無くなる。
 
 ```ts
-// プラグインのパッケージ(rating-demo)。svg-diagram からは型だけ
+// svg-diagram/bands/box(コアの帯。外部の帯と同じ形)
+import type {BandDef} from 'svg-diagram/core';
+export const boxDef = {
+  type: 'box',
+  build: (input: BoxInput): BoxBand => { /* 検査と既定値 */ },
+  measure: (d, m) => { /* m.atoms(text, size, weight, font) */ },
+  layout: (d, env) => ({h, anchors, texts, laid}),
+  emit: (laid, env) => '<g>…</g>',
+  verify: {rects: laid => […]},
+  ids: d => d.id ? [d.id] : [],
+  spec: {schema, example, build, check},
+} satisfies BandDef<BoxBand, LaidOutBox>;
+export const box = located((input: BoxInput) => band(boxDef, boxDef.build(input)));   // 帯の値 = データ + [DEF]
+```
+
+```ts
+// 外部のプラグイン(rating-demo): 平らなデータ + 純粋な関数。svg-diagram からは型だけ
 import type {PluginDef} from 'svg-diagram/plugin';
-
-const plugin = {
-  id: 'rating-demo',                       // 小文字・数字・ハイフン。'core' 'svg-diagram' は予約
-  apiVersion: '0.1',                       // プラグイン API の版。パッケージの版とは別(下)
-  version: '1.2.0',                        // このプラグイン自身の版(出力が変わるときに上げる)
-  requires: {svgDiagram: '>=0.10 <1'},     // 任意。合わなければ、両方の版を名指したエラー
-  bands: { stars: {/* D2 の hook。build / layout / emit / … */} },
-  characters: {/* D7 */}, expressions: [/* D7 */],   // 任意
-} satisfies PluginDef;
-export default plugin;
+export default {id: 'rating-demo', apiVersion: '0.1', version: '1.0.0', requires: {svgDiagram: '>=0.10 <1'},
+  bands: {stars: {/* BandDef(type は 'rating-demo:stars' になる) */}}} satisfies PluginDef;
+// 使う側
+import {pluginBands} from 'svg-diagram/core';
+const rating = pluginBands(ratingDemo);   // コアが構築関数を作る(located() つき)
 ```
 
-```ts
-// 使う側(コアが DSL の関数を作る)
-import {diagram, pluginBands} from 'svg-diagram';
-import ratingDemo from 'rating-demo';
-const rating = pluginBands(ratingDemo);                // {stars(data, opts)}: コアが作った構築関数
-diagram({theme: 'blue', plugins: [ratingDemo]}).add(rating.stars({label: '使いやすさ', value: 4}, {id: 'rate'}));
-```
-
-- **`pluginBands(plugin)`(と `diagram({plugins})` が内部で使う同じ関数)がコア側にあり**、帯ごとの構築関数を返す。構築関数は、(1)`build` を**構築の時点で**走らせ、投げたらプラグインの名前を前に付ける、(2)封筒(`{type: 'plugin', plugin, kind, data, id?, scope?, reveal?, until?}`)を返す、(3)**`located()` で包まれる**(ADR 0072 のソースの位置。スパイクで確認)、(4)型は `<const Id extends string>(data: D, opts?: {id?: Id; scope?: string; reveal?: number; until?: number}) => PluginBand<'rating-demo:stars'> & Declares<Id>`。
-- 型 `PluginDef` は `svg-diagram/plugin` が出す(型のみ。実行時の値は無い)。封筒は**平らなデータ**(シンボル、クラス、`instanceof`、`WeakMap` の同一性に頼らない)。これが、jsDelivr から 2 つのモジュールを読んだときにコピーが 2 つになっても安全な理由(D8)。
-- **帯の型の名前は `プラグインの id:帯の名前`**(例 `rating-demo:stars`、将来の `manga-face:avatar`)。コアの型にはコロンが無いので**衝突しない**。spec の部品も同じ。規則の id は `プラグインの id/規則名`(コアの規則はスラッシュなし)。
-- **版の約束(権威の順)**: (a)`apiVersion` がホストとの契約で**権威**。`0.x` の間は **minor まで同じ**でなければ受けない(スパイクで確認。`1.0` 以後は、major が同じでホストの minor ≥ プラグインの minor)。(b)`requires.svgDiagram` は core の版の範囲(受け入れ側の semver 範囲の解釈器を純粋な `lib/` に置き、ホストの版をブラウザの束にも入れる。合わなければエラー)。(c)`peerDependencies` は npm の案内で、実行時の検査ではない。(d)プラグイン自身の `version` は記録と、ホスト側のキャッシュのキーに使う。
-- **API の版は core のパッケージの版と別の semver。** `0.x` の間は破壊的変更を許し、プラグインは厳密に版を固定する。**`1.0` は D6 の「hook の網羅の確認表」を満たしてから**(Q2)。
+- **外部のプラグインは、名前空間つきの `BandDef` の集まり**にすぎない(Q8)。プラグインの `PluginDef` は**平らなデータ + 純粋な関数**で、実行時に svg-diagram から何も import しない(`import type` だけ。`satisfies PluginDef`)。構築関数は**コアが**プラグインのデータから作る(`pluginBands`。`located()` で包み、`Declares<Id>` の型を付ける)。理由は D12(jsDelivr から 2 つのモジュールを読むとき、コピーが 2 つになる問題を避ける)。
+- **帯の型の名前**: コアの帯は今までどおり(`box`、`comic`)。外部の帯は `プラグインの id:帯の名前`(`rating-demo:stars`)。コアの型にはコロンが無いので衝突しない。規則の id は `プラグインの id/規則名`。コアの規則は、移行しても今の id のまま(golden が変わらない)。
+- **版**: (a)`apiVersion` がホストとの契約で**権威**。`0.x` の間は minor まで同じでなければ受けない(`1.0` 以後は、major が同じでホストの minor ≥ プラグインの minor)。(b)`requires.svgDiagram` は core の版の範囲(合わなければ、両方の版を名指ししたエラー)。(c)`peerDependencies` は npm の案内。(d)プラグインの `version` は記録と、キャッシュのキー(D9)。**API の版は core のパッケージの版と別の semver**。`0.x` の間は破壊的変更を許す。**`1.0` の条件は D10。**
+- 帯の値が定義を持つので、**同じ型の帯が 2 つの版で共存してもよい**(帯ごとに自分の定義を呼ぶ)。spec(JSON)から作る帯は、渡された定義を使う(D9)。**構築関数を作った定義と、`diagram({plugins})` に渡された定義が、同じ型で版が違うときはエラー**(コピーの食い違い。スパイクで確認)。
 
 | 案 | 採らない理由 |
 |---|---|
-| (採用)平らなデータ + コアが DSL を作る + `id:kind` + 別の semver | 衝突しない。実行時の依存が無い。`located()` と型(`Declares`)をコアが確実に付けられる。版の約束が core のリリースと独立 |
-| プラグインが自分で構築関数を作って返す(`svg-diagram/plugin` を束ねて同梱) | `located()` のソースの位置と、`Declares` の型を、プラグイン側が正しく付ける保証が無い。コピーが 2 つになる(D8) |
-| `id/kind`(スラッシュ) | 規則の id(`id/rule`)と、ファイルのパスに見える |
-| `id.kind`(ドット) | id のスコープの区切り(ADR 0012 の `scope.id`)と衝突 |
-| 名前空間なし | 衝突する。2 つのプラグインが `stars` を持てない |
-| core の semver に API の版を含める | core の軽い更新でプラグインが壊れる(または API を凍らせて core が動けなくなる) |
+| (採用)`BandDef` を帯の値が参照し、パイプラインが帯の値から呼ぶ | 使う帯だけが束ねられる。登録が要らない。コアの帯と外部の帯が同じ形。出力形式のコードが `BandDef` に入らないので、帯の import が出力形式を引かない |
+| 中央の表を残し、プラグインを封筒 `plugin` 1 種類で足す(ラウンド 1〜2 の案) | 外部の帯は足せるが、**コアの帯の束ねは直らない**(1 MB のまま)。決める人の要件 2・3 を満たさない |
+| 登録式(`registerBand(def)`、帯のファイルを import すると自分を登録する) | 全部を import すると全部入る。`sideEffects: false` だと**黙って消える**(背景の D)。グローバルの状態(ADR 0074 に反する) |
+| 帯の定義を出力形式の hook まで持つ(`pptx` / `xlsx` を `BandDef` に入れる) | 帯を 1 つ import すると PPTX・Excel のコードが付いてくる。出力形式ごとの tree shaking ができない |
+| ビルド時にバンドラのプラグインで未使用の帯を削る | ツールへの依存を利用者に強いる。型のない取り除きになる。`sideEffects` と入口で足りる |
 
-### D2. プラグインの帯が持つもの(必須・任意・既定)
+### D2. `BandDef` の hook(必須・任意・既定)
 
-今の表への対応。`bands.<名前>` の各 hook は、**純粋で冪等な関数**(同じ入力から同じ出力。`Date`・`Math.random`・グローバルの状態・I/O なし)。**hook は 1 回の描画の中で何度も呼ばれる**(`fitLineScale` と折り返しのやり直し、`fill` の `fontScale` の二分探索、canvas の拡大、`width: 'fit'` の最大 4 回の配置。`layout.ts`、`dsl/render.ts`、`web.ts`)。呼ぶ回数を数えたり、回数に頼ったりしてはいけない。
+今の表への対応。各 hook は**純粋で冪等な関数**(同じ入力から同じ出力。`Date`・`Math.random`・グローバルの状態・I/O なし)。**hook は 1 回の描画の中で何度も呼ばれる**(`fitLineScale` と折り返しのやり直し、`fill` の `fontScale` の二分探索、canvas の拡大、`width: 'fit'` の最大 4 回の配置。`layout.ts`、`dsl/render.ts`、`web.ts`)。回数を数えたり、回数に頼ったりしてはいけない。
 
-| hook | 対応する表 | 必須か | 既定(無いとき) |
+| hook | 対応する表(今) | 必須か | 既定(無いとき) |
 |---|---|---|---|
-| `build(input) → data` | DSL の関数、spec の `PARTS[].build / check` | **必須**。唯一の入力検査。投げるときはフィールド名を言う(コアがプラグインの名前を前に付ける)。構築の時点で走る | — |
-| `schema`(コアの `JsonSchema` の部分集合)、`description`、`example` | spec(20)、`partCatalog()`、MCP | spec に出すなら**必須**。出さないなら `spec: false` | `spec: false` なら catalog にも出ない。**登録のときに、spec の検査器が理解しないキーワード(`pattern`・`anyOf`・`$ref`・`format` など)があれば拒む**(黙って無視されるため)。`example` は適合テスト(U6)で「問題なく描ける」ことを見る |
-| `ids(data) → string[]` | `bareNodeIds`(13)。reveal と anchor のスコープが**配置前**に使う | anchor を持つ帯は**必須** | `[]`。配置が返した anchor がこれに無いとき `plugin-anchor-undeclared`(エラー) |
+| `build(input) → data` | DSL の関数、spec の `PARTS[].build / check` | **必須**。唯一の入力検査。投げるときはフィールド名を言う(外部の帯は、コアがプラグインの名前を前に付ける)。構築の時点で走る | — |
+| `spec`(`schema`、`example`、`build`、`check`) | spec(20)、`partCatalog()`、MCP | spec に出すなら**必須**。出さないなら `spec: false` | `spec: false` なら catalog にも出ない。**登録のときに、spec の検査器が理解しないキーワード(`pattern`・`anyOf`・`$ref`・`format` など)があれば拒む**。`example` は適合テスト(U6)で「問題なく描ける」ことを見る |
+| `ids(data) → string[]` | `bareNodeIds`(13)。reveal と anchor のスコープが**配置前**に使う | anchor を持つ帯は**必須** | `[]`。配置が返した anchor がこれに無いとき `band-anchor-undeclared`(エラー) |
 | `measure(data, m)` | `MEASURE_HANDLERS`(2) | 文字があれば | 文字なし。**文字は `m.atoms(text, size, weight, font)` だけ**。大きさは `m.roles` から取る(下の「測定」) |
 | `layout(data, env) → {h, anchors, texts, paper?, laid}` | `LAYOUT_HANDLERS`(1)、`placedBand`、`ctx.register`、スコープ(13) | **必須**。`env` = `{x, y, w, widthOf, roles, theme, tones, wrap, wrapText}`。`w` は**親の内容の幅**(最上位でも、`group` / `row` / `areas` の中でも)。`anchors`(`{id, x, y, w, h}`。帯の中の名前)はホストが登録する(下の「id」) | — |
-| `emit(laid, env) → svg` | `EMIT_HANDLERS`(6) | **必須**。図形だけ。ホストが**本物の `sanitizeBody`** を通し、id に接頭辞を付け、自分の包み(`data-node`)で包む(D5)。色は `env.color(key)`(パレットのトークン) | — |
-| `texts`(`layout` の返す文字のデータ) | `FIT_HANDLERS`(8)、`INVENTORY_HANDLERS`(9) | 文字があれば | `[]`。各項目: `{x, y, text, size, weight?, font?, anchor?, tone?, lines?, w?, part?, reveal?}`。**文字は `<text>` で出さず、データで返し、コアが描く** |
-| `verify.rects(laid)`、`verify.check(laid, ctx) → findings`、`verify.contrast` | `VERIFY_HANDLERS`(7)、`CHECK_PHASES`(19) | 任意 | `rects` は帯全体 1 つ(`ownRect` 相当)。`check` なし。findings は `{rule, severity: 'problem' \| 'warn' \| 'info', message, where?}`(プラグインに見せる重大度はこの 3 つ。ホストが `problem` → verdict の問題、`warn` / `info` → findings の `warn` / `info` に写す。コアの `advice` は `info`) |
-| `rules`(`{規則名: {doc, scope: 'band' \| 'band-grouped' \| 'diagram'}}`) | `RULE_DOCS` / `RULE_LOCATION`(18) | **出す規則は全部必須** | 無い規則を出すと `plugin-rule-undocumented` |
-| `inventory(laid) → items` | `INVENTORY_HANDLERS`(9) | 任意 | `texts` から `text` の項目、図形の全体を `whole` 1 つ(`band` には `plugin` と `kind` も記録する。0078 の読み手が見分けられる)。保守側(重ねの吹き出しが覆ってはいけない内容) |
-| `reveal` | `REVEAL_HANDLERS`(3) | 任意 | `{stage: true}`(帯の `reveal` / `until`。anchor もその段)。**帯の部品ごとの reveal と、スポットライトの部品ごとの暗さは v1 では持たない**(帯全体で出入り、暗くなる)。`env.focus` と、anchor ごとの `reveal` の名前を予約 |
-| `children` | `CHILD_BANDS`(4)、`STACK_WIDTH`(5) | **v1 では不可**(他の帯を**持つ**ことはできない。Q5)。名前だけ予約 | 子なし。`STACK_WIDTH` は `null` |
-| `pptx` | `BAND_HANDLERS`(10) | 任意 | `'image'`(SVG を絵として貼る。コアの `image` の帯と同じ経路)。ネイティブは minor で |
-| `docs`(`summary`、`usage`、`example`) | README、skills、`list_diagram_parts`(24) | 任意 | `description` と `example` から catalog の行を作る。プラグイン自身が自分の README / skill を持つ |
+| `emit(laid, env) → svg` | `EMIT_HANDLERS`(6) | **必須**。**SVG**(基本の形式)。外部の帯は図形だけ(ホストが**本物の `sanitizeBody`** を通し、id に接頭辞を付け、自分の包み(`data-node`)で包む。D8)。色は `env.color(key)`(パレットのトークン) | — |
+| `texts`(`layout` の返す文字のデータ) | `FIT_HANDLERS`(8)、`INVENTORY_HANDLERS`(9) | 文字があれば | `[]`。各項目: `{x, y, text, size, weight?, font?, anchor?, tone?, lines?, w?, part?, reveal?}`。**外部の帯は文字を `<text>` で出さず、データで返し、コアが描く** |
+| `verify.rects(laid)`、`verify.check(laid, ctx) → findings`、`verify.contrast` | `VERIFY_HANDLERS`(7)、`CHECK_PHASES`(19) | 任意 | `rects` は帯全体 1 つ(`ownRect` 相当)。`check` なし。findings は `{rule, severity: 'problem' \| 'warn' \| 'info', message, where?}`(コアの `advice` は `info`。ホストが `problem` → verdict の問題、`warn` / `info` → findings に写す) |
+| `rules`(`{規則名: {doc, scope: 'band' \| 'band-grouped' \| 'diagram'}}`) | `RULE_DOCS` / `RULE_LOCATION`(18) | **出す規則は全部必須** | 無い規則を出すと `band-rule-undocumented` |
+| `inventory(laid) → items` | `INVENTORY_HANDLERS`(9) | 任意 | `texts` から `text` の項目、図形の全体を `whole` 1 つ(`band` には型名を記録。外部の帯は plugin / kind も)。保守側(重ねの吹き出しが覆ってはいけない内容) |
+| `reveal` | `REVEAL_HANDLERS`(3) | 任意 | `{stage: true}`(帯の `reveal` / `until`。anchor もその段)。**帯の部品ごとの reveal と、スポットライトの部品ごとの暗さは外部の帯では持たない**(帯全体で出入り、暗くなる)。`env.focus` と、anchor ごとの `reveal` の名前を予約 |
+| `children` | `CHILD_BANDS`(4)、`STACK_WIDTH`(5) | コアの `group` / `row` / `areas` / `grid` / `grouprow` / `image` / `tree` は持つ。**外部の帯は v1 では不可**(Q9) | 子なし。`STACK_WIDTH` は `null` |
+| `docs`(`summary`、`usage`、`example`) | README、skills、`list_diagram_parts`(24) | 任意 | `description` と `example` から catalog の行を作る。外部のプラグインは自分の README / skill を持つ |
 
-**id(ADR 0012 に従う)**: プラグインの帯の**スコープは、既定で帯の `id`**(明示の `scope` で上書きできる)。anchor を持つ帯は `id` が**必須**(無いと構築でエラー)。帯全体を `<id>`、部品を `<スコープ>.<部品の id>`(`rate.s2`)として登録する。同じ種類の帯が 2 つあっても `s1…s5` が衝突しない(U2 のテスト)。部品の id は**型では検査されない**(`strict.ts` の `IdProblem` はドット付きの id を通す。スパイクで `rate.s99` が通ることを確認)ので、**実行時の検査**(今の `connect()` の `unknown anchor id`)に頼る。型で守れるのは帯の id まで。プラグインの帯は**他の id を参照しない**(`Refers` の hook は v1 に無い)。
+**出力形式の hook は無い**(PPTX・Excel・HTML は D6 の adapter)。
+
+**id(ADR 0012 に従う)**: 外部の帯の**スコープは、既定で帯の `id`**(明示の `scope` で上書きできる)。anchor を持つ帯は `id` が**必須**。帯全体を `<id>`、部品を `<スコープ>.<部品の id>`(`rate.s2`)として登録する。同じ種類の帯が 2 つあっても `s1…s5` が衝突しない(U2 のテスト)。部品の id は**型では検査されない**(`strict.ts` の `IdProblem` はドット付きの id を通す。スパイクで `rate.s99` が通ることを確認)ので、**実行時の検査**に頼る。`areas` の欄の帯は、**`id` を欄の名前と同じに**する(`containers.ts`)。帯は**他の id を参照しない**(`Refers` の hook は v1 に無い)。
 
 **測定(コアの挙動に合わせた厳密な約束)**:
 
-- コアは、測っていない文字を**幅 0 で黙って通す**(`widthOfMeasured`。`renderInBrowser` は strict でない)。プラグインでそれを許さない: ホストは、`texts` の各項目と `widthOf` の呼び出しを、`measure` が登録した集合と照合し、**漏れは `plugin-text-unmeasured`(どの経路でもエラー)**。
-- 文字の大きさは、`measure` の `m.roles`(と `layout` の `env.roles`)から取る。`fill` と canvas は `roles` を拡大して測り直し、canvas は文字の最小(`minText`)を守らせるので、**固定の px は使わない**(コアの帯が `roles` から大きさを出すのと同じ)。
-- 日本語の折り返しはコアのもの(禁則、文節)を使う。**プラグインは折り返しを自分で書かず**、`env.wrapText(text, {size, weight, font, w}) → lines` を呼ぶか、`texts` の項目に `w`(折り返す幅)を書いてコアに折り返させる(返った `lines` は `laid` に入れてよい)。
+- コアは、測っていない文字を**幅 0 で黙って通す**(`widthOfMeasured`。`renderInBrowser` は strict でない)。外部の帯でそれを許さない: ホストは、`texts` の各項目と `widthOf` の呼び出しを、`measure` が登録した集合と照合し、**漏れは `band-text-unmeasured`(どの経路でもエラー)**(試作のパイプラインで確認)。
+- 文字の大きさは、`measure` の `m.roles`(と `layout` の `env.roles`)から取る。`fill` と canvas は `roles` を拡大して測り直し、canvas は文字の最小(`minText`)を守らせるので、**固定の px は使わない**。
+- 日本語の折り返しはコアのもの(禁則、文節)を使う。帯は折り返しを自分で書かず、`env.wrapText(text, {size, weight, font, w}) → lines` を呼ぶか、`texts` の項目に `w` を書いてコアに折り返させる。
 
-**プラグインの帯が守ること(適合テスト U6 が確かめる。ホストは実行時にすべては強制できない。2 と 3 は一部のみ強制)**:
+**帯が守ること(適合テスト U6 が確かめる。ホストは実行時にすべては強制できない)**:
 
-1. **決定性と冪等**: 同じ入力は同じバイト列。`layout` / `emit` を続けて何度呼んでも、入力の深いコピーから呼んでも、同じ。`laid` は `structuredClone` できる(スパイクの `conformance()` が確認)。
-2. **純粋**: `node:*`・`fetch`・グローバルの状態を使わない(ブラウザの入口にそのまま載る。`test/web-entry.test.ts` と同じ検査を fixture にかける)。プラグインの配布物は、**import のない 1 つの自己完結した ESM**(適合テストが `import` / `require` の文を探す。D8)。
-3. **文字はコアの測定器**: 文字は `measure` と `texts` だけ。`emit` の SVG に `<text>` があれば、門が拒む(D5)。
-4. **色とダークモード**(コアの仕組みに合わせる): ダークモードは、出力の SVG の中の**パレットのトークンの `#rrggbb` を、暗い側の `#rrggbb` に置き換える**(`recolor`、`lib/tokens.ts`)。トークンでない色はそのまま残る。comic は、固定したい色を**門の後で `rgb()` にして**置き換えを避ける。プラグインの帯もこれに合わせる。
-   - 既定: `env.color(key)` が返すパレットの色を使うと、ダークモードで**暗い側に置き換わる**(スパイクで確認)。
-   - 固定の色(顔の肌色・輪郭など): **`layout` が `paper: true` を返した帯**は、門を**通した後**に `#hex` を `rgb()` に直し(comic と同じ)、白い紙の下地を敷く。置き換えは起きず、暗い図でも読める。`paper` でない帯がトークンでない `#hex` を使うと、暗い図で `plugin-fixed-color`(助言)。
-   - **門は `rgb()` を拒む**(`sanitizeBody` は、塗りに `#hex`・`none`・`currentColor`・`url(#…)` だけを認め、`#hex` は `allowColor` のときだけ)。だから変換は門の後(ホスト)で、プラグインは `#hex` で書く。`currentColor` を拒むのは `loadCharacter` の追加の検査で、`sanitizeBody` ではない(プラグインの帯の門は `currentColor` を通すが、ダークモードの動きは U3 で確かめるまで保証しない)。
-5. **id は衝突しない**: anchor の id は帯のスコープで修飾(上)。SVG の `id` は帯ごとの接頭辞(`prefixIds`)。**1 つの帯の出力の中の id の重複は `plugin-svg-rejected`**(`sanitizeBody` は重複を見ないので、ホストが調べる。例: ADR 0079 の顔が固定の `id="fc"` を使うなら、顔ごとに修飾して一意にする)。
-6. **大きさの上限**: 1 つの帯の SVG と anchor の数の上限は**設定できる**(既定 SVG 1 MB、anchor 1000。顔 64 個の見本帳は、顔 1 つが 4.9〜5.8 KB(ADR 0079)なので約 370 KB で、既定に収まる)。超えたら `plugin-too-large`(エラー)。
+1. **決定性と冪等**: 同じ入力は同じバイト列。`layout` を、**幅・`roles` の倍率・折り返しの方式を変えた環境で A, B, C, A, B, A の順に**呼んでも、入力の深いコピーから呼んでも、同じ(試作の `conformance()` が確認。壊れた 3 つのプラグインを落とした)。`laid` は `structuredClone` できる。**本物の `fill` / canvas / `width: 'fit'` の通過での確認は U2 の後**(このスパイクでは再現できない)。
+2. **純粋**: `node:*`・`fetch`・グローバルの状態を使わない(ブラウザの入口にそのまま載る)。外部の配布物は、**import のない 1 つの自己完結した ESM**(D12)。
+3. **文字はコアの測定器**: 外部の帯の文字は `measure` と `texts` だけ。`emit` の SVG に `<text>` があれば、門が拒む(D8)。
+4. **色とダークモード**(コアの仕組みに合わせる): ダークモードは、出力の SVG の中の**パレットのトークンの `#rrggbb` を、暗い側の `#rrggbb` に置き換える**(`recolor`、`lib/tokens.ts`)。トークンでない色はそのまま残る。comic は、固定したい色を**門の後で `rgb()` にして**置き換えを避ける。
+   - 既定: `env.color(key)` が返すパレットの色は**暗い側に置き換わる**(スパイクで確認)。
+   - 固定の色(顔の肌色・輪郭など): **`layout` が `paper: true` を返した帯**は、門を**通した後**に、**`fill` / `stroke` / `stop-color` の値だけ**の `#hex`(3・4・6・8 桁。アルファは捨てる)を `rgb()` に直し(`url(#id)` や `href` は触らない)、**`PALETTE.bg` の `rgb()` の下地**を敷く(comic の `COLOR.paper` と同じ。明るい図に白い四角が出ない)。置き換えは起きない。
+   - **`paper` の帯の `texts` は、ホストが凍結したインクの色(`rgb()`。トーンごとに明るいパレットの値)で描く**(comic が `<text>` を `COLOR.ink` / `COLOR.prompt` の `rgb()` にするのと同じ)。**そうしないと、暗い図でコアの文字だけが明るい色に置き換わり、白い下地の上で読めなくなる**(manga-face の `faces` の名前が該当)。U3 に、暗い図の `paper` の帯の**文字と下地のコントラスト**のテストを置く。
+   - `paper` でない帯が、トークンでない `#hex`(3・4・6・8 桁のどれでも)を使うと、暗い図で `band-fixed-color`(助言)。
+   - **門は `rgb()` を拒む**(`sanitizeBody` は、塗りに `#hex`・`none`・`currentColor`・`url(#…)` だけを認め、`#hex` は `allowColor` のときだけ)。だから変換は門の後で、帯は `#hex` で書く。
+5. **id は衝突しない**: anchor の id は帯のスコープで修飾(上)。SVG の `id` は帯ごとの接頭辞(`prefixIds`)で、**接頭辞は図の中の帯の位置から決める**(プロセスの中の構築の順や、モジュールの大域の数え上げに依らない。スパイクは帯の内容から決めた)。**1 つの帯の出力の中の id の重複は `band-svg-rejected`**(`sanitizeBody` は重複を見ないので、ホストが調べる。例: ADR 0079 の顔が固定の `id="fc"` を使うなら、顔ごとに修飾して一意にする)。
+6. **大きさの上限**: 1 つの帯の SVG と anchor の数の上限は**設定できる**(既定 SVG 1 MB、anchor 1000。顔 64 個の見本帳は、顔 1 つが 4.9〜5.8 KB(ADR 0079)なので約 370 KB で、既定に収まる)。超えたら `band-too-large`(エラー)。
 7. **他の帯に触れない**: hook は帯の `data` と `env` だけを受け取り、他の帯・図の状態は渡さない。
 
-### D3. 登録と範囲 — 呼び出しごと(グローバルにしない)+ プロジェクトの設定
+### D3. 入口とパッケージの構成 — 中核、帯ごと、出力形式、バックエンド
 
-**推奨(Q4): 呼び出しごと。グローバルの登録簿は作らない**(ADR 0074 D3 と同じ理由)。ただし、呼び出しのコードを持たない入口(JSON のデッキ、markdown の囲み、エディタのプレビュー)のために、**プロジェクトの設定に `plugins` の一覧**を置く(下)。設定は**呼び出す側が書く物**(リポジトリの持ち主が決める)で、spec(データ)ではないから、D5 の 1 は守られる。呼び出しごとの渡し方は、設定を**上書き**する。
+**推奨(Q4)**: `package.json` の `exports` に入口を足し、**`"sideEffects": false`** を入れる(今は指定なし)。既存の入口は**互換のため残す**(全部入り)。
 
-| 入口 | 渡し方 |
-|---|---|
-| DSL(`.ts`) | `diagram({plugins: [ratingDemo]})`。帯は `pluginBands(ratingDemo).stars(…)`(D1)で作る。`plugins` に渡し忘れると、`add()` の検査(構築の時点)でエラー |
-| JSON の spec(LLM が書く) | `{type: 'rating-demo:stars', …}`。`specToDiagram(spec, {plugins})` / `validateSpec(spec, {plugins})` / `renderSpec(spec, {plugins})` |
-| **`renderSpecEdge`**(`lib/spec-edge.ts`。MCP の Worker が呼ぶ) | `renderSpecEdge(spec, {plugins})`。**Worker は、ビルド時に静的に import した許可リストを渡す**(D5、D8) |
-| ブラウザ | `renderInBrowser(diagram({plugins}), {measure})`。DiagramData から直接なら `renderInBrowser(data, {measure, plugins})` |
-| `renderComic` | `renderComic(sheet, {measure, characters, plugins})`(D7) |
-| CLI(`build` / `check` / `show` / `serve` …) | `--plugin ./x.ts`(繰り返し可)。`.ts` の図は自分で `import` して `diagram({plugins})` に渡す |
-| `./render`、`./markdown`、`./markdown-it`、`./remark`、`./vitepress` | オプションの `plugins`。囲みのコードブロックは、設定の `plugins` を使う |
-| デッキ(`deck.json`)、`svg-diagram site`、PPTX(`./pptx/edge`、`./pptx/deck/edge`)、VS Code の拡張のプレビュー | 設定の `plugins`(下)。PPTX の edge には、呼び出しの `plugins` も通す |
-| MCP | サーバー側の**許可リスト**。呼び出しの側からは渡せない |
+| 入口 | 中身 | 備考 |
+|---|---|---|
+| `svg-diagram/core` | パイプライン(測定 → 配置 → 検査 → 描画)、`BandDef` と帯の値の型、`connect`、検査の枠組み、重ねの枠組み、トークン、文字の配置、`pluginBands` | **帯を 1 つも import しない**。純粋(`node:*` なし) |
+| `svg-diagram/bands/<名前>`(`box`、`row`、`group`、`comic`、`gantt` …) | 帯の `BandDef` と DSL の構築関数 | 他の帯を import しない(共有は `core` か、小さな共有モジュールだけ)。**1 帯 1 入口** |
+| `svg-diagram/bands`(まとめの入口) | 全部の帯の再エクスポート | `"sideEffects": false` の前提でのみ使う便宜の入口 |
+| `svg-diagram/measure/browser`、`svg-diagram/measure/node` | 測定器(ブラウザの `svgMeasurer` / `canvasMeasurer` 3 KB、Node の HarfBuzz 83 KB ほか) | バックエンド(D7) |
+| `svg-diagram/pptx`、`svg-diagram/pptx/bands/<名前>` | PPTX の書き出しの枠(zip、パッケージ、スライド、コネクタ、テンプレート)と、**帯ごとの adapter** | 出力形式(D6) |
+| `svg-diagram/xlsx`、`svg-diagram/xlsx/bands/<名前>` | Excel の書き出し(ADR 0068)と、帯ごとの adapter | 同上 |
+| `svg-diagram/html`、`svg-diagram/html/bands/<名前>` | HTML の書き出しと adapter | 同上 |
+| `svg-diagram/png` | PNG(`resvg`) | バックエンド |
+| `svg-diagram/spec`(`renderSpec(spec, {bands})`)、`svg-diagram/spec/edge` | JSON の spec の入口。**使う帯を渡す**(D9) | 全部入りの一覧も出す(下) |
+| `svg-diagram`、`svg-diagram/browser`、`./render`、`./pptx/edge` ほか(**今の入口**) | **全部入り**。全部の帯と、全部の adapter、全部の帯の一覧 | 互換。大きさは今と同じ(増やさない。予算) |
 
-**設定の `plugins`**(`.svg-diagram.json` と同じ場所。`lib/config.ts`): 例 `{"plugins": ["./plugins/rating-demo.ts", "manga-face"]}`。CLI・エディタ・描画の殻が**読み込んで**から core に `plugins` として渡す(core は読まない。ADR 0031 の殻の仕事)。パスか npm の名前。読み込みの失敗はエラー(黙って無視しない)。
+- **全部入りの入口は、`core` + 全部の帯 + 全部の adapter** を束ねる薄い入口として作る(中身は同じコード。重複しない)。
+- 帯の入口と `core` の依存の向きは**一方向**(帯 → core)。`test/band-boundaries.test.ts`(新しい検査)が、`core` のモジュールが帯のモジュールを import していないこと、帯が他の帯を import していないことを見張る(`test/core-purity.test.ts` の仲間)。
+- 型の互換: 全部入りの入口は、今の `Band` / `LaidOutBand` の合併型を**そのまま出す**(利用者の型は変わらない)。`core` の中は、帯を**型で列挙せず**、`BandValue` を一般に扱う(D5)。
 
-**プラグインが渡されていないとき**: 黙って捨てない。黙って箱にもしない。**`layoutHandlerFor` の `?? layoutBoxLikeBand` のフォールバックを削除し、未知の型は投げる**(`ALL_BANDS_HANDLED` が全数を証明するので、既定は要らない。JSON から来た `DiagramData` に `type: 'x:y'` が紛れても、黙って箱にならない。U1 のテスト)。次の形の**明確なエラー**。
+### D4. 帯の値から呼ぶ — パイプライン、コピー、移行中の派生の表
 
-```
-the band type "rating-demo:stars" is a plugin band, but plugin "rating-demo" was not supplied:
-pass it as diagram({plugins: [...]}) / --plugin / the project config (a spec never loads code). Available: none
-```
+- **帯の値** = 今までの帯のオブジェクト(`type` と各フィールド)+ `[DEF]`(定義への参照。列挙できるシンボルのプロパティ)。`type` の文字列は残す(`b.type === 'group'` を使う既存の読み手、エラーメッセージ、`data-*` はそのまま)。JSON からの `DiagramData` にも `type` がある場合は、**渡された帯の一覧(D9)で `type` から定義を引き直す**(定義が無ければ D9 のエラー)。
+- **パイプライン(`core`)**: 測定は `band[DEF].measure`、配置は `band[DEF].layout`、描画は `band[DEF].emit`、検査は `band[DEF].verify`、reveal は `band[DEF].reveal`、id は `band[DEF].ids`、子は `band[DEF].children`。`layoutHandlerFor` の**箱のフォールバックは削除**し、定義の無い帯は投げる(U1 のテスト: 未知の `type: 'x:y'` が箱にならない)。
+- **コピーで定義を落とさない**: `detachData`、`rewrite`、`withNodeIdsBand`、`placedBand` などの**帯をコピーする関数**は `[DEF]` を引き継ぐ(`SOURCE` と同じ扱い。**1 つの `copyBand` に集める**)。U1 に「全部のコピー経路で `[DEF]` が残る」テストを置く。
+- **配置の中で他の帯の中身を見る規則**(重なりの検査、スポットライト、reveal、目録)は、**`switch` をやめ、帯が返す一般のデータだけで書く**: `rects`(検査の長方形)、`anchors`、`texts`、`inventory`(0078 の目録)、`children`。得るもの: `core` が帯を知らなくてよい。失うもの: **帯の種類ごとの網羅的な `switch`(コンパイラが抜けを教えてくれる)が、hook の呼び出しになる**(D5)。帯をまたぐ規則は、`inventory` と `rects` のような**一般のデータ**で書く(今の ADR 0078 の目録が、その形)。
+- **移行の間の「派生の表」**(D10): `LAYOUT_HANDLERS` などの表は、**移行した帯を表から外し**、`layoutHandlerFor(band) = band[DEF]?.layout ?? 表[band.type]` とする(移行していない帯は表のまま)。全部入りの入口は、**定義の一覧から表を作り直した「派生の表」を、互換のために出す**。移行が終わったら、中央の表と `ALL_BANDS_*` を消す。
 
-(日本語の版も出す。)`validateSpec` では `SpecIssue`(`path: parts[2].type`)として返り、LLM が直せる。許可リストに無いプラグインを spec が名指ししたとき(MCP)は、**使えるものの一覧**を返す。
+### D5. 型 — 全数性は表から `BandDef` へ移る。何を得て、何を失うか
 
-### D4. 型 — 封筒の 1 つの帯の種類で、コアの全数性を残す
+**推奨(Q1)**:
 
-**推奨(Q1): コアに帯の種類 `plugin` を **1 つだけ**足す(封筒)。** `Band` に `PluginBand`(`{type: 'plugin', plugin, kind, data, id?, scope?, reveal?, until?}`)、`LaidOutBand` に `LaidOutPlugin`(`{type: 'plugin', plugin, kind, x, y, w, h, anchors, texts, laid, findings}`)を足す。10 個の表(A)には、それぞれ**プラグインへ回す 1 行**を足す。コアの帯のキーは全部必須のままなので、**コアの帯の抜けは今までどおりコンパイルで落ちる**(ラウンド 1 のレビューが、実際の合併型を広げて確かめた: 診断 22 件はすべて 10 個の表と派生の行)。プラグインの帯の種類は型の合併型に入らない。
-
-- **「葉」の意味**: プラグインの帯は**他の帯を持てない**(`children` は予約。`CHILD_BANDS` は空、`STACK_WIDTH` は `null`)。**ただし、`group` / `grouprow` / `areas` / `row`(箱でない子は `group` に包まれる)/ `grid` の子には、なれる**(スパイクで 3 つとも描け、型も通る。顔を文の横に置くのが主な使い方)。**ADR 0078 の `FlowBand`(`Exclude<Band, OverlayBand>`。0078 U2 で入る)は、`PluginBand` を流れの帯に含む**(`Band` の中にあるので自動で)。**重ねの帯(`overlay`)にはならない**(v1)。`Diagram<Ids>` は `PluginBand` を普通に受ける(`diagram().add(プラグインの帯)`)。
-- **`connect()` の id の型**: 構築関数が `PluginBand<K> & Declares<Id>` を返す。`Declares` は幽霊の運び屋で、`diagram().add()` の既存の検査にそのまま乗る(最上位・`group`・`row`・`areas` の中で通り、裸の綴り間違いは拒まれることをスパイクで確認。U1 の `@ts-expect-error` のテストにする)。**ドット付きの部品の id(`rate.s2`)は型では検査されず、実行時だけ**(ADR 0012 と同じ。D2 の id)。計算で決まる id は `string` にして実行時で守る(`strict.ts` の約束と同じ)。
+- **帯ごとの全数性は `satisfies BandDef<D, L>`**: 必須の hook が 1 つでも抜けた帯は、その帯のファイルでコンパイルが落ちる。**表(A)の `satisfies {[T in …]}` と同じ強さが、帯の側に移る**。
+- **全部入りの入口は、「`Band['type']` の全部に定義がある」を型で守る**: `const ALL_BANDS = {box: boxDef, …} satisfies {[T in Band['type']]: BandDef}`(全部入りの入口だけにある 1 つの表)。**コアの帯を足して定義を作り忘れると、全部入りの入口でコンパイルが落ちる**。`core` はこれを import しない。
+- **失うもの**: (1)**`core` の中の網羅的な `switch`**(帯の種類を列挙して、抜けをコンパイラが教える仕組み)は、**hook の呼び出しになる**。「この帯の種類にこの hook を足し忘れた」は、**型の必須の hook**(抜ければ帯のファイルで落ちる)と、**任意の hook の既定**で守る。(2)**帯をまたぐ規則**(重なりの検査、スポットライト、reveal など)は、他の帯の中身を型で見られない。**一般のデータ(`inventory`・`rects`・`anchors`・`texts`・`children`)で書く**。(3)`RuleId`(コンパイル時に閉じた規則の id)は、**全部入りの入口でだけ合成する**(`core` は規則の id を `string` で扱い、`accept` の型は全部入りでは今と同じ、`core` と外部の帯では `string`)。
+- **`Declares<Id>`(`connect()` の id の型検査)は、構築関数の戻り値の型で運ぶ**: `BandValue<'box'> & Declares<Id>`。最上位・`group`・`row`・`areas` の中で通り、裸の綴り間違いは拒まれる(スパイクで確認)。**ドット付きの部品の id(`rate.s2`)は型では検査されず、実行時だけ**(ADR 0012 と同じ)。
+- **外部の帯の型**: 外部の帯は、**コンパイル時に知らない**。`Band` の合併型には入らず、`BandValue<string>`(型の名前は文字列)として流れる。コアの帯は今までどおり合併型にいる。ラウンド 1 の確認: 実際の合併型に封筒を足すと壊れるのは 10 個の表(と派生の行)だけだった。**`BandDef` の方式では封筒の帯の種類は不要**(表が帯の値からの呼び出しに置き換わる)。
+- **コンテナ**: 外部の帯は**他の帯を持てない**(`children` は外部の帯では不可)。**ただし `group` / `grouprow` / `areas` / `row`(箱でない子は `group` に包まれる)の子にはなれる**(スパイクで描け、型も通る)。**`grid` は箱だけ**なので入れない。ADR 0078 の `FlowBand`(`Exclude<Band, OverlayBand>`)に含まれ、重ねの帯にはならない(v1)。
 
 | 案 | 採らない理由 |
 |---|---|
-| (採用)封筒 `plugin` を 1 種類 | コアの全数性が残る。10 個の表に各 1 行。プラグインの追加で core の型が変わらない |
-| モジュールの拡張(`declare module 'svg-diagram' { interface BandRegistry {…} }`) | 型が**グローバル**になる(2 つの版のプラグインが共存できない。ADR 0074 の「グローバルにしない」に反する)。コアの型がインストールされた物に依存する |
-| `Band` を開いた型(`${string}:${string}` のテンプレート型)にする | 表が `Band['type']` をキーにするため、テンプレート型のキーを持てず、全数性が崩れる |
-| プラグインごとに型の合併型へ足す(コードを生成してコアに入れる) | 別リポジトリに置く目的に反する。core のビルドがプラグインに依存する |
-| 帯の種類ごとに core の表へ動的に登録(登録簿) | 全数性が実行時の検査だけになり、グローバルの状態も要る(D3) |
+| (採用)`satisfies BandDef` + 全部入りの入口の 1 つの表 | 帯ごとの全数性が残る。`core` が帯を知らない。全部入りでコアの帯の抜けを落とせる |
+| 中央の表の全数性を残し、ただ入口で分ける | 表が全部の帯を import するので、束ねが分けられない(背景) |
+| モジュールの拡張(`declare module` の `BandRegistry`) | 型が**グローバル**になる(2 つの版が共存できない) |
+| `Band` を開いた型(`${string}:${string}` のテンプレート型) | 表が `Band['type']` をキーにするため、全数性が崩れる |
 
-### D5. 安全 — プラグインはコード。JSON はコードを読み込まない
+### D6. 出力形式(PPTX・Excel・HTML)は別の入口。帯ごとの adapter は出力形式の側に置く
 
-1. **spec(JSON)は、コードを読み込まない。** 呼び出す側(DSL を書く人、CLI の `--plugin`、プロジェクトの設定、サーバーの設定)だけが、プラグインを渡す。spec にできるのは、渡されたプラグインの id を名指しすること(D3)。`import()` の URL も、パスも、spec には書けない。
-2. **MCP は、サーバー側の許可リスト**。サーバーは、ビルド時に**静的に** `import` したプラグインのうち、設定で有効にした物だけを `renderSpecEdge` に渡す。`specSchemaFor({plugins})`(新しい関数。`specSchema` は定数なので、既存の API は変えない)と `list_diagram_parts` は**許可した物から**作る。既定は**プラグインなし**。有効にするのは、権利と品質の確認のあと(Q10)。
-3. **プラグインの SVG は、外部の SVG と同じ門(本物の `sanitizeBody`)を通る。** ホストは `sanitizeBody(svg, where, /*allowColor*/ true)` を呼ぶ。`sanitizeBody` が認めるのは、図形(`path` / `circle` / `ellipse` / `rect` / `line` / `polyline` / `polygon`)、グループ、`defs`、グラデーション、クリップパスと、許可した属性だけ。**`data-*` 属性も拒む**(`lenient` のときだけ黙って落とす)ので、`data-node` はプラグインに書かせず、**ホストが `anchors` から書く**(帯を包む要素と、anchor ごとの見えない長方形)。`text`・`style`・`script`・`use`・`image`・`foreignObject`・`mask`・`filter`・外への参照・名前つきの色・`rgb()` は拒まれる(スパイクで確認)。加えて、ホストが **1 つの帯の中の id の重複**を拒む。通らない出力は、`plugin-svg-rejected`(エラー)で、帯の場所にプレースホルダー(破線の長方形)を描く。**文字は `texts` の経路(D2)でコアが描く**。
+**推奨(Q5)**:
+
+- **`BandDef` に出力形式のコードを入れない。** `svg-diagram/pptx`、`svg-diagram/xlsx`、`svg-diagram/html` が書き出しの枠(zip、パッケージ、スライド、シート、コネクタ、テンプレート)を持ち、**帯ごとの adapter**が `svg-diagram/pptx/bands/box` のように隣に置かれる。**adapter は、定義への参照(`def`)をキーに、帯の値から選ばれる**。
+  ```ts
+  import {toPptx} from 'svg-diagram/pptx';
+  import {pptxBox} from 'svg-diagram/pptx/bands/box';
+  import {pptxRow} from 'svg-diagram/pptx/bands/row';
+  const pptx = await toPptx(d, {bands: [pptxBox, pptxRow]});     // 使う adapter だけを渡す
+  ```
+  `adapter = {def: boxDef, toPptx(laid, ctx) → XML}`。出力の枠は、`Map<BandDef, adapter>` を呼び出しごとに作り、各帯で `band[DEF]` から引く。**adapter を import しなければ、その帯の PPTX のコードは束ねられない**。全部入りの入口(`./pptx/edge` ほか)は、**全部の adapter を渡す**(互換)。
+- **adapter が無い帯の既定(帯ごとに決める。黙って落とさない)**:
+
+  | 形式 | 既定 | 報告 |
+  |---|---|---|
+  | PPTX | **絵**(帯の `emit` の SVG を、画像として貼る。`'image'` と同じ経路) | `findings` に `pptx-band-fallback`(情報。帯の型名つき)。`strict: true` ならエラー |
+  | HTML | **インラインの SVG**(今すでに `native` でない帯の既定) | `html-band-fallback`(情報) |
+  | Excel | **シートにしない**(帯を飛ばし、「図のこの部分は表にできない」と言う)。ADR 0068 D2 の「しない」と同じ | `xlsx-band-skipped`(警告)。`strict` ならエラー |
+
+  **「adapter 無し」は、帯の `emit` を通る**ので、PPTX の絵の経路は、**使われた帯の描画のコードだけ**を引く(今は PPTX が共有の SVG 描画 110.7 KB を全部引く。上の測定)。
+- **今の分岐の移し方**(上の測定): `lib/pptx/bands.ts` の `BAND_HANDLERS` は帯ごとに 1 行の表で、**そのまま adapter の表に分けられる**。`slide.ts` の `group` と `swimlane` の入れ子の枠(後ろに続く帯の数 `span` でまとめる 3 か所)は、**その帯の adapter の hook**(`planSpan`)に移す。`geom.ts` と `svg-shapes.ts` は帯の種類で分岐していない(コネクタと矢じりの図形名)ので、出力の枠にそのまま残る。`emit-html.ts` の 16 か所(`native(b)` と各帯の変換)は、同じ形で adapter に分け、既定の「インライン SVG」はそのまま。**どれも構造の作り直しは要らない**。
+- **Excel(ADR 0068)**: 0068 の D2(帯の種類ごとに「シートにする / 子をたどる / しない」の表)は**コードがまだ無い**ので、**最初から adapter の形で書く**(`xlsx/bands/gantt` ほか)。0068 の D1(元は**入力のデータ**で、レイアウトの結果ではない)は変えない: `xlsx` の adapter は、`BandDef.build` の `data` を読む。0068 の D8(zip と圧縮は PPTX と共有)は、**共有の小さな入口**(`svg-diagram/zip`)にする。**0068 の改訂が要る**(Q13。0068 の PR #373 の後ろに、この方針を書く)。
+- **プラグインの出力形式の adapter は、別に出せる**(`manga-face/pptx` など)。プラグイン本体は出力形式を引かない。利用者が `toPptx(d, {bands: [pptxBox, mangaFacePptx]})` のように渡す。adapter の無い外部の帯は、上の既定(絵)。
+- **PNG**は出力形式ではなく、SVG の後段(`svg-diagram/png`。`resvg`)。
+
+### D7. 重いバックエンドも入口の後ろ
+
+**推奨(Q4)**: 上の測定の重い物は、**入口を分け、必要な利用者だけが引く**。
+
+| 部品 | 今 | 新しい入口 / 扱い |
+|---|---|---|
+| ブラウザの測定器(3 KB) | `lib/web-measure.ts`(`./browser` から) | `svg-diagram/measure/browser` |
+| Node の測定器(83 KB、`harfbuzzjs`、`playwright-chromium`、`node:child_process`) | `lib/measure.ts`。**パッケージの入口 `.` が引く** | `svg-diagram/measure/node`。**`.` は測定器を引かない**(CLI と `./render` は明示的に引く)。互換: `.` は今までどおり動かすため、全部入りの `.` は引き続き引く(予算の対象)。軽い入口を別名で出す(`svg-diagram/core`) |
+| PNG(100 KB、`@resvg/resvg-js` ネイティブ) | `lib/raster.ts`(`measure.ts` から引かれる) | `svg-diagram/png`。測定器を引かない形に分ける |
+| フォント | **JS には埋め込まれていない**(`font-subset.ts` はファイルを読む。`font-box.ts` は HarfBuzz で測る) | 変えない。埋め込み(base64)は、この ADR の範囲外。**入れるなら出力形式 / バックエンドの入口の後ろ**(`svg-diagram/fonts/<名前>`)の規則だけ決める |
+| MathJax(peer、`math()` の帯) | `math` 帯が使う。ブラウザの入口では投げる | `bands/math` の中だけが引く(動的 import)。他の帯は引かない |
+| Playwright(peer、スライドの予算の実測、`cdp-browser`) | 測定器とスライドの予算が引く | Node の入口の後ろ。ブラウザの入口には無い |
+| `sixel`(端末の表示) | `show` の CLI | CLI の入口の後ろ |
+| `harfbuzzjs`(WASM) | Node の測定器 | `measure/node` の依存 |
+
+**ブラウザの Artifact でマンガだけを描くなら、`core` + `bands/comic` + `measure/browser` だけ**を引く(見積もり 130〜160 KB)。`pipeline.ts` が HTML の出力を全部引く問題(上の測定で 306 KB)は、**HTML を `svg-diagram/html` に出し、パイプラインは SVG だけ**にして直す(U の `core` の切り出しの一部)。
+
+### D8. 安全 — 外部の帯(プラグイン)はコード。JSON はコードを読み込まない
+
+コアの帯と外部の帯の**唯一の違い**は、この節の安全の約束(と `id:kind` の名前)である。
+
+1. **spec(JSON)は、コードを読み込まない。** 呼び出す側(DSL を書く人、CLI の `--plugin`、プロジェクトの設定、サーバーの設定)だけが、帯の一覧(D9)を渡す。spec にできるのは、渡された帯の名前を名指しすること。`import()` の URL も、パスも、spec には書けない。
+2. **MCP は、サーバー側の許可リスト**。サーバーは、ビルド時に**静的に** `import` したプラグインのうち、設定で有効にした物だけを `renderSpecEdge` に渡す(静的 import なので、使わないプラグインは Worker の束にも入らない)。`specSchemaFor({bands})` と `list_diagram_parts` は**許可した物から**作る。既定は**プラグインなし**(コアの帯だけ)。有効にするのは、権利と品質の確認のあと(Q12)。
+3. **外部の帯の SVG は、外部の SVG と同じ門(本物の `sanitizeBody`)を通る。** ホストは `sanitizeBody(svg, where, /*allowColor*/ true)` を呼ぶ。`sanitizeBody` が認めるのは、図形(`path` / `circle` / `ellipse` / `rect` / `line` / `polyline` / `polygon`)、グループ、`defs`、グラデーション、クリップパスと、許可した属性だけ。**`data-*` 属性も拒む**ので、`data-node` はプラグインに書かせず、**ホストが `anchors` から書く**。`text`・`style`・`script`・`use`・`image`・`foreignObject`・`mask`・`filter`・外への参照・名前つきの色・`rgb()` は拒まれる(スパイクで確認)。加えて、ホストが **1 つの帯の中の id の重複**を拒む。通らない出力は、`band-svg-rejected`(エラー)で、帯の場所にプレースホルダー(破線の長方形)を描く。**文字は `texts` の経路(D2)でコアが描く**。**コアの帯は、今までどおり自分で `<text>` を出してよい**(信頼する)。
 4. **id は衝突しない**(D2)。
-5. **プラグインの中の失敗は、壊れた出力にしない。** hook が投げたら、ホストが**プラグインの名前・帯の種類・段階(build / measure / layout / emit / verify)を付けて**包む(`PluginError`)。**`layout` は、結果を最後まで求めてから** `ctx`(カーソル、anchor の登録)を変える(途中で投げても、他の帯の状態が半端にならない)。`check` / `renderDiagram` / `renderInBrowser` の経路では、投げずに `plugin-failed`(問題)として verdict に入れ、その帯は**高さ 48px の破線のプレースホルダー**で描く(他の帯の診断が続けられる。今の `renderInBrowser` の「配置のエラーは投げる」を、プラグインの帯に限って変える。U4 で明記する)。DSL の構築(`build`)は、今までの DSL と同じく投げる。
+5. **外部の帯の中の失敗は、壊れた出力にしない。** hook が投げたら、ホストが**プラグインの名前・帯の種類・段階(build / measure / layout / emit / verify)を付けて**包む(`BandError`)。**`layout` は、結果を最後まで求めてから** `ctx`(カーソル、anchor の登録)を変える。`check` / `renderDiagram` / `renderInBrowser` の経路では、投げずに `band-failed`(問題)として verdict に入れ、その帯は**高さ 48px の破線のプレースホルダー**で描く(今の `renderInBrowser` の「配置のエラーは投げる」を、外部の帯に限って変える。U4 で明記する)。DSL の構築(`build`)は、今までの DSL と同じく投げる。
 6. **資源**: 1 つの帯の SVG と anchor の数に上限(D2 の 6)。同期の関数だけ(`async` の hook は不可)。**止まらない同期の hook は、コアには止められない**: Worker では CPU の上限で、Node では呼び出しの側のタイムアウトで終わる(サーバーに載せるプラグインを許可リストで限る理由の 1 つ)。
-7. **プラグインの規則と `--strict`**: プラグインは、自分の `rules` に宣言した規則だけを出せる。重大度は宣言の範囲。`diagram({accept: {'rating-demo/value-over-max': '理由'}})` で、コアの規則と同じく受け入れを書ける(`accept` の型は `RuleId | `${string}/${string}``)。`check --explain rating-demo/value-over-max` は、プラグインが渡されている(`--plugin` か設定)ときに説明を出す。
+7. **規則と `--strict`**: 帯は、自分の `rules` に宣言した規則だけを出せる。`diagram({accept: {'rating-demo/value-over-max': '理由'}})` で、コアの規則と同じく受け入れを書ける。`check --explain rating-demo/value-over-max` は、プラグインが渡されている(`--plugin` か設定)ときに説明を出す。
 
-### D6. 版と互換、コアの帯をプラグインに移すか、API を 1.0 にする条件
+### D9. 帯の渡し方 — 呼び出しごと(グローバルにしない)+ プロジェクトの設定。spec の入口
 
-- **配置の結果(`laid`)はプラグインのもの**。ホストは中身を読まず、`structuredClone` で運ぶ。**コアの golden(`examples/out/`)は、プラグインがあっても動かない**。プラグインの出力の golden は、プラグインの側のリポジトリが持つ(適合テスト U6 が固定する道具を出す)。
-- 版は D1 のとおり(`apiVersion` が権威、`requires`、プラグイン自身の `version`)。ホストは、図の中にプラグインの id と版を**記録**する(`laidOut` と `verdict` の側。SVG には `data-sd-plugin` の id だけを、ホストが書く)。
-- **コアの帯(例: `comic`)を、内側のプラグインとして移す案(自分で食べる)について。** 長所は、API が実物で鍛えられること。短所は、(1)コアの帯が**コンパイル時の全数性を失う**、(2)`comic` は anchor の種類、幾何の地図、`renderComic` の断片の差し替え、`nodeIds`、規則の `where`、ADR 0077 / 0078 の重ねとの結びつきが深い、(3)**バイト一致は構造上できない**(ホストの包み、id の接頭辞、`texts` を図形の後に描く順。コアの `people` は `<text>` を自分の順に出す。`lib/emit-boxes.ts`)。**推奨(Q7): 今は移さない。** コアの帯は型つきの表のまま。`comic` の移行は、ADR 0078 の重ねが安定したあとに、別の ADR で判断する。
-- **API を `1.0` にする条件は、バイト一致ではなく、「hook の網羅の確認表」(Q2)。** 次の hook を、**少なくとも 1 つの実物が通した**ことを、表で確かめる。1 つの参照プラグインで全部通せない hook は、他の実物で補う。
+**推奨(Q6、Q7): 呼び出しごと。グローバルの登録簿は作らない**(ADR 0074 D3)。DSL では、**使う帯を import するだけ**(帯の値が定義を持つので、登録も一覧も要らない)。一覧が要るのは、**帯の値を持たない入口**(JSON の spec、`DiagramData` の JSON、デッキ、markdown の囲み)だけで、そこには**帯の一覧(`bands`)**を渡す。
 
-  | hook / 性質 | 確かめる実物 |
-  |---|---|
-  | `build` / `schema` / spec の往復 / `example` | 参照プラグイン(U6) |
-  | `ids` / `anchors` / スコープ / `connect()`(最上位・`group`・`row`・`areas`) | 参照プラグイン(U2、U6) |
-  | `measure` / `texts` / `wrapText` / `plugin-text-unmeasured` / `roles` の拡大(`fill`・canvas・`width: 'fit'`) | 参照プラグイン(U2、U6) |
-  | `emit` / 門 / id の接頭辞 / ダークモード(トークンの色と `paper`) / `selfDimming` と `dim` | 参照プラグイン(U3、U6) |
-  | `verify.rects` / `check` / `rules` / `accept` / `--strict` / `contrast` | 参照プラグイン(U4、U6) |
-  | `inventory` / `reveal` / PPTX `'image'` / `nodeIds` | 参照プラグイン(U6) |
-  | 実在の外部の制作物(別リポジトリ、npm、jsDelivr の Artifact) | `manga-face`(U10 と ADR 0079) |
-  | コアの帯と同等の機能(anchor・reveal・spec・verify を持つ帯) | **コアの帯を 1 つ、並べて書き直す**(元の帯は残し、同じ入力で**描画が同等**であることを、ホストの包みと `texts` の順を除いて比べる。例: `quadrant` か、`chevron` などの `flowShape` の種類)。置き換えはしない |
+- **spec(JSON)**: `renderSpec(spec, {bands: [box, row, comic]})`(最小の経路)。`bands` を渡さないときの既定は**空**(明示を要求する)。**全部入りの入口(`svg-diagram`、`./spec/edge`)は、全部の帯の一覧を既定で渡す**(今までの呼び出しがそのまま動く)。外部のプラグインは、`bands` に加える(`[...allBands, ratingDemo]`、または `{bands, plugins}`)。
+- **spec が名指しした帯が、渡されていないとき**は、**黙って捨てない。黙って箱にもしない**。次の形の**明確なエラー**(コアの帯も外部の帯も同じ)。
+  ```
+  the band type "rating-demo:stars" is not available: plugin "rating-demo" was not supplied
+  (pass it as diagram({plugins: [...]}) / renderSpec(spec, {bands: [...]}) / --plugin / the project config; a spec never loads code).
+  Available: box, row, group, comic
+  ```
+  (日本語の版も出す。)`validateSpec` では `SpecIssue`(`path: parts[2].type`)として返り、LLM が直せる。MCP では、**使えるものの一覧**を返す。
+- **プロジェクトの設定の `plugins`**(`.svg-diagram.json`。`lib/config.ts`): 例 `{"plugins": ["./plugins/rating-demo.ts", "manga-face"]}`。呼び出しのコードを持たない入口が**読み込んで** core に `bands` / `plugins` として渡す(core は読まない。ADR 0031 の殻の仕事)。パスか npm の名前。読み込みの失敗はエラー。呼び出しの指定は設定を**上書き**する。設定は呼び出す側の持ち物で、spec ではない(D8 の 1)。
 
-  確認表が埋まり、`1.0` の前に Opus のレビューが収束してから、API を `1.0` にする。**この確認が U9(必須)**。
+| 入口 | 渡し方 |
+|---|---|
+| DSL(`.ts`) | 使う帯を import する。外部の帯は `pluginBands(plugin)` で作り、`diagram({plugins: [plugin]})` に渡す(構築関数の定義と食い違えばエラー) |
+| `renderSpec` / `specToDiagram` / `validateSpec` / **`renderSpecEdge`**(MCP の Worker) | `{bands, plugins}`。Worker は、ビルド時に静的に import した許可リストを渡す |
+| ブラウザ | `renderInBrowser(diagram(…), {measure})`(図が帯の値を持つ)。`DiagramData` から直接なら `{measure, bands}` |
+| `renderComic` | `renderComic(sheet, {measure, characters, plugins})`(D11) |
+| CLI のうち `.ts` を読む物(`build` / `check` / `show` / `lint` / `notes` / `pptx`) | 図の `.ts` が自分で帯を import する |
+| CLI のうち JSON / Markdown を読む物(**`pptx-deck`、`serve`、`site`、`md`、`deck`**) | `--plugin ./x.ts`(繰り返し可)と、設定の `plugins`。**帯の一覧は、全部入りを既定**にし、最小にしたいときは設定で `bands` を絞る |
+| `check --drift --jobs N` の**子プロセス**(`drift-pool.ts`) | 親の `--plugin` と設定を**子に渡す**(渡さないと、子が未供給のエラーになる) |
+| `./render`、`./markdown`、`./markdown-it`、`./remark`、`./vitepress` | オプションの `plugins` と設定。囲みのコードブロックは設定を使う |
+| デッキ、`site`、PPTX の edge(`./pptx/edge`、`./pptx/deck/edge`)、VS Code の拡張のプレビュー | 設定の `plugins`。PPTX の edge には呼び出しの `plugins` も通す |
+| 静的な `./schema/*.json` | **プラグインを含まない**(コアの帯だけ。生成物)。**プラグインを含むスキーマは `specSchemaFor({bands, plugins})` だけ** |
+| `worker/`(発表の配信) | 描画しないので、何も要らない(ADR 0056) |
 
-### D7. 狭い拡張点 — 人物の提供元と、追加の表情(同じプラグインのオブジェクトの中)
+**キャッシュにはプラグインの版を入れる**: (1)デッキの描画のキャッシュ(`lib/present/render-deck.ts` の、スライドの JSON と設定の sha256)、(2)drift のキャッシュ(`drift-cache.ts`)、(3)`check --drift --jobs` の子プロセス。**プラグインの id と `version` を、キーに混ぜる**(混ぜないと、プラグインを更新しても古い出力が使われる)。
+
+### D10. コアの帯を `BandDef` に移す — これが主線(ADR 0080 の以前の案の Q7 を**逆にする**)
+
+**推奨(Q2、Q3):**
+
+**以前の案(ラウンド 1〜2)は「コアの帯は移さない」(コンパイル時の全数性を失うため)だった。決める人の要件(使う帯だけを束ねる)は、中央の表が全部の帯を引くことが原因なので、移行が主線になる。** 全数性は `satisfies BandDef` と全部入りの入口の表(D5)で保つ。
+
+**進め方(1 帯 1 PR。golden はバイト単位で同じ):**
+
+| 段階 | 内容 | 帯 |
+|---|---|---|
+| M0 | **枠組み**(帯の値、`[DEF]`、`core` の切り出し、`copyBand`、派生の表、`test/band-boundaries.test.ts`、予算の検査、`sideEffects: false`)。追加のみで、どの帯も移さない。**ADR 0078 U2 の前でも始められる**(追加のみ。表は触らない) | — |
+| M1 | **葉の帯**(anchor・子なし・reveal だけ)で、枠組みを実物で試す | `spacer`、`caption`、`status`、`raw`、`legend`、`banner` |
+| M2 | **箱**(`box`。anchor、アイコン、ステップ、タグ。`placeBoxLike` を帯の中に移す。最も多くの帯が使う) と、その近く | `box`、`pyramid`、`curve`、`people`、`dots`、`wordart`、`math` |
+| M3 | **コンテナ**(`children` の hook、`STACK_WIDTH`、`row()` の包み、`areas`) | `group`、`row`、`grid`、`areas`、`grouprow`、`image`(`children`) |
+| **M2c(マンガ)** | **`comic`**。決める人の最初の用途(Artifact が 1 MB)。自分のフォルダ(`lib/comic/`)で閉じていて、純粋な配置を持つ。**M2 の `box` の次に移す**(M3 を待たない)。ADR 0078(重ね)が動いている間は、ふきだしの重ねの結合を壊さないよう、0078 の U2 を待つ(Q3) | `comic` |
+| M4 | **anchor・reveal・spec・検査を持つ図形の帯** | `flowShape` の 7 種(1 つの PR にまとめる。`flow-shapes.ts` を共有)、`quadrant`、`timeline`、`gantt`、`bars`、`plane`、`chart` |
+| M5 | **表・列・画面の帯** | `sequence`、`table`、`swimlane`、`wireframe`、`screens` |
+| M6 | **図式の帯**(重い。専用の配置の枠組みを持つ) | `tree`、`states`、`cause`、`cloud`、`classes`、`bpmn`、`fta`、`bowtie` |
+| M7 | **後片付け**: 中央の表と `ALL_BANDS_*` を消す。`rules.ts` を枠組みだけにする。`CHECK_PHASES` を帯の定義へ | — |
+
+**各 PR の基準(全部を満たす):**
+
+1. **golden がバイト単位で同じ**(`examples/out/` の SVG、PPTX の golden、`pnpm schema` の出力)。移行の PR で見た目は変えない。
+2. 移した帯の**表の行を消し**(`satisfies BandDef` に置き換え)、**派生の表**(D4)に載せ替える。表からの呼び出しと帯の値からの呼び出しが、移行の間**同じ結果**になる(テスト)。
+3. **帯の入口の大きさを記録**し、予算(D12)に収まる。**帯が他の帯のモジュールを import しない**(`test/band-boundaries.test.ts`)。付け根(`reveal.ts → band-ids.ts → quadrant.ts` のような帯の共有モジュールの余計な import)を、その PR で切る。
+4. `rules`・`RULE_DOCS`・`RULE_LOCATION` の中身は**今の規則の id のまま**。`check --explain` が同じ。
+5. 新しい検査: 帯の定義の適合テスト(D2 の保証 1・3・5・6 を、**コアの帯にも**かける)。
+6. **変異**を 1 つ以上当てて落ちることを PR に書く。
+7. その帯の PPTX・HTML・(あれば)Excel の **adapter** を、同じ PR か、すぐ次の PR で `bands/` の隣に分ける(D6)。**表の行が出力形式の側に残る間は、移行が終わったとは数えない**。
+
+**1.0 の条件(Q10)**: 「**コアの帯を N 個、golden がバイト単位で同じまま移し終え**(N の推奨は、M1 の全部、M2 の `box`、M3 の `group`・`row`、`comic`、M4 から `quadrant` と `flowShape` の 1 種 = 少なくとも 12 個)、**かつ**、参照プラグイン(U6)が**全部の hook を通し**、**manga-face(外部の実物。別リポジトリ、npm、jsDelivr の Artifact)が動く」。確認表:
+
+| hook / 性質 | 確かめる実物 |
+|---|---|
+| `build` / `spec` / spec の往復 / `example` | 参照プラグイン(U6)、移した帯 |
+| `ids` / `anchors` / スコープ / `connect()`(最上位・`group`・`row`・`areas`) | 参照プラグイン(U2、U6)、`box`、`quadrant` |
+| `measure` / `texts` / `wrapText` / `band-text-unmeasured` / `roles` の拡大(`fill`・canvas・`width: 'fit'`) | 参照プラグイン |
+| `emit` / 門 / id の接頭辞 / ダークモード(トークンの色と `paper` と `paper` の文字) / `selfDimming` と `dim` | 参照プラグイン |
+| `verify.rects` / `check` / `rules` / `accept` / `--strict` / `contrast` | 参照プラグイン、`quadrant` |
+| `inventory` / `reveal` / `nodeIds` | 参照プラグイン、移した帯 |
+| 出力形式の adapter(PPTX・HTML・Excel)と、adapter 無しの既定と報告 | 参照プラグイン、移した帯 |
+| 実在の外部の制作物(別リポジトリ、npm、jsDelivr の Artifact) | `manga-face`(U17 と ADR 0079) |
+| 入口ごとの大きさの予算(D12) | 移した帯の入口 |
+
+確認表が埋まり、`1.0` の前に Opus のレビューが収束してから、API を `1.0` にする。
+
+### D11. 狭い拡張点 — 人物の提供元と、追加の表情(同じプラグインのオブジェクトの中)
 
 **人物の提供元(`characters`)**。`characters: {face: {schema, make(params) → CharacterManifest}}`。`make` の結果は、**必ず `loadCharacter` を通る**(権利の必須、断片の掃除、箱とアンカーの検査。手で書いたマニフェストと同じ門)。使い方は 2 通り。
 
 1. **関数として呼ぶ**(コアの変更なし。今でも使える): `comic(sheet, {characters: {peep: mf.characters.face.make({…})}})`。ADR 0079 の「別パッケージ + `CharacterManifest`」の形そのもの。プラグインの仕組みは要らない。
-2. **spec に書く**(JSON、LLM 向け。**comic が spec の部品を持つ(ADR 0074 U4。今は `IN_NO_SPEC_YET`)まで待つ**。U7): ワークシートの `cast.me.character = {provider: 'manga-face:face', params: {…}}`。`comic(sheet, {plugins})` / `renderComic(…, {plugins})` が、渡されたプラグインから解決し、`loadCharacter` に通す。**結果の人物は図ごと**(ADR 0074 D3 のまま。グローバルに持たない)。未供給なら D3 のエラー。
+2. **spec に書く**(JSON、LLM 向け。U15): ワークシートの `cast.me.character = {provider: 'manga-face:face', params: {…}}`。`comic(sheet, {plugins})` / `renderComic(…, {plugins})` が、渡されたプラグインから解決し、`loadCharacter` に通す。**結果の人物は図ごと**(ADR 0074 D3 のまま。グローバルに持たない)。未供給なら D3 のエラー。
 
-**追加の表情(`expressions`、任意、U8)**。`ComicExpression` は今 8 種の閉じた合併型(`EXPRESSIONS`)。プラグインは `expressions: ['manga-face:shy', …]` のように**名前空間つき**で足せる。ワークシートの舞台は `expression: 'manga-face:shy'` と書き、その表情の断片を持たない人物では `neutral` に落として `comic-expression-fallback`(助言)を出す。ADR 0079 の Q8(「追加の表情は後で」)と同じ時期に決める。コアの 8 種は変えない。
+**追加の表情(`expressions`、任意、U16)**。`ComicExpression` は今 8 種の閉じた合併型(`EXPRESSIONS`)。プラグインは `expressions: ['manga-face:shy', …]` のように**名前空間つき**で足せる。ワークシートの舞台は `expression: 'manga-face:shy'` と書き、その表情の断片を持たない人物では `neutral` に落として `comic-expression-fallback`(助言)を出す。ADR 0079 の Q8(「追加の表情は後で」)と同じ時期に決める。コアの 8 種は変えない。
 
-**ADR 0079 の manga-face がこれをどう使うか**: 別のリポジトリ `manga-face`(npm)が、平らなデータの `PluginDef`(`id: 'manga-face'`)を出す。
+**ADR 0079 の manga-face がこれをどう使うか**: 別のリポジトリ `manga-face`(npm)が `definePlugin({id: 'manga-face', …})` を出す。
 
-- 帯 `manga-face:avatar`: 顔 1 つ(パラメータ、表情、大きさ)。行・グループ・`areas` の中で、文の横に置ける(D4)。顔の生成(ADR 0079 の `face.ts`)をそのまま `layout`(大きさと anchor `head`)と `emit`(図形)に使う。
-- 帯 `manga-face:faces`: 顔の一覧(見本帳、名前つき。名前は `texts`)。顔 64 個で SVG は約 370 KB(ADR 0079 の実測)なので、上限は既定で足りる(D2 の 6)。顔の `id`(0079 のスパイクは固定の `id="fc"`)は顔ごとに修飾して一意にする(D2 の 5)。固定の肌色・輪郭は `paper: true`(D2 の 4)。
+- 帯 `manga-face:avatar`: 顔 1 つ(パラメータ、表情、大きさ)。顔の生成(ADR 0079 の `face.ts`)をそのまま `layout`(大きさと anchor `head`)と `emit`(図形)に使う。
+- 帯 `manga-face:faces`: 顔の一覧(見本帳、名前つき。名前は `texts`)。
 - 人物の提供元 `face`: パラメータ → `CharacterManifest`(ADR 0079 の `faceManifest`)。`comic()` に渡す。
-- 追加の表情(任意、U8)。
+- 追加の表情(任意、U16)。
 
-ADR 0079 は**中身の設計としてそのまま有効**(D2〜D7)。変わるのは D1 の「svg-diagram 側の変更はない」で、**svg-diagram 側に `svg-diagram/plugin` が入り、`manga-face` はそれを使う**。API が入る前でも、1. の関数呼びで `comic()` につながる(つまり ADR 0079 は、この ADR を待たずに進められる)。
+ADR 0079 は**中身の設計としてそのまま有効**(D2〜D7)。変わるのは D1 の「svg-diagram 側の変更はない」で、**svg-diagram 側に `svg-diagram/plugin`(型)と `svg-diagram/core` が入り、`manga-face` はそれを使う**。API が入る前でも、1. の関数呼びで `comic()` につながる(つまり ADR 0079 は、この ADR を待たずに進められる)。
 
-### D8. 配布 — npm、jsDelivr の Artifact、MCP
+### D12. 配布と大きさの予算 — npm、jsDelivr の Artifact、MCP、CI の検査
 
-- **npm**: プラグインは普通のパッケージ(`manga-face`)。`peerDependencies: {"svg-diagram": "…"}` は案内で、実行時の検査は `apiVersion` と `requires`(D1)。**実行時に svg-diagram を import しない**ので、peer の版の食い違いで 2 つのコピーが動く問題が起きない。型は `svg-diagram/plugin`(新しい入口。純粋で、`svg-diagram/browser` からも再エクスポートする。`test/web-entry.test.ts` の対象)から `import type` で取る。
-- **Artifact(jsDelivr)**:
+- **npm**: 外部のプラグインは普通のパッケージ(`manga-face`)。`peerDependencies: {"svg-diagram": "…"}` は案内で、実行時の検査は `apiVersion` と `requires`(D1)。**実行時に svg-diagram を import しない**ので、peer の版の食い違いで 2 つのコピーが動く問題が起きない。型は `svg-diagram/plugin`(型のみ)から `import type` で取る。
+- **Artifact(jsDelivr)**(マンガだけを描く例。見積もり 130〜160 KB):
   ```js
-  const [{diagram, pluginBands, renderInBrowser, svgMeasurer}, {default: mangaFace}] = await Promise.all([
-    import('https://cdn.jsdelivr.net/npm/svg-diagram@X.Y.Z/dist/lib/web.js'),
-    import('https://cdn.jsdelivr.net/npm/manga-face@A.B.C/dist/plugin.js'),
+  const [{renderInBrowser, diagram}, {comic}, {svgMeasurer}] = await Promise.all([
+    import('https://cdn.jsdelivr.net/npm/svg-diagram@X.Y.Z/dist/lib/core.js'),
+    import('https://cdn.jsdelivr.net/npm/svg-diagram@X.Y.Z/dist/lib/bands/comic.js'),
+    import('https://cdn.jsdelivr.net/npm/svg-diagram@X.Y.Z/dist/lib/measure/browser.js'),
   ]);
-  const face = pluginBands(mangaFace);
-  const out = await renderInBrowser(diagram({theme: 'blue', plugins: [mangaFace]}).add(face.avatar({…}, {id: 'a'})), {measure: svgMeasurer()});
   ```
-  構築関数は**コアが作る**(`pluginBands`)ので、プラグインは svg-diagram の値を import しない。2 つのモジュールは独立で、渡し合うのはオブジェクトだけ。**注意: core の jsDelivr の動作確認(CDN のプローブ)は、まだ終わっていない。** Artifact での通し確認(U10)は、そのプローブが済んでから行う。生成済みの JSON(1 人分 48.7 KB、gzip 3.5 KB。ADR 0079)を貼る方法も、プラグインなしで引き続き使える。
-- **供給の安全(サプライチェーン)**: `import()` は SRI(`integrity`)を持てない。(1)**版は完全に固定**(`@A.B.C`。範囲や `latest` は使わない)、(2)プラグインの配布物は**import の無い 1 つの自己完結した ESM**にする(適合テストが `import` / `require` の文を探して拒む。jsDelivr の `+esm` の依存の書き換えは使わない)、(3)任意の追加の防御として、ページが**`<script type="importmap">` の `integrity`** で固定してよい。ホストの許可リストと設定は、npm の名前と版を人が決める。
-- **MCP**: MCP のサーバー(別のリポジトリ `svg-diagram-mcp-plugin`)が、有効にするプラグインを**ビルド時に静的に import** して許可リストに入れ、`renderSpecEdge(spec, {plugins})` に渡す(D3)。Workers は実行時に任意のコードを読み込めないので、許可リストの方式は自然。`list_diagram_parts` は、許可したプラグインの部品を `plugin: 'manga-face'` つきで返す。`check_diagram` / `render_diagram` の spec の検査は、許可したプラグインのスキーマで行う。
+  外部のプラグインを使うときは `import('…/manga-face@A.B.C/dist/plugin.js')` を加え、`pluginBands(mangaFace)` で構築関数を作り、`diagram({plugins: [mangaFace]})` に渡す。**帯ごとの入口は ES モジュールのファイル**なので、jsDelivr から**使う帯のファイルだけ**が読まれる(ブラウザ側の tree shaking)。**注意: core の jsDelivr の動作確認(CDN のプローブ)は、まだ終わっていない。** Artifact での通し確認(U17)は、そのプローブが済んでから行う。生成済みの JSON(1 人分 48.7 KB、gzip 3.5 KB。ADR 0079)を貼る方法も、プラグインなしで引き続き使える。
+- **供給の安全**: `import()` は SRI(`integrity`)を持てない。(1)**版は完全に固定**(`@A.B.C`。範囲や `latest` は使わない)、(2)外部の配布物は**import の無い 1 つの自己完結した ESM**にする(適合テストが `import` / `require` の文を探して拒む。jsDelivr の `+esm` の依存の書き換えは使わない)、(3)任意の追加の防御として、ページが `<script type="importmap">` の `integrity` で固定してよい。許可リストと設定は、npm の名前と版を人が決める。
+- **MCP**: MCP のサーバー(別のリポジトリ `svg-diagram-mcp-plugin`)が、有効にするプラグインを**ビルド時に静的に import** して許可リストに入れ、`renderSpecEdge(spec, {bands, plugins})` に渡す(D9)。使う帯だけを `bands` に渡せば、Worker の束も小さくなる(`./spec/edge` は今 1213.5 KB)。`list_diagram_parts` は、許可した帯の部品を(プラグインなら `plugin: 'manga-face'` つきで)返す。
+
+**大きさの予算(入口ごと、組み合わせごと。CI で検査する)**(Q11):
+
+- `scripts/bundle-size.ts` が、**入口と代表の組み合わせ**を esbuild(ブラウザ向け、minify)で束ね、`bundle-budget.json` の上限と比べる。上限を超えたら **CI が落ちる**(PR に表を出す)。**上限は「下げる方向にだけ」更新する**(移行の PR ごとに、測った値に合わせて下げる。上げるには決める人の承認)。
+- **最初の上限(見積もりの 20〜25% の余裕。M0 の測定で置き換える)**:
+
+  | 入口 / 組み合わせ | 上限(KB。minify) | 今 |
+  |---|---|---|
+  | `svg-diagram/core` | 120 | — |
+  | `bands/box` | 25 | — |
+  | `bands/row` | 20 | — |
+  | `bands/comic` | 60 | — |
+  | `measure/browser` | 5 | 3.0 |
+  | マンガ + ブラウザの測定器 | 190 | 1036 |
+  | 箱・行 + ブラウザの測定器 | 170 | 1032 |
+  | 箱・行 + PPTX | 300 | 1301(`./pptx/edge`) |
+  | 箱・行 + Excel | 260 | — |
+  | 全部入りのブラウザ(`./browser`) | **1100**(今の 1042 の +5%) | 1042 |
+  | 全部入りの Node(`.`、依存は外) | **1150** | 1081 |
+
+  移行前は、組み合わせの上限は**まだ満たせない**ので、M0 では「全部入りの上限(増やさない)」だけを CI に入れ、各組み合わせの上限は、**その帯が移った PR で有効にする**(例: マンガの組み合わせは M2c で)。
+- **消費側のバンドラでの試験**: 予算の検査は、`package.json` の `exports` を通して(`dist/` を入口にして)**esbuild と Vite(Rollup)の両方**で束ね、`sideEffects: false` と入口の分け方が実際に効いていることを確かめる(上の測定のケース B・C・G の再現)。
 
 ## 代替案(全体)
 
 | 案 | 採らない理由 |
 |---|---|
-| ADR 0079 のまま(別リポジトリ + `CharacterManifest` だけ) | 顔の**帯**(avatar、見本帳)が作れない。決める人の「汎用の新しい帯」の要求に足りない。ただし、人物の提供元としては残す(D7 の 1.) |
-| core に `lib/manga-face/` として入れる | 出す周期と golden が core に結びつく(ADR 0079 D1)。他のパッケージ(別の帯)にも使えない |
-| `raw()` の帯の拡張(今あるもの)で足す | 試した(スパイク)。anchor が登録されない、高さが構築時に固定、文字が測定を通らない、verify の口が無い。**足りない所が、この ADR の hook** |
-| プラグインが core の表に自分で登録する(`registerBand(type, handlers)`、グローバル) | グローバル(ADR 0074 の約束に反する)。全数性が実行時だけ。テストが漏れる |
-| プラグインが自分で構築関数を作る(`svg-diagram/plugin` を束ねる) | `located()` と `Declares` をプラグイン側が正しく付ける保証が無い。コピーが 2 つになる(D1) |
-| 動的 `import(url)` を spec に書かせる | **安全でない**(D5 の 1)。MCP で任意のコードが走る |
-| 全部のコアの帯を最初からプラグインにする | コンパイル時の全数性を失う。移行の面が広い(D6) |
+| ADR 0079 のまま(別リポジトリ + `CharacterManifest` だけ) | 顔の**帯**(avatar、見本帳)が作れない。ただし、人物の提供元としては残す(D11 の 1.) |
+| 中央の表を残し、プラグインを封筒の帯 1 種類で足す(ラウンド 1〜2 の案) | 外部の帯は足せるが、**マンガだけで 1 MB のまま**。決める人の要件(使う帯・出力形式・重い依存だけを束ねる)を満たさない(D1) |
+| 登録式(`registerBand`) | `sideEffects: false` で黙って消える。グローバルの状態(D1、背景の D) |
+| 出力形式の hook を `BandDef` に入れる | 帯を import すると PPTX・Excel のコードが付いてくる(D6) |
+| `core` に `lib/manga-face/` として入れる | 出す周期と golden が core に結びつく(ADR 0079 D1)。他のパッケージの帯にも使えない |
+| `raw()` の帯の拡張で足す | 試した(スパイク)。anchor が登録されない、高さが構築時に固定、文字が測定を通らない、verify の口が無い |
+| 動的 `import(url)` を spec に書かせる | **安全でない**(D8 の 1)。MCP で任意のコードが走る |
+| 全部の帯を一度に `BandDef` へ移す | golden のバイト一致を守る移行が大きすぎる。1 帯 1 PR、派生の表で段階的に(D10) |
+| バンドラのプラグインで未使用の帯を削る | 利用者にツールを強いる。`sideEffects` と入口で足りる(D1) |
 
 ## 影響
 
 - `lib/` の変更は、U1 以降の別の PR。この PR(U0)は ADR とスパイクだけで、`lib/` と golden は変えない。`pnpm typecheck` は通る(スパイクは `tsc -p .` の対象外。スパイク用の `tsconfig` で別に確かめる)。
-- コアに足すもの: `lib/plugin/`(型、`pluginBands`、登録簿、版の検査、`PluginError`)、`layoutHandlerFor` の箱のフォールバックの削除、帯の種類 `plugin`、10 個の表への各 1 行、(B) の十数か所の洗い出し、`svg-diagram/plugin` の入口(`package.json` の `exports`)。
-- 変わらないもの: コアの帯の API、golden、`schema/*.schema.json`(プラグインを渡さない既存の経路。`specSchema()` はプラグインなしで今と同じ)。
-- 公開の約束が増える: プラグイン API の semver(D1)。`0.x` の間は破壊的変更あり。
+- コアに足すもの: `svg-diagram/core`(パイプライン、`BandDef`、帯の値、`pluginBands`、`copyBand`)、帯ごとの入口、出力形式の入口と adapter、バックエンドの入口、`package.json` の `exports` と `sideEffects: false`、`test/band-boundaries.test.ts`、`scripts/bundle-size.ts` と `bundle-budget.json`。中央の表は移行の間は派生の表、終われば削除。`layoutHandlerFor` の箱のフォールバックの削除。
+- 変わらないもの: 今の公開の入口(全部入り。大きさは増やさない)、コアの帯の API、golden(移行の各 PR で不変)、`schema/*.schema.json`(プラグインを渡さない既存の経路)、規則の id。
+- 公開の約束が増える: `BandDef` / プラグイン API の semver(D1)。`0.x` の間は破壊的変更あり。入口の名前(`core`、`bands/*`、`pptx/bands/*` …)。
+- ADR 0068(Excel)の D2 を改訂する(D6。Q11)。ADR 0078 の U2 以降が触る型と表は、移行の PR の順序で調整する(Q3)。
 
 ## 実装計画
 
-U0 は、この PR。U1 以降は、どの単位も Opus のレビューで Blocker と Major がなくなってからマージする。**U1 は、ADR 0078 U2(`OverlayBand` と `FlowBand` を `Band` に入れる単位)のマージの後に着手する**(Q13)。0078 U0b(#448)は `inventory.ts` だけなので待たなくてよい。
+U0 は、この PR。U1 以降は、どの単位も Opus のレビューで Blocker と Major がなくなってからマージする。**移行の PR(U8〜U14)は、帯ごとに 1 つで、D10 の基準を全部満たす。**
 
 | 単位 | 内容 | 完了の基準 | テスト |
 |---|---|---|---|
-| U0 | ADR とスパイク(この PR。`spikes/band-plugin/`) | スパイクの測定(上の表)。表の一覧。`typecheck` が通り、golden が不変 | `run.ts` の測定、`typing.check.ts` の 10 件、`typing.containers.check.ts` |
-| U1 | 型と骨組み: `lib/plugin/`(`PluginDef` の型、`pluginBands`、登録簿、`apiVersion` / `requires` / `version` の検査と semver 範囲の解釈器、`PluginError`、未供給のエラー)、`Band` / `LaidOutBand` に `plugin` の封筒、10 個の表に**未実装(明確なエラー)の入口**、**`layoutHandlerFor` の箱のフォールバックの削除**、`diagram({plugins})`、`svg-diagram/plugin` の入口、`located()` との結合 | `typecheck` が通る。プラグインを使わない図の出力が**バイト単位で不変**(golden)。`plugin` の帯をプラグインなしで描くと D3 のエラー | 未供給 / 未知の kind / id の重複 / `apiVersion` の食い違い(`0.x` は minor まで)/ `requires` の不一致、**未知の `type: 'x:y'` の `DiagramData` が箱にならず投げる**、`core-purity` と `web-entry` に `lib/plugin/` を足す、**型テスト**(最上位・`group`・`row`・`areas` の `connect()`、裸の綴り間違いは `@ts-expect-error`、コアの帯の抜けは今までどおり落ちる)、構築関数の `located()` |
-| U2 | 配置と anchor と測定: `measure`、`layout`(`ctx.register`、**スコープ = 既定で帯の id**、`ids`、親の幅 `w`)、`texts` と `wrapText`、**`plugin-text-unmeasured`**、`connect()`、`fit`、`inventory`(既定。`band` に plugin / kind)、`reveal`(既定) | 参照プラグイン(U6 の骨組み)の帯が、**最上位・`group`・`row`・`areas` の中**で描け、`connect()` の終点になり、部品への `connect('a:bottom', 'rate.s2:top')` が通る。文字がコアの測定器を通る | **同じ種類の帯 2 つ**(`s1…s5` が衝突しない)、各コンテナ内の部品への `connect()`、`plugin-anchor-undeclared`、`claimed`、`fill` / canvas / `width: 'fit'` / 折り返しのやり直しで hook を何度呼んでも同じ結果(冪等)、測っていない文字は `plugin-text-unmeasured`、文字の大きさが `roles` の拡大に従う、日本語の折り返しがコアの帯と同じ |
-| U3 | 描画と門: `emit`、**本物の `sanitizeBody`**、帯の中の id の重複、id の接頭辞、`data-node` を**ホストが `anchors` から**書く、`selfDimming` と `dim`、**ダークモード(トークンの色と `paper`)**、PPTX の `'image'` | 描画が決定的。禁止の要素を出すと `plugin-svg-rejected` と破線のプレースホルダー。PPTX が絵として出る。暗い図で `paper` でない固定色は `plugin-fixed-color` | 門の拒否(`text` / `style` / `use` / `image` / `foreignObject` / `data-*` / `rgb()` / 名前つきの色 / 外への参照 / 重複 id)、同じ帯が 2 回出ても `id` が衝突しない、**ダークモードでトークンでない色**、`paper` の下地、PPTX の検証(`pnpm validate:pptx` に fixture) |
-| U4 | verify と規則: `verify.rects` / `check`(`CHECK_PHASES` に `'plugin'`)、`rules`(登録簿)、`accept` の型の拡張、エラーの境界(`plugin-failed`。`layout` は結果を求めてから `ctx` を変える。48px のプレースホルダー)、`--strict` との関係、`check --explain` | プラグインの問題が verdict に入る。規則に説明が無いと `plugin-rule-undocumented`。hook が投げても他の帯の診断が続く | 問題 / 警告 / 助言、`accept`、投げる hook(`ctx` が半端にならない)、`rects` の衝突の検査、**変異**(`verify` を空にするとテストが落ちる) |
-| U5 | spec と入口: `specToDiagram` / `validateSpec` / `renderSpec` / **`renderSpecEdge`** の `plugins`、**`specSchemaFor({plugins})`(新しい関数)** と `partCatalog({plugins})`、`schema` の未対応キーワードの拒否、`--plugin`、設定の `plugins`、`renderInBrowser` の `plugins`、markdown 系・`./render`・デッキ・`site`・PPTX の edge への配線 | spec の部品 `{type: 'rating-demo:stars'}` が描ける。未供給は `SpecIssue`(使えるプラグインの一覧)。**プラグインを渡さない既存の `specSchema` は今と同じ**(`schema/*.schema.json` が不変) | spec の往復、未供給のエラー、`schema-files` の不変、`--plugin` と設定のテスト(呼び出しの指定が設定を上書き)、`pattern` などを含むスキーマの拒否、各入口に参照プラグインを通す |
-| U6 | **参照プラグインの fixture と適合テスト(必須)**: `test/fixtures/plugins/rating/`(`lib/` の**外**。`import type` だけ)に、小さい新しい帯を 1 つ、**D6 の確認表の全 hook** を通るように端から端まで(DSL、spec、配置、描画、verify、目録、reveal、PPTX、ダークモード、コンテナ)。`svg-diagram/plugin-testing` の `conformance(plugin)`: 決定性・冪等・`structuredClone`・門・規則の説明・anchor の一意・`example` が問題なく描ける・**測定した文字だけ**・**2 つの帯が衝突しない**・**`group` / `row` / `areas` の中**・**配布物に import が無い** | 参照プラグインが適合テストを通る。**プラグインなしで `rating-demo:stars` を描くと明確なエラー**。プラグインの作者が自分のリポジトリで `conformance(plugin)` を呼べる | 端から端のテスト、未供給のエラーの文言、**変異**(`emit` を非決定にする、`rules` の説明を消す、門を外す、`measure` の登録を消す。それぞれ落ちる) |
-| U7 | 人物の提供元(DSL と `renderComic` の経路): `characters` の hook、`comic(sheet, {plugins})`、`renderComic({plugins})`、`loadCharacter` を必ず通す。**spec の `cast.x.character = {provider, params}` は、comic が spec の部品を持つ(ADR 0074 U4。今は `IN_NO_SPEC_YET`)まで待つ** | 参照の人物の提供元の出力が `comic()` で描ける。権利の無い人物は `comic-license-missing`。**人物は図ごと**(別の図に漏れない) | 提供元 → `loadCharacter` の往復、未供給、権利なし、図をまたいだ漏れなし |
-| U8(任意) | 追加の表情: `expressions`、`ComicExpression` の拡張、`comic-expression-fallback` | 名前空間つきの表情が描け、持たない人物は `neutral` に落ちて助言が出る。コアの 8 種の出力は不変 | 落ちる経路、コアの golden の不変 |
-| U9(**必須**) | **API を 1.0 にする確認**(D6 の確認表): コアの帯を 1 つ並べて書き直し(元の帯は残す)、描画が同等であることを比べる。確認表を埋める | 確認表のすべての行に実物がある。Opus のレビューが収束 | 並べた書き直しと元の帯の描画の比較(ホストの包みと `texts` の順を除く) |
-| U10 | 配布: 参照プラグインか `manga-face` を jsDelivr から読む Artifact の通し確認(**core の CDN のプローブが済んでから**)、MCP の許可リスト(MCP のリポジトリ側の PR)、ドキュメント(README、skill) | Artifact が 2 つのモジュールを読み、プラグインの帯を描く。MCP が許可リストのプラグインの部品を `list_diagram_parts` に出し、許可外の名指しを拒む | Artifact の実機の確認(決める人)、MCP のテスト(別のリポジトリ) |
+| U0 | ADR とスパイク(この PR) | スパイクの測定(上の表)。表の一覧。バンドルの測定。`typecheck` が通り、golden が不変 | `spikes/band-plugin/` の各スクリプト |
+| U1 | **枠組み(M0)**: `svg-diagram/core` の切り出し(**`pipeline.ts` が HTML を引かないようにする**。`rules.ts` / `dsl/text-bands.ts` の `walkBands` の依存を切る)、`BandDef` と帯の値(`[DEF]`)、`pluginBands`、**`copyBand`**、**派生の表**(表からの呼び出しと帯の値からの呼び出しが同じ結果)、**`layoutHandlerFor` の箱のフォールバックの削除**、`test/band-boundaries.test.ts`、`package.json` の `exports`(`core`、`plugin`)と `"sideEffects": false`、`scripts/bundle-size.ts`(全部入りの上限だけ有効)。**どの帯も移さない** | `typecheck` が通る。**プラグインも移した帯も無い図の出力が、バイト単位で不変**(golden)。全部入りの入口の大きさが今の +5% 以内 | 未知の `type: 'x:y'` が箱にならず投げる、**全部のコピー経路で `[DEF]` が残る**、型テスト(最上位・`group`・`row`・`areas` の `connect()`、裸の綴り間違いは `@ts-expect-error`、コアの帯の抜けは今までどおり落ちる)、`core-purity` と `web-entry` に `core` を足す、`sideEffects: false` と入口を、esbuild と Vite で束ねる試験(背景のケース B・C の再現) |
+| U2 | 外部の帯のための hook: `ids`、`layout` の anchor 登録(**スコープは既定で帯の id**)、`texts` と `wrapText`、**`band-text-unmeasured`**、`inventory` の既定(`band` に plugin / kind)、`reveal` の既定、`connect()` の終点、親の幅 `w`。参照プラグインの骨組み | 参照プラグインの帯が、**最上位・`group`・`row`・`areas` の中**で描け、部品への `connect('a:bottom', 'rate.s2:top')` が通る。文字がコアの測定器を通る | **同じ種類の帯 2 つ**、各コンテナ内の部品への `connect()`、`band-anchor-undeclared`、`claimed`、`fill` / canvas / `width: 'fit'` / 折り返しのやり直しで hook を何度呼んでも同じ結果(冪等)、測っていない文字は `band-text-unmeasured`、文字の大きさが `roles` の拡大に従う、日本語の折り返しがコアの帯と同じ |
+| U3 | 外部の帯の描画と門: `sanitizeBody`、帯の中の id の重複、id の接頭辞(**図の中の帯の位置から**)、`data-node` を**ホストが `anchors` から**書く、`selfDimming` と `dim`、**ダークモード(トークンの色、`paper`(`fill` / `stroke` / `stop-color` の 3〜8 桁の hex だけ変換、`PALETTE.bg` の下地)、`paper` の `texts` の凍結したインクの色)** | 描画が決定的。禁止の要素を出すと `band-svg-rejected` と破線のプレースホルダー。暗い図で `paper` でない固定色は `band-fixed-color` | 門の拒否(`text` / `style` / `use` / `image` / `foreignObject` / `data-*` / `rgb()` / 名前つきの色 / 外への参照 / 重複 id)、同じ帯が 2 回出ても `id` が衝突しない、`url(#id)` が壊れない、**暗い図で `paper` の帯の文字と下地のコントラスト**、トークンでない色 |
+| U4 | verify と規則とエラーの境界: `verify.rects` / `check`、`rules`、`accept` の型、`band-failed`(`layout` は結果を求めてから `ctx` を変える。48px のプレースホルダー)、`--strict`、`check --explain` | 外部の帯の問題が verdict に入る。規則に説明が無いと `band-rule-undocumented`。hook が投げても他の帯の診断が続く | 問題 / 警告 / 助言、`accept`、投げる hook(`ctx` が半端にならない)、**変異**(`verify` を空にするとテストが落ちる) |
+| U5 | spec と入口と設定: `renderSpec(spec, {bands})`、`specToDiagram` / `validateSpec` / **`renderSpecEdge`** の `bands` と `plugins`、`specSchemaFor`、`partCatalog({bands})`、未対応キーワードの拒否、`--plugin` と設定の `plugins`、**`pptx-deck` / `serve` / `site` / `md` / `deck` / `check --drift --jobs` の子プロセス**への配線、**キャッシュ(デッキ、drift)にプラグインの版を入れる**、markdown 系・`./render`・PPTX の edge。**静的な `./schema/*.json` はプラグインを含まない**(明記) | spec の部品が描ける。**名指しされた帯が渡されていないと、使える帯の一覧つきのエラー**。`bands` を渡さない全部入りの入口は今と同じ。`schema/*.schema.json` が不変 | spec の往復、未供給のエラー、`schema-files` の不変、`--plugin` と設定(呼び出しが設定を上書き)、`pattern` などを含むスキーマの拒否、各入口に参照プラグインを通す、**プラグインの版を変えるとキャッシュが無効になる**、drift の子プロセスが `--plugin` を受ける |
+| U6 | **参照プラグインと適合テスト(必須)**: `test/fixtures/plugins/rating/`(`lib/` の外。**`import type` と `satisfies PluginDef` だけで、`definePlugin` などの実行時の値は import しない**)に、小さい新しい帯を 1 つ、D10 の確認表の全 hook を通るように端から端まで。`svg-diagram/plugin-testing` の `conformance(plugin)`: **幅・`roles` の倍率・折り返しの方式を変えて A, B, C, A, B, A の順に `layout` を呼び、同じ環境で同じ結果**、**深く凍結した入力**(書き換えれば投げる)、**測定 → 配置の本物の周期**(厳密な測定済みの集合で `band-text-unmeasured`)、**毎回新しく複製したデータの結果と共有データの結果が同じ**(環境を無視する結果の保存を検出)、`structuredClone`、門、規則の説明、anchor の一意、`example` が描ける、**2 つの帯が衝突しない**、`group` / `row` / `areas` の中、**配布物に import が無い**。U2 の後に、本物の `fill` / canvas / `width: 'fit'` の通過でも回す | 参照プラグインが適合テストを通る。**プラグインなしで描くと明確なエラー**。プラグインの作者が自分のリポジトリで `conformance(plugin)` を呼べる | 端から端のテスト、未供給のエラーの文言、**変異**(`emit` を非決定にする、`rules` の説明を消す、門を外す、`measure` の登録を消す、**環境を無視して結果を覚える / 4 回目から高さが変わる壊れたプラグイン 2 つが `conformance()` で落ちる**) |
+| U7 | **出力形式の分離**: `svg-diagram/pptx`(`toPptx(d, {bands})`)、`svg-diagram/html`、`svg-diagram/zip`(PPTX と Excel で共有)、帯ごとの adapter の入口(`pptx/bands/<名前>`、`html/bands/<名前>`)。**`BAND_HANDLERS` を adapter の表に分け**、`slide.ts` の `group` / `swimlane` の特別扱いを adapter の hook に移し、**adapter 無しの既定(PPTX = 絵、HTML = SVG)と `pptx-band-fallback` / `html-band-fallback` の報告**。全部入りの `./pptx/edge` は全部の adapter を渡す。**ADR 0068 の改訂**(Excel を adapter の形で書く。D6)。Excel の adapter の骨組み(コードが入るのは 0068 の実装の PR) | **PPTX・HTML の golden がバイト単位で同じ**(全部入り)。`toPptx` に箱・行の adapter だけを渡した束が予算内。adapter の無い帯は絵になり、`pptx-band-fallback` が報告される(`strict` ならエラー) | adapter の差し替え、既定の絵、報告、`strict`、`pnpm validate:pptx`、PPTX の golden(`pptx-golden.yml`)、**変異**(adapter の表から 1 行を消すと既定の絵になり報告が出る) |
+| U8 | **移行 M1**: 葉の帯(`spacer`、`caption`、`status`、`raw`、`legend`、`banner`) | D10 の基準 1〜7 | golden、派生の表の同値、境界、予算 |
+| U9 | **移行 M2 と M2c**: `box`(`placeBoxLike` を帯の中へ)、`pyramid`、`curve`、`people`、`dots`、`wordart`、`math`、**`comic`**。付け根(`reveal.ts → band-ids.ts → quadrant.ts`)を切る。**マンガの組み合わせの予算(190 KB)を有効にする** | D10 の基準 1〜7。**マンガ + ブラウザの測定器の束が、予算内**(今 1036 KB) | 同上 + マンガの Artifact の束の測定 |
+| U10 | **移行 M3**: コンテナ(`group`、`row`、`grid`、`areas`、`grouprow`、`image`)。`children` の hook、`STACK_WIDTH`、`row()` の包み。**箱・行の組み合わせの予算(170 KB)を有効にする** | D10 の基準 1〜7 | 同上 + 箱・行の束 |
+| U11 | **移行 M4**: 図形の帯(`flowShape` の 7 種、`quadrant`、`timeline`、`gantt`、`bars`、`plane`、`chart`) | 同上 | 同上 |
+| U12 | **移行 M5**: `sequence`、`table`、`swimlane`、`wireframe`、`screens` | 同上 | 同上 |
+| U13 | **移行 M6**: `tree`、`states`、`cause`、`cloud`、`classes`、`bpmn`、`fta`、`bowtie` | 同上 | 同上 |
+| U14 | **後片付け(M7)**: 中央の表と `ALL_BANDS_*` を消す。`rules.ts` を枠組みだけにする。`CHECK_PHASES` を帯の定義へ。全部入りの入口の「派生の表」は互換のため残す(または削除。Q) | 中央の表が無い。golden が不変 | 既存のテスト一式 |
+| U15 | **人物の提供元**(DSL と `renderComic` の経路): `characters` の hook、`comic(sheet, {plugins})`、`loadCharacter` を必ず通す。**spec の `cast.x.character = {provider, params}` は、comic が spec の部品を持つ(ADR 0074 U4)まで待つ** | 参照の人物の提供元の出力が `comic()` で描ける。権利の無い人物は `comic-license-missing`。**人物は図ごと** | 提供元 → `loadCharacter` の往復、未供給、権利なし、図をまたいだ漏れなし |
+| U16(任意) | 追加の表情: `expressions`、`ComicExpression` の拡張、`comic-expression-fallback` | 名前空間つきの表情が描け、持たない人物は `neutral` に落ちて助言が出る。コアの 8 種は不変 | 落ちる経路、コアの golden の不変 |
+| U17 | **1.0 の確認と配布**: D10 の確認表を埋める(N 個の帯の移行 + 参照プラグイン + manga-face)。jsDelivr から `core` と帯と(あれば)プラグインを読む Artifact の通し確認(**core の CDN のプローブが済んでから**)、MCP の許可リスト(MCP のリポジトリ側の PR)、README と skill。**予算の全部の行を有効にする** | 確認表のすべての行に実物がある。Opus のレビューが収束。`1.0` | Artifact の実機の確認(決める人)、MCP のテスト(別のリポジトリ) |
 
 ## テスト方針
 
-- **コアの網羅**: 既存の `satisfies` と `ALL_BANDS_*` はそのまま。`plugin` が増えるので、10 個の表への入口は型で強制される(U0 の実験とレビューの実測が証明)。(B) の型で守られない箇所は、`test/band-registries.test.ts` に `plugin` の行を足し、参照プラグインが全部の経路(spotlight、reveal、`data-node`、位置の地図、`rewrite`、HTML の形)を通ることで確かめる。
+- **移行の同値**: 各 PR で、**golden(SVG、PPTX、スキーマ)がバイト単位で同じ**。移行の間は、**表からの呼び出しと帯の値からの呼び出しが同じ結果**になることを、その帯の例で確かめる(派生の表)。
+- **境界**: `test/band-boundaries.test.ts` が、`core` が帯を import しないこと、帯が他の帯を import しないこと、出力形式の adapter が帯の入口以外を引かないことを見張る。
+- **大きさ**: `scripts/bundle-size.ts` が、入口と代表の組み合わせの束の大きさを予算と比べる(esbuild と Vite の両方)。
 - **適合テスト**(U6)は、プラグインの作者が自分のリポジトリで走らせる。core の CI は参照プラグインだけを走らせる。
-- **golden**: コアの golden は、プラグインを使わない限り**不変**(各単位の完了の基準)。プラグインの出力の golden は、プラグインの側。
 - **変異**: 各単位で、新しいコードを壊す変異を 1 つ以上当て、落ちることを PR に書く(`AGENTS.md`)。
 
 ## 決める人への質問
 
 | # | 質問 | 推奨 | 理由 |
 |---|---|---|---|
-| Q1 | 型の入れ方: コアに `plugin` の封筒を 1 種類足す方式で進めてよいか | **封筒を 1 種類**。表 10 個に各 1 行 | コアの帯の全数性が残る。モジュールの拡張はグローバルになる。実際の合併型を広げても、壊れるのは 10 個の表(と派生の行)だけと実測 |
-| Q2 | プラグイン API の版の方針と、`1.0` の条件 | **core の版とは別の semver。`0.x` の間は破壊的変更あり(minor まで同じでないと受けない)。`1.0` は D6 の「hook の網羅の確認表」を満たし(U9。必須)、Opus のレビューが収束してから** | 実物(参照プラグイン、manga-face、並べて書き直したコアの帯)で試す前に約束しない。バイト一致は構造上できない |
-| Q3 | 帯の名前空間の書き方 | **`プラグイン id:帯の名前`**(`manga-face:avatar`)。規則は `id/規則名` | コアの名前と衝突しない。`/` は規則、`.` はスコープと使い分ける |
-| Q4 | 登録は呼び出しごとか、グローバルか。コードの無い入口(デッキ、markdown、エディタ)はどうするか | **呼び出しごと** + **プロジェクトの設定の `plugins`**(呼び出しの指定が上書き)。MCP は許可リスト | ADR 0074 の約束。漏れない。設定は呼び出す側の持ち物で、spec ではない(D5 の 1) |
-| Q5 | v1 で、プラグインの帯に何を許すか | **他の帯を持つこと(コンテナ)と、重ねの帯になることは許さない。行・グループ・`areas`・`grid` の子になること、`FlowBand` に含まれることは許す** | 子の測定と積みは、ホストの再帰に結びつく。顔を文の横に置く使い方に必要。スパイクで 3 つのコンテナとも描けた。0078 の `FlowBand` と整合 |
-| Q6 | プラグインに `<text>` を出させるか | **出させない。文字は `texts` のデータで返し、コアが描く**(測定の厳密さ、`roles` の拡大、日本語の折り返しはコア) | 測定、フォント、ダークモード、小さい文字の検査、0078 の目録が自動で正しくなる。コアは測っていない文字を幅 0 で通すので、`plugin-text-unmeasured` で止める |
-| Q7 | コアの帯(`comic`)を内側のプラグインに移すか | **移さない**。U9 では小さいコアの帯を**並べて**書き直すだけ。`comic` は 0078 が安定した後に別の ADR | コンパイル時の全数性を失う。`comic` の結びつきが深い。バイト一致は構造上できない |
-| Q8 | 人物の提供元は、関数として呼ぶ形(今でも可)と、spec に書く形の両方か | **両方**。spec の形は comic が spec の部品を持つ(ADR 0074 U4)まで待つ | 0079 を待たせない。LLM / JSON の経路が要るときに仕組みが効く |
-| Q9 | 追加の表情をプラグインで足せるようにするか | **後で(U8)。名前空間つき**、持たない人物は `neutral` に落として助言 | ADR 0079 の Q8 と同じ時期。コアの 8 種は動かさない |
-| Q10 | 公開の MCP サーバーで、どのプラグインを有効にするか | **既定は 0 個。有効にするのは、権利と品質の確認の後(`manga-face` が最初の候補)** | 許可リストの方式は安全だが、見た目と権利は別の確認 |
-| Q11 | 版の門: `requires` の不一致はエラーか警告か。どれが権威か | **エラー**(両方の版を名指し)。**`apiVersion` が権威**、`requires` は core の範囲、`peerDependencies` は案内 | 黙って動いて壊れるより、早く止まる。複数の門が食い違うときの順を決めておく |
-| Q12 | プラグインの規則は `--strict` と `accept` にコアの規則と同じように乗せるか | **乗せる**。重大度は宣言の範囲内、規則の説明は必須。プラグインに見せる重大度は `problem` / `warn` / `info` | 利用者から見て、規則の扱いが 1 つ |
-| Q13 | U1 に着手する順序 | **ADR 0078 U2 のマージの後**(`FlowBand` / `OverlayBand` が `Band` に入る単位。0078 U0b は `inventory.ts` だけ)。ADR 0079 の U1 以降は待たず、関数呼びの形(D7 の 1.)で進める | 同じ合併型と表を触る 2 本の PR の衝突を避ける |
-| Q14 | 参照プラグインの置き場と、適合テストの道具の公開 | **`test/fixtures/plugins/rating/` に置き、`svg-diagram/plugin-testing` を公開**(U6) | プラグインの作者が同じ検査を自分のリポジトリで走らせられる。参照が core の CI に入り、API の変更で壊れたらすぐ分かる |
-| Q15 | 1 つの帯の SVG / anchor の上限 | **設定できる値。既定は SVG 1 MB、anchor 1000** | 顔 64 個の見本帳が約 370 KB(ADR 0079 の実測)で収まる |
+| Q1 | 帯の定義は 1 つの形 `BandDef` にし、呼び出しは帯の値(`[DEF]`)から行う。中央の表は無くす方向でよいか | **よい**。登録式にしない。`satisfies BandDef` と全部入りの入口の 1 つの表で全数性を保つ | 使う帯だけが束ねられる(マンガ 1036 → 130〜160 KB の見込み)。登録式は `sideEffects: false` で黙って消える(測定 D)。封筒の案は束ねを直さない |
+| Q2 | コアの帯の移行を主線にする(以前の案の「移さない」を逆にする) | **主線にする**。1 帯 1 PR、golden はバイト一致、派生の表で段階的に | 束ねの問題の原因が中央の表。移行の途中でも、表と帯の値が同じ結果になるので、いつでも止められる |
+| Q3 | 移行の順序と最初の成果 | **葉の帯 → `box` → `comic`(最初の成果。マンガの Artifact が 190 KB 以内)→ コンテナ → 図形 → 表 → 図式**。M0(枠組み)は ADR 0078 U2 の前でも始められる(追加のみ)。`comic` の移行は 0078 U2 を待つ | 決める人の最初の用途がマンガ。`comic` は自分のフォルダで閉じている。0078 が `Band` の合併型と重ねを動かしている間は、`comic` のふきだしの重ねを壊さない |
+| Q4 | 入口の構成: `svg-diagram/core`、`bands/<名前>`、`measure/{browser,node}`、`pptx` と `pptx/bands/<名前>`、`xlsx`、`html`、`png`、`zip`。今の入口は全部入りとして残す。`"sideEffects": false` を入れる | **そのとおり**。帯ごとの入口を主にし、まとめの `bands` は便宜 | `sideEffects: false` で樽も効く(測定 B)が、Rollup は樽に弱い(F / G)。今の入口を壊さない |
+| Q5 | 出力形式(PPTX・Excel・HTML)を `BandDef` に入れず、出力形式の入口に帯ごとの adapter を置く。adapter が無い帯の既定: PPTX = 絵、HTML = インライン SVG、Excel = 飛ばす。いずれも報告(`strict` でエラー) | **そのとおり** | 帯を import しても出力形式が付いてこない。PPTX / HTML は表を分けるだけで済む(測定)。黙って落とさない |
+| Q6 | 帯の渡し方: 呼び出しごと + プロジェクトの設定の `plugins`。spec の入口は `bands` を渡す(全部入りの入口は全部を既定) | **そのとおり**。グローバルの登録簿は作らない | ADR 0074 の約束。コードの無い入口(デッキ、markdown、`pptx-deck`、`serve`、`site`、`md`、`deck`)は設定 |
+| Q7 | spec が名指しした帯が無いときは、使える帯の一覧つきのエラー(コアの帯も外部も同じ) | **そのとおり** | 黙って落とさない。LLM が直せる |
+| Q8 | 外部のプラグインは「名前空間つきの `BandDef`」。コアとの違いは `id:kind` の名前と安全の約束(門、呼び出しごと / 設定、許可リスト)だけ | **そのとおり**。外部の帯は文字を `texts` で返す(`<text>` は出さない)、他の帯を持てない | 測定、フォント、ダークモード、小さい文字の検査、0078 の目録が自動で正しくなる。コアの帯は今までどおり |
+| Q9 | v1 で外部の帯に何を許すか | **他の帯を持つこと(コンテナ)と重ねの帯になることは許さない。行・グループ・`areas` の子になること、`FlowBand` に含まれることは許す。`grid` は箱だけ** | 子の測定と積みは、ホストの再帰に結びつく。スパイクで 3 つのコンテナとも描けた |
+| Q10 | API の版と `1.0` の条件 | **別の semver。`0.x` の間は破壊的変更あり(minor まで同じでないと受けない)。`1.0` は「コアの帯を少なくとも 12 個、golden バイト一致で移し終え、参照プラグインが全部の hook を通し、manga-face が動く」(N は決める人が決める)。Opus のレビュー収束後** | 実物で試す前に約束しない。バイト一致の移行が、API の実地の試験になる |
+| Q11 | 大きさの予算を、入口ごと・組み合わせごとに CI で検査する(上の最初の上限。下げる方向にだけ更新) | **そのとおり**。全部入りの入口は +5% 以内で、M0 から有効。組み合わせは、その帯が移った PR で有効 | 束ねの回帰を CI が止める。数字は見積もりなので M0 の測定で置き換える |
+| Q12 | 公開の MCP サーバーで、どのプラグインを有効にするか | **既定は 0 個。有効にするのは、権利と品質の確認の後(`manga-face` が最初の候補)** | 許可リストは安全だが、見た目と権利は別の確認 |
+| Q13 | ADR 0068(Excel)を、adapter の形に改訂してから実装する(D2 の表を adapter に、D8 の zip を `svg-diagram/zip` に) | **そのとおり**。0068 の PR #373 に追記する | 0068 はコードが未実装。表を後で分けるより、最初から adapter で書く方が安い |
+| Q14 | 人物の提供元(関数として呼ぶ形は今でも可、spec に書く形は ADR 0074 U4 の後)と、追加の表情(後で、名前空間つき) | **両方の経路。表情は後(U16)** | ADR 0079 を待たせない。0079 の Q8 と同じ時期 |
+| Q15 | 版の門(`requires` の不一致はエラー。`apiVersion` が権威)、1 つの帯の上限(設定できる。既定 SVG 1 MB、anchor 1000) | **そのとおり** | 黙って動いて壊れるより、早く止まる。顔 64 個の見本帳が約 370 KB で収まる |
+| Q16 | 全部入りの入口の「派生の表」(`EMIT_HANDLERS` など)を、移行後も互換のために残すか | **削除する**(U14)。公開 API として約束していないので、README に書いた物だけ残す | 残すと全部の帯を引く物が残る |
 
 ## スパイクの再現
 
 ```
-node spikes/band-plugin/run.ts                                            # out/ok.svg, out/measurements.txt
-node_modules/.bin/tsc --noEmit -p spikes/band-plugin/tsconfig.json        # typing.check.ts: ちょうど 10 件(各表で Property 'plugin' is missing)。typing.containers.check.ts は通る
+node spikes/band-plugin/run.ts                                            # プラグインの変換器: out/ok.svg, out/measurements.txt
+node_modules/.bin/tsc --noEmit -p spikes/band-plugin/tsconfig.json        # typing.check.ts: ちょうど 10 件。typing.containers.check.ts は通る
+node spikes/band-plugin/banddef/smoke.ts                                  # BandDef の試作: マンガと箱を描き、本物とふきだし 4・コマ 12 が一致
+node spikes/band-plugin/bundle/measure.ts                                 # 今のバンドル(out/bundle-today.txt)
+node spikes/band-plugin/bundle/entries.ts                                 # 入口ごとの大きさ(out/entries-today.txt)
+node spikes/band-plugin/bundle/exporters.ts                               # 出力形式とバックエンドの大きさ、引き込みの連鎖、分岐の場所(out/exporters-today.txt)
+node spikes/band-plugin/bundle/pptx-modules.ts                            # PPTX の中身(自前と共有)
+node spikes/band-plugin/bundle/prototype.ts                               # BandDef の試作のバンドル(out/bundle-prototype.txt)
+node spikes/band-plugin/bundle/core-candidates.ts                         # `core` に残るモジュールの大きさ
+node spikes/band-plugin/bundle/shaking.ts                                 # sideEffects と Vite / Rollup(out/shaking.txt)
 ```
 
-`out/` は、U1 以降の PR で参照プラグインに置き換えて消す(ADR 0074 と同じ使い捨て)。スパイクの `host.ts` の変換器(`raw` に載せる)は**本実装ではない**。本実装は、10 個の表に直接入口を持つ(D4)。
+`out/` は、U1 以降の PR で参照プラグインと予算の検査に置き換えて消す(ADR 0074 と同じ使い捨て)。スパイクの `host.ts` の変換器(`raw` に載せる)と `banddef/mini-core.ts` は**本実装ではない**。試作のパイプラインは縦の積みだけの縮小版なので、**大きさは本物の下限**(上の見積もりは幅で書いた)。

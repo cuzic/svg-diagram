@@ -1,0 +1,11 @@
+## consumer imports ONE band (box) + the pipeline. Bundle sizes (minified):
+A. barrel (all bands), no sideEffects field                esbuild    54.3 KB   rollup/vite    25.6 KB
+B. barrel (all bands), sideEffects: false                  esbuild    16.4 KB   rollup/vite    21.1 KB
+C. direct per-band entries (no barrel), sideEffects: false esbuild    16.4 KB   rollup/vite    21.1 KB
+C2. direct per-band entries (no barrel), no sideEffects field esbuild    29.3 KB   rollup/vite    25.3 KB
+F. direct per-band entries: ONE comic (not box), sideEffects: false esbuild    44.0 KB   rollup/vite    49.4 KB
+G. direct entries: box + comic, sideEffects: false         esbuild    55.3 KB   rollup/vite    64.0 KB
+D. registry style (all register on import), no sideEffects field esbuild    54.4 KB   rollup/vite    54.0 KB
+D. registry style (all register on import), sideEffects: false esbuild    16.5 KB   rollup/vite    21.1 KB
+E. TODAY: renderComic from lib/web.ts's neighbours, sideEffects: false esbuild   821.0 KB   rollup/vite  1034.2 KB
+E2. TODAY: renderComic, no sideEffects field               esbuild  1035.0 KB   rollup/vite  1292.7 KB

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import {areas, box, caption, connect, diagram, group, row} from '../../lib/dsl-pure.ts';
 import {renderDiagram} from '../../lib/dsl/render.ts';
 import {captureSourceLocations, sourceOf} from '../../lib/source-ref.ts';
-import {PluginNotSuppliedError, PluginRegistry, buildPluginPart, conformance, definePlugin, pluginBands, pluginBand, sanitizePluginSvg, withPluginFindings} from './host.ts';
+import {PluginNotSuppliedError, PluginRegistry, buildPluginPart, conformance, pluginBands, pluginBand, sanitizePluginSvg, withPluginFindings} from './host.ts';
 import {ratingPlugin} from './rating-plugin.ts';
 
 const out = new URL('./out/', import.meta.url).pathname; fs.mkdirSync(out, {recursive: true});
@@ -38,7 +38,7 @@ fs.writeFileSync(`${out}ok.svg`, a.svg);
 const trials: [string, string][] = [
   ['text', '<text x="1" y="1">a</text>'], ['style', '<style>a{}</style>'], ['data-*', '<rect data-anchor="s1" x="0" y="0" width="1" height="1"/>'],
   ['rgb()', '<rect x="0" y="0" width="1" height="1" fill="rgb(1,2,3)"/>'], ['named colour', '<rect x="0" y="0" width="1" height="1" fill="red"/>'],
-  ['image', '<image href="x.png"/>'], ['duplicate id', '<g id="fc"><circle id="fc" cx="1" cy="1" r="1"/></g>'], ['clean shapes', '<g><circle cx="1" cy="1" r="1" fill="#112233" stroke="#000000" stroke-width="1"/></g>'],
+  ['image', '<image href="x.png"/>'], ['duplicate id', '<g id="fc"><circle id="fc" cx="1" cy="1" r="1"/></g>'], ['3-digit hex', '<g><rect x="0" y="0" width="1" height="1" fill="#abc"/></g>'], ['clean shapes', '<g><circle cx="1" cy="1" r="1" fill="#112233" stroke="#000000" stroke-width="1"/></g>'],
 ];
 for (const [name, svg] of trials) { try { sanitizePluginSvg(svg, 'p', 'x-', false); rep(`sanitizer ${name}: accepted`); } catch (e) { rep(`sanitizer ${name}: rejected (${(e as Error).message.slice(0, 70)})`); } }
 
@@ -54,7 +54,7 @@ rep(`dark mode, paper band: ${fills(dPaper.svg)} (no #hex left to recolour: ${!/
 for (const [name, mk] of [
   ['group', () => group([rating.stars({label: 'x', value: 2}, {id: 'g1'})] as never, {})],
   ['row', () => row([box({id: 'ra', title: 'a'}), rating.stars({label: 'x', value: 2}, {id: 'r1'})] as never)],
-  ['areas', () => areas('a b', {a: box({title: 'a'}), b: rating.stars({label: 'x', value: 2})} as never)],
+  ['areas', () => areas('a b', {a: box({title: 'a'}), b: rating.stars({label: 'x', value: 2}, {id: 'b'})} as never)],
 ] as const) {
   try {
     const r = await renderDiagram(diagram({theme: 'blue', title: name}).add(mk() as never), {name, ...R});
@@ -79,9 +79,19 @@ const merged = withPluginFindings(reg, rb.laidOut, rb.verdict);
 rep(`findings: core verdict alone ok=${rb.verdict.ok}; merged ok=${merged.ok} problems=${JSON.stringify(merged.problems)} findings=${JSON.stringify(merged.findings.map(f => `${f.rule}:${f.severity}`))}`);
 try { rating.stars({label: '', value: 1}); } catch (e) { rep(`bad data -> ${(e as Error).message}`); }
 try { buildPluginPart(new PluginRegistry([]), {type: 'rating-demo:stars', label: 'x', value: 1}); } catch (e) { rep(`not supplied -> ${e instanceof PluginNotSuppliedError}: ${(e as Error).message}`); }
-try { new PluginRegistry([definePlugin({id: 'rating-demo', apiVersion: '0.2', bands: {}})]); } catch (e) { rep(`api 0.2 on host 0.1 -> ${(e as Error).message.slice(0, 80)}`); }
+try { new PluginRegistry([{id: 'rating-demo', apiVersion: '0.2', bands: {}}]); } catch (e) { rep(`api 0.2 on host 0.1 -> ${(e as Error).message.slice(0, 80)}`); }
 rep(`spec part -> ${buildPluginPart(reg, {type: 'rating-demo:stars', label: '速さ', value: 3, id: 'rate3'}).type} (the host lowers it to raw)`);
-rep(`conformance(ratingPlugin) failures: ${JSON.stringify(conformance(ratingPlugin))}`);
+rep(`conformance(ratingPlugin) failures (layout varied A,B,C,A,B,A on frozen data): ${JSON.stringify(conformance(ratingPlugin))}`);
+// mutation tests: two broken plugins the conformance helper MUST fail (round-2 review)
+const stars = ratingPlugin.bands.stars;
+const cache = new WeakMap<object, unknown>();
+const cachesIgnoringEnv = {...ratingPlugin, id: 'broken-cache', bands: {stars: {...stars, layout: (d: never, e: never) => { const hit = cache.get(d); if (hit) return hit as never; const v = stars.layout(d, e); cache.set(d, v); return v; }}}};
+let n = 0;
+const fourthCallDiffers = {...ratingPlugin, id: 'broken-count', bands: {stars: {...stars, layout: (d: never, e: never) => { const v = stars.layout(d, e); return ++n >= 4 ? {...v, h: v.h + 8} : v; }}}};
+const mutates = {...ratingPlugin, id: 'broken-mutate', bands: {stars: {...stars, layout: (d: {value: number}, e: never) => { d.value += 0; (d as {x?: number}).x = 1; return stars.layout(d as never, e); }}}};
+for (const p of [cachesIgnoringEnv, fourthCallDiffers, mutates]) { const f = conformance(p as never); rep(`mutation ${p.id}: conformance fails = ${f.length > 0} (${f[0]?.slice(0, 90)})`); }
+// the pluginBands() copy / version mismatch
+try { pluginBands(new PluginRegistry([ratingPlugin]), {...ratingPlugin, version: '9.9.9'}); } catch (e) { rep(`copy mismatch -> ${(e as Error).message.slice(0, 100)}`); }
 try {
   await renderDiagram(diagram({theme: 'blue', title: 't'}).add(box({id: 'a', title: 'a'}), pluginBand(reg, 'rating-demo:stars', {label: 'x', value: 1}, {id: 'rate'}), connect('a:bottom', 'rate.s2:top') as never), {name: 'x', ...R});
   rep('connect to a star: resolved');

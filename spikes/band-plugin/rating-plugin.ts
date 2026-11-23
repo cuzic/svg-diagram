@@ -1,7 +1,7 @@
 // A "reference external plugin" in miniature (ADR 0080): one new band, `rating-demo:stars` (n of max stars), written only against the plugin API
-// (host.ts: types and the identity definePlugin; no import from lib/). Neutral example data.
+// (host.ts: `import type` and `satisfies PluginDef`; no run-time import from the host or lib/). Neutral example data.
 // Shapes only: the label would go out as `texts` (drawn by the core); this spike has no such channel, so the label is not drawn (see run.ts).
-import {definePlugin, type BandKind, type PluginAnchor} from './host.ts';
+import type {BandKind, PluginAnchor, PluginDef} from './host.ts';  // types only: the plugin imports nothing from the host at run time
 
 interface StarsData {label: string; value: number; max: number; paper?: boolean}
 interface StarsLaid extends StarsData {size: number; gap: number; labelW: number; stars: PluginAnchor[]}
@@ -43,4 +43,4 @@ const stars: BandKind<StarsData, StarsLaid> = {
   rules: {'value-over-max': 'value is more than max', 'stars-wider-than-band': 'the stars do not fit the band width'},
 };
 
-export const ratingPlugin = definePlugin({id: 'rating-demo', apiVersion: '0.1', bands: {stars}});
+export const ratingPlugin = {id: 'rating-demo', apiVersion: '0.1', version: '1.0.0', bands: {stars}} satisfies PluginDef;

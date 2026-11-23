@@ -1,0 +1,34 @@
+## each exporter / heavy backend alone (own code; dependencies external)
+PPTX single (lib/pptx/emit.ts)               212.4 KB   externals: node:module, node:zlib
+PPTX edge (./pptx/edge)                     1301.1 KB   externals: -
+PPTX deck edge                              1328.1 KB   externals: -
+HTML emit (lib/emit-html.ts)                 127.4 KB   externals: -
+deck HTML (lib/deck-html.ts)                   4.6 KB   externals: node:crypto
+Node measurer (lib/measure.ts, HarfBuzz)      83.4 KB   externals: node:child_process, node:fs, node:os, node:net, node:path, playwright-chromium, harfbuzzjs, node:url
+browser measurer (lib/web-measure.ts)          3.0 KB   externals: -
+PNG (lib/raster.ts, resvg)                   100.6 KB   externals: node:fs, node:child_process, harfbuzzjs, node:url, node:os, node:net, node:path, playwright-chromium, @resvg/resvg-js
+font subset (lib/font-subset.ts)               1.2 KB   externals: node:fs, node:url
+font box (lib/font-box.ts)                    70.3 KB   externals: node:fs, node:child_process, harfbuzzjs, node:os, node:net, node:path, node:url
+SVG emit alone (lib/emit.ts)                 107.8 KB   externals: -
+layout alone (lib/layout.ts)                 504.5 KB   externals: -
+verify (lib/verify.ts)                       187.1 KB   externals: -
+rules (lib/rules.ts)                         162.6 KB   externals: -
+spec (lib/spec.ts)                           483.0 KB   externals: -
+
+## what the package entry "." (lib/dsl.ts) contains and why
+total 1080.9 KB; externals: node:child_process, node:fs, node:os, node:net, node:path, playwright-chromium, harfbuzzjs, node:url, fs, path, child_process, node:module, node:crypto
+  pptx                    0.0 KB  via: (not present)
+  html                   18.9 KB  via: <entry> -> lib/dsl.ts -> lib/dsl/io.ts -> lib/pipeline.ts -> lib/emit-html.ts
+  node measurer           8.0 KB  via: <entry> -> lib/dsl.ts -> lib/measure.ts
+  png                     0.2 KB  via: <entry> -> lib/dsl.ts -> lib/measure.ts -> lib/raster.ts
+  spec                    0.0 KB  via: (not present)
+  markdown/vitepress      0.0 KB  via: (not present)
+  present/deck            0.0 KB  via: (not present)
+
+## where each exporter dispatches on the band type today
+  lib/pptx/bands.ts: 2 sites (first :204)
+  lib/pptx/geom.ts: 5 sites (first :106)
+  lib/pptx/slide.ts: 3 sites (first :56)
+  lib/pptx/svg-shapes.ts: 1 sites (first :206)
+  lib/emit-html.ts: 16 sites (first :133)
+  lib/pptx-edge.ts: 0 sites
