@@ -1,0 +1,3 @@
+mini render: 10456 chars, findings=[]
+bubbles drawn: mini=4 real=4; panels mini=12 real=12
+unrequested text is an error: plugin-text-unmeasured: "字" at 18/400/sans was not requested

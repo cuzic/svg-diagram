@@ -1,0 +1,31 @@
+beside core bands: verdict.ok=true; plugin drawn=true; connectors=2; byte-equal over 2 renders=true
+constructor built by pluginBands() is located() (ADR 0072): source ref on the band = true
+hook calls for 1 render (layout / emit): 2 / 1 (here raw() calls them at construction and draw only; the real core calls layout on every layout pass, so hooks must be idempotent: checked by conformance())
+sanitizer text: rejected (p: <text> is not supported (shapes, groups, gradients and clip paths o)
+sanitizer style: rejected (p: <style> is not supported (shapes, groups, gradients and clip paths )
+sanitizer data-*: rejected (p: <rect data-anchor="…"> is not supported)
+sanitizer rgb(): rejected (p: fill="rgb(1,2,3)" — only currentColor, none, #hex colours and gradi)
+sanitizer named colour: rejected (p: fill="red" — only currentColor, none, #hex colours and gradients of)
+sanitizer image: rejected (p: <image> is not supported (shapes, groups, gradients and clip paths )
+sanitizer duplicate id: rejected (p: the id "fc" appears twice in one band (scope the ids))
+sanitizer 3-digit hex: accepted
+sanitizer clean shapes: accepted
+dark mode, token colours: light=#1d5fa8 #22201b none -> dark=#7ab2ee #ece6da none (recoloured: true)
+dark mode, paper band: rgb(255,255,255) rgb(224,168,0) rgb(43,37,48) none (no #hex left to recolour: true)
+container group: drew=true verdict.ok=true problems=[]
+container row: drew=true verdict.ok=true problems=[]
+container areas: drew=true verdict.ok=true problems=[]
+layout variant canvas: ok=true equal across runs=true plugin layout calls=4 (raw does not re-run it per core pass: that is only proven by conformance() idempotence)
+layout variant width fit: ok=true equal across runs=true plugin layout calls=4 (raw does not re-run it per core pass: that is only proven by conformance() idempotence)
+layout variant narrow 360: ok=true equal across runs=true plugin layout calls=4 (raw does not re-run it per core pass: that is only proven by conformance() idempotence)
+findings: core verdict alone ok=true; merged ok=false problems=["[rating-demo] value 7 is more than max 5 [rating-demo/value-over-max]"] findings=["rating-demo/stars-wider-than-band:warn"]
+bad data -> plugin rating-demo: rating-demo:stars: label is the name of what is rated
+not supplied -> true: the band type "rating-demo:stars" is a plugin band, but plugin "rating-demo" was not supplied: pass it as diagram({plugins: [...]}) / --plugin / the project config (a spec never loads code). Available: none
+api 0.2 on host 0.1 -> plugin rating-demo: apiVersion 0.2 is not supported by this host (API 0.1; in 0.
+spec part -> raw (the host lowers it to raw)
+conformance(ratingPlugin) failures (layout varied A,B,C,A,B,A on frozen data): []
+mutation broken-cache: conformance fails = true (broken-cache:stars: layout on the shared data differs from a fresh call for the same envir)
+mutation broken-count: conformance fails = true (broken-count:stars: layout on the shared data differs from a fresh call for the same envir)
+mutation broken-mutate: conformance fails = true (broken-mutate:stars: Cannot assign to read only property 'value' of object '#<Object>')
+copy mismatch -> plugin rating-demo: pluginBands() got a different copy / version than diagram({plugins}) (9.9.9 vs 1
+connect to a star -> connect(): unknown anchor id "rate.s2" (give the target box an id: 'rate.s2') (raw registers no anchors: a layout hook is needed)

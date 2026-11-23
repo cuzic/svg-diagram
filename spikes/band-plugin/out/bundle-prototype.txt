@@ -1,0 +1,36 @@
+
+## comic-only (mini-core + comic band): 51.3 KB minified, 20.4 KB gzip, 38 modules
+      8.0 KB  lib/comic/layout.ts
+      7.3 KB  lib/quadrant.ts
+      6.0 KB  lib/comic/character.ts
+      4.9 KB  lib/shapes/balloon.ts
+      3.8 KB  lib/dsl/comic.ts
+      3.6 KB  lib/icon-store.ts
+      2.8 KB  lib/comic/emit.ts
+      2.7 KB  lib/comic/face.ts
+      2.3 KB  lib/wrap.ts
+      1.4 KB  lib/comic/reserve.ts
+
+## box-only (mini-core + box band): 29.2 KB minified, 11.4 KB gzip, 26 modules
+      7.3 KB  lib/quadrant.ts
+      4.2 KB  lib/reveal-handlers.ts
+      2.8 KB  lib/tokens.ts
+      2.6 KB  lib/layout-text.ts
+      2.6 KB  lib/emit-boxes.ts
+      2.3 KB  lib/wrap.ts
+      1.6 KB  lib/badge.ts
+      1.5 KB  lib/emit-common.ts
+      0.8 KB  banddef/mini-core.ts
+      0.6 KB  lib/band-children.ts
+
+## box + comic: 67.4 KB minified, 26.4 KB gzip, 47 modules
+      8.0 KB  lib/comic/layout.ts
+      7.3 KB  lib/quadrant.ts
+      6.0 KB  lib/comic/character.ts
+      4.9 KB  lib/shapes/balloon.ts
+      4.2 KB  lib/reveal-handlers.ts
+      3.8 KB  lib/dsl/comic.ts
+      3.6 KB  lib/icon-store.ts
+      2.8 KB  lib/tokens.ts
+      2.8 KB  lib/comic/emit.ts
+      2.7 KB  lib/comic/face.ts

@@ -1,0 +1,8 @@
+.                   1080.9 KB (own code, deps external)  externals: node:child_process, node:fs, node:os, node:net, node:path, playwright-chromium, harfbuzzjs, node:url, fs, path, child_process, node:module, node:crypto  modules: 207
+./browser           1042.0 KB (own code, deps external)  externals: -  modules: 187
+./spec               483.0 KB (own code, deps external)  externals: -  modules: 123
+./spec/edge         1213.5 KB (own code, deps external)  externals: -  modules: 199
+./pptx/edge         1301.1 KB (own code, deps external)  externals: -  modules: 223
+./pptx/deck/edge    1328.1 KB (own code, deps external)  externals: -  modules: 227
+./render            1254.8 KB (own code, deps external)  externals: node:fs, node:path, node:child_process, node:os, node:net, playwright-chromium, harfbuzzjs, node:url, @resvg/resvg-js, node:module, node:crypto  modules: 218
+./markdown          1210.6 KB (own code, deps external)  externals: node:fs, node:path, node:child_process, node:os, node:net, playwright-chromium, harfbuzzjs, node:url, node:crypto, node:module  modules: 223
