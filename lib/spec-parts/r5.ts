@@ -1,6 +1,7 @@
 // Spec parts of round R5 (see lib/spec.ts): each keeps its schema, example, checks and builder together.
 // steps, versus, concentric, harvey, compare, burndown, burnup, mekko, butterfly, combo. A burndown / burnup counts days from 0: it never reads a clock.
-import {box, burndown, burnup, butterfly, combo, compare, concentric, harvey, lines, mekko, steps, versus} from '../dsl-pure.ts';
+import {box, burndown, burnup, butterfly, combo, compare, concentric, harvey, lines, mekko, steps} from '../dsl-pure.ts';
+import {versus} from '../compose/versus.ts';
 import {burndownOpts, burnupOpts} from '../charts-lines.ts';
 import {AMOUNT, BOX_TONE, CHART_TONE, LINE, NUM, STEP_REF, TEXT_TONE, count, items, list, object, oneOf, refIssue, text, withoutType} from '../spec-kit.ts';
 import type {Json, JsonSchema, PartDef, SpecIssue} from '../spec-kit.ts';

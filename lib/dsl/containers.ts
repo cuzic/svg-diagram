@@ -111,8 +111,6 @@ function spanRow<C extends BoxBand | GroupBand>(children: C[], cols: number | nu
   });
   return {cols: cols.reduce((a, b) => a + b, 0), kids};
 }
-/** One cell of iconRow(): the icon, the label beside it, and optionally a line of body. */
-export interface IconRowItem {icon: IconName; label: string; body?: string; tone?: BoxTone; iconTone?: TextTone}
 /** One node of an architecture diagram: an icon, centred and large, with its label under it (Visio's "shape"). */
 export interface NodeOpts {
   icon: IconName;
@@ -141,11 +139,6 @@ export function node(opts: NodeOpts & {id?: string}): BoxBand {
   const {label, sub, size, frame, ...rest} = opts;
   if (size !== undefined && !(size >= 16 && size <= 96)) throw new Error(`node(): size must be between 16 and 96 px (got ${size})`);
   return box({...rest, title: label, ...(sub !== undefined ? {body: sub} : {}), iconAt: 'top', ...(size !== undefined ? {iconSize: size} : {}), ...(frame ? {} : {frame: false as const}), align: 'center'} as never) as BoxBand;
-}
-/** A row of icon + label boxes (each a plain box({icon, title})). The label is required: an icon alone does not say what it means. */
-export function iconRow(items: IconRowItem[], opts: RowOpts = {}): RowBand {
-  if (items.length === 0) throw new Error('iconRow(): needs at least one item');
-  return row(items.map(it => box({icon: it.icon, title: it.label, body: it.body, tone: it.tone, iconTone: it.iconTone})), opts);
 }
 // children: box() descriptors, laid out in `cols` columns (wraps to
 // additional rows automatically). Every cell in the same grid-row shares

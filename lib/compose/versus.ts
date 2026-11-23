@@ -1,11 +1,12 @@
-import {group} from './dsl/text-bands.ts';
-import {row, spacer} from './dsl/containers.ts';
-import {connect} from './dsl/connect.ts';
-import type {ConnectBand, GroupBand, GroupRowBand, SpacerBand} from './types/containers.ts';
-import type {Arrow, BandInput, Route} from './types/core.ts';
-import type {Band} from './types/index.ts';
-import type {BoxTone} from './types/text-bands.ts';
-import type {Declares, IdsOf, Refers, RefsOf} from './strict.ts';
+import {located} from '../located.ts';
+import {group} from '../dsl/text-bands.ts';
+import {row, spacer} from '../dsl/containers.ts';
+import {connect} from '../dsl/connect.ts';
+import type {ConnectBand, GroupBand, GroupRowBand, SpacerBand} from '../types/containers.ts';
+import type {Arrow, BandInput, Route} from '../types/core.ts';
+import type {Band} from '../types/index.ts';
+import type {BoxTone} from '../types/text-bands.ts';
+import type {Declares, IdsOf, Refers, RefsOf} from '../strict.ts';
 
 export interface VersusPart<C extends BandInput = BandInput, Id extends string = string> {
   children: C;
@@ -49,13 +50,13 @@ function asGroup<C extends BandInput, Id extends string>(part: VersusPart<C, Id>
   return group(children, {title: part.title, tone: part.tone, id: part.id, reveal: part.reveal});
 }
 
-export function versus<LC extends BandInput, RC extends BandInput, const LI extends string = never, const RI extends string = never>(
+function versus<LC extends BandInput, RC extends BandInput, const LI extends string = never, const RI extends string = never>(
   left: VersusPart<LC, LI>, right: VersusPart<RC, RI>, opts?: VersusOpts,
 ): VersusResult<LC, RC, LI, RI>;
-export function versus<LC extends BandInput, RC extends BandInput, SC extends BandInput, const LI extends string, const RI extends string, const SI extends string>(
+function versus<LC extends BandInput, RC extends BandInput, SC extends BandInput, const LI extends string, const RI extends string, const SI extends string>(
   left: VersusPart<LC, LI> & {id: LI}, right: VersusPart<RC, RI> & {id: RI}, opts: VersusSharedOpts<SC, SI>,
 ): VersusResult<LC, RC, LI, RI, SC, SI>;
-export function versus(
+function versus(
   left: VersusPart, right: VersusPart, opts: VersusOpts | VersusSharedOpts = {},
 ): VersusBands {
   const leftGroup = asGroup(left);
@@ -74,3 +75,6 @@ export function versus(
     {...connect(`${right.id}:bottom`, `${opts.shared.id}:top@0.75`, {...style, ...(opts.connectLabels?.right === undefined ? {} : {label: opts.connectLabels.right})}), plumb: true},
   ];
 }
+
+const wrappedVersus = located(versus);
+export {wrappedVersus as versus};

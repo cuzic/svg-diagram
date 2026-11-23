@@ -13,7 +13,6 @@
   "bpmn:bpmnTexts",
   "bpmn:layoutBpmn",
   "budget:budgetWarnings",
-  "canvas:canvasBand",
   "canvas:canvasColumns",
   "canvas:canvasSpan",
   "charts-base:checkDomain",
