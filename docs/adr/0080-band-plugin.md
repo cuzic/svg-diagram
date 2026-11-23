@@ -83,6 +83,7 @@
 | 25 | `lib/dsl/rewrite.ts` の `KEYS` / `NO_REVEAL`、`lib/emit-html.ts` の `kindOf`(HTML の形。**16 か所**)、`lib/dsl/containers.ts` の `row()`(箱でない子を `group` に包む)、`lib/located.ts`(ソースの位置) | 帯の種類で reveal の書き換え、HTML の形、行の子を決める | 帯の定義の hook / HTML の adapter(D6)。構築関数は `located()` で包む |
 | 26 | `lib/strict.ts` の `ElementCheck` / `Refers`、`lib/spec-edge.ts`(`renderSpecEdge`)、`lib/inventory.ts` の `whole` の `band: type` | 他の id の参照、MCP の Worker の入口、目録の帯の名前 | v1 に `Refers` の hook は無い。`bands` を `renderSpecEdge` に通す。`whole` に plugin / kind を記録 |
 | 27 | `lib/located.ts:12`(`CHILD_BANDS` で入れ子の部品に、ソースの位置を付ける)、`lib/deck-load.ts:119-120`(`figureMinPt` が `planSlide` を呼ぶ。**デッキの読み込みが PPTX を引く**) | 入れ子の帯の列挙、デッキと PPTX の結びつき | `located.ts` は定義の `children` を使う(D4)。デッキの読み込みから PPTX を分ける(U1b) |
+| 28 | `lib/layout-handlers.ts:63` の `OFF_GRID_BANDS`(格子に吸着しない帯の型の集合。`originOf`) | 帯の型で配置の原点を決める | 帯の定義の任意の項目 `offGrid`(D2a) |
 
 つまり、1 つの帯を足す作業は、(A) の 10 か所、(B) の十数か所、型とテストに及ぶ。ADR 0074 の `comic` はこれを全部やった実例で、`lib/comic/` に 14 ファイル、表への 1 行が 10 個、`rules.ts` と `verify-handlers.ts` への分岐がある。**(A)(B) のどれもが、全部の帯を import するので、1 つの帯だけを束ねることができない。**
 
@@ -286,7 +287,7 @@ const rating = pluginBands(ratingDemo);   // コアが構築関数を作る(loca
 
 **帯が守ること(適合テスト U6 が確かめる。ホストは実行時にすべては強制できない)**:
 
-1. **決定性と冪等**: 同じ入力は同じバイト列。`layout` を、**幅・`roles` の倍率・折り返しの方式を変えた環境で A, B, C, A, B, A の順に**呼んでも、入力の深いコピーから呼んでも、同じ(試作の `conformance()` は、壊れた 3 つのプラグインを落とした。**本物の `fill` / canvas / `width: 'fit'` の通過での確認は U2 の後**)。`laid` は `structuredClone` できる。**本物の `fill` / canvas / `width: 'fit'` の通過での確認は U2 の後**(このスパイクでは再現できない)。
+1. **決定性と冪等**: 同じ入力は同じバイト列。`layout` を、**幅・`roles` の倍率・折り返しの方式を変えた環境で A, B, C, A, B, A の順に**呼んでも、入力の深いコピーから呼んでも、同じ(試作の `conformance()` は、壊れた 3 つのプラグインを落とした。**本物の `fill` / canvas / `width: 'fit'` の通過での確認は U2 の後**。このスパイクでは再現できない)。`laid` は `structuredClone` できる。
 2. **純粋**: `node:*`・`fetch`・グローバルの状態を使わない(ブラウザの入口にそのまま載る)。外部の配布物は、**import のない 1 つの自己完結した ESM**(D12)。
 3. **文字はコアの測定器**: 外部の帯の文字は `measure` と `texts` だけ。`emit` の SVG に `<text>` があれば、門が拒む(D8)。
 4. **色とダークモード**(コアの仕組みに合わせる): ダークモードは、出力の SVG の中の**パレットのトークンの `#rrggbb` を、暗い側の `#rrggbb` に置き換える**(`recolor`、`lib/tokens.ts`)。トークンでない色はそのまま残る。comic は、固定したい色を**門の後で `rgb()` にして**置き換えを避ける。
@@ -297,7 +298,7 @@ const rating = pluginBands(ratingDemo);   // コアが構築関数を作る(loca
    - **門は `rgb()` を拒む**(`sanitizeBody` は、塗りに `#hex`・`none`・`currentColor`・`url(#…)` だけを認め、`#hex` は `allowColor` のときだけ)。だから変換は門の後で、帯は `#hex` で書く。
 5. **id は衝突しない**: anchor の id は帯のスコープで修飾(上)。SVG の `id` は帯ごとの接頭辞(`prefixIds`)で、**接頭辞は図の中の帯の位置から決める**(プロセスの中の構築の順や、モジュールの大域の数え上げに依らない。スパイクは帯の内容から決めた)。**1 つの帯の出力の中の id の重複は `band-svg-rejected`**(`sanitizeBody` は重複を見ないので、ホストが調べる。例: ADR 0079 の顔が固定の `id="fc"` を使うなら、顔ごとに修飾して一意にする)。
 6. **大きさの上限**: 1 つの帯の SVG と anchor の数の上限は**設定できる**(既定 SVG 1 MB、anchor 1000。顔 64 個の見本帳は、顔 1 つが 4.9〜5.8 KB(ADR 0079)なので約 370 KB で、既定に収まる)。超えたら `band-too-large`(エラー)。
-7. **他の帯に触れない**: hook は帯の `data` と `env` だけを受け取り、他の帯・図の状態は渡さない。
+7. **他の帯の `data` に触れない**: hook は帯自身の `data` と `env` を受け取り、**他の帯の `data`** は渡さない。図の状態は、**読み取り専用の一般のデータ**(`verify.check` の `ctx.connects: {fromId, toId, segments}[]`。コネクタの幾何)だけを渡す。
 
 ### D2a. 二層の環境 — 公開層(プラグイン)と内部層(コアの帯)
 
@@ -307,6 +308,17 @@ const rating = pluginBands(ratingDemo);   // コアが構築関数を作る(loca
 |---|---|---|---|
 | **公開層**(プラグイン用。`svg-diagram/plugin` の型。API の semver に含める) | `PublicEnv` | `{x, y, w, widthOf, roles, theme, tones, wrap, wrapText}`。**純粋**。カーソルを持たない | 葉の帯、anchor を持つ帯、文字を持つ帯。`comic` の配置(`layoutComic(band, x, y, w, widthOf)` は純粋)も、ここで書ける |
 | **内部層**(コアの帯とコア所有の帯用。`svg-diagram/core/internal`。**プラグインには出さず、semver に含めない**) | `CoreLayoutCtx`(今の `LayoutCtx`) | カーソル、`laidOut`、`register`、`setBox`、`claimed`、`placeBoxLike`、`stack`(再帰)、`deferred` の connect、`nodeBottoms`、`areaIds`、`lines`、`keepWords` | `box`(`placeBoxLike`)、コンテナ(`group` / `row` / `grid` / `areas` / `grouprow`)、`swimlane`、図式の帯(`tree` / `states` / `cause` / `classes` / `bpmn` / `fta` / `bowtie`) |
+
+**`comic` を公開層で書くための追加(ラウンド 4 のレビュー)**: `comic` の配置(`layoutComic`)は純粋で公開層に収まるが、次の 4 つが帯の種類の分岐として残っているので、**一般の hook / 任意の項目にする**。
+
+| 必要な物 | 今の場所 | 追加するもの(既定) |
+|---|---|---|
+| **検査がコネクタの幾何を読む**(ふきだしを横切るコネクタの検出) | `verify-handlers.ts:212-230`(`checkComic` が `d.connects` と `pathSegments`) | 公開層の `verify.check` に、**読み取り専用のコネクタの幾何** `ctx.connects: {fromId, toId, segments}[]` を渡す(一般のデータで、プラグインにも有用。既定は渡すだけで、使わなくてよい) |
+| **長方形の名前の修飾** | `verify-handlers.ts:442-443`(`band.type === 'comic' ? undefined : scopeOf(band)`。comic の `rects` は修飾済みの名前を持つ) | 任意の項目 `rectsQualified?: boolean`(既定 `false`: ホストがスコープで修飾する) |
+| **`data-node` の付け方** | `emit-node-ids.ts:22`(`case 'comic': return {...band, nodeIds: true}`)。`renderComic` が、帯の出力の**断片そのもの**を全体の SVG から探して差し替える(`replaceComicFragment`) | 任意の項目 `nodeIds?: 'host' \| 'self'`(既定 `'host'`: 外部の帯はホストが `anchors` から書く。**`'self'` のコアの帯は、自分で書き、ホストは出力を包まず・書き換えない**) |
+| **格子への吸着** | `layout-handlers.ts:63`(`OFF_GRID_BANDS` と `originOf`) | 任意の項目 `offGrid?: boolean`(既定 `false`: 4px の格子に置く) |
+
+**ホストの包み・門・id の接頭辞は、外部の帯(信頼しない)だけに掛ける**(D8 の 3)。**環境の層(公開 / 内部)とは独立**で、コアの帯は(公開層で書いても)出力を包まれない。これで `comic` は、公開層のまま、**バイト単位で同じ**に移せる(M1)。
 
 `BandDef` の `layout` は、公開層の形(`PublicEnv`)か、内部層の形(`internal: true` の定義だけが `CoreLayoutCtx` を受ける)のどちらか。ホストは、**`internal: true` の定義をプラグインとして登録することを拒む**(`BandError`)。
 
@@ -360,7 +372,7 @@ const rating = pluginBands(ratingDemo);   // コアが構築関数を作る(loca
 
 ### D4. 帯の値から呼ぶ — コア所有の帯、定義の付与、コピー、注入する派生の表
 
-- **`core` は `[DEF]` だけを通して呼び、定義が無ければ投げる。表のフォールバックは `core` に置かない。** 移行の間の表(`LAYOUT_HANDLERS` など。未移行の帯用)は、**全部入りの入口が `core.withLegacyTables(tables)` で注入する**。そうしないと、`core` が全部の表を import し、`core + bands/comic` の束が全部の未移行の帯を引き続ける(背景のケース E: 表が**使われている**と、`sideEffects: false` でも 821〜1034 KB)。**U1 のテスト: `core` を単体で束ね、metafile に帯のモジュールが 1 つも無い。**
+- **`core` は `[DEF]` だけを通して呼び、定義が無ければ投げる。表のフォールバックは `core` に置かない。** 移行の間の表(`LAYOUT_HANDLERS` など。未移行の帯用)は、**全部入りの入口が `withLegacyTables(corePipeline, tables)` で注入する**。**注入は純粋な関数**: **新しいパイプラインのオブジェクトを返し**、モジュールの最上位で `core` の状態を書き換えない(それは「import の副作用による登録」で、`sideEffects: false` で落ち、2 つのコピーや部分的な表を注入するテストが互いに漏れる。ADR 0074)。全部入りの入口は、**束縛した関数を export する**(`export const renderInBrowser = pipeline.renderInBrowser`)。**U1a のテスト: `svg-diagram/browser` を、`sideEffects: false` で esbuild と Rollup の両方で束ね、未移行の帯を描いて、描けること。**そうしないと、`core` が全部の表を import し、`core + bands/comic` の束が全部の未移行の帯を引き続ける(背景のケース E: 表が**使われている**と、`sideEffects: false` でも 821〜1034 KB)。**U1 のテスト: `core` を単体で束ね、metafile に帯のモジュールが 1 つも無い。**
 - **コア所有の帯(core-owned bands)**: `core` が**自分で作る**、または他の帯が**中で作る**帯。`core` が定義を持ち、import してよい(`core` の大きさに数える):
 
   | 帯 | `core` が作る / 使う場所 |
@@ -371,10 +383,15 @@ const rating = pluginBands(ratingDemo);   // コアが構築関数を作る(loca
   | `spacer` | 余白(`layout`) |
   | `connect` | `Band` の一員で、配置・描画の枠組みが直接扱う |
   | `group` | `row()` / `areas()` が、箱でない子を包む(`dsl/containers.ts:67, 212`)。入れ子の枠。**`bands/row`・`bands/areas` が `bands/group` を import する関係を、コア所有にして解く** |
+  | `row`(**配置済みの行の包み**) | `grouprow` と `areas` が、箱の子ごとに `{type: 'row', …}` を push する(`layout-handlers.ts:409, 475`)。その要素の描画・検査・当てはめ・目録に `row` の定義が要る。**配置済みの行の包みを、コア所有の定義にする**(`bands/row` の DSL は、その定義を使う) |
 
-  **境界の検査**: 「`core` は、コア所有でない帯を import しない」「帯は、**コア所有でない**他の帯を import しない」(`test/band-boundaries.test.ts`)。
+  **箱の機構は `core` に残る**: `caption`(コア所有)は、`box` / `banner` と同じ `layoutBoxLikeBand` / `ctx.placeBoxLike` で配置され、`group` の題も `ctx.placeBoxLike(caption)` を通る(`layout-handlers.ts:136, 196, 858-860`)。**`placeBoxLike` と箱の文字の配置は、`core` の共有の内部の補助関数**(`box`・`caption`・`banner`・`group` の題が使う)として残し、`bands/box` は**薄い定義(内部層の hook でその補助を呼ぶ)+ DSL**になる。`core` の大きさの予算に、この補助を含める(D12)。
+
+  **3 つ目の種類: composer(構成関数)**: **他の帯を組み立てるだけで、それ自身は帯ではない**関数 — `versus`(`group`・`row`・`spacer`・`connect` を import。`lib/versus.ts`)、`hero`(`banner`・`caption`・`stat`・`row`。`lib/hero.ts`)、`canvas`(`box` の格子。`canvas.ts:252`)、`iconRow`、`callout`、`bracket`、`branch`、`stateMatrix`、`stat`(`dsl-pure.ts:41-173`)。**`svg-diagram/compose/<名前>` の入口**に置き、**どの帯の入口を import してもよい**(帯の入口との依存は一方向: composer → 帯)。**tree shaking**: composer を import したときだけ、それが使う帯が束に入る(`hero` を使わなければ `banner` / `stat` の束への混入は無い)。`PartDef`(D9)は composer の上に作ってよい。境界の検査は、「帯は他の帯を import しない(コア所有を除く)」から **composer を除外**し、`compose/*` の一覧を検査に持たせる。
+
+  **境界の検査**: 「`core` は、コア所有でない帯を import しない」「帯は、**コア所有でない**他の帯を import しない」「**composer**(`compose/*`)は、どの帯を import してもよい。帯は composer を import しない」(`test/band-boundaries.test.ts`)。
 - **配置した帯にも定義が付く**: ホストは、**帯の `layout` が push した配置済みの要素の全部に `[DEF]` を付ける**。帯の値をそのまま広げた物は引き継がれる。**新しく作った物**(例: `layout-handlers.ts:362` の `{type: 'legend', …}`)は、**コア所有の定義**(その型の定義)を付ける。プラグインの `laid` は、そのプラグインの定義。これで、`emit` は常に自分の定義を見つける(描画の段で「定義が無い」は起きない)。
-- **`[DEF]` の持たせ方**: **列挙できるシンボルのプロパティ**(`SOURCE` と同じ。`Symbol.for` ではなく、**版つきのキー** `Symbol.for('svg-diagram.def/<core の API の版>')` にし、別の版の core の定義が混ざったら、両方の版を名指ししたエラー)。理由: 帯のコピーは `{...band}` が **lib に 42 か所**あり、非列挙だと**黙って落ちる**(列挙なら引き継がれる)。代わりに、**`assert.deepEqual`(`node:assert/strict`)が列挙できるシンボルを比べる**ので、帯のリテラルと比べるテスト(`type: '…'` を含む `deepEqual` が **18 ファイル 153 行**)は、**`plain(band)` の補助関数**(`[DEF]` を除く)を通す。この補助は U1a で足す。`cloneData` / `detachData` は、シンボルのキーを落とす(`dsl/diagram.ts:120-125`)ので、**`[DEF]` を `SOURCE` と同じく参照で引き継ぐ**ように直す。`structuredClone` と JSON は `[DEF]` を落とすので、**配置の結果は `[DEF]` を持たない plain データを別に出し**、描画の段は、**型の名前から定義を引き直す**(渡された一覧。D9)。1 つの `copyBand` に集め、U1a に「全部のコピー経路で `[DEF]` が残る」テストを置く。
+- **`[DEF]` の持たせ方**: **列挙できるシンボルのプロパティ**(`SOURCE` と同じ。`Symbol.for` ではなく、**版つきのキー** `Symbol.for('svg-diagram.def/<core の API の版>')` にし、別の版の core の定義が混ざったら、両方の版を名指ししたエラー。**検出の方法**: 帯の `Object.getOwnPropertySymbols` を調べ、**説明が `svg-diagram.def/` で始まるシンボル**のうち、この core のキーと違う物があれば、その版を名指す。**同じ API の版で、パッケージの版だけが違う 2 つの core は、同じキーを共有する**が、これは**受け入れる**(契約は API の版)。理由: 帯のコピーは `{...band}` が **lib に 42 か所**あり、非列挙だと**黙って落ちる**(列挙なら引き継がれる)。代わりに、**`assert.deepEqual`(`node:assert/strict`)が列挙できるシンボルを比べる**ので、帯のリテラルと比べるテスト(`type: '…'` を含む `deepEqual` が **18 ファイル 153 行**)は、**`plain(value)` の補助関数**(`[DEF]` を除く)を通す。**`plain()` は再帰する**: 帯は `children`、`d.bands`、`laidOut` の配列に入れ子になり、`deepEqual(d.bands, […])` は入れ子のシンボルも比べるので、**入れ子の配列とオブジェクトの全部から `[DEF]` を除く**。帯に対する `deepEqual` が `plain()` を通していないものを検出する lint(またはテスト)を足す。この補助は U1a で足す。`cloneData` / `detachData` は、シンボルのキーを落とす(`dsl/diagram.ts:120-125`)ので、**`[DEF]` を `SOURCE` と同じく参照で引き継ぐ**ように直す。`structuredClone` と JSON は `[DEF]` を落とすので、**配置の結果は `[DEF]` を持たない plain データを別に出し**、描画の段は、**型の名前から定義を引き直す**(渡された一覧。D9)。1 つの `copyBand` に集め、U1a に「全部のコピー経路で `[DEF]` が残る」テストを置く。**`[DEF]` を持たない帯のリテラル**(利用者やテストが手で書くオブジェクト `add({type: 'box', …})`、JSON の `DiagramData`、`rich.ts:98` が書く `{type: 'box', ...opts}` の展開)は、**全部入りの入口の `add()` と描画の入口が、`type` から `ALL_BANDS` の定義を引いて `[DEF]` を補う**(互換)。**`core` 単体は、補わずに投げ、取り込むべき帯の入口の名前を言う**(「`box` の定義がありません。`svg-diagram/bands/box` を import して `box()` で作ってください」)。
 - **帯の中身を見る帯をまたぐ処理は、`switch` をやめ、帯が返す一般のデータで書く**(D2b)。得るもの: `core` が帯を知らなくてよい。失うもの: **帯の種類ごとの網羅的な `switch`(コンパイラが抜けを教える)が、hook の呼び出しになる**(D5)。
 - **`located.ts` は、`CHILD_BANDS` ではなく、定義の `children` を使う**(`located.ts:12`。(B) の表の 27 行目)。
 - **移行の間の「注入する派生の表」**(D10): 移した帯を表から外し、全部入りの入口が、**定義の一覧から表を作り直して**注入する。**移した型が、表に行を残していたら落ちるテスト**を U1a に置く(二重の呼び出しと、ずれを防ぐ)。移行が終わったら、中央の表と `ALL_BANDS_*` と注入の仕組みを消す。
@@ -441,7 +458,7 @@ const rating = pluginBands(ratingDemo);   // コアが構築関数を作る(loca
 | `sixel`(端末の表示) | `show` の CLI | CLI の入口の後ろ |
 | `harfbuzzjs`(WASM) | Node の測定器 | `measure/node` の依存 |
 
-**ブラウザの Artifact でマンガだけを描くなら、`core` + `bands/comic` + `measure/browser` だけ**を引く(見積もり 130〜160 KB)。`pipeline.ts` が HTML の出力を全部引く問題(上の測定で 306 KB)は、**HTML を `svg-diagram/html` に出し、パイプラインは SVG だけ**にして直す(U の `core` の切り出しの一部)。
+**ブラウザの Artifact でマンガだけを描くなら、`core` + `bands/comic` + `measure/browser` だけ**を引く(見積もり 230〜250 KB。`rules.ts` を分ければ 200〜215 KB。D12)。`pipeline.ts` が HTML の出力を全部引く問題(上の測定で 306 KB)は、**HTML を `svg-diagram/html` に出し、パイプラインは SVG だけ**にして直す(U の `core` の切り出しの一部)。
 
 ### D8. 安全 — 外部の帯(プラグイン)はコード。JSON はコードを読み込まない
 
@@ -495,11 +512,11 @@ const rating = pluginBands(ratingDemo);   // コアが構築関数を作る(loca
 
 | 段階 | 内容 | 帯 |
 |---|---|---|
-| M0a | **型と枠組み**(U1a): `BandDef`、帯の値と `[DEF]`(列挙できる、版つきのキー)、`copyBand`、`plain()`、**注入する派生の表**(`core.withLegacyTables`)、境界の検査、`sideEffects` の監査。追加のみ | — |
+| M0a | **型と枠組み**(U1a): `BandDef`、帯の値と `[DEF]`(列挙できる、版つきのキー)、`copyBand`、`plain()`、**注入する派生の表**(純粋な `withLegacyTables(corePipeline, tables)`。新しいパイプラインを返し、最上位で状態を書き換えない。`sideEffects: false` の全部入りの束で描けるテスト)、`[DEF]` を持たない帯のリテラルの補い(全部入りの入口)、境界の検査、`sideEffects` の監査。追加のみ | — |
 | M0b | **`core` の切り出し**(U1b): `pipeline.ts` が HTML を引かない、`rules.ts` / `dsl/text-bands.ts` / `web.ts` / `located.ts` を表から切り離す、**コア所有の帯**(`caption`、`status`、`legend`、`spacer`、`connect`、`group`。D4)を `core` の定義にする。**この PR の後、`core` は表を持たない**。`core` 単体の束に帯のモジュールが無いことを検査 | コア所有の 6 つ |
-| **M1(マンガ。最初の成果)** | **`comic`**。決める人の最初の用途(Artifact が 1 MB)。**配置が純粋で(`layoutComic(band, x, y, w, widthOf)`)、公開層だけで書ける**ので、内部層を待たない。**今の重なりのない経路のまま**移す(ADR 0078 の重ね `U4` は、移した帯の上に載せる。下の注) | `comic` |
+| **M1(マンガ。最初の成果)** | **`comic`**。決める人の最初の用途(Artifact が 1 MB)。**配置が純粋で(`layoutComic(band, x, y, w, widthOf)`)、公開層だけで書ける**ので、内部層を待たない。**今の重なりのない経路のまま**移す(ADR 0078 の重ね `U4` は、移した帯の上に載せる。下の注)。**公開層に足すもの(D2a): コネクタの幾何を読む `verify.check`、`rectsQualified`、`nodeIds: 'self'`、`offGrid`**。出力はバイト単位で同じ | `comic` |
 | M2 | **葉の帯**(公開層で書ける、子なし) | `raw`、`banner`、`curve`、`pyramid`、`people`、`dots`、`wordart`、`math` |
-| M3 | **箱**(内部層。`placeBoxLike`、アイコン、ステップ、タグ。最も多くの帯が使う) | `box` |
+| M3 | **箱**(内部層)。**`placeBoxLike` と箱の文字の配置は `core` の共有の補助関数に残し**(`caption` と `group` の題が使う。D4)、`bands/box` はアイコン・ステップ・タグの扱いを含む薄い定義 + DSL。`core` の大きさに補助を含める | `box` |
 | M4 | **コンテナ**(内部層。`children` の hook、`stack`、`row()` の包み、`areas`)。**`group` は M0b で済み** | `row`、`grid`、`areas`、`grouprow`、`image`(`children`) |
 | M5 | **anchor・reveal・検査を持つ図形の帯** | `flowShape` の 7 種(1 つの PR。`flow-shapes.ts` を共有)、`quadrant`、`timeline`、`gantt`、`bars`、`plane`、`chart` |
 | M6 | **表・列・画面の帯** | `sequence`、`table`、`swimlane`、`wireframe`、`screens` |
@@ -511,7 +528,7 @@ const rating = pluginBands(ratingDemo);   // コアが構築関数を作る(loca
 **各 PR の基準(全部を満たす):**
 
 1. **golden がバイト単位で同じ**(`examples/out/` の SVG、PPTX の golden、`pnpm schema` の出力)。移行の PR で見た目は変えない。
-2. 移した帯の**表の行を消し**、**注入する派生の表**に載せ替える。**移した型が表に行を残していたら落ちる**テスト。表からの呼び出しと帯の値からの呼び出しが、移行の間**同じ結果**になる(テスト)。
+2. 移した帯の**表の行を消し**、**注入する派生の表**に載せ替える。**移した型が表に行を残していたら落ちる**テスト。**行を消す前に、同じ PR の中で**、表からの呼び出しと帯の値からの呼び出しが**同じ出力**になることを確かめる(テスト。確かめたら、古い表の行は消す。消した後は「同じ結果」を比べられないので、**golden のバイト一致**で守る)。
 3. **帯の入口の大きさを記録**し、予算(D12。M0 の測定の後に置く)に収まる。**帯が、コア所有でない他の帯のモジュールを import しない**(境界の検査)。付け根(`reveal.ts → band-ids.ts → quadrant.ts` のような余計な import)を、その PR で切る。
 4. `rules`・`RULE_DOCS`・`RULE_LOCATION` の中身は**今の規則の id のまま**。`check --explain` が同じ。
 5. 適合テスト(D2 の保証)を、コアの帯にもかける。
@@ -558,7 +575,7 @@ ADR 0079 は**中身の設計としてそのまま有効**(D2〜D7)。変わる�
 ### D12. 配布と大きさの予算 — npm、jsDelivr の Artifact、MCP、CI の検査
 
 - **npm**: 外部のプラグインは普通のパッケージ(`manga-face`)。`peerDependencies: {"svg-diagram": "…"}` は案内で、実行時の検査は `apiVersion` と `requires`(D1)。**実行時に svg-diagram を import しない**ので、peer の版の食い違いで 2 つのコピーが動く問題が起きない。型は `svg-diagram/plugin`(型のみ)から `import type` で取る。
-- **Artifact(jsDelivr)**(マンガだけを描く例。見積もり 130〜160 KB):
+- **Artifact(jsDelivr)**(マンガだけを描く例。見積もり 230〜250 KB、`rules.ts` を分ければ 200〜215 KB):
   ```js
   const [{renderInBrowser, diagram}, {comic}, {svgMeasurer}] = await Promise.all([
     import('https://cdn.jsdelivr.net/npm/svg-diagram@X.Y.Z/dist/lib/core.js'),
@@ -626,7 +643,7 @@ U0 は、この PR。U1 以降は、どの単位も Opus のレビューで Bloc
 | 単位 | 内容 | 完了の基準 | テスト |
 |---|---|---|---|
 | U0 | ADR とスパイク(この PR) | スパイクの測定。表の一覧。バンドルの測定。`typecheck` が通り、golden が不変 | `spikes/band-plugin/` の各スクリプト |
-| U1a | **型と枠組み(追加のみ)**: `BandDef` と帯の値(`[DEF]`。列挙できる、版つきのキー)、`BandValue<T>`(今の帯の型に代入できる)、`pluginBands`、**`copyBand`**(全部のコピー経路。`cloneData` / `detachData` も `[DEF]` を参照で引き継ぐ)、`plain()`(テスト用)、**注入する派生の表**(`core.withLegacyTables`)、`layoutHandlerFor` の箱のフォールバックの削除、`test/band-boundaries.test.ts`(コア所有の帯の一覧つき)、`package.json` の `exports`(`core`、`plugin`)、**`sideEffects` の監査と、最上位の副作用の一覧のテスト**、`scripts/bundle-size.ts`(全部入りの上限だけ有効) | `typecheck` が通る。**帯を移していない図の出力がバイト単位で不変**(golden)。全部入りの入口の大きさが今の +5% 以内 | 未知の `type: 'x:y'` が箱にならず投げる、**全部のコピー経路で `[DEF]` が残る**、**移した型が表に行を残したら落ちる**、型テスト(最上位・`group`・`row`・`areas` の `connect()`、裸の綴り間違いは `@ts-expect-error`、`box()` の戻り値が `BoxBand` に代入できる、コアの帯の抜けは落ちる)、`plain()` を通した 18 ファイル(153 行)の `deepEqual` |
+| U1a | **型と枠組み(追加のみ)**: `BandDef` と帯の値(`[DEF]`。列挙できる、版つきのキー)、`BandValue<T>`(今の帯の型に代入できる)、`pluginBands`、**`copyBand`**(全部のコピー経路。`cloneData` / `detachData` も `[DEF]` を参照で引き継ぐ)、`plain()`(テスト用)、**注入する派生の表**(純粋な `withLegacyTables(corePipeline, tables)`。新しいパイプラインを返し、最上位で状態を書き換えない。`sideEffects: false` の全部入りの束で描けるテスト)、`[DEF]` を持たない帯のリテラルの補い(全部入りの入口)、`layoutHandlerFor` の箱のフォールバックの削除、`test/band-boundaries.test.ts`(コア所有の帯の一覧つき)、`package.json` の `exports`(`core`、`plugin`)、**`sideEffects` の監査と、最上位の副作用の一覧のテスト**、`scripts/bundle-size.ts`(全部入りの上限だけ有効) | `typecheck` が通る。**帯を移していない図の出力がバイト単位で不変**(golden)。全部入りの入口の大きさが今の +5% 以内 | 未知の `type: 'x:y'` が箱にならず投げる、**全部のコピー経路で `[DEF]` が残る**、**移した型が表に行を残したら落ちる**、型テスト(最上位・`group`・`row`・`areas` の `connect()`、裸の綴り間違いは `@ts-expect-error`、`box()` の戻り値が `BoxBand` に代入できる、コアの帯の抜けは落ちる)、`plain()` を通した 18 ファイル(153 行)の `deepEqual` |
 | U1b | **`core` の切り出し**: `pipeline.ts` が HTML を引かない(`svg-diagram/html`)、`rules.ts` / `dsl/text-bands.ts`(`walkBands`)/ `web.ts` / `located.ts`(`CHILD_BANDS`)を表から切り離す、**コア所有の帯(`caption`・`status`・`legend`・`spacer`・`connect`・`group`)を `core` の定義にする**、**配置した要素に `[DEF]` を付ける**(新しく作る物はコア所有の定義)。`deck-load.ts` の PPTX への依存(`figureMinPt` → `planSlide`)を分ける | **`core` を単体で束ね、metafile に帯のモジュールが無い**(コア所有の 6 つ以外)。golden が不変。**`core` の大きさを測り、バンドラごとの予算を置く**(D12) | 上の束の検査、`core-purity`、`web-entry`、`pipeline` の段の順序、配置した要素の全部に定義がある(描画で「定義が無い」が起きない) |
 | U2 | **公開層の hook**(プラグイン用): `ids`、`layout` の anchor 登録(**スコープは既定で帯の id**)、`texts` と `wrapText`、**`band-text-unmeasured`**、`inventory` の既定、`reveal` の既定、`connect()` の終点、親の幅 `w`、D2b の公開の hook(`uses`・`semantics`・`patchKeys`・`defsNeeded`・`edges`)、**内部層の定義をプラグインとして登録することの拒否**。参照プラグインの骨組み | 参照プラグインの帯が、**最上位・`group`・`row`・`areas` の中**で描け、部品への `connect('a:bottom', 'rate.s2:top')` が通る | **同じ種類の帯 2 つ**、各コンテナ内の部品への `connect()`、`band-anchor-undeclared`、`claimed`、`fill` / canvas / `width: 'fit'` / 折り返しのやり直しで hook を何度呼んでも同じ結果(冪等)、`band-text-unmeasured`、文字の大きさが `roles` の拡大に従う、日本語の折り返しがコアの帯と同じ |
 | U3 | 外部の帯の描画と門: `sanitizeBody`、帯の中の id の重複、id の接頭辞(図の中の帯の位置から)、`data-node` をホストが `anchors` から書く、`selfDimming` と `dim`、**ダークモード(トークンの色、`paper`、`paper` の `texts` の凍結したインクの色)** | 描画が決定的。禁止の要素は `band-svg-rejected` と破線のプレースホルダー | 門の拒否一式、同じ帯が 2 回出ても `id` が衝突しない、`url(#id)` が壊れない、**暗い図で `paper` の帯の文字と下地のコントラスト**、トークンでない色 |
@@ -674,7 +691,7 @@ U0 は、この PR。U1 以降は、どの単位も Opus のレビューで Bloc
 | Q14 | 人物の提供元(関数として呼ぶ形は今でも可、spec に書く形は ADR 0074 U4 の後)と、追加の表情(後で、名前空間つき) | **両方の経路。表情は後(U17)** | ADR 0079 を待たせない。0079 の Q8 と同じ時期 |
 | Q15 | 版の門(`requires` の不一致はエラー。`apiVersion` が権威)、1 つの帯の上限(設定できる。既定 SVG 1 MB、anchor 1000) | **そのとおり** | 黙って動いて壊れるより、早く止まる。顔 64 個の見本帳が約 370 KB で収まる |
 | Q16 | 全部入りの入口の「派生の表」を、移行後も互換のために残すか | **削除する**(U15)。公開 API として約束していない物は残さない | 残すと全部の帯を引く物が残る |
-| Q17 | **コア所有の帯**(`caption`・`status`・`legend`・`spacer`・`connect`・`group`)を `core` の定義にし、`core` と他の帯が import してよい | **そのとおり** | `core` が題・出典・状態・凡例を自分で作り、`row()` / `areas()` が `group` で子を包む。これを禁じると境界の検査が成り立たない |
+| Q17 | **コア所有の帯**(`caption`・`status`・`legend`・`spacer`・`connect`・`group`・**配置済みの `row` の包み**)を `core` の定義にし、`core` と他の帯が import してよい。**`placeBoxLike` と箱の文字の配置は `core` の共有の補助関数に残す**。**composer**(`versus`・`hero`・`canvas`・`iconRow`・`callout`・`bracket`・`branch`・`stateMatrix`・`stat`)は帯ではなく、`compose/<名前>` の入口でどの帯も import してよい | **そのとおり** | `core` が題・出典・状態・凡例を自分で作り、`row()` / `areas()` / `grouprow` が `group` と `row` の包みを作る。`caption` と `group` の題が `placeBoxLike` を使う。composer は帯を組み立てるだけで、帯の境界の検査の外に置く |
 | Q18 | `[DEF]` は列挙できるシンボルのプロパティ(版つきのキー)。`plain()` をテストに足す | **そのとおり** | 帯のコピーの `{...band}` が lib に 42 か所。非列挙だと黙って落ちる。代償は、帯のリテラルと比べる 18 ファイル 153 行のテスト |
 
 ## スパイクの再現
