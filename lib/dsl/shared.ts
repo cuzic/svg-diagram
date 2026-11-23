@@ -1,3 +1,4 @@
+import {copyBand as cloneBand} from '../band-def.ts';
 import {MIN_FONT_SIZE, isSolidTone} from '../tokens.ts';
 import {assertScope, scopeOf} from '../scope-name.ts';
 import type {Band} from '../types/index.ts';
@@ -55,9 +56,7 @@ export function assertTextRole(role: string | undefined, allowed: readonly strin
 }
 // A band copied with the same properties (including the non-enumerable handles) so a diagram's defaults never change the
 // object the caller holds — the same band can be added to another diagram with other defaults (or none).
-export function cloneBand<T extends object>(b: T): T {
-  return Object.create(Object.getPrototypeOf(b), Object.getOwnPropertyDescriptors(b)) as T;
-}
+export {cloneBand};
 /** Maps a band list; a container is copied only when something inside it changed. */
 export function mapBands(bands: Band[], fn: (b: Band) => Band | undefined): Band[] {
   return bands.map(b => {

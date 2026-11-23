@@ -21,7 +21,7 @@ import type {SourceRef} from './source-ref.ts';
 import {textWidth} from './atoms.ts';
 import {layoutHandlerFor} from './layout-handlers.ts';
 import type {LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
-import {childrenOf, stackWidthOf} from './band-children.ts';
+import {CHILD_BANDS, childrenOf, stackWidthOf} from './band-children.ts';
 import {layoutBoxContent, lineWidth} from './layout-text.ts';
 import {buildInventory} from './inventory.ts';
 import {parseRef, resolveConnect} from './layout-connect.ts';
@@ -96,7 +96,14 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
   // One between two bands that follow each other (bottom side -> top side) widens the space after the first band (ADR 0069 D1).
   // The room a label needs is labelRoom() (lib/connect-rules.ts), what the checks measure too.
   const labelled: ConnectBand[] = [];
-  const collectConnects = (bs: Band[]): void => { for (const b of bs) { if (b.type === 'connect' && b.label && b.route === 'straight' && !b.annot) labelled.push(b); else collectConnects(childrenOf(b)); } };
+  const collectConnects = (bs: Band[]): void => {
+    for (const b of bs) {
+      // Report missing layout definitions before walking the legacy child table.
+      if (!Object.hasOwn(CHILD_BANDS, b.type)) atBand(b, () => layoutHandlerFor(b));
+      if (b.type === 'connect' && b.label && b.route === 'straight' && !b.annot) labelled.push(b);
+      else collectConnects(childrenOf(b));
+    }
+  };
   collectConnects(d.bands);
   const idsIn = (b: Band, out = new Set<string>()): Set<string> => { const x = b as {id?: string}; if (x.id) out.add(x.id); for (const c of childrenOf(b)) idsIn(c, out); return out; };
   const MIN_CHILD_W = 80;
@@ -372,7 +379,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
     stack: (bands, padX, cw) => {
       for (const band of bands) atBand(band, () => {
         const start = laidOut.length;
-        layoutHandlerFor(band.type)(band as never, ctx, padX, cw);
+        layoutHandlerFor(band)(band as never, ctx, padX, cw);
         // resolveConnect spreads the input band, keeping its own SOURCE for immediate and deferred connections.
         carryLayoutSources(band, laidOut, start);
         const extra = bandGaps.get(band); // room for a label on the arrow down to the next band (ADR 0069 D1)

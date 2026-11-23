@@ -13,6 +13,7 @@ import {walkBands} from '../rules.ts';
 import {rewrite} from './rewrite.ts';
 import {DIAGRAM_SOURCE, captureHere, sourceOf, withSource} from '../source-ref.ts';
 import type {SourceRef} from '../source-ref.ts';
+import {DEF} from '../band-def.ts';
 import {sourceCaptureEnabled} from '../source-capture.ts';
 
 // Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
@@ -122,7 +123,7 @@ export function detachData<D extends DiagramData>(d: D): D {
  * is copied once, so a band placed in two spots stays one band in the copy, and a cycle ends.
  * Known gap: a class instance handed in as plan data (a point of plane({points})) is shared, so a reveal written into it by
  * prepareReveal can still show in another figure. Not copied: non-enumerable properties (the .left / .right / .at handles,
- * withAnchors' anchors) and symbol keys such as NUMBERING, GIVEN and RICH that add() has used up. Source marks are copied by reference.
+ * withAnchors' anchors) and symbol keys such as NUMBERING, GIVEN and RICH that add() has used up. Source marks and band definitions are copied by reference.
  */
 function cloneData<T>(v: T, seen = new WeakMap<object, unknown>()): T {
   if (!v || typeof v !== 'object') return v;
@@ -138,6 +139,7 @@ function cloneData<T>(v: T, seen = new WeakMap<object, unknown>()): T {
   const out = Object.create(proto);
   seen.set(v, out);
   for (const [k, x] of Object.entries(v)) out[k] = cloneData(x, seen);
+  if (Object.hasOwn(v, DEF)) out[DEF] = (v as {[DEF]?: unknown})[DEF];
   withSource(out, sourceOf(v));
   return withSource(out, sourceOf(v, DIAGRAM_SOURCE), DIAGRAM_SOURCE);
 }
