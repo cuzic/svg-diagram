@@ -13,6 +13,8 @@ import {walkBands} from '../rules.ts';
 import {rewrite} from './rewrite.ts';
 import {DIAGRAM_SOURCE, captureHere, sourceOf, withSource} from '../source-ref.ts';
 import type {SourceRef} from '../source-ref.ts';
+import {isDefKey} from '../band-def.ts';
+import {must} from '../must.ts';
 import {sourceCaptureEnabled} from '../source-capture.ts';
 
 // Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
@@ -122,24 +124,27 @@ export function detachData<D extends DiagramData>(d: D): D {
  * is copied once, so a band placed in two spots stays one band in the copy, and a cycle ends.
  * Known gap: a class instance handed in as plan data (a point of plane({points})) is shared, so a reveal written into it by
  * prepareReveal can still show in another figure. Not copied: non-enumerable properties (the .left / .right / .at handles,
- * withAnchors' anchors) and symbol keys such as NUMBERING, GIVEN and RICH that add() has used up. Source marks are copied by reference.
+ * withAnchors' anchors) and symbol keys such as NUMBERING, GIVEN and RICH that add() has used up. Source marks and band definitions are copied by reference.
  */
 function cloneData<T>(v: T, seen = new WeakMap<object, unknown>()): T {
   if (!v || typeof v !== 'object') return v;
   if (seen.has(v)) return seen.get(v) as T;
-  if (Array.isArray(v)) {
-    const out: unknown[] = [];
-    seen.set(v, out);
-    for (const x of v) out.push(cloneData(x, seen));
-    return out as T;
-  }
+  const array = Array.isArray(v);
   const proto = Object.getPrototypeOf(v);
-  if (proto !== Object.prototype && proto !== null) return v;
-  const out = Object.create(proto);
+  if (!array && proto !== Object.prototype && proto !== null) return v;
+  const out = array ? [] : Object.create(proto);
   seen.set(v, out);
-  for (const [k, x] of Object.entries(v)) out[k] = cloneData(x, seen);
-  withSource(out, sourceOf(v));
-  return withSource(out, sourceOf(v, DIAGRAM_SOURCE), DIAGRAM_SOURCE);
+  if (array) {
+    for (const x of v) out.push(cloneData(x, seen));
+  } else {
+    for (const [k, x] of Object.entries(v)) out[k] = cloneData(x, seen);
+    withSource(out, sourceOf(v));
+    withSource(out, sourceOf(v, DIAGRAM_SOURCE), DIAGRAM_SOURCE);
+  }
+  for (const key of Object.getOwnPropertySymbols(v)) {
+    if (isDefKey(key)) Object.defineProperty(out, key, must(Object.getOwnPropertyDescriptor(v, key)));
+  }
+  return out;
 }
 
 /**

@@ -1,6 +1,7 @@
 // Per-band-type layout handlers for layoutBands() pass 2. Each takes the band, the LayoutCtx (cursor, anchors, laid-out list ...)
 // and the x / width it is placed at; the table at the bottom is what stack() dispatches through.
 
+import {coreDispatch, withLegacyTables} from './band-dispatch.ts';
 import {splitAtoms, textWidth} from './atoms.ts';
 import {wrapAtoms} from './wrap.ts';
 import {layoutSequence, layoutTable} from './seq-table.ts';
@@ -864,7 +865,9 @@ export const LAYOUT_HANDLERS = {
 export type UnhandledBandTypes = Exclude<Band['type'], keyof typeof LAYOUT_HANDLERS>;
 export const ALL_BANDS_HANDLED: UnhandledBandTypes extends never ? true : never = true;
 
-/** What stack() runs for a band: its handler, or (a type nobody claims, as always) the caption / box / banner one. */
-export function layoutHandlerFor(type: Band['type']): BandLayoutHandler<never> {
-  return ((LAYOUT_HANDLERS as BandLayoutHandlers)[type] ?? layoutBoxLikeBand) as BandLayoutHandler<never>;
+const layoutDispatch = withLegacyTables(coreDispatch, {layout: LAYOUT_HANDLERS});
+
+/** The layout hook stack() runs for the band. */
+export function layoutHandlerFor(band: {type: string}): BandLayoutHandler<never> {
+  return layoutDispatch.hook(band, 'layout') as BandLayoutHandler<never>;
 }
