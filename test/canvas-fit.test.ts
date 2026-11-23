@@ -4,7 +4,8 @@ import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {canvas, checkDiagram, closeMeasurer, diagram} from '../lib/dsl.ts';
-import {canvasKeys, canvasTemplates, CANVAS_MIN_ROW_H, TEMPLATES} from '../lib/canvas.ts';
+import {canvasKeys, canvasTemplates, TEMPLATES} from '../lib/compose/canvas.ts';
+import {CANVAS_MIN_ROW_H} from '../lib/canvas.ts';
 import type {LaidOutGrid} from '../lib/types/containers.ts';
 import type {LaidOutBox} from '../lib/types/text-bands.ts';
 

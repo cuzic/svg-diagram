@@ -2,7 +2,7 @@ import test from 'node:test';
 import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
 import {canvas, checkDiagram, closeMeasurer, connect, diagram, group, renderDiagram} from '../lib/dsl.ts';
-import {canvasKeys, canvasTemplates, TEMPLATES} from '../lib/canvas.ts';
+import {canvasKeys, canvasTemplates, TEMPLATES} from '../lib/compose/canvas.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import {geometryChecks} from '../lib/geometry-checks.ts';
 import type {LaidOutGrid} from '../lib/types/containers.ts';

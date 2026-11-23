@@ -30,6 +30,12 @@ const nonBuilders = {
 };
 
 const internalExports = {
+  './compose/canvas.ts': {
+    TEMPLATES: 'holds the region templates used by canvas',
+    canvasBand: 'assembles the grid used by the public canvas builder',
+    canvasKeys: 'lists template regions for validation and tests',
+    canvasTemplates: 'lists template names for validation and tests',
+  },
   './located.ts': {
     located: 'wraps the public builders',
   },

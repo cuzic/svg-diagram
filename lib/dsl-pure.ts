@@ -17,9 +17,10 @@ import * as qcSemantic from './dsl/qc-semantic.ts';
 import * as diagrams from './dsl/diagrams.ts';
 import * as comics from './dsl/comic.ts';
 import * as timelineGantt from './dsl/timeline-gantt.ts';
-import {versus as versusPart} from './versus.ts';
+import {canvas as canvasPart} from './compose/canvas.ts';
+import {iconRow as iconRowPart} from './compose/icon-row.ts';
 import {steps as stepsPart} from './steps.ts';
-import {hero as heroPart} from './hero.ts';
+import {hero as heroPart} from './compose/hero.ts';
 
 export {diagram} from './dsl/diagram.ts';
 
@@ -48,7 +49,8 @@ export type * from './dsl/containers.ts';
 export const spacer = located(containers.spacer);
 export const row = located(containers.row);
 export const node = located(containers.node);
-export const iconRow = located(containers.iconRow);
+export type {IconRowItem} from './compose/icon-row.ts';
+export const iconRow = located(iconRowPart);
 export const grid = located(containers.grid);
 export const areas = located(containers.areas);
 
@@ -139,7 +141,7 @@ export const isIsNotTests = located(qcSemantic.isIsNotTests);
 export const whyWhyTable = located(qcSemantic.whyWhyTable);
 export const qfd = located(qcSemantic.qfd);
 export const journeyMap = located(qcSemantic.journeyMap);
-export const canvas = located(qcSemantic.canvas);
+export const canvas = located(canvasPart);
 
 export type * from './dsl/diagrams.ts';
 export {transitionUnits} from './dsl/diagrams.ts';
@@ -166,7 +168,7 @@ export type * from './dsl/timeline-gantt.ts';
 export const gantt = located(timelineGantt.gantt);
 export const timeline = located(timelineGantt.timeline);
 
-export const versus = located(versusPart);
+export {versus} from './compose/versus.ts';
 
 export const steps = located(stepsPart);
 
@@ -180,8 +182,8 @@ export {icon} from './icon-registry.ts';
 export type {IconName, EmojiName} from './icons.ts';
 export type {StepItem, StepsOpts} from './steps.ts';
 export {em} from './rich.ts';
-export type {HeroOpts, HeroStat} from './hero.ts';
-export type {VersusConnectLabels, VersusOpts, VersusPart, VersusSharedOpts} from './versus.ts';
+export type {HeroOpts, HeroStat} from './compose/hero.ts';
+export type {VersusConnectLabels, VersusOpts, VersusPart, VersusSharedOpts} from './compose/versus.ts';
 // Every public type (WfNode, TableCell, TextTone, RawColorTone, ...) so project code never has to spell Parameters<typeof wf.col>[0].
 export type * from './types/index.ts';
 export type * from './semantic-table.ts';
@@ -189,7 +191,7 @@ export type {QuadrantOpts, QuadrantItem, QuadrantPreset, QuadrantCell, QuadrantA
 export type {WordArtOpts, WordArtBand, WordArtPreset, OutlineSpec, ShadowSpec, GradientSpec, GlowSpec, ExtrudeSpec, ReflectionSpec, ArtTone} from './wordart.ts';
 export type {FlowStep, ChevronOpts, FunnelStage, FunnelOpts, CycleOpts, VennSet, VennOverlap, VennOpts, ConcentricRing, ConcentricOpts, ConcentricSector, ConcentricRef, ConcentricPlace, ConcentricMark, CycleLink, EmblemItem, EmblemShape, EmblemOpts} from './flow-shapes.ts';
 export {tally} from './qc-table.ts';
-export type {CanvasContent, CanvasKey, CanvasOpts, CanvasTemplate} from './canvas.ts';
+export type {CanvasContent, CanvasKey, CanvasOpts, CanvasTemplate} from './compose/canvas.ts';
 export type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from './qc-table.ts';
 export type {AttributeSample, ControlChartOpts, ControlType, ScatterOpts, ScatterPoint} from './qc-plane.ts';
 export type {ChartBand} from './charts.ts';

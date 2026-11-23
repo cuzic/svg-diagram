@@ -1562,6 +1562,14 @@ MIT
 
 `LaidOutDiagram.inventory.items` には、配置後の内容の目録が入る。箱とキャプションの文字は余白をつけた行ごとの矩形で記録する。コネクタは折れ線・矢じり・ラベルの矩形を持ち、`row()` や `steps()` の箱を結ぶ矢印も目録に入る。タグの矩形は描画時の格子に合わせる。個別の目録に未対応の帯は、帯全体を表す `whole` として記録する。段階表示で隠れる内容も含む（ADR 0078 D3）。
 
+### 外部プラグインの型（ADR 0080）
+
+外部プラグインの定義には、`import type {PluginDef} from 'svg-diagram/plugin'` と `satisfies PluginDef` を使えます。帯の型名はプラグインの `id` と帯のキーから決まり、たとえば `rating-demo:stars` になります。U1a では定義と帯の構築までを扱います。構築関数を公開する `svg-diagram/core` は後続の段階で追加します。
+
+帯のキーは英小文字で始め、英小文字・数字・ハイフンを使います。プラグインの `build()` はプレーンオブジェクトを返してください。`type`・`id`・`scope`・`reveal`・`until` はホストが使う名前です。`id`・`scope`・`reveal`・`until` は構築オプションで値を渡した場合だけ帯に設定されます。外部の帯を描画しようとすると、プラグイン名を含む `BandError` が発生します。配置と描画は U2〜U3 で追加します。
+
+`pnpm bundle-size` はブラウザ入口の esbuild バンドルを計測し、minify 後のバイト数と gzip サイズを表示します。minify 後のサイズが `bundle-budget.json` の上限を超えると失敗します。
+
 ### golden（`examples/out`）の検査と作り直し
 
 `examples/out/*.svg` は golden（正解の出力）で、CI の `golden (examples/out)` のジョブが `pnpm golden --no-cache`（`check --drift --rebuild`。何も書き換えない）で、今のコードの再生成と 1 バイトずつ比べる。違えば CI が落ちる。

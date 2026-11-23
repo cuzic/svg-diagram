@@ -1,4 +1,5 @@
 // Types: Tokens, tones, geometry, the diagram() input and text measuring.
+import type {BandValue} from '../band-def.ts';
 import type {DEFAULT_LEGEND_LABELS, RULE_DOCS} from '../rules.ts';
 import type {ConnectInput, DeclaredIds, RefIn, ValidateBands} from '../strict.ts';
 import type {ToneOverrides} from '../tokens.ts';
@@ -291,11 +292,13 @@ export interface RevealOpts {reveal?: number; /** The click this element vanishe
  * neither among them nor declared in the same call. Plain `Diagram` (= `Diagram<string>`) checks nothing.
  */
 export interface Diagram<Ids extends string = string> extends DiagramData {
-  add<const B extends readonly BandInput[]>(...bands: B & ValidateBands<Ids, B>): Diagram<Ids | DeclaredIds<B>>;
+  add<const B extends readonly AddInput[]>(...bands: B & ValidateBands<Ids, B>): Diagram<Ids | DeclaredIds<B>>;
   /** `d.connect(a, b, opts)` = `d.add(connect(a, b, opts))`, with the diagram's connectDefaults filled in. */
   connect<const F extends string, const T extends string>(from: RefIn<Ids, F>, to: RefIn<Ids, T>, opts?: ConnectInput): Diagram<Ids>;
 }
 export type BandInput = Band | Band[];
+type AddBand = Band | BandValue<`${string}:${string}`>;
+type AddInput = AddBand | AddBand[];
 /** Width of one break atom at (size, weight, font), from the batched measurement. */
 export type WidthOf = (atom: string, size: number, weight: number, font: FontFamily) => number;
 export interface MeasureRequest {text: string; size: number; weight?: number; font?: FontFamily}

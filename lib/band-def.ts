@@ -1,7 +1,8 @@
+import {BandError} from './band-error.ts';
 import type {BandLayoutHandler} from './layout-ctx.ts';
 import type {RevealHandler} from './reveal-handlers.ts';
 import type {ToneEnv} from './tokens.ts';
-import type {Anchor, ColorKey, FontFamily, FontWeight, Rect, Roles, TextTone, Theme, WidthOf, WrapMode} from './types/core.ts';
+import type {Anchor, ColorKey, FontFamily, FontWeight, Rect, RevealOpts, Roles, ScopeOpts, TextTone, Theme, WidthOf, WrapMode} from './types/core.ts';
 import type {Band} from './types/index.ts';
 import type {InventoryItem} from './types/inventory.ts';
 import type {CheckRect} from './types/verdicts.ts';
@@ -11,6 +12,7 @@ import {must} from './must.ts';
 export const DEF_API = '0.1';
 const DEF_PREFIX = 'svg-diagram.def/';
 export const DEF: unique symbol = Symbol.for(`${DEF_PREFIX}${DEF_API}`);
+export const EXTERNAL: unique symbol = Symbol.for('svg-diagram.external');
 
 export interface PublicEnv extends Pick<Rect, 'x' | 'y' | 'w'> {
   widthOf: WidthOf;
@@ -61,6 +63,7 @@ interface BandFinding {
 
 interface BandHooks<D, L extends Rect> {
   type: string;
+  readonly [EXTERNAL]?: true;
   emit(laid: L, env: EmitEnv): string;
   measure?(data: D, env: MeasureEnv): void;
   verify?: {
@@ -90,10 +93,28 @@ interface InternalLayout<D> {
 }
 
 export type BandDef<D = unknown, L extends Rect = Rect> = BandHooks<D, L> & (PublicLayout<D, L> | InternalLayout<D>);
-export type BandValue<T extends Band['type']> = Extract<Band, {type: T}> & {readonly [DEF]: BandDef};
+type ExternalType = `${string}:${string}`;
+type ExternalBand<T> = T extends ExternalType ? {type: T; id?: string} & ScopeOpts & RevealOpts : never;
+
+export type BandValue<T extends Band['type'] | ExternalType> =
+  (Extract<Band, {type: T}> | ExternalBand<T>) & {readonly [DEF]: BandDef};
+
+export function assertTrustedBandFields(def: BandDef): void {
+  const separator = def.type.indexOf(':');
+  if (!def[EXTERNAL] && separator < 0) return;
+  const field = def.internal === true ? 'internal'
+    : def.nodeIds === 'self' ? 'nodeIds'
+    : def.rectsQualified === true ? 'rectsQualified' : undefined;
+  if (field) {
+    const plugin = separator < 0 ? def.type : def.type.slice(0, separator);
+    const kind = separator < 0 ? def.type : def.type.slice(separator + 1);
+    throw new BandError(plugin, kind, 'definition', `外部の帯の定義では ${field} を使えません。定義から削除してください`);
+  }
+}
 
 export function band<D extends {type: string}, L extends Rect>(def: BandDef<D, L>, data: D): D & {readonly [DEF]: BandDef<D, L>} {
   if (def.type !== data.type) throw new Error(`帯の定義の型 "${def.type}" とデータの型 "${data.type}" が一致しません。同じ型の定義とデータを渡してください`);
+  assertTrustedBandFields(def);
   return Object.defineProperty(copyBand(data), DEF, {value: def, enumerable: true, writable: true, configurable: true}) as D & {readonly [DEF]: BandDef<D, L>};
 }
 

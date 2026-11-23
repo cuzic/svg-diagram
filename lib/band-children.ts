@@ -2,7 +2,9 @@
 // id lookup, the spotlight, the rules) share one answer instead of each guessing at a `children` property. A band type without an
 // entry fails to compile (ChildBandsOf below), and test/band-registries.test.ts checks the tables at run time.
 
+import {BandError} from './band-error.ts';
 import {IMAGE_PAD, imageSize} from './image.ts';
+import {sourceOf, withSource} from './source-ref.ts';
 import {treeItems} from './tree.ts';
 import type {Band} from './types/index.ts';
 
@@ -64,6 +66,14 @@ export const CHILD_BANDS = {
 
 /** The bands a band holds as children (none for most types). */
 export function childrenOf(band: Band): Band[] {
+  // ADR 0080 U2–U3 will route external bands through their definitions.
+  const type: string = band.type;
+  const separator = type.indexOf(':');
+  if (separator >= 0) {
+    const error = new BandError(type.slice(0, separator), type.slice(separator + 1), 'layout',
+      '外部の帯の配置・描画は後続の実装単位（U2〜U3）で対応します。現時点ではコアの帯を使ってください');
+    throw withSource(error, sourceOf(band));
+  }
   return (CHILD_BANDS as ChildBandsTable)[band.type](band as never);
 }
 

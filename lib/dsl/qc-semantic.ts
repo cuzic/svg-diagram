@@ -3,12 +3,9 @@ import {ticksOf} from '../plane.ts';
 import {checkSheetParts, matrixParts} from '../qc-table.ts';
 import {fmeaParts, isIsNotDimLabel, isIsNotParts, isIsNotTestsParts, journeyMapParts, qfdParts, raciParts, whyWhyTableParts} from '../semantic-table.ts';
 import {isIsNotFindings, isIsNotTestFindings, whyWhyTableFindings} from '../rca-rules.ts';
-import {canvasBand} from '../canvas.ts';
-import type {CanvasContent, CanvasKey, CanvasOpts, CanvasTemplate, LooseCanvasOpts} from '../canvas.ts';
 import type {CheckItem, CheckSheetOpts, MatrixMark, MatrixOpts} from '../qc-table.ts';
 import type {FmeaOpts, FmeaRow, IsIsNotHypothesisInput, IsIsNotInputRow, IsIsNotOpts, IsIsNotTestsOpts, JourneyLane, JourneyMapOpts, JourneyStage, QfdDemand, QfdOpts, RaciAssignment, RaciOpts, WhyWhyChain, WhyWhyTableOpts} from '../semantic-table.ts';
 import type {AttributeSample, ControlChartOpts, ControlType} from '../qc-plane.ts';
-import type {GridBand} from '../types/containers.ts';
 import type {PlaneBand, PlaneOpts} from '../types/figures.ts';
 import type {TableBand} from '../types/sequence-table-swimlane.ts';
 import type {Declares, HandleOf} from '../strict.ts';
@@ -125,15 +122,4 @@ export function journeyMap(stages: readonly (string | JourneyStage)[], lanes: re
   const p = journeyMapParts(stages, lanes, opts), band = table(p.columns, p.rows, p.opts);
   if (p.emotionCurve) band.rowCurve = p.emotionCurve;
   return band;
-}
-/**
- * A fixed-region canvas from a named template: 'bmc' (Business Model Canvas), 'lean', 'vpc', 'swot', 'tows', 'errc', 'pest' (PESTLE with
- * `pestle: true`), 'threeC', 'sevenS', 'fiveForces', 'empathy', 'persona', 'a3'. `content` is the text of each region (a string, or an array
- * of short bullets) by region id; a wrong id is a type error (and throws, listing the valid ones). Each region is a box: with `id: 'c'` it
- * is the anchor 'c-<region>' for connect(), reveal and spotlight.
- *   canvas('swot', {strengths: ['技術力'], weaknesses: ['知名度'], opportunities: ['需要増'], threats: ['新規参入']}, {title: '現状分析'})
- */
-export function canvas<const T extends CanvasTemplate, const Id extends string = never>(template: T, content: CanvasContent<T>, opts?: CanvasOpts<T> & {id?: Id}): GridBand & Declares<`${Id}-${CanvasKey<T>}`>;
-export function canvas(template: CanvasTemplate, content: Record<string, string | readonly string[] | undefined>, opts: LooseCanvasOpts = {}): GridBand {
-  return canvasBand(template, content, opts);
 }
