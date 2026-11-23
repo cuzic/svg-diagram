@@ -7,6 +7,8 @@ import type {PluginDef} from '../lib/plugin.ts';
 import {pluginBands} from '../lib/plugin-bands.ts';
 import {captureSourceLocations, sourceOf} from '../lib/source-ref.ts';
 import {diagram} from '../lib/dsl/diagram.ts';
+import {renderDiagram} from '../lib/dsl/render.ts';
+import {renderInBrowser} from '../lib/web.ts';
 
 const stars = {
   build(input: {rating: number}) { return {rating: input.rating}; },
@@ -33,6 +35,69 @@ test('pluginBands builds data and attaches the namespaced, external definition',
   assert.equal(EXTERNAL, Symbol.for('svg-diagram.external'));
   assert.equal(Object.hasOwn(stars, EXTERNAL), false);
   assert.equal(diagram({theme: 'blue'}).add(value).bands[0], value);
+});
+
+test('a validated external definition stays frozen after construction', () => {
+  const def = defOf(pluginBands(plugin).stars({rating: 4}));
+  assert.ok(def);
+  assert.equal(Object.isFrozen(def), true);
+  assert.throws(() => Object.assign(def, {internal: true}), TypeError);
+  assert.equal(def.internal, undefined);
+  assert.equal(Object.isFrozen(stars), false);
+});
+
+test('plugin band kinds start with a lowercase letter and use lowercase letters, digits and hyphens', () => {
+  for (const kind of ['a:b', 'Bad Kind', 'bad kind', 'aB', '9kind', '']) {
+    assert.throws(() => pluginBands({...plugin, bands: {[kind]: stars}}), {
+      name: 'BandError', plugin: 'rating-demo', kind, phase: 'definition',
+    });
+  }
+  assert.equal(pluginBands({...plugin, bands: {'stars-2': stars}})['stars-2']({rating: 4}).type, 'rating-demo:stars-2');
+});
+
+test('plugin band builders omit absent options and retain defined zeroes', () => {
+  const makeStars = pluginBands(plugin).stars;
+  const input = {rating: 4};
+  assert.deepEqual(Object.keys(makeStars(input)).sort(), ['rating', 'type']);
+  const value = makeStars(input, {id: 'r', reveal: 0});
+  assert.deepEqual(Object.keys(value).sort(), ['id', 'rating', 'reveal', 'type']);
+  assert.equal(value.reveal, 0);
+});
+
+test('plugin build data cannot use host-owned band keys', () => {
+  for (const field of ['type', 'id', 'scope', 'reveal', 'until']) {
+    const makeStars = pluginBands({...plugin, bands: {stars: {...stars, build: () => ({[field]: undefined})}}}).stars;
+    const expected = {
+      name: 'BandError', plugin: 'rating-demo', kind: 'stars', phase: 'build',
+      message: new RegExp(`rating-demo:stars.*${field}`),
+    };
+    assert.throws(() => makeStars(undefined, {id: 'r', scope: 'score', reveal: 2, until: 4}), expected);
+    assert.throws(() => makeStars(undefined), expected);
+  }
+});
+
+test('plugin build results must be plain objects', () => {
+  for (const data of [null, 4, 'stars', undefined, [], new Date(), () => ({})]) {
+    const broken = {...plugin, bands: {stars: {...stars, build: () => data}}} as unknown as PluginDef;
+    const makeStars = pluginBands(broken)['stars'];
+    assert.ok(makeStars);
+    assert.throws(() => makeStars(undefined), {
+      name: 'BandError', plugin: 'rating-demo', kind: 'stars', phase: 'build',
+    });
+  }
+  const data = Object.assign(Object.create(null), {rating: 4});
+  const makeStars = pluginBands({...plugin, bands: {stars: {...stars, build: () => data}}}).stars;
+  assert.ok('rating' in makeStars(undefined));
+});
+
+test('Node and browser renderers report plugin bands whose drawing is deferred to U2–U3', async () => {
+  const value = pluginBands(plugin).stars({rating: 4}, {id: 'r', scope: 'score'});
+  const input = diagram({theme: 'blue'}).add(value);
+  const expected = {
+    name: 'BandError', plugin: 'rating-demo', kind: 'stars', phase: 'layout', message: /rating-demo:stars.*描画.*U2〜U3/,
+  };
+  await assert.rejects(renderDiagram(input, {name: 'rating.svg', budget: 'cacheOnly'}), expected);
+  await assert.rejects(renderInBrowser(input, {measure: () => ({w: 0, h: 0})}), expected);
 });
 
 test('a build failure names the plugin and retains the original error', () => {

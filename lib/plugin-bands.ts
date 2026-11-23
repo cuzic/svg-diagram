@@ -21,9 +21,13 @@ function supportsApi(version: string): boolean {
 }
 
 function builder(plugin: string, kind: string, definition: PluginBandDef) {
+  if (!/^[a-z][a-z0-9-]*$/.test(kind)) {
+    throw new BandError(plugin, kind, 'definition', '帯のキーは英小文字で始め、英小文字・数字・ハイフンを使ってください');
+  }
   const type = `${plugin}:${kind}` as const;
   const def = {...definition, type, [EXTERNAL]: true as const};
   assertTrustedBandFields(def);
+  Object.freeze(def);
   return located((input: unknown, {id, scope, reveal, until}: Options<string> = {}) => {
     let data: object;
     try {
@@ -32,8 +36,18 @@ function builder(plugin: string, kind: string, definition: PluginBandDef) {
       const message = cause instanceof Error ? cause.message : String(cause);
       throw new BandError(plugin, kind, 'build', message, {cause});
     }
-    const value = {...data, type, id, scope, reveal, until};
-    return band(def, value);
+    if (data === null || typeof data !== 'object' || Array.isArray(data) ||
+        ![Object.prototype, null].includes(Object.getPrototypeOf(data))) {
+      throw new BandError(plugin, kind, 'build', 'build() はプレーンオブジェクトを返してください');
+    }
+    const opts = {id, scope, reveal, until};
+    for (const field of ['type', ...Object.keys(opts)]) {
+      if (Object.hasOwn(data, field)) {
+        throw new BandError(plugin, kind, 'build', `build() の戻り値の "${field}" は帯の構築用に予約されています。別の名前を使ってください`);
+      }
+    }
+    const metadata = Object.fromEntries(Object.entries(opts).filter(([, value]) => value !== undefined));
+    return band(def, {...data, type, ...metadata});
   });
 }
 
