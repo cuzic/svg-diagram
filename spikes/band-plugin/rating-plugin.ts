@@ -1,8 +1,9 @@
-// A "reference external plugin" in miniature (ADR 0080): one new band, `rating-demo:stars` (n of max stars, with a label), written
-// only against the plugin API (host.ts), with no import from lib/. Neutral example data.
+// A "reference external plugin" in miniature (ADR 0080): one new band, `rating-demo:stars` (n of max stars), written only against the plugin API
+// (host.ts: types and the identity definePlugin; no import from lib/). Neutral example data.
+// Shapes only: the label would go out as `texts` (drawn by the core); this spike has no such channel, so the label is not drawn (see run.ts).
 import {definePlugin, type BandKind, type PluginAnchor} from './host.ts';
 
-interface StarsData {label: string; value: number; max: number}
+interface StarsData {label: string; value: number; max: number; paper?: boolean}
 interface StarsLaid extends StarsData {size: number; gap: number; labelW: number; stars: PluginAnchor[]}
 
 const star = (cx: number, cy: number, r: number): string => {
@@ -12,7 +13,7 @@ const star = (cx: number, cy: number, r: number): string => {
 
 const stars: BandKind<StarsData, StarsLaid> = {
   description: 'A row of stars: value of max, with a label on the left.',
-  schema: {type: 'object', properties: {type: {const: 'rating-demo:stars'}, label: {type: 'string', maxLength: 40}, value: {type: 'integer', minimum: 0, maximum: 10}, max: {type: 'integer', minimum: 1, maximum: 10}, id: {type: 'string'}}, required: ['type', 'label', 'value']},
+  schema: {type: 'object', properties: {type: {const: 'rating-demo:stars'}, label: {type: 'string', maxLength: 40}, value: {type: 'integer', minimum: 0, maximum: 10}, max: {type: 'integer', minimum: 1, maximum: 10}, paper: {type: 'boolean'}, id: {type: 'string'}}, required: ['type', 'label', 'value']},
   example: {label: '使いやすさ', value: 4, max: 5},
   build(input) {
     const i = input as Partial<StarsData>;
@@ -20,26 +21,26 @@ const stars: BandKind<StarsData, StarsLaid> = {
     const max = i.max ?? 5;
     if (!Number.isInteger(max) || max < 1 || max > 10) throw new Error('rating-demo:stars: max is a whole number 1-10');
     if (!Number.isInteger(i.value) || (i.value as number) < 0) throw new Error('rating-demo:stars: value is a whole number >= 0');
-    return {label: i.label, value: i.value as number, max};
+    return {label: i.label, value: i.value as number, max, ...(i.paper ? {paper: true} : {})};
   },
   layout(d, env) {
     const size = 24, gap = 4, labelW = 160, h = 40, stars: PluginAnchor[] = [];
     for (let k = 0; k < d.max; k++) stars.push({id: `s${k + 1}`, x: env.x + labelW + k * (size + gap), y: env.y + (h - size) / 2, w: size, h: size});
-    // a narrow band that cannot hold the stars: the height grows (a second row would need a layout hook; this keeps it honest)
-    return {h, anchors: stars, laid: {...d, size, gap, labelW, stars}};
+    return {h, anchors: stars, ...(d.paper ? {paper: true} : {}), laid: {...d, size, gap, labelW, stars}};
   },
   emit(l, env) {
-    const dark = '#555', fill = env.theme === 'amber' ? '#d98e04' : '#e0a800';
-    const cells = l.stars.map((s, k) => `<polygon points="${star(s.x + s.w / 2, s.y + s.h / 2, s.w / 2)}" fill="${k < l.value ? fill : 'none'}" stroke="${dark}" stroke-width="1.5" data-plugin-star="${k + 1}"/>`).join('');
-    return `<g data-plugin="rating-demo:stars">${cells}</g>`;
+    // palette tokens follow dark mode (hex-for-hex recolour); `paper` uses fixed colours on a light backing, like comic
+    const ink = l.paper ? '#2b2530' : env.color('text'), fill = l.paper ? '#e0a800' : env.color('accent');
+    const cells = l.stars.map((s, k) => `<polygon points="${star(s.x + s.w / 2, s.y + s.h / 2, s.w / 2)}" fill="${k < l.value ? fill : 'none'}" stroke="${ink}" stroke-width="1.5"/>`).join('');
+    return `<g>${cells}</g>`;
   },
   verify(l, env) {
     const out = [];
     if (l.value > l.max) out.push({rule: 'value-over-max', severity: 'problem' as const, message: `value ${l.value} is more than max ${l.max}`});
-    if (l.labelW + l.max * (l.size + l.gap) > env.w) out.push({rule: 'stars-wider-than-band', severity: 'warning' as const, message: `the ${l.max} stars need ${l.labelW + l.max * (l.size + l.gap)}px; the band is ${env.w}px wide`});
+    if (l.labelW + l.max * (l.size + l.gap) > env.w) out.push({rule: 'stars-wider-than-band', severity: 'warn' as const, message: `the ${l.max} stars need ${l.labelW + l.max * (l.size + l.gap)}px; the band is ${env.w}px wide`});
     return out;
   },
   rules: {'value-over-max': 'value is more than max', 'stars-wider-than-band': 'the stars do not fit the band width'},
 };
 
-export const ratingPlugin = definePlugin({id: 'rating-demo', apiVersion: '1.0.0', bands: {stars}});
+export const ratingPlugin = definePlugin({id: 'rating-demo', apiVersion: '0.1', bands: {stars}});

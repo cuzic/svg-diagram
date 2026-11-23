@@ -2,7 +2,7 @@
 // Not part of `pnpm typecheck` (spikes/ is outside its include). Run from the repo root:
 //   node_modules/.bin/tsc --noEmit -p spikes/band-plugin/tsconfig.json
 // Expected: exactly one error per core table below (each says "Property 'plugin' is missing"): the compiler lists the work, and no
-// existing key regresses. The last two lines must compile: a plugin constructor's ids reach Diagram<Ids> through Declares<Id>.
+// existing key regresses. (Constructor ids / containers: see typing.containers.check.ts.)
 import {BAND_HANDLERS} from '../../lib/pptx/bands.ts';
 import {CHILD_BANDS, STACK_WIDTH} from '../../lib/band-children.ts';
 import {EMIT_HANDLERS} from '../../lib/emit-handlers.ts';
