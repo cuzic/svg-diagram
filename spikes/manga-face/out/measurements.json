@@ -1,79 +1,131 @@
 {
-  "loadCharacter": "accepted a, b (mirror), mature",
+  "loadCharacter": "accepted a, b (mirror), m (mature)",
   "fragmentBytes": {
-    "neutral": 8400,
-    "smile": 8414,
-    "laugh": 7602,
-    "surprise": 8280,
-    "worry": 8445,
-    "angry": 8454,
-    "think": 8412,
-    "sad": 8442
+    "neutral": 7534,
+    "smile": 8306,
+    "laugh": 6760,
+    "surprise": 7466,
+    "worry": 7600,
+    "angry": 7620,
+    "think": 7576,
+    "sad": 7612
+  },
+  "extrasFragmentBytes": {
+    "shy": 8282,
+    "smug": 7596,
+    "deadpan": 7456,
+    "clench": 5754,
+    "cry": 6060,
+    "blank": 5569
   },
   "manifestBytes": {
-    "a": 71074,
-    "b": 78965,
-    "mature": 77587
+    "a": 64942,
+    "b": 72977,
+    "mature": 66916
   },
-  "pathCount": 57,
+  "pathCount": 48,
   "deterministic": true,
   "galleryDeterministic": true,
-  "galleryBytes": 302800,
-  "chromiumIdentical": true,
-  "chromiumIdenticalAll": true,
+  "galleryBytes": 266160,
+  "chromiumIdentical": {
+    "characters": 43,
+    "identical": true
+  },
   "anchors": {
     "a": {
       "declaredTop": 23.2,
       "rasterTop": 23.5,
       "ok": true,
-      "headTopMinusTop": 16.8
+      "atLeast23": true
     },
     "b": {
       "declaredTop": 23.2,
       "rasterTop": 23.5,
       "ok": true,
-      "headTopMinusTop": 16.8
+      "atLeast23": true
     },
     "mature": {
       "declaredTop": 23.2,
       "rasterTop": 23.5,
       "ok": true,
-      "headTopMinusTop": 16.8
+      "atLeast23": true
     }
   },
   "distinguishability": {
     "threshold": 6,
     "stage": "94x124px",
-    "a": {
-      "min": 9.629999999999999,
-      "lowest3": [
-        "neutral/worry=9.6",
-        "neutral/smile=10",
-        "smile/worry=10.5"
-      ],
-      "below": []
+    "rect": "head circle bounding square",
+    "showcase": {
+      "a": "10.1 (neutral/think)",
+      "b": "8.8 (smile/worry)",
+      "m": "6.3 (neutral/think)"
     },
-    "b": {
-      "min": 7.94,
-      "lowest3": [
-        "neutral/smile=7.9",
-        "neutral/worry=8.3",
-        "smile/worry=8.7"
-      ],
-      "below": []
+    "random64": {
+      "n": 64,
+      "min": 4.2,
+      "p10": 5,
+      "median": 6.3,
+      "below6": 24
     },
-    "mature": {
-      "min": 7.19,
-      "lowest3": [
-        "smile/worry=7.2",
-        "neutral/worry=7.5",
-        "neutral/smile=7.6"
-      ],
-      "below": []
-    }
+    "paletteExtremes": {
+      "n": 24,
+      "min": 3.7,
+      "p10": 4.8,
+      "median": 6.7,
+      "below6": 9
+    },
+    "worstRandom": [
+      "4.2 smile/worry",
+      "4.4 smile/laugh",
+      "4.5 neutral/think"
+    ],
+    "worstExtreme": [
+      "m/brown/blond 3.7 smile/laugh",
+      "m/tan/blond 4.6 smile/worry",
+      "m/brown/black 4.8 smile/sad"
+    ]
+  },
+  "featurePixels": {
+    "worstFraction": 0.8961474036850922,
+    "failing": 17,
+    "failingSample": [
+      "tan-blond/think=95%",
+      "brown-black/laugh=91%",
+      "brown-black/surprise=95%",
+      "brown-black/clench=94%"
+    ],
+    "edgePixels": 204203,
+    "cases": 252,
+    "grid": "6 skins x 3 hairs x 14 expressions"
+  },
+  "featurePixelsControlNoKeyline": {
+    "worstFraction": 0.03444730077120823,
+    "failing": 99,
+    "failingSample": [
+      "fair-navy/smile=89%",
+      "fair-navy/laugh=93%",
+      "fair-navy/surprise=54%",
+      "fair-navy/worry=91%"
+    ],
+    "edgePixels": 208440,
+    "cases": 252
+  },
+  "keylineChangesPixels": {
+    "hairFace": [
+      1027,
+      1196,
+      971
+    ],
+    "faceNeck": [
+      152,
+      159,
+      157
+    ],
+    "requireAtLeast": 100
   },
   "contrast": {
     "inkOnPaper": 16.3,
+    "keylineBelow": 3,
     "skins": [
       {
         "skin": "fair",
@@ -98,7 +150,7 @@
       {
         "skin": "brown",
         "ink": 3.3,
-        "keyed": true
+        "keyed": false
       },
       {
         "skin": "dark",
@@ -106,13 +158,39 @@
         "keyed": true
       }
     ],
-    "everySkinPasses": true,
+    "hairs": [
+      {
+        "hair": "black",
+        "ink": 1,
+        "browsKeyed": true
+      },
+      {
+        "hair": "brown",
+        "ink": 1.4,
+        "browsKeyed": true
+      },
+      {
+        "hair": "chestnut",
+        "ink": 2.2,
+        "browsKeyed": true
+      },
+      {
+        "hair": "blond",
+        "ink": 7.2,
+        "browsKeyed": false
+      },
+      {
+        "hair": "gray",
+        "ink": 5.5,
+        "browsKeyed": false
+      },
+      {
+        "hair": "navy",
+        "ink": 1.6,
+        "browsKeyed": true
+      }
+    ],
     "hairOnSkinBelow3": "19 of 36 (not guaranteed; the hair-face boundary has a keyline)"
-  },
-  "allPalettePairs": {
-    "pairs": 36,
-    "consistent": 36,
-    "inconsistent": 0
   },
   "minStrokeUnits": {
     "min": 2.8,
@@ -120,13 +198,26 @@
     "ok": true
   },
   "randomSeeds": {
+    "generator": 2,
     "tried": 1000,
-    "valid": 1000,
-    "rejected": 0,
-    "retriedWithNextAttempt": 298,
-    "reasons": {}
+    "firstDrawValid": 1000,
+    "firstDrawRate": "100.0%",
+    "repaired": 0,
+    "repairedGroups": {},
+    "invalidAfterRepair": 0
   },
   "seedStable": true,
+  "seedSnapshot": {
+    "0": "cheek 82 chin 94 jaw 0.8 eyes 26x17 short/6 light/black",
+    "1": "cheek 86 chin 97 jaw 0.7 eyes 25x20 bob/5 dark/black",
+    "2": "cheek 86 chin 97 jaw 0.7 eyes 23x19 bob/7 brown/brown"
+  },
+  "coarseGrid": {
+    "points": 540,
+    "invalid": 0,
+    "rate": "0.0%",
+    "why": {}
+  },
   "invalidInputs": {
     "strands0": [
       "hair.strands must be an integer >= 1",
@@ -134,30 +225,47 @@
     ],
     "chin110": [
       "head.chin=110 is outside 90..98"
+    ],
+    "badHex": [
+      "palette.skin=\"#12345\" is neither a known key nor #rrggbb"
+    ],
+    "unknownKey": [
+      "palette.hair=\"green\" is neither a known key nor #rrggbb"
     ]
   },
   "toManifestThrowsOnInvalid": true,
+  "edgeHex": {
+    "allSixDigit": true,
+    "loaded": true
+  },
   "expressionMapRejectsDifferentMeaning": "expressionMap: cry cannot stand for think (allowed: deadpan)",
   "expressionMapAcceptsSameMeaning": 8,
+  "normalizeIdempotent": true,
+  "ranges": 18,
   "comic": {
     "deterministic": true,
-    "svgBytes": 79786,
+    "svgBytes": 73925,
     "verdictOk": true,
     "faces": 8
   },
   "swapCompatibility": {
-    "lengthsTried": 30,
+    "layouts": "1x2, 2x2, 1x3 (6:5)",
+    "lengths": "8..66 step 4",
     "builtin": {
-      "ok": 27,
-      "fail": 3
+      "ok": 28,
+      "fail": 17
     },
     "manga": {
-      "ok": 27,
-      "fail": 3
+      "ok": 28,
+      "fail": 17
     },
     "mangaTuft": {
-      "ok": 27,
-      "fail": 3
+      "ok": 28,
+      "fail": 17
+    },
+    "mangaMature": {
+      "ok": 28,
+      "fail": 17
     },
     "regressions": []
   },
@@ -165,7 +273,7 @@
     "a": 23.2,
     "tuft": 23.2,
     "b": 23.2,
-    "builtinTopIs": "head top = 40",
+    "mature": 23.2,
     "limit": 23
   }
 }

@@ -1,33 +1,36 @@
-// node spikes/manga-face/directions.ts [outdir] — two directions of the look (ADR 0079 Q2) at full size and at stage scale (head r = 36 px, DPR 1).
+// node spikes/manga-face/directions.ts [outdir] — two directions of the look (ADR 0079 Q2). The stage-scale strips come first: true size (head r = 36 px, 1 px per px),
+// then the same at 2x; below them, three expressions at full size.
 import fs from 'node:fs';
 import path from 'node:path';
 import {prefixIds} from '../../lib/icon-store.ts';
-import {ADR0074, BOX, CHARACTERS, DIRECTIONS, SCALE, faceFragment, type Character} from './face.ts';
+import {ADR0074, BOX, CHARACTERS, SCALE, faceFragment, type Character} from './face.ts';
 
-const mk = (dir: keyof typeof DIRECTIONS, base: 'a' | 'b'): Character => ({...structuredClone(CHARACTERS[base]), ...structuredClone(DIRECTIONS[dir]), mirror: false} as Character);
-const withStrands = (c: Character, n: number): Character => ({...c, hair: {...c.hair, strands: n}});
-const rowsDef = [
-  {label: 'young', sub: 'round eyes, wide face', ch: mk('young', 'a')},
-  {label: 'mature', sub: 'longer face, small eyes', ch: withStrands(mk('mature', 'a'), 7)},
-  {label: 'young (bob)', sub: '', ch: {...mk('young', 'b'), id: 'y2'}},
-  {label: 'mature (bob)', sub: '', ch: withStrands({...mk('mature', 'b'), id: 'm2'}, 7)},
+const bobOf = (c: Character, id: string): Character => ({...structuredClone(c), id, mirror: false, hair: {...c.hair, template: 'bob', parting: -0.5}, palette: {...c.palette, hair: 'black', skin: 'medium', top: 'red', iris: 'brown'}});
+const rows: {label: string; sub: string; ch: Character}[] = [
+  {label: 'young', sub: 'round eyes, wide face', ch: {...structuredClone(CHARACTERS.a), id: 'y1'}},
+  {label: 'mature', sub: 'narrow face, square chin,', ch: {...structuredClone(CHARACTERS.m), id: 'm1'}},
+  {label: 'young (bob)', sub: '', ch: bobOf(CHARACTERS.a, 'y2')},
+  {label: 'mature (bob)', sub: 'small eyes, thin lid, no lashes', ch: bobOf(CHARACTERS.m, 'm2')},
 ];
-/** Full size on the left (3 expressions), stage scale (8 expressions, r = 36 px, 1 px per 1 px) on the right. */
 export function directions(): string {
-  const full = ['neutral', 'smile', 'angry'], big = 0.62, bw = BOX[2] * big, bh = BOX[3] * big;
-  const sw = BOX[2] * SCALE, sh = BOX[3] * SCALE;
-  const lw = 120, rowH = bh + 8, W = lw + full.length * bw + 30 + ADR0074.length * sw + 10, H = 36 + rowsDef.length * rowH + 8;
-  let out = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${Math.ceil(W)} ${Math.ceil(H)}" width="${Math.ceil(W)}" height="${Math.ceil(H)}" font-family="sans-serif" font-size="13"><rect width="100%" height="100%" fill="#ffffff"/>`;
-  full.forEach((e, i) => { out += `<text x="${lw + i * bw + bw / 2}" y="22" text-anchor="middle" fill="#22201b">${e}</text>`; });
-  const sx0 = lw + full.length * bw + 30;
-  out += `<text x="${sx0}" y="22" fill="#22201b">stage scale (head r = 36 px): ${ADR0074.join(' / ')}</text>`;
-  rowsDef.forEach((r, ri) => {
-    const y = 36 + ri * rowH;
-    out += `<text x="8" y="${y + bh / 2}" fill="#22201b">${r.label}</text><text x="8" y="${y + bh / 2 + 16}" font-size="11" fill="#666">${r.sub}</text>`;
-    full.forEach((e, i) => { out += `<svg x="${lw + i * bw}" y="${y}" width="${bw}" height="${bh}" viewBox="${BOX.join(' ')}">${prefixIds(faceFragment(r.ch, e).fragment, `d${ri}f${i}-`)}</svg>`; });
-    ADR0074.forEach((e, i) => { out += `<svg x="${sx0 + i * sw}" y="${y}" width="${sw}" height="${sh}" viewBox="${BOX.join(' ')}">${prefixIds(faceFragment(r.ch, e).fragment, `d${ri}s${i}-`)}</svg>`; });
-  });
-  return `${out}</svg>`;
+  const lw = 130, cols = ADR0074.length;
+  const sw1 = BOX[2] * SCALE, sh1 = BOX[3] * SCALE, sw2 = sw1 * 2, sh2 = sh1 * 2, fw = BOX[2] * 0.62, fh = BOX[3] * 0.62;
+  const W = Math.ceil(lw + cols * sw2 + 10);
+  let y = 0;
+  let out = '';
+  const cell = (r: typeof rows[number], e: string, x: number, yy: number, w: number, h: number, tag: string): string => `<svg x="${x}" y="${yy}" width="${w}" height="${h}" viewBox="${BOX.join(' ')}">${prefixIds(faceFragment(r.ch, e).fragment, `${tag}-`)}</svg>`;
+  const head = (t: string): string => { const s = `<text x="8" y="${y + 18}" font-weight="bold" fill="#22201b">${t}</text>`; y += 28; return s; };
+  out += head(`1. Stage scale, true size (head r = 36 px; the size the comic uses): ${ADR0074.join(' / ')}`);
+  rows.forEach((r, ri) => { out += `<text x="8" y="${y + sh1 / 2}" fill="#22201b">${r.label}</text>` + ADR0074.map((e, i) => cell(r, e, lw + i * sw1, y, sw1, sh1, `a${ri}${i}`)).join(''); y += sh1 + 2; });
+  y += 14;
+  out += head('2. The same at 2x');
+  rows.forEach((r, ri) => { out += `<text x="8" y="${y + sh2 / 2}" fill="#22201b">${r.label}</text><text x="8" y="${y + sh2 / 2 + 16}" font-size="11" fill="#666">${r.sub}</text>` + ADR0074.map((e, i) => cell(r, e, lw + i * sw2, y, sw2, sh2, `b${ri}${i}`)).join(''); y += sh2 + 4; });
+  y += 14;
+  out += head('3. Full size: neutral / smile / angry');
+  const full = ['neutral', 'smile', 'angry'];
+  rows.forEach((r, ri) => { out += `<text x="8" y="${y + fh / 2}" fill="#22201b">${r.label}</text>` + full.map((e, i) => cell(r, e, lw + i * fw, y, fw, fh, `c${ri}${i}`)).join(''); y += fh + 4; });
+  const H = Math.ceil(y + 8);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="sans-serif" font-size="13"><rect width="100%" height="100%" fill="#ffffff"/>${out}</svg>`;
 }
 if (import.meta.url === `file://${process.argv[1]}`) {
   const dir = process.argv[2] ?? path.join(import.meta.dirname, 'out');
