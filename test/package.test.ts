@@ -45,7 +45,7 @@ test('the command is the bash wrapper, executable, and runs the compiled files w
 });
 
 test('the entry points are in dist/ and are what the build produces from lib/', () => {
-  assert.deepEqual(Object.keys(pkg.exports).sort(), ['.', './browser', './markdown', './markdown-it', './pptx/deck/edge', './pptx/edge', './remark', './render', './schema/*.json', './spec', './spec/edge', './vitepress']);
+  assert.deepEqual(Object.keys(pkg.exports).sort(), ['.', './browser', './markdown', './markdown-it', './plugin', './pptx/deck/edge', './pptx/edge', './remark', './render', './schema/*.json', './spec', './spec/edge', './vitepress']);
   assert.equal(pkg.exports['./schema/*.json'], './schema/*.json'); // the JSON Schema files (ADR 0071), shipped as they are: test/schema-files.test.ts
   for (const [name, e] of Object.entries(pkg.exports).filter(([name]) => name !== './schema/*.json') as [string, {types: string; default: string}][]) {
     for (const f of [e.types, e.default]) assert.match(f, /^\.\/dist\//, `${name}: ${f}`);
