@@ -2,6 +2,7 @@ import {layoutDiagram} from '../layout-measured.ts';
 import {analyzeFit} from '../fit.ts';
 import {getSlideBudget, readSlideBudgetCache} from '../slide-budget.ts';
 import {emitOutputs, runChecked} from '../pipeline.ts';
+import {emitHtml} from '../emit-html.ts';
 import {fontBoxOf} from '../font-box.ts';
 import {resolveImages} from '../image-file.ts';
 import {canvasFontScale, canvasRoles, rolesAt} from '../tokens.ts';
@@ -91,8 +92,9 @@ async function render(input: Diagram, opts: RenderOptions): Promise<RenderResult
     return laidOut;
   });
   if (opts.html && d.appearance === 'auto') throw new Error("diagram({appearance: 'auto'}) is SVG only: the HTML form paints with style attributes, which a media rule cannot override (drop html / --html, or use 'dark')");
-  const emitted = emitOutputs(laidOut, {html: opts.html, nodeIds: opts.nodeIds, reveal: d.maxReveal, ...(opts.html ? {fontBox: fontBoxOf(laidOut.measure)} : {})});
-  return {svg: emitted.svg, ...(emitted.html !== undefined ? {html: emitted.html} : {}), laidOut, verdict, xml: emitted.xml, notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget: budget as SlideBudget | null, budgetSource: budgetSource as RenderResult['budgetSource'], fontScale: laidOut.fontScale};
+  const emitted = emitOutputs(laidOut, {nodeIds: opts.nodeIds, reveal: d.maxReveal});
+  const html = opts.html ? emitHtml(laidOut, {...(d.maxReveal ? {reveal: d.maxReveal} : {}), fontBox: fontBoxOf(laidOut.measure)}) : undefined;
+  return {svg: emitted.svg, ...(html !== undefined ? {html} : {}), laidOut, verdict, xml: emitted.xml, notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget: budget as SlideBudget | null, budgetSource: budgetSource as RenderResult['budgetSource'], fontScale: laidOut.fontScale};
 }
 // Layout + verification + rules, without writing any file: the engine behind `svg-diagram check`.
 export async function checkDiagram(input: DiagramData): Promise<CheckResult> {

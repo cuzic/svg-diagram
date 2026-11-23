@@ -684,6 +684,12 @@ U0 は、この PR。U1 以降は、どの単位も Opus のレビューで Bloc
 | U17(任意) | 追加の表情: `expressions`、`ComicExpression` の拡張、`comic-expression-fallback` | 名前空間つきの表情が描け、持たない人物は `neutral` に落ちる。コアの 8 種は不変 | 落ちる経路、コアの golden の不変 |
 | U18 | **1.0 の確認と配布**: D10 の確認表を埋める(コンテナと図式の帯を含む 12 個以上の帯の移行 + 参照プラグイン + manga-face)。jsDelivr から `core` と帯と(あれば)プラグインを読む Artifact の通し確認(**core の CDN のプローブが済んでから**)、MCP の許可リスト(MCP のリポジトリ側の PR)、README と skill。**予算の全部の行を有効にする** | 確認表のすべての行に実物がある。Opus のレビューが収束。`1.0` | Artifact の実機の確認(決める人)、MCP のテスト(別のリポジトリ) |
 
+### U1b の実装メモ
+
+- SVG のパイプラインから HTML の出力を分け、Node の `renderDiagram(d, {html: true})` が HTML を組み立てるようにした。HTML 出力は `svg-diagram/html`、ブラウザの測定器は `svg-diagram/measure/browser` から個別に利用できる。
+- デッキのファイル読み込みから、PPTX の列探索に使う文字サイズの計測を分けた。
+- 消費側の esbuild と Vite の検査を CI に追加した。配布用の `exports` から SVG・HTML・文字測定を束ね、出力に含まれるモジュールを調べる。文字測定のみの場合は両方で 4,000 バイトを上限にした。帯の表の分離と `svg-diagram/core` の公開は U1b の残り。
+
 ## テスト方針
 
 - **移行の同値**: 各 PR で、**golden(SVG、PPTX、スキーマ)がバイト単位で同じ**。移行の間は、**表からの呼び出しと帯の値からの呼び出しが同じ結果**になることを、その帯の例で確かめる(派生の表)。

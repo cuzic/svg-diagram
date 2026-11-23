@@ -150,6 +150,14 @@
       "types": "./dist/lib/web.d.ts",
       "default": "./dist/lib/web.js"
     },
+    "./measure/browser": {
+      "types": "./dist/lib/web-measure.d.ts",
+      "default": "./dist/lib/web-measure.js"
+    },
+    "./html": {
+      "types": "./dist/lib/emit-html.d.ts",
+      "default": "./dist/lib/emit-html.js"
+    },
     "./plugin": {
       "types": "./dist/lib/plugin.d.ts",
       "default": "./dist/lib/plugin.js"

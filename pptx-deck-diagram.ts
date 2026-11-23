@@ -11,6 +11,7 @@ import {chooseColumns, columnWidths, figureRooms, maxScale, type FigureFit} from
 import {closeMeasurer, configureMeasure, measureAll, splitAtoms, textWidth} from './lib/measure.ts';
 import {autoColumns, columnFigurePath, figurePath, fitOf, sharedColumns} from './lib/deck-spec.ts';
 import {drawColumnFigure, figureKey, loadDeck, renderDeckFigure} from './lib/deck-load.ts';
+import {figureMinPt} from './lib/pptx/deck-figure.ts';
 import {deckEntries, deckTexts, planDeckSlide, slideIssues, type DeckFigure, type TextWidth} from './lib/pptx/deck.ts';
 import {planSlide, fontsOf} from './lib/pptx/slide.ts';
 import {fontFilesOf, rasterize} from './lib/pptx/emit.ts';
@@ -70,7 +71,7 @@ try {
       const columns = s.columns, failures: string[][] = [];
       const chosen = await chooseColumns({...s, columns}, width, maxScale(fit), async (j, w) => {
         const c = columns[j];
-        const d = await drawColumnFigure(i, j, c?.figure, sources.get(figureKey(i, j)), cfg, w);
+        const d = await drawColumnFigure(i, j, c?.figure, sources.get(figureKey(i, j)), cfg, w, figureMinPt);
         if (!d.ok && w === null && d.errors) failures[j] = d.errors;
         return d;
       });

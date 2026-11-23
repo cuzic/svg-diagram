@@ -137,6 +137,8 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 
 ## ノードの名前を SVG に出す（`data-node`）
 
+文字測定だけ使う場合は `svg-diagram/measure/browser` から `svgMeasurer` または `canvasMeasurer` を import できます。配置済みの図を HTML に書き出す場合は `svg-diagram/html` の `emitHtml(laidOut, {fontBox})` を使います。`fontBox` はフォントのサイズ・太さ・等幅かどうかを受け取り、アセントとディセントを返す関数です。
+
 図を表示するページで「このノードをクリックした」を知りたいとき、`renderDiagram(d, {nodeIds: true})`（ブラウザ入口では `renderInBrowser(d, {measure, nodeIds: true})`）で、`id` を持つノードの図形に `data-node="名前"` が付く。既定は付けない（付けない SVG は 1 バイトも変わらない）。名前は `connect()` や spotlight が使うものと同じ（`scope` があれば `scope.id`）。HTML 出力（`--html`）には付かない。
 
 | 部品 | `data-node` が付く場所 |
