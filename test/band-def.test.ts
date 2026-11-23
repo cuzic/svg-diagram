@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {band, copyBand, DEF, DEF_API, defOf, plain} from '../lib/band-def.ts';
+import {band, copyBand, DEF, DEF_API, defOf, isDefKey, plain} from '../lib/band-def.ts';
 import type {BandDef, BandValue} from '../lib/band-def.ts';
 import {detachData, diagram} from '../lib/dsl/diagram.ts';
 import {cloneBand} from '../lib/dsl/shared.ts';
@@ -24,6 +24,21 @@ test('band attaches an enumerable own definition without changing its input', ()
   assert.equal(defOf(value), boxDef);
   assert.equal(Object.hasOwn(data, DEF), false);
   assert.throws(() => band({...boxDef, type: 'other'}, data), /other.*box/);
+});
+
+test('band preserves box handles and the prototype when attaching a definition', () => {
+  const data = box({title: 'Box', id: 'box'});
+  const proto = {example: true};
+  Object.setPrototypeOf(data, proto);
+  const def: BandDef<typeof data> = boxDef;
+  const value = band(def, data);
+  assert.equal(value.left, 'box:left');
+  assert.equal(value.right, 'box:right');
+  assert.equal(value.at('top', 0.25), 'box:top@0.25');
+  assert.equal(Object.getPrototypeOf(value), proto);
+  for (const key of ['left', 'right', 'at']) {
+    assert.deepEqual(Object.getOwnPropertyDescriptor(value, key), Object.getOwnPropertyDescriptor(data, key));
+  }
 });
 
 test('spreading preserves DEF and copyBand preserves property descriptors and prototype', () => {
@@ -53,6 +68,35 @@ test('detachData preserves the definition by reference on nested copies', () => 
   assert.notEqual(cloned, value);
   assert.equal(defOf(cloned), boxDef);
   assert.equal(Object.getOwnPropertyDescriptor(cloned, DEF)?.enumerable, true);
+});
+
+test('detachData preserves the version mismatch on a band with a foreign definition key', () => {
+  const foreign = Symbol.for('svg-diagram.def/9.9');
+  const other = Symbol('other');
+  const value = {...box({title: 'Box'}), [foreign]: boxDef, [other]: true};
+  const data = diagram({theme: 'blue'}).add(value);
+  const cloned = detachData(data).bands[0];
+  assert.equal(cloned?.type, 'box');
+  assert.notEqual(cloned, value);
+  assert.throws(() => defOf(cloned), /API の版が一致しません.*svg-diagram\.def\/9\.9.*svg-diagram\.def\/0\.1/);
+  assert.equal(Reflect.get(cloned, foreign), boxDef);
+  assert.equal(Object.hasOwn(cloned, other), false);
+});
+
+test('detachData preserves own definition keys on arrays', () => {
+  const foreign = Symbol('svg-diagram.def/9.9');
+  const data = diagram({theme: 'blue'}).add(box({title: 'Box'}));
+  Object.defineProperty(data.bands, foreign, {value: boxDef});
+  const cloned = detachData(data).bands;
+  assert.notEqual(cloned, data.bands);
+  assert.deepEqual(Object.getOwnPropertyDescriptor(cloned, foreign), {value: boxDef, enumerable: false, writable: false, configurable: false});
+});
+
+test('isDefKey recognizes definition symbols across API versions', () => {
+  assert.equal(isDefKey(DEF), true);
+  assert.equal(isDefKey(Symbol('svg-diagram.def/9.9')), true);
+  assert.equal(isDefKey(Symbol('svg-diagram.def')), false);
+  assert.equal(isDefKey('svg-diagram.def/9.9'), false);
 });
 
 test('plain strips every version of DEF recursively and keeps other symbols', () => {

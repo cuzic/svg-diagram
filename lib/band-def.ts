@@ -94,10 +94,10 @@ export type BandValue<T extends Band['type']> = Extract<Band, {type: T}> & {read
 
 export function band<D extends {type: string}, L extends Rect>(def: BandDef<D, L>, data: D): D & {readonly [DEF]: BandDef<D, L>} {
   if (def.type !== data.type) throw new Error(`帯の定義の型 "${def.type}" とデータの型 "${data.type}" が一致しません。同じ型の定義とデータを渡してください`);
-  return {...data, [DEF]: def};
+  return Object.defineProperty(copyBand(data), DEF, {value: def, enumerable: true, writable: true, configurable: true}) as D & {readonly [DEF]: BandDef<D, L>};
 }
 
-const isDefKey = (key: PropertyKey): boolean => typeof key === 'symbol' && key.description?.startsWith(DEF_PREFIX) === true;
+export const isDefKey = (key: PropertyKey): boolean => typeof key === 'symbol' && key.description?.startsWith(DEF_PREFIX) === true;
 
 export function defOf(b: object): BandDef | undefined {
   for (const key of Object.getOwnPropertySymbols(b)) {
@@ -113,7 +113,10 @@ export function copyBand<T extends object>(b: T): T {
   return Object.create(Object.getPrototypeOf(b), Object.getOwnPropertyDescriptors(b)) as T;
 }
 
-/** Recursively strip definition keys for comparisons, retaining other properties and opaque objects. */
+/**
+ * Recursively strip definition keys from arrays and plain objects for comparisons.
+ * Other objects are returned by reference. Accessors are preserved without stripping their getter results.
+ */
 export function plain<T>(v: T): T {
   const seen = new WeakMap<object, object>();
   const strip = (value: unknown): unknown => {

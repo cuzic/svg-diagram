@@ -99,6 +99,7 @@ function layoutBands(data: DiagramData, roles: Roles, widthOf: WidthOf, tones: T
   const collectConnects = (bs: Band[]): void => {
     for (const b of bs) {
       // Report missing layout definitions before walking the legacy child table.
+      // ADR 0080 D4: U1a-2 replaces this guard by walking children through the band definition.
       if (!Object.hasOwn(CHILD_BANDS, b.type)) atBand(b, () => layoutHandlerFor(b));
       if (b.type === 'connect' && b.label && b.route === 'straight' && !b.annot) labelled.push(b);
       else collectConnects(childrenOf(b));
