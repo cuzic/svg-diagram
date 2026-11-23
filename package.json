@@ -82,6 +82,10 @@
       "types": "./dist/lib/web.d.ts",
       "default": "./dist/lib/web.js"
     },
+    "./plugin": {
+      "types": "./dist/lib/plugin.d.ts",
+      "default": "./dist/lib/plugin.js"
+    },
     "./markdown-it": {
       "types": "./dist/lib/markdown-it.d.ts",
       "default": "./dist/lib/markdown-it.js"
