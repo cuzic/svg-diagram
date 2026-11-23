@@ -326,6 +326,7 @@ const rating = pluginBands(ratingDemo);   // コアが構築関数を作る(loca
 4. **ホストの包み・門・id の接頭辞は、外部の定義には常に掛ける**(D8 の 3)。**環境の層(公開 / 内部)とは独立**で、コアの定義は(公開層で書いても)出力を包まれない。これで `comic` は、公開層のまま、**バイト単位で同じ**に移せる(M1)。
 5. **`ctx.connects` は、凍結した値(またはコピー)で渡す**。プラグインがコネクタの幾何を書き換え、後の検査が読む物を変えることを防ぐ。
 6. **守る範囲**: これは**誤りと、データの混入**(LLM が書いた spec の文字列を、プラグインの `emit` がそのまま SVG に出して `<script>` や `<foreignObject>` が入る、など)を防ぐための物で、**悪意のあるプラグインのコードを防ぐ物ではない**(プラグインのコードは全権限で動く。D8)。
+7. **作者が自分の `.ts` で、コアの `band(def, data)` の補助関数を使って直接作った定義は、作者自身のコードと同じに信頼する**(出どころが作者のコード)。**データの入口(spec、MCP、設定)からは、そのような定義を作れない**(それらは `PluginDef` を通り、外部になる)。
 
 `BandDef` の `layout` は、公開層の形(`PublicEnv`)か、内部層の形(`internal: true` の定義だけが `CoreLayoutCtx` を受ける)のどちらか。`internal` は上の trusted-only fields の 1 つで、**外部の定義が立てたら `BandError` で拒む**。
 
@@ -532,8 +533,8 @@ const rating = pluginBands(ratingDemo);   // コアが構築関数を作る(loca
 
 | 段階 | 内容 | 帯 |
 |---|---|---|
-| M0a | **型と枠組み**(U1a)と、**composer の `lib/compose/*` への純粋な移動**(golden 不変): `BandDef`、帯の値と `[DEF]`(列挙できる、版つきのキー)、`copyBand`、`plain()`、**注入する派生の表**(純粋な `withLegacyTables(corePipeline, tables)`。新しいパイプラインを返し、最上位で状態を書き換えない。`sideEffects: false` の全部入りの束で描けるテスト)、`[DEF]` を持たない帯のリテラルの補い(全部入りの入口)、境界の検査、`sideEffects` の監査。追加のみ | — |
-| M0b | **`core` の切り出し**(U1b): `pipeline.ts` が HTML を引かない、`rules.ts` / `dsl/text-bands.ts` / `web.ts` / `located.ts` を表から切り離す、**コア所有の帯**(`caption`、`status`、`legend`、`spacer`、`connect`、`group`。D4)を `core` の定義にする。**この PR の後、`core` は表を持たない**。`core` 単体の束に帯のモジュールが無いことを検査 | コア所有の 6 つ |
+| M0a | **型と枠組み**(U1a)と、**composer の `lib/compose/*` への純粋な移動**(golden 不変): `BandDef`、帯の値と `[DEF]`(列挙できる、版つきのキー)、`copyBand`、`plain()`、**注入する派生の表**(純粋な `withLegacyTables(corePipeline, tables)`。新しいパイプラインを返し、最上位で状態を書き換えない。`sideEffects: false` の全部入りの束で描けるテスト)、`[DEF]` を持たない帯のリテラルの補い(全部入りの入口)、境界の検査、`sideEffects` の監査。**追加と、composer の純粋な移動のみ**(帯は移さない) | — |
+| M0b | **`core` の切り出し**(U1b): `pipeline.ts` が HTML を引かない、`rules.ts` / `dsl/text-bands.ts` / `web.ts` / `located.ts` を表から切り離す、**コア所有の帯**(`caption`、`status`、`legend`、`spacer`、`connect`、`group`。D4)を `core` の定義にする。**この PR の後、`core` は表を持たない**。`core` 単体の束に帯のモジュールが無いことを検査 | コア所有の 7 つ |
 | **M1(マンガ。最初の成果)** | **`comic`**。決める人の最初の用途(Artifact が 1 MB)。**配置が純粋で(`layoutComic(band, x, y, w, widthOf)`)、公開層だけで書ける**ので、内部層を待たない。**今の重なりのない経路のまま**移す(ADR 0078 の重ね `U4` は、移した帯の上に載せる。下の注)。**公開層に足すもの(D2a): コネクタの幾何を読む `verify.check`、`rectsQualified`、`nodeIds: 'self'`、`offGrid`**。出力はバイト単位で同じ | `comic` |
 | M2 | **葉の帯**(公開層で書ける、子なし) | `raw`、`banner`、`curve`、`pyramid`、`people`、`dots`、`wordart`、`math` |
 | M3 | **箱**(内部層)。**`placeBoxLike` と箱の文字の配置は `core` の共有の補助関数に残し**(`caption` と `group` の題が使う。D4)、`bands/box` はアイコン・ステップ・タグの扱いを含む薄い定義 + DSL。`core` の大きさに補助を含める | `box` |
@@ -651,20 +652,20 @@ ADR 0079 は**中身の設計としてそのまま有効**(D2〜D7)。変わる�
 ## 影響
 
 - `lib/` の変更は、U1 以降の別の PR。この PR(U0)は ADR とスパイクだけで、`lib/` と golden は変えない。`pnpm typecheck` は通る(スパイクは `tsc -p .` の対象外。スパイク用の `tsconfig` で別に確かめる)。
-- コアに足すもの: `svg-diagram/core`(パイプライン、`BandDef`、帯の値、`pluginBands`、`copyBand`、コア所有の帯 6 つ)、`svg-diagram/core/internal`(内部層)、`spec/parts/<名前>`(`PartDef`)、帯ごとの入口、出力形式の入口と adapter、バックエンドの入口、`package.json` の `exports` と `sideEffects: false`、`test/band-boundaries.test.ts`、`scripts/bundle-size.ts` と `bundle-budget.json`。中央の表は移行の間は派生の表、終われば削除。`layoutHandlerFor` の箱のフォールバックの削除。
+- コアに足すもの: `svg-diagram/core`(パイプライン、`BandDef`、帯の値、`pluginBands`、`copyBand`、コア所有の帯 7 つ)、`svg-diagram/core/internal`(内部層)、`spec/parts/<名前>`(`PartDef`)、帯ごとの入口、出力形式の入口と adapter、バックエンドの入口、`package.json` の `exports` と `sideEffects: false`、`test/band-boundaries.test.ts`、`scripts/bundle-size.ts` と `bundle-budget.json`。中央の表は移行の間は派生の表、終われば削除。`layoutHandlerFor` の箱のフォールバックの削除。
 - 変わらないもの: 今の公開の入口(全部入り。大きさは増やさない)、コアの帯の API、golden(移行の各 PR で不変)、`schema/*.schema.json`(プラグインを渡さない既存の経路)、規則の id。
 - 公開の約束が増える: `BandDef` / プラグイン API の semver(D1)。`0.x` の間は破壊的変更あり。入口の名前(`core`、`bands/*`、`pptx/bands/*` …)。
 - ADR 0068(Excel)の D2 を改訂する(D6。Q13)。ADR 0078 の U4(`lib/comic/` の重なり)は、移した `comic` の帯の上に載せる(Q3)。
 
 ## 実装計画
 
-U0 は、この PR。U1 以降は、どの単位も Opus のレビューで Blocker と Major がなくなってからマージする。**移行の PR(U8〜U15)は、帯ごとに 1 つで、D10 の基準を全部満たす。** U1a は ADR 0078 U2 の前でも始められる(追加のみ)。
+U0 は、この PR。U1 以降は、どの単位も Opus のレビューで Blocker と Major がなくなってからマージする。**移行の PR(U8〜U15)は、帯ごとに 1 つで、D10 の基準を全部満たす。** U1a は ADR 0078 U2 の前でも始められる(追加と composer の移動のみ)。
 
 | 単位 | 内容 | 完了の基準 | テスト |
 |---|---|---|---|
 | U0 | ADR とスパイク(この PR) | スパイクの測定。表の一覧。バンドルの測定。`typecheck` が通り、golden が不変 | `spikes/band-plugin/` の各スクリプト |
-| U1a | **型と枠組み(追加のみ)**: `BandDef` と帯の値(`[DEF]`。列挙できる、版つきのキー)、`BandValue<T>`(今の帯の型に代入できる)、`pluginBands`、**`copyBand`**(全部のコピー経路。`cloneData` / `detachData` も `[DEF]` を参照で引き継ぐ)、`plain()`(テスト用)、**注入する派生の表**(純粋な `withLegacyTables(corePipeline, tables)`。新しいパイプラインを返し、最上位で状態を書き換えない。`sideEffects: false` の全部入りの束で描けるテスト)、`[DEF]` を持たない帯のリテラルの補い(全部入りの入口)、`layoutHandlerFor` の箱のフォールバックの削除、`test/band-boundaries.test.ts`(コア所有の帯の一覧つき)、`package.json` の `exports`(`core`、`plugin`)、**`sideEffects` の監査と、最上位の副作用の一覧のテスト**、`scripts/bundle-size.ts`(全部入りの上限だけ有効) | `typecheck` が通る。**帯を移していない図の出力がバイト単位で不変**(golden)。全部入りの入口の大きさが今の +5% 以内 | 未知の `type: 'x:y'` が箱にならず投げる、**全部のコピー経路で `[DEF]` が残る**、**移した型が表に行を残したら落ちる**、型テスト(最上位・`group`・`row`・`areas` の `connect()`、裸の綴り間違いは `@ts-expect-error`、`box()` の戻り値が `BoxBand` に代入できる、コアの帯の抜けは落ちる)、`plain()` を通した 18 ファイル(153 行)の `deepEqual` |
-| U1b | **`core` の切り出し**: `pipeline.ts` が HTML を引かない(`svg-diagram/html`)、`rules.ts` / `dsl/text-bands.ts`(`walkBands`)/ `web.ts` / `located.ts`(`CHILD_BANDS`)を表から切り離す、**コア所有の帯(`caption`・`status`・`legend`・`spacer`・`connect`・`group`)を `core` の定義にする**、**配置した要素に `[DEF]` を付ける**(新しく作る物はコア所有の定義)。`deck-load.ts` の PPTX への依存(`figureMinPt` → `planSlide`)を分ける | **`core` を単体で束ね、metafile に帯のモジュールが無い**(コア所有の 6 つ以外)。golden が不変。**`core` の大きさを測り、バンドラごとの予算を置く**(D12) | 上の束の検査、`core-purity`、`web-entry`、`pipeline` の段の順序、配置した要素の全部に定義がある(描画で「定義が無い」が起きない) |
+| U1a | **型と枠組み(追加と composer の `lib/compose/*` への純粋な移動のみ)**: `BandDef` と帯の値(`[DEF]`。列挙できる、版つきのキー)、`BandValue<T>`(今の帯の型に代入できる)、`pluginBands`、**`copyBand`**(全部のコピー経路。`cloneData` / `detachData` も `[DEF]` を参照で引き継ぐ)、`plain()`(テスト用)、**注入する派生の表**(純粋な `withLegacyTables(corePipeline, tables)`。新しいパイプラインを返し、最上位で状態を書き換えない。`sideEffects: false` の全部入りの束で描けるテスト)、`[DEF]` を持たない帯のリテラルの補い(全部入りの入口)、`layoutHandlerFor` の箱のフォールバックの削除、`test/band-boundaries.test.ts`(コア所有の帯の一覧つき)、`package.json` の `exports`(`core`、`plugin`)、**`sideEffects` の監査と、最上位の副作用の一覧のテスト**、`scripts/bundle-size.ts`(全部入りの上限だけ有効) | `typecheck` が通る。**帯を移していない図の出力がバイト単位で不変**(golden)。全部入りの入口の大きさが今の +5% 以内 | 未知の `type: 'x:y'` が箱にならず投げる、**全部のコピー経路で `[DEF]` が残る**、**移した型が表に行を残したら落ちる**、型テスト(最上位・`group`・`row`・`areas` の `connect()`、裸の綴り間違いは `@ts-expect-error`、`box()` の戻り値が `BoxBand` に代入できる、コアの帯の抜けは落ちる)、`plain()` を通した 18 ファイル(153 行)の `deepEqual` |
+| U1b | **`core` の切り出し**: `pipeline.ts` が HTML を引かない(`svg-diagram/html`)、`rules.ts` / `dsl/text-bands.ts`(`walkBands`)/ `web.ts` / `located.ts`(`CHILD_BANDS`)を表から切り離す、**コア所有の帯(`caption`・`status`・`legend`・`spacer`・`connect`・`group`)を `core` の定義にする**、**配置した要素に `[DEF]` を付ける**(新しく作る物はコア所有の定義)。`deck-load.ts` の PPTX への依存(`figureMinPt` → `planSlide`)を分ける | **`core` を単体で束ね、metafile に帯のモジュールが無い**(コア所有の 7 つ以外)。golden が不変。**`core` の大きさを測り、バンドラごとの予算を置く**(D12) | 上の束の検査、`core-purity`、`web-entry`、`pipeline` の段の順序、配置した要素の全部に定義がある(描画で「定義が無い」が起きない) |
 | U2 | **公開層の hook**(プラグイン用): `ids`、`layout` の anchor 登録(**スコープは既定で帯の id**)、`texts` と `wrapText`、**`band-text-unmeasured`**、`inventory` の既定、`reveal` の既定、`connect()` の終点、親の幅 `w`、D2b の公開の hook(`uses`・`semantics`・`patchKeys`・`defsNeeded`・`edges`)、**内部層の定義をプラグインとして登録することの拒否**。参照プラグインの骨組み | 参照プラグインの帯が、**最上位・`group`・`row`・`areas` の中**で描け、部品への `connect('a:bottom', 'rate.s2:top')` が通る | **同じ種類の帯 2 つ**、各コンテナ内の部品への `connect()`、`band-anchor-undeclared`、`claimed`、`fill` / canvas / `width: 'fit'` / 折り返しのやり直しで hook を何度呼んでも同じ結果(冪等)、`band-text-unmeasured`、文字の大きさが `roles` の拡大に従う、日本語の折り返しがコアの帯と同じ |
 | U3 | 外部の帯の描画と門: `sanitizeBody`、帯の中の id の重複、id の接頭辞(図の中の帯の位置から)、`data-node` をホストが `anchors` から書く、`selfDimming` と `dim`、**ダークモード(トークンの色、`paper`、`paper` の `texts` の凍結したインクの色)** | 描画が決定的。禁止の要素は `band-svg-rejected` と破線のプレースホルダー | 門の拒否一式、同じ帯が 2 回出ても `id` が衝突しない、`url(#id)` が壊れない、**暗い図で `paper` の帯の文字と下地のコントラスト**、トークンでない色、**`nodeIds: 'self'` / `rectsQualified: true` / `internal: true` を立てた外部の定義が `BandError` で拒まれる**、**それらを立てても `<script>` を出すプラグインは門で拒まれる**、`ctx.connects` が凍結されている |
 | U4 | verify と規則とエラーの境界: `verify.rects` / `check`、`rules`、`accept` の型、`band-failed`(`layout` は結果を求めてから `ctx` を変える。48px のプレースホルダー)、`--strict`、`check --explain` | 外部の帯の問題が verdict に入る。規則に説明が無いと `band-rule-undocumented`。hook が投げても他の帯の診断が続く | 問題 / 警告 / 助言、`accept`、投げる hook、**変異**(`verify` を空にする) |
