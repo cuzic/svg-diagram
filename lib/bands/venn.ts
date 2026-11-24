@@ -8,6 +8,7 @@ import type {VennBand, VennOpts, VennSet, LaidOutFlowShape} from '../flow-shapes
 
 const definition = {
   type: 'venn',
+  title: data => [2, data.sets.map(set => set.label ?? set.name).join('・')],
   textSizes: texts,
   ids: data => flowItemIds(data.sets),
   measure: (data, env) => measureFlow(data, env, vennTexts),

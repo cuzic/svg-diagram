@@ -1,3 +1,4 @@
+import {definedDiagramTitle} from './diagram-title.ts';
 import {applyFindingAcceptance, at} from './finding-rules.ts';
 import {ownRunSizes} from './band-text-sizes.ts';
 import {canvasFindings} from './canvas-findings.ts';
@@ -223,7 +224,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => band.type === 'row' || band.type === 'grid' ? band.children : band.type === 'group' ? [] : [band]);
   const bandFindings = inputChecks.flatMap(check => check(ctx));
   if (!canvas) for (const metric of figureLayoutMetrics(placed.laidOut, placed.width)) bandFindings.push({...metric, severity: 'info'});
-  for (const check of diagramChecks) bandFindings.push(...check(placed));
+  for (const check of diagramChecks) bandFindings.push(...check(placed, stage));
   let minText = Infinity;
   for (const laid of placed.laidOut) {
     const def = placedDefinition(laid);
@@ -238,7 +239,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     if (placed.connects.some(connector => connector.label)) minText = Math.min(minText, roles.connectLabel ?? 14);
     bandFindings.push(...canvasFindings(canvas, minText, placed.contentHeight));
   }
-  if (opts.diagramFindings && !diagramChecks.has(opts.diagramFindings)) bandFindings.push(...opts.diagramFindings(placed));
+  if (opts.diagramFindings && !diagramChecks.has(opts.diagramFindings)) bandFindings.push(...opts.diagramFindings(placed, stage));
   const verdict = verifyWithServices({
     collectRects: figure => leaves(figure).flatMap(band => {
       const def = placedDefinition(band);
@@ -284,7 +285,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     }),
     renderBand: band => must(placedDefinition(band)).emit(band as never, emitEnv),
     renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
-    diagramTitle: diagram => diagram.title ?? '',
+    diagramTitle: diagram => definedDiagramTitle(diagram, stage),
     diagramDesc: () => description,
     spotlightDim: () => 'outline',
   }, figure, {reveal: stage, noRecolor});

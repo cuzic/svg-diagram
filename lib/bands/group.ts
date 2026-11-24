@@ -13,6 +13,7 @@ type SelectedBand = Band & {readonly [DEF]: object};
 
 export const groupDefinition: BandDef<GroupBand, LaidOutGroup> = {
   type: 'group',
+  title: data => data.title ? [1, data.title] : undefined,
   internal: true,
   layout: layoutGroup,
   children: data => data.children,

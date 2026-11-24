@@ -10,6 +10,7 @@ import {boxLikeContrastProblems} from '../verify-box-like.ts';
 
 export const captionDefinition: BandDef<CaptionBand, LaidOutCaption> = {
   type: 'caption',
+  title: data => data.text ? [0, data.text] : undefined,
   internal: true,
   layout: layoutBoxLikeBand,
   measure(data, {atoms, roles}) {

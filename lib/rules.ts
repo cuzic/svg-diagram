@@ -1,4 +1,4 @@
-import {aspectTallFindings, documentWidthFindings, pictographFindings, textBudgetFindings, wrapFallbackFindings} from './document-findings.ts';
+import {aspectTallFindings, documentWidthFindings, missingTitleFindings, pictographFindings, textBudgetFindings, wrapFallbackFindings} from './document-findings.ts';
 import {edgeBendFindings} from './verify-edge-bends.ts';
 export {EDGE_BENDS_MAX, EDGE_BENDS_MEAN} from './verify-edge-bends.ts';
 import {parallelEdgeFindings} from './verify-cause-spacing.ts';
@@ -680,7 +680,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
     const first = walkBands(d.bands).find((b): b is CaptionBand => b.type === 'caption' && !b.sourceLine);
     if (first && first.text.trim() === d.title.trim()) out.push({...at(first), rule: 'title-duplicated', severity: 'info', message: `題名と先頭の caption が同じ文字列「${first.text.trim().slice(0, 20)}」。diagram({title, showTitle: true}) に寄せて、caption を消せる`});
   }
-  if (d.medium === 'doc' && !diagramTitle(d)) out.push({rule: 'a11y-no-title', severity: 'warn', message: 'SVG の題名にできるテキストがない。diagram({title}) を指定する'});
+  if (d.medium === 'doc') out.push(...missingTitleFindings(d, diagramTitle(d)));
   return out;
 }
 

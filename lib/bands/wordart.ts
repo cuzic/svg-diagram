@@ -9,6 +9,7 @@ import type {LaidOutWordArt, WordArtBand, WordArtOpts} from '../wordart-types.ts
 
 const definition = {
   type: 'wordart',
+  title: data => [2, data.text],
   textSizes: band => [band.size],
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of wordArtTexts(data, roles)) atoms(text, size, weight, font);

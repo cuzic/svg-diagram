@@ -8,6 +8,7 @@ import type {EmblemBand, EmblemOpts, EmblemItem, LaidOutFlowShape} from '../flow
 
 const definition = {
   type: 'emblem',
+  title: data => [2, data.items[0]?.label],
   textSizes: texts,
   ids: data => flowItemIds(data.items),
   measure: (data, env) => measureFlow(data, env, emblemTexts),

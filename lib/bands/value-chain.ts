@@ -8,6 +8,7 @@ import type {ValueChainBand, ValueChainOpts, FlowStep, LaidOutFlowShape} from '.
 
 const definition = {
   type: 'valueChain',
+  title: data => [2, data.primary[0]?.label],
   textSizes: texts,
   ids: data => flowItemIds([...data.support, ...data.primary]),
   measure: (data, env) => measureFlow(data, env, valueChainTexts),

@@ -9,6 +9,7 @@ import type {ConcentricBand, ConcentricOpts, ConcentricRing, LaidOutFlowShape} f
 
 const definition = {
   type: 'concentric',
+  title: data => [2, data.centre ?? data.rings[0]?.label],
   textSizes: texts,
   ids: data => flowItemIds([...data.rings, ...data.sectors ?? [], ...data.marks ?? []]),
   measure: (data, env) => measureFlow(data, env, concentricTexts),

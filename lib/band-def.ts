@@ -11,7 +11,7 @@ import type {InventoryItem} from './types/inventory.ts';
 import type {CheckRect, Finding} from './types/verdicts.ts';
 import {must} from './must.ts';
 
-export type DiagramFindings = (diagram: LaidOutDiagram) => Finding[];
+export type DiagramFindings = (diagram: LaidOutDiagram, stage?: number) => Finding[];
 
 export const DEF_API = '0.1';
 const DEF_PREFIX = 'svg-diagram.def/';
@@ -93,6 +93,8 @@ interface BandHooks<D, L extends object> {
     contrast?(laid: L, ctx: VerifyCtx): string[];
     acceptHint?(rule: string): string | undefined;
   };
+  /** An inferred SVG title, with headlines before group headings and figure labels. */
+  title?(data: D): readonly [priority: 0 | 1 | 2, text: string | undefined] | undefined;
   ids?(data: D): string[];
   reveal?: RevealHandler<D>;
   revealElements?(data: D, start: number, end?: number): {last: number; warnings: string[]; items?: readonly {id?: string; reveal?: number; until?: number}[]};

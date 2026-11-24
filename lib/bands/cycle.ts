@@ -8,6 +8,7 @@ import type {CycleBand, CycleOpts, FlowStep, LaidOutFlowShape} from '../flow-sha
 
 const definition = {
   type: 'cycle',
+  title: data => [2, data.steps[0]?.label],
   textSizes: texts,
   ids: data => flowItemIds(data.steps),
   measure: (data, env) => measureFlow(data, env, cycleTexts),

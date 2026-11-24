@@ -8,6 +8,7 @@ import type {ChevronBand, ChevronOpts, FlowStep, LaidOutFlowShape} from '../flow
 
 const definition = {
   type: 'chevron',
+  title: data => [2, data.steps[0]?.label],
   textSizes: texts,
   ids: data => flowItemIds(data.steps),
   measure: (data, env) => measureFlow(data, env, chevronTexts),

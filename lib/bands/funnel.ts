@@ -9,6 +9,7 @@ import type {FunnelBand, FunnelOpts, FunnelStage, LaidOutFlowShape} from '../flo
 
 const definition = {
   type: 'funnel',
+  title: data => [2, data.stages[0]?.label],
   textSizes: texts,
   ids: data => flowItemIds(data.stages),
   measure: (data, env) => measureFlow(data, env, funnelTexts),

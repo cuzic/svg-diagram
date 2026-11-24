@@ -1,3 +1,4 @@
+import {definedDiagramTitle} from './diagram-title.ts';
 import {walkDefinedBands} from './band-def.ts';
 import {budgetWarnings} from './budget.ts';
 import {missingGlyphs} from './text-rules.ts';
@@ -40,17 +41,24 @@ export function aspectTallFindings(d: Pick<LintTarget, 'medium' | 'canvas' | 'ca
   return [{rule: 'aspect-tall', severity: 'info', message: `幅 ${d.width}px に対して高さ ${d.canvasHeight}px（縦横比 ${(d.canvasHeight / d.width).toFixed(2)}）。本の 1 ページに収まりにくい。${ways.join('、')}を検討する（${ASPECT_TALL} 倍までは出さない）`}];
 }
 
+export function missingTitleFindings(d: Pick<DiagramData, 'medium'>, title: string): Finding[] {
+  return d.medium === 'doc' && !title
+    ? [{rule: 'a11y-no-title', severity: 'warn', message: 'SVG の題名にできるテキストがない。diagram({title}) を指定する'}]
+    : [];
+}
+
 /** Opt in to the document-wide geometry, wrapping, pictograph and text budget checks for selective rendering. */
-export function documentFindings(diagram: LaidOutDiagram): Finding[] {
+export function documentFindings(diagram: LaidOutDiagram, stage?: number): Finding[] {
   return [
     ...wrapFallbackFindings(diagram),
     ...pictographFindings(diagram),
     ...aspectTallFindings(diagram, () => walkDefinedBands(diagram.bands)),
     ...documentWidthFindings(diagram),
     ...textBudgetFindings(diagram),
+    ...missingTitleFindings(diagram, definedDiagramTitle(diagram, stage)),
   ];
 }
 
 export function documentAcceptHint(rule: string): string | undefined {
-  return rule === 'doc-width' || rule === 'glyph-missing' || rule === 'density' ? findingAcceptanceHint(rule) : undefined;
+  return rule === 'doc-width' || rule === 'glyph-missing' || rule === 'density' || rule === 'a11y-no-title' ? findingAcceptanceHint(rule) : undefined;
 }

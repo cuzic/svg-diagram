@@ -9,6 +9,7 @@ import {boxLikeContrastProblems} from '../verify-box-like.ts';
 
 export const bannerDefinition: BandDef<BannerBand, LaidOutBanner> = {
   type: 'banner',
+  title: data => data.headline ? [0, data.headline] : undefined,
   internal: true,
   layout: layoutBoxLikeBand,
   measure(data, {atoms, roles}) {

@@ -1201,3 +1201,28 @@ test('selected wireframes preserve callout notes and reading order diagnostics',
     assert.deepEqual(result.verdict.warnings, legacy.verdict.warnings);
   }
 });
+
+test('selected bands infer one accessible title with the legacy precedence', async () => {
+  const selected = await renderBands([chevron([{label: '手順'}]), group(box({title: '内容'}), {title: '枠'}),
+    banner({headline: '見出し'}), caption('後の説明')], {measure});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false}).add(
+    legacyChevron([{label: '手順'}]), legacyGroup(legacyBox({title: '内容'}), {title: '枠'}),
+    legacyBanner({headline: '見出し'}), legacyCaption('後の説明')), {measure});
+  assert.match(legacy.svg, /<title id="svg-title">見出し<\/title>/);
+  assert.equal(selected.svg.match(/<title[^>]*>[^<]*<\/title>/)?.[0], legacy.svg.match(/<title[^>]*>[^<]*<\/title>/)?.[0]);
+  assert.match(selected.svg, /aria-labelledby="svg-title"/);
+});
+
+test('selected document checks warn when no accessible title can be inferred', async () => {
+  const {definedDiagramTitle} = await import('../lib/diagram-title.ts');
+  const {documentFindings, documentAcceptHint, missingTitleFindings} = await import('../lib/document-findings.ts');
+  const band = box({title: '内容'});
+  assert.equal(definedDiagramTitle({title: '  題名\n  続き  ', bands: [band]}), '題名 続き');
+  assert.deepEqual(missingTitleFindings({medium: 'doc'}, '題名'), []);
+  const result = await renderBands([band], {measure, diagramFindings: documentFindings, diagramAcceptHint: documentAcceptHint});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false}).add(legacyBox({title: '内容'})), {measure});
+  const warnings = ({verdict}: Pick<typeof result, 'verdict'>) => verdict.warnings.filter(w => w.startsWith('[a11y-no-title]'));
+  assert.equal(warnings(legacy).length, 1);
+  assert.deepEqual(warnings(result), warnings(legacy));
+  assert.doesNotMatch(result.svg, /<title id="svg-title"/);
+});
