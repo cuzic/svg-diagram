@@ -1,7 +1,10 @@
+import {cloneData} from './clone-data.ts';
 import {documentFindings} from './document-findings.ts';
+import {markSpecPart} from './source-ref.ts';
 import {walkDefinedBands} from './band-def.ts';
 import {describeBands, oneLine} from './diagram-description.ts';
 import type {Config} from './types/project.ts';
+import type {Band} from './types/index.ts';
 import {must} from './must.ts';
 import {prepareBands, renderBands, type BatchMeasurement} from './core.ts';
 import {LEGEND_EN, MAX_EMOJI, MAX_TOTAL_TEXT, PART_EN, SpecError, withoutSchemaField} from './spec-kit.ts';
@@ -88,7 +91,9 @@ function assemble(written: unknown, options: PartOptions) {
     const at = `parts[${index}]`;
     try {
       const built = must(partOf(part['type'])).build(part, at);
-      bands.push(...[built].flat());
+      const roots = cloneData([built].flat());
+      markSpecPart(walkDefinedBands(roots as unknown as Band[]), at);
+      bands.push(...roots);
     } catch (error) {
       if (error instanceof SpecError) issues.push(...error.issues);
       else issues.push({path: at, message: error instanceof Error ? error.message : String(error)});

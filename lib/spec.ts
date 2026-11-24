@@ -8,7 +8,7 @@ export {capped, validateAgainst} from './spec-validation.ts';
 // `slide` / `fill` (a measured slide), `today: 'auto'` (the build's date) and `icon` (a process-wide manifest).
 import {causeTree, chevron, cloud, cycle, diagram, flowchart, funnel, gantt, journeyMap, mindmap, pyramid, quadrant, raci, sequence, stateDiagram, swimlane, table, valueChain, venn, whyWhyTree} from './dsl-pure.ts';
 import {walkBands} from './rules.ts';
-import {SOURCE, SourceRef, sourceOf} from './source-ref.ts';
+import {markSpecPart} from './source-ref.ts';
 import {locateIn, messageOf} from './spec-result.ts';
 export {cappedMessages, fieldsHolding, layoutIssue, lintMessages, locateMessage, locateVerdict} from './spec-result.ts';
 export type {LocatedMessage, RenderSpecResult} from './spec-result.ts';
@@ -110,16 +110,7 @@ function assemble(written: unknown): {diagram: Diagram | null; issues: SpecIssue
     const at = `parts[${i}]`;
     try {
       const built = (partOf(part['type']) as PartDef).build(part, at) as BandInput;
-      const refs = new Map<SourceRef['stackHolder'], SourceRef>();
-      for (const band of walkBands([built].flat())) {
-        const stack = sourceOf(band)?.stackHolder;
-        let ref = refs.get(stack);
-        if (!ref) {
-          ref = new SourceRef(stack, at);
-          refs.set(stack, ref);
-        }
-        (band as typeof band & {[SOURCE]?: SourceRef})[SOURCE] = ref;
-      }
+      markSpecPart(walkBands([built].flat()), at);
       d.add(built);
     }
     catch (e) {

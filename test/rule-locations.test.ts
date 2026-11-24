@@ -5,10 +5,23 @@ import {areas, box, caption, checkDiagram, closeMeasurer, connect, diagram, grid
 import {loadDiagram} from '../lib/load-source.ts';
 import {installResolveHook} from '../lib/resolve-hook.ts';
 import {at, fromSources} from '../lib/finding-rules.ts';
-import {captureSourceLocations, sourceOf, SourceRef, withSource} from '../lib/source-ref.ts';
+import {captureSourceLocations, markSpecPart, sourceOf, SourceRef, withSource} from '../lib/source-ref.ts';
 import type {Diagram, LintTarget, RuleId} from '../lib/types/index.ts';
 import {ruleLocationFixtures} from './fixtures/rule-locations.ts';
 import {lintDiagram, mergeFindingSides, RULE_DOCS, RULE_LOCATION} from '../lib/rules.ts';
+
+test('markSpecPart shares a path while keeping distinct builder call sites', () => {
+  const stack = {stack: 'builder'};
+  const first = withSource({}, new SourceRef(stack));
+  const sameCall = withSource({}, new SourceRef(stack));
+  const noStack = {};
+  markSpecPart([first, sameCall, noStack], 'parts[2]');
+  assert.equal(sourceOf(first)?.specPath, 'parts[2]');
+  assert.equal(sourceOf(first)?.stackHolder, stack);
+  assert.equal(sourceOf(sameCall), sourceOf(first));
+  assert.equal(sourceOf(noStack)?.specPath, 'parts[2]');
+  assert.notEqual(sourceOf(noStack), sourceOf(first));
+});
 
 test('every documented rule declares its location scope', () => {
   assert.deepEqual(Object.keys(EXPECTED_SCOPE).sort(), Object.keys(RULE_DOCS).sort());

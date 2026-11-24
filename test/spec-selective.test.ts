@@ -221,6 +221,7 @@ test('selected tables and swimlanes report the same band findings as the legacy 
       .map(({rule, severity, message}) => ({rule, severity, message}));
     assert.ok(notes(legacy).length, rule);
     assert.deepEqual(notes(actual), notes(legacy), rule);
+    assert.equal(actual.verdict.findings.find(note => note.rule === rule)?.loc?.specPath, 'parts[0]', rule);
   }
 });
 
