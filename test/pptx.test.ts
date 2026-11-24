@@ -5,6 +5,11 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {register} from 'node:module';
 import test from 'node:test';
+import {renderBandsPptx} from '../lib/pptx/selective.ts';
+import {boxPptx, rowPptx} from '../lib/pptx/box-bands.ts';
+import {box as selectedBox} from '../lib/bands/box.ts';
+import {row as selectedRow} from '../lib/bands/row.ts';
+import {raw as selectedRaw} from '../lib/bands/raw.ts';
 import {fitConnector, evalConnector, maxDeviation, type Pt} from '../lib/pptx/geom.ts';
 import {zipStore} from '../lib/pptx/zip-node.ts';
 import {crc32, zipEntries} from '../lib/pptx/zip.ts';
@@ -125,3 +130,34 @@ test('example PPTX files have sound slide relationships', async t => {
 });
 
 test.after(async () => { await closeMeasurer(); });
+
+test('selected PPTX adapters preserve editable shapes and report picture fallbacks', async () => {
+  const native = [selectedRow([selectedBox({title: 'Review'}), selectedBox({title: 'Done'})]), selectedBox({title: 'Finish'})];
+  const raw = selectedRaw({h: 40, draw: ({x, y}) => `<rect x="${x}" y="${y}" width="24" height="24"/>`});
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    bands: {box: boxPptx, row: rowPptx},
+  };
+  const result = await renderBandsPptx(native, {...opts, strict: true});
+  const slide = unzipEntry(Buffer.from(result.pptx), 'ppt/slides/slide1.xml')!.toString('utf8');
+  assert.match(slide, /<p:grpSp>[\s\S]*<p:sp>[\s\S]*>Review<\/a:t>/);
+  assert.doesNotMatch(slide, /<p:pic>/);
+  assert.deepEqual(result.fallbacks, []);
+  const beforeReveal = await renderBandsPptx([
+    selectedRow([selectedBox({title: 'Visible'}), selectedBox({title: 'Hidden', reveal: 2})], {arrows: 'between'}),
+  ], {...opts, stage: 1});
+  const earlySlide = unzipEntry(Buffer.from(beforeReveal.pptx), 'ppt/slides/slide1.xml').toString();
+  assert.match(earlySlide, />Visible<\/a:t>/);
+  assert.doesNotMatch(earlySlide, /Hidden|row-arrow/);
+
+  await assert.rejects(renderBandsPptx([...native, raw], {...opts, strict: true}), /raw/);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=', 'base64');
+  const withFallback = await renderBandsPptx([...native, raw], {...opts, rasterize(svg, scale) {
+    assert.match(svg, /<rect[^>]+width="24"/);
+    assert.equal(scale, 2);
+    return png;
+  }});
+  assert.deepEqual(withFallback.fallbacks, [{type: 'raw'}]);
+  assert.deepEqual(unzipEntry(Buffer.from(withFallback.pptx), 'ppt/media/image1.png'), png);
+  assert.match(unzipEntry(Buffer.from(withFallback.pptx), 'ppt/media/image1.svg')!.toString(), /<rect[^>]+width="24"/);
+});

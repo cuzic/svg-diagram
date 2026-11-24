@@ -70,6 +70,17 @@ try {
         adapters: {box: boxHtml}, strict: true,
       });
     `, include: 'html-selective.js', budget: {esbuild: 80000, Vite: 103000}, bands: ['box.js'], exclude: [...legacy, 'emit-html.js', 'lib/emit.js', 'svg-to-css.js', 'emit-tables.js', 'image-file.js'], draw: true},
+    {name: 'Selective PPTX', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {rowPptx} from 'svg-diagram/pptx/bands/box';
+      import {row} from 'svg-diagram/bands/row';
+      import {box} from 'svg-diagram/bands/box';
+      export const draw = () => renderBandsPptx([row([box({title: 'Review'}), box({title: 'Done'})])], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        bands: {row: rowPptx}, strict: true,
+      });
+    `, include: 'pptx/selective.js', budget: {esbuild: 155000, Vite: 182000}, bands: ['box.js', 'row.js'],
+      exclude: [...legacy, 'pptx/bands.js', 'pptx/slide.js', 'pptx/image-band.js', 'pptx/table.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'svg-outline.js', 'lib/emit.js'], draw: true},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
       exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 52000, Vite: 65000}},
@@ -250,6 +261,14 @@ try {
         }
         const {draw: render} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
         const result = await render();
+        if (name === 'Selective PPTX') {
+          assert.deepEqual(result.fallbacks, [], label);
+          assert.equal(result.verdict.ok, true, label);
+          assert.match(new TextDecoder().decode(result.pptx), /<p:grpSp>[\s\S]*>Review<\/a:t>/, label);
+          assert.doesNotMatch(code, /@resvg|HarfBuzz/, label);
+          console.log(`${label}: ${bytes} bytes`);
+          continue;
+        }
         if (name === 'Selective HTML') {
           assert.match(result.html, /class="sd-b"[\s\S]*>Review<\/div>/, label);
           assert.doesNotMatch(result.html, /<svg|<table/, label);
