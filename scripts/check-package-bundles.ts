@@ -964,12 +964,13 @@ try {
       esbuild: {keepNames}, resolve: {preserveSymlinks: true}, ssr: {noExternal: ['svg-diagram'], external},
       build: {ssr: entry, target: 'node22', write: false, minify: 'esbuild'}});
     const [nodeBundle] = es.outputFiles;
+    const [esOutput] = Object.values(es.metafile.outputs);
     const [ssrChunk] = ssr.output;
-    assert.ok(nodeBundle);
+    assert.ok(nodeBundle && esOutput);
     assert.equal(ssrChunk.type, 'chunk');
     return [
-      ['esbuild', Object.keys(es.metafile.inputs), nodeBundle.text],
-      ['Vite', Object.keys(ssrChunk.modules), ssrChunk.code],
+      ['esbuild', Object.entries(esOutput.inputs).filter(([, info]) => info.bytesInOutput > 0).map(([file]) => file), nodeBundle.text],
+      ['Vite', Object.entries(ssrChunk.modules).filter(([, info]) => info.renderedLength > 0).map(([file]) => file), ssrChunk.code],
     ] as const;
   }
 
@@ -1028,7 +1029,7 @@ try {
     const files = inputs.map(file => file.replaceAll('\\', '/'));
     assert.ok(files.some(file => file.endsWith('/bands/math.js')), `${label}: missing selective math entry`);
     assert.ok(files.some(file => file.endsWith('/math-tex.js')), `${label}: missing TeX conversion`);
-    for (const file of ['dsl/io.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'emit-figures.js', 'layout-connect.js', 'gantt.js']) {
+    for (const file of ['dsl/io.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'emit-figures.js', 'image-file.js', 'bands/image-node.js', 'layout-connect.js', 'gantt.js']) {
       assert.ok(!files.some(input => input.endsWith('/' + file)), `${label}: unexpected ${file}`);
     }
     assert.ok(!files.some(file => file.includes('/mathjax-full/')), `${label}: MathJax must be loaded at runtime`);
