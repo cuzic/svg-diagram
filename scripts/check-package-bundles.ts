@@ -956,12 +956,12 @@ try {
       console.log(`${label}: ${bytes} bytes`);
     }
   }
-  async function buildNode(source: string, external: string[] = []) {
+  async function buildNode(source: string, external: string[] = [], keepNames = false) {
     writeFileSync(entry, source);
     const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true,
-      platform: 'node', format: 'esm', write: false, metafile: true, external});
+      platform: 'node', format: 'esm', keepNames, write: false, metafile: true, external});
     const ssr = await viteBuild({root: consumer, configFile: false, logLevel: 'silent',
-      resolve: {preserveSymlinks: true}, ssr: {noExternal: ['svg-diagram'], external},
+      esbuild: {keepNames}, resolve: {preserveSymlinks: true}, ssr: {noExternal: ['svg-diagram'], external},
       build: {ssr: entry, target: 'node22', write: false, minify: 'esbuild'}});
     const [nodeBundle] = es.outputFiles;
     const [ssrChunk] = ssr.output;
@@ -1004,12 +1004,14 @@ try {
   const pictureFile = path.join(consumer, 'picture.gif');
   writeFileSync(pictureFile, Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'));
   const imageCases = await buildNode(composedSource([], `imageFile(${JSON.stringify(pictureFile)}, {alt: 'Picture', width: 240})`,
-    "import {imageFile} from 'svg-diagram/bands/image/node';"));
+    "import {imageFile} from 'svg-diagram/bands/image/node';"), [], true);
   for (const [bundler, files, code] of imageCases) {
     const label = `${bundler} (Node): Image`;
     const has = (name: string) => files.some(file => file.replaceAll('\\', '/').endsWith('/' + name));
     for (const file of ['bands/image-node.js', 'image-file.js', 'emit-image.js']) assert.ok(has(file), `${label}: missing ${file}`);
     for (const file of [...legacy, 'dsl/io.js', 'layout-connect.js', 'bands/box.js']) assert.ok(!has(file), `${label}: unexpected ${file}`);
+    assert.ok(code.includes('"resolveImageBand"'), label);
+    assert.ok(!code.includes('"resolveImages"'), label);
     const {draw} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
     const result = await draw();
     assert.match(result.svg, /<image [^>]*href="data:image\/gif;base64,/);

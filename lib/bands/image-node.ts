@@ -1,7 +1,7 @@
 import {band} from '../band-def.ts';
 import type {WithBandDef} from '../band-def.ts';
 import {image as build} from '../dsl/image.ts';
-import {resolveImages} from '../image-file.ts';
+import {resolveImageBand} from '../image-file.ts';
 import type {ImageMark, ImageOpts, LaidOutImage} from '../types/image.ts';
 import {imageDefinition} from './image.ts';
 import type {SelectedBand} from './image.ts';
@@ -12,6 +12,6 @@ export function imageFile<const M extends readonly ImageMark[] = [], const Id ex
 ): WithBandDef<ReturnType<typeof build<M, Id, C>>, LaidOutImage> {
   const {baseDir = process.cwd(), ...options} = opts;
   const data = build<M, Id, C>(src, options);
-  resolveImages([data], baseDir);
+  resolveImageBand(data, baseDir);
   return band<typeof data, LaidOutImage>(imageDefinition, data);
 }

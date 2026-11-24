@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {describeImage, readDataImage, type ImageFile} from './image-sniff.ts';
+import type {ImageBand} from './types/image.ts';
 import type {Band} from './types/index.ts';
 import {atBand} from './source-ref.ts';
 
@@ -23,14 +24,19 @@ export function readImage(src: string | URL, baseDir: string = process.cwd()): I
   return describeImage(buf);
 }
 
-/** Read the pictures image() left for later (bands with `unresolved`), relative paths from `baseDir`. Writes into the bands it is given. */
+export function resolveImageBand(band: ImageBand, baseDir: string): void {
+  if (!band.unresolved) return;
+  atBand(band, () => {
+    const file = readImage(band.src, baseDir);
+    band.href = file.href;
+    band.naturalW = file.w;
+    band.naturalH = file.h;
+    band.bytes = file.bytes;
+    delete band.unresolved;
+  });
+}
+
+/** Read the pictures image() left for later, relative to the diagram's source. */
 export function resolveImages(bands: readonly Band[], baseDir: string): void {
-  for (const b of bands) {
-    if (b.type !== 'image' || !b.unresolved) continue;
-    atBand(b, () => {
-      const f = readImage(b.src, baseDir);
-      b.href = f.href; b.naturalW = f.w; b.naturalH = f.h; b.bytes = f.bytes;
-      delete b.unresolved;
-    });
-  }
+  for (const band of bands) if (band.type === 'image') resolveImageBand(band, baseDir);
 }
