@@ -1,5 +1,5 @@
 import * as builders from './wireframe-builders.ts';
-import {dialogRenderer, toastRenderer, collectTextRequestsWith, layoutScreensWith, layoutWireframeWith, wireframeHelpers} from './wireframe-layout-core.ts';
+import {dialogRenderer, toastRenderer, collectTextRequestsWith, layoutScreensWith, layoutScreenGridWith, layoutStateMatrixWith, layoutWireframeWith, wireframeHelpers} from './wireframe-layout-core.ts';
 import type {WireframeRuntime} from './wireframe-layout-core.ts';
 import {installParts, robotMarkers, widgetStates} from './wireframe-parts.ts';
 import type {Wf} from './types/wireframe-nodes.ts';
@@ -34,6 +34,14 @@ export function layoutWireframe(...args: Tail<Parameters<typeof layoutWireframeW
 
 export function layoutScreens(...args: Tail<Parameters<typeof layoutScreensWith>>) {
   return layoutScreensWith(runtime, ...args);
+}
+
+export function layoutScreenGrid(...args: Tail<Parameters<typeof layoutScreenGridWith>>) {
+  return layoutScreenGridWith(runtime, ...args);
+}
+
+export function layoutStateMatrix(...args: Tail<Parameters<typeof layoutStateMatrixWith>>) {
+  return layoutStateMatrixWith(runtime, ...args);
 }
 
 type Tail<T extends readonly unknown[]> = T extends readonly [unknown, ...infer Rest] ? Rest : never;

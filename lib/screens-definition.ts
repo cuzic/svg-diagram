@@ -10,7 +10,7 @@ import {frameRects} from './verify-rects.ts';
 import type {BandLayoutHandler} from './layout-ctx.ts';
 import type {TextRequest} from './types/core.ts';
 
-export function screensDefinition(collect: (data: ScreensBand) => TextRequest[], place: BandLayoutHandler<ScreensBand>): Definition {
+export function screensDefinition(collect: (data: ScreensBand) => TextRequest[], place: BandLayoutHandler<ScreensBand>, findings?: DefinitionFindings): Definition {
   return {
     type: 'screens',
     offGrid: true,
@@ -21,11 +21,12 @@ export function screensDefinition(collect: (data: ScreensBand) => TextRequest[],
       for (const [text, size, weight, font] of collect(data)) atoms(text, size, weight, font);
     },
     emit: (laid, {theme}) => renderPrims(laid, theme),
-    verify: {rects: frameRects, findings: stateMatrixFindings},
+    verify: {rects: frameRects, findings},
   };
 }
 
 type Definition = BandDef<ScreensBand, LaidOutScreens>;
+type DefinitionFindings = NonNullable<Definition['verify']>['findings'];
 
 export function screensBuilder(definition: Definition) {
   return function screens<const Id extends string = never>(items: ScreensItemInput<Id>[], opts?: ScreensOpts): WithBandDef<ReturnType<typeof build<Id>>, LaidOutScreens> {
@@ -43,6 +44,6 @@ export function stateMatrixBuilder(definition: Definition) {
 }
 
 export function screensFor(collect: Parameters<typeof screensDefinition>[0], place: BandLayoutHandler<ScreensBand>) {
-  const definition = screensDefinition(collect, place);
+  const definition = screensDefinition(collect, place, stateMatrixFindings);
   return {screens: screensBuilder(definition), stateMatrix: stateMatrixBuilder(definition)};
 }

@@ -67,7 +67,11 @@ function size(name: string, value: number, min: number): number {
 
 const keyOf = (text: string, size: number, weight: number, font: string): string => JSON.stringify([text, size, weight, font]);
 
-const definitionKey = (band: Band | LaidOutBand): string => band.type === 'chart' ? `chart:${band.kind}` : band.type;
+function definitionKey(band: Band | LaidOutBand): string {
+  if (band.type === 'chart') return `chart:${band.kind}`;
+  if (band.type === 'screens' && (('matrix' in band && band.matrix) || ('layoutKind' in band && band.layoutKind === 'matrix'))) return 'screens:matrix';
+  return band.type;
+}
 
 /** @internal Shared layout and SVG emission for selective output formats. */
 export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOptions & ({measure: Measure} | BatchMeasurement)) {

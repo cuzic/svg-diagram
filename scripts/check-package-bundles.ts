@@ -55,7 +55,7 @@ try {
   ] as const;
   const screenSamples = [
     ['wireframe', 'layoutWireframe', "wireframe(wf.col([wf.region('Review')]))"],
-    ['screens', 'layoutScreens', "screens([{id: 'review', title: 'Review', root: wf.col([wf.region('Details')])}], {cols: 1})"],
+    ['screens', 'layoutScreenGrid', "screens([{id: 'review', title: 'Review', root: wf.col([wf.region('Details')])}], {cols: 1})"],
   ] as const;
   // Every public spec part must draw its example with only the band adapters it can build.
   const specBands = {
@@ -237,7 +237,7 @@ try {
       "import {arrowDiagram} from 'svg-diagram/compose/arrow-diagram';"),
       include: 'compose/selective/arrow-diagram.js', budget: {esbuild: 169000, Vite: 229000}, bands: ['caption.js', 'states.js'],
       exclude: [...legacy, 'bands/cause.js', 'bands/group.js', 'bands/row.js', 'layout-connect.js', 'rca-rules.js'], draw: true},
-    {name: 'State matrix', source: composedSource([], "stateMatrix(['Review'], [{label: 'Page', cells: [wf.text('Ready')]}])",
+    {name: 'State matrix', layout: 'layoutStateMatrix', source: composedSource([], "stateMatrix(['Review'], [{label: 'Page', cells: [wf.text('Ready')]}])",
       "import {stateMatrix, wf} from 'svg-diagram/bands/screens';"),
       include: 'state-matrix-rules.js', budget: {esbuild: 102500, Vite: 139000}, bands: ['screens.js'],
       exclude: [...legacy, 'dsl/wireframe.js', 'bands/wireframe.js', 'bands/table.js', 'layout-connect.js'], draw: true},
@@ -594,8 +594,14 @@ try {
         assert.doesNotMatch(code, /bracket\(\): label must not be empty|callout\(\): text is required/, label);
       }
       if (name === 'Node and stat') assert.ok(has('dsl/node.js'), label);
-      if (name === 'screens') assert.ok(!has('dsl/state-matrix.js'), label);
-      if (name === 'State matrix') assert.ok(has('dsl/state-matrix.js'), label);
+      if (name === 'screens') {
+        assert.ok(!has('dsl/state-matrix.js') && !has('state-matrix-rules.js'), label);
+        assert.ok(!code?.includes('"layoutStateMatrixWith"'), label);
+      }
+      if (name === 'State matrix') {
+        assert.ok(has('dsl/state-matrix.js'), label);
+        assert.ok(code?.includes('"layoutStateMatrixWith"') && !code.includes('"layoutScreenGridWith"'), label);
+      }
       if (name === 'Selected table spec') assert.ok(has('table-number-rules.js'), label);
       if (name === 'Core') assert.ok(!code?.includes('許容するなら diagram'), label);
       if (name === 'Core' || draw) {

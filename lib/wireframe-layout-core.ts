@@ -890,13 +890,17 @@ export function layoutWireframeWith(runtime: WireframeRuntime, band: WireframeBa
   return {type: 'wireframe', id: band.id, title: band.title, x, y, w, h: bottom - y, prims: ctx.prims, callouts: ctx.all, anchors: band.id ? [{id: band.id, ...scr.frame}] : []};
 }
 
-export function layoutScreensWith(runtime: WireframeRuntime, band: ScreensBand, x: number, y: number, w: number, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode): LaidOutScreens {
+export function layoutStateMatrixWith(runtime: WireframeRuntime, band: ScreensBand, x: number, y: number, w: number, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode): LaidOutScreens {
   const ctx = mkCtx(runtime, widthOf, tones, wrap, band.skeleton);
-  if (band.matrix) {
-    const r = layoutMatrix(band, ctx, x, y, w);
-    const bottom = r.bottom + (drawMarksLegend(ctx, band.marks, x, r.bottom + 4) ? 32 : 0);
-    return {type: 'screens', id: band.id, title: band.matrix.rows[0]?.label, x, y, w, h: bottom - y, prims: ctx.prims, anchors: r.anchors as Anchor[]}; // matrix cells have no id (see LaidOutScreens.anchors)
-  }
+  const r = layoutMatrix(band, ctx, x, y, w);
+  const bottom = r.bottom + (drawMarksLegend(ctx, band.marks, x, r.bottom + 4) ? 32 : 0);
+  const placed: LaidOutScreens = {type: 'screens', id: band.id, title: band.matrix?.rows[0]?.label, x, y, w, h: bottom - y, prims: ctx.prims, anchors: r.anchors as Anchor[]};
+  // Keep the existing serialized geometry while allowing the selected renderer to resolve the matrix definition.
+  return Object.defineProperty(placed, 'layoutKind', {value: 'matrix'});
+}
+
+export function layoutScreenGridWith(runtime: WireframeRuntime, band: ScreensBand, x: number, y: number, w: number, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode): LaidOutScreens {
+  const ctx = mkCtx(runtime, widthOf, tones, wrap, band.skeleton);
   const gap = band.gap ?? 64, rowGap = band.rowGap ?? 56;
   const explicit = band.items.some(it => it.at);
   const cols = band.cols ?? (explicit ? Math.max(...band.items.map(it => it.at ? Math.ceil(it.at[1] + 1) : 0)) : 3);
@@ -922,6 +926,11 @@ export function layoutScreensWith(runtime: WireframeRuntime, band: ScreensBand, 
   let bottom = cy - rowGap;
   bottom += drawMarksLegend(ctx, band.marks, x, bottom + 4) ? 32 : 0;
   return {type: 'screens', id: band.id, title: band.items[0]?.title, x, y, w, h: bottom - y, prims: ctx.prims, anchors};
+}
+
+export function layoutScreensWith(runtime: WireframeRuntime, band: ScreensBand, x: number, y: number, w: number, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode): LaidOutScreens {
+  const place = band.matrix ? layoutStateMatrixWith : layoutScreenGridWith;
+  return place(runtime, band, x, y, w, widthOf, tones, wrap);
 }
 
 /** Build a private renderer table from explicit widget definitions. */
