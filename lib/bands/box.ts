@@ -3,7 +3,7 @@ import {frameLayoutFindings} from '../layout-metrics.ts';
 import {band, walkDefinedBands} from '../band-def.ts';
 import type {BandDef, DiagramFindings, WithBandDef} from '../band-def.ts';
 import {box as buildBox} from '../dsl/box.ts';
-import {renderBox} from '../emit-boxes.ts';
+import {textSvgDefs, renderBox} from '../emit-boxes.ts';
 import {layoutBoxLikeBand} from '../layout-box-like.ts';
 import {styledAtoms, textRuns} from '../layout-text.ts';
 import type {BoxInput} from '../strict.ts';
@@ -16,6 +16,7 @@ const selectedBoxSizeFindings: DiagramFindings = ({bands}) => boxSizeFindings(wa
 
 export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
   type: 'box',
+  svgDefs: textSvgDefs,
   describe: data => data.title ? ['box', oneLine(data.title)] : undefined,
   measure(data, {atoms, roles}) {
     if (data.tag) atoms(data.tag, roles.tag ?? TAG_SIZE, 700);

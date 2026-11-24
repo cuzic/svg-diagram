@@ -17,6 +17,7 @@ import {boxDefinition} from './box.ts';
 
 const definition = {
   type: 'swimlane',
+  svgDefs: laid => laid.type === 'box' ? boxDefinition.svgDefs?.(laid) ?? {} : {},
   describe: (data, stage) => ['structure', describeSwimlane(data, stage)],
   internal: true,
   layout: layoutSwimlane,

@@ -116,8 +116,8 @@ test('rejects duplicate ids and invalid reveal intervals', async () => {
 });
 
 test('selected rows, grids and labelled deferred connectors match legacy SVG', async () => {
-  const from = {id: 'one', title: 'One', body: 'Review', bodyMono: true} as const;
-  const to = {id: 'two', title: 'Two'} as const;
+  const from = {id: 'one', title: 'One', body: 'Review'} as const;
+  const to = {id: 'two', title: 'Two', body: 'Confirm', bodyMono: true} as const;
   const link = {label: 'check', route: 'straight'} as const;
   const legacy = diagram({theme: 'blue', title: 'Plan', legend: false})
     .add(legacyRow([legacyBox(from), legacyBox({title: 'Side'})]))
@@ -164,12 +164,13 @@ test('connect can target a row column with no explicit box id', async () => {
 
 test('selected rows can opt into implicit loop-back connectors', async () => {
   const options = {loopBack: {from: 2, to: 1, label: 'retry'}, arrows: 'between'} as const;
+  const first = {title: 'Review', body: 'retry()', bodyMono: true};
   const selected = await renderBands([
-    row([box({title: 'Review'}), box({title: 'Next'})], options),
+    row([box(first), box({title: 'Next'})], options),
     box({title: 'Finish'}),
   ], {measure, connectors: connectDefinition});
   const rendered = await renderInBrowser(diagram({theme: 'blue', legend: false})
-    .add(legacyRow([legacyBox({title: 'Review'}), legacyBox({title: 'Next'})], options))
+    .add(legacyRow([legacyBox(first), legacyBox({title: 'Next'})], options))
     .add(legacyBox({title: 'Finish'})), {measure});
   assert.equal(selected.svg, rendered.svg);
   assert.ok(selected.verdict.ok, JSON.stringify(selected.verdict.problems));

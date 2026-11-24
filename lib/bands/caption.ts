@@ -2,7 +2,7 @@ import {duplicateTitleFindings, sourceLineFindings} from '../verify-caption.ts';
 import {band, walkDefinedBands} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {caption as buildCaption} from '../dsl/caption.ts';
-import {renderCaption} from '../emit-boxes.ts';
+import {textSvgDefs, renderCaption} from '../emit-boxes.ts';
 import {layoutBoxLikeBand} from '../layout-box-like.ts';
 import {styledAtoms, textRuns} from '../layout-text.ts';
 import type {CaptionBand, CaptionOpts, LaidOutCaption, RichText} from '../types/text-bands.ts';
@@ -10,6 +10,7 @@ import {boxLikeContrastProblems} from '../verify-box-like.ts';
 
 export const captionDefinition: BandDef<CaptionBand, LaidOutCaption> = {
   type: 'caption',
+  svgDefs: textSvgDefs,
   title: data => data.text ? [0, data.text] : undefined,
   internal: true,
   layout: layoutBoxLikeBand,

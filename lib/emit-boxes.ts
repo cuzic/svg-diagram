@@ -8,7 +8,7 @@ import type {Theme, EmphasisTone, Align, Rect, Roles} from './types/core.ts';
 import type {LaidOutPyramid, LaidOutCurve} from './types/figures.ts';
 import type {LaidOutPeople, LaidOutDots} from './types/people-dots.ts';
 import type {LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
-import type {LaidOutBox, LaidOutCaption, LaidOutBanner} from './types/text-bands.ts';
+import type {LaidOutBox, LaidOutCaption, LaidOutBanner, WrappedRun} from './types/text-bands.ts';
 import {iconSvg} from './icon-svg.ts';
 import {boundaryChipH, ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W, stepBadgeGeom} from './layout-util.ts';
 import {visibleAt} from './reveal-visibility.ts';
@@ -132,6 +132,18 @@ export function renderGroup(band: LaidOutGroup, day: Theme, tones: ToneEnv, role
   return renderBoxRect(band, day, tones, 'muted') + renderStamp(band, roles);
 }
 
+
+export function textSvgDefs(band: {wrappedRuns: readonly WrappedRun[]}): SvgBandDefs {
+  return {mono: band.wrappedRuns.some(run => run.mono)};
+}
+
+export function childTextSvgDefs(band: {children: readonly {wrappedRuns: readonly WrappedRun[]}[]}): SvgBandDefs {
+  return {mono: band.children.some(child => textSvgDefs(child).mono)};
+}
+
+export function rowSvgDefs(band: LaidOutRow): SvgBandDefs {
+  return {...childTextSvgDefs(band), arrow: band.arrows.length > 0};
+}
 
 // A line sample (and optional arrowhead) + label per item, laid out by layout.ts.
 export function legendSvgDefs(band: LaidOutLegend): SvgBandDefs {

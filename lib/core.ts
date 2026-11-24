@@ -278,12 +278,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   }, placed);
   const emitEnv = {theme, roles, tones: ink, color: (key: Parameters<typeof colorOf>[0]) => colorOf(key, theme), stage};
   const emit = (figure: LaidOutDiagram, noRecolor = false, description = opts.desc) => emitSvgWith({
-    defsNeeded: band => ({
-      arrow: band.type === 'row' && band.arrows.length > 0,
-      mono: (band.type === 'row' || band.type === 'grid' ? band.children.flatMap(b => b.wrappedRuns)
-        : 'wrappedRuns' in band ? band.wrappedRuns : []).some(run => run.mono),
-      ...definitions.get(definitionKey(band))?.svgDefs?.(band as never),
-    }),
+    defsNeeded: band => placedDefinition(band)?.svgDefs?.(band) ?? {},
     renderBand: band => must(placedDefinition(band)).emit(band as never, emitEnv),
     renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
     diagramTitle: diagram => definedDiagramTitle(diagram, stage),

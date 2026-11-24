@@ -4,13 +4,14 @@ import {childRuns} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {grid as buildGrid} from '../dsl/containers.ts';
-import {renderGrid} from '../emit-boxes.ts';
+import {childTextSvgDefs, renderGrid} from '../emit-boxes.ts';
 import {layoutGridBand} from '../layout-grid.ts';
 import type {GridBand, LaidOutGrid, GridOpts} from '../types/containers.ts';
 import type {BoxBand} from '../types/text-bands.ts';
 
 export const gridDefinition: BandDef<GridBand, LaidOutGrid> = {
   type: 'grid',
+  svgDefs: childTextSvgDefs,
   textSizes: childRuns,
   internal: true,
   layout: layoutGridBand,

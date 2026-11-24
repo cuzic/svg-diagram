@@ -3,7 +3,7 @@ import {childRuns} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {row as buildRow} from '../dsl/containers.ts';
-import {renderRow} from '../emit-boxes.ts';
+import {renderRow, rowSvgDefs} from '../emit-boxes.ts';
 import {layoutGroupRow} from '../layout-group-row.ts';
 import type {Declares, IdsOf, Refers, RefsOf, RowHandleOf} from '../strict.ts';
 import type {GroupBand, GroupRowBand, LaidOutRow, RowOpts} from '../types/containers.ts';
@@ -11,6 +11,7 @@ import type {BoxBand} from '../types/text-bands.ts';
 
 export const groupRowDefinition: BandDef<GroupRowBand, LaidOutRow> = {
   type: 'grouprow',
+  svgDefs: rowSvgDefs,
   textSizes: childRuns,
   internal: true,
   layout: layoutGroupRow,

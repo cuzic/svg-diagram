@@ -4,13 +4,14 @@ import {band, defOf, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {areas as buildAreas} from '../dsl/containers.ts';
 import type {AreaContent} from '../dsl/containers.ts';
-import {renderRow} from '../emit-boxes.ts';
+import {renderRow, rowSvgDefs} from '../emit-boxes.ts';
 import {layoutAreas} from '../layout-areas.ts';
 import type {AreasBand, AreasOpts, LaidOutRow} from '../types/containers.ts';
 import {groupDefinition} from './group.ts';
 
 const definition = {
   type: 'areas',
+  svgDefs: rowSvgDefs,
   textSizes: childRuns,
   internal: true,
   layout: layoutAreas,
