@@ -1,3 +1,6 @@
+import {at} from './finding-rules.ts';
+import type {Band} from './types/index.ts';
+import type {Finding} from './types/verdicts.ts';
 import {resolveBoxStyle, resolveTextColor} from './emit-common.ts';
 import {luminance as lightLuminance, paintOf, PALETTE, runColorOf} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
@@ -28,4 +31,10 @@ export function boxLikeContrastProblems(band: LaidOutBox | LaidOutBanner | LaidO
     }
   }
   return problems;
+}
+
+/** box-size-ignored: box({size}) is read by neither layout nor emit (said once per figure; the band keeps what the author wrote). */
+export function boxSizeFindings(bands: readonly Band[]): Finding[] {
+  const hit = bands.filter(b => b.type === 'box' && b.size !== undefined);
+  return hit.length ? [{...at(hit[0], ...hit.slice(1)), rule: 'box-size-ignored', severity: 'warn', message: `box({size}) は効果がない(${hit.length} 個の箱)。大きい文字は役割を使う: stat() / stat({size: 'display'})・caption({role: 'display'})・banner({headlineRole})・bars / plane({labelRole})。次の版で throw する`}] : [];
 }

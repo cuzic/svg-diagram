@@ -993,3 +993,26 @@ test('selected canvases report required empty regions and wrapped source lines',
   assert.deepEqual(notes(legacy).map(f => f.rule), ['canvas-region-empty', 'source-wraps']);
   assert.deepEqual(notes(actual), notes(legacy));
 });
+
+test('selective box size warning groups nested boxes once', async () => {
+  const opts = {title: '計画'};
+  const lanes = [{id: 'team', label: '担当'}];
+  const steps = [{id: 'step', lane: 'team', title: '作業', size: 17 as const}];
+  const selected = await renderBands([
+    box({title: '先頭', size: 20}),
+    group([grid([box({title: '内側', size: 18}), box({title: '通常'})], {cols: 2})]),
+    ...swimlane(lanes, steps),
+  ], {...opts, measure});
+  const legacy = await renderInBrowser(diagram({...opts, theme: 'blue', legend: false}).add(
+    legacyBox({title: '先頭', size: 20}),
+    legacyGroup([legacyGrid([legacyBox({title: '内側', size: 18}), legacyBox({title: '通常'})], {cols: 2})]),
+    ...legacySwimlane(lanes, steps),
+  ), {measure});
+  const warnings = ({verdict}: typeof selected) => verdict.findings.filter(f => f.rule === 'box-size-ignored')
+    .map(({rule, severity, message}) => ({rule, severity, message}));
+  assert.equal(warnings(legacy).length, 1);
+  assert.match(warnings(legacy)[0]?.message ?? '', /3 個の箱/);
+  assert.deepEqual(warnings(selected), warnings(legacy));
+  const laneOnly = await renderBands(swimlane(lanes, steps), {...opts, measure});
+  assert.match(warnings(laneOnly)[0]?.message ?? '', /1 個の箱/);
+});

@@ -1,4 +1,3 @@
-import {frameLayoutFindings} from '../layout-metrics.ts';
 import {band} from '../band-def.ts';
 import type {BandDef} from '../band-def.ts';
 import {withAnchors} from '../dsl/shared.ts';
@@ -43,7 +42,7 @@ const definition = {
     ? boxDefinition.emit(laid, env)
     : renderSwimlane(laid, env.theme, env.roles),
   verify: {
-    diagramFindings: frameLayoutFindings,
+    diagramFindings: boxDefinition.verify?.diagramFindings,
     findings: (data, {connects}) => swimlaneFindings(data, connects),
     rects: laid => laid.type === 'box' ? ownRect(laid) : [],
     check: (laid, env) => laid.type === 'box' ? boxDefinition.verify?.check?.(laid, env) ?? [] : [],

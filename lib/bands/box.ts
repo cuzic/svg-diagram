@@ -1,6 +1,6 @@
 import {frameLayoutFindings} from '../layout-metrics.ts';
-import {band} from '../band-def.ts';
-import type {BandDef, WithBandDef} from '../band-def.ts';
+import {band, walkDefinedBands} from '../band-def.ts';
+import type {BandDef, DiagramFindings, WithBandDef} from '../band-def.ts';
 import {box as buildBox} from '../dsl/box.ts';
 import {renderBox} from '../emit-boxes.ts';
 import {layoutBoxLikeBand} from '../layout-box-like.ts';
@@ -8,8 +8,10 @@ import {styledAtoms, textRuns} from '../layout-text.ts';
 import type {BoxInput} from '../strict.ts';
 import {TAG_SIZE} from '../tokens.ts';
 import type {BoxBand, LaidOutBox} from '../types/text-bands.ts';
-import {boxLikeContrastProblems, nowrapProblems} from '../verify-box-like.ts';
+import {boxLikeContrastProblems, boxSizeFindings, nowrapProblems} from '../verify-box-like.ts';
 import {ownRect} from '../verify-rects.ts';
+
+const selectedBoxSizeFindings: DiagramFindings = ({bands}) => boxSizeFindings(walkDefinedBands(bands));
 
 export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
   type: 'box',
@@ -29,7 +31,7 @@ export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
     return renderBox(laid, theme, tones, roles);
   },
   verify: {
-    diagramFindings: frameLayoutFindings,
+    diagramFindings: [frameLayoutFindings, selectedBoxSizeFindings],
     rects: ownRect,
     check(laid, {theme, tones, appearance}) {
       return [

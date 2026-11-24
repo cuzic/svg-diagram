@@ -11,6 +11,8 @@ import type {CheckRect, Finding} from './types/verdicts.ts';
 import type {VerifyHandler} from './verify-handlers.ts';
 import {must} from './must.ts';
 
+export type DiagramFindings = (diagram: LaidOutDiagram) => Finding[];
+
 export const DEF_API = '0.1';
 const DEF_PREFIX = 'svg-diagram.def/';
 export const DEF: unique symbol = Symbol.for(`${DEF_PREFIX}${DEF_API}`);
@@ -85,7 +87,7 @@ interface BandHooks<D, L extends object> {
     rects?(laid: L): CheckRect[];
     findings?(data: D, ctx: VerifyCtx): Finding[];
     layoutFindings?(laid: L, ctx: VerifyCtx): Finding[];
-    diagramFindings?(diagram: LaidOutDiagram): Finding[];
+    diagramFindings?: DiagramFindings | readonly DiagramFindings[];
     check?(laid: L, ctx: VerifyCtx): BandFinding[];
     contrast?: VerifyHandler<L>['contrast'];
   };
@@ -153,6 +155,16 @@ export function defOf(b: object): BandDef | undefined {
     }
   }
   return (b as {[DEF]?: BandDef})[DEF];
+}
+
+/** Visit selected bands and their nested content in input order. */
+export function walkDefinedBands(bands: readonly Band[], out: Band[] = []): Band[] {
+  for (const band of bands) {
+    out.push(band);
+    const children = band.type === 'swimlane' ? band.steps : defOf(band)?.children?.(band) ?? [];
+    walkDefinedBands(children, out);
+  }
+  return out;
 }
 
 /** Copy a band with its prototype, definition and non-enumerable handles. */

@@ -1,3 +1,4 @@
+import {boxSizeFindings} from './verify-box-like.ts';
 import {fullWidthUnits, sourceLineFindings} from './verify-caption.ts';
 export {fullWidthUnits} from './verify-caption.ts';
 import {canvasRegionFindings} from './verify-grid.ts';
@@ -911,11 +912,6 @@ function axisRules(d: LintTarget, out: Finding[]): void {
   const refs = [...pairs.values()].flatMap(parts => [...parts].map(b => sourceOf(b)));
   if (found.length) out.push({...fromSources(refs), rule: 'chart-axis-mismatch', severity: 'warn', message: `比べて読む 2 つのチャートの値の軸が違う: ${found.slice(0, 3).join('。')}${found.length > 3 ? ` ほか ${found.length - 3} 組` : ''}。同じ長さが別の値に見える。直し方: 両方に同じ domain を書く（bars は max）。横向きのチャートは、ラベルの列の幅が違うと同じ値が別の長さに見えるので、plotInset もそろえる。意図して別の軸なら axisGroup: false か accept`});
 }
-/** box-size-ignored: box({size}) is read by neither layout nor emit (said once per figure; the band keeps what the author wrote). */
-function boxSizeRules(d: LintTarget, out: Finding[]): void {
-  const hit = walkBands(d.bands).filter(b => b.type === 'box' && b.size !== undefined);
-  if (hit.length) out.push({...at(hit[0], ...hit.slice(1)), rule: 'box-size-ignored', severity: 'warn', message: `box({size}) は効果がない(${hit.length} 個の箱)。大きい文字は役割を使う: stat() / stat({size: 'display'})・caption({role: 'display'})・banner({headlineRole})・bars / plane({labelRole})。次の版で throw する`});
-}
 function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   const out: Finding[] = [];
   if (d.wrapFellBack) out.push({rule: 'wrap-fell-back', severity: 'info', message: "wrap: 'bunsetsu-soft': 文節で折ると図が幅に収まらなかったので、従来の折り方（phrase）で配置した。漢字・ひらがなの途中で折れる行が残る。図を 2 枚に分ける、文言を短くする、図の幅を広げると、文節で折れる"});
@@ -960,7 +956,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   }
   statFitFindings(d, out);
   evidenceRules(d, out);
-  boxSizeRules(d, out);
+  out.push(...boxSizeFindings(walkBands(d.bands)));
   if (d.canvas && d.laidOut) {
     const min = minTextSize(d);
     out.push(...canvasFindings(d.canvas, min, d.contentHeight));

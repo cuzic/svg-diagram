@@ -1,6 +1,5 @@
-import {defOf} from './band-def.ts';
+import {walkDefinedBands} from './band-def.ts';
 import {describeBands, oneLine} from './diagram-description.ts';
-import type {Band} from './types/index.ts';
 import type {Config} from './types/project.ts';
 import {must} from './must.ts';
 import {prepareBands, renderBands, type BatchMeasurement} from './core.ts';
@@ -141,14 +140,7 @@ export function prepareSpecLayout(input: unknown, options: PrepareOptions & {pro
     return {...prepared, emit(figure: typeof prepared.placed, noRecolor?: boolean) {
       const titled = {...figure, title: oneLine(figure.title)};
       if (figure.desc) return emit(titled, noRecolor, oneLine(figure.desc));
-      const all: Band[] = [];
-      const walk = (band: Band): void => {
-        all.push(band);
-        const children = band.type === 'swimlane' ? band.steps : defOf(band)?.children?.(band) ?? [];
-        children.forEach(walk);
-      };
-      figure.bands.forEach(walk);
-      return emit(titled, noRecolor, describeBands(all, stage));
+      return emit(titled, noRecolor, describeBands(walkDefinedBands(figure.bands), stage));
     }};
   };
 }

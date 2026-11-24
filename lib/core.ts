@@ -11,7 +11,7 @@ import {addScoped, emptyScopes} from './scope-table.ts';
 import {qualify, scopeOf} from './scope-name.ts';
 import {scopedRect} from './verify-rects.ts';
 import {verifyWithServices} from './verify-core.ts';
-import type {BandDef, VerifyCtx} from './band-def.ts';
+import type {BandDef, DiagramFindings, VerifyCtx} from './band-def.ts';
 import type {CaptionBand, LaidOutCaption} from './types/text-bands.ts';
 import type {ConnectBand, LaidOutConnect} from './types/containers.ts';
 import {must} from './must.ts';
@@ -91,7 +91,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const scopeTable = emptyScopes();
   let last = 0;
   const revealWarnings: string[] = [];
-  const diagramChecks = new Set<NonNullable<NonNullable<BandDef['verify']>['diagramFindings']>>();
+  const diagramChecks = new Set<DiagramFindings>();
   const inputChecks: ((ctx: VerifyCtx) => Finding[])[] = [];
   let source = cloneData(bands) as unknown as Band[];
   const data: DiagramData = {
@@ -158,7 +158,9 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
         ids.set(qualify(scope, item.id), {start: item.reveal ?? start, end: item.until ?? end});
       }
     }
-    if (def.verify?.diagramFindings) diagramChecks.add(def.verify.diagramFindings);
+    const diagramFindings = def.verify?.diagramFindings;
+    if (typeof diagramFindings === 'function') diagramChecks.add(diagramFindings);
+    else if (diagramFindings) for (const check of diagramFindings) diagramChecks.add(check);
     const findings = def.verify?.findings;
     if (findings) inputChecks.push(ctx => findings(data, ctx));
     def.measure?.(data, measureEnv);
