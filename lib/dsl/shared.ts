@@ -88,3 +88,5 @@ export function assertFontSize(size: number): void {
     throw new Error(`font-size ${size} is below the ${MIN_FONT_SIZE}px floor — this deck never uses smaller text. Reconsider the layout instead of shrinking the text.`);
   }
 }
+
+export const TREE_TONES: readonly string[] = ['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger', 'solid', 'solid-danger'];

@@ -17,13 +17,15 @@ import type {SourceRef} from './source-ref.ts';
 import {bowtieRects} from './verify-bowtie-rects.ts';
 import {ftaRects} from './verify-fta-rects.ts';
 import {anchorRects, frameRects, ownRect, scopedRect} from './verify-rects.ts';
+import {classesProblems} from './verify-classes.ts';
+import {bpmnProblems} from './verify-bpmn.ts';
 import {cloudProblems, cloudRects} from './verify-cloud.ts';
 import {planeProblems} from './verify-plane.ts';
 import {quadrantProblems} from './verify-quadrant.ts';
 import {timelineProblems} from './verify-timeline.ts';
 import {flowProblems} from './verify-flow.ts';
 import {ganttProblems} from './verify-gantt.ts';
-import {CONTRAST_THRESHOLD, dxdy, eachOverlap, issueAt, labelOf, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes, statesProblems} from './verify-base.ts';
+import {CONTRAST_THRESHOLD, dxdy, eachOverlap, issueAt, labelOf, outsideBox, rectOverlap, routesThroughNodes, statesProblems} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import type {ComicLaidBubble, LaidOutComic} from './types/comic.ts';
 import type {EmphasisTone} from './types/core.ts';
@@ -97,44 +99,6 @@ function comicRects(band: LaidOutComic): CheckRect[] {
 // A transition must not run through a state it does not touch; its label chip must stay inside the figure and clear of states and other chips.
 const checkStates = (band: LaidOutOf<'states'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
   problems.push(...statesProblems(band));
-};
-
-// Relations must not run through a class they do not touch; labels and multiplicities must stay clear of classes and each other.
-const checkClasses = (band: LaidOutOf<'classes'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
-  problems.push(...routesThroughNodes(band.edges, band.anchors, (e, n) => `classes: relation ${e.from} -> ${e.to} runs through class "${n.id}" (reorder the classes, or change dir)`));
-  for (const [i, l] of band.labels.entries()) {
-    if (outsideX(l, band)) problems.push(`classes: label "${l.text}" runs outside the figure`);
-    for (const n of band.anchors) if (rectOverlap(l, n)) problems.push(`classes: label "${l.text}" overlaps class "${n.id}"`);
-    band.edges.forEach((e, k) => { // the chip is white: on another relation it would cut it
-      if (k !== l.edge && routeHits(e.points, l)) problems.push(`classes: label "${l.text}" sits on the relation ${e.from} -> ${e.to} (it belongs to another relation)`);
-    });
-    for (let j = i + 1; j < band.labels.length; j++) {
-      const o = rectOverlap(l, must(band.labels[j]));
-      if (o) problems.push(`classes: label "${l.text}" overlaps label "${must(band.labels[j]).text}" by ${dxdy(o)}`);
-    }
-  }
-};
-
-// A flow must not run through a node it does not touch; flow labels must stay clear of nodes and each other.
-const checkBpmn = (band: LaidOutOf<'bpmn'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
-  problems.push(...routesThroughNodes(band.edges, band.anchors, (e, n) => `bpmn: flow ${e.from} -> ${e.to} runs through "${n.id}" (move a node to another lane, or reorder the flow)`));
-  // the text of an event / gateway (and a task's name): inside the figure and clear of the lane names, of every flow, and of the other nodes
-  for (const b of band.labelBoxes) {
-    if (band.anchors.some(a => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h)) continue; // a node's own box
-    if (b.x < band.x + (band.lanes[0]?.labelW ?? 0) - 0.5 || b.x + b.w > band.x + band.w + 0.5 || b.y < band.y + (band.lanes[0]?.labelH ?? 0) - 0.5 || b.y + b.h > band.y + band.h + 0.5) problems.push(`bpmn: the text "${b.label}" runs outside its lane area (shorten it, or widen the figure)`);
-    for (const n of band.anchors) if (rectOverlap(b, n)) problems.push(`bpmn: the text "${b.label}" overlaps "${n.id}"`);
-    for (const e of band.edges) if (routeHits(e.points, b) && !band.labels.some(l => l.x === b.x && l.y === b.y)) problems.push(`bpmn: the text "${b.label}" is crossed by the flow ${e.from} -> ${e.to}`);
-  }
-  for (const [i, l] of band.labels.entries()) {
-    band.edges.forEach((e, k) => { // the chip is white: on another flow it would cut it
-      if (k !== l.edge && routeHits(e.points, l)) problems.push(`bpmn: label "${l.text}" sits on the flow ${e.from} -> ${e.to} (it belongs to another flow)`);
-    });
-    for (const n of band.anchors) if (rectOverlap(l, n)) problems.push(`bpmn: label "${l.text}" overlaps "${n.id}"`);
-    for (let j = i + 1; j < band.labels.length; j++) {
-      const o = rectOverlap(l, must(band.labels[j]));
-      if (o) problems.push(`bpmn: label "${l.text}" overlaps label "${must(band.labels[j]).text}" by ${dxdy(o)}`);
-    }
-  }
 };
 
 // A cause arrow must not run through an entity it does not touch; the arrows of an AND must be joined by their arc.
@@ -287,8 +251,8 @@ export const VERIFY_HANDLERS = {
   cause: {rects: figureRects, check: {phase: 'cause', run: checkCause}},
   cloud: {rects: cloudRects, check: {phase: 'cloud', run: (band, _d, out) => { out.problems.push(...cloudProblems(band)); }}},
   gantt: {rects: figureRects, check: {phase: 'gantt', run: (band, _d, out) => { out.problems.push(...ganttProblems(band)); }}},
-  classes: {rects: figureRects, check: {phase: 'classes', run: checkClasses}},
-  bpmn: {rects: figureRects, check: {phase: 'bpmn', run: checkBpmn}},
+  classes: {rects: figureRects, check: {phase: 'classes', run: (band, _d, out) => { out.problems.push(...classesProblems(band)); }}},
+  bpmn: {rects: figureRects, check: {phase: 'bpmn', run: (band, _d, out) => { out.problems.push(...bpmnProblems(band)); }}},
   swimlane: {},
   sequence: {rects: ownRect},
   table: {rects: ownRect},

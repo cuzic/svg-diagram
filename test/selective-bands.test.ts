@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {caption} from '../lib/bands/caption.ts';
+import {classDiagram} from '../lib/bands/classes.ts';
+import {bpmn} from '../lib/bands/bpmn.ts';
 import {cloud} from '../lib/bands/cloud.ts';
 import {faultTree} from '../lib/bands/fta.ts';
 import {bowtie} from '../lib/bands/bowtie.ts';
@@ -40,7 +42,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {classDiagram as legacyClassDiagram, bpmn as legacyBpmn, cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -456,4 +458,22 @@ test('selective cloud preserves conflict, assumptions and scoped anchors', async
   assert.deepEqual(selected.xml, []);
   assert.deepEqual(selected.verdict.problems, expected.verdict.problems);
   assert.equal(selected.svg.slice(selected.svg.indexOf('  <defs>')), expected.svg.slice(expected.svg.indexOf('  <defs>')));
+});
+
+test('selective class and BPMN diagrams preserve relations, lanes and both orientations', async () => {
+  const classes = [{id: 'base', name: '親クラス', methods: ['run()']}, {id: 'child', name: '子クラス'}] satisfies Parameters<typeof classDiagram>[0];
+  const relations = [{from: 'child', to: 'base', kind: 'inherit'}] as const;
+  const lanes = [{id: 'work', label: '担当'}];
+  const nodes = [{id: 'start', lane: 'work', kind: 'start'}, {id: 'task', lane: 'work', label: 'Review'}, {id: 'end', lane: 'work', kind: 'end'}] as const;
+  const flows = [{from: 'start', to: 'task'}, {from: 'task', to: 'end'}];
+  const opts = {measure, title: 'Plan', gap: 17};
+  const result = await renderBands([
+    classDiagram(classes, relations), bpmn(lanes, nodes, flows, {scope: 'horizontal'}), bpmn(lanes, nodes, flows, {dir: 'v', scope: 'vertical'}),
+  ], opts);
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: opts.title, gap: opts.gap, legend: false})
+    .add(legacyClassDiagram(classes, relations), legacyBpmn(lanes, nodes, flows, {scope: 'horizontal'}), legacyBpmn(lanes, nodes, flows, {dir: 'v', scope: 'vertical'})), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.deepEqual(result.xml, []);
+  assert.deepEqual(result.verdict.problems, expected.verdict.problems);
+  assert.equal(body(result.svg), body(expected.svg));
 });

@@ -77,8 +77,8 @@
 - [ ] `states`
 - [ ] `cause`（causeTree、relationDiagram、PDPC、なぜなぜ分析など）
 - [ ] `cloud`（前提・解消策と、個別入口からの SVG・依存除外は検証済み）
-- [ ] `classes`
-- [ ] `bpmn`
+- [ ] `classes`（個別入口からの SVG と依存除外は検証済み）
+- [ ] `bpmn`（横・縦の配置と、個別入口からの SVG・依存除外は検証済み）
 - [ ] `fta`（個別入口からの SVG と依存除外は検証済み。RCA 規則は移行対象）
 - [ ] `bowtie`（個別入口からの SVG と依存除外は検証済み。RCA 規則は移行対象）
 

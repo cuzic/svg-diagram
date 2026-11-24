@@ -436,6 +436,8 @@
   "verify-bowtie-rects:bowtieRects",
   "verify-box-like:boxLikeContrastProblems",
   "verify-box-like:nowrapProblems",
+  "verify-bpmn:bpmnProblems",
+  "verify-classes:classesProblems",
   "verify-cloud:cloudProblems",
   "verify-cloud:cloudRects",
   "verify-flow:flowProblems",

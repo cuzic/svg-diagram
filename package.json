@@ -300,6 +300,14 @@
       "types": "./dist/lib/bands/cloud.d.ts",
       "default": "./dist/lib/bands/cloud.js"
     },
+    "./bands/bpmn": {
+      "types": "./dist/lib/bands/bpmn.d.ts",
+      "default": "./dist/lib/bands/bpmn.js"
+    },
+    "./bands/classes": {
+      "types": "./dist/lib/bands/classes.d.ts",
+      "default": "./dist/lib/bands/classes.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"

@@ -6,7 +6,7 @@ import {whyWhyTreeFindings} from '../rca-rules.ts';
 import {criticalPath, exact} from '../qc.ts';
 import type {ArrowActivity} from '../qc.ts';
 import type {GroupBand, RowBand, GroupRowBand} from '../types/containers.ts';
-import type {WhyNode, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, FlowNode, FlowEdge, FlowKind, FlowchartOpts, CauseBand, CauseLink, CauseNode, CauseRole, CauseOpts, ClassesBand, ClassesOpts, ClassItem, ClassRelation, BpmnBand, BpmnOpts, BpmnLane, BpmnNode, BpmnFlow} from '../types/diagrams.ts';
+import type {WhyNode, TreeBand, TreeItem, TreeOpts, MindmapOpts, StatesBand, StatesOpts, StateItem, Transition, FlowNode, FlowEdge, FlowKind, FlowchartOpts, CauseBand, CauseLink, CauseNode, CauseRole, CauseOpts} from '../types/diagrams.ts';
 import type {Band} from '../types/index.ts';
 import type {CaptionBand} from '../types/text-bands.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
@@ -15,7 +15,7 @@ import {graphTones, litLink, resolveFocus} from '../focus.ts';
 import type {Focus} from '../types/core.ts';
 import {must} from '../must.ts';
 import {grid, row} from './containers.ts';
-import {assertBoxTone, revealOf, scopeOpt, withAnchors, withHandle} from './shared.ts';
+import {revealOf, scopeOpt, TREE_TONES, withAnchors, withHandle} from './shared.ts';
 import type {TreeIds} from './shared.ts';
 import {box, caption, group} from './text-bands.ts';
 
@@ -25,7 +25,6 @@ import {box, caption, group} from './text-bands.ts';
  * band (ADR 0049): a chevron(), a swimlane(), a table() ..., laid out at the width `w`, the tree's lines joining its edges (its own ids are anchors too).
  *   tree({label: '社長', sub: '代表取締役', children: [{label: '開発部', id: 'dev', children: [...]}, {label: '営業部'}]}, {dir: 'down'})
  */
-const TREE_TONES: readonly string[] = ['plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger', 'solid', 'solid-danger'];
 /**
  * "You are here" (TreeOpts.focus): a copy of the tree with every node's tone decided by where it stands to the focused nodes.
  * focused: 'solid'; under a focused node, or on the path from one up to the root: 'accent'; anywhere else: 'muted'.
@@ -79,58 +78,8 @@ export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
   const band: TreeBand = {type: 'tree', root, ...(opts.focus === undefined ? {} : {focused: true as const}), ...(opts.edges === undefined ? {} : {edges: opts.edges}), ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'tree()'), ...revealOf(opts)};
   return withAnchors(withHandle(band, opts.id), ids);
 }
-type BpmnIds<N extends readonly BpmnNode[]> = Extract<N[number]['id'], string>;
-/**
- * A business process in lanes, BPMN-style: tasks, start / end events and gateways (xor / and / or), joined by flows
- * (a dashed flow is a message between lanes). Lanes are rows; the columns follow the flow.
- *   bpmn([{id: 'cust', label: '顧客'}, {id: 'shop', label: '店舗'}],
- *        [{id: 's', lane: 'cust', kind: 'start', label: '注文'}, {id: 'chk', lane: 'shop', label: '在庫確認'}, {id: 'g', lane: 'shop', kind: 'xor'}, {id: 'e', lane: 'shop', kind: 'end'}],
- *        [{from: 's', to: 'chk'}, {from: 'chk', to: 'g'}, {from: 'g', to: 'e', label: '在庫あり'}])
- */
-export function bpmn<const N extends readonly BpmnNode[], const Id extends string = never>(lanes: readonly BpmnLane[], nodes: N, flows: readonly BpmnFlow[], opts?: BpmnOpts & {id?: Id}): BpmnBand & Declares<Id | BpmnIds<N>> & HandleOf<Id> & AnchorsOf<BpmnIds<N>>;
-export function bpmn(lanes: readonly BpmnLane[], nodes: readonly BpmnNode[], flows: readonly BpmnFlow[], opts: BpmnOpts = {}): BpmnBand {
-  if (!Array.isArray(lanes) || lanes.length === 0) throw new Error('bpmn(lanes, nodes, flows) needs at least one lane');
-  if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('bpmn(lanes, nodes, flows) needs at least one node');
-  for (const l of lanes) if (l.tone !== undefined) assertBoxTone(l.tone, `bpmn() lane "${l.id}"`);
-  for (const n of nodes) if (n.tone !== undefined && !TREE_TONES.includes(n.tone)) throw new Error(`bpmn(): node "${n.id}" has tone ${String(n.tone)} (use ${TREE_TONES.join(', ')})`);
-  // an icon is resolved here (the shell) and carried on the node, so layout and emit stay free of I/O
-  const placedNodes = nodes.map(n => n.icon === undefined ? n : {...n, iconGlyph: resolveIcon(n.icon, `bpmn() task "${n.id}" icon`)});
-  for (const f of flows) if (f.line !== undefined && f.line !== 'solid' && f.line !== 'dashed') throw new Error(`bpmn(): flow ${f.from} -> ${f.to} has line ${String(f.line)}`);
-  if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`bpmn(): fit must be 'shrink' (got ${String(opts.fit)})`);
-  if (opts.dir !== undefined && opts.dir !== 'h' && opts.dir !== 'v') throw new Error(`bpmn(): dir must be 'h' or 'v' (got ${String(opts.dir)})`);
-  if (opts.dir === 'v' && opts.fit !== undefined) throw new Error("bpmn(): fit: 'shrink' is for the horizontal figure; a vertical one (dir: 'v') takes its column width from the lanes");
-  const focused = opts.focus === undefined ? undefined : resolveFocus(opts.focus, nodes.map(n => n.id), 'bpmn()');
-  const toned = focused === undefined ? placedNodes : (() => {
-    const ids = nodes.map(n => n.id), tones = graphTones(ids.length, flows.map(f => [ids.indexOf(f.from), ids.indexOf(f.to)] as const), focused);
-    return placedNodes.map((n, i) => ({...n, tone: must(tones[i])}));
-  })();
-  const band: BpmnBand = {type: 'bpmn', lanes: [...lanes], nodes: toned, flows: [...flows], ...(focused === undefined ? {} : {focused: [...focused].map(i => must(nodes[i]).id)}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.fit === undefined ? {} : {fit: opts.fit}), ...(opts.dir === 'v' ? {dir: 'v' as const} : {}), ...scopeOpt(opts, 'bpmn()'), ...revealOf(opts)};
-  return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id));
-}
-type ClassIds<C extends readonly ClassItem[]> = Extract<C[number]['id'], string>;
-/**
- * A UML class diagram: classes ({id, name?, stereotype?, abstract?, attrs?, methods?}) and relations ({from, to, kind?, label?,
- * fromMult?, toMult?}), placed in layers with parents on top. `inherit` / `implement` run child -> parent (triangle at the parent);
- * `compose` / `aggregate` put the diamond on `from`, the whole.
- *   classDiagram([{id: 'Animal', abstract: true, methods: ['+ eat()']}, {id: 'Dog', attrs: ['- name: string']}],
- *                [{from: 'Dog', to: 'Animal', kind: 'inherit'}])
- */
-export function classDiagram<const C extends readonly ClassItem[], const Id extends string = never>(classes: C, relations: readonly ClassRelation[], opts?: ClassesOpts & {id?: Id}): ClassesBand & Declares<Id | ClassIds<C>> & HandleOf<Id> & AnchorsOf<ClassIds<C>>;
-export function classDiagram(classes: readonly ClassItem[], relations: readonly ClassRelation[], opts: ClassesOpts = {}): ClassesBand {
-  if (!Array.isArray(classes) || classes.length === 0) throw new Error('classDiagram(classes, relations) needs at least one class');
-  if (opts.straighten !== undefined && typeof opts.straighten !== 'boolean') throw new Error(`classDiagram(): straighten must be true or false (got ${String(opts.straighten)})`);
-  if (opts.dir !== undefined && opts.dir !== 'down' && opts.dir !== 'right' && opts.dir !== 'auto') throw new Error(`classDiagram(): dir must be 'down', 'right' or 'auto' (got ${String(opts.dir)})`);
-
-  for (const c of classes) if (c.tone !== undefined && !TREE_TONES.includes(c.tone)) throw new Error(`classDiagram(): class "${c.id}" has tone ${String(c.tone)} (use ${TREE_TONES.join(', ')})`);
-  const band: ClassesBand = {type: 'classes', classes: [...classes], relations: [...relations], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'classDiagram()'), ...revealOf(opts)};
-  if (opts.focus !== undefined) {
-    const ids = classes.map(c => c.id), hit = resolveFocus(opts.focus, ids, 'classDiagram()');
-    const tones = graphTones(ids.length, relations.map(r => [ids.indexOf(r.from), ids.indexOf(r.to)] as const), hit);
-    band.classes = band.classes.map((c, i) => ({...c, tone: must(tones[i])}));
-    band.focused = [...hit].map(i => must(ids[i]));
-  }
-  return withAnchors(withHandle(band, opts.id), classes.map(c => c.id));
-}
+export {bpmn} from './bpmn.ts';
+export {classDiagram} from './classes.ts';
 type StateIds<S extends readonly StateItem[]> = Extract<S[number]['id'], string>;
 /**
  * A state diagram: states (boxes) and transitions (arrows) that place themselves in layers, flowing left to right
