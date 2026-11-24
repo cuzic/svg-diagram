@@ -278,7 +278,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   }, placed);
   const emitEnv = {theme, roles, tones: ink, color: (key: Parameters<typeof colorOf>[0]) => colorOf(key, theme), stage};
   const emit = (figure: LaidOutDiagram, noRecolor = false, description = opts.desc) => emitSvgWith({
-    defsNeeded: band => placedDefinition(band)?.svgDefs?.(band) ?? {},
+    defsNeeded: band => placedDefinition(band)?.svgDefs?.(band as never) ?? {},
     renderBand: band => must(placedDefinition(band)).emit(band as never, emitEnv),
     renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
     diagramTitle: diagram => definedDiagramTitle(diagram, stage),
