@@ -16,7 +16,7 @@ const mix = (base: string, over: string, a: number): string => {
   return `#${b.map((v, i) => Math.round(v * (1 - a) + must(o[i]) * a).toString(16).padStart(2, '0')).join('')}`;
 };
 
-export function checkChart(band: LaidOutChart, d: LaidOutDiagram, tones: ToneEnv): string[] {
+export function checkChart(band: LaidOutChart, d: Pick<LaidOutDiagram, 'day' | 'appearance'>, tones: ToneEnv): string[] {
   const problems: string[] = [];
   const paint = paintOf(tones, d.appearance);
   const who = `${band.kind}${band.id ? ` "${band.id}"` : ''}`;

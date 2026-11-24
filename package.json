@@ -324,6 +324,14 @@
       "types": "./dist/lib/bands/swimlane.d.ts",
       "default": "./dist/lib/bands/swimlane.js"
     },
+    "./bands/radar": {
+      "types": "./dist/lib/bands/radar.d.ts",
+      "default": "./dist/lib/bands/radar.js"
+    },
+    "./bands/waterfall": {
+      "types": "./dist/lib/bands/waterfall.d.ts",
+      "default": "./dist/lib/bands/waterfall.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"

@@ -43,6 +43,8 @@ function size(name: string, value: number, min: number): number {
 const keyOf = (text: string, size: number, weight: number, font: string): string => JSON.stringify([text, size, weight, font]);
 
 /** Render a vertical stack of bands whose definitions are carried by their values. */
+const definitionKey = (band: Band | LaidOutBand): string => band.type === 'chart' ? `chart:${band.kind}` : band.type;
+
 export async function renderBands(bands: readonly DefinedBand[], opts: Options) {
   const width = size('width', opts.width ?? 940, 1);
   const pad = size('pad', opts.pad ?? 20, 0);
@@ -86,10 +88,11 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
     if (!def || def.type !== data.type || def[EXTERNAL] || data.type.includes(':')) {
       throw new Error(`renderBands: import the supported band "${data.type}" from its svg-diagram/bands entry`);
     }
-    if (definitions.has(data.type) && definitions.get(data.type) !== def) {
+    const key = definitionKey(data);
+    if (definitions.has(key) && definitions.get(key) !== def) {
       throw new Error(`renderBands: mixed definitions for "${data.type}"`);
     }
-    definitions.set(data.type, def);
+    definitions.set(key, def);
     if (def.internal) for (const type of def.outputTypes ?? []) syntheticOutputs.set(type, def);
     const reveal = data as RevealOpts & {id?: string};
     const start = Math.max(checked(reveal.reveal, data.type) ?? 0, inheritedStart);
@@ -149,7 +152,7 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
         ctx.y += size('band height', h, 0) + gap;
       };
     },
-    hasChildrenHandler: input => definitions.has(input.type),
+    hasChildrenHandler: input => definitions.has(definitionKey(input)),
     childrenOf: input => defOf(input)?.children?.(input) ?? [],
     stackWidthOf: (input, width) => defOf(input)?.stackWidth?.(input, width) ?? null,
     scopesOf: () => scopeTable,
@@ -172,7 +175,7 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
   const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => band.type === 'row' || band.type === 'grid' ? band.children : band.type === 'group' ? [] : [band]);
   const verdict = verifyWithServices({
     collectRects: figure => leaves(figure).flatMap(band => {
-      const def = definitions.get(band.type) ?? syntheticOutputs.get(band.type);
+      const def = definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
       const rects = def?.verify?.rects?.(band);
       if (!rects) return [{...band, label: band.type, id: 'id' in band ? band.id ?? null : null}];
       const scope = scopeOf(band);
@@ -186,7 +189,7 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
     checkFigures: figure => {
       const issues: Issue[] = [], warnings: string[] = [];
       for (const band of leaves(figure)) {
-        for (const finding of (definitions.get(band.type) ?? syntheticOutputs.get(band.type))?.verify?.check?.(band, ctx) ?? []) {
+        for (const finding of (definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type))?.verify?.check?.(band, ctx) ?? []) {
           if (finding.severity === 'problem') issues.push({message: finding.message});
           else warnings.push(finding.message);
         }
@@ -200,9 +203,9 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
       arrow: band.type === 'row' && band.arrows.length > 0,
       mono: (band.type === 'row' || band.type === 'grid' ? band.children.flatMap(b => b.wrappedRuns)
         : 'wrappedRuns' in band ? band.wrappedRuns : []).some(run => run.mono),
-      ...definitions.get(band.type)?.svgDefs?.(band as never),
+      ...definitions.get(definitionKey(band))?.svgDefs?.(band as never),
     }),
-    renderBand: band => must(definitions.get(band.type) ?? syntheticOutputs.get(band.type)).emit(band as never, emitEnv),
+    renderBand: band => must(definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type)).emit(band as never, emitEnv),
     renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
     diagramTitle: () => opts.title ?? '',
     diagramDesc: () => '',

@@ -1,5 +1,6 @@
 // chart bands: waterfall, radar, heatmap, stacked bars / mekko, treemap, sankey, tornado, bubble, butterfly, combo, harvey. Each is worked out from its data into a
 // list of rects / paths / texts (charts-base.ts); this file is the one place bands, layout and the description meet them.
+import {placeChart} from './chart-placement.ts';
 import {sizeOf} from './charts-base.ts';
 import type {ChartKind, ChartOpts, LaidOutChartPart} from './charts-base.ts';
 import {waterfallTexts, layoutWaterfall} from './charts-waterfall.ts';
@@ -97,9 +98,7 @@ export function chartTexts(band: ChartBand, roles: Roles): [string, number, numb
 }
 
 export function layoutChart(band: ChartBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, wrap: WrapMode, geom = 1): LaidOutChart {
-  const size = sizeOf(band.labelRole, roles), width = Math.min(w, band.width ?? w), left = x + (w - width) / 2;
-  const g = {x: left, y, w: width, height: band.height, size, geom, widthOf, wrap};
-  const part = ((): LaidOutChartPart => {
+  return placeChart(band, x, y, w, widthOf, roles, wrap, geom, g => {
     switch (band.kind) {
       case 'waterfall': return layoutWaterfall(band.spec as WaterfallSpec, g);
       case 'tornado': return layoutTornado(band.spec as TornadoSpec, g);
@@ -123,8 +122,7 @@ export function layoutChart(band: ChartBand, x: number, y: number, w: number, wi
       case 'dependency': return layoutDependency(band.spec as DependencySpec, g);
       default: throw new Error(`chart(): unknown kind ${band.kind}`);
     }
-  })();
-  return {type: 'chart', kind: band.kind, id: band.id, alt: band.alt, size, x: left, y, w: width, ...part, ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until})};
+  });
 }
 
 /** The value axes a chart band has when it is drawn, for the kinds that can be told to share them (xRange / yRange); undefined for the others. */
