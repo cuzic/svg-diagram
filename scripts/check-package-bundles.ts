@@ -240,7 +240,7 @@ try {
     {name: 'State matrix', source: composedSource([], "stateMatrix(['Review'], [{label: 'Page', cells: [wf.text('Ready')]}])",
       "import {stateMatrix, wf} from 'svg-diagram/bands/screens';"),
       include: 'state-matrix-rules.js', budget: {esbuild: 102500, Vite: 139000}, bands: ['screens.js'],
-      exclude: [...legacy, 'bands/wireframe.js', 'bands/table.js', 'layout-connect.js'], draw: true},
+      exclude: [...legacy, 'dsl/wireframe.js', 'bands/wireframe.js', 'bands/table.js', 'layout-connect.js'], draw: true},
     {name: 'Composer Affinity', source: composedSource([], "...affinity([{title: 'Review', cards: ['First', 'Second']}, {title: 'Plan', groups: [{title: 'Prepare', cards: ['Third']}]}], {cardCols: 2})",
       "import {affinity} from 'svg-diagram/compose/affinity';"),
       include: 'compose/selective/affinity.js', budget: {esbuild: 94000, Vite: 119000}, bands: ['box.js', 'caption.js', 'grid.js', 'group-row.js', 'group.js'],
@@ -594,6 +594,8 @@ try {
         assert.doesNotMatch(code, /bracket\(\): label must not be empty|callout\(\): text is required/, label);
       }
       if (name === 'Node and stat') assert.ok(has('dsl/node.js'), label);
+      if (name === 'screens') assert.ok(!has('dsl/state-matrix.js'), label);
+      if (name === 'State matrix') assert.ok(has('dsl/state-matrix.js'), label);
       if (name === 'Selected table spec') assert.ok(has('table-number-rules.js'), label);
       if (name === 'Core') assert.ok(!code?.includes('許容するなら diagram'), label);
       if (name === 'Core' || draw) {

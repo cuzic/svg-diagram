@@ -1,6 +1,6 @@
 import {band} from './band-def.ts';
 import type {BandDef, WithBandDef} from './band-def.ts';
-import {stateMatrix as buildMatrix} from './dsl/sequence-table-swimlane.ts';
+import {stateMatrix as buildMatrix} from './dsl/state-matrix.ts';
 import {stateMatrixFindings} from './state-matrix-rules.ts';
 import {screens as build} from './dsl/wireframe.ts';
 import {renderPrims} from './emit-tables.ts';
@@ -10,8 +10,8 @@ import {frameRects} from './verify-rects.ts';
 import type {BandLayoutHandler} from './layout-ctx.ts';
 import type {TextRequest} from './types/core.ts';
 
-export function screensFor(collect: (data: ScreensBand) => TextRequest[], place: BandLayoutHandler<ScreensBand>) {
-  const definition = {
+export function screensDefinition(collect: (data: ScreensBand) => TextRequest[], place: BandLayoutHandler<ScreensBand>): Definition {
+  return {
     type: 'screens',
     offGrid: true,
     internal: true,
@@ -22,17 +22,27 @@ export function screensFor(collect: (data: ScreensBand) => TextRequest[], place:
     },
     emit: (laid, {theme}) => renderPrims(laid, theme),
     verify: {rects: frameRects, findings: stateMatrixFindings},
-  } satisfies BandDef<ScreensBand, LaidOutScreens>;
+  };
+}
 
-  function screens<const Id extends string = never>(items: ScreensItemInput<Id>[], opts?: ScreensOpts): WithBandDef<ReturnType<typeof build<Id>>, LaidOutScreens> {
+type Definition = BandDef<ScreensBand, LaidOutScreens>;
+
+export function screensBuilder(definition: Definition) {
+  return function screens<const Id extends string = never>(items: ScreensItemInput<Id>[], opts?: ScreensOpts): WithBandDef<ReturnType<typeof build<Id>>, LaidOutScreens> {
     const data = build<Id>(items, opts);
     return band<typeof data, LaidOutScreens>(definition, data);
-  }
+  };
+}
 
-  function stateMatrix<const C extends string[], const R extends readonly (StateRowLoose | PartRow<never, string>)[]>(
+export function stateMatrixBuilder(definition: Definition) {
+  return function stateMatrix<const C extends string[], const R extends readonly (StateRowLoose | PartRow<never, string>)[]>(
     cols: C, rows: readonly [...R] & ValidateStateRows<C, R>, opts?: Omit<StateMatrixOpts, 'required'> & {required?: C[number][]},
   ): WithBandDef<ScreensBand, LaidOutScreens> {
     return band<ScreensBand, LaidOutScreens>(definition, buildMatrix<C, R>(cols, rows, opts));
-  }
-  return {screens, stateMatrix};
+  };
+}
+
+export function screensFor(collect: Parameters<typeof screensDefinition>[0], place: BandLayoutHandler<ScreensBand>) {
+  const definition = screensDefinition(collect, place);
+  return {screens: screensBuilder(definition), stateMatrix: stateMatrixBuilder(definition)};
 }
