@@ -307,3 +307,25 @@ test('prepared spec SVGs describe the same content as the legacy catalog', async
     assert.equal(description(layout.emit(layout.placed)), description(legacy.svg), part.type);
   }
 });
+
+test('prepared specs batch all text atoms through the project measurement backend', async () => {
+  const {prepareSpecLayout} = await import('../lib/spec-selective.ts');
+  const {measureAll} = await import('../lib/measure.ts');
+  const {measureSettingsOf} = await import('../lib/measure-settings.ts');
+  const {JA_FONTS} = await import('./helpers/text-engine.ts');
+  const config = {measure: 'font', fonts: JA_FONTS} as const;
+  const spec = {version: 1, title: '比較', parts: [tablePart.example], width: 480};
+  const draw = prepareSpecLayout(spec, {parts: [tablePart]});
+  const batches: number[] = [];
+  const layout = await draw({measureBatch: async requests => {
+    batches.push(requests.size);
+    return measureAll(requests, measureSettingsOf(config));
+  }});
+  assert.equal(batches.length, 1);
+  assert.ok((batches[0] ?? 0) > 1);
+  const {renderDiagram} = await import('../lib/dsl/render.ts');
+  const {applyConfig} = await import('../lib/config.ts');
+  const legacy = await renderDiagram(applyConfig(specToDiagram(spec), config), {name: 'slide1.svg', budget: 'cacheOnly'});
+  assert.equal(layout.emit(layout.placed), legacy.svg);
+  await assert.rejects(draw({measureBatch: async () => new Map()}), /width was not measured/);
+});

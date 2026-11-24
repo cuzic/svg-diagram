@@ -26,8 +26,11 @@ import {xmlProblems} from './xml-check.ts';
 export type {BandDef} from './band-def.ts';
 
 type DefinedBand = {type: string; id?: string; readonly [DEF]: object} & RevealOpts;
-type Options = {
-  measure: (request: Required<MeasureRequest>) => Measured | Promise<Measured>;
+type Measure = (request: Required<MeasureRequest>) => Measured | Promise<Measured>;
+/** @internal Measure the complete set of text atoms with a project backend. */
+export type BatchMeasurement = {measureBatch: (requests: Map<string, Required<MeasureRequest>>) => Promise<ReadonlyMap<string, Measured>>};
+type Options = {measure: Measure} & DrawOptions;
+type DrawOptions = {
   width?: number;
   pad?: number;
   gap?: number;
@@ -57,7 +60,7 @@ const keyOf = (text: string, size: number, weight: number, font: string): string
 const definitionKey = (band: Band | LaidOutBand): string => band.type === 'chart' ? `chart:${band.kind}` : band.type;
 
 /** @internal Shared layout and SVG emission for selective output formats. */
-export async function prepareBands(bands: readonly DefinedBand[], opts: Options) {
+export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOptions & ({measure: Measure} | BatchMeasurement)) {
   const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...opts.canvas};
   if (canvas) {
     if (opts.width !== undefined) throw new Error('renderBands: use canvas.width when canvas is set');
@@ -162,12 +165,12 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
     for (const child of def.children?.(data) ?? []) collect(child, start, stop);
   }
   for (const data of source) collect(data);
-  const measured = new Map(await Promise.all([...requests].map(async ([key, request]) => {
-    const {w} = await opts.measure(request);
-    return [key, size('measured width', w, 0)] as const;
-  })));
+  const measured = 'measureBatch' in opts ? await opts.measureBatch(requests) : new Map(
+    await Promise.all([...requests].map(async ([key, request]) => [key, await opts.measure(request)] as const)),
+  );
+  for (const {w} of measured.values()) size('measured width', w, 0);
   const widthOf: WidthOf = (text, size, weight, font) => {
-    return must(measured.get(keyOf(text, size, weight, font)), `renderBands: width was not measured for "${text}"`);
+    return must(measured.get(keyOf(text, size, weight, font))?.w, `renderBands: width was not measured for "${text}"`);
   };
   const layout = createLayoutWith({
     resolveConnect: (...args) => {
