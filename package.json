@@ -388,6 +388,10 @@
       "types": "./dist/lib/bands/dependency.d.ts",
       "default": "./dist/lib/bands/dependency.js"
     },
+    "./bands/image/node": {
+      "types": "./dist/lib/bands/image-node.d.ts",
+      "node": "./dist/lib/bands/image-node.js"
+    },
     "./bands/image": {
       "types": "./dist/lib/bands/image.d.ts",
       "default": "./dist/lib/bands/image.js"

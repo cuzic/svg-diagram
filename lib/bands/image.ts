@@ -9,9 +9,9 @@ import {checked} from '../reveal-visibility.ts';
 import type {Band} from '../types/index.ts';
 import {imageContrast, imageProblems, imageRects} from '../verify-image.ts';
 
-type SelectedBand = Band & {readonly [DEF]: object};
+export type SelectedBand = Band & {readonly [DEF]: object};
 
-const definition = {
+export const imageDefinition: BandDef<ImageBand, LaidOutImage> = {
   type: 'image',
   internal: true,
   layout: layoutImageBand,
@@ -42,7 +42,7 @@ const definition = {
       return warning ? [...problems, {rule: 'image-large', severity: 'warn', message: warning}] : problems;
     },
   },
-} satisfies BandDef<ImageBand, LaidOutImage>;
+};
 
 /** Embed a raster data URI without a file loader. */
 export function image<const M extends readonly ImageMark[] = [], const Id extends string = never, C extends SelectedBand | SelectedBand[] = []>(
@@ -50,5 +50,5 @@ export function image<const M extends readonly ImageMark[] = [], const Id extend
 ): WithBandDef<ReturnType<typeof build<M, Id, C>>, LaidOutImage> {
   if (!src.startsWith('data:')) throw new Error('image(): pass a PNG, JPEG, GIF or WebP data URI to svg-diagram/bands/image');
   const data = build<M, Id, C>(src, opts);
-  return band<typeof data, LaidOutImage>(definition, data);
+  return band<typeof data, LaidOutImage>(imageDefinition, data);
 }

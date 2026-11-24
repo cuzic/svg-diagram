@@ -143,7 +143,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 
 `svg-diagram/core` の `renderBands` は、配列に渡した帯を縦に並べて SVG に描きます。帯ごとの入口は現在 `svg-diagram/bands/box`、`bands/gantt`、`bands/row`、`bands/grid`、`bands/connect`、`bands/caption`、`bands/spacer`、`bands/group`、`bands/group-row`、`bands/areas`、`bands/banner`、`bands/raw`、`bands/curve`、`bands/pyramid`、`bands/chevron`、`bands/funnel`、`bands/cycle`、`bands/venn`、`bands/concentric`、`bands/emblem`、`bands/value-chain`、`bands/people`、`bands/dots`、`bands/timeline`、`bands/status`、`bands/wordart`、`bands/legend`、`bands/quadrant`、`bands/plane`、`bands/bars`、`bands/sequence`、`bands/table`、`bands/wireframe`、`bands/screens`、`bands/fta`、`bands/bowtie`、`bands/cloud`、`bands/classes`、`bands/bpmn`、`bands/states`、`bands/tree`、`bands/cause`、`bands/swimlane`、`bands/radar`、`bands/waterfall`、`bands/sankey`、`bands/heatmap`、`bands/stacked`（`stackedBars` と `mekko`）、`bands/treemap`、`bands/tornado`、`bands/butterfly`、`bands/bubble`、`bands/harvey`、`bands/catplot`、`bands/distplot`、`bands/multiplot`、`bands/regplot`、`bands/clustermap`、`bands/combo`、`bands/compare`、`bands/pert`、`bands/causal`、`bands/dependency`、`bands/image` にあります。使う帯だけを import すると、esbuild や Vite は使わない帯の実装をバンドルから除外できます。
 
-画像の個別入口は PNG・JPEG・GIF・WebP の data URI を受け取り、SVG 内に埋め込みます。画像ファイルのパスを図のファイルから解決する場合は、Node.js の `svg-diagram` から `image` と `renderDiagram` を使います。
+画像の個別入口は PNG・JPEG・GIF・WebP の data URI を受け取り、SVG 内に埋め込みます。Node.js では `svg-diagram/bands/image/node` の `imageFile(path, {alt, baseDir})` で画像ファイルを読み込み、同じ `renderBands` に渡せます。相対パスは `baseDir`（省略時はカレントディレクトリ）から解決します。`new URL('./picture.png', import.meta.url)` を渡すとモジュールからの相対指定になります。
 
 ```ts
 import {renderBands} from 'svg-diagram/core';

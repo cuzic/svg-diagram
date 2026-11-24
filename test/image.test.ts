@@ -7,6 +7,10 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {box, caption, checkDiagram, closeMeasurer, connect, diagram, group, image, renderDiagram, row} from '../lib/dsl.ts';
+import {imageFile} from '../lib/bands/image-node.ts';
+import {image as embeddedImage} from '../lib/bands/image.ts';
+import {renderBands} from '../lib/core.ts';
+import {pathToFileURL} from 'node:url';
 import {emitSvg} from '../lib/emit.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import {IMAGE_WARN_BYTES} from '../lib/image.ts';
@@ -307,4 +311,21 @@ test('two diagrams with different source folders and the same relative path each
   };
   const [a, b] = await Promise.all([ratio(dir), ratio(other)]);
   assert.ok(Math.abs(a - 160 / 240) < 0.01 && Math.abs(b - 1) < 0.01, `aspect ratios ${a} ${b}`);
+});
+
+test('selective image file input resolves relative paths and file URLs to the same SVG as a data URI', async () => {
+  const options = {alt: '台所', width: 240, marks: MARKS};
+  const entry = imageFile('./kitchen.png', {...options, baseDir: dir});
+  const url = imageFile(pathToFileURL(kitchen), options);
+  const embedded = embeddedImage(readImage(kitchen).href, options);
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const selected = await renderBands([entry], {measure});
+  assert.equal(selected.svg, (await renderBands([url], {measure})).svg);
+  assert.equal(selected.svg, (await renderBands([embedded], {measure})).svg);
+  assert.deepEqual(selected.xml, []);
+  assert.deepEqual(selected.verdict.problems, []);
+  const combined = await renderBands([imageFile(kitchen, {decorative: true}), embedded], {measure});
+  assert.deepEqual(combined.verdict.problems, []);
+  assert.equal([...combined.svg.matchAll(/<image /g)].length, 2);
+  assert.throws(() => imageFile('missing.png', {...options, baseDir: dir}), /cannot read/);
 });

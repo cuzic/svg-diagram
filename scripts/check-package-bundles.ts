@@ -252,21 +252,44 @@ try {
       console.log(`${label}: ${bytes} bytes`);
     }
   }
-  writeFileSync(entry, composedSource(['math'], "math('x^2', {alt: 'Square'})"));
-  const formula = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true,
-    platform: 'node', format: 'esm', write: false, metafile: true});
-  const ssrOutput = await viteBuild({root: consumer, configFile: false, logLevel: 'silent',
-    resolve: {preserveSymlinks: true}, ssr: {noExternal: ['svg-diagram']},
-    build: {ssr: entry, write: false, minify: 'esbuild'}});
-  const [nodeBundle] = formula.outputFiles;
-  const [ssrChunk] = ssrOutput.output;
-  assert.ok(nodeBundle);
-  assert.equal(ssrChunk.type, 'chunk');
-  const mathCases = [
-    ['esbuild', Object.keys(formula.metafile.inputs), nodeBundle.text, 60000],
-    ['Vite', Object.keys(ssrChunk.modules), ssrChunk.code, 85000],
-  ] as const;
-  for (const [bundler, inputs, code, budget] of mathCases) {
+  async function buildNode(source: string) {
+    writeFileSync(entry, source);
+    const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true,
+      platform: 'node', format: 'esm', write: false, metafile: true});
+    const ssr = await viteBuild({root: consumer, configFile: false, logLevel: 'silent',
+      resolve: {preserveSymlinks: true}, ssr: {noExternal: ['svg-diagram']},
+      build: {ssr: entry, write: false, minify: 'esbuild'}});
+    const [nodeBundle] = es.outputFiles;
+    const [ssrChunk] = ssr.output;
+    assert.ok(nodeBundle);
+    assert.equal(ssrChunk.type, 'chunk');
+    return [
+      ['esbuild', Object.keys(es.metafile.inputs), nodeBundle.text],
+      ['Vite', Object.keys(ssrChunk.modules), ssrChunk.code],
+    ] as const;
+  }
+
+  const pictureFile = path.join(consumer, 'picture.gif');
+  writeFileSync(pictureFile, Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'));
+  const imageCases = await buildNode(composedSource([], `imageFile(${JSON.stringify(pictureFile)}, {alt: 'Picture', width: 240})`,
+    "import {imageFile} from 'svg-diagram/bands/image/node';"));
+  for (const [bundler, files, code] of imageCases) {
+    const label = `${bundler} (Node): Image`;
+    const has = (name: string) => files.some(file => file.replaceAll('\\', '/').endsWith('/' + name));
+    for (const file of ['bands/image-node.js', 'image-file.js', 'emit-image.js']) assert.ok(has(file), `${label}: missing ${file}`);
+    for (const file of [...legacy, 'dsl/io.js', 'layout-connect.js', 'bands/box.js']) assert.ok(!has(file), `${label}: unexpected ${file}`);
+    const {draw} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+    const result = await draw();
+    assert.match(result.svg, /<image [^>]*href="data:image\/gif;base64,/);
+    assert.deepEqual(result.xml, []);
+    assert.equal(result.verdict.ok, true);
+    const bytes = Buffer.byteLength(code);
+    assert.ok(bytes <= 70000, `${label}: ${bytes} bytes exceeds 70000`);
+    console.log(`${label}: ${bytes} bytes`);
+  }
+
+  const mathCases = await buildNode(composedSource(['math'], "math('x^2', {alt: 'Square'})"));
+  for (const [bundler, inputs, code] of mathCases) {
     const label = `${bundler} (Node): Math`;
     const files = inputs.map(file => file.replaceAll('\\', '/'));
     assert.ok(files.some(file => file.endsWith('/bands/math.js')), `${label}: missing selective math entry`);
@@ -276,6 +299,7 @@ try {
     }
     assert.ok(!files.some(file => file.includes('/mathjax-full/')), `${label}: MathJax must be loaded at runtime`);
     const bytes = Buffer.byteLength(code);
+    const budget = bundler === 'esbuild' ? 60000 : 85000;
     assert.ok(bytes <= budget, `${label}: ${bytes} bytes exceeds ${budget}`);
     const output = path.join(consumer, `formula-${bundler}.mjs`);
     writeFileSync(output, code);
