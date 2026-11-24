@@ -6,6 +6,7 @@ import {renderGantt} from '../emit-gantt.ts';
 import {ganttTexts, layoutGantt} from '../gantt.ts';
 import {snapGrid} from '../layout-util.ts';
 import type {GanttBand, GanttOpts, GanttRow, LaidOutGantt} from '../types/timeline.ts';
+import {figureRects} from '../verify-rects.ts';
 import {ganttProblems} from '../verify-gantt.ts';
 
 const withToday = (data: GanttBand, today: string | undefined): GanttBand =>
@@ -26,6 +27,7 @@ const definition = {
     return renderGantt(laid, theme);
   },
   verify: {
+    rects: figureRects,
     check: laid => ganttProblems(laid).map(message => ({rule: 'gantt', severity: 'problem', message})),
   },
 } satisfies BandDef<GanttBand, LaidOutGantt>;

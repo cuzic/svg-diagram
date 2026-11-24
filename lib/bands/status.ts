@@ -4,11 +4,12 @@ import {renderStatus} from '../emit-status.ts';
 import {snapGrid} from '../layout-util.ts';
 import {layoutStatus, statusText, statusTexts} from '../status.ts';
 import type {LaidOutStatus, StatusBand} from '../types/containers.ts';
+import {statusRects} from '../verify-rects.ts';
 import type {DiagramStatus} from '../types/core.ts';
 
 const definition = {
   type: 'status',
-  verify: {figureExtent: () => null},
+  verify: {rects: statusRects, figureExtent: () => null},
   textSizes: band => [band.size],
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of statusTexts(data, roles)) atoms(text, size, weight, font);

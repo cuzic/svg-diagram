@@ -1,4 +1,5 @@
 import {rowItems} from '../inventory-boxes.ts';
+import {childRects} from '../verify-rects.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
 import {childRuns} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
@@ -20,7 +21,7 @@ export const groupRowDefinition: BandDef<GroupRowBand, LaidOutRow> = {
   layout: layoutGroupRow,
   children: data => data.children,
   outputTypes: ['row'],
-  verify: {targets: laid => laid.children, diagramFindings: frameLayoutFindings},
+  verify: {rects: childRects, targets: laid => laid.children, diagramFindings: frameLayoutFindings},
   emit: (laid, env) => renderRow(laid, env.theme, env.tones, env.roles, env.stage),
 };
 

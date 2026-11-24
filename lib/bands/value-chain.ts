@@ -1,3 +1,4 @@
+import {figureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -14,7 +15,7 @@ const definition = {
   measure: (data, env) => measureFlow(data, env, valueChainTexts),
   layout: (data, env) => placeFlow(data, env, layoutValueChain),
   emit: emitFlow,
-  verify: verifyFlow,
+  verify: {...verifyFlow, rects: figureRects},
 } satisfies BandDef<ValueChainBand, LaidOutFlowShape>;
 
 export function valueChain<const Id extends string = never, const S extends readonly (string | FlowStep)[] = readonly (string | FlowStep)[], const P extends readonly (string | FlowStep)[] = readonly (string | FlowStep)[]>(parts: {support?: S; primary: P}, opts?: ValueChainOpts & {id?: Id}): WithBandDef<ReturnType<typeof build<Id, S, P>>, LaidOutFlowShape> {

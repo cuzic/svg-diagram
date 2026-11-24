@@ -15,8 +15,10 @@ import {causeFindings} from './verify-cause.ts';
 import {sourceOf} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
 import {bowtieRects} from './verify-bowtie-rects.ts';
+import {captionRects} from './verify-caption.ts';
+import {comicRects, comicSlotOwners} from './verify-comic-rects.ts';
 import {ftaRects} from './verify-fta-rects.ts';
-import {anchorRects, frameRects, ownRect, scopedRect} from './verify-rects.ts';
+import {childRects, emblemRects, figureRects, frameRects, overlappingFigureRects, ownRect, scopedRect, statusRects} from './verify-rects.ts';
 import {classesProblems} from './verify-classes.ts';
 import {bpmnProblems} from './verify-bpmn.ts';
 import {treeRects} from './verify-tree.ts';
@@ -26,9 +28,9 @@ import {quadrantProblems} from './verify-quadrant.ts';
 import {timelineProblems} from './verify-timeline.ts';
 import {flowProblems} from './verify-flow.ts';
 import {ganttProblems} from './verify-gantt.ts';
-import {issueAt, labelOf, rectOverlap, statesProblems} from './verify-base.ts';
+import {issueAt, rectOverlap, statesProblems} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
-import type {ComicLaidBubble, LaidOutComic} from './types/comic.ts';
+import type {LaidOutComic} from './types/comic.ts';
 import type {EmphasisTone} from './types/core.ts';
 import type {LaidOutDiagram} from './types/index.ts';
 import type {LaidOutBanner, LaidOutBox, LaidOutCaption} from './types/text-bands.ts';
@@ -63,36 +65,9 @@ export interface VerifyHandler<B> {
   contrast?(band: B, d: LaidOutDiagram, tones: ToneEnv, out: VerifyOut): void;
 }
 
-// ---- rects: every checkable rect (captions with no ink box are skipped: no background, and their width is already wrap-constrained) ----
+// ---- rects: every checkable rect ----
 
-type Anchored = Parameters<typeof anchorRects>[0];
-const figureRects = (band: Anchored): CheckRect[] => anchorRects(band);
-/** An emblem's obstacle is the bounding box of each shape, not its anchor: a triangle's anchor leaves out its lower corners. */
-const emblemRects = (band: Anchored & {bounds?: Anchored['anchors']}): CheckRect[] => anchorRects({...band, anchors: band.bounds ?? band.anchors});
-const overlappingFigureRects = (band: Anchored): CheckRect[] => anchorRects(band, `@intentional-overlap:${band.x},${band.y}`);
 const holdsFigure = (band: {id?: string}) => band.id ? {holds: [band.id]} : {};
-const childRects = (band: {children: LaidOutBox[]}): CheckRect[] => band.children.map(c => {
-  const loc = sourceOf(c);
-  return {id: c.id ?? null, label: labelOf(c), x: c.x, y: c.y, w: c.w, h: c.h, ...(loc ? {loc} : {})};
-});
-
-function comicSlotOwners(band: LaidOutComic): Map<string, ComicLaidBubble> {
-  const owners = new Map<string, ComicLaidBubble>();
-  for (const bubble of band.bubbles) for (const {id} of bubble.slots) {
-    // Layout registers only the first anchor when a worksheet repeats a slot id.
-    if (!owners.has(id)) owners.set(id, bubble);
-  }
-  return owners;
-}
-
-function comicRects(band: LaidOutComic): CheckRect[] {
-  const scope = scopeOf(band), owners = comicSlotOwners(band);
-  return band.panels.map(({id, x, y, w, h}) => {
-    const holds = band.id ? [band.id] : [];
-    for (const [slot, bubble] of owners) if (bubble.panel === id) holds.push(qualify(scope, slot));
-    return {id: qualify(scope, id), label: `comic panel ${id}`, x, y, w, h, holds};
-  });
-}
 
 // ---- figure checks ----
 
@@ -152,7 +127,7 @@ const childChecks: VerifyHandler<LaidOutOf<'row' | 'grid'>> = {
 };
 
 export const VERIFY_HANDLERS = {
-  caption: {rects: band => band.inkBox ? [{id: null, label: `group title "${band.text}"`, ...band.inkBox}] : [], contrast: (band, d, tones, out) => contrastFor(band, null, d, tones, out)},
+  caption: {rects: captionRects, contrast: (band, d, tones, out) => contrastFor(band, null, d, tones, out)},
   box: {rects: ownRect, check: {phase: 'nowrap', run: (band, _d, out) => checkNoWrap(band, out)}, contrast: (band, d, tones, out) => contrastFor(band, band.tone ?? 'plain', d, tones, out)},
   banner: {rects: ownRect, contrast: (band, d, tones, out) => contrastFor(band, band.tone ?? 'accent', d, tones, out)},
   group: {},
@@ -160,7 +135,7 @@ export const VERIFY_HANDLERS = {
   row: childChecks,
   grid: childChecks,
   raw: {rects: ownRect},
-  status: {rects: band => [{id: null, label: 'status badge', ...band.pill}]},
+  status: {rects: statusRects},
   pyramid: {rects: ownRect},
   curve: {rects: ownRect},
   plane: {rects: ownRect, check: {phase: 'plane', run: (band, _d, out) => { out.problems.push(...planeProblems(band)); }}},

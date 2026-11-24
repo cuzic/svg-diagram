@@ -76,8 +76,22 @@ import {connect, connectDefinition} from '../lib/bands/connect.ts';
 import {row} from '../lib/bands/row.ts';
 import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
-import {renderBands} from '../lib/core.ts';
+import {math} from '../lib/bands/math.ts';
+import {comicDefinition} from '../lib/bands/comic.ts';
+import {band, DEF} from '../lib/band-def.ts';
+import type {BandDef} from '../lib/band-def.ts';
+import type {LaidOutType} from '../lib/band-table.ts';
+import {prepareBands, renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
+import {markSpecPart} from '../lib/source-ref.ts';
+import type {LaidOutBand} from '../lib/types/index.ts';
+import type {CheckRect} from '../lib/types/verdicts.ts';
+import {VERIFY_HANDLERS} from '../lib/verify-handlers.ts';
+import type {VerifyHandler} from '../lib/verify-handlers.ts';
+import {captionRects} from '../lib/verify-caption.ts';
+import {comicRects, comicSlotOwners} from '../lib/verify-comic-rects.ts';
+import {childRects, emblemRects, figureRects, overlappingFigureRects, statusRects} from '../lib/verify-rects.ts';
+import {comic as legacyComic} from '../lib/web.ts';
 import {sankey as legacySankey, heatmap as legacyHeatmap, radar as legacyRadar, waterfall as legacyWaterfall, swimlane as legacySwimlane, causeTree as legacyCauseTree, relationDiagram as legacyRelationDiagram, pdpc as legacyPdpc, tree as legacyTree, mindmap as legacyMindmap, stateDiagram as legacyStateDiagram, flowchart as legacyFlowchart, classDiagram as legacyClassDiagram, bpmn as legacyBpmn, cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
@@ -269,6 +283,100 @@ test('selective curves and pyramids preserve axis labels, drop lines and wrapped
   assert.deepEqual(selected.xml, []);
   assert.equal(selected.height, expected.height);
   assert.equal(selected.svg.slice(selected.svg.indexOf('  <style>')), expected.svg.slice(expected.svg.indexOf('  <style>')));
+});
+
+const flowSteps = [{id: 'a', label: '計画'}, {id: 'b', label: '実行'}, {id: 'c', label: '評価'}] as const;
+
+test('selective chevron allows a connector to end on an individual step', async () => {
+  const next = {id: 'x', title: '結果'};
+  const legacy = await renderInBrowser(diagram({theme: 'blue', title: 'T', legend: false})
+    .add(legacyChevron(flowSteps), legacyBox(next), legacyConnect('x:top', 'b:bottom')), {measure});
+  const selected = await renderBands([
+    chevron(flowSteps), box(next), connect('x:top', 'b:bottom'),
+  ], {measure, title: 'T', connectors: connectDefinition});
+  assert.deepEqual(legacy.verdict.problems, []);
+  assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
+  assert.deepEqual(selected.verdict.warnings, legacy.verdict.warnings);
+  assert.equal(selected.svg, legacy.svg);
+});
+
+const funnelStages = [{id: 'a', label: '候補', value: 10}, {id: 'b', label: '採用', value: 5}] as const;
+const vennSets = [{id: 'a', name: '企画'}, {id: 'b', name: '運用'}] as const;
+const concentricRings = [{id: 'a', label: '外側'}, {id: 'b', label: '内側'}] as const;
+const emblemItems = [{id: 'a', label: '確認', shape: 'triangle'}] as const;
+const chainParts = {primary: flowSteps.slice(0, 2)};
+
+for (const [name, selectedBand, legacyBand] of [
+  ['funnel', funnel(funnelStages), legacyFunnel(funnelStages)],
+  ['cycle', cycle(flowSteps), legacyCycle(flowSteps)],
+  ['venn', venn(vennSets), legacyVenn(vennSets)],
+  ['concentric', concentric(concentricRings), legacyConcentric(concentricRings)],
+  ['emblem', emblem(emblemItems), legacyEmblem(emblemItems)],
+  ['valueChain', valueChain(chainParts), legacyValueChain(chainParts)],
+] as const) {
+  test(`selective ${name} matches browser overlap verification next to a connected box`, async () => {
+    const next = {id: 'next', title: '結果'};
+    const opts = {title: 'T', gap: 40};
+    const selected = await renderBands([
+      selectedBand, box(next), connect('next:top', 'a:bottom'),
+    ], {...opts, measure, connectors: connectDefinition});
+    const legacy = await renderInBrowser(diagram({...opts, theme: 'blue', legend: false})
+      .add(legacyBand, legacyBox(next), legacyConnect('next:top', 'a:bottom')), {measure});
+    assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
+    assert.deepEqual(selected.verdict.warnings, legacy.verdict.warnings);
+    assert.equal(selected.svg, legacy.svg);
+  });
+}
+
+test('selective status matches browser overlap verification next to a box', async () => {
+  const opts = {title: 'T', gap: 0};
+  const next = {id: 'next', title: '結果'};
+  // The browser adds the draft prefix to its accessible description.
+  const selected = await renderBands([status('draft'), box(next)], {...opts, desc: '(下書き) 結果', measure});
+  const legacy = await renderInBrowser(diagram({...opts, desc: '結果', theme: 'blue', legend: false, status: 'draft'})
+    .add(legacyBox(next)), {measure});
+  assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
+  assert.deepEqual(selected.verdict.warnings, legacy.verdict.warnings);
+  assert.equal(selected.svg, legacy.svg);
+});
+
+test('selective captions distinguish the group title ink from standalone captions in overlap checks', async () => {
+  const top = {id: 'top', title: '開始'};
+  const bottom = {id: 'bottom', title: '結果'};
+  const label = '途中の説明';
+  const link = {route: 'straight'} as const;
+  const opts = {title: 'T', gap: 40};
+  const title = {title: label, titleAlign: 'center'} as const;
+  const selectedGroup = group(box(bottom), title), browserGroup = legacyGroup(legacyBox(bottom), title);
+  const selectedLink = connect('top:bottom', 'bottom:top', link), browserLink = legacyConnect('top:bottom', 'bottom:top', link);
+  markSpecPart([selectedGroup, browserGroup], 'parts[2]');
+  markSpecPart([selectedLink, browserLink], 'parts[3]');
+  const selected = await renderBands([
+    box(top), caption('補足'), selectedGroup, selectedLink,
+  ], {...opts, measure, connectors: connectDefinition});
+  const legacy = await renderInBrowser(diagram({...opts, theme: 'blue', legend: false})
+    .add(legacyBox(top), legacyCaption('補足'), browserGroup, browserLink), {measure});
+  assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
+  assert.deepEqual(selected.verdict.warnings, legacy.verdict.warnings);
+  assert.equal(selected.svg, legacy.svg);
+  const collision = ({verdict}: typeof selected) =>
+    verdict.issues?.find(issue => issue.message.includes('path overlaps "group title'));
+  assert.equal(collision(legacy)?.loc?.specPath, 'parts[3]');
+  assert.deepEqual(collision(legacy)?.related?.map(ref => ref.specPath), ['parts[2]']);
+  assert.deepEqual(collision(selected), collision(legacy));
+});
+
+test('selective whole-band obstacles keep the legacy diagnostic label', async () => {
+  const top = {id: 'top', title: '開始'}, bottom = {id: 'bottom', title: '結果'};
+  const obstacle = {headline: '注意'};
+  const link = {route: 'straight'} as const;
+  const selected = await renderBands([
+    box(top), banner(obstacle), box(bottom), connect('top:bottom', 'bottom:top', link),
+  ], {measure, connectors: connectDefinition});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false})
+    .add(legacyBox(top), legacyBanner(obstacle), legacyBox(bottom), legacyConnect('top:bottom', 'bottom:top', link)), {measure});
+  assert.ok(legacy.verdict.problems.some(problem => problem.includes('path overlaps "注意"')));
+  assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
 });
 
 test('selective flow figures preserve labels, item anchors and generated shapes', async () => {
@@ -712,6 +820,127 @@ test('selective comparison and network charts preserve legacy SVG and diagnostic
 });
 
 const embeddedPixel = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+function scopedComic() {
+  return band(comicDefinition, legacyComic({
+    version: 1, title: '手順', layout: '1x2', cast: {}, panels: [
+      {id: 'panel', stage: [], dialogue: [{id: 'note', kind: 'narration', tpl: '{slot}', slots: {slot: {max: 2, prompt: '次'}}}]},
+      {id: 'end', stage: [], dialogue: []},
+    ],
+  }, {id: 'sheet', scope: 'comic'}));
+}
+
+test('figure rectangles preserve anchor names, intentional overlap and emblem bounds', () => {
+  const anchor = {id: 'shape', x: 44, y: 28, w: 22, h: 36};
+  const bounds = {...anchor, x: 36, w: 38};
+  const figure = {id: 'figure', x: 20, y: 24, w: 100, h: 40, anchors: [anchor]};
+  const obstacle = {...anchor, label: 'shape', holds: ['figure']};
+  assert.deepEqual(figureRects(figure), [obstacle]);
+  assert.deepEqual(overlappingFigureRects(figure), [{...obstacle, holds: ['figure', '@intentional-overlap:20,24']}]);
+  assert.deepEqual(emblemRects({...figure, bounds: [bounds]}), [{...obstacle, ...bounds}]);
+  assert.deepEqual(emblemRects(figure), [obstacle]);
+});
+
+test('caption, badge and row rectangles describe only ink, the pill and child boxes', async () => {
+  const child = box({id: 'child', title: '内容'});
+  markSpecPart([child], 'parts[3].children[0]');
+  const {placed} = await prepareBands([
+    status('draft'), caption('補足'), group(spacer(12), {title: '見出し'}), row([child]),
+  ], {measure});
+  const [badge] = placed.laidOut, [standalone, heading] = placed.laidOut.filter(laid => laid.type === 'caption');
+  const placedRow = placed.laidOut.find(laid => laid.type === 'row');
+  assert.ok(badge?.type === 'status' && standalone && heading?.inkBox && placedRow);
+  assert.deepEqual(statusRects(badge), [{id: null, label: 'status badge', ...badge.pill}]);
+  assert.deepEqual(captionRects(standalone), []);
+  assert.deepEqual(captionRects(heading), [{id: null, label: 'group title "見出し"', ...heading.inkBox}]);
+  assert.deepEqual(childRects(placedRow).map(rect => [rect.id, rect.label, rect.loc?.specPath]), [
+    ['child', '内容', 'parts[3].children[0]'],
+  ]);
+});
+
+test('comic rectangles qualify panels and give repeated slots to their first panel', async () => {
+  const {placed} = await prepareBands([scopedComic()], {measure});
+  const [comic] = placed.laidOut;
+  assert.ok(comic?.type === 'comic');
+  const [bubble] = comic.bubbles;
+  assert.ok(bubble);
+  const repeated = {...comic, bubbles: [bubble, {...bubble, panel: 'end'}]};
+  assert.equal(comicSlotOwners(repeated).get('slot'), bubble);
+  assert.deepEqual(comicRects(repeated).map(rect => [rect.id, rect.holds]), [
+    ['comic.panel', ['sheet', 'comic.slot']],
+    ['comic.end', ['sheet']],
+  ]);
+});
+
+test('every selective band type returns the legacy rectangles for the same placement', async () => {
+  const child = box({id: 'child', title: '内容'});
+  markSpecPart([child], 'parts[0].children[0]');
+  type SelectedBands = Parameters<typeof prepareBands>[0];
+  const cases = {
+    caption: [caption('補足'), group(child, {title: '見出し'})],
+    box: [child],
+    banner: [banner({headline: '見出し'})],
+    group: [group(child)],
+    legend: [legend([{label: '注意', tone: 'danger'}])],
+    row: [row([child, box({title: '隣'})])],
+    grid: [grid([child, box({title: '隣'})], {cols: 2})],
+    raw: [raw({h: 32, draw: () => '<rect width="24" height="12"/>'})],
+    status: [status('draft')],
+    pyramid: [pyramid(['確認', '出荷'])],
+    curve: [curve([{y: 0.2}, {y: 0.8}])],
+    plane: [plane({x: {max: 10}, y: {max: 10}, points: [{id: 'point', at: [3, 6], label: '測定値'}]})],
+    bars: [bars([{id: 'work', label: '計画', value: 2}])],
+    chart: [waterfall([{id: 'start', label: '前月', value: 10}, {id: 'gain', label: '変更', value: 2}], {id: 'total'})],
+    image: [image(embeddedPixel, {alt: '画像', marks: [{id: 'mark', rect: [0.1, 0.1, 0.3, 0.3], label: '印'}]})],
+    people: [people(4, 2)],
+    dots: [dots([0.2, 0.8])],
+    math: [math('x^2')],
+    quadrant: [quadrant({x: {title: '比較'}, y: {title: '効果'}, items: [{id: 'a', label: '実行', at: [0.6, 0.7]}]})],
+    chevron: [chevron(flowSteps, {id: 'plan', scope: 'phase'})],
+    wordart: [wordart('確認')],
+    funnel: [funnel(funnelStages)],
+    cycle: [cycle(flowSteps)],
+    venn: [venn(vennSets)],
+    concentric: [concentric(concentricRings)],
+    emblem: [emblem(emblemItems)],
+    valueChain: [valueChain(chainParts)],
+    timeline: [timeline({from: '2026-01', to: '2026-06', now: {at: '2026-02'}, deadline: {at: '2026-06', label: '締切'}})],
+    bowtie: [bowtie({top: '中断', threats: [{label: '故障'}], consequences: [{label: '遅延'}]})],
+    comic: [scopedComic()],
+    fta: [faultTree({label: '停止', gate: 'or', children: [{id: 'power', label: '電源', kind: 'basic'}, {label: '回線', kind: 'basic'}]})],
+    tree: [tree({label: '親', children: [{label: '子', id: 'tip'}]})],
+    states: [stateDiagram([{id: 'idle', label: '待機'}, {id: 'done', label: '完了'}], [{from: 'idle', to: 'done'}])],
+    cause: [causeTree([{id: 'start', label: '原因'}, {id: 'end', label: '結果'}], [{from: 'start', to: 'end'}])],
+    cloud: [cloud({a: {id: 'goal', text: '成功'}, b: '品質', c: '市場', d: '検証', d2: '公開'})],
+    gantt: [gantt(rows)],
+    classes: [classDiagram([{id: 'base', name: '親'}, {id: 'child', name: '子'}], [{from: 'child', to: 'base', kind: 'inherit'}])],
+    bpmn: [bpmn([{id: 'work', label: '担当'}], [{id: 'start', lane: 'work', kind: 'start'}, {id: 'end', lane: 'work', kind: 'end'}], [{from: 'start', to: 'end'}])],
+    swimlane: swimlane([{id: 'work', label: '担当'}], [{id: 'step', lane: 'work', title: '計画'}]),
+    sequence: [sequence([{id: 'client', label: '画面'}, {id: 'server', label: 'API'}], [{from: 'client', to: 'server', label: '送信'}])],
+    table: [table([{label: '状態'}], [['完了']])],
+    wireframe: [wireframe(wf.col([wf.region('確認')]))],
+    screens: [screens([{id: 'screen', title: '画面', root: wf.col([wf.region('確認')])}], {cols: 1})],
+  } satisfies Record<LaidOutType, SelectedBands>;
+
+  const compare = async (type: LaidOutType, bands: SelectedBands) => {
+    const {placed} = await prepareBands(bands, {measure, title: '計画'});
+    const handler: VerifyHandler<LaidOutBand> = VERIFY_HANDLERS[type] as VerifyHandler<LaidOutBand>;
+    const def = bands[0]?.[DEF] as BandDef<unknown, LaidOutBand> | undefined;
+    assert.ok(def);
+    const matches = placed.laidOut.filter(band => band.type === type);
+    assert.ok(matches.length, `missing placed ${type}`);
+    for (const laid of matches) {
+      const expected = handler.rects?.(laid) ?? [];
+      // The legend handler is the legacy whole-band rectangle also used by the selective fallback.
+      const actual: CheckRect[] = def.verify?.rects?.(laid) ?? ('h' in laid ? VERIFY_HANDLERS.legend.rects(laid) : []);
+      assert.deepEqual(actual, expected, `${def.type} → ${type}`);
+    }
+  };
+  for (const type of Object.keys(cases) as LaidOutType[]) await compare(type, cases[type]);
+  await compare('row', [groupRow([child, group(box({title: '隣'}))])]);
+  await compare('row', [areas('child', {child})]);
+  await compare('box', cases.swimlane);
+});
 
 test('selective images preserve annotations, overlaid bands and mark connections', async () => {
   const options = {

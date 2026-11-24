@@ -2,6 +2,7 @@ import {unionOf} from '../figure-metrics.ts';
 import {layoutBoxLike} from '../layout-box-like.ts';
 import {childBoxes} from '../inventory-boxes.ts';
 import {canvasRegionFindings} from '../verify-grid.ts';
+import {childRects} from '../verify-rects.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
 import {childRuns} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
@@ -22,7 +23,7 @@ export const gridDefinition: BandDef<GridBand, LaidOutGrid> = {
   layoutBoxLike,
   layout: layoutGridBand,
   children: data => data.children,
-  verify: {figureExtent: laid => unionOf(laid.children), targets: laid => laid.children, diagramFindings: frameLayoutFindings, findings: canvasRegionFindings},
+  verify: {rects: childRects, figureExtent: laid => unionOf(laid.children), targets: laid => laid.children, diagramFindings: frameLayoutFindings, findings: canvasRegionFindings},
   emit: (laid, env) => renderGrid(laid, env.theme, env.tones, env.roles, env.stage),
 };
 

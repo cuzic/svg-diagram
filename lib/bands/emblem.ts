@@ -1,3 +1,4 @@
+import {emblemRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -14,7 +15,7 @@ const definition = {
   measure: (data, env) => measureFlow(data, env, emblemTexts),
   layout: (data, env) => placeFlow(data, env, layoutEmblem),
   emit: emitFlow,
-  verify: verifyFlow,
+  verify: {...verifyFlow, rects: emblemRects},
 } satisfies BandDef<EmblemBand, LaidOutFlowShape>;
 
 export function emblem(items: string | readonly EmblemItem[], opts?: (Omit<EmblemItem, 'label'> & EmblemOpts)): WithBandDef<EmblemBand, LaidOutFlowShape> {

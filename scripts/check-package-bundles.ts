@@ -880,7 +880,7 @@ try {
       budget: name === 'concentric' ? {esbuild: 84000, Vite: 115000} : {esbuild: 83000, Vite: 114000},
       include: `bands/${name === 'valueChain' ? 'value-chain' : name}.js`,
       exclude: [...legacy, 'flow-shapes.js', 'dsl/flow.js', 'loop-back.js', 'loop-back-connectors.js',
-        ...flowSamples.filter(([other]) => other !== name).map(([other]) => `flow-${other === 'valueChain' ? 'value-chain' : other}.js`), 'emit-figures.js', 'layout-connect.js', 'layout-pyramid.js', 'gantt.js', 'quadrant.js', 'verify-quadrant.js', 'verify-flowchart.js', 'wordart.js',
+        ...flowSamples.filter(([other]) => other !== name).map(([other]) => `flow-${other === 'valueChain' ? 'value-chain' : other}.js`), 'emit-figures.js', 'layout-connect.js', 'layout-pyramid.js', 'gantt.js', 'quadrant.js', 'verify-quadrant.js', 'verify-flowchart.js', 'verify-gantt.js', 'verify-comic-rects.js', 'verify-caption.js', 'wordart.js',
         ...(name === 'funnel' ? [] : ['verify-funnel.js']), ...(name === 'concentric' ? [] : ['verify-concentric.js'])], draw: true,
     })),
     ...quantitySamples.map(([name, layout, sample]) => ({

@@ -1,4 +1,5 @@
 import {chevronLoopBack} from '../loop-back-source.ts';
+import {figureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -16,7 +17,7 @@ const definition = {
   measure: (data, env) => measureFlow(data, env, chevronTexts),
   layout: (data, env) => placeFlow(data, env, layoutChevron),
   emit: emitFlow,
-  verify: verifyFlow,
+  verify: {...verifyFlow, rects: figureRects},
 } satisfies BandDef<ChevronBand, LaidOutFlowShape>;
 
 export function chevron<const Id extends string = never, const I extends readonly FlowStep[] = readonly FlowStep[]>(steps: I, opts?: ChevronOpts & {id?: Id}): WithBandDef<ReturnType<typeof build<Id, I>>, LaidOutFlowShape> {

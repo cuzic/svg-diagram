@@ -2,7 +2,7 @@ import {textSvgDefs} from '../emit-box-defs.ts';
 import {withSourceLine, withTitleLine} from '../layout-caption-lines.ts';
 import {ownRunSizes} from '../band-text-sizes.ts';
 import {captionItems} from '../inventory-boxes.ts';
-import {duplicateTitleFindings, sourceLineFindings} from '../verify-caption.ts';
+import {captionRects, duplicateTitleFindings, sourceLineFindings} from '../verify-caption.ts';
 import {band, defOf, walkDefinedBands} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {caption as buildCaption} from '../dsl/caption.ts';
@@ -33,6 +33,7 @@ export const captionDefinition: BandDef<CaptionBand, LaidOutCaption> = {
   },
   emit: (laid, env) => renderCaption(laid, env.theme, env.tones),
   verify: {
+    rects: captionRects,
     figureExtent: () => null,
     diagramFindings: diagram => duplicateTitleFindings(diagram, walkDefinedBands),
     layoutFindings: sourceLineFindings,

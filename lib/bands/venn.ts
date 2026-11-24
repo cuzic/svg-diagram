@@ -1,3 +1,4 @@
+import {overlappingFigureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -14,7 +15,7 @@ const definition = {
   measure: (data, env) => measureFlow(data, env, vennTexts),
   layout: (data, env) => placeFlow(data, env, layoutVenn),
   emit: emitFlow,
-  verify: verifyFlow,
+  verify: {...verifyFlow, rects: overlappingFigureRects},
 } satisfies BandDef<VennBand, LaidOutFlowShape>;
 
 export function venn<const Id extends string = never, const I extends readonly VennSet[] = readonly VennSet[]>(sets: I, opts?: VennOpts & {id?: Id}): WithBandDef<ReturnType<typeof build<Id, I>>, LaidOutFlowShape> {

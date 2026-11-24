@@ -1,3 +1,4 @@
+import {figureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -15,7 +16,7 @@ const definition = {
   measure: (data, env) => measureFlow(data, env, funnelTexts),
   layout: (data, env) => placeFlow(data, env, layoutFunnel),
   emit: emitFlow,
-  verify: {...verifyFlow, findings: funnelFindings},
+  verify: {...verifyFlow, rects: figureRects, findings: funnelFindings},
 } satisfies BandDef<FunnelBand, LaidOutFlowShape>;
 
 export function funnel<const Id extends string = never, const I extends readonly FunnelStage[] = readonly FunnelStage[]>(stages: I, opts?: FunnelOpts & {id?: Id}): WithBandDef<ReturnType<typeof build<Id, I>>, LaidOutFlowShape> {

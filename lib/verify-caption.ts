@@ -3,7 +3,11 @@ import type {DiagramData} from './types/core.ts';
 import type {Band} from './types/index.ts';
 import {must} from './must.ts';
 import type {CaptionBand, LaidOutCaption} from './types/text-bands.ts';
-import type {Finding} from './types/verdicts.ts';
+import type {CheckRect, Finding} from './types/verdicts.ts';
+
+/** A caption without an ink box has no background and its width is already wrap-constrained. */
+export const captionRects = (band: LaidOutCaption): CheckRect[] =>
+  band.inkBox ? [{id: null, label: `group title "${band.text}"`, ...band.inkBox}] : [];
 
 // the width of a line in full-width characters (CJK, kana, hangul, fullwidth forms and pictographs count 1, everything else
 // - Latin, digits, halfwidth katakana - 0.5)

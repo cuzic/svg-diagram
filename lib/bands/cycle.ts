@@ -1,3 +1,4 @@
+import {figureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -15,7 +16,7 @@ const definition = {
   layout: (data, env) => placeFlow(data, env, layoutCycleShape),
   emit: emitFlow,
   svgDefs: () => ({arrow: true}),
-  verify: verifyFlow,
+  verify: {...verifyFlow, rects: figureRects},
 } satisfies BandDef<CycleBand, LaidOutFlowShape>;
 
 export function cycle<const Id extends string = never, const I extends readonly FlowStep[] = readonly FlowStep[]>(steps: I, opts?: CycleOpts & {id?: Id}): WithBandDef<ReturnType<typeof build<Id, I>>, LaidOutFlowShape> {

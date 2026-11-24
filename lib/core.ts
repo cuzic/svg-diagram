@@ -13,7 +13,8 @@ import {createLayoutWith} from './layout-core.ts';
 import {basicExtentOf, figureMetricsForExtent, unionOf} from './figure-metrics.ts';
 import {addScoped, emptyScopes} from './scope-table.ts';
 import {qualify, scopeOf} from './scope-name.ts';
-import {scopedRect} from './verify-rects.ts';
+import {sourceOf} from './source-ref.ts';
+import {ownRect, scopedRect} from './verify-rects.ts';
 import {verifyWithServices} from './verify-core.ts';
 import type {BandDef, DiagramFindings, VerifyCtx} from './band-def.ts';
 import type {CaptionBand, LaidOutCaption} from './types/text-bands.ts';
@@ -269,12 +270,14 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   if (opts.diagramFindings && !diagramChecks.has(opts.diagramFindings)) bandFindings.push(...opts.diagramFindings(placed, stage));
   const verdict = verifyWithServices({
     checkConnectionGeometry: connection?.internal ? connection.checkConnectionGeometry : undefined,
-    collectRects: figure => leaves(figure).flatMap(band => {
+    collectRects: figure => figure.laidOut.flatMap(band => {
       const def = placedDefinition(band);
-      const rects = def?.verify?.rects?.(band);
-      if (!rects) return [{...band, label: band.type, id: 'id' in band ? band.id ?? null : null}];
-      const scope = scopeOf(band);
-      return scope && !def?.rectsQualified ? rects.map(rect => scopedRect(band, scope, rect)) : rects;
+      const rects = def?.verify?.rects?.(band as never) ?? ('h' in band ? ownRect(band) : []);
+      const scope = def?.rectsQualified ? undefined : scopeOf(band), loc = sourceOf(band);
+      return rects.map(rect => {
+        const located = loc && !rect.loc ? {...rect, loc} : rect;
+        return scope ? scopedRect(band, scope, located) : located;
+      });
     }),
     contrastProblems: (figure, tones) => leaves(figure).flatMap(band => {
       const def = placedDefinition(band);

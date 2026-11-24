@@ -1,4 +1,5 @@
 import {concentricFindings} from '../verify-concentric.ts';
+import {overlappingFigureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -16,7 +17,7 @@ const definition = {
   layout: (data, env) => placeFlow(data, env, layoutConcentricShape),
   emit: emitFlow,
   svgDefs: laid => ({arrow: laid.primitives.some(p => p.k === 'path' && !!p.arrow)}),
-  verify: {...verifyFlow, layoutFindings: concentricFindings},
+  verify: {...verifyFlow, rects: overlappingFigureRects, layoutFindings: concentricFindings},
 } satisfies BandDef<ConcentricBand, LaidOutFlowShape>;
 
 export function concentric(rings: readonly ConcentricRing[] | number, opts?: ConcentricOpts): WithBandDef<ConcentricBand, LaidOutFlowShape> {
