@@ -30,7 +30,7 @@ import {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 import {budgetWarnings} from './budget.ts';
 import {termFindings, tableFindings} from './consistency.ts';
 import {barsValuesHidden} from './bars.ts';
-import {fmt} from './plane.ts';
+import {fmt} from './axis-ticks.ts';
 import {layoutMetrics} from './layout-metrics.ts';
 import {dimmedBands} from './spotlight.ts';
 import {visibleAt} from './reveal.ts';

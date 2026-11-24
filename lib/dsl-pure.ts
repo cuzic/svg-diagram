@@ -13,6 +13,7 @@ import * as peopleDots from './dsl/people-dots.ts';
 import * as charts from './dsl/charts.ts';
 import * as chartsStats from './dsl/charts-stats.ts';
 import * as barCharts from './dsl/bars.ts';
+import {scatter as scatterBand} from './dsl/scatter.ts';
 import * as qcSemantic from './dsl/qc-semantic.ts';
 import * as diagrams from './dsl/diagrams.ts';
 import * as comics from './dsl/comic.ts';
@@ -127,7 +128,7 @@ export const bars = located(barCharts.bars);
 export const rangeBars = located(barCharts.rangeBars);
 export const pareto = located(barCharts.pareto);
 export const histogram = located(barCharts.histogram);
-export const scatter = located(barCharts.scatter);
+export const scatter = located(scatterBand);
 
 export type * from './dsl/qc-semantic.ts';
 export const controlChart = located(qcSemantic.controlChart);

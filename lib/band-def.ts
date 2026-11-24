@@ -84,7 +84,7 @@ interface BandHooks<D, L extends object> {
   };
   ids?(data: D): string[];
   reveal?: RevealHandler<D>;
-  revealElements?(data: D, start: number): {last: number; warnings: string[]};
+  revealElements?(data: D, start: number, end?: number): {last: number; warnings: string[]; items?: readonly {id?: string; reveal?: number; until?: number}[]};
   inventory?(laid: L): InventoryItem[];
   rules?: Record<string, {doc: string; scope: 'band' | 'band-grouped' | 'diagram'}>;
   docs?: {summary: string; usage: string; example: unknown};

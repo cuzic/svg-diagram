@@ -1,7 +1,7 @@
 import {insetOrNeed} from './charts-base.ts';
 import {axisPart, partStep, PLANE_AXES} from './parts.ts';
 import {textWidth} from './atoms.ts';
-import {fmt, ticksOf} from './plane.ts';
+import {fmt, ticksOf} from './axis-ticks.ts';
 import type {BarDatum, BarsBand, BarsInk, BarsLine, LaidOutBars} from './types/bars.ts';
 import type {ColorKey, FontFamily, WidthOf, Roles} from './types/core.ts';
 

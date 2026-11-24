@@ -1,5 +1,5 @@
 import {controlChartOpts} from '../qc-plane.ts';
-import {ticksOf} from '../plane.ts';
+import {ticksOf} from '../axis-ticks.ts';
 import {checkSheetParts, matrixParts} from '../qc-table.ts';
 import {fmeaParts, isIsNotDimLabel, isIsNotParts, isIsNotTestsParts, journeyMapParts, qfdParts, raciParts, whyWhyTableParts} from '../semantic-table.ts';
 import {isIsNotFindings, isIsNotTestFindings, whyWhyTableFindings} from '../rca-rules.ts';

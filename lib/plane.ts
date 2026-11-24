@@ -4,6 +4,8 @@
 //
 // The layout also boxes every label it places (labelBoxes), so verify.ts can report two labels that sit on each other or a
 // label that leaves the figure — the kind of thing a hand-drawn raw() SVG cannot be checked for.
+import {ticksOf} from './axis-ticks.ts';
+export {fmt, ticksOf} from './axis-ticks.ts';
 import {textWidth} from './atoms.ts';
 import type {FontFamily, Rect, WidthOf, Roles} from './types/core.ts';
 import type {LaidOutPlane, PlaneBand, PlanePos, PlaneRef, PlaneText, PlaneTone} from './types/figures.ts';
@@ -44,20 +46,6 @@ export function stageEdges(stages: NonNullable<PlaneBand['stages']>, min: number
   if (tos.every(t => t === undefined)) return Array.from({length: n + 1}, (_v, i) => min + (max - min) * i / n);
   return [min, ...tos.map(Number), max];
 }
-export const fmt = (n: number): string => String(parseFloat(n.toPrecision(3)));
-function niceStep(range: number): number {
-  const raw = range / 6, mag = 10 ** Math.floor(Math.log10(raw)), f = raw / mag;
-  return mag * (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10);
-}
-export function ticksOf(axis: PlaneBand['x'], caller = 'plane'): {at: number; label: string}[] {
-  if (axis.categories) return axis.categories.map((label, i) => ({at: i + 1, label}));
-  if (axis.ticks) return axis.ticks.map(t => typeof t === 'number' ? {at: t, label: fmt(t)} : t);
-  const min = axis.min ?? 0, step = axis.step ?? niceStep(axis.max - min), out: {at: number; label: string}[] = [];
-  if (!(step > 0) || !Number.isFinite(step)) throw new Error(`${caller}(): an axis step must be a number > 0 (got ${axis.step})`);
-  for (let v = min, i = 0; v <= axis.max + step * 1e-9 && i < 200; v = min + ++i * step) out.push({at: v, label: fmt(v)});
-  return out;
-}
-
 type XY = {x: number; y: number};
 
 /** Monotone cubic (Fritsch-Carlson) through points whose x strictly increases: [control 1, control 2, end] per piece. */

@@ -1,13 +1,9 @@
 import {decimalsOf, exact, histogramBins, mean, niceUp, normalCount, paretoOrder, sd} from '../qc.ts';
-import {scatterOpts} from '../qc-plane.ts';
-import type {ScatterOpts, ScatterPoint} from '../qc-plane.ts';
 import {barSpan} from '../bars.ts';
 import {must} from '../must.ts';
 import {LABEL_ROLES} from '../tokens.ts';
 import type {BarDatum, BarsBand, BarsLine, BarsOpts} from '../types/bars.ts';
-import type {PlaneBand} from '../types/figures.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
-import {plane} from './figures.ts';
 import {assertTextRole, revealOf, scopeOpt, withAnchors, withHandle} from './shared.ts';
 
 /** The overlay options of bars(): reference lines, the cumulative line, the curve and the edge labels. */
@@ -186,13 +182,3 @@ function labelEvery(texts: string[]): number {
 }
 /** The top of a count axis: the next multiple of a round step above the largest value. */
 const niceMax = (v: number): number => { const step = niceUp(v / 5); return Math.max(step, Math.ceil(v / step - 1e-9) * step); };
-/**
- * A scatter diagram (散布図): the axes fit the data, each stratum (`group`) has its own colour and shape, and `regression: true` draws
- * the least-squares line with the correlation coefficient r.
- *   scatter([{x: 20, y: 3.1}, {x: 25, y: 3.8}, ...], {x: '温度 (℃)', y: '不良率 (%)', regression: true})
- */
-export function scatter<const Id extends string = never>(points: readonly ScatterPoint[], opts: ScatterOpts & {id?: Id}): PlaneBand & Declares<Id> & HandleOf<Id>;
-export function scatter(points: readonly ScatterPoint[], opts: ScatterOpts): PlaneBand {
-  if (!opts?.x || !opts?.y) throw new Error("scatter(points, {x, y}) needs the axes' names: {x: '温度', y: '不良率'}");
-  return plane(scatterOpts(points, opts)) as PlaneBand;
-}

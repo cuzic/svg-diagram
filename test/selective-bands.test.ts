@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {caption} from '../lib/bands/caption.ts';
+import {bars, histogram, pareto, rangeBars} from '../lib/bands/bars.ts';
 import {plane} from '../lib/bands/plane.ts';
 import {emitSvg} from '../lib/emit.ts';
 import {quadrant} from '../lib/bands/quadrant.ts';
@@ -32,7 +33,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -354,4 +355,41 @@ test('selective plane preserves axes, growing paths and staged point labels', as
     if (stage === undefined) assert.match(result.svg, />Review<\/text>/);
   }
   assert.equal(opts.points[0]?.reveal, undefined);
+});
+
+test('selective bars preserve replacement stages and the range, Pareto and histogram variants', async () => {
+  const data = [
+    {id: 'before', label: '旧計画', value: 5},
+    {id: 'after', label: '新計画', value: 8, reveal: 2, replaces: 'before'},
+  ];
+  const ranges = [{label: '範囲', range: [2, 6]}] as const;
+  const counts = [{label: 'A', value: 8}, {label: 'B', value: 4}];
+  const values = [1, 2, 2, 3, 4, 5];
+  const opts = {title: 'Plan', measure};
+  const result = (stage?: number) => renderBands([
+    bars(data), rangeBars(ranges), pareto(counts), histogram(values),
+  ], {...opts, stage});
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false})
+    .add(legacyBars(data), legacyRangeBars(ranges), legacyPareto(counts), legacyHistogram(values)), {measure});
+  for (const stage of [0, 2, undefined]) {
+    const actual = await result(stage);
+    const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+    assert.deepEqual(actual.xml, []);
+    assert.deepEqual(actual.verdict.problems, expected.verdict.problems);
+    assert.doesNotMatch(actual.svg, stage === 0 ? />新計画<\/text>/ : />旧計画<\/text>/);
+    assert.equal(body(actual.svg), body(emitSvg(expected.laidOut, {reveal: stage ?? 2})));
+  }
+  assert.equal('until' in data[0]!, false);
+});
+
+test('a connection to a replaced bar follows its scoped endpoint lifetime', async () => {
+  const chart = bars([
+    {id: 'old', label: 'Old', value: 4},
+    {id: 'new', label: 'New', value: 8, reveal: 2, replaces: 'old'},
+  ], {scope: 'plan'});
+  const input = [chart, box({id: 'summary', title: 'Summary'}), connect('plan.old:bottom', 'summary:top', {label: 'Previous'})];
+  const before = await renderBands(input, {measure, stage: 0});
+  const after = await renderBands(input, {measure, stage: 2});
+  assert.match(before.svg, />Previous<\/text>/);
+  assert.doesNotMatch(after.svg, />Previous<\/text>/);
 });

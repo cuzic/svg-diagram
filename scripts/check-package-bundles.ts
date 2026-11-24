@@ -110,6 +110,8 @@ try {
       include: 'bands/quadrant.js', budget: {esbuild: 94000, Vite: 123000}, exclude: [...legacy, 'flow-shapes.js', 'plane.js', 'gantt.js', 'layout-connect.js', 'dsl/figures.js'], draw: true},
     {name: 'Plane', source: composedSource(['plane'], "plane({x: {max: 20, step: 10}, y: {max: 10, step: 5}, points: [{at: [10, 5], label: 'Review', reveal: 2}]})"),
       include: 'bands/plane.js', budget: {esbuild: 78000, Vite: 104000}, exclude: [...legacy, 'quadrant.js', 'flow-shapes.js', 'gantt.js', 'reveal-handlers.js', 'layout-connect.js'], draw: true},
+    {name: 'Bars', source: composedSource(['bars'], "bars([{id: 'old', label: 'Draft', value: 4}, {label: 'Review', value: 6, reveal: 2, replaces: 'old'}])"),
+      include: 'bands/bars.js', budget: {esbuild: 83000, Vite: 111000}, exclude: [...legacy, 'plane.js', 'qc-plane.js', 'qc.js', 'gantt.js', 'reveal-handlers.js'], draw: true},
   ];
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;

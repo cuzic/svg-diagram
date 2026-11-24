@@ -5,6 +5,7 @@
 
 import {childrenOf} from './band-children.ts';
 import {must} from './must.ts';
+import {revealBars} from './reveal-bars.ts';
 import {revealPlane} from './reveal-plane.ts';
 import type {Band} from './types/index.ts';
 
@@ -91,28 +92,6 @@ function revealImage(b: BandOf<'image'>, n: number, u: number | undefined, ctx: 
   for (const [i, m] of (b.marks ?? []).entries()) { const r = ctx.set(m, n, `image() mark ${i + 1}`, u); if (m.id) ctx.ids.set(ctx.name(m.id), r); }
   for (const [i, l] of (b.labels ?? []).entries()) ctx.set(l, n, `image() label ${i + 1}`, u);
   ctx.walk(childrenOf(b), n, u);
-}
-
-// bars: each value is an element; `replaces` ends an earlier bar at the very click its replacement comes.
-function revealBars(b: BandOf<'bars'>, n: number, u: number | undefined, ctx: RevealCtx): void {
-  for (const [i, bar] of b.data.entries()) {
-    ctx.ownUntils.set(bar, bar.until); // the bar's own, before set() merges in the band's
-    if (bar.replaces !== undefined) {
-      if (b.stack) throw new Error(`bars() value ${i + 1}: replaces does not work with stack (the segments share one bar)`);
-      const old = b.data.slice(0, i).find(d => d.id === bar.replaces);
-      if (!old) throw new Error(`bars() value ${i + 1}: replaces "${bar.replaces}" must name the id of an earlier bar of the same band`);
-      if (bar.reveal === undefined) throw new Error(`bars() value ${i + 1}: a bar that replaces another needs a reveal (the click it takes the place at)`);
-      if (ctx.replaced.has(ctx.name(bar.replaces))) throw new Error(`bars() value ${i + 1}: "${bar.replaces}" is already replaced by another bar`);
-      ctx.replaced.add(ctx.name(bar.replaces));
-      const oldOwn = ctx.ownUntils.get(old);
-      if (oldOwn !== undefined && oldOwn !== bar.reveal) throw new Error(`bars() value ${i + 1}: replaces "${bar.replaces}", which already vanishes at ${oldOwn}, not at this bar's reveal ${bar.reveal}`);
-      if (bar.reveal <= (old.reveal ?? 0)) throw new Error(`bars() value ${i + 1}: replaces "${bar.replaces}" but is revealed (${bar.reveal}) no later than it (${old.reveal ?? 0})`);
-      if (old.id) ctx.untils.set(ctx.name(old.id), bar.reveal);
-      old.until = bar.reveal; // the replaced bar goes at the very click its replacement comes
-    }
-    const r = ctx.set(bar, n, `bars() value ${i + 1}`, u);
-    if (bar.id) ctx.ids.set(ctx.name(bar.id), r);
-  }
 }
 
 const setEach = (what: string, items: (b: never) => Revealed[]) => ({

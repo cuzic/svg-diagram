@@ -108,10 +108,15 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
       if (scope) addScoped(scopeTable, scope, id);
       ids.set(qualify(scope, id), {start, end});
     }
-    const elements = def.revealElements?.(data, start);
+    const elements = def.revealElements?.(data, start, end);
     if (elements) {
       last = Math.max(last, elements.last);
       revealWarnings.push(...elements.warnings);
+      for (const item of elements.items ?? []) {
+        if (!item.id) continue;
+        if (scope) addScoped(scopeTable, scope, item.id);
+        ids.set(qualify(scope, item.id), {start: item.reveal ?? start, end: item.until ?? end});
+      }
     }
     def.measure?.(data, measureEnv);
     for (const generated of def.generated?.(data) ?? []) collect(generated, start, stop);

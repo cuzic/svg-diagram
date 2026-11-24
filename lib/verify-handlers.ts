@@ -4,9 +4,9 @@
 
 import {bareNameIn, qualify, scopeOf} from './anchor-scope.ts';
 import {plateStyle} from './image.ts';
-import {segHitsRect} from './bars.ts';
+import {barsContrastProblems, barsProblems, barsRects} from './verify-bars.ts';
 import {checkChart} from './charts-verify.ts';
-import {PALETTE, colorOf, luminance as lightLuminance, paintOf} from './tokens.ts';
+import {colorOf, luminance as lightLuminance, paintOf} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import {boxLikeContrastProblems, nowrapProblems} from './verify-box-like.ts';
 import {spotlightDim} from './spotlight.ts';
@@ -20,7 +20,7 @@ import {quadrantProblems} from './verify-quadrant.ts';
 import {timelineProblems} from './verify-timeline.ts';
 import {flowProblems} from './verify-flow.ts';
 import {ganttProblems} from './verify-gantt.ts';
-import {CONTRAST_THRESHOLD, dxdy, eachOverlap, issueAt, labelOf, neverTogether, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes, statesProblems} from './verify-base.ts';
+import {CONTRAST_THRESHOLD, dxdy, eachOverlap, issueAt, labelOf, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes, statesProblems} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import type {ComicLaidBubble, LaidOutComic} from './types/comic.ts';
 import type {EmphasisTone, Rect} from './types/core.ts';
@@ -202,24 +202,6 @@ const checkComic = (band: LaidOutComic, d: LaidOutDiagram, {problems}: VerifyOut
   }
 };
 
-const checkBars = (band: LaidOutOf<'bars'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
-  for (const b of band.labelBoxes) {
-    if (outsideBox(b, band)) problems.push(`bars: value label "${b.label}" runs outside the figure (raise width / height or shorten the unit)`);
-  }
-  // the reference lines, the cumulative line and its guide must not run through a label (the curve over a histogram may)
-  const segs = [...(band.ink?.lines ?? []).filter(l => !l.soft), ...(band.ink?.polylines ?? []).filter(l => !l.soft).flatMap(l => l.pts.slice(1).map((q, k) => ({x1: must(l.pts[k]).x, y1: must(l.pts[k]).y, x2: q.x, y2: q.y})))];
-  for (const b of band.labelBoxes) {
-    const hit = segs.find(sg => segHitsRect(sg, {x: b.x + 1, y: b.y + 2, w: b.w - 2, h: b.h - 4}));
-    if (hit) problems.push(`bars: a reference line (a limit, a target, the guide or the cumulative line) runs through the label "${b.label}" (move the line, or hide the values with labels: 'category')`);
-  }
-  for (let i = 0; i < band.labelBoxes.length; i++) for (let j = i + 1; j < band.labelBoxes.length; j++) {
-    const [a, b] = [must(band.labelBoxes[i]), must(band.labelBoxes[j])];
-    if (a.bar !== undefined && b.bar !== undefined && neverTogether(must(band.bars[a.bar]), must(band.bars[b.bar]))) continue; // one replaces the other
-    const o = rectOverlap(a, b);
-    if (o) problems.push(`bars: value label "${a.label}" overlaps value label "${b.label}" by ${dxdy(o)}`);
-  }
-};
-
 // image(): a label plate must stay inside the picture and clear of the other plates (it sits on the picture, so a plate over a plate hides words).
 const checkImage = (band: LaidOutOf<'image'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
   for (const p of band.plates) {
@@ -244,17 +226,6 @@ const lum = (d: LaidOutDiagram, tones: ToneEnv) => { const paint = paintOf(tones
 
 function contrastFor(band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone: EmphasisTone | null, d: LaidOutDiagram, tones: ToneEnv, {problems}: VerifyOut): void {
   problems.push(...boxLikeContrastProblems(band, boxTone, d.day, tones, d.appearance));
-}
-
-function barsContrast(band: LaidOutOf<'bars'>, d: LaidOutDiagram, tones: ToneEnv, {problems}: VerifyOut): void {
-  const luminance = lum(d, tones);
-  for (const b of band.labelBoxes) {
-    if (!b.background) continue;
-    const dim = b.bar !== undefined && must(band.bars[b.bar]).dim; // a dimmed bar draws its label muted on bg (on the pale fill when spotlight dim is 'fill')
-    const fg = dim ? PALETTE.muted : colorOf('bg', d.day), bg = dim ? (spotlightDim(d) === 'fill' ? PALETTE.border : PALETTE.bg) : colorOf(b.background, d.day);
-    const delta = Math.abs(luminance(fg) - luminance(bg));
-    if (delta < CONTRAST_THRESHOLD) problems.push(`bars: value label "${b.label}" (${fg} on ${bg}) has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
-  }
 }
 
 function imageContrast(band: LaidOutOf<'image'>, d: LaidOutDiagram, tones: ToneEnv, {problems}: VerifyOut): void {
@@ -290,9 +261,9 @@ export const VERIFY_HANDLERS = {
   curve: {rects: ownRect},
   plane: {rects: ownRect, check: {phase: 'plane', run: (band, _d, out) => { out.problems.push(...planeProblems(band)); }}},
   bars: {
-    rects: band => band.bars.map((b, i) => ({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h, ...(b.until === undefined && !b.reveal ? {} : {life: {reveal: b.reveal, until: b.until}})})),
-    check: {phase: 'bars', run: checkBars},
-    contrast: barsContrast,
+    rects: barsRects,
+    check: {phase: 'bars', run: (band, _d, out) => { out.problems.push(...barsProblems(band)); }},
+    contrast: (band, d, tones, out) => { out.problems.push(...barsContrastProblems(band, d.day, lum(d, tones), spotlightDim(d) === 'fill')); },
   },
   chart: {
     rects: band => band.anchors.map(a => ({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...holdsFigure(band)})), // each bar / cell / node with an id is its own rect: a connector from outside must not run through one
