@@ -940,6 +940,10 @@
       "types": "./dist/lib/pptx-deck-edge.d.ts",
       "default": "./dist/lib/pptx-deck-edge.js"
     },
+    "./pptx/svg-shapes": {
+      "types": "./dist/lib/pptx/svg-shapes.d.ts",
+      "default": "./dist/lib/pptx/svg-shapes.js"
+    },
     "./schema/*.json": "./schema/*.json"
   },
   "files": [

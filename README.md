@@ -160,6 +160,8 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 
 1 枚の PowerPoint は `svg-diagram/pptx` の `renderBandsPptx` で出力できます。`svg-diagram/pptx/bands/box` から `boxPptx` や `rowPptx` を import し、`bands: {box: boxPptx, row: rowPptx}` を渡すと編集可能な図形になります。箱系に加え、`pptx/bands/table`、`tree`、`quadrant`、`states`、`cause`、`legend`、`flow`、`pyramid`、`timeline` の各入口から対応するアダプターを選べます。絵として埋め込む帯は `fallbacks` に載り、その場合は `rasterize(svg, scale)` が必要です。文字を輪郭化する場合は `outline(svg)` を渡します。`strict: true` は絵への切り替えをエラーにします。 グループやスイムレーンの構成要素を PowerPoint 上でまとめる場合は、`pptx/bands/group` の `groupSpan` や `pptx/bands/swimlane` の `swimlaneSpan` を `spans` に渡します。
 
+専用の PPTX アダプターがない帯も編集可能な図形にしたい場合は、`svg-diagram/pptx/svg-shapes` の `svgShapesXml` を `renderBandsPptx` の `svgShapes` に渡します。変換できる SVG は PowerPoint の図形になり、変換できない帯は通常の画像フォールバックになります。
+
 JSON spec の部品を限定するには、`svg-diagram/spec/selective` の `renderSpec(spec, {parts, measure})` を使います。`svg-diagram/spec/parts/<名前>` から、表（`table`）、ガント図（`gantt`）、フローチャート（`flowchart`）など必要な部品を選び、`parts` に渡します。既存カタログの全65部品に個別入口があります。同じ一覧から `specSchemaFor({parts})` と `partCatalog({parts})` も生成できます。図全体の項目には `lang`、`appearance`、`density`、`desc`、`canvas` も指定できます。`showTitle` または `sourceLine` を使う場合は `svg-diagram/bands/caption` から `captionDefinition` を読み込み、`captions` に渡します。`legend: "auto"` を指定する場合は、`svg-diagram/bands/legend` から `autoLegend` を読み込み、`renderSpec`、`validateSpec`、`specSchemaFor` のオプションに渡します。
 
 TOC の因果図では、凡例の指定を省略すると凡例を勧める所見が図全体で一度だけ出ます。部品に紐づく所見の `loc.specPath` には、`parts[0]` のように入力内の位置が入ります。表の行見出し、意味付き表、合計値や構成比の警告では、ルールを許容する設定例も返します。

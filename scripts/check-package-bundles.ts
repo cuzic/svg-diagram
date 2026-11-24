@@ -161,6 +161,16 @@ try {
       });
     `, include: 'pptx/selective.js', budget: {esbuild: 155000, Vite: 182000}, bands: ['box.js', 'row.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/slide.js', 'pptx/image-band.js', 'pptx/table.js', 'pptx/group-span.js', 'pptx/swimlane-span.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'svg-outline.js', 'lib/emit.js'], draw: true},
+    {name: 'Selective PPTX SVG shapes', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {svgShapesXml} from 'svg-diagram/pptx/svg-shapes';
+      import {box} from 'svg-diagram/bands/box';
+      export const draw = () => renderBandsPptx([box({title: 'Review'})], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        svgShapes: svgShapesXml, strict: true,
+      });
+    `, include: 'pptx/svg-shapes.js', budget: {esbuild: 161000, Vite: 195500}, bands: ['box.js'],
+      exclude: [...legacy, 'pptx/bands.js', 'pptx/slide.js', 'pptx/box-bands.js', 'pptx/table.js', 'pptx/zip-node.js', 'lib/emit.js'], draw: true},
     {name: 'Selective PPTX Table', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
       import {tablePptx} from 'svg-diagram/pptx/bands/table';
@@ -181,7 +191,7 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
         bands: {box: boxPptx, group: groupPptx}, spans: {group: groupSpan}, strict: true,
       });
-    `, include: 'pptx/group-span.js', budget: {esbuild: 147000, Vite: 175000}, bands: ['box.js', 'caption.js', 'group.js'],
+    `, include: 'pptx/group-span.js', budget: {esbuild: 147500, Vite: 175000}, bands: ['box.js', 'caption.js', 'group.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/swimlane-span.js', 'pptx/svg-shapes.js'], draw: true},
     {name: 'Selective PPTX Flow', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';

@@ -343,7 +343,6 @@
   "pptx/shapes:groupXml",
   "pptx/shapes:picXml",
   "pptx/shapes:plainBox",
-  "pptx/slide-core:planSlideWith",
   "pptx/states-band:statesPptx",
   "pptx/swimlane-span:swimlaneSpan",
   "pptx/table:tableXml",

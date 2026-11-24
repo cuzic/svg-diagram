@@ -212,3 +212,47 @@ test('selective PPTX composes separate flow, pyramid and timeline renderers', as
   assert.doesNotMatch(xml, /<p:pic>/);
   assert.deepEqual(result.fallbacks, []);
 });
+
+test('selected PPTX can convert unhandled SVG into editable shapes in strict mode', async () => {
+  const {svgShapesXml} = await import('../lib/pptx/svg-shapes.ts');
+  const {connect} = await import('../lib/bands/connect.ts');
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    svgShapes: svgShapesXml, strict: true,
+  };
+  const result = await renderBandsPptx([
+    selectedBox({id: 'shape', title: 'Review'}), selectedBox({id: 'done', title: 'Done'}),
+    connect('shape:bottom', 'done:top'),
+  ], opts);
+  const slide = unzipEntry(Buffer.from(result.pptx), 'ppt/slides/slide1.xml').toString();
+  assert.deepEqual(result.fallbacks, []);
+  assert.match(slide, /<p:grpSp>[\s\S]*<p:sp>/);
+  assert.match(slide, /name="anchor-shape"/);
+  assert.match(slide, /<a:stCxn id="\d+"/);
+  assert.doesNotMatch(slide, /<p:pic>/);
+  const unknown = selectedRaw({h: 40, draw: () => '<foreignObject width="10" height="20"/>'});
+  await assert.rejects(renderBandsPptx([unknown], opts), /picture fallback for raw/);
+});
+
+test('PPTX fallback drawing shares the legacy SVG shape grouping', async () => {
+  const {prepareBands} = await import('../lib/core.ts');
+  const {drawBandFallback} = await import('../lib/pptx/band-fallback.ts');
+  const {bandPicture} = await import('../lib/pptx/image-band-core.ts');
+  const {withParts} = await import('../lib/parts.ts');
+  const {svgShapesXml} = await import('../lib/pptx/svg-shapes.ts');
+  const {fontsOf, planSlideWith} = await import('../lib/pptx/slide-core.ts');
+  const {planSlide} = await import('../lib/pptx/slide.ts');
+  const raw = selectedRaw({h: 40, draw: ({x, y}) =>
+    `<rect x="${x}" y="${y}" width="24" height="24" fill="#666666"/>`});
+  const title = 'Fallback';
+  const {placed, emit} = await prepareBands([raw], {
+    title, measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+  });
+  const fonts = fontsOf();
+  const selected = planSlideWith(placed, fonts, (band, ctx, index) => drawBandFallback(band, ctx, index,
+    () => bandPicture(placed, band, index, figure => emit(withParts(figure), true)), svgShapesXml), {title});
+  const legacy = planSlide(placed, fonts);
+  assert.match(selected.xml, /<p:grpSp>[\s\S]*<p:sp>/);
+  assert.deepEqual(selected.pictures, []);
+  assert.equal(selected.xml, legacy.xml);
+});

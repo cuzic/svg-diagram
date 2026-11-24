@@ -1,12 +1,12 @@
+import {withParts} from '../parts.ts';
 import {prepareBands} from '../core.ts';
 import {visibleAt} from '../reveal-visibility.ts';
-import {recolor} from '../tokens.ts';
 import type {LaidOutBand} from '../types/index.ts';
-import {register} from './adapter.ts';
 import type {PptxAdapter, PptxBands, PptxSpans} from './adapter.ts';
+import {drawBandFallback} from './band-fallback.ts';
+import type {svgShapesXml} from './svg-shapes.ts';
 import {bandPicture} from './image-band-core.ts';
-import {imageRids, packageEntries} from './package.ts';
-import {anchorXml, picXml} from './shapes.ts';
+import {packageEntries} from './package.ts';
 import {fontsOf, planSlideWith} from './slide-core.ts';
 import {zipEntries} from './zip.ts';
 
@@ -16,6 +16,7 @@ type PptxOptions = Parameters<typeof prepareBands>[1] & {
   bands?: PptxBands;
   spans?: PptxSpans;
   strict?: boolean;
+  svgShapes?: typeof svgShapesXml;
   font?: string;
   pngScale?: number;
   rasterize?: (svg: string, scale: number) => Uint8Array | Promise<Uint8Array>;
@@ -42,17 +43,10 @@ export async function renderBandsPptx(bands: Parameters<typeof prepareBands>[0],
     const native = adapter?.(item, ctx, index);
     if (native !== undefined) return native;
     const id = 'id' in item ? item.id : undefined;
-    fallbacks.push({type: item.type, ...(id ? {id} : {})});
-    if (opts.strict) throw new Error(`renderBandsPptx: picture fallback for ${item.type}${id ? ` "${id}"` : ''}`);
-    const {rect, picture} = bandPicture(ld, item, index, figure => emit(figure, true));
-    const rid = imageRids(ctx.pictures.length);
-    const paint = (svg: string) => recolor(ctx.tones, svg, ld.appearance);
-    ctx.pictures.push({svg: paint(picture.svg), pngSvg: paint(picture.pngSvg)});
-    const drawn = picXml(ctx.next(), `${item.type}-${index}`, rect, rid.png, rid.svg);
-    if (!id || !('h' in item)) return drawn;
-    const anchor = {x: item.x, y: item.y, w: item.w, h: item.h}, anchorId = ctx.next();
-    register(ctx, id, anchorId, anchor);
-    return drawn + anchorXml(anchorId, `anchor-${id}`, anchor);
+    return drawBandFallback(item, ctx, index, () => bandPicture(ld, item, index, figure => emit(opts.svgShapes ? withParts(figure) : figure, true)), opts.svgShapes, () => {
+      fallbacks.push({type: item.type, ...(id ? {id} : {})});
+      if (opts.strict) throw new Error(`renderBandsPptx: picture fallback for ${item.type}${id ? ` "${id}"` : ''}`);
+    });
   }, {title: opts.title, stage, spans: opts.spans});
   const pngs: Uint8Array[] = [];
   for (const picture of plan.pictures) {
