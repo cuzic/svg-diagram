@@ -1,6 +1,5 @@
 import {resolveBoxStyle} from './box-style.ts';
-import {escapeHtmlText as esc, type FontBox, type HtmlBandAdapter} from './html-adapter.ts';
-import {px} from './html-document.ts';
+import {escapeHtmlText as esc, px, type FontBox, type HtmlBandAdapter} from './html-adapter.ts';
 import {must} from './must.ts';
 import {PALETTE, textColorOf, type ToneEnv} from './tokens.ts';
 import type {Align, Roles, Theme} from './types/core.ts';

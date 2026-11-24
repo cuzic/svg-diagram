@@ -194,7 +194,13 @@ try {
     {name: 'HTML', source: "export {emitHtml} from 'svg-diagram/html';", include: 'emit-html.js', exclude: ['web.js', 'web-measure.js']},
     {name: 'HTML box adapter', source: "export {boxHtml} from 'svg-diagram/html/bands/box';",
       include: 'box-style.js', budget: {esbuild: 5500, Vite: 6500},
-      exclude: [...legacy, 'emit-common.js', 'emit-box.js', 'html-banner.js', 'html-grid.js', 'html-row.js', 'html-table.js']},
+      exclude: [...legacy, 'emit-common.js', 'emit-box.js', 'html-banner.js', 'html-grid.js', 'html-row.js', 'html-table.js', 'html-document.js', 'sha1.js']},
+    {name: 'HTML row adapter', source: "export {rowHtml} from 'svg-diagram/html/bands/row';",
+      include: 'html-row.js', budget: {esbuild: 5000, Vite: 6200},
+      exclude: [...legacy, 'html-grid.js', 'html-group.js', 'html-table.js', 'html-overlay.js', 'html-document.js', 'sha1.js']},
+    {name: 'HTML grid adapter', source: "export {gridHtml} from 'svg-diagram/html/bands/grid';",
+      include: 'html-grid.js', budget: {esbuild: 5000, Vite: 6200},
+      exclude: [...legacy, 'html-row.js', 'html-group.js', 'html-table.js', 'html-overlay.js', 'html-document.js', 'sha1.js']},
     {name: 'Selective HTML', source: `
       import {renderBandsHtml} from 'svg-diagram/html/selective';
       import {boxHtml} from 'svg-diagram/html/bands/box';

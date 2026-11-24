@@ -1,5 +1,4 @@
-import {escapeHtmlText as esc, type FontBox} from './html-adapter.ts';
-import {px} from './html-document.ts';
+import {escapeHtmlText as esc, px, type FontBox} from './html-adapter.ts';
 import {must} from './must.ts';
 import {PALETTE, runColorOf} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';

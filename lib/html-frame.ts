@@ -1,5 +1,5 @@
+import {px} from './html-adapter.ts';
 import {resolveBoxStyle} from './box-style.ts';
-import {px} from './html-document.ts';
 import {PALETTE} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import type {Theme, EmphasisTone, Rect} from './types/core.ts';

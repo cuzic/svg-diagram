@@ -1,5 +1,5 @@
-import type {FontBox} from './html-adapter.ts';
-import {px, stripSvg} from './html-document.ts';
+import {px, type FontBox} from './html-adapter.ts';
+import {stripSvg} from './html-document.ts';
 import {shapesToCss} from './svg-to-css.ts';
 import {PALETTE} from './tokens.ts';
 

@@ -2,8 +2,7 @@ import {PALETTE, FONT_STACKS, recolor} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import type {LaidOutDiagram} from './types/index.ts';
 import {sha1Hex} from './sha1.ts';
-
-export const px = (n: number): string => `${+n.toFixed(2)}px`;
+import {px} from './html-adapter.ts';
 
 export function stripSvg(svg: string, cls: string): string {
   return svg
