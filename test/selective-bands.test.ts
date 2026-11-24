@@ -1016,3 +1016,21 @@ test('selective box size warning groups nested boxes once', async () => {
   const laneOnly = await renderBands(swimlane(lanes, steps), {...opts, measure});
   assert.match(warnings(laneOnly)[0]?.message ?? '', /1 個の箱/);
 });
+
+test('selected BPMN and swimlanes report excessively narrow wrapped text', async () => {
+  const {fontMeasurer} = await import('../lib/node-measure.ts');
+  const {JA_FONTS} = await import('./helpers/text-engine.ts');
+  const measure = fontMeasurer(JA_FONTS);
+  const lanes = [{id: 'team', label: '担当'}];
+  const nodes = Array.from({length: 8}, (_, i) => ({id: `n${i}`, lane: 'team', label: '在庫を確認する'}));
+  const flows = nodes.slice(1).map(({id}, i) => ({from: nodes[i]!.id, to: id}));
+  const steps = Array.from({length: 11}, (_, i) => ({id: `s${i}`, lane: 'team', col: i + 1, title: '在庫を確認する'}));
+  const options = {fit: 'shrink'} as const;
+  const actual = await renderBands([bpmn(lanes, nodes, flows, options), ...swimlane(lanes, steps, options)], {measure});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false})
+    .add(legacyBpmn(lanes, nodes, flows, options), ...legacySwimlane(lanes, steps, options)), {measure});
+  const messages = ({verdict}: typeof actual) => verdict.findings
+    .filter(f => f.rule === 'shrink-narrow-text').map(f => f.message);
+  assert.equal(messages(legacy).length, 2);
+  assert.deepEqual(messages(actual), messages(legacy));
+});

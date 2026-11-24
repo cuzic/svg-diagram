@@ -1,3 +1,4 @@
+import {narrowTextFindings} from '../verify-shrink.ts';
 import {textsAndLabels} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -27,6 +28,7 @@ const definition = {
   emit: (laid, {theme, tones}) => renderBpmn(laid, theme, tones),
   verify: {
     rects: laid => anchorRects(laid),
+    layoutFindings: narrowTextFindings,
     check: laid => bpmnProblems(laid).map(message => ({rule: 'bpmn', severity: 'problem', message})),
   },
 } satisfies BandDef<BpmnBand, LaidOutBpmn>;

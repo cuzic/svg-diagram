@@ -1,3 +1,4 @@
+import {narrowTextFindings} from '../verify-shrink.ts';
 import {band} from '../band-def.ts';
 import type {BandDef} from '../band-def.ts';
 import {withAnchors} from '../dsl/shared.ts';
@@ -44,6 +45,7 @@ const definition = {
   verify: {
     diagramFindings: boxDefinition.verify?.diagramFindings,
     findings: (data, {connects}) => swimlaneFindings(data, connects),
+    layoutFindings: laid => laid.type === 'swimlane' ? narrowTextFindings(laid) : [],
     rects: laid => laid.type === 'box' ? ownRect(laid) : [],
     check: (laid, env) => laid.type === 'box' ? boxDefinition.verify?.check?.(laid, env) ?? [] : [],
   },

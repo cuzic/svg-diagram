@@ -624,6 +624,7 @@
   "verify-rects:frameRects",
   "verify-rects:ownRect",
   "verify-rects:scopedRect",
+  "verify-shrink:narrowTextFindings",
   "verify-timeline:timelineProblems",
   "verify-tree:treeRects",
   "wireframe-builders:appbar",

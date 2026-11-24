@@ -1,3 +1,4 @@
+import {narrowTextFindings} from './verify-shrink.ts';
 import {boxSizeFindings} from './verify-box-like.ts';
 import {fullWidthUnits, sourceLineFindings} from './verify-caption.ts';
 export {fullWidthUnits} from './verify-caption.ts';
@@ -549,14 +550,6 @@ function grayToneRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   if (hits.size) out.push({...fromSources([...parts].map(b => sourceOf(b))), rule: 'gray-tone-collision', severity: 'warn', message: `白黒にすると塗りの明度が近く、見分けにくいトーンの組: ${[...hits.values()].join('、')}。直し方は 2 つ: (1) トーンの塗りの明度差を L* 10 以上にする（diagram({tones: {accent: {fill: '#…'}}}) か .svg-diagram.json の "tones" で色を変える。または片方を solid / muted にする）、(2) 破線・太字・ラベルなど色以外の手がかりを足し、accept: {'gray-tone-collision': '理由'} で許容する（確認は preview --gray）`});
 }
 
-function shrinkRules(d: LintTarget, out: Finding[]): void {
-  for (const b of d.laidOut ?? []) {
-    if ((b.type !== 'bpmn' && b.type !== 'swimlane') || !b.narrow?.length) continue;
-    const what = b.type === 'bpmn' ? 'task' : 'step';
-    out.push({...at(b), rule: 'shrink-narrow-text', severity: 'warn', message: `fit: 'shrink' で詰めた結果、${what} の本文が 2〜3 字ずつ折れている（${b.narrow.slice(0, 3).map(t => `「${t}」`).join('')}${b.narrow.length > 3 ? ` ほか ${b.narrow.length - 3} 件` : ''}）。直し方: 図を縦向きにする、列の多い図を 2 つに分ける、文言を短くする、図の幅（maxWidth）を広げる`});
-  }
-}
-
 function swimlaneRules(d: LintTarget, out: Finding[]): void {
   const lanesBands = d.bands.filter((b): b is SwimlaneBand => b.type === 'swimlane');
   if (lanesBands.length > 1) out.push({rule: 'one-story', severity: 'warn', message: `スイムレーンが ${lanesBands.length} つある。1 図 1 話にして、図を分けることを検討する`});
@@ -934,7 +927,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   nonTextContrast(d, tones, out);
   legendRules(d, out);
   swimlaneRules(d, out);
-  shrinkRules(d, out);
+  for (const b of d.laidOut ?? []) if (b.type === 'bpmn' || b.type === 'swimlane') out.push(...narrowTextFindings(b));
   wireframeRules(d, out);
   rowHeaderRules(d, tones, out);
   grayToneRules(d, tones, out);
