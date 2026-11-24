@@ -961,3 +961,20 @@ test('large image warnings appear in the selective verdict findings', async () =
   assert.equal(notes(legacy).length, 1);
   assert.deepEqual(notes(actual), notes(legacy));
 });
+
+test('selected flowchart and concentric checks preserve branch and label findings', async () => {
+  const nodes = [{id: 'a', label: '確認', kind: 'decision'}, {id: 'b', label: '次'}, {id: 'c', label: '戻る'}] as const;
+  const edges = [{from: 'a', to: 'b'}, {from: 'a', to: 'c'}] as const;
+  const rings = ['Adopt', 'Trial', 'Assess', 'Hold'].map(label => ({label}));
+  const options = {order: 'inner-first', sectors: ['仕事・学び', '人間関係', '成長・健康', '余暇'].map(label => ({label})),
+    marks: ['Cloudflare Workers', 'Amazon Web Services'].map(label => ({label, sector: 1, ring: 1}))} as const;
+  const selected = await renderBands([flowchart(nodes, edges), concentric(rings, options)], {measure});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false})
+    .add(legacyFlowchart(nodes, edges), legacyConcentric(rings, options)), {measure});
+  const notes = ({verdict}: typeof selected) => verdict.findings
+    .filter(f => f.rule === 'flowchart-decision-edges' || f.rule === 'concentric-label-crossing')
+    .map(({rule, severity, message}) => ({rule, severity, message})).sort((a, b) => a.rule.localeCompare(b.rule));
+  assert.ok(notes(legacy).some(f => f.rule === 'flowchart-decision-edges'));
+  assert.ok(notes(legacy).some(f => f.rule === 'concentric-label-crossing'));
+  assert.deepEqual(notes(selected), notes(legacy));
+});

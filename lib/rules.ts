@@ -1,3 +1,5 @@
+import {concentricFindings} from './verify-concentric.ts';
+import {flowchartFindings} from './verify-flowchart.ts';
 import {stateMatrixFindings} from './state-matrix-rules.ts';
 // Diagram rules ("svg-diagram check"): semantic checks that need the diagram model, not
 // the rendered pixels — accessibility contrast, legend completeness, lane order, edge
@@ -854,21 +856,6 @@ function graphRules(d: LintTarget, out: Finding[]): void {
     out.push({...fromSources(refs), rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${components.map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
   }
 }
-// A decision (a diamond) is a fork: it needs two or more arrows out, and each says which answer it is (ADR 0041 D5)
-function flowRules(d: LintTarget, out: Finding[]): void {
-  for (const b of d.laidOut ?? []) {
-    if (b.type !== 'states' || !b.nodes) continue;
-    b.nodes.forEach((n, i) => {
-      const id = b.anchors[i]?.id;
-      if (n.shape !== 'diamond' || id === undefined) return;
-      const leaving = b.edges.flatMap((e, k) => e.from === id && e.to !== id ? [{e, k}] : []);
-      if (leaving.length < 2) out.push({...at(b), rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印が ${leaving.length} 本。判断は分岐なので、2 本以上（Yes / No など）にする`});
-      else if (leaving.length > 2) out.push({...at(b), rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印が ${leaving.length} 本。3 本以上の分岐は読みにくいので、2 つの判断に分ける`});
-      const bare = leaving.filter(({k}) => !b.labels.some(l => l.edge === k)).map(({e}) => `${e.from} → ${e.to}`);
-      if (bare.length && leaving.length >= 2) out.push({...at(b), rule: 'flowchart-decision-edges', severity: 'info', message: `判断「${id}」から出る矢印にラベルがない（${bare.join('、')}）。どの答えの矢印か分かるよう、Yes / No などを付ける`});
-    });
-  }
-}
 // `density: 'compact'` that was not applied to a band (ADR 0036 D6): the compact figure had an arrow through a box or a label on another one
 function densityRules(d: LintTarget, out: Finding[]): void {
   // ADR 0070 D7 (U5): the canvas asked for lines scaled with the text, but the scaled figure did not fit; it is drawn with the old lines
@@ -934,11 +921,6 @@ function boxSizeRules(d: LintTarget, out: Finding[]): void {
   const hit = walkBands(d.bands).filter(b => b.type === 'box' && b.size !== undefined);
   if (hit.length) out.push({...at(hit[0], ...hit.slice(1)), rule: 'box-size-ignored', severity: 'warn', message: `box({size}) は効果がない(${hit.length} 個の箱)。大きい文字は役割を使う: stat() / stat({size: 'display'})・caption({role: 'display'})・banner({headlineRole})・bars / plane({labelRole})。次の版で throw する`});
 }
-/** ADR 0065: a mark of a concentric with sectors whose label found no spot clear of the ring and sector lines. */
-function crossingRules(d: LintTarget, out: Finding[]): void {
-  for (const b of d.laidOut ?? []) if (b.type === 'concentric') for (const label of b.crossings ?? [])
-    out.push({...at(b), rule: 'concentric-label-crossing', severity: 'warn', message: `concentric: 印 "${label}" の見出しが輪の線か区切り線（stack では段・列の線）をまたぐか、stack の外枠の外に出る（近くに重ならない場所がない）。見出しを短くする、印を別の輪・扇形に移す、輪を減らす`});
-}
 function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   const out: Finding[] = [];
   if (d.wrapFellBack) out.push({rule: 'wrap-fell-back', severity: 'info', message: "wrap: 'bunsetsu-soft': 文節で折ると図が幅に収まらなかったので、従来の折り方（phrase）で配置した。漢字・ひらがなの途中で折れる行が残る。図を 2 枚に分ける、文言を短くする、図の幅を広げると、文節で折れる"});
@@ -954,8 +936,8 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   comicRules(d, out);
   fitRules(d, out);
   densityRules(d, out);
-  crossingRules(d, out);
-  flowRules(d, out);
+  for (const b of d.laidOut ?? []) if (b.type === 'concentric') out.push(...concentricFindings(b));
+  for (const b of d.laidOut ?? []) if (b.type === 'states') out.push(...flowchartFindings(b));
   textContrast(d, tones, out);
   colourOnlyEmphasis(d, out);
   nonTextContrast(d, tones, out);

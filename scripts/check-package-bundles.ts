@@ -335,7 +335,7 @@ try {
       exclude: [...legacy, 'pptx/selective.js', 'pptx/zip-node.js', 'lib/core.js', 'lib/png.js'], budget: {esbuild: 2500, Vite: 2500}},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
-      exclude: [...legacy, 'verify-bars.js', 'verify-image.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 53000, Vite: 70000}},
+      exclude: [...legacy, 'verify-bars.js', 'verify-image.js', 'verify-flowchart.js', 'verify-concentric.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 53000, Vite: 70000}},
     {name: 'Box', source: bandSource('box'), include: 'bands/box.js',
       exclude: [...legacy, 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 81000, Vite: 103000}, draw: true},
     {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',
@@ -375,7 +375,8 @@ try {
       name, layout, source: composedSource([name], sample),
       budget: {esbuild: 83000, Vite: 114000},
       include: `bands/${name === 'valueChain' ? 'value-chain' : name}.js`,
-      exclude: [...legacy, 'layout-connect.js', 'layout-pyramid.js', 'gantt.js', 'quadrant.js', 'verify-quadrant.js', 'wordart.js', ...(name === 'funnel' ? [] : ['verify-funnel.js'])], draw: true,
+      exclude: [...legacy, 'layout-connect.js', 'layout-pyramid.js', 'gantt.js', 'quadrant.js', 'verify-quadrant.js', 'verify-flowchart.js', 'wordart.js',
+        ...(name === 'funnel' ? [] : ['verify-funnel.js']), ...(name === 'concentric' ? [] : ['verify-concentric.js'])], draw: true,
     })),
     ...quantitySamples.map(([name, layout, sample]) => ({
       name, layout, source: composedSource([name], sample),
