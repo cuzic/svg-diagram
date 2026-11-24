@@ -9,7 +9,7 @@ import {installResolveHook} from './lib/resolve-hook.ts';
 import {loadConfig} from './lib/config.ts';
 import {chooseColumns, columnWidths, figureRooms, maxScale, type FigureFit} from './lib/deck-layout.ts';
 import {closeMeasurer, configureMeasure, measureAll, splitAtoms, textWidth} from './lib/measure.ts';
-import {autoColumns, columnFigurePath, figurePath, fitOf, sharedColumns} from './lib/deck-spec.ts';
+import {autoColumns, columnFigurePath, figurePath, fitOf, sharedColumns} from './lib/deck-spec-core.ts';
 import {drawColumnFigure, figureKey, loadDeck, renderDeckFigure} from './lib/deck-load.ts';
 import {figureMinPt} from './lib/pptx/deck-figure.ts';
 import {deckEntries, deckTexts, planDeckSlide, slideIssues, type DeckFigure, type TextWidth} from './lib/pptx/deck.ts';

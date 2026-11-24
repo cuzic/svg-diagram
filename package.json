@@ -87,6 +87,7 @@
     "./dist/lib/comic/constants.js",
     "./dist/lib/comic/slot-values.js",
     "./dist/lib/compose/canvas.js",
+    "./dist/lib/deck-spec-core.js",
     "./dist/lib/deck-spec.js",
     "./dist/lib/deck-viewer/viewer.js",
     "./dist/lib/dsl/charts-stats.js",

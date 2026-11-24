@@ -135,6 +135,7 @@
   "clone-data:cloneData",
   "cloud:cloudTexts",
   "cloud:layoutCloudBand",
+  "deck-spec-core:deckSchemaFor",
   "dsl/cause:causeBand",
   "dsl/defaults:applyConnectDefaults",
   "dsl/defaults:connectBand",

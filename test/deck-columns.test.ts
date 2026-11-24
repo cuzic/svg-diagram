@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {build as bundle} from 'esbuild';
 import {columnFigurePath, validateDeck} from '../lib/deck-spec.ts';
 import {COLUMN_GAP, MARGIN_X, planDeckLayout, SLIDE_W, type TextWidth} from '../lib/deck-layout.ts';
 import {planDeckSlide, renumberShapes, slideIssues, type DeckFigure} from '../lib/pptx/deck.ts';
@@ -252,4 +253,42 @@ test('ADR 0061: a value chain\'s chevron gives its text the whole room between i
   // narrower still, the words are cut, and the check still sees it although each line sits at its own x
   const narrow = await renderSpec({...vc, width: 436}, {config: {measure: 'font', fonts: JA_FONTS}});
   assert.ok(narrow.findings.some(f => f.rule === 'text-mid-word-break'));
+});
+
+test('deck validation can use only the spec parts needed by its figures', async () => {
+  const {validateDeckWith} = await import('../lib/deck-spec-core.ts');
+  const {validateSpec} = await import('../lib/spec-selective.ts');
+  const {pyramidPart} = await import('../lib/spec-parts/selective/pyramid.ts');
+  const seen: unknown[] = [];
+  const pyramid = {version: 1, title: '計画', legend: false, parts: [pyramidPart.example]};
+  const input = {slides: [
+    {layout: 'cover', title: '表紙', figure: pyramid},
+    {figure: pyramid},
+    {columns: [{figure: {...pyramid, canvas: {}, parts: [{type: 'pyramid'}]}}, {text: '説明'}]},
+  ]};
+  const actual = validateDeckWith(input, figure => {
+    seen.push(figure);
+    return validateSpec(figure, {parts: [pyramidPart]});
+  });
+  assert.equal(seen.length, 2);
+  assert.ok(seen.every(figure => !Object.hasOwn(figure as object, 'canvas')));
+  assert.deepEqual(actual, validateDeck(input));
+});
+
+test('the deck validator does not bundle the full spec catalog', async () => {
+  const root = path.join(import.meta.dirname, '..');
+  const result = await bundle({
+    absWorkingDir: root,
+    stdin: {contents: `
+      import {validateDeckWith} from './lib/deck-spec-core.ts';
+      import {validateSpec} from './lib/spec-selective.ts';
+      import {pyramidPart} from './lib/spec-parts/selective/pyramid.ts';
+      export const validate = deck => validateDeckWith(deck, figure => validateSpec(figure, {parts: [pyramidPart]}));
+    `, resolveDir: root},
+    bundle: true, platform: 'browser', format: 'esm', metafile: true, write: false,
+  });
+  const inputs = Object.keys(Object.values(result.metafile.outputs)[0]?.inputs ?? {});
+  assert.ok(inputs.includes('lib/deck-spec-core.ts'));
+  assert.ok(inputs.includes('lib/spec-parts/selective/pyramid.ts'));
+  assert.ok(!inputs.some(input => /^lib\/(?:deck-spec\.ts|spec\.ts|spec-parts\/r[1-7]\.ts)$/.test(input)), inputs.join('\n'));
 });

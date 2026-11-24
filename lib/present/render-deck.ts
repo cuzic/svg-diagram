@@ -2,7 +2,7 @@
 // with the same measuring, everything placed by lib/deck-layout.ts and outlined with the project's font files (lib/font-metrics.ts).
 import {createHash} from 'node:crypto';
 import {chooseColumns, columnWidths, deckTexts, figureRooms, maxScale, planDeckLayout, roomMessage, smallTextWarning, type FigureFit, type TextWidth} from '../deck-layout.ts';
-import {autoColumns, fitOf, sharedColumns} from '../deck-spec.ts';
+import {autoColumns, fitOf, sharedColumns} from '../deck-spec-core.ts';
 import {drawColumnFigure, figureKey, hasSource, renderDeckFigure, type LoadedDeck} from '../deck-load.ts';
 import {figureMinPt} from '../pptx/deck-figure.ts';
 import {measureAll, splitAtoms, textWidth} from '../measure.ts';
