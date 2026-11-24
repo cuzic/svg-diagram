@@ -1,7 +1,5 @@
-import type {BranchTarget, ConnectBand, ConnectOpts, ConnectVia} from '../types/containers.ts';
-import type {TextTone} from '../types/core.ts';
-import type {BranchInput, ConnectInput, Ok, Refers} from '../strict.ts';
-import type {RevealOpts} from '../types/core.ts';
+import type {ConnectBand, ConnectOpts} from '../types/containers.ts';
+import type {ConnectInput, Ok, Refers} from '../strict.ts';
 import {connectBand} from './defaults.ts';
 
 // Draws an arrow/line between two named anchors — any box()/row()-child/
@@ -24,48 +22,7 @@ export function connect<const F extends string, const T extends string>(from: Ok
 export function connect(from: string, to: string, opts: ConnectOpts = {}): ConnectBand {
   return connectBand(from, to, opts);
 }
-export interface BracketOpts extends RevealOpts {
-  label?: string;
-  /** Which side of the span the bracket sits on (default 'below'). */
-  side?: 'below' | 'above';
-  tone?: TextTone;
-}
-/**
- * A bracket under (or over) a span of boxes: `bracket(a.left, b.right, {label: 'この区間だけが対象'})`. It runs from the x of the first ref
- * to the x of the second, just outside the lower (or upper) edge of the two boxes; the label sits outside the bracket.
- */
-export function bracket<const F extends string, const T extends string>(from: Ok<F>, to: Ok<T>, opts?: BracketOpts): ConnectBand & Refers<F | T>;
-export function bracket(from: string, to: string, opts: BracketOpts = {}): ConnectBand {
-  const side = opts.side ?? 'below';
-  if (side !== 'below' && side !== 'above') throw new Error(`bracket(): side must be 'below' or 'above' (got ${JSON.stringify(side)})`);
-  if (opts.label !== undefined && (typeof opts.label !== 'string' || !opts.label.trim())) throw new Error('bracket(): label must not be empty (leave it out for none)');
-  return {...connectBand(from, to, {arrow: 'none', tone: opts.tone, label: opts.label, reveal: opts.reveal, until: opts.until}, false), annot: {kind: 'bracket', side}};
-}
-export interface CalloutOpts extends RevealOpts {
-  /** The text of the bubble (one line). */
-  text: string;
-  /** Which side of the target the bubble is on (default 'above'). */
-  side?: 'above' | 'below' | 'left' | 'right';
-  tone?: TextTone;
-}
-/** A bubble with a leader line pointing at a box: `callout('slow', {text: '344ms かかる', side: 'below'})`. Put the target's id or 'id:side'. */
-export function callout<const T extends string>(target: Ok<T>, opts: CalloutOpts): ConnectBand & Refers<T>;
-export function callout(target: string, opts: CalloutOpts): ConnectBand {
-  const side = opts?.side ?? 'above';
-  if (!['above', 'below', 'left', 'right'].includes(side)) throw new Error(`callout(): side must be above | below | left | right (got ${JSON.stringify(side)})`);
-  if (typeof opts?.text !== 'string' || !opts.text.trim()) throw new Error('callout(): text is required');
-  return {...connectBand(target, target, {arrow: 'end', tone: opts.tone, label: opts.text, chip: true, reveal: opts.reveal, until: opts.until}, false), annot: {kind: 'callout', side}};
-}
-// One box fanning out to several targets (a decision). `targets`:
-// [{to, label?, tone?, dashed?}]; opts as connect() (route defaults to
-// 'elbow'). Returns an array — d.add() flattens it.
-export function branch<const F extends string, const To extends string>(from: Ok<F>, targets: (BranchInput & {to: Ok<To>})[], opts?: BranchInput): (ConnectBand & Refers<F | To>)[];
-export function branch(from: string, targets: BranchTarget[], opts: ConnectOpts = {}): ConnectBand[] {
-  // a target's via adds to the shared one (via: {from} on the fan and {to} on a target: both ends), it does not replace it
-  return targets.map(t => Object.assign(connectBand(from, t.to, {route: 'elbow', ...opts, ...t, ...(opts.via !== undefined || t.via !== undefined ? {via: mergeVia(opts.via, t.via)} : {})}), {fan: true as const})); // assign, not spread: the band keeps the options it was written with (GIVEN)
-}
-function mergeVia(a: ConnectVia | undefined, b: ConnectVia | undefined): ConnectVia | undefined {
-  if (a === undefined || b === undefined) return a ?? b;
-  if (a === 'group' || b === 'group') return 'group';
-  return {...a, ...Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined))};
-}
+
+export {bracket, type BracketOpts} from './bracket.ts';
+export {callout, type CalloutOpts} from './callout.ts';
+export {branch} from './branch.ts';

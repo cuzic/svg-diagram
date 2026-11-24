@@ -561,7 +561,18 @@ try {
     {name: 'Grid', source: composedSource(['box', 'grid'], "grid([box({title: 'Review'}), box({title: 'Next'})], {cols: 2})"),
       include: 'bands/grid.js', budget: {esbuild: 77000, Vite: 97000}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'dsl/containers.js', 'dsl/row.js', 'dsl/areas.js', 'dsl/group.js', 'dsl/container-children.js', 'emit-boxes.js', 'emit-row.js', 'emit-connect.js', 'verify-connect-geometry.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Connect', source: composedSource(['box', 'connect'], "connect('a:bottom', 'b:top'), connect('b:bottom', 'c:top'), connect('d:bottom', 'e:top'), box({id: 'a', title: 'Review'}), ...['b', 'c', 'd', 'e', 'f'].map(id => box({id, title: id}))"),
-      include: 'layout-connect-gaps.js', budget: {esbuild: 106000, Vite: 133500}, bands: ['box.js', 'connect.js'], exclude: [...legacy, 'loop-back.js', 'loop-back-options.js', 'loop-back-source.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-grid.js', 'gantt.js'], draw: true},
+      include: 'layout-connect-gaps.js', budget: {esbuild: 106000, Vite: 133500}, bands: ['box.js', 'connect.js'], exclude: [...legacy, 'dsl/bracket.js', 'dsl/callout.js', 'dsl/branch.js', 'loop-back.js', 'loop-back-options.js', 'loop-back-source.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-grid.js', 'gantt.js'], draw: true},
+    ...([
+      ['bracket', "bracket('a:left', 'b:right', {label: '範囲'})"],
+      ['callout', "callout('a', {text: '注意', side: 'above'})"],
+      ['branch', "...branch('a:bottom', [{to: 'b:top', label: '次へ'}])"],
+    ] as const).map(([name, sample]) => ({
+      name, source: composedSource(name === 'bracket' ? ['box'] : ['box', 'spacer'], `${name === 'callout' ? 'spacer(64), ' : ''}box({id: 'a', title: 'Review'}), ${name === 'branch' ? 'spacer(64), ' : ''}box({id: 'b', title: 'Done'}), ${sample}`,
+        `import {${name}} from 'svg-diagram/bands/connect';`),
+      include: `dsl/${name}.js`, budget: {esbuild: 116000, Vite: 145000}, bands: name === 'bracket' ? ['box.js', 'connect.js'] : ['box.js', 'connect.js', 'spacer.js'],
+      exclude: [...legacy, 'dsl/connect.js', ...['bracket', 'callout', 'branch'].filter(other => other !== name).map(other => `dsl/${other}.js`)],
+      draw: true,
+    })),
     {name: 'Row loop-back', source: `
       import {renderBands} from 'svg-diagram/core';
       import {box} from 'svg-diagram/bands/box';
@@ -910,6 +921,9 @@ try {
         if (name === 'RACI table') assert.ok(!/fmea\(\)|qfd\(\)|whyWhyTree\(/.test(code), label);
         if (name === 'Selected fault tree spec with legend') assert.match(result.svg, /OR gate/, label);
         if (name === 'Basic wireframe') assert.ok(result.verdict.warnings.some((warning: string) => warning.includes('check --explain wf-callout-no-note')), label);
+        if (name === 'bracket') assert.match(result.svg, />範囲<\/text>/, label);
+        if (name === 'callout') assert.match(result.svg, />注意<\/text>/, label);
+        if (name === 'branch') assert.match(result.svg, />次へ<\/text>/, label);
         if (name === 'Connect') assert.deepEqual(result.verdict.findings.filter((finding: {rule: string}) => finding.rule.startsWith('graph-')).map((finding: {rule: string}) => finding.rule), ['graph-orphan-node', 'graph-disconnected'], label);
         if (name === 'Cause') assert.equal(result.verdict.findings.filter((finding: {rule: string}) => finding.rule === 'toc-legend-suggested').length, 1, label);
         if (name === 'Caption and spacer') assert.match(result.svg, /<title id="svg-title">Review<\/title>/, label);
