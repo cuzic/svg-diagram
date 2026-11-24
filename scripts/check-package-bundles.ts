@@ -158,6 +158,10 @@ try {
       include: 'bands/sankey.js', budget: {esbuild: 105000, Vite: 127000}, exclude: [...legacy, 'lib/charts.js', 'charts-heatmap.js', 'charts-radar.js', 'charts-waterfall.js'], draw: true},
     {name: 'Heatmap', source: composedSource(['heatmap'], "heatmap(['Review', 'Done'], ['A', 'B'], [[1, null], [2, 5]])"),
       include: 'bands/heatmap.js', budget: {esbuild: 96000, Vite: 117000}, exclude: [...legacy, 'lib/charts.js', 'charts-sankey.js', 'charts-radar.js', 'charts-waterfall.js'], draw: true},
+    {name: 'Stacked', source: composedSource([], "stackedBars([{label: 'Review', parts: [{label: 'Plan', value: 4}]}])", "import {stackedBars} from 'svg-diagram/bands/stacked';"),
+      include: 'bands/stacked.js', budget: {esbuild: 98000, Vite: 121000}, exclude: [...legacy, 'lib/charts.js', 'charts-treemap.js', 'charts-sankey.js', 'charts-heatmap.js'], draw: true},
+    {name: 'Treemap', source: composedSource(['treemap'], "treemap({label: 'Review', value: 5})"),
+      include: 'bands/treemap.js', budget: {esbuild: 96000, Vite: 118000}, exclude: [...legacy, 'lib/charts.js', 'charts-stacked.js', 'charts-sankey.js', 'charts-heatmap.js'], draw: true},
   ];
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;

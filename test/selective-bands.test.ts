@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {TreeItem} from '../lib/types/diagrams.ts';
 import {caption} from '../lib/bands/caption.ts';
+import {stackedBars, mekko} from '../lib/bands/stacked.ts';
+import {treemap} from '../lib/bands/treemap.ts';
+import {stackedBars as legacyStackedBars, mekko as legacyMekko, treemap as legacyTreemap} from '../lib/web.ts';
 import {sankey} from '../lib/bands/sankey.ts';
 import {heatmap} from '../lib/bands/heatmap.ts';
 import {radar} from '../lib/bands/radar.ts';
@@ -578,6 +581,28 @@ test('selective Sankey and heatmap preserve labelled flows, missing cells and sc
   const selected = await renderBands([sankey(nodes, links, {linkLabels: true}), heatmap(rows, cols, values, {scale: true})], {measure, title: 'Plan'});
   const legacy = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false})
     .add(legacySankey(nodes, links, {linkLabels: true}), legacyHeatmap(rows, cols, values, {scale: true})), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.deepEqual(selected.xml, []);
+  assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
+  assert.equal(body(selected.svg), body(legacy.svg));
+});
+
+test('selective stacked bars, Mekko and treemap preserve labels and anchors', async () => {
+  const columns = [
+    {label: '前期', id: 'previous', parts: [{label: '甲', value: 2}, {label: '乙', value: 3}]},
+    {label: '今期', id: 'current', parts: [{label: '甲', value: 4}, {label: '乙', value: 5}]},
+  ];
+  const nodes = {label: '全体', id: 'total', children: [{label: '一部', id: 'part', value: 6}, {label: '残り', value: 4}]};
+  const selected = await renderBands([
+    stackedBars(columns, {id: 'stack', percent: true}),
+    mekko(columns.map(({label, parts}) => ({label, parts})), {id: 'mekko'}),
+    treemap(nodes, {percent: true}),
+  ], {measure, title: 'Plan'});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false}).add(
+    legacyStackedBars(columns, {id: 'stack', percent: true}),
+    legacyMekko(columns.map(({label, parts}) => ({label, parts})), {id: 'mekko'}),
+    legacyTreemap(nodes, {percent: true}),
+  ), {measure});
   const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
   assert.deepEqual(selected.xml, []);
   assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);

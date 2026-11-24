@@ -332,6 +332,14 @@
       "types": "./dist/lib/bands/waterfall.d.ts",
       "default": "./dist/lib/bands/waterfall.js"
     },
+    "./bands/stacked": {
+      "types": "./dist/lib/bands/stacked.d.ts",
+      "default": "./dist/lib/bands/stacked.js"
+    },
+    "./bands/treemap": {
+      "types": "./dist/lib/bands/treemap.d.ts",
+      "default": "./dist/lib/bands/treemap.js"
+    },
     "./bands/heatmap": {
       "types": "./dist/lib/bands/heatmap.d.ts",
       "default": "./dist/lib/bands/heatmap.js"

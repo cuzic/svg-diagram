@@ -45,7 +45,27 @@
 
 - [ ] `gantt`（縦積み SVG は個別バンドルで検証済み）
 - [ ] `timeline`（時系列・数値軸。個別入口からの SVG と依存除外は検証済み）
-- [ ] `chart`（レーダー、ウォーターフォール、サンキー、ヒートマップの個別 SVG と相互の依存除外は検証済み。ほかの種類は移行対象）
+- [ ] `chart`（種類別の個別 SVG 入口とバンドル検証）
+  - [x] `waterfall`
+  - [ ] `tornado`
+  - [x] `heatmap`
+  - [x] `stacked`（積み上げ棒・100% 積み上げ棒・メッコ。依存検証は積み上げ棒の入口で実施）
+  - [x] `radar`
+  - [x] `treemap`
+  - [x] `sankey`
+  - [ ] `catplot`
+  - [ ] `distplot`
+  - [ ] `multiplot`
+  - [ ] `regplot`
+  - [ ] `clustermap`
+  - [ ] `bubble`
+  - [ ] `butterfly`
+  - [ ] `combo`
+  - [ ] `harvey`
+  - [ ] `compare`
+  - [ ] `pert`
+  - [ ] `causal`
+  - [ ] `dependency`
 - [ ] `bars`（段階表示、範囲棒、パレート、ヒストグラムと、個別入口からの SVG・依存除外は検証済み）
 - [ ] `people`（個別入口からの SVG と依存除外は検証済み）
 - [ ] `dots`（個別入口からの SVG と依存除外は検証済み）
