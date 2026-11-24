@@ -1,3 +1,4 @@
+import {causeBandsOf, densityRestorationFindings} from './verify-density.ts';
 import {narrowTextFindings} from './verify-shrink.ts';
 import {boxSizeFindings} from './verify-box-like.ts';
 import {fullWidthUnits, sourceLineFindings} from './verify-caption.ts';
@@ -57,7 +58,6 @@ import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
 import type {Finding} from './types/verdicts.ts';
 import type {WfCallout} from './types/wireframe-nodes.ts';
 import type {LintTarget} from './types/verdicts.ts';
-import type {LaidOutCause} from './types/diagrams.ts';
 import {describeApplied} from './fit-width.ts';
 import {tocFindings} from './toc-rules.ts';
 import {ftaFindings} from './fta-rules.ts';
@@ -697,14 +697,6 @@ function edgeBendsRules(d: LintTarget, out: Finding[]): void {
 // Runs of two arrows side by side closer than the lane step, the gap the router keeps between its lanes: a bundle of such lines cannot be
 // followed. Only a cause tree's band (no `origin`): the other routed figures keep short runs at the port step by design (states / classes
 // shrink their ports on a short side, so the last run of a fan-in always counts). Arrows that share a tail or a head count too.
-function causeBandsOf(bands: LaidOutBand[], out: LaidOutCause[] = []): LaidOutCause[] {
-  for (const b of bands) {
-    if (b.type === 'cause') out.push(b);
-    else if (b.type === 'row' || b.type === 'grid') causeBandsOf(b.children, out);
-  }
-  return out;
-}
-
 function edgeParallelRules(d: LintTarget, out: Finding[]): void {
   if (!d.laidOut) return;
   const severity = layoutSeverity(d);
@@ -846,14 +838,6 @@ function graphRules(d: LintTarget, out: Finding[]): void {
   }
 }
 // `density: 'compact'` that was not applied to a band (ADR 0036 D6): the compact figure had an arrow through a box or a label on another one
-function densityRules(d: LintTarget, out: Finding[]): void {
-  // ADR 0070 D7 (U5): the canvas asked for lines scaled with the text, but the scaled figure did not fit; it is drawn with the old lines
-  const dropped = causeBandsOf(d.laidOut ?? []).filter(b => b.lineScaleDropped);
-  if (dropped.length) out.push({...at(dropped[0], ...dropped.slice(1)), rule: 'cause-line-scale-dropped', severity: 'info', message: 'causeTree(): 線の間隔を文字の倍率で広げると canvas に収まらないので、この図は広げない間隔で描いた（線の間隔 ÷ 文字が小さい）。canvas を高くする・minText を下げる・図を分けると広げられる'});
-  const restored = (d.laidOut ?? []).filter(b => b.type === 'cause' && b.densityRestored || b.type === 'states' && b.densityRestored);
-  const who = restored.map(b => b.type === 'cause' ? 'causeTree()' : b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart()' : 'stateDiagram()');
-  if (who.length) out.push({...at(restored[0], ...restored.slice(1)), rule: 'density-compact-restored', severity: 'info', message: `${[...new Set(who)].join('・')}: density: 'compact' にすると箱を通る矢印・重なるラベルが増えるので、この図は通常の間隔で描いた（高さは詰まっていない）`});
-}
 const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()', fta: 'faultTree()', bowtie: 'bowtie()'} as const;
 // what the layout changed on its own to make a figure fit its width (ADR 0010 D3): left out is a warning, `dir: 'auto'` is the author's own choice
 function fitRules(d: LintTarget, out: Finding[]): void {
@@ -919,7 +903,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   rcaRules(d, out);
   comicRules(d, out);
   fitRules(d, out);
-  densityRules(d, out);
+  out.push(...densityRestorationFindings(d));
   for (const b of d.laidOut ?? []) if (b.type === 'concentric') out.push(...concentricFindings(b));
   for (const b of d.laidOut ?? []) if (b.type === 'states') out.push(...flowchartFindings(b));
   textContrast(d, tones, out);

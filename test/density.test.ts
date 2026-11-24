@@ -155,3 +155,18 @@ test('statesProblems: a transition through a state, a chip on a state, on anothe
 });
 
 test.after(async () => { await closeMeasurer(); });
+
+test('selected cause bands report restoration once for the diagram', async () => {
+  const {causeTree} = await import('../lib/bands/cause.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {fontMeasurer} = await import('../lib/node-measure.ts');
+  const opts = {dir: 'left', straighten: false} as const;
+  const rendered = await prepareBands([
+    causeTree(C43.nodes, C43.links, {...opts, scope: 'first'}),
+    causeTree(C43.nodes, C43.links, {...opts, scope: 'second'}),
+  ], {measure: fontMeasurer(), density: 'compact', width: 1800});
+  assert.equal(rendered.placed.laidOut.filter(band => band.type === 'cause' && band.densityRestored).length, 2);
+  const findings = rendered.verdict.findings.filter(f => f.rule === 'density-compact-restored');
+  assert.equal(findings.length, 1);
+  assert.match(findings[0]!.message, /^causeTree\(\):/);
+});

@@ -604,6 +604,8 @@
   "verify-cloud:cloudProblems",
   "verify-cloud:cloudRects",
   "verify-concentric:concentricFindings",
+  "verify-density:causeBandsOf",
+  "verify-density:densityRestorationFindings",
   "verify-flow:flowProblems",
   "verify-flowchart:flowchartFindings",
   "verify-fta-rects:ftaRects",

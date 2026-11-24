@@ -1,3 +1,4 @@
+import {densityRestorationFindings} from '../verify-density.ts';
 import {flowchartFindings} from '../verify-flowchart.ts';
 import {textsAndLabels} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
@@ -26,6 +27,7 @@ export const statesDefinition: BandDef<StatesBand, LaidOutStates> = {
   },
   emit: (laid, {theme, tones}) => renderStates(laid, theme, tones),
   verify: {
+    diagramFindings: densityRestorationFindings,
     rects: laid => anchorRects(laid),
     layoutFindings: flowchartFindings,
     check: laid => statesProblems(laid).map(message => ({rule: 'states', severity: 'problem', message})),
