@@ -14,7 +14,7 @@ import {layoutTimeline} from './timeline.ts';
 import {layoutQuadrant} from './quadrant.ts';
 import {layoutFlowShape} from './flow-shapes.ts';
 import {layoutWordArt} from './wordart.ts';
-import {CANVAS_MIN_ROW_H, canvasColumns, canvasRowHeights, canvasSpan, trackRowYs} from './canvas.ts';
+import {canvasRowHeights, canvasSpan, trackRowYs} from './canvas.ts';
 import {areasColumns} from './areas.ts';
 import {layoutTreeBand, narrowField, treeItems} from './tree.ts';
 import {resolveAnchor} from './anchor-scope.ts';
@@ -31,7 +31,7 @@ import {layoutBowtie} from './bowtie.ts';
 import {layoutComic} from './comic/layout.ts';
 import {layoutChart} from './charts.ts';
 import {layoutWireframe, layoutScreens} from './wireframe.ts';
-import type {AreasBand, GroupBand, LegendBand, ConnectBand, GroupRowBand, RowBand, GridBand, RawBand, SpacerBand, StatusBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow, RowArrow} from './types/containers.ts';
+import type {AreasBand, GroupBand, LegendBand, GroupRowBand, RawBand, SpacerBand, StatusBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow} from './types/containers.ts';
 import type {LabelRole, Rect} from './types/core.ts';
 import type {LaidOutTree, TreeItem} from './types/diagrams.ts';
 import type {PyramidBand, CurveBand, LaidOutPyramidLayer} from './types/figures.ts';
@@ -39,14 +39,16 @@ import type {ImageBand} from './types/image.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
 import type {SwimlaneBand, LaidOutLane, LaidOutPhase, LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
 import type {BoxBand, CaptionBand, BannerBand} from './types/text-bands.ts';
-import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
+import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx} from './layout-ctx.ts';
 import {PALETTE, SHADES, blendLuminance, bestTextColor, canvasFontScale, paintOf} from './tokens.ts';
 import {
-  BOX_PAD_X, LINE_HEIGHT_EM, boundaryChipH, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, CANVAS_MIN_REGION_W, SWIMLANE_COMFY_COL, STAMP_GAP, STAMP_H, TAG_H,
-  groupTitleBand, gridChildGeometry, gridColumns, rowChildGeometry, snapGrid, stampChipW,
+  LINE_HEIGHT_EM, boundaryChipH, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, CANVAS_MIN_REGION_W, SWIMLANE_COMFY_COL, STAMP_GAP, STAMP_H,
+  groupTitleBand, rowChildGeometry, snapGrid, stampChipW,
 } from './layout-util.ts';
 import {lineWidth} from './layout-text.ts';
-import {parseRef, resolveConnect} from './layout-connect.ts';
+import {layoutConnect} from './layout-connect.ts';
+import {layoutGridBand} from './layout-grid.ts';
+import {layoutRow, registerRowSlots} from './layout-row.ts';
 import {addScoped, qualify, scopeOf} from './anchor-scope.ts';
 
 import {must} from './must.ts';
@@ -139,28 +141,6 @@ function layoutBoxLikeBand(band: CaptionBand | BoxBand | BannerBand, ctx: Layout
   const placed = ctx.placeBoxLike(band, padX, ctx.y, cw, isBoxLike);
   ctx.laidOut.push(placed);
   ctx.y += placed.h + ctx.d.gap;
-}
-
-// row({id}): the row itself is an anchor, and so is each of its columns (`id#5`, `id#5-6`; the n-th child on a row without `cols`).
-function registerRowSlots(ctx: LayoutCtx, id: string | undefined, band: RowLike, rowTop: number, rowHeight: number, padX: number, cw: number, gap: number, placed: Rect[]): void {
-  if (!id) return;
-  if (ctx.anchors.has(id)) ctx.claimed(id, 'a row takes an id that another box, group or row already has');
-  ctx.anchors.set(id, {x: padX, y: rowTop, w: cw, h: rowHeight});
-  ctx.areaIds.add(id);
-  if (band.cols) {
-    const cols = band.cols, colW = (cw - (cols - 1) * gap) / cols, grid = gridColumns(cw, cols, gap, {centerGutter: cols === 12}); // the same column edges the row's children sit on
-    const left = (c: number): number => grid ? must(grid.x[c]) : c * (colW + gap), right = (c: number): number => grid ? must(grid.x[c]) + must(grid.w[c]) : c * (colW + gap) + colW;
-    for (let a = 1; a <= cols; a++) for (let b = a; b <= cols; b++) {
-      const key = b === a ? `${id}#${a}` : `${id}#${a}-${b}`;
-      if (ctx.anchors.has(key)) ctx.claimed(key, 'a row column collides with an existing id');
-      ctx.anchors.set(key, {x: padX + left(a - 1), y: rowTop, w: right(b - 1) - left(a - 1), h: rowHeight});
-      ctx.areaIds.add(key);
-    }
-  } else {
-    const put = (key: string, r: Rect) => { if (ctx.anchors.has(key)) ctx.claimed(key, 'a row column collides with an existing id'); ctx.anchors.set(key, r); ctx.areaIds.add(key); };
-    placed.forEach((r, i) => put(`${id}#${i + 1}`, {x: r.x, y: rowTop, w: r.w, h: rowHeight}));
-    for (let a = 0; a < placed.length; a++) for (let b = a + 1; b < placed.length; b++) put(`${id}#${a + 1}-${b + 1}`, {x: must(placed[a]).x, y: rowTop, w: must(placed[b]).x + must(placed[b]).w - must(placed[a]).x, h: rowHeight});
-  }
 }
 
 /** A group stretched taller than its content by a row (ADR 0014 D2): the room to hand to the content, and where it goes. */
@@ -364,32 +344,6 @@ function layoutLegend(band: LegendBand, ctx: LayoutCtx, padX: number, cw: number
   ctx.y += h + d.gap;
 }
 
-function layoutConnect(band: ConnectBand, ctx: LayoutCtx, _padX: number, _cw: number): void {
-  const {roles, widthOf} = ctx;
-  // Resolved immediately (not deferred) so a loop-under route can
-  // reserve real vertical space for its dip + label — a zero-height
-  // overlay resolved only after the whole stack is laid out would let
-  // the return path silently collide with whatever comes next (this
-  // was caught by lint-svg.ts's container-overflow check on the first
-  // real test: a loop-under label overlapped the following banner).
-  // When an anchor is not laid out yet (connect() declared before a box it
-  // names) resolution waits until the whole stack is placed; such a
-  // connector reserves no loop-under space.
-  // A bare id that a scoped item also answers to waits too (ADR 0012): whether it is ambiguous is known only when every band is placed.
-  const waits = (id: string): boolean => !ctx.anchors.has(id) || ctx.scopes.byBare.has(id);
-  // a connect({via}) stops on a group's frame, read off the final laid-out groups (ADR 0069 D2): kept out of the layout state that
-  // snapshotCtx / restoreCtx take back, so a frame a row or an areas() lays out again is never read in its first, discarded size
-  if (band.via || waits(parseRef(band.from).id) || waits(parseRef(band.to).id)) { ctx.deferred.push(band); return; }
-  const resolved = resolveConnect(band, ctx.anchors, ctx.areaIds, widthOf, roles, ctx.nodeBottoms, ctx.scopes);
-  ctx.connects.push(resolved);
-  // a bracket / callout under its boxes needs room for its line and label, as a loop-under does
-  if (band.annot?.side === 'below') ctx.y = Math.max(ctx.y, ...resolved.pathSegments.map(r => r.y + r.h), resolved.labelBox ? resolved.labelBox.y + resolved.labelBox.h : 0) + 8;
-  if (band.route === 'loop-under') {
-    const labelClearance = band.label ? 24 : 8;
-    ctx.y = Math.max(resolved.from.y, resolved.to.y, ctx.y) + band.dip + labelClearance;
-  }
-}
-
 function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d} = ctx;
   // Each child is laid out as if stacked alone at its own x / width, all starting at the row's top; afterwards every
@@ -491,92 +445,6 @@ function layoutAreas(band: AreasBand, ctx: LayoutCtx, padX: number, cw: number):
     ctx.areaIds.add(band.id); // the boxes in it count as its end (as with row({id}))
   }
   ctx.y = bottom + d.gap;
-}
-
-function layoutRow(band: RowBand, ctx: LayoutCtx, padX: number, cw: number): void {
-  const {d} = ctx, top = snapGrid(ctx.y); // the row sits on the grid; the cursor moves on from where it was
-  const rowGap = ctx.gapForLabels(band, cw);
-  const {widths, xOffsets} = rowChildGeometry({...band, gap: rowGap}, cw);
-  const placedChildren = band.children.map((child, i) =>
-    ctx.placeBoxLike(child, padX + must(xOffsets[i]), top, must(widths[i]), true));
-  const rowHeight = Math.max(...placedChildren.map(c => c.h));
-  for (const c of placedChildren) { c.h = rowHeight; if (c.id) ctx.setBox(c.id, c as never, rowHeight); }
-
-  const arrows: RowArrow[] = [];
-  if (band.arrows === 'between') {
-    for (let i = 0; i < placedChildren.length - 1; i++) {
-      const a = must(placedChildren[i]), b = must(placedChildren[i + 1]);
-      const y = top + rowHeight / 2;
-      arrows.push({x1: a.x + a.w, y1: y, x2: b.x, y2: y});
-    }
-  }
-
-  registerRowSlots(ctx, band.id, band, top, rowHeight, padX, cw, rowGap, placedChildren);
-  ctx.laidOut.push({type: 'row', id: band.id, x: padX, y: top, w: cw, h: rowHeight, children: placedChildren, arrows});
-  ctx.y += rowHeight + d.gap;
-}
-
-function layoutCanvasGrid(band: GridBand & {canvas: NonNullable<GridBand['canvas']>}, ctx: LayoutCtx, padX: number, cw: number): void {
-  const {d, widthOf} = ctx;
-  const cv = band.canvas, gap = band.gap, top0 = ctx.y;
-  // a region's pill sits on its top edge, half above it: the rows under the first keep it clear of the box above
-  // (and of the caption above the first row)
-  const tagged = (row: (r: number) => boolean): boolean => band.children.some((c, i) => c.tag && row(must(cv.place[i]).row));
-  const rowGap = tagged(r => r > 0) ? Math.max(gap, TAG_H / 2 + 4) : gap;
-  if (cv.title) {
-    const t = ctx.placeBoxLike({type: 'caption', text: cv.title, align: 'left', role: 'title', bold: true, tone: 'text', mono: false} as CaptionBand, padX, ctx.y, cw, false);
-    ctx.laidOut.push(t);
-    ctx.y += t.h + Math.max(d.gap / 2, tagged(r => r === 0) ? TAG_H / 2 + 4 : 0);
-  }
-  // every edge on the 4px grid the emitter snaps shapes to, so neighbouring regions keep one straight edge and even gutters
-  const top = Math.ceil(ctx.y / 4 - 1e-6) * 4, cols = canvasColumns(cv, padX, cw, gap);
-  const placed = band.children.map((child, i) => {
-    const s = canvasSpan(cols, must(cv.place[i]));
-    const name = child.title ?? `region ${i + 1}`;
-    if (s.w < CANVAS_MIN_REGION_W) throw new Error(`canvas("${cv.template}"): region "${name}" is only ${Math.max(0, Math.round(s.w))}px wide (at least ${CANVAS_MIN_REGION_W}px): widen the figure (diagram({width})) or use a smaller gap`);
-    const p = ctx.placeBoxLike(child, s.x, top, s.w, true);
-    // a word longer than the region is placed whole by the wrapper (it has no place to break) and would run out of the box
-    const room = s.w - 2 * (child.padX ?? BOX_PAD_X) + 0.5;
-    for (const r of p.wrappedRuns) for (const line of r.lines) for (const atom of splitAtoms(line)) {
-      if (textWidth(widthOf, atom, r.size, r.weight, r.mono ? 'mono' : 'sans') + (r.indent ?? 0) > room) throw new Error(`canvas("${cv.template}"): "${atom.slice(0, 40)}" in region "${name}" is wider than the region (${Math.round(room)}px of text): break the word (a space or a shorter word), or widen the figure`);
-    }
-    return p;
-  });
-  // fit 'content' (default): a row is as tall as its regions need, a region meant to be filled at least CANVAS_MIN_ROW_H; only h adds room.
-  // fit 'aspect': the template's height / width is a floor, except on a slide canvas, where it never grows past the slide's height for that alone
-  const aspectH = cv.aspect * cw, slideRoom = d.canvas ? d.canvas.height - d.pad - top - 4 * cv.rowW.length /* the 4px grid */ : Infinity;
-  const needs = placed.map((p, i) => cv.fit === 'aspect' || cv.h !== undefined || !cv.floor[i] ? p.h : Math.max(p.h, CANVAS_MIN_ROW_H));
-  const rows = canvasRowHeights(cv, needs, rowGap, cv.h ?? (cv.fit === 'aspect' ? Math.max(0, Math.min(aspectH, slideRoom)) : 0));
-  const total = rows.reduce((a, b) => a + b, 0) + rowGap * (rows.length - 1);
-  if (cv.h !== undefined && total > cv.h + 0.5) throw new Error(`canvas("${cv.template}"): the regions need ${Math.ceil(total)}px of height but h is ${cv.h}px (shorten the text, widen the figure, or leave h out)`);
-  const rowY = trackRowYs(top, rows, rowGap);
-  placed.forEach((p, i) => {
-    const pl = must(cv.place[i]), h = must(rowY[pl.row + pl.rs]) - rowGap - must(rowY[pl.row]);
-    p.y = must(rowY[pl.row]); p.h = h;
-    if (p.tagBox) p.tagBox.y = p.y - p.tagBox.h / 2;
-    if (p.id) ctx.setBox(p.id, p as never, h);
-  });
-  ctx.laidOut.push({type: 'grid', x: padX, y: top0, w: cw, children: placed});
-  ctx.y = must(rowY[rows.length]) - rowGap + d.gap;
-}
-
-function layoutPlainGrid(band: GridBand, ctx: LayoutCtx, padX: number, cw: number): void {
-  const {d} = ctx;
-  const gridStartY = snapGrid(ctx.y);
-  const {xs, ws} = gridChildGeometry(band, cw);
-  const cols = band.cols;
-  const placedRows: Placed<BoxBand>[] = [];
-  for (let i = 0; i < band.children.length; i += cols) {
-    const rowChildren = band.children.slice(i, i + cols);
-    const placed = rowChildren.map((child, j) =>
-      ctx.placeBoxLike(child, padX + must(xs[j]), ctx.y, must(ws[j]), true));
-    const rowHeight = Math.max(...placed.map(c => c.h));
-    for (const c of placed) { c.h = rowHeight; if (c.id) ctx.setBox(c.id, c as never, rowHeight); }
-    placedRows.push(...placed);
-    ctx.y += rowHeight + band.gap; // this row's gap; replaced by d.gap below after the loop
-  }
-  ctx.laidOut.push({type: 'grid', x: padX, y: gridStartY, w: cw, children: placedRows});
-  ctx.y += d.gap - band.gap; // swap the last grid-row's internal gap for the between-bands gap
 }
 
 function layoutPyramid(band: PyramidBand, ctx: LayoutCtx, padX: number, cw: number): void {
@@ -801,11 +669,6 @@ const layoutPeopleOrDots = placedBand((band: Band & {type: 'people' | 'dots'}, x
 const layoutMathBand = placedBand((band: BandOf<'math'>, x, y, w, ctx) => layoutMath(band, x, y, w, ctx.roles[band.role], ctx.d.day, ctx.tones), 'a math band takes an id that another anchor already has');
 const layoutPlaneBand = placedBand((band: BandOf<'plane'>, x, y, w, ctx) => layoutPlane(scaledGeometry(band, ctx), x, y, w, ctx.widthOf, ctx.roles, canvasGeom(ctx)), 'a plane takes an id that another anchor already has');
 const layoutQuadrantBand = placedBand((band: BandOf<'quadrant'>, x, y, w, ctx) => layoutQuadrant(band, x, y, w, ctx.widthOf, ctx.roles, ctx.wrap), 'a quadrant takes an id that another anchor already has', 'a quadrant item takes an id that another anchor already has');
-
-function layoutGridBand(band: GridBand, ctx: LayoutCtx, padX: number, cw: number): void {
-  if (band.canvas) layoutCanvasGrid(band as GridBand & {canvas: NonNullable<GridBand['canvas']>}, ctx, padX, cw);
-  else layoutPlainGrid(band, ctx, padX, cw);
-}
 
 /**
  * The handler of every band type. Typed per key, so each handler is checked against its own band type; the `satisfies` below

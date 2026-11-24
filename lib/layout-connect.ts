@@ -1,6 +1,7 @@
 // connect() resolution: the "id:side@t" reference syntax, the polyline a connector follows, its label / chip placement, and
 // bracket() / callout() annotations. Pure functions of the anchors laid out so far.
 
+import type {LayoutCtx} from './layout-ctx.ts';
 import {textWidth} from './atoms.ts';
 import {resolveAnchor, unknownHint} from './scope-table.ts';
 import type {ScopeTable} from './scope-table.ts';
@@ -313,4 +314,30 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
   // messages — `from`/`to` themselves get overwritten by the spread below
   // with the resolved {x,y} points emit.ts's renderConnectPath needs.
   return {...band, from, to, fromId: fromRef.id, toId: toRef.id, fromArea: areaIds.has(fromRef.id) ? fromRect : undefined, toArea: areaIds.has(toRef.id) ? toRect : undefined, ...(fromVia ? {fromVia} : {}), ...(toVia ? {toVia} : {}), fromLabel: band.from, toLabel: band.to, points, pathSegments: segments, labelX, labelY, labelBox, chipBox};
+}
+
+export function layoutConnect(band: ConnectBand, ctx: LayoutCtx): void {
+  const {roles, widthOf} = ctx;
+  // Resolved immediately (not deferred) so a loop-under route can
+  // reserve real vertical space for its dip + label — a zero-height
+  // overlay resolved only after the whole stack is laid out would let
+  // the return path silently collide with whatever comes next (this
+  // was caught by lint-svg.ts's container-overflow check on the first
+  // real test: a loop-under label overlapped the following banner).
+  // When an anchor is not laid out yet (connect() declared before a box it
+  // names) resolution waits until the whole stack is placed; such a
+  // connector reserves no loop-under space.
+  // A bare id that a scoped item also answers to waits too (ADR 0012): whether it is ambiguous is known only when every band is placed.
+  const waits = (id: string): boolean => !ctx.anchors.has(id) || ctx.scopes.byBare.has(id);
+  // a connect({via}) stops on a group's frame, read off the final laid-out groups (ADR 0069 D2): kept out of the layout state that
+  // snapshotCtx / restoreCtx take back, so a frame a row or an areas() lays out again is never read in its first, discarded size
+  if (band.via || waits(parseRef(band.from).id) || waits(parseRef(band.to).id)) { ctx.deferred.push(band); return; }
+  const resolved = resolveConnect(band, ctx.anchors, ctx.areaIds, widthOf, roles, ctx.nodeBottoms, ctx.scopes);
+  ctx.connects.push(resolved);
+  // a bracket / callout under its boxes needs room for its line and label, as a loop-under does
+  if (band.annot?.side === 'below') ctx.y = Math.max(ctx.y, ...resolved.pathSegments.map(r => r.y + r.h), resolved.labelBox ? resolved.labelBox.y + resolved.labelBox.h : 0) + 8;
+  if (band.route === 'loop-under') {
+    const labelClearance = band.label ? 24 : 8;
+    ctx.y = Math.max(resolved.from.y, resolved.to.y, ctx.y) + band.dip + labelClearance;
+  }
 }
