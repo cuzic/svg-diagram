@@ -44,11 +44,11 @@ export function collectTextRequestsWith(band: WireframeBand | ScreensBand, runti
     else if (Array.isArray(v)) v.forEach(walk);
     else if (v && typeof v === 'object') { if ((v as {t?: unknown}).t) {
       const node = v as WfNode;
-      runtime.parts?.strings(node).forEach(x => strings.add(x));
       runtime.strings?.(node).forEach(x => strings.add(x));
     } Object.values(v).forEach(walk); }
   };
-  runtime.parts?.always.forEach(x => strings.add(x));
+  runtime.always?.forEach(x => strings.add(x));
+  runtime.states?.labels().forEach(x => strings.add(x));
   walk(band.type === 'screens' ? [band.items, band.matrix] : [band.root, band.overlays, band.title, band.tag, band.notes, band.marks]);
   if (band.marks) walk(band.marks);
   const out: TextRequest[] = [];
@@ -57,11 +57,16 @@ export function collectTextRequestsWith(band: WireframeBand | ScreensBand, runti
 }
 
 // ---- drawing context ---------------------------------------------------------------------
-export interface WireframeRuntime {
+export interface WireframeDecorations {
+  states?: Pick<WfPartsApi, 'drawState' | 'stateMinH'> & {labels(): readonly string[]};
+  robotMarkers?: Pick<WfPartsApi, 'glyph' | 'fovSector' | 'headingArrow'>;
+}
+
+export interface WireframeRuntime extends WireframeDecorations {
   draw: WfDrawTable;
   nat?: WfNatTable;
   autoWidth?: WfAutoWTable;
-  parts?: WfPartsApi;
+  always?: readonly string[];
   strings?(node: WfNode): readonly string[];
 }
 
@@ -71,10 +76,10 @@ function runtimeOf(ctx: WfCtx): WireframeRuntime {
   return (ctx as RuntimeCtx).runtime;
 }
 
-function advancedParts(ctx: WfCtx, feature: string): WfPartsApi {
-  const parts = runtimeOf(ctx).parts;
-  if (!parts) throw new Error(`wireframe(): ${feature} を描画するには bands/wireframe の入口を使ってください`);
-  return parts;
+function decoration<K extends keyof WireframeDecorations>(ctx: WfCtx, key: K, feature: string): NonNullable<WireframeDecorations[K]> {
+  const renderer = runtimeOf(ctx)[key];
+  if (!renderer) throw new Error(`wireframe(): ${feature} の描画処理を登録するか、bands/wireframe の入口を使ってください`);
+  return renderer;
 }
 
 function mkCtx(runtime: WireframeRuntime, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, skeleton?: boolean): RuntimeCtx {
@@ -189,7 +194,7 @@ function tableData(n: Extract<WfNode, {t: 'table'}>, w: number, ctx: WfCtx) {
 // A widget in a state that replaces its content grows to hold the state's message box (an explicit h is kept).
 function nat(n: WfNode, w: number, ctx: WfCtx): number {
   const base = natBase(n, w, ctx);
-  return n.state && n.h == null ? Math.max(base, advancedParts(ctx, n.state).stateMinH(n, w, ctx)) : base;
+  return n.state && n.h == null ? Math.max(base, decoration(ctx, 'states', n.state).stateMinH(n, w, ctx)) : base;
 }
 function natBase(n: WfNode, w: number, ctx: WfCtx): number {
   if (n.h != null) return n.h;
@@ -207,7 +212,7 @@ function place(n: WfNode, x: number, y: number, w: number, h: number | undefined
   }
   const r = (runtimeOf(ctx).draw[n.t] as WfDrawFn | undefined)?.(n, x, y, w, H, ctx); // per-t table: the call spot cannot correlate n with its t
   if (!r) throw new Error(`wireframe(): unknown node type "${n.t}"`);
-  if (n.state) advancedParts(ctx, n.state).drawState(n, x, y, r.w, r.h, ctx);
+  if (n.state) decoration(ctx, 'states', n.state).drawState(n, x, y, r.w, r.h, ctx);
   if (n.mark) {
     ctx.used.add(n.mark);
     rect(ctx, x - 3, y - 3, r.w + 6, r.h + 6, {r: 8, stroke: 'accent', sw: 2.5, dash: n.mark === 'new' ? '6,4' : undefined});
@@ -651,10 +656,10 @@ function drawMarker(m: WfMapMarker, [px, py]: [number, number], _minX: number, m
   const kind = m.kind ?? 'robot';
   let r = m.inside != null ? 11 : 9;
   if (kind === 'robot') {
-    if (m.fov) advancedParts(ctx, 'robot marker').fovSector(ctx, px, py, m.heading ?? 0, m.fov, m.fovR ?? 40);
-    if (m.id || m.shape) { advancedParts(ctx, 'robot marker').glyph(ctx, px, py, {shape: m.shape, id: m.id, r: 11}); r = 12; }
+    if (m.fov) decoration(ctx, 'robotMarkers', 'robot marker').fovSector(ctx, px, py, m.heading ?? 0, m.fov, m.fovR ?? 40);
+    if (m.id || m.shape) { decoration(ctx, 'robotMarkers', 'robot marker').glyph(ctx, px, py, {shape: m.shape, id: m.id, r: 11}); r = 12; }
     else circle(ctx, px, py, 9, {fill: 'accent', stroke: 'bg', sw: 3});
-    if (m.heading != null) advancedParts(ctx, 'robot marker').headingArrow(ctx, px, py, m.heading, r + 3);
+    if (m.heading != null) decoration(ctx, 'robotMarkers', 'robot marker').headingArrow(ctx, px, py, m.heading, r + 3);
   }
   else if (kind === 'site') { r = 12; circle(ctx, px, py, 12, {fill: 'accent', stroke: 'bg', sw: 3}); }
   else if (kind === 'alert') path(ctx, pts([[px, py - 11], [px + 11, py], [px, py + 11], [px - 11, py]]) + ' Z', {fill: 'danger', stroke: 'bg', sw: 2});

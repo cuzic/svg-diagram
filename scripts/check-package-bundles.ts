@@ -284,6 +284,14 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [stepsPart],
       });
     `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 118000, Vite: 150000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
+    {name: 'Selected wireframe states', source: composedSource([], "wireframe(region('Review', {state: 'stale'}))",
+      "import {createWireframe, regionRenderer, widgetStates} from 'svg-diagram/wireframe/renderers'; import {region} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([regionRenderer], {states: widgetStates});"),
+      include: 'wireframe-parts.js', bands: ['wireframe-basic.js'], budget: {esbuild: 75000, Vite: 103000},
+      exclude: [...legacy, 'lib/wireframe.js', 'wireframe-insight.js', 'bands/screens.js'], draw: true},
+    {name: 'Selected robot markers', source: composedSource([], "wireframe(map({markers: [{id: 'A', x: 0.5, y: 0.5, heading: 90, fov: 60, label: 'Review'}]}))",
+      "import {createWireframe, mapRenderer, robotMarkers} from 'svg-diagram/wireframe/renderers'; import {map} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([mapRenderer], {robotMarkers});"),
+      include: 'wireframe-parts.js', bands: ['wireframe-basic.js'], budget: {esbuild: 75000, Vite: 103000},
+      exclude: [...legacy, 'lib/wireframe.js', 'wireframe-insight.js', 'bands/screens.js'], draw: true},
     {name: 'Selected monitoring widget', source: composedSource([], "wireframe(col([text('Review'), battery(0.15)]))",
       "import {createWireframe, colRenderer, textRenderer, batteryRenderer} from 'svg-diagram/wireframe/renderers'; import {col, text, battery} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([colRenderer, textRenderer, batteryRenderer]);"),
       include: 'wireframe-parts.js', bands: ['wireframe-basic.js'], budget: {esbuild: 73000, Vite: 99000},
@@ -438,15 +446,16 @@ try {
     const {name, source, include, exclude, budget, draw, bands} = testCase;
     const catalog = 'catalog' in testCase && testCase.catalog;
     const selectedLayout = 'layout' in testCase ? testCase.layout : undefined;
+    const decorationSelection = name === 'Selected wireframe states' || name === 'Selected robot markers';
     const widgetSelection = name === 'Selected wireframe widgets' || name === 'Selected monitoring widget';
     writeFileSync(entry, source);
-    const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true, keepNames: !!selectedLayout || widgetSelection,
+    const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true, keepNames: !!selectedLayout || widgetSelection || decorationSelection,
       platform: 'browser', format: 'esm', write: false, metafile: true});
     const esOutput = Object.values(es.metafile.outputs)[0];
     assert.ok(esOutput);
     const [viteOutput] = await viteBuild({root: consumer, configFile: false, logLevel: 'silent',
       resolve: {preserveSymlinks: true},
-      esbuild: {keepNames: !!selectedLayout || widgetSelection},
+      esbuild: {keepNames: !!selectedLayout || widgetSelection || decorationSelection},
       build: {write: false, minify: 'esbuild', lib: {entry, formats: ['es']}}});
     const [chunk] = viteOutput.output;
     assert.equal(chunk.type, 'chunk');
@@ -475,6 +484,11 @@ try {
       if (limit !== undefined) assert.ok(bytes <= limit, `${label} が ${limit} バイトを超えています (${bytes})`);
       if (draw) {
         assert.ok(code);
+        if (decorationSelection) {
+          assert.equal(code.includes('"drawStateIcon"'), name === 'Selected wireframe states', label);
+          assert.equal(code.includes('"fovSector"'), name === 'Selected robot markers', label);
+          assert.ok(!code.includes('"batteryText"'), label);
+        }
         if (widgetSelection) {
           assert.ok(code.includes('"textLines"'), label);
           assert.equal(code.includes('"batteryText"'), name === 'Selected monitoring widget', label);
@@ -536,6 +550,8 @@ try {
           assert.match(result.svg, /<image [^>]*href="data:image\/gif;base64,/);
           assert.doesNotMatch(code, /\bBuffer\b/, label);
         }
+        if (name === 'Selected wireframe states') assert.match(result.svg, /古い情報/, label);
+        if (name === 'Selected robot markers') assert.match(result.svg, /ロボット A/, label);
         if (name === 'RACI table') assert.ok(!/fmea\(\)|qfd\(\)|whyWhyTree\(/.test(code), label);
         if (name === 'Selected fault tree spec with legend') assert.match(result.svg, /OR gate/, label);
         if (name === 'Row loop-back' || name === 'Selected steps spec') assert.match(result.svg, /Retry/, label);

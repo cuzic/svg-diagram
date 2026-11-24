@@ -852,3 +852,20 @@ test('selected monitoring widgets preserve formatted labels without the other re
   assert.match(a.svg, /途絶/);
   await assert.rejects(renderBands([selected(wf.fusion())], {measure}), /fusion/);
 });
+
+test('wireframe decorations can be selected independently', async () => {
+  const {createWireframe, mapRenderer, regionRenderer, robotMarkers, widgetStates} = await import('../lib/wireframe-renderers.ts');
+  const loading = wf.region('Review', {state: 'loading'});
+  const map = wf.map({markers: [{id: 'A', x: 0.5, y: 0.5, heading: 90, fov: 60}]});
+  const stateOnly = createWireframe([regionRenderer, mapRenderer], {states: widgetStates});
+  const markerOnly = createWireframe([regionRenderer, mapRenderer], {robotMarkers});
+  const regions = (['missing', 'disconnected', 'loading', 'empty', 'stale'] as const)
+    .map(state => wf.region('Review', {state}));
+  for (const [draw, root] of [...regions.map(region => [stateOnly, region] as const), [markerOnly, map] as const]) {
+    const a = await renderBands([draw(root)], {measure});
+    const b = await renderBands([wireframe(root)], {measure});
+    assert.equal(a.svg, b.svg);
+  }
+  await assert.rejects(renderBands([stateOnly(map)], {measure}), /robot marker/);
+  await assert.rejects(renderBands([markerOnly(loading)], {measure}), /loading/);
+});

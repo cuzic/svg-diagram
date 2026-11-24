@@ -21,7 +21,7 @@ import type {ColorKey} from './types/core.ts';
 import type {GlyphOpts, WfBattery, WfCtx, WfFusion, WfFusionLayerSpec, WfHelpers, WfInsight, WfNode, WfPartKey, WfPartsApi, WfRobot, WfSignal, WfState, WfTone} from './types/wireframe-nodes.ts';
 
 import {S, T, lh, rect, circle, badge, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder, makeWireframeRuntime} from './wireframe-layout-core.ts';
-import type {WidgetRenderer} from './wireframe-layout-core.ts';
+import type {WidgetRenderer, WireframeDecorations} from './wireframe-layout-core.ts';
 
 interface StateInfo {title: string; tone: ColorKey}
 interface FusionLayer extends WfFusionLayerSpec {kind: 'camera' | 'cloud' | 'thermal'; bad: WfState | undefined; on: boolean}
@@ -466,6 +466,14 @@ export const signalRenderer: WidgetRenderer<'signal'> = {
   },
 };
 
+export const widgetStates: NonNullable<WireframeDecorations['states']> = {
+  drawState, stateMinH, labels: () => Object.values(STATES).map(state => state.title),
+};
+
+export const robotMarkers: NonNullable<WireframeDecorations['robotMarkers']> = {
+  glyph, fovSector, headingArrow,
+};
+
 export function installParts({DRAW, NAT, AUTO_W}: Pick<WfHelpers, 'DRAW' | 'NAT' | 'AUTO_W'>): WfPartsApi {
   const runtime = makeWireframeRuntime([
     toggleRenderer, checkboxRenderer, sliderRenderer, batteryRenderer,
@@ -476,5 +484,5 @@ export function installParts({DRAW, NAT, AUTO_W}: Pick<WfHelpers, 'DRAW' | 'NAT'
   Object.assign(NAT, runtime.nat);
   Object.assign(AUTO_W, runtime.autoWidth);
   const always = [...Object.values(STATES).map(x => x.title), ...Object.values(LEVEL).map(x => x.label), '参考表示', '再生位置を同期', '途絶', '弱い', 'やや弱い', '良好', ' 低下', '最終受信 —', 'カメラ', '点群', '赤外線'];
-  return {drawState, stateMinH, glyph, fovSector, headingArrow, strings: node => [...(runtime.strings?.(node) ?? [])], always};
+  return {...widgetStates, ...robotMarkers, strings: node => [...(runtime.strings?.(node) ?? [])], always};
 }

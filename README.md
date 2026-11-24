@@ -170,6 +170,8 @@ CLI では `svg-diagram spec 比較.json --part table > 比較.svg` で描画で
 
 監視用ウィジェットも同じ入口から選べます。たとえばバッテリー表示には `batteryRenderer` を登録します。ロボットカード用の `robotRenderer` は、カード内に必要なバッテリーと信号の描画を含みます。
 
+状態表示には `createWireframe(renderers, {states: widgetStates})`、方向や視野付きのロボットマーカーには `createWireframe(renderers, {robotMarkers})` を使います。`widgetStates` と `robotMarkers` は `svg-diagram/wireframe/renderers` から必要なものを import します。
+
 RACI、FMEA、QFD、チェックシート、マトリクス、ジャーニーマップ、IS/IS NOT、なぜなぜ分析表は `svg-diagram/bands/table` から個別に import できます。木でなぜなぜ分析を描く場合は `svg-diagram/compose/why-why-tree` の `whyWhyTree` を使います。
 
 ```ts

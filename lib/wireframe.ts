@@ -1,7 +1,7 @@
 import * as builders from './wireframe-builders.ts';
 import {collectTextRequestsWith, layoutScreensWith, layoutWireframeWith, wireframeHelpers} from './wireframe-layout-core.ts';
 import type {WireframeRuntime} from './wireframe-layout-core.ts';
-import {installParts} from './wireframe-parts.ts';
+import {installParts, robotMarkers, widgetStates} from './wireframe-parts.ts';
 import type {Wf} from './types/wireframe-nodes.ts';
 
 export const wf: Wf = {
@@ -18,7 +18,11 @@ export const wf: Wf = {
 };
 
 const helpers = wireframeHelpers();
-const runtime: WireframeRuntime = {draw: helpers.DRAW, nat: helpers.NAT, autoWidth: helpers.AUTO_W, parts: installParts(helpers)};
+const parts = installParts(helpers);
+const runtime: WireframeRuntime = {
+  draw: helpers.DRAW, nat: helpers.NAT, autoWidth: helpers.AUTO_W, states: widgetStates, robotMarkers,
+  strings: parts.strings, always: parts.always,
+};
 
 export function collectTextRequests(band: Parameters<typeof collectTextRequestsWith>[0]) {
   return collectTextRequestsWith(band, runtime);
