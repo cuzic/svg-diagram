@@ -1,0 +1,89 @@
+# Tree shaking 移行チェックリスト
+
+対象は [ADR 0080](adr/0080-band-plugin.md) と、実装の `Band` と `LAYOUT_HANDLERS` が扱う全種類。公開ビルダーが同じ帯を作る場合は、その帯の行で派生形も検証する。
+
+各帯の完了には、配布パッケージの入口から最小構成で描画できること、esbuild と Vite の出力に無関係な帯が入らないこと、既存の SVG と該当する他形式の出力・検査が保持されることが必要。試験的な縦積み SVG の検証は移行全体とは別に記録する。
+
+## 共有基盤
+
+- [x] SVG から HTML 出力を分離し、ブラウザの文字測定器を個別に公開する。
+- [x] 既存の配置・測定処理を帯ハンドラーの解決元と分離する。
+- [ ] 子の探索、ID、reveal、配置のフィードバック、inventory、出力、検査と規則を帯の定義から呼ぶ。
+- [ ] 既存と同じ配置処理を選択的な公開入口に接続する。
+- [ ] パッケージ入口ごとの実描画、依存の除外、サイズ予算、互換性を CI で全構成に検証する。
+
+## 共通・接続
+
+- [ ] `caption`
+- [ ] `spacer`
+- [ ] `status`
+- [ ] `legend`
+- [ ] `connect`（接続線、ラベル、戻り線、端点指定）
+- [ ] `group`
+
+## コンテナ
+
+- [ ] `row`（行、列幅指定、ステップ）
+- [ ] `grouprow`（グループなどを含む行）
+- [ ] `grid`（グリッド、行・列スパン）
+- [ ] `areas`（領域・自由配置）
+- [ ] `image`
+
+## テキスト・基本図形
+
+- [ ] `box`（縦積み SVG は個別バンドルで検証済み）
+- [ ] `banner`（stat などの派生形）
+- [ ] `raw`
+- [ ] `math`
+- [ ] `wordart`
+- [ ] `curve`
+- [ ] `pyramid`
+
+## 数量・座標
+
+- [ ] `gantt`（縦積み SVG は個別バンドルで検証済み）
+- [ ] `timeline`（時系列・数値軸）
+- [ ] `chart`（折れ線、レーダー、パレート、サンキーなど）
+- [ ] `bars`
+- [ ] `people`
+- [ ] `dots`
+- [ ] `plane`
+- [ ] `quadrant`（SWOT、2×2 など）
+
+## フロー図形
+
+- [ ] `chevron`
+- [ ] `funnel`
+- [ ] `cycle`
+- [ ] `venn`
+- [ ] `concentric`
+- [ ] `emblem`
+- [ ] `valueChain`
+
+## 表・画面・会話
+
+- [ ] `sequence`
+- [ ] `table`（RACI、FMEA、比較表、行見出しなど）
+- [ ] `swimlane`
+- [ ] `wireframe`（画面内の部品）
+- [ ] `screens`（画面遷移）
+- [ ] `comic`
+
+## グラフ・図式
+
+- [ ] `tree`（組織図、mindmap など）
+- [ ] `states`
+- [ ] `cause`（causeTree、relationDiagram、PDPC、なぜなぜ分析など）
+- [ ] `cloud`
+- [ ] `classes`
+- [ ] `bpmn`
+- [ ] `fta`
+- [ ] `bowtie`
+
+## 合成・入出力
+
+- [ ] composer の `canvas`、`hero`、`iconRow`、`versus` がそれぞれ使用する帯だけを引く。
+- [ ] spec 部品ごとの入口が必要な帯だけを引き、全部入りの入口は既存の部品とスキーマを保つ。
+- [ ] HTML、PPTX、該当する Excel のアダプターを帯ごとに選べる。
+- [ ] Node / ブラウザの測定と PNG / ZIP の依存を入口ごとに分離する。
+- [ ] 既存のパッケージ入口、CLI、デッキ、Markdown、MCP の描画互換性を確認する。

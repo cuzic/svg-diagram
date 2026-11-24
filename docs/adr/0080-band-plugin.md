@@ -686,6 +686,8 @@ U0 は、この PR。U1 以降は、どの単位も Opus のレビューで Bloc
 
 ### U1b の実装メモ
 
+帯と入出力の進捗は [Tree shaking 移行チェックリスト](../tree-shaking-checklist.md) を参照。配置と測定は、既存の処理を共有したまま解決元を呼び出し側から受け取れるようにした。
+
 - SVG のパイプラインから HTML の出力を分け、Node の `renderDiagram(d, {html: true})` が HTML を組み立てるようにした。HTML 出力は `svg-diagram/html`、ブラウザの測定器は `svg-diagram/measure/browser` から個別に利用できる。
 - デッキのファイル読み込みから、PPTX の列探索に使う文字サイズの計測を分けた。
 - 消費側の esbuild と Vite の検査を CI に追加した。配布用の `exports` から SVG・HTML・文字測定を束ね、出力に含まれるモジュールを調べる。文字測定のみの場合は両方で 4,000 バイトを上限にした。

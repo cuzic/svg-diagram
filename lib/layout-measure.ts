@@ -1,11 +1,9 @@
 // Pass 1 of the layout: every atom a diagram needs measured, collected into one request map for the single batched measureAll call.
 // What each band type needs is one entry of MEASURE_HANDLERS (a typed table: a band type without one fails to compile).
 
-import {splitAtoms} from './atoms.ts';
 import {must} from './must.ts';
-import {styledAtoms, textRuns} from './layout-text.ts';
-import {TAG_SIZE, CONNECT_LABEL_SIZE} from './tokens.ts';
-import {groupTitleBand, withSourceLine, withTitleLine} from './layout-util.ts';
+import {CONNECT_LABEL_SIZE} from './tokens.ts';
+import {groupTitleBand} from './layout-util.ts';
 import {childrenOf} from './band-children.ts';
 import {planeTexts} from './plane.ts';
 import {imageTexts} from './image.ts';
@@ -19,7 +17,7 @@ import {treeTexts} from './tree.ts';
 import {statesTexts} from './states.ts';
 import {causeTexts, cloudTexts} from './toc.ts';
 import {ganttTexts} from './gantt.ts';
-import {statusTexts, withStatus} from './status.ts';
+import {statusTexts} from './status.ts';
 import {classesTexts} from './classes.ts';
 import {bpmnTexts} from './bpmn.ts';
 import {ftaTexts} from './fta.ts';
@@ -28,47 +26,14 @@ import {comicMeasure} from './comic/measure.ts';
 import {chartTexts} from './charts.ts';
 import {collectTextRequests} from './seq-table.ts';
 import {collectTextRequests as wfTextRequests} from './wireframe.ts';
-import type {DiagramData, FontFamily, MeasureRequest, Measured, Roles, WidthOf} from './types/core.ts';
+import type {FontFamily, Roles} from './types/core.ts';
 import type {Band} from './types/index.ts';
 
-export type Requests = Map<string, MeasureRequest>;
-type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
+import {createMeasureCollector} from './measure-core.ts';
+import type {MeasureHandler, MeasureHandlerTable} from './measure-core.ts';
 
-/** What a measure handler registers through: single atoms, a band's own text runs, and (for a band that holds bands) its children. */
-export interface MeasureCtx {
-  readonly roles: Roles;
-  /** Every atom of `text` at this size / weight / font. */
-  atoms(text: string, size: number, weight: number, font?: FontFamily): void;
-  /** A band's tag, stamp and text runs (what a caption / box / banner needs). */
-  own(band: Band): void;
-  /** A child band, by its own handler. */
-  band(band: Band): void;
-}
-
-export type MeasureHandler<B> = (band: B, m: MeasureCtx) => void;
-export type MeasureHandlerTable = {[T in Band['type']]: MeasureHandler<BandOf<T>>};
-
-function registerAtoms(requests: Requests, text: string, size: number, weight: number, font: FontFamily = 'sans'): void {
-  for (const atom of splitAtoms(text)) {
-    const key = `${atom} ${size} ${weight} ${font}`;
-    if (!requests.has(key)) requests.set(key, {text: atom, size, weight, font});
-  }
-}
-
-function registerRequests(requests: Requests, band: Band, roles: Roles): void {
-  if ('tag' in band && band.tag) registerAtoms(requests, band.tag, (roles.tag ?? TAG_SIZE), 700);
-  if ('stamp' in band && band.stamp) registerAtoms(requests, band.stamp, roles.note, 400);
-  for (const run of textRuns(band, roles)) {
-    const font = run.mono ? 'mono' : 'sans';
-    // a value that may shrink (ADR 0024) is measured at every whole size it may be drawn at: a width is only looked up, never scaled
-    for (let size = run.fit && run.nowrap ? run.fit.min : run.size; size <= run.size; size++) {
-      for (const {text, weight} of styledAtoms(run)) {
-        const key = `${text} ${size} ${weight} ${font}`;
-        if (!requests.has(key)) requests.set(key, {text, size, weight, font});
-      }
-    }
-  }
-}
+export {widthOfMeasured} from './measure-core.ts';
+export type {MeasureCtx, MeasureHandler, MeasureHandlerTable, Requests} from './measure-core.ts';
 
 /** A band whose own module lists its text as [text, size, weight, font] tuples. */
 const fromTuples = <B,>(texts: (band: B, roles: Roles) => Iterable<readonly [string, number, number, FontFamily]>): MeasureHandler<B> =>
@@ -139,30 +104,5 @@ export const MEASURE_HANDLERS = {
   tree: (band, m) => { fromTuples(treeTexts)(band, m); children(band, m); }, // the nodes' own text, then the bands that are nodes
 } satisfies MeasureHandlerTable;
 
-/** Pass 1: every atom this diagram needs measured, at the font sizes of `roles`. Pure: no measuring happens here. */
-export function collectMeasures(data: DiagramData, roles: Roles): Requests {
-  const d = withStatus(withSourceLine(withTitleLine(data)));
-  const requests: Requests = new Map();
-  const m: MeasureCtx = {
-    roles,
-    atoms: (text, size, weight, font) => registerAtoms(requests, text, size, weight, font),
-    own: band => registerRequests(requests, band, roles),
-    band: band => must((MEASURE_HANDLERS as unknown as Record<string, MeasureHandler<Band>>)[band.type])(band, m),
-  };
-  for (const band of d.bands) m.band(band);
-  return requests;
-}
-
-/**
- * The width lookup over what measureAll(collectMeasures(...)) returned. An atom that was never registered measures 0 wide,
- * silently (a line then overflows its box); with `strict` that is an error. The caller reads SVG_DIAGRAM_STRICT_WIDTH
- * (layout itself touches no environment).
- */
-export function widthOfMeasured(measured: Map<string, Measured>, strict: boolean): WidthOf {
-  return (atom, size, weight, font) => {
-    const m = measured.get(`${atom} ${size} ${weight} ${font}`);
-    if (m) return m.w;
-    if (strict) throw new Error(`layout: "${atom}" (${size}px, ${weight}, ${font}) was not registered for measuring, so its width would be 0 (SVG_DIAGRAM_STRICT_WIDTH is set)`);
-    return 0;
-  };
-}
+export const collectMeasures = createMeasureCollector(band =>
+  must((MEASURE_HANDLERS as unknown as Record<string, MeasureHandler<Band>>)[band.type]));

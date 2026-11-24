@@ -96,6 +96,7 @@
     "./dist/lib/layout-connect.js",
     "./dist/lib/layout-handlers.js",
     "./dist/lib/layout-measure.js",
+    "./dist/lib/layout.js",
     "./dist/lib/markdown-it.js",
     "./dist/lib/parts.js",
     "./dist/lib/pipeline.js",
