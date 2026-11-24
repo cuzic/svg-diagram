@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {caption} from '../lib/bands/caption.ts';
+import {plane} from '../lib/bands/plane.ts';
+import {emitSvg} from '../lib/emit.ts';
 import {quadrant} from '../lib/bands/quadrant.ts';
 import {legend} from '../lib/bands/legend.ts';
 import {status} from '../lib/bands/status.ts';
@@ -30,7 +32,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -327,4 +329,29 @@ test('selective quadrant preserves preset axes, bubble sizing, motion arrows and
   assert.deepEqual(result.verdict.problems, expected.verdict.problems);
   assert.equal(result.height, expected.height);
   assert.equal(result.svg.slice(result.svg.indexOf('  <defs>')), expected.svg.slice(expected.svg.indexOf('  <defs>')));
+});
+
+test('selective plane preserves axes, growing paths and staged point labels', async () => {
+  const opts = {
+    x: {max: 30, step: 10}, y: {max: 10, step: 5}, grid: true,
+    points: [
+      {id: 'a', at: [4, 2], label: '開始'},
+      {id: 'b', at: [15, 4], label: '中間', reveal: 1},
+      {id: 'c', at: [25, 8], label: 'Review', reveal: 3},
+    ],
+    paths: [{through: ['a', 'b', 'c'], grow: true, arrow: true}],
+  } satisfies Parameters<typeof plane>[0];
+  const figure = diagram({theme: 'blue', title: 'Plan', legend: false}).add(legacyPlane(opts));
+  const expected = await renderInBrowser(figure, {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  for (const stage of [0, 1, 3, undefined]) {
+    const result = await renderBands([plane(opts)], {measure, title: 'Plan', stage});
+    assert.deepEqual(result.xml, []);
+    assert.deepEqual(result.verdict.problems, expected.verdict.problems);
+    assert.equal(result.height, expected.height);
+    assert.equal(body(result.svg), body(emitSvg(expected.laidOut, {reveal: stage})));
+    if (stage === 1) assert.doesNotMatch(result.svg, />Review<\/text>/);
+    if (stage === undefined) assert.match(result.svg, />Review<\/text>/);
+  }
+  assert.equal(opts.points[0]?.reveal, undefined);
 });

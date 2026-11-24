@@ -5,6 +5,7 @@
 
 import {childrenOf} from './band-children.ts';
 import {must} from './must.ts';
+import {revealPlane} from './reveal-plane.ts';
 import type {Band} from './types/index.ts';
 
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
@@ -55,40 +56,6 @@ const plain: RevealHandler<never> = {stage: true};
 /** A band whose nested bands (childrenOf) inherit its stage and until. */
 const nested: RevealHandler<Band> = {stage: true, visit: (b, n, u, ctx) => ctx.walk(childrenOf(b), n, u)};
 const unrevealed: RevealHandler<never> = {stage: false};
-
-// plane(): each point / line / dim / label / path takes max(the plane's, its own) — and a line / dim / path the later of the
-// points it names (a coordinate counts 0), like a connect(). An explicit reveal earlier than those ends warns.
-function revealPlane(p: BandOf<'plane'>, n: number, _u: number | undefined, ctx: RevealCtx): void {
-  const own = (x: {reveal?: number}, where: string) => checked(x.reveal, where);
-  const lvl = new Map<string, number>();
-  for (const [i, pt] of (p.points ?? []).entries()) {
-    const r = Math.max(n, own(pt, `plane() point ${i + 1}`) ?? 0);
-    if (r) pt.reveal = r;
-    if (pt.id) lvl.set(pt.id, r); // a plane's points are its own: the lines and dims of the same plane name them
-    ctx.max = Math.max(ctx.max, r);
-  }
-  const ends = (refs: unknown[]): number => Math.max(0, ...refs.map(r => typeof r === 'string' ? lvl.get(r) ?? 0 : 0));
-  const derived = (x: {reveal?: number}, refs: unknown[], where: string, what: string): void => {
-    const explicit = own(x, where), e = ends(refs);
-    if (explicit !== undefined && explicit < e) ctx.warnings.push(`${what} reveal ${explicit} is earlier than an endpoint (reveal ${e})`);
-    const r = Math.max(n, explicit ?? e);
-    if (r) x.reveal = r;
-    ctx.max = Math.max(ctx.max, r);
-  };
-  for (const [i, l] of (p.lines ?? []).entries()) derived(l, [l.from, l.to], `plane() line ${i + 1}`, `plane() line ${i + 1} (${l.from} -> ${l.to})`);
-  for (const [i, pa] of (p.paths ?? []).entries()) {
-    if (!pa.grow) { derived(pa, pa.through, `plane() path ${i + 1}`, `plane() path ${i + 1}`); continue; }
-    // a growing path: piece k appears with the later of the points it runs between (and everything before it, so the curve only grows)
-    const lv = pa.through.map(r => typeof r === 'string' ? lvl.get(r) ?? 0 : 0);
-    const explicit = own(pa, `plane() path ${i + 1}`) ?? 0;
-    let run = Math.max(n, explicit, lv[0] ?? 0);
-    pa.segReveal = pa.through.slice(1).map((_r, k) => (run = Math.max(run, lv[k + 1] ?? 0)));
-    if (pa.segReveal[0]) pa.reveal = pa.segReveal[0]; else delete pa.reveal;
-    ctx.max = Math.max(ctx.max, ...pa.segReveal);
-  }
-  for (const [i, d] of (p.dims ?? []).entries()) derived(d, [d.from, d.to], `plane() dim ${i + 1}`, `plane() dim "${d.label}"`);
-  for (const [i, l] of (p.labels ?? []).entries()) derived(l, [], `plane() label ${i + 1}`, `plane() label "${l.text}"`);
-}
 
 // row / grouprow: the children are cells (set, not walked), a group in a grouprow is walked, and `row#k` ids name the slots.
 function revealRow(b: BandOf<'row'> | BandOf<'grouprow'>, n: number, u: number | undefined, ctx: RevealCtx): void {
@@ -197,7 +164,11 @@ export const REVEAL_HANDLERS = {
   // cell is just set (test/grid-reveal-nested.test.ts pins this)
   grid: setEach('grid() child', (b: BandOf<'grid'>) => b.children),
   pyramid: plain,
-  plane: {stage: true, visit: revealPlane},
+  plane: {stage: true, visit(p, n, _u, ctx) {
+    const {last, warnings} = revealPlane(p, n);
+    ctx.max = Math.max(ctx.max, last);
+    ctx.warnings.push(...warnings);
+  }},
   quadrant: plain,
   chevron: plain,
   wordart: plain,

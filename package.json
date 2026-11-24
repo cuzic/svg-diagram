@@ -264,6 +264,10 @@
       "types": "./dist/lib/bands/quadrant.d.ts",
       "default": "./dist/lib/bands/quadrant.js"
     },
+    "./bands/plane": {
+      "types": "./dist/lib/bands/plane.d.ts",
+      "default": "./dist/lib/bands/plane.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"

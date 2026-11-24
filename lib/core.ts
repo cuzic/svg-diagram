@@ -65,6 +65,7 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
   const syntheticOutputs = new Map<string, BandDef>();
   const scopeTable = emptyScopes();
   let last = 0;
+  const revealWarnings: string[] = [];
   let source = cloneData(bands) as unknown as Band[];
   const hasLoopBack = (data: Band): boolean =>
     (data.type === 'row' || data.type === 'chevron') && !!data.loopBack || (defOf(data)?.children?.(data) ?? []).some(hasLoopBack);
@@ -106,6 +107,11 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
     for (const id of def.ids?.(data) ?? []) {
       if (scope) addScoped(scopeTable, scope, id);
       ids.set(qualify(scope, id), {start, end});
+    }
+    const elements = def.revealElements?.(data, start);
+    if (elements) {
+      last = Math.max(last, elements.last);
+      revealWarnings.push(...elements.warnings);
     }
     def.measure?.(data, measureEnv);
     for (const generated of def.generated?.(data) ?? []) collect(generated, start, stop);
@@ -180,7 +186,7 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
           else warnings.push(finding.message);
         }
       }
-      return {issues, warnings};
+      return {issues, warnings: [...revealWarnings, ...warnings]};
     },
   }, placed);
   const emitEnv = {theme, roles, tones: ink, color: (key: Parameters<typeof colorOf>[0]) => colorOf(key, theme), stage};

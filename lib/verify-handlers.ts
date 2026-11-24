@@ -15,6 +15,7 @@ import {andClashes} from './cause-clash.ts';
 import {sourceOf} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
 import {anchorRects, scopedRect} from './verify-rects.ts';
+import {planeProblems} from './verify-plane.ts';
 import {quadrantProblems} from './verify-quadrant.ts';
 import {timelineProblems} from './verify-timeline.ts';
 import {flowProblems} from './verify-flow.ts';
@@ -236,29 +237,6 @@ const checkWordArt = (band: LaidOutOf<'wordart'>, d: LaidOutDiagram, {problems}:
   if (why) problems.push(`wordart "${band.text.slice(0, 20)}": ${why}`);
 };
 
-// plane(): every label it placed must stay inside the figure and clear of the other labels.
-const checkPlane = (band: LaidOutOf<'plane'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
-  const boxes = band.labelBoxes, fig = band.bounds;
-  for (const b of boxes) {
-    if (outsideBox(b, fig)) problems.push(`plane: label "${b.label}" runs outside the figure (move its point, change labelAt / side, or enlarge the figure)`);
-  }
-  eachOverlap(boxes, (a, b, o) => problems.push(`plane: label "${a.label}" overlaps label "${b.label}" by ${dxdy(o)} (change labelAt / side)`));
-  problems.push(...(band.clashes ?? []));
-  (band.paths ?? []).forEach((pa, i) => {
-    if (pa.overshoot > 1.5) problems.push(`plane: path ${i + 1} leaves the axes by ${Math.round(pa.overshoot)}px (a curve through these points swings outside the plot; use smooth: false, add points, or widen the axis range)`);
-  });
-  // a label must not sit on the plane's ink either: an axis or its arrowhead, a tick mark, a point, a guide or a dimension line
-  for (const b of boxes) {
-    const hit = new Map<string, {dx: number; dy: number}>();
-    for (const ob of band.obstacles) {
-      if (ob.dim !== undefined && ob.dim === b.dim) continue; // a dimension's own label sits on its own line
-      const o = rectOverlap(b, ob);
-      if (o && !hit.has(ob.what)) hit.set(ob.what, o);
-    }
-    for (const [what, o] of hit) problems.push(`plane: label "${b.label}" overlaps ${what} by ${dxdy(o)} (move the label: labelAt / side / offset / anchor)`);
-  }
-};
-
 // ---- contrast: computed purely from the known, closed set of (tone, day) colour combinations the DSL can ever produce ----
 // The same formula lint-svg.ts uses, evaluated on values we already know.
 
@@ -310,7 +288,7 @@ export const VERIFY_HANDLERS = {
   status: {rects: band => [{id: null, label: 'status badge', ...band.pill}]},
   pyramid: {rects: ownRect},
   curve: {rects: ownRect},
-  plane: {rects: ownRect, check: {phase: 'plane', run: checkPlane}},
+  plane: {rects: ownRect, check: {phase: 'plane', run: (band, _d, out) => { out.problems.push(...planeProblems(band)); }}},
   bars: {
     rects: band => band.bars.map((b, i) => ({id: b.id ?? null, label: b.id ?? `bar ${i + 1}`, x: b.x, y: b.y, w: b.w, h: b.h, ...(b.until === undefined && !b.reveal ? {} : {life: {reveal: b.reveal, until: b.until}})})),
     check: {phase: 'bars', run: checkBars},
