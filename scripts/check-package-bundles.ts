@@ -216,6 +216,23 @@ try {
       });
     `, include: 'legend-notation.js', budget: {esbuild: 114000, Vite: 147000}, bands: ['fta.js', 'legend.js'],
       exclude: [...legacy, 'bands/cause.js', 'bands/table.js', 'dsl-pure.js'], draw: true},
+    {name: 'Selected table spec on Edge', source: `
+      import {renderSpecEdge} from 'svg-diagram/spec/selective/edge';
+      import {tablePart} from 'svg-diagram/spec/parts/table';
+      const engine = {
+        measure: ({text, size}) => ({w: [...text].length * size, h: size}),
+        textBox: (text, _font, size) => ({w: [...text].length * size, ascent: size, descent: 0}),
+        font: {
+          covers: () => true,
+          shape: text => ({upem: 1000, glyphs: [...text].map(char => ({id: char.codePointAt(0), xAdvance: 1000, xOffset: 0, yOffset: 0}))}),
+          path: () => 'M0 0 L100 0 L100 100 Z',
+        },
+      };
+      export const draw = () => renderSpecEdge({version: 1, title: 'Plan', parts: [
+        {type: 'table', columns: [{label: 'Review'}], rows: [['Done']]},
+      ]}, engine, {parts: [tablePart]});
+    `, include: 'spec-selective-edge.js', budget: {esbuild: 116000, Vite: 152000}, bands: ['table.js'],
+      exclude: [...legacy, 'lib/spec.js', 'spec-edge.js', 'dsl-pure.js', 'bands/gantt.js', 'bands/box.js'], draw: true},
     {name: 'Selected table spec', source: `
       import {renderSpec} from 'svg-diagram/spec/selective';
       import {tablePart} from 'svg-diagram/spec/parts/table';
@@ -451,6 +468,14 @@ try {
           assert.doesNotMatch(code, /<table style=/, label);
           assert.deepEqual(result.fallbacks, [], label);
           assert.equal(result.verdict.ok, true, label);
+          console.log(`${label}: ${bytes} bytes`);
+          continue;
+        }
+        if (name === 'Selected table spec on Edge') {
+          assert.equal(result.ok, true, label);
+          assert.doesNotMatch(result.svg, /<text\b/, label);
+          assert.match(result.svg, /aria-label="Review"/, label);
+          assert.match(result.svg, /<use href="#sd-glyph-/, label);
           console.log(`${label}: ${bytes} bytes`);
           continue;
         }

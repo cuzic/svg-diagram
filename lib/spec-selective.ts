@@ -97,7 +97,8 @@ export function validateSpec(input: unknown, options: PartOptions): SpecIssue[] 
   return assemble(input, options).issues;
 }
 
-export async function renderSpec(input: unknown, options: PartOptions & Pick<RenderOptions, 'measure' | 'captions'>) {
+/** @internal Validate the request and return a draw callback, so Edge can distinguish validation from layout errors. */
+export function prepareSpecRender(input: unknown, options: PartOptions & Pick<RenderOptions, 'captions'>) {
   const {doc, bands, issues} = assemble(input, options);
   if (issues.length) throw new SpecError(issues);
   if (doc.legend === 'auto') {
@@ -107,6 +108,10 @@ export async function renderSpec(input: unknown, options: PartOptions & Pick<Ren
   }
   const connectors = options.parts.find(part => part.connectors)?.connectors;
   const {title, theme, width, appearance, density, showTitle, sourceLine, canvas, lang, desc} = doc;
-  return renderBands(bands, {measure: options.measure, captions: options.captions, title, theme, width, appearance, density, showTitle,
+  return (measure: RenderOptions['measure']) => renderBands(bands, {measure, captions: options.captions, title, theme, width, appearance, density, showTitle,
     sourceLine, canvas, desc: desc ?? (lang === 'en' ? title : undefined), connectors});
+}
+
+export async function renderSpec(input: unknown, options: PartOptions & Pick<RenderOptions, 'measure' | 'captions'>) {
+  return prepareSpecRender(input, options)(options.measure);
 }

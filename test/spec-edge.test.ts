@@ -288,3 +288,26 @@ test('a canvas figure is drawn at the canvas width, with text grown to minText, 
   assert.ok(wide.height <= 1080);
   assert.deepEqual(wide.findings.filter(f => /doc-width|本文の表示幅/.test(f.message)), []);
 });
+
+test('the selected edge path matches outlining and rejects parts outside its registry', async () => {
+  const {renderSpecEdge: renderSelected} = await import('../lib/spec-selective-edge.ts');
+  const {tablePart} = await import('../lib/spec-parts/selective/table.ts');
+  const input = {...spec(tablePart.example), legend: false, desc: 'プランの比較'};
+  const engine = realEngine();
+  const options = {parts: [tablePart]};
+  const actual = await renderSelected(input, engine, options);
+  const legacy = await renderSpecEdge(input, engine);
+  assert.ok(actual.svg);
+  assert.equal(actual.svg, legacy.svg);
+  assert.deepEqual([actual.width, actual.height, actual.problems, actual.findings], [legacy.width, legacy.height, legacy.problems, legacy.findings]);
+  assert.deepEqual(xmlProblems(actual.svg), []);
+  assert.match(actual.svg, /<use href="#sd-glyph-/);
+  await assert.rejects(renderSelected(null, engine, {parts: []}), /supply at least one part/);
+  const failedEngine = {...engine, measure: () => { throw new Error('engine disconnected'); }};
+  await assert.rejects(renderSelected(input, failedEngine, options), TextEngineError);
+  const invalid = await renderSelected(spec({type: 'pyramid', layers: ['A']}), engine, options);
+  assert.equal(invalid.svg, null);
+  assert.ok(invalid.issues.length);
+  const tooTall = await renderSelected(input, engine, {...options, maxHeight: 1});
+  assert.match(tooTall.issues[0]?.message ?? '', /limit is 1px/);
+});

@@ -811,6 +811,10 @@
       "types": "./dist/lib/spec-selective.d.ts",
       "default": "./dist/lib/spec-selective.js"
     },
+    "./spec/selective/edge": {
+      "types": "./dist/lib/spec-selective-edge.d.ts",
+      "default": "./dist/lib/spec-selective-edge.js"
+    },
     "./spec": {
       "types": "./dist/lib/spec.d.ts",
       "default": "./dist/lib/spec.js"
