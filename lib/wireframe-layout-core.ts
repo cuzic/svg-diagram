@@ -26,7 +26,7 @@ import {wrapAtoms} from './wrap.ts';
 import {badgeBox, BADGE_R} from './badge.ts';
 import type {BadgeBox} from './badge.ts';
 import type {ColorKey, Anchor, Rect, TextRequest, WidthOf, WrapMode} from './types/core.ts';
-import type {WfHelpers, WfPartsApi, WfNode, WfCtx, WfRow, WfText, WfType, WfDrawFn, WfNatFn, WfDrawTable, WfNatTable, WfAutoWTable, WfTone, WfMark, WfChipSpec, WfFrameDecor, WfMapMarker, WfMapLegendItem, WfOverlay, WfKvPair, WfListItemSpec, WfTableCellSpec, BadgeOpts, DrawShapeOpts, DrawTextOpts, WfAutoWFn} from './types/wireframe-nodes.ts';
+import type {WfHelpers, WfPartsApi, WfNode, WfNodeOf, WfCtx, WfRow, WfText, WfType, WfDrawFn, WfNatFn, WfDrawTable, WfNatTable, WfAutoWTable, WfTone, WfMark, WfChipSpec, WfFrameDecor, WfMapMarker, WfMapLegendItem, WfOverlay, WfKvPair, WfListItemSpec, WfTableCellSpec, BadgeOpts, DrawShapeOpts, DrawTextOpts, WfAutoWFn} from './types/wireframe-nodes.ts';
 import type {WfScreen, WireframeBand, ScreensBand, StateMatrixCell, LaidOutWireframe, LaidOutScreens} from './types/wireframe.ts';
 
 const S = 14, T = 15, LHF = 1.4, GAP = 12;
@@ -125,7 +125,8 @@ function bars(ctx: WfCtx, widths: number[], x: number, y: number, size = S): voi
 }
 
 // ---- layout helpers ------------------------------------------------------------------------
-const autoW = (n: WfNode, ctx: WfCtx): number | undefined => n.t === 'btn' ? tw(ctx, n.label, S, 700) + 28 : n.t === 'chip' ? chipW(ctx, n.label) : (runtimeOf(ctx).autoWidth?.[n.t] as WfAutoWFn | undefined)?.(n, ctx); // per-t table: the call spot cannot correlate n with its t
+const autoW = (n: WfNode, ctx: WfCtx): number | undefined =>
+  (runtimeOf(ctx).autoWidth?.[n.t] as WfAutoWFn | undefined)?.(n, ctx);
 const flexOf = (n: WfNode): number => n.flex ?? (VISUAL.has(n.t) && n.h == null ? 1 : 0);
 const label = (n: WfNode): string => {
   const o = n as {title?: string; label?: string; text?: string; children?: WfNode[]}; // whichever naming field this node has
@@ -189,24 +190,7 @@ function natBase(n: WfNode, w: number, ctx: WfCtx): number {
   if (n.h != null) return n.h;
   const natFn = runtimeOf(ctx).nat?.[n.t] as WfNatFn | undefined; // per-t table: the call spot cannot correlate n with its t
   if (natFn) return natFn(n, w, ctx);
-  switch (n.t) {
-    case 'spacer': return 8;
-    case 'text': return Math.max(1, textLines(n, w, ctx).length) * lh(n.size === 'title' ? T : S);
-    case 'btn': case 'input': case 'select': return 32;
-    case 'chip': return 24;
-    case 'tabs': return 36;
-    case 'appbar': return 44;
-    case 'seek': return 28;
-    case 'stat': return 88;
-    case 'kv': return kvRows(n, w, ctx).rows.reduce((s, r) => s + r.h, 0);
-    case 'list': return (n.title ? 32 : 0) + listRows(n, w, ctx).reduce((s, r) => s + r.h, 0);
-    case 'table': { const d = tableData(n, w, ctx); return 28 + d.rows.reduce((s, r) => s + r.h, 0); }
-    case 'alert': return Math.max(36, wrapT(ctx, n.text, S, 700, w - 44).length * lh(S) + 16);
-    case 'col': { const p = n.pad ?? 0; return colNat(n.children, w - 2 * p, n.gap ?? GAP, ctx) + 2 * p; }
-    case 'row': { const p = n.pad ?? 0; const ws = rowWidths(n, w - 2 * p, ctx); return Math.max(0, ...n.children.map((c, i) => nat(c, must(ws[i]), ctx))) + 2 * p; }
-    case 'card': { const p = n.pad ?? 10; return (n.title ? 28 : 0) + colNat(n.children, w - 2 * p, n.gap ?? GAP, ctx) + 2 * p; }
-    default: return n.min ?? (n.t === 'chart' ? 100 : 80);
-  }
+  return n.min ?? 80;
 }
 
 // ---- placement ---------------------------------------------------------------------------
@@ -240,16 +224,35 @@ function placeCol(children: WfNode[], x: number, y: number, w: number, h: number
   });
 }
 
-const DRAW: WfDrawTable = {
-  spacer: (_n, _x, _y, w) => ({w, h: 8}),
+interface WidgetRenderer<K extends WfType> {
+  type: K;
+  draw: WfDrawFn<WfNodeOf<K>>;
+  height?: WfNatFn<WfNodeOf<K>>;
+  width?: WfAutoWFn<WfNodeOf<K>>;
+}
 
-  col: (n, x, y, w, h, ctx) => {
+export type WireframeWidgetRenderer = {[K in WfType]: WidgetRenderer<K>}[WfType];
+
+export const spacerRenderer: WidgetRenderer<'spacer'> = {
+  type: 'spacer',
+  height: () => 8,
+  draw: (_n, _x, _y, w) => ({w, h: 8}),
+};
+
+export const colRenderer: WidgetRenderer<'col'> = {
+  type: 'col',
+  height: (n, w, ctx) => { const p = n.pad ?? 0; return colNat(n.children, w - 2 * p, n.gap ?? GAP, ctx) + 2 * p; },
+  draw: (n, x, y, w, h, ctx) => {
     const p = n.pad ?? 0;
     placeCol(n.children, x + p, y + p, w - 2 * p, h - 2 * p, n.gap ?? GAP, ctx);
     return {w, h};
   },
+};
 
-  row: (n, x, y, w, h, ctx) => {
+export const rowRenderer: WidgetRenderer<'row'> = {
+  type: 'row',
+  height: (n, w, ctx) => { const p = n.pad ?? 0; const ws = rowWidths(n, w - 2 * p, ctx); return Math.max(0, ...n.children.map((c, i) => nat(c, must(ws[i]), ctx))) + 2 * p; },
+  draw: (n, x, y, w, h, ctx) => {
     const p = n.pad ?? 0, gap = n.gap ?? GAP;
     const ws = rowWidths(n, w - 2 * p, ctx);
     let cx = x + p;
@@ -262,8 +265,12 @@ const DRAW: WfDrawTable = {
     });
     return {w, h};
   },
+};
 
-  card: (n, x, y, w, h, ctx) => {
+export const cardRenderer: WidgetRenderer<'card'> = {
+  type: 'card',
+  height: (n, w, ctx) => { const p = n.pad ?? 10; return (n.title ? 28 : 0) + colNat(n.children, w - 2 * p, n.gap ?? GAP, ctx) + 2 * p; },
+  draw: (n, x, y, w, h, ctx) => {
     const p = n.pad ?? 10;
     rect(ctx, x, y, w, h, {r: 8, fill: n.tone === 'muted' ? 'code' : 'bg', stroke: 'border'});
     if (n.title) text(ctx, n.title, x + p, y + p + T, {size: T, weight: 700});
@@ -271,8 +278,12 @@ const DRAW: WfDrawTable = {
     placeCol(n.children, x + p, y + p + top, w - 2 * p, h - 2 * p - top, n.gap ?? GAP, ctx);
     return {w, h};
   },
+};
 
-  text: (n, x, y, w, _h, ctx) => {
+export const textRenderer: WidgetRenderer<'text'> = {
+  type: 'text',
+  height: (n, w, ctx) => Math.max(1, textLines(n, w, ctx).length) * lh(n.size === 'title' ? T : S),
+  draw: (n, x, y, w, _h, ctx) => {
     const size = n.size === 'title' ? T : S, weight = n.bold || n.size === 'title' ? 700 : 400;
     const lines = textLines(n, w, ctx);
     const fill = toneFill(ctx, n.tone);
@@ -282,31 +293,53 @@ const DRAW: WfDrawTable = {
     else lines.forEach((l, k) => text(ctx, l, ax, y + size + k * lh(size), {size, weight, fill, anchor}));
     return {w, h: Math.max(1, lines.length) * lh(size)};
   },
+};
 
-  btn: (n, x, y, w, _h, ctx) => {
+export const btnRenderer: WidgetRenderer<'btn'> = {
+  type: 'btn',
+  height: () => 32,
+  width: (n, ctx) => tw(ctx, n.label, S, 700) + 28,
+  draw: (n, x, y, w, _h, ctx) => {
     const bw = n.full ? w : Math.min(w, autoW(n, ctx) ?? 0);
     const primary = !!n.primary;
     rect(ctx, x, y, bw, 32, {r: 6, fill: primary ? (n.danger ? 'danger' : 'accent') : 'bg', stroke: primary ? null : (n.danger ? 'danger' : 'text')});
     text(ctx, n.label, x + bw / 2, mid(y + 16), {weight: 700, fill: primary ? 'bg' : (n.danger ? 'danger' : 'text'), anchor: 'middle'});
     return {w: bw, h: 32};
   },
+};
 
-  chip: (n, x, y, _w, _h, ctx) => ({w: drawChip(ctx, n.label, x, y, n.tone), h: 24}),
+export const chipRenderer: WidgetRenderer<'chip'> = {
+  type: 'chip',
+  height: () => 24,
+  width: (n, ctx) => chipW(ctx, n.label),
+  draw: (n, x, y, _w, _h, ctx) => ({w: drawChip(ctx, n.label, x, y, n.tone), h: 24}),
+};
 
-  input: (n, x, y, w, _h, ctx) => {
+export const inputRenderer: WidgetRenderer<'input'> = {
+  type: 'input',
+  height: () => 32,
+  draw: (n, x, y, w, _h, ctx) => {
     rect(ctx, x, y, w, 32, {r: 6, fill: 'bg', stroke: 'muted'});
     text(ctx, n.label, x + 10, mid(y + 16), {fill: n.value ? 'text' : 'muted'});
     return {w, h: 32};
   },
+};
 
-  select: (n, x, y, w, _h, ctx) => {
+export const selectRenderer: WidgetRenderer<'select'> = {
+  type: 'select',
+  height: () => 32,
+  draw: (n, x, y, w, _h, ctx) => {
     rect(ctx, x, y, w, 32, {r: 6, fill: 'bg', stroke: 'muted'});
     text(ctx, n.label, x + 10, mid(y + 16), {fill: n.value ? 'text' : 'muted'});
     path(ctx, `M${Math.round(x + w - 24)},${Math.round(y + 13)} L${Math.round(x + w - 12)},${Math.round(y + 13)} L${Math.round(x + w - 18)},${Math.round(y + 20)} Z`, {fill: 'muted'});
     return {w, h: 32};
   },
+};
 
-  tabs: (n, x, y, w, _h, ctx) => {
+export const tabsRenderer: WidgetRenderer<'tabs'> = {
+  type: 'tabs',
+  height: () => 36,
+  draw: (n, x, y, w, _h, ctx) => {
     const active = n.active ?? 0;
     line(ctx, x, y + 34, x + w, y + 34, {stroke: 'border'});
     let cx = x;
@@ -318,8 +351,12 @@ const DRAW: WfDrawTable = {
     });
     return {w, h: 36};
   },
+};
 
-  appbar: (n, x, y, w, _h, ctx) => {
+export const appbarRenderer: WidgetRenderer<'appbar'> = {
+  type: 'appbar',
+  height: () => 44,
+  draw: (n, x, y, w, _h, ctx) => {
     rect(ctx, x, y, w, 44, {fill: 'accent'});
     text(ctx, n.title, x + 14, mid(y + 22), {weight: 700, fill: 'bg'});
     let cx = x + 14 + tw(ctx, n.title, S, 700) + 28;
@@ -341,8 +378,12 @@ const DRAW: WfDrawTable = {
     }
     return {w, h: 44};
   },
+};
 
-  seek: (n, x, y, w, _h, ctx) => {
+export const seekRenderer: WidgetRenderer<'seek'> = {
+  type: 'seek',
+  height: () => 28,
+  draw: (n, x, y, w, _h, ctx) => {
     const lw = n.from ? tw(ctx, n.from, S, 400) + 8 : 0, rw = n.to ? tw(ctx, n.to, S, 400) + 8 : 0;
     const x0 = x + 28 + lw, x1 = x + w - rw - 8, cy = y + 14;
     path(ctx, pts([[x + 6, cy - 8], [x + 6, cy + 8], [x + 20, cy]]) + ' Z', {fill: 'accent'});
@@ -355,8 +396,12 @@ const DRAW: WfDrawTable = {
     circle(ctx, at, cy, 7, {fill: 'accent', stroke: 'bg'});
     return {w, h: 28};
   },
+};
 
-  kv: (n, x, y, w, _h, ctx) => {
+export const kvRenderer: WidgetRenderer<'kv'> = {
+  type: 'kv',
+  height: (n, w, ctx) => kvRows(n, w, ctx).rows.reduce((sum, row) => sum + row.h, 0),
+  draw: (n, x, y, w, _h, ctx) => {
     const {keyW, rows} = kvRows(n, w, ctx);
     let cy = y;
     for (const r of rows) {
@@ -366,16 +411,24 @@ const DRAW: WfDrawTable = {
     }
     return {w, h: cy - y};
   },
+};
 
-  stat: (n, x, y, w, _h, ctx) => {
+export const statRenderer: WidgetRenderer<'stat'> = {
+  type: 'stat',
+  height: () => 88,
+  draw: (n, x, y, w, _h, ctx) => {
     const tone = toneOf(n.tone);
     rect(ctx, x, y, w, 88, {r: 8, fill: tone === 'danger' ? 'bg' : 'code', stroke: tone === 'danger' ? 'danger' : 'border'});
     text(ctx, n.value, x + w / 2, y + 52, {size: 34, weight: 700, fill: toneFill(ctx, tone), anchor: 'middle'});
     text(ctx, n.label, x + w / 2, y + 76, {fill: 'muted', anchor: 'middle'});
     return {w, h: 88};
   },
+};
 
-  list: (n, x, y, w, _h, ctx) => {
+export const listRenderer: WidgetRenderer<'list'> = {
+  type: 'list',
+  height: (n, w, ctx) => (n.title ? 32 : 0) + listRows(n, w, ctx).reduce((sum, row) => sum + row.h, 0),
+  draw: (n, x, y, w, _h, ctx) => {
     let cy = y;
     if (n.title) {
       text(ctx, n.title, x, cy + 20, {size: T, weight: 700});
@@ -392,8 +445,12 @@ const DRAW: WfDrawTable = {
     }
     return {w, h: cy - y};
   },
+};
 
-  table: (n, x, y, w, _h, ctx) => {
+export const tableRenderer: WidgetRenderer<'table'> = {
+  type: 'table',
+  height: (n, w, ctx) => 28 + tableData(n, w, ctx).rows.reduce((sum, row) => sum + row.h, 0),
+  draw: (n, x, y, w, _h, ctx) => {
     const d = tableData(n, w, ctx);
     const total = nat(n, w, ctx);
     rect(ctx, x, y, w, 28, {fill: 'soft'});
@@ -414,8 +471,12 @@ const DRAW: WfDrawTable = {
     rect(ctx, x, y, w, total, {r: 6, stroke: 'border'});
     return {w, h: total};
   },
+};
 
-  alert: (n, x, y, w, _h, ctx) => {
+export const alertRenderer: WidgetRenderer<'alert'> = {
+  type: 'alert',
+  height: (n, w, ctx) => Math.max(36, wrapT(ctx, n.text, S, 700, w - 44).length * lh(S) + 16),
+  draw: (n, x, y, w, _h, ctx) => {
     const tone = toneOf(n.tone);
     // an alert is a danger or an accent note (anything else is a neutral grey one); its text is bold, in the tone only when it is danger
     const t = toneStyle(ctx.tones, tone === 'danger' || tone === 'accent' ? tone : undefined);
@@ -427,8 +488,11 @@ const DRAW: WfDrawTable = {
     lines.forEach((l, k) => text(ctx, l, x + 36, y + (H - lh(S) * lines.length) / 2 + S + k * lh(S), {weight: 700, fill: st.text}));
     return {w, h: H};
   },
+};
 
-  image: (n, x, y, w, h, ctx) => {
+export const imageRenderer: WidgetRenderer<'image'> = {
+  type: 'image',
+  draw: (n, x, y, w, h, ctx) => {
     rect(ctx, x, y, w, h, {r: 6, fill: 'code', stroke: 'border'});
     line(ctx, x + 1, y + 1, x + w - 1, y + h - 1, {stroke: 'border', sw: 1.5});
     line(ctx, x + w - 1, y + 1, x + 1, y + h - 1, {stroke: 'border', sw: 1.5});
@@ -437,16 +501,22 @@ const DRAW: WfDrawTable = {
     text(ctx, n.label, x + w / 2, mid(y + h / 2), {fill: 'muted', anchor: 'middle'});
     return {w, h};
   },
+};
 
-  video: (n, x, y, w, h, ctx) => {
+export const videoRenderer: WidgetRenderer<'video'> = {
+  type: 'video',
+  draw: (n, x, y, w, h, ctx) => {
     rect(ctx, x, y, w, h, {r: 6, fill: 'code', stroke: 'border'});
     const s = Math.min(w, h) * 0.16;
     path(ctx, pts([[x + w / 2 - s / 2, y + h / 2 - s], [x + w / 2 - s / 2, y + h / 2 + s], [x + w / 2 + s, y + h / 2]]) + ' Z', {fill: 'border'});
     frameDecor(n, x, y, w, h, ctx, n.live ? [{text: 'LIVE', tone: 'solid-danger'}] : []);
     return {w, h};
   },
+};
 
-  heat: (n, x, y, w, h, ctx) => {
+export const heatRenderer: WidgetRenderer<'heat'> = {
+  type: 'heat',
+  draw: (n, x, y, w, h, ctx) => {
     rect(ctx, x, y, w, h, {r: 6, fill: 'code', stroke: 'border'});
     const base = Math.min(w, h), hx = x + w * (n.probe?.x ?? 0.46), hy = y + h * (n.probe?.y ?? 0.5);
     circle(ctx, x + w * 0.2, y + h * 0.66, base * 0.16, {fill: 'accent', op: 0.15});
@@ -471,8 +541,11 @@ const DRAW: WfDrawTable = {
     frameDecor(n, x, y, w, h, ctx, []);
     return {w, h};
   },
+};
 
-  pointcloud: (n, x, y, w, h, ctx) => {
+export const pointcloudRenderer: WidgetRenderer<'pointcloud'> = {
+  type: 'pointcloud',
+  draw: (n, x, y, w, h, ctx) => {
     rect(ctx, x, y, w, h, {r: 6, fill: 'code', stroke: 'border'});
     const rnd = rng(7 + Math.round(w) * 31 + Math.round(h));
     const count = Math.max(60, Math.min(260, Math.round(w * h / 450)));
@@ -487,8 +560,12 @@ const DRAW: WfDrawTable = {
     frameDecor(n, x, y, w, h, ctx, []);
     return {w, h};
   },
+};
 
-  chart: (n, x, y, w, h, ctx) => {
+export const chartRenderer: WidgetRenderer<'chart'> = {
+  type: 'chart',
+  height: n => n.min ?? 100,
+  draw: (n, x, y, w, h, ctx) => {
     rect(ctx, x, y, w, h, {r: 6, fill: 'bg', stroke: 'border'});
     if (n.label) text(ctx, n.label, x + 10, y + 8 + S, {weight: 700});
     const x0 = x + 14, x1 = x + w - 14, y0 = y + (n.label ? 34 : 14), y1 = y + h - (n.xLabels ? 32 : 14);
@@ -518,8 +595,11 @@ const DRAW: WfDrawTable = {
     }
     return {w, h};
   },
+};
 
-  map: (n, x, y, w, h, ctx) => {
+export const mapRenderer: WidgetRenderer<'map'> = {
+  type: 'map',
+  draw: (n, x, y, w, h, ctx) => {
     rect(ctx, x, y, w, h, {r: 6, fill: 'code', stroke: 'border'});
     const top = (n.overlay?.length || n.overlayRight?.length) ? 40 : 14;
     const bx = x + 14, by = y + top, bw = w - 28, bh = h - top - 14;
@@ -825,9 +905,31 @@ export function layoutScreensWith(runtime: WireframeRuntime, band: ScreensBand, 
   return {type: 'screens', id: band.id, title: band.items[0]?.title, x, y, w, h: bottom - y, prims: ctx.prims, anchors};
 }
 
+/** Build a private renderer table from explicit widget definitions. */
+export function makeWireframeRuntime(renderers: readonly WireframeWidgetRenderer[]): WireframeRuntime {
+  const draw: WfDrawTable = {}, nat: WfNatTable = {}, autoWidth: WfAutoWTable = {};
+  for (const renderer of renderers) {
+    const type = renderer.type;
+    if (Object.hasOwn(draw, type)) throw new Error(`wireframe(): renderer "${type}" is already registered`);
+    // The discriminator agrees with the callback's node type; only the indexed assignment loses that correlation.
+    draw[type] = renderer.draw as never;
+    if (renderer.height) nat[type] = renderer.height as never;
+    if (renderer.width) autoWidth[type] = renderer.width as never;
+  }
+  return {draw, nat, autoWidth};
+}
+
 /** Native widgets and frame layout, without monitoring widgets or state decoration. */
-export const basicWireframeRuntime: WireframeRuntime = {draw: DRAW};
+export const basicWireframeRuntime = /* @__PURE__ */ makeWireframeRuntime([
+  spacerRenderer, colRenderer, rowRenderer, cardRenderer,
+  textRenderer, btnRenderer, chipRenderer, inputRenderer,
+  selectRenderer, tabsRenderer, appbarRenderer, seekRenderer,
+  kvRenderer, statRenderer, listRenderer, tableRenderer,
+  alertRenderer, imageRenderer, videoRenderer, heatRenderer,
+  pointcloudRenderer, chartRenderer, mapRenderer,
+]);
 
 export function wireframeHelpers(): Omit<WfHelpers, 'wf'> {
-  return {DRAW: {...DRAW}, NAT: {}, AUTO_W: {}, S, T, lh, rect, circle, badge, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder};
+  return {DRAW: {...basicWireframeRuntime.draw}, NAT: {...basicWireframeRuntime.nat}, AUTO_W: {...basicWireframeRuntime.autoWidth},
+    S, T, lh, rect, circle, badge, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder};
 }

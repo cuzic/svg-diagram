@@ -829,3 +829,14 @@ test('basic wireframes draw shared widgets and reject widgets outside the select
   await assert.rejects(renderBands([basic(wf.fusion())], {measure}), /fusion/);
   await assert.rejects(renderBands([basic(wf.text('Overview', {state: 'loading'}))], {measure}), /loading/);
 });
+
+test('wireframes can register only the widget renderers they use', async () => {
+  const {createWireframe, btnRenderer, colRenderer, textRenderer} = await import('../lib/wireframe-renderers.ts');
+  assert.throws(() => createWireframe([btnRenderer, btnRenderer]), /already registered/);
+  const selected = createWireframe([colRenderer, btnRenderer, textRenderer]);
+  const root = wf.col([wf.text('Overview'), wf.btn('Next')]);
+  const a = await renderBands([selected(root)], {measure, title: 'Review'});
+  const b = await renderBands([wireframe(root)], {measure, title: 'Review'});
+  assert.equal(a.svg, b.svg);
+  await assert.rejects(renderBands([selected(wf.map())], {measure}), /map/);
+});

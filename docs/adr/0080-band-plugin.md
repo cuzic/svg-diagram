@@ -721,6 +721,7 @@ U0 は、この PR。U1 以降は、どの単位も Opus のレビューで Bloc
 - PPTX のグループ化を `groupSpan` と `swimlaneSpan` に分け、必要な帯だけスライドプランナーに渡す。従来の入口は両方を渡す。
 - PPTX のフロー図形・ピラミッド・タイムラインを分け、各入口の束で相互の描画コードが外れることを検証した。フロー図形は配置された図形を変換する共通処理を使う。
 - `compose/canvas`、`compose/hero`、`compose/icon-row`、`compose/versus` は既存の合成関数を使い、生成した帯に各定義を付ける。個別入口の束に必要な帯だけが含まれることを検証する。
+- ワイヤーフレームの基本部品は `wireframe/renderers` から使う描画と測定を選び、`createWireframe` に登録できる。
 - ワイヤーフレームの `bands/wireframe/basic` は描画基盤と基本ウィジェットだけを組み込む。描画基盤は従来の入口と共有する。
 - ワイヤーフレームの部品ビルダーは `wireframe/parts` から個別に読み込める。従来の `wf` は同じ関数を参照する。
 - 表の派生ビルダーは `bands/table`、なぜなぜ分析の木は `compose/why-why-tree` を使う。DSL と JSON spec が同じ選択ビルダーを呼ぶ。

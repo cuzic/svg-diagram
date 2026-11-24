@@ -284,6 +284,10 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [stepsPart],
       });
     `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 118000, Vite: 150000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
+    {name: 'Selected wireframe widgets', source: composedSource([], "wireframe(col([text('Review'), btn('Next')]))",
+      "import {createWireframe, colRenderer, textRenderer, btnRenderer} from 'svg-diagram/wireframe/renderers'; import {col, text, btn} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([colRenderer, textRenderer, btnRenderer]);"),
+      include: 'wireframe-renderers.js', bands: ['wireframe-basic.js'], budget: {esbuild: 72000, Vite: 98000},
+      exclude: [...legacy, 'lib/wireframe.js', 'lib/wireframe-parts.js', 'bands/screens.js'], draw: true},
     {name: 'Basic wireframe', source: composedSource([], "wireframe(col([text('Review'), btn('Next')]))",
       "import {wireframe} from 'svg-diagram/bands/wireframe/basic'; import {col, text, btn} from 'svg-diagram/wireframe/parts';"),
       include: 'bands/wireframe-basic.js', bands: ['wireframe-basic.js'], budget: {esbuild: 82000, Vite: 110000},
@@ -430,14 +434,15 @@ try {
     const {name, source, include, exclude, budget, draw, bands} = testCase;
     const catalog = 'catalog' in testCase && testCase.catalog;
     const selectedLayout = 'layout' in testCase ? testCase.layout : undefined;
+    const widgetSelection = name === 'Selected wireframe widgets';
     writeFileSync(entry, source);
-    const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true, keepNames: !!selectedLayout,
+    const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true, keepNames: !!selectedLayout || widgetSelection,
       platform: 'browser', format: 'esm', write: false, metafile: true});
     const esOutput = Object.values(es.metafile.outputs)[0];
     assert.ok(esOutput);
     const [viteOutput] = await viteBuild({root: consumer, configFile: false, logLevel: 'silent',
       resolve: {preserveSymlinks: true},
-      esbuild: {keepNames: !!selectedLayout},
+      esbuild: {keepNames: !!selectedLayout || widgetSelection},
       build: {write: false, minify: 'esbuild', lib: {entry, formats: ['es']}}});
     const [chunk] = viteOutput.output;
     assert.equal(chunk.type, 'chunk');
@@ -466,6 +471,12 @@ try {
       if (limit !== undefined) assert.ok(bytes <= limit, `${label} が ${limit} バイトを超えています (${bytes})`);
       if (draw) {
         assert.ok(code);
+        if (widgetSelection) {
+          assert.ok(code.includes('"textLines"'), label);
+          for (const widget of ['drawMapLegend', 'listRows', 'tableData', 'rng']) {
+            assert.ok(!code.includes(JSON.stringify(widget)), `${label}: ${widget}`);
+          }
+        }
         if (selectedLayout) {
           // These functions share a source module. Keep their names so the test can detect unused implementations inside it.
           for (const [shape, layout] of [...flowSamples, ...quantitySamples, ...tableSamples]) {

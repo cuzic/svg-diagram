@@ -81,6 +81,7 @@
     "./dist/diff-svg.js",
     "./dist/init-project.js",
     "./dist/lib/bands/quadrant.js",
+    "./dist/lib/bands/wireframe-basic.js",
     "./dist/lib/bowtie.js",
     "./dist/lib/comic/constants.js",
     "./dist/lib/comic/slot-values.js",
@@ -197,6 +198,7 @@
     "./dist/lib/svg-outline.js",
     "./dist/lib/tokens.js",
     "./dist/lib/web.js",
+    "./dist/lib/wireframe-layout-core.js",
     "./dist/lib/wireframe.js",
     "./dist/lib/wordart-vertical.js",
     "./dist/lib/wordart.js",
@@ -835,6 +837,10 @@
     "./wireframe/parts": {
       "types": "./dist/lib/wireframe-builders.d.ts",
       "default": "./dist/lib/wireframe-builders.js"
+    },
+    "./wireframe/renderers": {
+      "types": "./dist/lib/wireframe-renderers.d.ts",
+      "default": "./dist/lib/wireframe-renderers.js"
     },
     "./zip": {
       "types": "./dist/lib/pptx/zip.d.ts",
