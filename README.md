@@ -154,7 +154,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 複数の帯を組み合わせる `canvas`、`hero`、`iconRow`、`versus` は `svg-diagram/compose/canvas`、`compose/hero`、`compose/icon-row`、`compose/versus` から個別に読み込めます。結果は `renderBands` に渡せます。`hero` と `versus` は複数の帯を返すので、配列に展開します。
 
 同じ帯を HTML に描くには `svg-diagram/html/selective` の `renderBandsHtml` を使います。
-`svg-diagram/html/bands` から必要なアダプター（例 `boxHtml`）を import し、`adapters: {box: boxHtml}` で渡します。文字の位置合わせには `fontBox(size, weight, mono)` で ascent と descent を返します。アダプターが描けない帯と接続線はインライン SVG になり、`fallbacks` に載ります。`strict: true` では SVG への切り替えをエラーにできます。
+`svg-diagram/html/bands/box` から箱・行・グリッド・キャプション・バナー・グループのアダプターを、`svg-diagram/html/bands/table` から表の `tableHtml` を選べます。たとえば `adapters: {box: boxHtml}` として使います。まとめて取り込む入口は `svg-diagram/html/bands` です。文字の位置合わせには `fontBox(size, weight, mono)` で ascent と descent を返します。アダプターが描けない帯と接続線はインライン SVG になり、`fallbacks` に載ります。`strict: true` では SVG への切り替えをエラーにできます。
 
 1 枚の PowerPoint は `svg-diagram/pptx` の `renderBandsPptx` で出力できます。`svg-diagram/pptx/bands/box` から `boxPptx` や `rowPptx` を import し、`bands: {box: boxPptx, row: rowPptx}` を渡すと編集可能な図形になります。箱系に加え、`pptx/bands/table`、`tree`、`quadrant`、`states`、`cause`、`legend`、`flow`、`pyramid`、`timeline` の各入口から対応するアダプターを選べます。絵として埋め込む帯は `fallbacks` に載り、その場合は `rasterize(svg, scale)` が必要です。文字を輪郭化する場合は `outline(svg)` を渡します。`strict: true` は絵への切り替えをエラーにします。 グループやスイムレーンの構成要素を PowerPoint 上でまとめる場合は、`pptx/bands/group` の `groupSpan` や `pptx/bands/swimlane` の `swimlaneSpan` を `spans` に渡します。
 

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {renderBandsHtml} from '../lib/html-selective.ts';
-import {boxHtml, rowHtml} from '../lib/html-native.ts';
+import {boxHtml, rowHtml} from '../lib/html-box.ts';
 import {box as selectedBox} from '../lib/bands/box.ts';
 import {row as selectedRow} from '../lib/bands/row.ts';
 import {image as selectedImage} from '../lib/bands/image.ts';
@@ -213,4 +213,26 @@ test('selective HTML draws enabled adapters and reports SVG fallbacks', async ()
   assert.deepEqual(defaultOutput.fallbacks, [{type: 'box'}]);
   assert.match(defaultOutput.html, /<svg[\s\S]*>最初<\/text>/);
   await assert.rejects(renderBandsHtml(data, {...opts, strict: true}), /image/);
+});
+
+test('the standalone HTML table adapter preserves native header cells and escaping', async () => {
+  const {table: makeTable} = await import('../lib/bands/table.ts');
+  const {tableHtml} = await import('../lib/html-table.ts');
+  const {htmlAdapterFor, escapeHtmlText} = await import('../lib/html-adapter.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {emitHtml} = await import('../lib/emit-html.ts');
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    fontBox: (size: number) => ({ascent: size, descent: 0}), strict: true,
+  };
+  const bands = [makeTable([{label: '項目'}, {label: '値'}], [['理由', '<ok> & more']], {rowHeader: true})];
+  const {placed, stage} = await prepareBands(bands, opts);
+  const first = placed.laidOut[0]!;
+  assert.equal(htmlAdapterFor({table: tableHtml}, first), tableHtml);
+  assert.equal(htmlAdapterFor({}, first), undefined);
+  const selected = await renderBandsHtml(bands, {...opts, adapters: {table: tableHtml}});
+  assert.deepEqual(selected.fallbacks, []);
+  assert.match(selected.html, /<th scope="row"/);
+  assert.ok(selected.html.includes(escapeHtmlText('<ok> & more')));
+  assert.equal(selected.html, emitHtml(placed, {...opts, reveal: stage}));
 });

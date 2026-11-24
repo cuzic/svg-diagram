@@ -120,14 +120,25 @@ try {
     {name: 'HTML', source: "export {emitHtml} from 'svg-diagram/html';", include: 'emit-html.js', exclude: ['web.js', 'web-measure.js']},
     {name: 'Selective HTML', source: `
       import {renderBandsHtml} from 'svg-diagram/html/selective';
-      import {boxHtml} from 'svg-diagram/html/bands';
+      import {boxHtml} from 'svg-diagram/html/bands/box';
       import {box} from 'svg-diagram/bands/box';
       export const draw = () => renderBandsHtml([box({title: 'Review'})], {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
         fontBox: size => ({ascent: size, descent: 0}),
         adapters: {box: boxHtml}, strict: true,
       });
-    `, include: 'html-selective.js', budget: {esbuild: 85000, Vite: 108000}, bands: ['box.js'], exclude: [...legacy, 'emit-html.js', 'lib/emit.js', 'svg-to-css.js', 'emit-tables.js', 'image-file.js'], draw: true},
+    `, include: 'html-selective.js', budget: {esbuild: 85000, Vite: 108000}, bands: ['box.js'], exclude: [...legacy, 'emit-html.js', 'lib/emit.js', 'svg-to-css.js', 'html-native.js', 'html-table.js', 'emit-tables.js', 'image-file.js'], draw: true},
+    {name: 'Selective HTML table', source: `
+      import {renderBandsHtml} from 'svg-diagram/html/selective';
+      import {tableHtml} from 'svg-diagram/html/bands/table';
+      import {table} from 'svg-diagram/bands/table';
+      export const draw = () => renderBandsHtml([table([{label: 'Review'}], [['Done']])], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        fontBox: size => ({ascent: size, descent: 0}),
+        adapters: {table: tableHtml}, strict: true,
+      });
+    `, include: 'html-table.js', budget: {esbuild: 80500, Vite: 102500}, bands: ['table.js'],
+      exclude: [...legacy, 'html-box.js', 'html-native.js', 'emit-html.js', 'layout-connect.js'], draw: true},
     {name: 'Selective PPTX', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
       import {rowPptx} from 'svg-diagram/pptx/bands/box';
@@ -568,6 +579,14 @@ try {
           assert.match(result.html, /class="sd-b"[\s\S]*>Review<\/div>/, label);
           assert.doesNotMatch(result.html, /<svg|<table/, label);
           assert.doesNotMatch(code, /<table style=/, label);
+          assert.deepEqual(result.fallbacks, [], label);
+          assert.equal(result.verdict.ok, true, label);
+          console.log(`${label}: ${bytes} bytes`);
+          continue;
+        }
+        if (name === 'Selective HTML table') {
+          assert.match(result.html, /<table style=[\s\S]*<th scope="col"[\s\S]*>Review<\/div>/, label);
+          assert.doesNotMatch(result.html, /<svg/, label);
           assert.deepEqual(result.fallbacks, [], label);
           assert.equal(result.verdict.ok, true, label);
           console.log(`${label}: ${bytes} bytes`);

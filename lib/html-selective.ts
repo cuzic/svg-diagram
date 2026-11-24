@@ -1,12 +1,12 @@
 import {prepareBands} from './core.ts';
 import {htmlDocument, stripSvg} from './html-document.ts';
-import {htmlAdapterFor} from './html-native.ts';
-import type {FontBox, HtmlAdapters} from './html-native.ts';
+import {htmlAdapterFor} from './html-adapter.ts';
+import type {FontBox, HtmlAdapters} from './html-adapter.ts';
 import {visibleAt} from './reveal-visibility.ts';
 import {toneEnv} from './tokens.ts';
 import type {LaidOutBand} from './types/index.ts';
 
-export type {FontBox, HtmlBandAdapter} from './html-native.ts';
+export type {FontBox, HtmlBandAdapter} from './html-adapter.ts';
 
 type HtmlOptions = Parameters<typeof prepareBands>[1] & {
   fontBox: FontBox;

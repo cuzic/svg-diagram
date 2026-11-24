@@ -540,6 +540,14 @@
       "types": "./dist/lib/html-native.d.ts",
       "default": "./dist/lib/html-native.js"
     },
+    "./html/bands/box": {
+      "types": "./dist/lib/html-box.d.ts",
+      "default": "./dist/lib/html-box.js"
+    },
+    "./html/bands/table": {
+      "types": "./dist/lib/html-table.d.ts",
+      "default": "./dist/lib/html-table.js"
+    },
     "./html": {
       "types": "./dist/lib/emit-html.d.ts",
       "default": "./dist/lib/emit-html.js"

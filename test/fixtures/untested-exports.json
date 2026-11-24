@@ -264,7 +264,6 @@
   "html-document:htmlDocument",
   "html-document:px",
   "html-document:stripSvg",
-  "html-native:htmlAdapterFor",
   "icon-store:emptyManifest",
   "icon-svg:iconSvg",
   "icons:own",
