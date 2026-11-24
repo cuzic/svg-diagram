@@ -1,3 +1,4 @@
+import {frameLayoutFindings} from '../layout-metrics.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {box as buildBox} from '../dsl/box.ts';
@@ -28,6 +29,7 @@ export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
     return renderBox(laid, theme, tones, roles);
   },
   verify: {
+    diagramFindings: frameLayoutFindings,
     rects: ownRect,
     check(laid, {theme, tones, appearance}) {
       return [

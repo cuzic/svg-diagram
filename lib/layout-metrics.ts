@@ -10,8 +10,8 @@ import {at} from './finding-rules.ts';
 import {snap4} from './emit-common.ts';
 import {must} from './must.ts';
 import type {Rect} from './types/core.ts';
-import type {LaidOutBand} from './types/index.ts';
-import type {FindingData, Issue} from './types/verdicts.ts';
+import type {LaidOutBand, LaidOutDiagram} from './types/index.ts';
+import type {Finding, FindingData, Issue} from './types/verdicts.ts';
 import type {LaidOutBox} from './types/text-bands.ts';
 
 export type LayoutRule = 'layout-sibling-size' | 'layout-edge-misalign' | 'layout-gutter-uneven' | 'layout-unused-space' | 'layout-figure-offset' | 'layout-figure-narrow' | 'layout-align-mixed';
@@ -235,15 +235,24 @@ function alignMixed(runs: Frame[][], out: LayoutMetric[]): void {
   }
 }
 
-/** Every layout metric finding of a laid-out diagram. `width` is the figure width; `slideCanvas` skips the whole-figure rules (the canvas is fixed). */
-export function layoutMetrics(laidOut: LaidOutBand[], opts: {width: number; slideCanvas?: boolean}): LayoutMetric[] {
+function frameMetrics(laidOut: LaidOutBand[], beforeAlign?: (out: LayoutMetric[]) => void): LayoutMetric[] {
   const out: LayoutMetric[] = [];
   const frames = framesOf(laidOut), runs = runsOf(frames);
   siblingSize(runs, out);
   edgeMisalign(frames, out);
   gutterUneven(runs, out);
   unusedSpace(laidOut, out);
-  if (!opts.slideCanvas) figureRules(laidOut, opts.width, out);
+  beforeAlign?.(out);
   alignMixed(runs, out);
   return out;
+}
+
+/** Every layout metric finding of a laid-out diagram. */
+export function layoutMetrics(laidOut: LaidOutBand[], opts: {width: number; slideCanvas?: boolean}): LayoutMetric[] {
+  return frameMetrics(laidOut, opts.slideCanvas ? undefined : out => figureRules(laidOut, opts.width, out));
+}
+
+/** Frame measurements span bands and should run once even when several bands register them. */
+export function frameLayoutFindings({laidOut}: LaidOutDiagram): Finding[] {
+  return frameMetrics(laidOut).map(metric => ({...metric, severity: 'info'}));
 }

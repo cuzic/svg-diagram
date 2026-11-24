@@ -236,3 +236,18 @@ test('every catalog part matches the legacy canvas font and overflow findings', 
     }
   }
 });
+
+test('selected layouts keep the legacy frame findings at canvas size', async () => {
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const findings = ({verdict}: Awaited<ReturnType<typeof renderSpec>>) => verdict.findings
+    .filter(f => /^layout-(sibling-size|edge-misalign|gutter-uneven|unused-space|align-mixed)$/.test(f.rule))
+    .map(({rule, severity, message, data}) => ({rule, severity, message, data}));
+  for (const part of [flowchartPart, pyramidPart, funnelPart, ...moreParts]) {
+    const input = {version: 1, title: 'Plan', legend: false,
+      canvas: {width: 1920, height: 1080, minText: 20}, parts: [part.example]};
+    const actual = await renderSpec(input, {parts: [part], measure});
+    const legacy = await renderInBrowser(specToDiagram(input), {measure});
+    if (part === stepsPart) assert.ok(findings(legacy).some(f => f.rule === 'layout-sibling-size'));
+    assert.deepEqual(findings(actual), findings(legacy), part.type);
+  }
+});

@@ -262,6 +262,7 @@
   "layout-image:layoutImageBand",
   "layout-legend:layoutLegend",
   "layout-metrics:contentBox",
+  "layout-metrics:frameLayoutFindings",
   "layout-placed:appendPlacedBand",
   "layout-placed:originOf",
   "layout-placed:placedBand",

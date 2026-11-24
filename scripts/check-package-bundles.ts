@@ -109,7 +109,8 @@ try {
         ...(!bands.includes('cause.js') ? ['toc-rules.js'] : []),
         ...(!bands.includes('fta.js') ? ['fta-rules.js'] : []),
         ...(!bands.includes('table.js') ? ['table-rules.js'] : []),
-        ...(!bands.includes('swimlane.js') ? ['swimlane-rules.js'] : [])],
+        ...(!bands.includes('swimlane.js') ? ['swimlane-rules.js'] : []),
+        ...(!bands.some(band => ['box.js', 'group.js', 'grid.js', 'row.js', 'quadrant.js'].includes(band)) ? ['layout-metrics.js'] : [])],
       bands, draw: true, catalog: true,
     };
   });
@@ -126,7 +127,7 @@ try {
         fontBox: size => ({ascent: size, descent: 0}),
         adapters: {box: boxHtml}, strict: true,
       });
-    `, include: 'html-selective.js', budget: {esbuild: 80000, Vite: 103000}, bands: ['box.js'], exclude: [...legacy, 'emit-html.js', 'lib/emit.js', 'svg-to-css.js', 'emit-tables.js', 'image-file.js'], draw: true},
+    `, include: 'html-selective.js', budget: {esbuild: 82000, Vite: 105000}, bands: ['box.js'], exclude: [...legacy, 'emit-html.js', 'lib/emit.js', 'svg-to-css.js', 'emit-tables.js', 'image-file.js'], draw: true},
     {name: 'Selective PPTX', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
       import {rowPptx} from 'svg-diagram/pptx/bands/box';
@@ -191,11 +192,11 @@ try {
     `, include: 'pptx/timeline.js', budget: {esbuild: 145000, Vite: 178000}, bands: ['timeline.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/flow.js', 'pptx/pyramid.js'], draw: true},
     {name: 'Composer Canvas', source: composedSource([], "canvas('swot', {strengths: 'Plan'}, {titles: {strengths: 'Review'}})", "import {canvas} from 'svg-diagram/compose/canvas'; "),
-      include: 'compose/selective/canvas.js', budget: {esbuild: 81000, Vite: 105000}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'layout-connect.js', 'bands/banner.js', 'bands/row.js'], draw: true},
+      include: 'compose/selective/canvas.js', budget: {esbuild: 83000, Vite: 107000}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'layout-connect.js', 'bands/banner.js', 'bands/row.js'], draw: true},
     {name: 'Composer Hero', source: composedSource([], "...hero({banner: {headline: 'Review'}, flow: [box({title: 'Step'})], stat: {value: 3, label: 'Done'}})", "import {hero} from 'svg-diagram/compose/hero'; import {box} from 'svg-diagram/bands/box';"),
-      include: 'compose/selective/hero.js', budget: {esbuild: 92000, Vite: 118000}, bands: ['banner.js', 'box.js', 'caption.js', 'row.js'], exclude: [...legacy, 'layout-connect.js', 'bands/grid.js', 'bands/group.js'], draw: true},
+      include: 'compose/selective/hero.js', budget: {esbuild: 93000, Vite: 119000}, bands: ['banner.js', 'box.js', 'caption.js', 'row.js'], exclude: [...legacy, 'layout-connect.js', 'bands/grid.js', 'bands/group.js'], draw: true},
     {name: 'Composer Icon row', source: composedSource([], "iconRow([{icon: 'check', label: 'Review'}])", "import {iconRow} from 'svg-diagram/compose/icon-row'; import {icon} from 'svg-diagram/bands/box'; icon.has('check'); icon.use({version: 1, icons: {check: {d: 'M2 2h20v20H2z', vb: [0, 0, 24], from: 'file:check.svg', license: 'local'}}});"),
-      include: 'compose/selective/icon-row.js', budget: {esbuild: 86000, Vite: 114000}, bands: ['box.js', 'row.js'], exclude: [...legacy, 'layout-connect.js', 'bands/grid.js', 'bands/banner.js'], draw: true},
+      include: 'compose/selective/icon-row.js', budget: {esbuild: 88000, Vite: 115000}, bands: ['box.js', 'row.js'], exclude: [...legacy, 'layout-connect.js', 'bands/grid.js', 'bands/banner.js'], draw: true},
     {name: 'Composer Versus', source: composedSource([], "...versus({children: box({title: 'Review'})}, {children: box({title: 'Next'})})", "import {versus} from 'svg-diagram/compose/versus'; import {box} from 'svg-diagram/bands/box';"),
       include: 'compose/selective/versus.js', budget: {esbuild: 110000, Vite: 140000}, bands: ['box.js', 'caption.js', 'connect.js', 'group-row.js', 'group.js', 'row.js', 'spacer.js'], exclude: [...legacy, 'bands/banner.js', 'bands/grid.js', 'gantt.js'], draw: true},
     {name: 'Selected pyramid spec', source: `
@@ -249,20 +250,20 @@ try {
       export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [{type: 'steps', items: [{title: 'Review'}, {title: 'Next'}], loopBack: [{from: 2, to: 1, label: 'Retry'}]}]}, {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [stepsPart],
       });
-    `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 114000, Vite: 147000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
+    `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 118000, Vite: 150000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
       exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 52000, Vite: 68000}},
     {name: 'Box', source: bandSource('box'), include: 'bands/box.js',
-      exclude: [...legacy, 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 75500, Vite: 95000}, draw: true},
+      exclude: [...legacy, 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 79000, Vite: 101000}, draw: true},
     {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',
       exclude: [...legacy, 'box.js', 'emit-boxes.js', 'layout-connect.js', 'timeline.js'], budget: {esbuild: 68000, Vite: 86000}, draw: true},
     {name: 'Row', source: composedSource(['box', 'row'], "row([box({title: 'Review'}), box({title: 'Next'})], {arrows: 'between'})"),
-      include: 'bands/row.js', budget: {esbuild: 84000, Vite: 108000}, bands: ['box.js', 'row.js'], exclude: [...legacy, 'layout-grid.js', 'layout-connect.js', 'layout-group.js', 'layout-group-row.js', 'layout-areas.js', 'gantt.js'], draw: true},
+      include: 'bands/row.js', budget: {esbuild: 88000, Vite: 112000}, bands: ['box.js', 'row.js'], exclude: [...legacy, 'layout-grid.js', 'layout-connect.js', 'layout-group.js', 'layout-group-row.js', 'layout-areas.js', 'gantt.js'], draw: true},
     {name: 'Grid', source: composedSource(['box', 'grid'], "grid([box({title: 'Review'}), box({title: 'Next'})], {cols: 2})"),
-      include: 'bands/grid.js', budget: {esbuild: 79000, Vite: 102000}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'layout-row.js', 'layout-connect.js', 'gantt.js'], draw: true},
+      include: 'bands/grid.js', budget: {esbuild: 84000, Vite: 107000}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'layout-row.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Connect', source: composedSource(['box', 'connect'], "connect('a:bottom', 'b:top'), box({id: 'a', title: 'Review'}), box({id: 'b', title: 'Next'})"),
-      include: 'bands/connect.js', budget: {esbuild: 89000, Vite: 115000}, bands: ['box.js', 'connect.js'], exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'gantt.js'], draw: true},
+      include: 'bands/connect.js', budget: {esbuild: 93000, Vite: 120000}, bands: ['box.js', 'connect.js'], exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'gantt.js'], draw: true},
     {name: 'Row loop-back', source: `
       import {renderBands} from 'svg-diagram/core';
       import {box} from 'svg-diagram/bands/box';
@@ -271,17 +272,17 @@ try {
       export const draw = () => renderBands([
         row([box({title: 'Review'}), box({title: 'Next'})], {loopBack: {from: 2, to: 1, label: 'Retry'}})
       ], {connectors: connectDefinition, measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size})});
-    `, include: 'bands/row.js', budget: {esbuild: 100000, Vite: 129000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'layout-grid.js', 'gantt.js'], draw: true},
+    `, include: 'bands/row.js', budget: {esbuild: 102000, Vite: 130000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'layout-grid.js', 'gantt.js'], draw: true},
     {name: 'Image', source: composedSource(['image'], "image('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', {alt: 'Picture', width: 240, labels: [{text: 'Review', at: [0.3, 0.5]}]})"),
       include: 'bands/image.js', budget: {esbuild: 68000, Vite: 91000}, exclude: [...legacy, 'dsl/io.js', 'image-file.js', 'charts.js', 'layout-connect.js'], draw: true},
     {name: 'Caption and spacer', source: composedSource(['caption', 'spacer'], "caption('Review', {mono: true}), spacer(24), caption('Next')"),
       include: 'bands/caption.js', budget: {esbuild: 58000, Vite: 77000}, bands: ['caption.js', 'spacer.js'], exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Group', source: composedSource(['box', 'group'], "group(box({title: 'Review'}), {title: 'Plan'})"),
-      include: 'bands/group.js', budget: {esbuild: 80000, Vite: 104000}, bands: ['box.js', 'caption.js', 'group.js'], exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
+      include: 'bands/group.js', budget: {esbuild: 83000, Vite: 106000}, bands: ['box.js', 'caption.js', 'group.js'], exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Group row', source: composedSource(['box', 'group', 'groupRow'], "groupRow([group(box({title: 'Review'})), box({title: 'Next'})])"),
-      include: 'bands/group-row.js', budget: {esbuild: 90000, Vite: 116000}, bands: ['box.js', 'caption.js', 'group-row.js', 'group.js'], exclude: [...legacy, 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
+      include: 'bands/group-row.js', budget: {esbuild: 92000, Vite: 117000}, bands: ['box.js', 'caption.js', 'group-row.js', 'group.js'], exclude: [...legacy, 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Areas', source: composedSource(['areas', 'box'], "areas(['wide wide', 'left right'], {wide: box({title: 'Review'}), left: box({title: 'Left'}), right: box({title: 'Right'})})"),
-      include: 'bands/areas.js', budget: {esbuild: 90000, Vite: 116000}, bands: ['areas.js', 'box.js', 'caption.js', 'group.js'], exclude: [...legacy, 'layout-group-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
+      include: 'bands/areas.js', budget: {esbuild: 93000, Vite: 119000}, bands: ['areas.js', 'box.js', 'caption.js', 'group.js'], exclude: [...legacy, 'layout-group-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Banner and raw', source: composedSource(['banner', 'raw'], `banner({headline: 'Review'}), raw({h: 32, draw: ({x, y}) => '<rect x="' + x + '" y="' + y + '" width="24" height="24"/>'})`),
       include: 'bands/banner.js', budget: {esbuild: 61000, Vite: 82000}, bands: ['banner.js', 'raw.js'], exclude: [...legacy, 'layout-areas.js', 'layout-group.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Curve', source: composedSource(['curve'], "curve([{y: 0.3, dropLine: true}, {y: 0.8}], {xLabel: 'Review'})"),
@@ -308,7 +309,7 @@ try {
     {name: 'Legend', source: composedSource(['legend'], "legend([{label: 'Review', role: 'root'}, {label: 'Gate', ftaGate: 'and'}, {label: 'Link', weight: 'strong'}])"),
       include: 'bands/legend.js', budget: {esbuild: 62000, Vite: 83000}, exclude: [...legacy, 'toc.js', 'fta.js', 'emit-fta.js', 'gantt.js', 'layout-connect.js'], draw: true},
     {name: 'Quadrant', source: composedSource(['quadrant'], "quadrant.preset('bcg', {items: [{label: 'Review', cell: [0, 0]}]})"),
-      include: 'bands/quadrant.js', budget: {esbuild: 94000, Vite: 123000}, exclude: [...legacy, 'flow-shapes.js', 'plane.js', 'gantt.js', 'layout-connect.js', 'dsl/figures.js'], draw: true},
+      include: 'bands/quadrant.js', budget: {esbuild: 96000, Vite: 123000}, exclude: [...legacy, 'flow-shapes.js', 'plane.js', 'gantt.js', 'layout-connect.js', 'dsl/figures.js'], draw: true},
     {name: 'Plane', source: composedSource(['plane'], "plane({x: {max: 20, step: 10}, y: {max: 10, step: 5}, points: [{at: [10, 5], label: 'Review', reveal: 2}]})"),
       include: 'bands/plane.js', budget: {esbuild: 78000, Vite: 104000}, exclude: [...legacy, 'quadrant.js', 'flow-shapes.js', 'gantt.js', 'reveal-handlers.js', 'layout-connect.js'], draw: true},
     {name: 'Bars', source: composedSource(['bars'], "bars([{id: 'old', label: 'Draft', value: 4}, {label: 'Review', value: 6, reveal: 2, replaces: 'old'}])"),
@@ -340,7 +341,7 @@ try {
     {name: 'Cause', source: composedSource([], "causeTree([{id: 'a', label: 'Review'}, {id: 'b', label: 'Done'}], [{from: 'a', to: 'b'}])", "import {causeTree} from 'svg-diagram/bands/cause';"),
       include: 'bands/cause.js', budget: {esbuild: 166000, Vite: 233000}, exclude: [...legacy, 'cloud.js', 'states.js', 'classes.js', 'dsl/diagrams.js', 'layout-connect.js', 'rca-rules.js'], draw: true},
     {name: 'Swimlane', source: composedSource(['swimlane'], "...swimlane([{id: 'work', label: 'Work'}], [{id: 'a', lane: 'work', title: 'Review'}])"),
-      include: 'bands/swimlane.js', budget: {esbuild: 93000, Vite: 121000}, exclude: [...legacy, 'layout-connect.js', 'bands/connect.js', 'seq-table.js', 'wireframe.js', 'layout-row.js'], draw: true,
+      include: 'bands/swimlane.js', budget: {esbuild: 96000, Vite: 123000}, exclude: [...legacy, 'layout-connect.js', 'bands/connect.js', 'seq-table.js', 'wireframe.js', 'layout-row.js'], draw: true,
       bands: ['box.js', 'swimlane.js']},
     {name: 'Radar', source: composedSource(['radar'], "radar(['A', 'B', 'C'], [{label: 'Review', values: [3, 4, 5]}], {max: 5})"),
       include: 'bands/radar.js', budget: {esbuild: 97000, Vite: 120000}, exclude: [...legacy, 'lib/charts.js', 'charts-waterfall.js', 'charts-sankey.js', 'semnet.js', 'layout-connect.js'], draw: true},

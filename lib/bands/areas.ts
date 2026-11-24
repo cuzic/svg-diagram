@@ -1,3 +1,4 @@
+import {frameLayoutFindings} from '../layout-metrics.ts';
 import {childRuns} from '../band-text-sizes.ts';
 import {band, defOf, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -15,6 +16,7 @@ const definition = {
   layout: layoutAreas,
   children: data => data.children,
   outputTypes: ['row'],
+  verify: {diagramFindings: frameLayoutFindings},
   emit: (laid, env) => renderRow(laid, env.theme, env.tones, env.roles, env.stage),
 } satisfies BandDef<AreasBand, LaidOutRow>;
 

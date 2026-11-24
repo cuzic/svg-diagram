@@ -1,3 +1,4 @@
+import {frameLayoutFindings} from '../layout-metrics.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -25,6 +26,7 @@ const definition = {
   },
   emit: (laid, {theme, tones}) => renderQuadrant(laid, theme, tones),
   verify: {
+    diagramFindings: frameLayoutFindings,
     rects: laid => anchorRects(laid),
     check: laid => quadrantProblems(laid).map(message => ({rule: 'quadrant', severity: 'problem', message})),
   },

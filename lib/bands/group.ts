@@ -1,3 +1,4 @@
+import {frameLayoutFindings} from '../layout-metrics.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {group as buildGroup} from '../dsl/group.ts';
@@ -20,6 +21,7 @@ export const groupDefinition: BandDef<GroupBand, LaidOutGroup> = {
   measure(data, {atoms, roles}) {
     if (data.stamp) atoms(data.stamp, roles.note, 400);
   },
+  verify: {diagramFindings: frameLayoutFindings},
   emit: (laid, env) => renderGroup(laid, env.theme, env.tones, env.roles),
 };
 

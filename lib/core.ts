@@ -86,6 +86,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
   const scopeTable = emptyScopes();
   let last = 0;
   const revealWarnings: string[] = [];
+  const diagramChecks = new Set<NonNullable<NonNullable<BandDef['verify']>['diagramFindings']>>();
   const inputChecks: ((ctx: VerifyCtx) => Finding[])[] = [];
   let source = cloneData(bands) as unknown as Band[];
   const data: DiagramData = {
@@ -152,6 +153,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
         ids.set(qualify(scope, item.id), {start: item.reveal ?? start, end: item.until ?? end});
       }
     }
+    if (def.verify?.diagramFindings) diagramChecks.add(def.verify.diagramFindings);
     const findings = def.verify?.findings;
     if (findings) inputChecks.push(ctx => findings(data, ctx));
     def.measure?.(data, measureEnv);
@@ -206,6 +208,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
   const ctx = {theme, tones: ink, appearance: placed.appearance, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
   const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => band.type === 'row' || band.type === 'grid' ? band.children : band.type === 'group' ? [] : [band]);
   const bandFindings = inputChecks.flatMap(check => check(ctx));
+  for (const check of diagramChecks) bandFindings.push(...check(placed));
   let minText = Infinity;
   for (const laid of placed.laidOut) {
     const def = definitions.get(definitionKey(laid)) ?? syntheticOutputs.get(laid.type);

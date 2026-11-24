@@ -5,7 +5,7 @@ import type {BandLayoutHandler} from './layout-ctx.ts';
 import type {RevealHandler} from './reveal-handlers.ts';
 import type {ToneEnv} from './tokens.ts';
 import type {Anchor, Appearance, ColorKey, FontFamily, FontWeight, Rect, RevealOpts, Roles, ScopeOpts, SlideCanvas, TextTone, Theme, WidthOf, WrapMode} from './types/core.ts';
-import type {Band} from './types/index.ts';
+import type {Band, LaidOutDiagram} from './types/index.ts';
 import type {InventoryItem} from './types/inventory.ts';
 import type {CheckRect, Finding} from './types/verdicts.ts';
 import type {VerifyHandler} from './verify-handlers.ts';
@@ -85,6 +85,7 @@ interface BandHooks<D, L extends object> {
     rects?(laid: L): CheckRect[];
     findings?(data: D, ctx: VerifyCtx): Finding[];
     layoutFindings?(laid: L, ctx: VerifyCtx): Finding[];
+    diagramFindings?(diagram: LaidOutDiagram): Finding[];
     check?(laid: L, ctx: VerifyCtx): BandFinding[];
     contrast?: VerifyHandler<L>['contrast'];
   };

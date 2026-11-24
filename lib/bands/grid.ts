@@ -1,3 +1,4 @@
+import {frameLayoutFindings} from '../layout-metrics.ts';
 import {childRuns} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -13,6 +14,7 @@ export const gridDefinition: BandDef<GridBand, LaidOutGrid> = {
   internal: true,
   layout: layoutGridBand,
   children: data => data.children,
+  verify: {diagramFindings: frameLayoutFindings},
   emit: (laid, env) => renderGrid(laid, env.theme, env.tones, env.roles, env.stage),
 };
 
