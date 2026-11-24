@@ -122,31 +122,45 @@
     "./dist/lib/spec-parts/r3.js",
     "./dist/lib/spec-parts/r4.js",
     "./dist/lib/spec-parts/r5.js",
+    "./dist/lib/spec-parts/r6-common.js",
     "./dist/lib/spec-parts/r6.js",
     "./dist/lib/spec-parts/r7.js",
     "./dist/lib/spec-parts/selective/bars.js",
+    "./dist/lib/spec-parts/selective/boxplot.js",
     "./dist/lib/spec-parts/selective/bpmn.js",
     "./dist/lib/spec-parts/selective/bubble.js",
+    "./dist/lib/spec-parts/selective/butterfly.js",
     "./dist/lib/spec-parts/selective/cause-tree.js",
+    "./dist/lib/spec-parts/selective/check-sheet.js",
     "./dist/lib/spec-parts/selective/chevron.js",
     "./dist/lib/spec-parts/selective/class-diagram.js",
     "./dist/lib/spec-parts/selective/cloud.js",
+    "./dist/lib/spec-parts/selective/combo.js",
+    "./dist/lib/spec-parts/selective/compare.js",
+    "./dist/lib/spec-parts/selective/concentric.js",
+    "./dist/lib/spec-parts/selective/control-chart.js",
     "./dist/lib/spec-parts/selective/cycle.js",
     "./dist/lib/spec-parts/selective/dependency-network.js",
     "./dist/lib/spec-parts/selective/flowchart.js",
     "./dist/lib/spec-parts/selective/funnel.js",
     "./dist/lib/spec-parts/selective/gantt.js",
+    "./dist/lib/spec-parts/selective/harvey.js",
     "./dist/lib/spec-parts/selective/heatmap.js",
+    "./dist/lib/spec-parts/selective/histogram.js",
     "./dist/lib/spec-parts/selective/journey-map.js",
     "./dist/lib/spec-parts/selective/lines.js",
+    "./dist/lib/spec-parts/selective/mekko.js",
     "./dist/lib/spec-parts/selective/mindmap.js",
     "./dist/lib/spec-parts/selective/pareto.js",
     "./dist/lib/spec-parts/selective/pert.js",
     "./dist/lib/spec-parts/selective/pyramid.js",
+    "./dist/lib/spec-parts/selective/qfd.js",
     "./dist/lib/spec-parts/selective/quadrant.js",
     "./dist/lib/spec-parts/selective/raci.js",
     "./dist/lib/spec-parts/selective/radar.js",
+    "./dist/lib/spec-parts/selective/range-bars.js",
     "./dist/lib/spec-parts/selective/sankey.js",
+    "./dist/lib/spec-parts/selective/scatter.js",
     "./dist/lib/spec-parts/selective/sequence.js",
     "./dist/lib/spec-parts/selective/stacked-bars.js",
     "./dist/lib/spec-parts/selective/state-diagram.js",
@@ -160,6 +174,7 @@
     "./dist/lib/spec-parts/selective/value-chain.js",
     "./dist/lib/spec-parts/selective/venn.js",
     "./dist/lib/spec-parts/selective/waterfall.js",
+    "./dist/lib/spec-parts/selective/why-why-table.js",
     "./dist/lib/spec-parts/treemap.js",
     "./dist/lib/spec.js",
     "./dist/lib/svg-outline.js",
@@ -519,6 +534,10 @@
       "types": "./dist/lib/spec-parts/selective/bars.d.ts",
       "default": "./dist/lib/spec-parts/selective/bars.js"
     },
+    "./spec/parts/boxplot": {
+      "types": "./dist/lib/spec-parts/selective/boxplot.d.ts",
+      "default": "./dist/lib/spec-parts/selective/boxplot.js"
+    },
     "./spec/parts/bpmn": {
       "types": "./dist/lib/spec-parts/selective/bpmn.d.ts",
       "default": "./dist/lib/spec-parts/selective/bpmn.js"
@@ -527,9 +546,17 @@
       "types": "./dist/lib/spec-parts/selective/bubble.d.ts",
       "default": "./dist/lib/spec-parts/selective/bubble.js"
     },
+    "./spec/parts/butterfly": {
+      "types": "./dist/lib/spec-parts/selective/butterfly.d.ts",
+      "default": "./dist/lib/spec-parts/selective/butterfly.js"
+    },
     "./spec/parts/cause-tree": {
       "types": "./dist/lib/spec-parts/selective/cause-tree.d.ts",
       "default": "./dist/lib/spec-parts/selective/cause-tree.js"
+    },
+    "./spec/parts/check-sheet": {
+      "types": "./dist/lib/spec-parts/selective/check-sheet.d.ts",
+      "default": "./dist/lib/spec-parts/selective/check-sheet.js"
     },
     "./spec/parts/chevron": {
       "types": "./dist/lib/spec-parts/selective/chevron.d.ts",
@@ -542,6 +569,22 @@
     "./spec/parts/cloud": {
       "types": "./dist/lib/spec-parts/selective/cloud.d.ts",
       "default": "./dist/lib/spec-parts/selective/cloud.js"
+    },
+    "./spec/parts/combo": {
+      "types": "./dist/lib/spec-parts/selective/combo.d.ts",
+      "default": "./dist/lib/spec-parts/selective/combo.js"
+    },
+    "./spec/parts/compare": {
+      "types": "./dist/lib/spec-parts/selective/compare.d.ts",
+      "default": "./dist/lib/spec-parts/selective/compare.js"
+    },
+    "./spec/parts/concentric": {
+      "types": "./dist/lib/spec-parts/selective/concentric.d.ts",
+      "default": "./dist/lib/spec-parts/selective/concentric.js"
+    },
+    "./spec/parts/control-chart": {
+      "types": "./dist/lib/spec-parts/selective/control-chart.d.ts",
+      "default": "./dist/lib/spec-parts/selective/control-chart.js"
     },
     "./spec/parts/cycle": {
       "types": "./dist/lib/spec-parts/selective/cycle.d.ts",
@@ -563,9 +606,17 @@
       "types": "./dist/lib/spec-parts/selective/gantt.d.ts",
       "default": "./dist/lib/spec-parts/selective/gantt.js"
     },
+    "./spec/parts/harvey": {
+      "types": "./dist/lib/spec-parts/selective/harvey.d.ts",
+      "default": "./dist/lib/spec-parts/selective/harvey.js"
+    },
     "./spec/parts/heatmap": {
       "types": "./dist/lib/spec-parts/selective/heatmap.d.ts",
       "default": "./dist/lib/spec-parts/selective/heatmap.js"
+    },
+    "./spec/parts/histogram": {
+      "types": "./dist/lib/spec-parts/selective/histogram.d.ts",
+      "default": "./dist/lib/spec-parts/selective/histogram.js"
     },
     "./spec/parts/journey-map": {
       "types": "./dist/lib/spec-parts/selective/journey-map.d.ts",
@@ -574,6 +625,10 @@
     "./spec/parts/lines": {
       "types": "./dist/lib/spec-parts/selective/lines.d.ts",
       "default": "./dist/lib/spec-parts/selective/lines.js"
+    },
+    "./spec/parts/mekko": {
+      "types": "./dist/lib/spec-parts/selective/mekko.d.ts",
+      "default": "./dist/lib/spec-parts/selective/mekko.js"
     },
     "./spec/parts/mindmap": {
       "types": "./dist/lib/spec-parts/selective/mindmap.d.ts",
@@ -591,6 +646,10 @@
       "types": "./dist/lib/spec-parts/selective/pyramid.d.ts",
       "default": "./dist/lib/spec-parts/selective/pyramid.js"
     },
+    "./spec/parts/qfd": {
+      "types": "./dist/lib/spec-parts/selective/qfd.d.ts",
+      "default": "./dist/lib/spec-parts/selective/qfd.js"
+    },
     "./spec/parts/quadrant": {
       "types": "./dist/lib/spec-parts/selective/quadrant.d.ts",
       "default": "./dist/lib/spec-parts/selective/quadrant.js"
@@ -603,9 +662,17 @@
       "types": "./dist/lib/spec-parts/selective/radar.d.ts",
       "default": "./dist/lib/spec-parts/selective/radar.js"
     },
+    "./spec/parts/range-bars": {
+      "types": "./dist/lib/spec-parts/selective/range-bars.d.ts",
+      "default": "./dist/lib/spec-parts/selective/range-bars.js"
+    },
     "./spec/parts/sankey": {
       "types": "./dist/lib/spec-parts/selective/sankey.d.ts",
       "default": "./dist/lib/spec-parts/selective/sankey.js"
+    },
+    "./spec/parts/scatter": {
+      "types": "./dist/lib/spec-parts/selective/scatter.d.ts",
+      "default": "./dist/lib/spec-parts/selective/scatter.js"
     },
     "./spec/parts/sequence": {
       "types": "./dist/lib/spec-parts/selective/sequence.d.ts",
@@ -658,6 +725,10 @@
     "./spec/parts/waterfall": {
       "types": "./dist/lib/spec-parts/selective/waterfall.d.ts",
       "default": "./dist/lib/spec-parts/selective/waterfall.js"
+    },
+    "./spec/parts/why-why-table": {
+      "types": "./dist/lib/spec-parts/selective/why-why-table.d.ts",
+      "default": "./dist/lib/spec-parts/selective/why-why-table.js"
     },
     "./spec/selective": {
       "types": "./dist/lib/spec-selective.d.ts",

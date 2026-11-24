@@ -162,6 +162,13 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [heatmapPart],
       });
     `, include: 'spec-parts/selective/heatmap.js', budget: {esbuild: 107000, Vite: 131000}, bands: ['heatmap.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r2.js', 'spec-parts/treemap.js', 'charts-treemap.js', 'charts-sankey.js', 'charts-tornado.js', 'dsl-pure.js'], draw: true},
+    {name: 'Selected boxplot spec', source: `
+      import {renderSpec} from 'svg-diagram/spec/selective';
+      import {boxplotPart} from 'svg-diagram/spec/parts/boxplot';
+      export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [{type: 'boxplot', groups: [{label: 'Review', values: [1, 2, 3, 4, 5]}]}]}, {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [boxplotPart],
+      });
+    `, include: 'spec-parts/selective/boxplot.js', budget: {esbuild: 98000, Vite: 124000}, bands: ['catplot.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r6.js', 'spec-parts/control-chart.js', 'charts-dist.js', 'charts-reg.js', 'charts-multi.js', 'dsl-pure.js'], draw: true},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
       exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 52000, Vite: 65000}},

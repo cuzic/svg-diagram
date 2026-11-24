@@ -42,6 +42,21 @@ import {timelinePart} from '../lib/spec-parts/selective/timeline.ts';
 import {treePart} from '../lib/spec-parts/selective/tree.ts';
 import {dependencyNetworkPart} from '../lib/spec-parts/selective/dependency-network.ts';
 
+import {histogramPart} from '../lib/spec-parts/selective/histogram.ts';
+import {scatterPart} from '../lib/spec-parts/selective/scatter.ts';
+import {controlChartPart} from '../lib/spec-parts/selective/control-chart.ts';
+import {checkSheetPart} from '../lib/spec-parts/selective/check-sheet.ts';
+import {rangeBarsPart} from '../lib/spec-parts/selective/range-bars.ts';
+import {boxplotPart} from '../lib/spec-parts/selective/boxplot.ts';
+import {qfdPart} from '../lib/spec-parts/selective/qfd.ts';
+import {whyWhyTablePart} from '../lib/spec-parts/selective/why-why-table.ts';
+import {concentricPart} from '../lib/spec-parts/selective/concentric.ts';
+import {harveyPart} from '../lib/spec-parts/selective/harvey.ts';
+import {comparePart} from '../lib/spec-parts/selective/compare.ts';
+import {mekkoPart} from '../lib/spec-parts/selective/mekko.ts';
+import {butterflyPart} from '../lib/spec-parts/selective/butterfly.ts';
+import {comboPart} from '../lib/spec-parts/selective/combo.ts';
+
 test('selected parts reuse legacy schemas and draw without the full spec registry', async () => {
   const parts = [flowchartPart, pyramidPart, funnelPart];
   assert.deepEqual(partCatalog({parts}), legacyCatalog().filter(part => parts.some(p => part.type === p.type)));
@@ -66,7 +81,7 @@ test('the selected schema rejects duplicates and validation keywords it cannot e
     /unsupported schema keyword "pattern" at pyramid.properties.caption/);
 });
 
-const moreParts = [barsPart, linesPart, stackedBarsPart, waterfallPart, radarPart, paretoPart, sankeyPart, treemapPart, heatmapPart, bubblePart, tornadoPart, strategyCanvasPart, bpmnPart, classDiagramPart, pertPart, timelinePart, treePart, dependencyNetworkPart, causeTreePart, cloudPart, valueChainPart, mindmapPart, quadrantPart, chevronPart, cyclePart, stateDiagramPart, ganttPart, vennPart, tablePart, journeyMapPart, raciPart, swimlanePart, sequencePart];
+const moreParts = [histogramPart, scatterPart, controlChartPart, checkSheetPart, rangeBarsPart, boxplotPart, qfdPart, whyWhyTablePart, concentricPart, harveyPart, comparePart, mekkoPart, butterflyPart, comboPart, barsPart, linesPart, stackedBarsPart, waterfallPart, radarPart, paretoPart, sankeyPart, treemapPart, heatmapPart, bubblePart, tornadoPart, strategyCanvasPart, bpmnPart, classDiagramPart, pertPart, timelinePart, treePart, dependencyNetworkPart, causeTreePart, cloudPart, valueChainPart, mindmapPart, quadrantPart, chevronPart, cyclePart, stateDiagramPart, ganttPart, vennPart, tablePart, journeyMapPart, raciPart, swimlanePart, sequencePart];
 for (const part of moreParts) test(`selected ${part.type} draws the existing catalog example`, async () => {
   const spec = {version: 1, title: 'Plan', legend: false, parts: [part.example]};
   const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
