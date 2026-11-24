@@ -6,7 +6,8 @@ import {capped, checkAnchors, countEmoji, totalText, validateAgainst} from './sp
 import type {Theme} from './types/core.ts';
 
 type SelectedBand = Parameters<typeof renderBands>[0][number];
-export type SelectedPart = PartDef<SelectedBand | readonly SelectedBand[]>;
+type Connectors = Parameters<typeof renderBands>[1]['connectors'];
+export type SelectedPart = PartDef<SelectedBand | readonly SelectedBand[]> & {connectors?: Connectors};
 export type {Json, JsonSchema, SpecIssue} from './spec-kit.ts';
 export {SpecError} from './spec-kit.ts';
 
@@ -98,5 +99,6 @@ export function validateSpec(input: unknown, options: PartOptions): SpecIssue[] 
 export async function renderSpec(input: unknown, options: PartOptions & Pick<Parameters<typeof renderBands>[1], 'measure'>) {
   const {doc, bands, issues} = assemble(input, options);
   if (issues.length) throw new SpecError(issues);
-  return renderBands(bands, {measure: options.measure, title: doc.title, theme: doc.theme, width: doc.width});
+  const connectors = options.parts.find(part => part.connectors)?.connectors;
+  return renderBands(bands, {measure: options.measure, title: doc.title, theme: doc.theme, width: doc.width, connectors});
 }

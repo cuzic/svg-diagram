@@ -176,6 +176,13 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [faultTreePart],
       });
     `, include: 'spec-parts/selective/fault-tree.js', budget: {esbuild: 100000, Vite: 132000}, bands: ['fta.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r4.js', 'spec-parts/matrix.js', 'spec-parts/bowtie.js', 'semnet-causal.js', 'dsl-pure.js'], draw: true},
+    {name: 'Selected steps spec', source: `
+      import {renderSpec} from 'svg-diagram/spec/selective';
+      import {stepsPart} from 'svg-diagram/spec/parts/steps';
+      export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [{type: 'steps', items: [{title: 'Review'}, {title: 'Next'}], loopBack: [{from: 2, to: 1, label: 'Retry'}]}]}, {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [stepsPart],
+      });
+    `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 114000, Vite: 147000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
       exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 52000, Vite: 65000}},
@@ -379,7 +386,7 @@ try {
           assert.match(result.svg, /<image [^>]*href="data:image\/gif;base64,/);
           assert.doesNotMatch(code, /\bBuffer\b/, label);
         }
-        if (name === 'Row loop-back') assert.match(result.svg, /Retry/, label);
+        if (name === 'Row loop-back' || name === 'Selected steps spec') assert.match(result.svg, /Retry/, label);
         assert.deepEqual(result.xml, [], label);
         assert.equal(result.verdict.ok, true, label);
       }

@@ -22,7 +22,7 @@ const KNOWN: Readonly<Record<string, string>> = {
   'spec-parts/r7': 'U5: import the needed builders directly',
 };
 
-const isSpecPart = (file: string): boolean => /^spec-parts\/[^/]+$/.test(file);
+const isSpecPart = (file: string): boolean => /^spec-parts\/(?:selective\/)?[^/]+$/.test(file);
 
 function composerViolations(root: string, sources: string[]): string[] {
   return sources.flatMap(file => {

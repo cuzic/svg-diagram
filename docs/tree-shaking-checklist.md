@@ -111,7 +111,8 @@
   - [x] `bars` から `strategy-canvas` までの数量図 12 種類と、`bpmn`、`class-diagram`、`pert`、`timeline`、`tree`、`dependency-network` を追加。ヒートマップの単独バンドルを検証。
   - [x] 品質・比較の 14 部品（`histogram`、`scatter`、`control-chart`、`check-sheet`、`range-bars`、`boxplot`、`qfd`、`why-why-table`、`concentric`、`harvey`、`compare`、`mekko`、`butterfly`、`combo`）を追加。箱ひげ図の単独バンドルを検証。
   - [x] `fault-tree`、`bowtie`、`fmea`、`is-is-not`、`matrix`、`pdpc`、`relation-diagram`、`causal-loop`、`why-why-tree` を追加。障害木の単独バンドルを検証。
-  - [ ] `affinity`、`steps`、`versus`、`burndown`、`burnup`、`board`、図全体の設定、edge・CLI の配線。
+  - [x] `affinity`、`steps`、`versus`、`burndown`、`burnup`、`board` を追加。全 65 部品の個別入口、schema、作例を確認。
+  - [ ] 図全体の設定、edge・CLI の配線、全入口の単独バンドル検証。
 - [ ] HTML、PPTX、該当する Excel のアダプターを帯ごとに選べる。
   - [x] HTML で箱・行・グリッド・キャプション・バナー・グループ・表のアダプターを選べる。SVG に切り替えた帯を報告し、strict ではエラーにする。
   - [x] PPTX で箱系のアダプターを選択し、絵への切り替えを報告できる。PNG 生成・文字の輪郭化は呼び出し側から渡す。

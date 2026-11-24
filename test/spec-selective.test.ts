@@ -5,6 +5,12 @@ import {flowchartPart} from '../lib/spec-parts/selective/flowchart.ts';
 import {funnelPart} from '../lib/spec-parts/selective/funnel.ts';
 import {pyramidPart} from '../lib/spec-parts/selective/pyramid.ts';
 import {partCatalog as legacyCatalog, specToDiagram} from '../lib/spec.ts';
+import {stepsPart} from '../lib/spec-parts/selective/steps.ts';
+import {versusPart} from '../lib/spec-parts/selective/versus.ts';
+import {burnupPart} from '../lib/spec-parts/selective/burnup.ts';
+import {burndownPart} from '../lib/spec-parts/selective/burndown.ts';
+import {affinityPart} from '../lib/spec-parts/selective/affinity.ts';
+import {boardPart} from '../lib/spec-parts/selective/board.ts';
 import {renderInBrowser} from '../lib/web.ts';
 
 import {causeTreePart} from '../lib/spec-parts/selective/cause-tree.ts';
@@ -91,7 +97,7 @@ test('the selected schema rejects duplicates and validation keywords it cannot e
     /unsupported schema keyword "pattern" at pyramid.properties.caption/);
 });
 
-const moreParts = [faultTreePart, bowtiePart, fmeaPart, isIsNotPart, matrixPart, pdpcPart, relationDiagramPart, causalLoopPart, whyWhyTreePart, histogramPart, scatterPart, controlChartPart, checkSheetPart, rangeBarsPart, boxplotPart, qfdPart, whyWhyTablePart, concentricPart, harveyPart, comparePart, mekkoPart, butterflyPart, comboPart, barsPart, linesPart, stackedBarsPart, waterfallPart, radarPart, paretoPart, sankeyPart, treemapPart, heatmapPart, bubblePart, tornadoPart, strategyCanvasPart, bpmnPart, classDiagramPart, pertPart, timelinePart, treePart, dependencyNetworkPart, causeTreePart, cloudPart, valueChainPart, mindmapPart, quadrantPart, chevronPart, cyclePart, stateDiagramPart, ganttPart, vennPart, tablePart, journeyMapPart, raciPart, swimlanePart, sequencePart];
+const moreParts = [stepsPart, versusPart, burnupPart, burndownPart, affinityPart, boardPart, faultTreePart, bowtiePart, fmeaPart, isIsNotPart, matrixPart, pdpcPart, relationDiagramPart, causalLoopPart, whyWhyTreePart, histogramPart, scatterPart, controlChartPart, checkSheetPart, rangeBarsPart, boxplotPart, qfdPart, whyWhyTablePart, concentricPart, harveyPart, comparePart, mekkoPart, butterflyPart, comboPart, barsPart, linesPart, stackedBarsPart, waterfallPart, radarPart, paretoPart, sankeyPart, treemapPart, heatmapPart, bubblePart, tornadoPart, strategyCanvasPart, bpmnPart, classDiagramPart, pertPart, timelinePart, treePart, dependencyNetworkPart, causeTreePart, cloudPart, valueChainPart, mindmapPart, quadrantPart, chevronPart, cyclePart, stateDiagramPart, ganttPart, vennPart, tablePart, journeyMapPart, raciPart, swimlanePart, sequencePart];
 for (const part of moreParts) test(`selected ${part.type} draws the existing catalog example`, async () => {
   const spec = {version: 1, title: 'Plan', legend: false, parts: [part.example]};
   const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
@@ -109,4 +115,10 @@ test('table-based parts share the same renderer in one spec', async () => {
   const result = await renderSpec(spec, {parts, measure});
   assert.deepEqual(result.xml, []);
   assert.match(result.svg, /<svg/);
+});
+
+test('every existing spec part has a selectable definition with the same schema and example', () => {
+  const parts = [flowchartPart, pyramidPart, funnelPart, ...moreParts];
+  const ordered = (list: ReturnType<typeof legacyCatalog>) => list.toSorted((a, b) => a.type.localeCompare(b.type));
+  assert.deepEqual(ordered(partCatalog({parts})), ordered(legacyCatalog()));
 });

@@ -114,6 +114,7 @@
     "./dist/lib/slide-index.js",
     "./dist/lib/source-location-io.js",
     "./dist/lib/spec-kit.js",
+    "./dist/lib/spec-parts/board-definition.js",
     "./dist/lib/spec-parts/board.js",
     "./dist/lib/spec-parts/r1-common.js",
     "./dist/lib/spec-parts/r1.js",
@@ -126,11 +127,15 @@
     "./dist/lib/spec-parts/r6-common.js",
     "./dist/lib/spec-parts/r6.js",
     "./dist/lib/spec-parts/r7.js",
+    "./dist/lib/spec-parts/selective/affinity.js",
     "./dist/lib/spec-parts/selective/bars.js",
+    "./dist/lib/spec-parts/selective/board.js",
     "./dist/lib/spec-parts/selective/bowtie.js",
     "./dist/lib/spec-parts/selective/boxplot.js",
     "./dist/lib/spec-parts/selective/bpmn.js",
     "./dist/lib/spec-parts/selective/bubble.js",
+    "./dist/lib/spec-parts/selective/burndown.js",
+    "./dist/lib/spec-parts/selective/burnup.js",
     "./dist/lib/spec-parts/selective/butterfly.js",
     "./dist/lib/spec-parts/selective/causal-loop.js",
     "./dist/lib/spec-parts/selective/cause-tree.js",
@@ -173,6 +178,7 @@
     "./dist/lib/spec-parts/selective/sequence.js",
     "./dist/lib/spec-parts/selective/stacked-bars.js",
     "./dist/lib/spec-parts/selective/state-diagram.js",
+    "./dist/lib/spec-parts/selective/steps.js",
     "./dist/lib/spec-parts/selective/strategy-canvas.js",
     "./dist/lib/spec-parts/selective/swimlane.js",
     "./dist/lib/spec-parts/selective/table.js",
@@ -182,6 +188,7 @@
     "./dist/lib/spec-parts/selective/treemap.js",
     "./dist/lib/spec-parts/selective/value-chain.js",
     "./dist/lib/spec-parts/selective/venn.js",
+    "./dist/lib/spec-parts/selective/versus.js",
     "./dist/lib/spec-parts/selective/waterfall.js",
     "./dist/lib/spec-parts/selective/why-why-table.js",
     "./dist/lib/spec-parts/selective/why-why-tree.js",
@@ -540,9 +547,17 @@
       "types": "./dist/lib/render-source.d.ts",
       "default": "./dist/lib/render-source.js"
     },
+    "./spec/parts/affinity": {
+      "types": "./dist/lib/spec-parts/selective/affinity.d.ts",
+      "default": "./dist/lib/spec-parts/selective/affinity.js"
+    },
     "./spec/parts/bars": {
       "types": "./dist/lib/spec-parts/selective/bars.d.ts",
       "default": "./dist/lib/spec-parts/selective/bars.js"
+    },
+    "./spec/parts/board": {
+      "types": "./dist/lib/spec-parts/selective/board.d.ts",
+      "default": "./dist/lib/spec-parts/selective/board.js"
     },
     "./spec/parts/bowtie": {
       "types": "./dist/lib/spec-parts/selective/bowtie.d.ts",
@@ -559,6 +574,14 @@
     "./spec/parts/bubble": {
       "types": "./dist/lib/spec-parts/selective/bubble.d.ts",
       "default": "./dist/lib/spec-parts/selective/bubble.js"
+    },
+    "./spec/parts/burndown": {
+      "types": "./dist/lib/spec-parts/selective/burndown.d.ts",
+      "default": "./dist/lib/spec-parts/selective/burndown.js"
+    },
+    "./spec/parts/burnup": {
+      "types": "./dist/lib/spec-parts/selective/burnup.d.ts",
+      "default": "./dist/lib/spec-parts/selective/burnup.js"
     },
     "./spec/parts/butterfly": {
       "types": "./dist/lib/spec-parts/selective/butterfly.d.ts",
@@ -728,6 +751,10 @@
       "types": "./dist/lib/spec-parts/selective/state-diagram.d.ts",
       "default": "./dist/lib/spec-parts/selective/state-diagram.js"
     },
+    "./spec/parts/steps": {
+      "types": "./dist/lib/spec-parts/selective/steps.d.ts",
+      "default": "./dist/lib/spec-parts/selective/steps.js"
+    },
     "./spec/parts/strategy-canvas": {
       "types": "./dist/lib/spec-parts/selective/strategy-canvas.d.ts",
       "default": "./dist/lib/spec-parts/selective/strategy-canvas.js"
@@ -763,6 +790,10 @@
     "./spec/parts/venn": {
       "types": "./dist/lib/spec-parts/selective/venn.d.ts",
       "default": "./dist/lib/spec-parts/selective/venn.js"
+    },
+    "./spec/parts/versus": {
+      "types": "./dist/lib/spec-parts/selective/versus.d.ts",
+      "default": "./dist/lib/spec-parts/selective/versus.js"
     },
     "./spec/parts/waterfall": {
       "types": "./dist/lib/spec-parts/selective/waterfall.d.ts",
