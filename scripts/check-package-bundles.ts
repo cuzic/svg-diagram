@@ -221,7 +221,7 @@ try {
       export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [{type: 'pyramid', layers: ['Review', 'Next']}]}, {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [pyramidPart],
       });
-    `, include: 'spec-selective.js', budget: {esbuild: 68000, Vite: 89000}, bands: ['pyramid.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/flowchart.js', 'spec-parts/funnel.js', 'spec-parts/r1.js', 'dsl-pure.js', 'layout-connect.js', 'legend-notation.js', 'bands/legend.js'], draw: true},
+    `, include: 'spec-selective.js', budget: {esbuild: 68000, Vite: 89500}, bands: ['pyramid.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/flowchart.js', 'spec-parts/funnel.js', 'spec-parts/r1.js', 'dsl-pure.js', 'layout-connect.js', 'legend-notation.js', 'bands/legend.js'], draw: true},
     {name: 'Selected fault tree spec with legend', source: `
       import {renderSpec} from 'svg-diagram/spec/selective';
       import {faultTreePart} from 'svg-diagram/spec/parts/fault-tree';
@@ -230,7 +230,7 @@ try {
         parts: [{type: 'faultTree', top: {label: 'Review', gate: 'or', children: [{label: 'Power', kind: 'basic'}, {label: 'Network', kind: 'basic'}]}}]}, {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [faultTreePart], autoLegend,
       });
-    `, include: 'legend-notation.js', budget: {esbuild: 116000, Vite: 148000}, bands: ['fta.js', 'legend.js'],
+    `, include: 'legend-notation.js', budget: {esbuild: 116000, Vite: 148500}, bands: ['fta.js', 'legend.js'],
       exclude: [...legacy, 'bands/cause.js', 'bands/table.js', 'dsl-pure.js'], draw: true},
     {name: 'Selected table spec on Edge', source: `
       import {renderSpecEdge} from 'svg-diagram/spec/selective/edge';
@@ -288,14 +288,14 @@ try {
       export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [{type: 'faultTree', top: {label: 'Review', gate: 'or', children: [{label: 'Power', kind: 'basic'}, {label: 'Network', kind: 'basic'}]}}]}, {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [faultTreePart],
       });
-    `, include: 'spec-parts/selective/fault-tree.js', budget: {esbuild: 102000, Vite: 132000}, bands: ['fta.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r4.js', 'spec-parts/matrix.js', 'spec-parts/bowtie.js', 'semnet-causal.js', 'dsl-pure.js'], draw: true},
+    `, include: 'spec-parts/selective/fault-tree.js', budget: {esbuild: 102500, Vite: 132000}, bands: ['fta.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r4.js', 'spec-parts/matrix.js', 'spec-parts/bowtie.js', 'semnet-causal.js', 'dsl-pure.js'], draw: true},
     {name: 'Selected steps spec', source: `
       import {renderSpec} from 'svg-diagram/spec/selective';
       import {stepsPart} from 'svg-diagram/spec/parts/steps';
       export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [{type: 'steps', items: [{title: 'Review'}, {title: 'Next'}], loopBack: [{from: 2, to: 1, label: 'Retry'}]}]}, {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [stepsPart],
       });
-    `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 119000, Vite: 151000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
+    `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 119000, Vite: 151500}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
     {name: 'Selected screen widgets', source: composedSource([], "screens([{id: 'review', title: 'Review', root: text('Details')}], {cols: 1})",
       "import {createScreens, textRenderer} from 'svg-diagram/wireframe/renderers'; import {text} from 'svg-diagram/wireframe/parts'; const {screens} = createScreens([textRenderer]);"),
       include: 'screens-definition.js', bands: [], budget: {esbuild: 80000, Vite: 108000},

@@ -105,34 +105,38 @@ type PrepareOptions = PartOptions & Pick<RenderOptions, 'captions'>;
 
 type SpecProject = Pick<Config, 'wrap' | 'keepWords' | 'tones' | 'legend' | 'legendLabels'>;
 
-function prepareSpec(input: unknown, options: PrepareOptions, project?: SpecProject) {
+function addLegend(bands: SelectedBand[], doc: SpecDocument, options: PrepareOptions, project?: SpecProject) {
+  if ((doc.legend ?? project?.legend) !== 'auto') return;
+  const labels = doc.lang === 'en'
+    ? {...project?.legendLabels, ...Object.assign({}, ...options.parts.map(part => part.legendEn ?? {})), ...LEGEND_EN}
+    : project?.legendLabels;
+  const legend = must(options.autoLegend)(bands, labels);
+  if (legend) bands.push(legend);
+}
+
+function prepareSpec(input: unknown, options: PrepareOptions) {
   const {doc, bands, issues} = assemble(input, options);
   if (issues.length) throw new SpecError(issues);
-  if ((doc.legend ?? project?.legend) === 'auto') {
-    const labels = doc.lang === 'en'
-      ? {...project?.legendLabels, ...Object.assign({}, ...options.parts.map(part => part.legendEn ?? {})), ...LEGEND_EN}
-      : project?.legendLabels;
-    const legend = must(options.autoLegend)(bands, labels);
-    if (legend) bands.push(legend);
-  }
   const connectors = options.parts.find(part => part.connectors)?.connectors;
   const {title, theme, width, appearance, density, showTitle, sourceLine, canvas, lang, desc} = doc;
-  return {bands, drawOptions: {captions: options.captions, title, theme, width, appearance, density, showTitle,
-    sourceLine, canvas, desc: desc ?? (lang === 'en' ? title : undefined), connectors,
-    wrap: project?.wrap, keepWords: project?.keepWords, tones: project?.tones}};
+  return {doc, bands, drawOptions: {captions: options.captions, title, theme, width, appearance, density, showTitle,
+    sourceLine, canvas, desc: desc ?? (lang === 'en' ? title : undefined), connectors}};
 }
 
 /** @internal Validate before drawing so Edge can distinguish validation from layout errors. */
 export function prepareSpecRender(input: unknown, options: PrepareOptions) {
-  const {bands, drawOptions} = prepareSpec(input, options);
+  const {doc, bands, drawOptions} = prepareSpec(input, options);
+  addLegend(bands, doc, options);
   return (measure: RenderOptions['measure']) => renderBands(bands, {...drawOptions, measure});
 }
 
 /** @internal Provide the prepared geometry and SVG emitter to consumers such as the deck renderer. */
 export function prepareSpecLayout(input: unknown, options: PrepareOptions & {project?: SpecProject}) {
-  const {bands, drawOptions} = prepareSpec(input, options, options.project);
+  const {doc, bands, drawOptions} = prepareSpec(input, options);
+  const {wrap, keepWords, tones} = options.project ?? {};
+  addLegend(bands, doc, options, options.project);
   return async (measurement: RenderOptions['measure'] | BatchMeasurement) => {
-    const prepared = await prepareBands(bands, {...drawOptions, ...(typeof measurement === 'function' ? {measure: measurement} : measurement)});
+    const prepared = await prepareBands(bands, {...drawOptions, wrap, keepWords, tones, ...(typeof measurement === 'function' ? {measure: measurement} : measurement)});
     const {stage, emit} = prepared;
     return {...prepared, emit(figure: typeof prepared.placed, noRecolor?: boolean) {
       if (figure.desc) return emit(figure, noRecolor, oneLine(figure.desc));
