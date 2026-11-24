@@ -1,5 +1,5 @@
 import {connectorSvgDefs, renderConnect} from './emit-connect.ts';
-import {legendSvgDefs} from './emit-boxes.ts';
+import {legendSvgDefs} from './emit-legend.ts';
 import {renderBand} from './emit-handlers.ts';
 import {withNodeIds} from './emit-node-ids.ts';
 import {emitSvgWith} from './emit-svg-core.ts';

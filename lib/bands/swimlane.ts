@@ -7,7 +7,7 @@ import {band} from '../band-def.ts';
 import type {BandDef} from '../band-def.ts';
 import {withAnchors} from '../dsl/shared.ts';
 import {swimlane as build} from '../dsl/sequence-table-swimlane.ts';
-import {renderSwimlane} from '../emit-boxes.ts';
+import {renderSwimlane} from '../emit-swimlane.ts';
 import {layoutSwimlane} from '../layout-swimlane.ts';
 import {swimlaneFindings} from '../swimlane-rules.ts';
 import {checked} from '../reveal-visibility.ts';

@@ -1,7 +1,7 @@
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {legend as build} from '../dsl/legend.ts';
-import {legendSvgDefs, renderLegend} from '../emit-boxes.ts';
+import {legendSvgDefs, renderLegend} from '../emit-legend.ts';
 import {missingLegendItems} from '../legend-notation.ts';
 import type {Band} from '../types/index.ts';
 import {layoutLegend} from '../layout-legend.ts';

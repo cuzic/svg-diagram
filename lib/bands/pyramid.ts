@@ -1,7 +1,7 @@
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {pyramid as build} from '../dsl/pyramid.ts';
-import {renderPyramid} from '../emit-boxes.ts';
+import {renderPyramid} from '../emit-pyramid.ts';
 import {layoutPyramid} from '../layout-pyramid.ts';
 import type {PyramidLayers} from '../strict.ts';
 import type {PyramidBand, PyramidOpts, LaidOutPyramid} from '../types/figures.ts';

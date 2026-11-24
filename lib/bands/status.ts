@@ -1,6 +1,6 @@
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {renderStatus} from '../emit-boxes.ts';
+import {renderStatus} from '../emit-status.ts';
 import {snapGrid} from '../layout-util.ts';
 import {layoutStatus, statusText, statusTexts} from '../status.ts';
 import type {LaidOutStatus, StatusBand} from '../types/containers.ts';

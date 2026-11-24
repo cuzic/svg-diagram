@@ -1,7 +1,7 @@
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {dots as build} from '../dsl/people-dots.ts';
-import {renderDots} from '../emit-boxes.ts';
+import {renderDots} from '../emit-dots.ts';
 import {snapGrid} from '../layout-util.ts';
 import {layoutDots, dotsTexts} from '../people.ts';
 import type {LaidOutDots, DotsBand, DotsOpts, DotDatum} from '../types/people-dots.ts';

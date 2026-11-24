@@ -1,7 +1,7 @@
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {curve as build} from '../dsl/curve.ts';
-import {renderCurve} from '../emit-boxes.ts';
+import {renderCurve} from '../emit-curve.ts';
 import {layoutCurve} from '../layout-curve.ts';
 import type {CurvePoints} from '../strict.ts';
 import type {CurveBand, CurveOpts, LaidOutCurve} from '../types/figures.ts';
