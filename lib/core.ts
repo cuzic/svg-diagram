@@ -66,7 +66,7 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
   let last = 0;
   let source = cloneData(bands) as unknown as Band[];
   const hasLoopBack = (data: Band): boolean =>
-    data.type === 'row' && !!data.loopBack || (defOf(data)?.children?.(data) ?? []).some(hasLoopBack);
+    (data.type === 'row' || data.type === 'chevron') && !!data.loopBack || (defOf(data)?.children?.(data) ?? []).some(hasLoopBack);
   if (source.some(hasLoopBack)) {
     const connector = opts.connectors;
     if (!connector?.internal || !connector.expandLoopBacks) {

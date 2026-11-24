@@ -301,23 +301,67 @@ const funnelRate = (prev: number | undefined, v: number | undefined): string | u
 const marksLegend = (b: ConcentricBand): readonly [string, string] | undefined => b.fromLegend === false || !b.marks?.some(m => m.from) ? undefined : b.fromLegend ?? ['前回', '今回'];
 const ringLabel = (r: ConcentricRing): string => r.description ? `${r.label} — ${r.description}` : r.label;
 
-function textSpecs(b: FlowShapeBand, roles: Roles): TextSpec[] {
+export function chevronTexts(b: ChevronBand, roles: Roles): [string, number, number, FontFamily][] {
   const bold = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 700]] : [];
   const plain = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 400]] : [];
-  switch (b.type) {
-    case 'chevron': return b.steps.flatMap(s => [...bold(s.label), ...plain(s.sub)]);
-    case 'cycle': return [...b.steps.flatMap(s => [...bold(s.label), ...plain(s.sub)]), ...(b.centre ? [[b.centre, roles.label, 700] as TextSpec] : []), ...(b.links ?? []).flatMap(l => plain(l.label)), ...bold(b.frame)];
-    case 'funnel': return b.stages.flatMap((s, i) => [...bold(funnelLabel(s)), ...(b.showRate && i ? plain(funnelRate(must(b.stages[i - 1]).value, s.value)) : [])]);
-    case 'venn': return [...b.sets.flatMap(s => bold(s.label ?? s.name)), ...b.overlaps.flatMap(o => bold(o.label)), ...bold(b.centre), ...plain(typeof b.universe === 'string' ? b.universe : undefined)];
-    case 'concentric': return b.sectors
+  const specs = b.steps.flatMap(s => [...bold(s.label), ...plain(s.sub)]);
+  return specs.map(([text, size, weight]) => [text, size, weight, 'sans']);
+}
+
+export function cycleTexts(b: CycleBand, roles: Roles): [string, number, number, FontFamily][] {
+  const bold = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 700]] : [];
+  const plain = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 400]] : [];
+  const specs = [...b.steps.flatMap(s => [...bold(s.label), ...plain(s.sub)]), ...(b.centre ? [[b.centre, roles.label, 700] as TextSpec] : []), ...(b.links ?? []).flatMap(l => plain(l.label)), ...bold(b.frame)];
+  return specs.map(([text, size, weight]) => [text, size, weight, 'sans']);
+}
+
+export function funnelTexts(b: FunnelBand, roles: Roles): [string, number, number, FontFamily][] {
+  const bold = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 700]] : [];
+  const plain = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 400]] : [];
+  const specs = b.stages.flatMap((s, i) => [...bold(funnelLabel(s)), ...(b.showRate && i ? plain(funnelRate(must(b.stages[i - 1]).value, s.value)) : [])]);
+  return specs.map(([text, size, weight]) => [text, size, weight, 'sans']);
+}
+
+export function vennTexts(b: VennBand, roles: Roles): [string, number, number, FontFamily][] {
+  const bold = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 700]] : [];
+  const plain = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 400]] : [];
+  const specs = [...b.sets.flatMap(s => bold(s.label ?? s.name)), ...b.overlaps.flatMap(o => bold(o.label)), ...bold(b.centre), ...plain(typeof b.universe === 'string' ? b.universe : undefined)];
+  return specs.map(([text, size, weight]) => [text, size, weight, 'sans']);
+}
+
+export function concentricTexts(b: ConcentricBand, roles: Roles): [string, number, number, FontFamily][] {
+  const bold = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 700]] : [];
+  const plain = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 400]] : [];
+  const specs = b.sectors
       ? [...b.sectors.flatMap(x => bold(x.label)), ...b.rings.flatMap(r => plain(r.label || undefined)), ...(b.marks ?? []).flatMap(m => plain(m.label)), ...bold(b.centre), ...(marksLegend(b) ?? []).flatMap(plain)]
       : [...b.rings.flatMap(r => bold(ringLabel(r))), ...bold(b.centre)];
-    case 'emblem': return b.items.flatMap(i => [...bold(i.label), ...plain(i.sub)]);
-    case 'valueChain': return [...b.support, ...b.primary].flatMap(s => [...bold(s.label), ...plain(s.sub)]).concat(bold(b.margin || undefined), b.titles ? bold(b.titles[0]) : [], b.titles ? bold(b.titles[1]) : []);
-  }
+  return specs.map(([text, size, weight]) => [text, size, weight, 'sans']);
 }
+
+export function emblemTexts(b: EmblemBand, roles: Roles): [string, number, number, FontFamily][] {
+  const bold = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 700]] : [];
+  const plain = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 400]] : [];
+  const specs = b.items.flatMap(i => [...bold(i.label), ...plain(i.sub)]);
+  return specs.map(([text, size, weight]) => [text, size, weight, 'sans']);
+}
+
+export function valueChainTexts(b: ValueChainBand, roles: Roles): [string, number, number, FontFamily][] {
+  const bold = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 700]] : [];
+  const plain = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 400]] : [];
+  const specs = [...b.support, ...b.primary].flatMap(s => [...bold(s.label), ...plain(s.sub)]).concat(bold(b.margin || undefined), b.titles ? bold(b.titles[0]) : [], b.titles ? bold(b.titles[1]) : []);
+  return specs.map(([text, size, weight]) => [text, size, weight, 'sans']);
+}
+
 export function flowShapeTexts(b: FlowShapeBand, roles: Roles): [string, number, number, FontFamily][] {
-  return textSpecs(b, roles).map(([t, size, weight]) => [t, size, weight, 'sans']);
+  switch (b.type) {
+    case 'chevron': return chevronTexts(b, roles);
+    case 'cycle': return cycleTexts(b, roles);
+    case 'funnel': return funnelTexts(b, roles);
+    case 'venn': return vennTexts(b, roles);
+    case 'concentric': return concentricTexts(b, roles);
+    case 'emblem': return emblemTexts(b, roles);
+    case 'valueChain': return valueChainTexts(b, roles);
+  }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -328,21 +372,36 @@ type Pt = [number, number];
 const LINE = 1.35; // line step, in font sizes
 const g4 = (v: number): number => Math.round(v / 4) * 4; // circle centres and frames sit on the 4px grid (lint: coordinate-grid)
 
-export function layoutFlowShape(b: FlowShapeBand, x: number, y: number, cw: number, widthOf: WidthOf, roles: Roles, mode: WrapMode): LaidOutFlowShape {
+export function placeFlowShape<B extends FlowShapeBand>(b: B, x: number, y: number, cw: number, widthOf: WidthOf, roles: Roles, mode: WrapMode, draw: FlowLayout<B>): LaidOutFlowShape {
   const w = Math.min(cw, b.width ?? cw), ox = x + (cw - w) / 2;
   const out: LaidOutFlowShape = {type: b.type, id: b.id, reveal: b.reveal, until: b.until, x: ox, y, w, h: 0, primitives: [], texts: [], anchors: [], labelBoxes: []};
   const t = new Texts(out, widthOf, roles, mode);
   const anchor = (id: string | undefined, r: Rect, part?: string) => { if (id) out.anchors.push({id, ...r, ...(part ? {part} : {})}); };
-  switch (b.type) {
-    case 'chevron': layoutChevron(b, out, t, anchor); break;
-    case 'funnel': layoutFunnel(b, out, t, anchor, roles); break;
-    case 'cycle': framed(b.frame, out, t, () => b.links ? layoutLinked(b, out, t, anchor, roles) : layoutCycle(b, out, t, anchor, roles)); break;
-    case 'venn': layoutVenn(b, out, t, anchor); break;
-    case 'concentric': if (b.sectors) (b.layout === 'stack' ? layoutStack : layoutSectors)(b, out, t, anchor); else layoutConcentric(b, out, t, anchor, roles); break;
-    case 'emblem': layoutEmblem(b, out, t, anchor); break;
-    case 'valueChain': layoutValueChain(b, out, t, anchor); break;
-  }
+  draw(b, out, t, anchor, roles);
   return out;
+}
+
+export type FlowLayout<B> = (b: B, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn, roles: Roles) => void;
+
+export function layoutCycleShape(b: CycleBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn, roles: Roles): void {
+  framed(b.frame, out, t, () => b.links ? layoutLinked(b, out, t, anchor, roles) : layoutCycle(b, out, t, anchor, roles));
+}
+
+export function layoutConcentricShape(b: ConcentricBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn, roles: Roles): void {
+  if (b.sectors) (b.layout === 'stack' ? layoutStack : layoutSectors)(b, out, t, anchor);
+  else layoutConcentric(b, out, t, anchor, roles);
+}
+
+export function layoutFlowShape(b: FlowShapeBand, x: number, y: number, cw: number, widthOf: WidthOf, roles: Roles, mode: WrapMode): LaidOutFlowShape {
+  switch (b.type) {
+    case 'chevron': return placeFlowShape(b, x, y, cw, widthOf, roles, mode, layoutChevron);
+    case 'funnel': return placeFlowShape(b, x, y, cw, widthOf, roles, mode, layoutFunnel);
+    case 'cycle': return placeFlowShape(b, x, y, cw, widthOf, roles, mode, layoutCycleShape);
+    case 'venn': return placeFlowShape(b, x, y, cw, widthOf, roles, mode, layoutVenn);
+    case 'concentric': return placeFlowShape(b, x, y, cw, widthOf, roles, mode, layoutConcentricShape);
+    case 'emblem': return placeFlowShape(b, x, y, cw, widthOf, roles, mode, layoutEmblem);
+    case 'valueChain': return placeFlowShape(b, x, y, cw, widthOf, roles, mode, layoutValueChain);
+  }
 }
 /** `part`: the part the anchor is grouped in (ADR 0054), so a connector glued to it follows the item's group. */
 type AnchorFn = (id: string | undefined, r: Rect, part?: string) => void;
@@ -374,7 +433,7 @@ class Texts {
   }
 }
 
-function layoutChevron(b: ChevronBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
+export function layoutChevron(b: ChevronBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
   const vertical = b.direction === 'vertical', n = b.steps.length, current = b.current ?? b.highlight;
   const cellW = vertical ? (b.width ? out.w : Math.min(360, out.w)) : (out.w - b.gap * (n - 1)) / n;
   // horizontal: the notch on the left and the point on the right each take `tip` of the width; vertical: the point takes the bottom
@@ -397,7 +456,7 @@ function layoutChevron(b: ChevronBand, out: LaidOutFlowShape, t: Texts, anchor: 
   });
 }
 
-function layoutValueChain(b: ValueChainBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
+export function layoutValueChain(b: ValueChainBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
   const gap = 4, tipM = 20;
   const marginW = b.margin ? Math.min(140, Math.max(76, t.width(b.margin) + tipM + 16)) : 0;
   const mainW = out.w - (b.margin ? marginW + 8 : 0);
@@ -455,7 +514,7 @@ function layoutValueChain(b: ValueChainBand, out: LaidOutFlowShape, t: Texts, an
   out.h = bottom - out.y;
 }
 
-function layoutFunnel(b: FunnelBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn, roles: Roles): void {
+export function layoutFunnel(b: FunnelBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn, roles: Roles): void {
   const n = b.stages.length, w = out.w, cx = out.x + w / 2, minW = Math.min(150, w * .3), max = Math.max(...b.stages.map(s => s.value ?? 0), 1);
   const frac = (i: number) => b.scale === 'value' ? (must(b.stages[i]).value ?? 0) / max : n === 1 ? 1 : 1 - i * .65 / (n - 1);
   const tops = b.stages.map((_, i) => Math.max(minW, w * frac(i)));
@@ -527,7 +586,7 @@ function layoutCycle(b: CycleBand, out: LaidOutFlowShape, t: Texts, anchor: Anch
   if (b.centre) { const c = t.wrap(b.centre, 1.5 * (R - nr), 700, roles.label); t.place(c, cx, cy - c.h / 2); }
 }
 
-function layoutVenn(b: VennBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
+export function layoutVenn(b: VennBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
   const w = out.w, three = b.sets.length === 3, uni = !!b.universe;
   const r = three ? Math.min(w * .21, 170) : Math.min(w * .23, 190);
   const above = three ? 1.28 * r : r, below = three ? 1.52 * r : r; // how far the circles reach above / below the centre
@@ -629,7 +688,7 @@ function splitsWord(text: string, lines: readonly string[]): boolean {
 /** The label is written in the tone's own text colour, as a box does (accent / muted / danger; `new` and `changed` keep the normal text, so `accent` and `new` differ by it). */
 const labelTone = (tone: EmphasisTone): TextTone => { const t = TONES[tone].text; return t === 'accent' || t === 'muted' || t === 'danger' ? t : 'text'; };
 
-function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
+export function layoutEmblem(b: EmblemBand, out: LaidOutFlowShape, t: Texts, anchor: AnchorFn): void {
   const shapeOf = (i: EmblemItem): EmblemShape => i.shape ?? b.shape;
   const gap = g4(b.gap), widest = Math.min(EMBLEM_MAX, Math.floor(out.w / 8) * 8), least = Math.ceil((b.minSize ?? 96) / 8) * 8;
   if (least > widest) throw new Error(`emblem(): minSize ${b.minSize ?? 96} is wider than the band (${Math.round(out.w)}px) — lower \`minSize\` or widen the band`);

@@ -54,13 +54,13 @@
 
 ## フロー図形
 
-- [ ] `chevron`
-- [ ] `funnel`
-- [ ] `cycle`
-- [ ] `venn`
-- [ ] `concentric`
-- [ ] `emblem`
-- [ ] `valueChain`
+- [ ] `chevron`（個別入口からの SVG と依存除外は検証済み）
+- [ ] `funnel`（個別入口からの SVG と依存除外は検証済み）
+- [ ] `cycle`（個別入口からの SVG と依存除外は検証済み）
+- [ ] `venn`（個別入口からの SVG と依存除外は検証済み）
+- [ ] `concentric`（個別入口からの SVG と依存除外は検証済み）
+- [ ] `emblem`（個別入口からの SVG と依存除外は検証済み）
+- [ ] `valueChain`（個別入口からの SVG と依存除外は検証済み）
 
 ## 表・画面・会話
 

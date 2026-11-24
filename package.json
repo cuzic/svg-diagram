@@ -203,6 +203,34 @@
       "types": "./dist/lib/bands/pyramid.d.ts",
       "default": "./dist/lib/bands/pyramid.js"
     },
+    "./bands/chevron": {
+      "types": "./dist/lib/bands/chevron.d.ts",
+      "default": "./dist/lib/bands/chevron.js"
+    },
+    "./bands/funnel": {
+      "types": "./dist/lib/bands/funnel.d.ts",
+      "default": "./dist/lib/bands/funnel.js"
+    },
+    "./bands/cycle": {
+      "types": "./dist/lib/bands/cycle.d.ts",
+      "default": "./dist/lib/bands/cycle.js"
+    },
+    "./bands/venn": {
+      "types": "./dist/lib/bands/venn.d.ts",
+      "default": "./dist/lib/bands/venn.js"
+    },
+    "./bands/concentric": {
+      "types": "./dist/lib/bands/concentric.d.ts",
+      "default": "./dist/lib/bands/concentric.js"
+    },
+    "./bands/emblem": {
+      "types": "./dist/lib/bands/emblem.d.ts",
+      "default": "./dist/lib/bands/emblem.js"
+    },
+    "./bands/value-chain": {
+      "types": "./dist/lib/bands/value-chain.d.ts",
+      "default": "./dist/lib/bands/value-chain.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"

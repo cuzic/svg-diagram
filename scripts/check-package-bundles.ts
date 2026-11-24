@@ -29,12 +29,21 @@ try {
   `;
   const composedSource = (components: string[], bands: string) => `
     import {renderBands} from 'svg-diagram/core';
-    ${components.map(name => `import {${name}} from 'svg-diagram/bands/${name === 'groupRow' ? 'group-row' : name}';`).join('\n')}
+    ${components.map(name => `import {${name}} from 'svg-diagram/bands/${name.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase())}';`).join('\n')}
     export const draw = () => renderBands([${bands}], {
       measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
     });
   `;
   const legacy = ['web.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'rules.js'];
+  const flowSamples = [
+    ['chevron', 'layoutChevron', "chevron([{label: 'Review'}, {label: 'Release'}])"],
+    ['funnel', 'layoutFunnel', "funnel([{label: 'Review'}, {label: 'Release'}])"],
+    ['cycle', 'layoutCycleShape', "cycle([{label: 'Review'}, {label: 'Revise'}, {label: 'Release'}])"],
+    ['venn', 'layoutVenn', "venn([{name: 'Review'}, {name: 'Release'}])"],
+    ['concentric', 'layoutConcentricShape', "concentric([{label: 'Review'}, {label: 'Release'}])"],
+    ['emblem', 'layoutEmblem', "emblem('Review')"],
+    ['valueChain', 'layoutValueChain', "valueChain({primary: ['Review', 'Release']})"],
+  ] as const;
   const cases = [
     {name: 'SVG', source: "export {renderInBrowser} from 'svg-diagram/browser';", include: 'web.js', exclude: ['emit-html.js']},
     {name: 'HTML', source: "export {emitHtml} from 'svg-diagram/html';", include: 'emit-html.js', exclude: ['web.js', 'web-measure.js']},
@@ -74,15 +83,24 @@ try {
       include: 'bands/curve.js', budget: {esbuild: 55000, Vite: 74000}, exclude: [...legacy, 'layout-pyramid.js', 'layout-connect.js', 'flow-shapes.js', 'gantt.js'], draw: true},
     {name: 'Pyramid', source: composedSource(['pyramid'], "pyramid(['Review', 'Plan'])"),
       include: 'bands/pyramid.js', budget: {esbuild: 55000, Vite: 74000}, exclude: [...legacy, 'layout-curve.js', 'layout-connect.js', 'flow-shapes.js', 'gantt.js'], draw: true},
+    ...flowSamples.map(([name, flowLayout, sample]) => ({
+      name, flowLayout, source: composedSource([name], sample),
+      budget: {esbuild: 83000, Vite: 114000},
+      include: `bands/${name === 'valueChain' ? 'value-chain' : name}.js`,
+      exclude: [...legacy, 'layout-connect.js', 'layout-pyramid.js', 'gantt.js', 'quadrant.js', 'wordart.js'], draw: true,
+    })),
   ];
-  for (const {name, source, include, exclude, budget, draw, bands} of cases) {
+  for (const testCase of cases) {
+    const {name, source, include, exclude, budget, draw, bands} = testCase;
+    const flowLayout = 'flowLayout' in testCase ? testCase.flowLayout : undefined;
     writeFileSync(entry, source);
-    const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true,
+    const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true, keepNames: !!flowLayout,
       platform: 'browser', format: 'esm', write: false, metafile: true});
     const esOutput = Object.values(es.metafile.outputs)[0];
     assert.ok(esOutput);
     const [viteOutput] = await viteBuild({root: consumer, configFile: false, logLevel: 'silent',
       resolve: {preserveSymlinks: true},
+      esbuild: {keepNames: !!flowLayout},
       build: {write: false, minify: 'esbuild', lib: {entry, formats: ['es']}}});
     const [chunk] = viteOutput.output;
     assert.equal(chunk.type, 'chunk');
@@ -103,6 +121,13 @@ try {
       if (limit !== undefined) assert.ok(bytes <= limit, `${label} が ${limit} バイトを超えています (${bytes})`);
       if (draw) {
         assert.ok(code);
+        if (flowLayout) {
+          // These functions share a source module. Keep their names so the test can detect unused implementations inside it.
+          for (const [shape, layout] of flowSamples) {
+            assert.equal(code.includes(JSON.stringify(layout)), layout === flowLayout, `${label}: ${layout}`);
+            assert.equal(code.includes(JSON.stringify(shape + 'Texts')), layout === flowLayout, `${label}: ${shape}Texts`);
+          }
+        }
         const {draw: render} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
         const result = await render();
         assert.match(result.svg, /<text[^>]*>Review<\/text>/, label);

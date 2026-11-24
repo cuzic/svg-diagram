@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {caption} from '../lib/bands/caption.ts';
+import {chevron} from '../lib/bands/chevron.ts';
+import {cycle} from '../lib/bands/cycle.ts';
+import {funnel} from '../lib/bands/funnel.ts';
+import {venn} from '../lib/bands/venn.ts';
+import {concentric} from '../lib/bands/concentric.ts';
+import {emblem} from '../lib/bands/emblem.ts';
+import {valueChain} from '../lib/bands/value-chain.ts';
 import {curve} from '../lib/bands/curve.ts';
 import {pyramid} from '../lib/bands/pyramid.ts';
 import {banner} from '../lib/bands/banner.ts';
@@ -16,7 +23,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -202,6 +209,28 @@ test('selective curves and pyramids preserve axis labels, drop lines and wrapped
   const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false})
     .add(legacyCurve([{y: 0.25, dropLine: true}, {y: 0.9, emphasis: 'accent'}], {xLabel: '推移', yTopLabel: '上限'}),
       legacyPyramid(['広い層のラベル', '狭い層の長い日本語ラベル'], {width: 280, layerHeight: 100})), {measure});
+  assert.deepEqual(selected.xml, []);
+  assert.equal(selected.height, expected.height);
+  assert.equal(selected.svg.slice(selected.svg.indexOf('  <style>')), expected.svg.slice(expected.svg.indexOf('  <style>')));
+});
+
+test('selective flow figures preserve labels, item anchors and generated shapes', async () => {
+  const steps = [{label: 'Review', id: 'review'}, {label: 'Revise'}, {label: 'Approve', id: 'approve'}];
+  const next = {id: 'release', title: 'Release'};
+  const stages = [{label: 'Requests', value: 10}, {label: 'Accepted', value: 5}];
+  const sets = [{name: 'Design'}, {name: 'Operations'}];
+  const rings = [{label: 'Outer'}, {label: 'Inner'}];
+  const parts = {primary: ['Build', 'Ship'], support: ['Train']};
+  const options = {loopBack: {from: 'approve', to: 'review', label: 'Retry'}};
+  const selected = await renderBands([
+    chevron(steps, options), box(next), connect('approve', 'release'),
+    funnel(stages, {showRate: true}), cycle(steps.map(({label}) => ({label})), {links: 'all'}),
+    venn(sets), concentric(rings), emblem('重要', {shape: 'triangle'}), valueChain(parts),
+  ], {measure, title: 'Plan', connectors: connectDefinition});
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false})
+    .add(legacyChevron(steps, options), legacyBox(next), legacyConnect('approve', 'release'),
+      legacyFunnel(stages, {showRate: true}), legacyCycle(steps.map(({label}) => ({label})), {links: 'all'}),
+      legacyVenn(sets), legacyConcentric(rings), legacyEmblem('重要', {shape: 'triangle'}), legacyValueChain(parts)), {measure});
   assert.deepEqual(selected.xml, []);
   assert.equal(selected.height, expected.height);
   assert.equal(selected.svg.slice(selected.svg.indexOf('  <style>')), expected.svg.slice(expected.svg.indexOf('  <style>')));

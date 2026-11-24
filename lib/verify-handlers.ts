@@ -14,6 +14,7 @@ import {legibilityProblem} from './wordart.ts';
 import {andClashes} from './cause-clash.ts';
 import {sourceOf} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
+import {flowProblems} from './verify-flow.ts';
 import {ganttProblems} from './verify-gantt.ts';
 import {CONTRAST_THRESHOLD, dxdy, eachOverlap, issueAt, labelOf, neverTogether, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes, statesProblems} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
@@ -266,11 +267,6 @@ const checkQuadrant = (band: LaidOutOf<'quadrant'>, _d: LaidOutDiagram, {problem
   });
 };
 
-const checkFlowShape = (band: LaidOutOf<'chevron' | 'funnel' | 'cycle' | 'venn' | 'concentric' | 'emblem' | 'valueChain'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
-  for (const t of band.labelBoxes) if (outsideBox(t, band)) problems.push(`${band.type}: label "${t.label}" runs outside the figure`);
-  eachOverlap(band.labelBoxes, (a, b, o) => { if (o.dx > 1 && o.dy > 1) problems.push(`${band.type}: label "${a.label}" overlaps label "${b.label}" by ${dxdy(o)}`); });
-};
-
 // wordart(): the letters must read against what is behind them (see legibilityProblem). (The ink always stays inside the band: inkReach
 // widens the rect on every side, and a shadow or a mirror image cannot be placed outside it.)
 const checkWordArt = (band: LaidOutOf<'wordart'>, d: LaidOutDiagram, {problems}: VerifyOut, tones: ToneEnv): void => {
@@ -329,7 +325,7 @@ function imageContrast(band: LaidOutOf<'image'>, d: LaidOutDiagram, tones: ToneE
   }
 }
 
-const flowCheck = {phase: 'flow', run: checkFlowShape} as const;
+const flowCheck = {phase: 'flow', run: (band: Parameters<typeof flowProblems>[0], _d: LaidOutDiagram, {problems}: VerifyOut) => { problems.push(...flowProblems(band)); }} as const;
 const childChecks: VerifyHandler<LaidOutOf<'row' | 'grid'>> = {
   rects: childRects,
   check: {phase: 'nowrap', run: (band, _d, out) => {
