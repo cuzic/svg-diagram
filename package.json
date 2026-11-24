@@ -552,6 +552,18 @@
       "types": "./dist/lib/html-caption.d.ts",
       "default": "./dist/lib/html-caption.js"
     },
+    "./html/bands/group": {
+      "types": "./dist/lib/html-group.d.ts",
+      "default": "./dist/lib/html-group.js"
+    },
+    "./html/bands/grid": {
+      "types": "./dist/lib/html-grid.d.ts",
+      "default": "./dist/lib/html-grid.js"
+    },
+    "./html/bands/row": {
+      "types": "./dist/lib/html-row.d.ts",
+      "default": "./dist/lib/html-row.js"
+    },
     "./html/bands/box": {
       "types": "./dist/lib/html-box.d.ts",
       "default": "./dist/lib/html-box.js"
@@ -903,6 +915,14 @@
     "./pptx/bands/caption": {
       "types": "./dist/lib/pptx/caption-band.d.ts",
       "default": "./dist/lib/pptx/caption-band.js"
+    },
+    "./pptx/bands/grid": {
+      "types": "./dist/lib/pptx/grid-band.d.ts",
+      "default": "./dist/lib/pptx/grid-band.js"
+    },
+    "./pptx/bands/row": {
+      "types": "./dist/lib/pptx/row-band.d.ts",
+      "default": "./dist/lib/pptx/row-band.js"
     },
     "./pptx/bands/box": {
       "types": "./dist/lib/pptx/box-bands.d.ts",

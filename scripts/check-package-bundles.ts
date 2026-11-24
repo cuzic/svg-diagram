@@ -152,6 +152,18 @@ try {
       });
     `, include: 'html-banner.js', budget: {esbuild: 52500, Vite: 69000}, bands: ['banner.js'],
       exclude: [...legacy, 'html-box.js', 'html-table.js', 'html-native.js', 'html-overlay.js', 'layout-connect.js'], draw: true},
+    {name: 'Selective HTML grid', source: `
+      import {renderBandsHtml} from 'svg-diagram/html/selective';
+      import {gridHtml} from 'svg-diagram/html/bands/grid';
+      import {box} from 'svg-diagram/bands/box';
+      import {grid} from 'svg-diagram/bands/grid';
+      export const draw = () => renderBandsHtml([grid([box({title: 'Review'})], {cols: 2})], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        fontBox: size => ({ascent: size, descent: 0}),
+        adapters: {grid: gridHtml}, strict: true,
+      });
+    `, include: 'html-grid.js', budget: {esbuild: 92000, Vite: 119000}, bands: ['box.js', 'grid.js'],
+      exclude: [...legacy, 'html-box.js', 'html-row.js', 'html-group.js', 'html-table.js', 'layout-connect.js'], draw: true},
     {name: 'Selective HTML table', source: `
       import {renderBandsHtml} from 'svg-diagram/html/selective';
       import {tableHtml} from 'svg-diagram/html/bands/table';
@@ -176,7 +188,7 @@ try {
       exclude: [...legacy, 'html-native.js', 'html-box.js', 'html-table.js', 'emit-html.js', 'layout-connect.js'], draw: true},
     {name: 'Selective PPTX', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
-      import {rowPptx} from 'svg-diagram/pptx/bands/box';
+      import {rowPptx} from 'svg-diagram/pptx/bands/row';
       import {row} from 'svg-diagram/bands/row';
       import {box} from 'svg-diagram/bands/box';
       export const draw = () => renderBandsPptx([row([box({title: 'Review'}), box({title: 'Done'})])], {
@@ -205,6 +217,17 @@ try {
       });
     `, include: 'pptx/box-band.js', budget: {esbuild: 110000, Vite: 130000}, bands: ['banner.js'],
       exclude: [...legacy, 'pptx/box-bands.js', 'pptx/bands.js', 'pptx/table-band.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js'], draw: true},
+    {name: 'Selective PPTX Grid', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {gridPptx} from 'svg-diagram/pptx/bands/grid';
+      import {box} from 'svg-diagram/bands/box';
+      import {grid} from 'svg-diagram/bands/grid';
+      export const draw = () => renderBandsPptx([grid([box({title: 'Review'})], {cols: 2})], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        bands: {grid: gridPptx}, strict: true,
+      });
+    `, include: 'pptx/grid-band.js', budget: {esbuild: 145000, Vite: 175000}, bands: ['box.js', 'grid.js'],
+      exclude: [...legacy, 'pptx/row-band.js', 'pptx/group-band.js', 'pptx/box-bands.js', 'pptx/bands.js', 'pptx/svg-shapes.js'], draw: true},
     {name: 'Selective PPTX SVG shapes', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
       import {svgShapesXml} from 'svg-diagram/pptx/svg-shapes';
@@ -227,8 +250,8 @@ try {
       exclude: [...legacy, 'pptx/bands.js', 'pptx/slide.js', 'pptx/box-bands.js', 'pptx/tree-band.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'lib/emit.js'], draw: true},
     {name: 'Selective PPTX Group', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
-      import {boxPptx, groupPptx} from 'svg-diagram/pptx/bands/box';
-      import {groupSpan} from 'svg-diagram/pptx/bands/group';
+      import {boxPptx} from 'svg-diagram/pptx/bands/box';
+      import {groupPptx, groupSpan} from 'svg-diagram/pptx/bands/group';
       import {box} from 'svg-diagram/bands/box';
       import {group} from 'svg-diagram/bands/group';
       export const draw = () => renderBandsPptx([group(box({title: 'Review'}))], {
@@ -728,7 +751,7 @@ try {
           console.log(`${label}: ${bytes} bytes`);
           continue;
         }
-        if (name === 'Selective HTML') {
+        if (name === 'Selective HTML' || name === 'Selective HTML grid') {
           assert.match(result.html, /class="sd-b"[\s\S]*>Review<\/div>/, label);
           assert.doesNotMatch(result.html, /<svg|<table/, label);
           assert.doesNotMatch(code, /<table style=/, label);

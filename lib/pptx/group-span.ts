@@ -14,3 +14,5 @@ export const groupSpan: PlanSpan<LaidOutOf<'group'>> = (band, {ctx, index, follo
   const name = partName(partStep('group', band.id ?? index, band.title ?? ''));
   return {xml: groupXml(ctx.next(), name, band, inner), count};
 };
+
+export {groupPptx} from './group-band.ts';

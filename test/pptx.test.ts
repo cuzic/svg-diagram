@@ -293,3 +293,21 @@ test('the banner adapter renders editable PPTX text without box adapters', async
   assert.match(xml, /<a:t>Draft<\/a:t>/);
   assert.match(xml, /<a:t>Review &amp; approve<\/a:t>/);
 });
+
+test('the standalone grid adapter preserves editable PPTX cells', async () => {
+  const {grid} = await import('../lib/bands/grid.ts');
+  const {gridPptx} = await import('../lib/pptx/grid-band.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const input = [grid([selectedBox({title: '比較 & 検討', span: 2}), selectedBox({title: '次の案'})], {cols: 2})];
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    title: 'Review',
+  };
+  const {placed} = await prepareBands(input, opts);
+  const rendered = await renderBandsPptx(input, {...opts, bands: {grid: gridPptx}, strict: true});
+  const xml = unzipEntry(Buffer.from(rendered.pptx), 'ppt/slides/slide1.xml').toString();
+  assert.equal(xml, planSlide(placed, fontsOf()).xml);
+  assert.deepEqual(rendered.fallbacks, []);
+  assert.match(xml, /<a:t>比較 &amp; 検討<\/a:t>/);
+});

@@ -297,3 +297,20 @@ test('the banner adapter renders selectable HTML without box adapters', async ()
   assert.deepEqual(rendered.fallbacks, []);
   assert.match(rendered.html, /Review &amp; approve/);
 });
+
+test('the standalone grid adapter preserves native HTML for spanned cells', async () => {
+  const {grid} = await import('../lib/bands/grid.ts');
+  const {gridHtml} = await import('../lib/html-grid.ts');
+  const {emitHtml} = await import('../lib/emit-html.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    fontBox: (size: number) => ({ascent: size, descent: 0}),
+  };
+  const input = [grid([selectedBox({title: '比較 & 検討', span: 2}), selectedBox({title: '次の案'})], {cols: 2})];
+  const {placed, stage} = await prepareBands(input, opts);
+  const rendered = await renderBandsHtml(input, {...opts, adapters: {grid: gridHtml}, strict: true});
+  assert.equal(rendered.html, emitHtml(placed, {...opts, reveal: stage}));
+  assert.deepEqual(rendered.fallbacks, []);
+  assert.match(rendered.html, /比較 &amp; 検討/);
+});
