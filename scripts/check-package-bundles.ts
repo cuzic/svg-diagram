@@ -6,6 +6,34 @@ import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {build as esbuild} from 'esbuild';
 
+type Budget = {esbuild: number; Vite: number};
+type ExportTarget = string | {default?: string; node?: string; types?: string};
+type JsChunk = {fileName: string; code: string};
+class ExportClassificationError extends Error {}
+
+function importedEntries(source: string): string[] {
+  return [...source.matchAll(/\bfrom ['"]svg-diagram(\/[^'"]+)?['"]/g)].map(([, subpath]) => '.' + (subpath ?? ''));
+}
+
+function reviewSvg(svg: string, label: string): void {
+  assert.match(svg, /<svg\b[\s\S]*<text[^>]*>Review<\/text>/, label);
+}
+
+function reviewDrawing(result: {svg: string; verdict: {ok: boolean}; xml: string[]}, label: string): void {
+  assert.equal(result.verdict.ok, true, label);
+  assert.deepEqual(result.xml, [], label);
+  reviewSvg(result.svg, label);
+}
+
+function reviewHtml(html: string, label: string): void {
+  assert.match(html, /class="sd-b"[\s\S]*>Review<\/div>/, label);
+  assert.doesNotMatch(html, /<svg\b/, label);
+}
+
+function zipHeader(zip: Uint8Array, label: string): void {
+  assert.deepEqual([...zip.subarray(0, 4)], [0x50, 0x4b, 3, 4], label);
+}
+
 const root = path.resolve(import.meta.dirname, '..');
 const require = createRequire(import.meta.url);
 // Use the same Vite version as the docs build.
@@ -90,11 +118,9 @@ try {
     }))),
     ...standaloneSpecBands.map(part => ({part, bands: [part + '.js']})),
   ];
-  const {exports: published} = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as {exports: Record<string, unknown>};
-  assert.deepEqual(specBandEntries.map(({part}) => './spec/parts/' + part).sort(),
-    Object.keys(published).filter(key => key.startsWith('./spec/parts/')).sort());
+  const {exports: published} = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as {exports: Record<string, ExportTarget>};
   // Minified byte budgets for the catalog examples, with 10% headroom rounded up to 1,000 bytes.
-  const specBudgets = new Map<string, {esbuild: number; Vite: number}>([
+  const specBudgets = new Map<string, Budget>([
     ['affinity', {esbuild: 119000, Vite: 149000}],
     ['bars', {esbuild: 87000, Vite: 112000}],
     ['board', {esbuild: 167000, Vite: 210000}],
@@ -188,10 +214,107 @@ try {
       bands, draw: true, catalog: true,
     };
   });
+  const measure = '({text, size}) => ({w: [...text].length * size * 0.6, h: size})';
+  const edgeTable = "{version: 1, title: 'Plan', parts: [{type: 'table', columns: [{label: 'Review'}], rows: [['Done']]}]}";
+  const edgeEngine = `const engine = {
+    measure: ${measure},
+    textBox: (text, _font, size) => ({w: [...text].length * size * 0.6, ascent: size, descent: 0}),
+    font: {
+      covers: () => true,
+      shape: text => ({upem: 1000, glyphs: [...text].map(char => ({id: char.codePointAt(0), xAdvance: 600, xOffset: 0, yOffset: 0}))}),
+      path: () => 'M0 0 L100 0 L100 100 Z',
+    },
+  };`;
+  const edgePptxOptions = "{rasterize() { throw new Error('a native table does not need rasterization'); }}";
+  const tinySvg = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8"/></svg>';
+  // Measuring real text on a browser canvas needs a browser Canvas implementation.
+  const browserMeasureCase = {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';",
+    include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js'],
+    budget: {esbuild: 4000, Vite: 4000}};
+  // New budgets are measured minified sizes with about 10% headroom per bundler.
+  const browserDrawCases = [
+    {name: './browser', source: `
+      import {box, diagram, renderInBrowser} from 'svg-diagram/browser';
+      export const draw = () => renderInBrowser(diagram({theme: 'blue'}).add(box({title: 'Review'})), {measure: ${measure}});
+    `, include: 'web.js', exclude: ['emit-html.js', 'math-tex.js'],
+    budget: {esbuild: 1148000, Vite: 1448000}, check: reviewDrawing},
+    {name: './spec', source: `
+      import {specToDiagram} from 'svg-diagram/spec';
+      import {renderInBrowser} from 'svg-diagram/browser';
+      export const draw = () => renderInBrowser(specToDiagram(${edgeTable}), {measure: ${measure}});
+    `, include: 'lib/spec.js', exclude: ['emit-html.js', 'math-tex.js'],
+    budget: {esbuild: 1326000, Vite: 1659000}, check: reviewDrawing},
+    {name: './spec/edge', source: `
+      import {renderSpecEdge} from 'svg-diagram/spec/edge';
+      ${edgeEngine}
+      export const draw = () => renderSpecEdge(${edgeTable}, engine);
+    `, include: 'spec-edge.js', exclude: ['emit-html.js', 'math-tex.js'],
+    budget: {esbuild: 1358000, Vite: 1703000},
+    check: (result: {ok: boolean; svg: string}, label: string) => {
+      assert.equal(result.ok, true, label);
+      assert.match(result.svg, /<svg\b[\s\S]*aria-label="Review"[\s\S]*<use href="#sd-glyph-/, label);
+      assert.doesNotMatch(result.svg, /<text\b/, label);
+    }},
+    {name: './pptx/edge', source: `
+      import {renderPptxEdge} from 'svg-diagram/pptx/edge';
+      ${edgeEngine}
+      export const draw = () => renderPptxEdge(${edgeTable}, engine, ${edgePptxOptions});
+    `, include: 'pptx-edge.js', exclude: ['pptx/zip-node.js', 'math-tex.js'],
+    budget: {esbuild: 1458000, Vite: 1820000},
+    check: (result: {issues: unknown[]; native: number; pictures: number; pptx: Uint8Array}, label: string) => {
+      assert.deepEqual(result.issues, [], label);
+      assert.equal(result.native, 1, label);
+      assert.equal(result.pictures, 0, label);
+      zipHeader(result.pptx, label);
+    }},
+    {name: './pptx/deck/edge', source: `
+      import {renderDeckPptxEdge} from 'svg-diagram/pptx/deck/edge';
+      ${edgeEngine}
+      export const draw = () => renderDeckPptxEdge({slides: [{title: 'Plan', figure: ${edgeTable}}]}, engine, ${edgePptxOptions});
+    `, include: 'pptx-deck-edge.js', exclude: ['pptx/zip-node.js', 'math-tex.js'],
+    budget: {esbuild: 1488000, Vite: 1859000},
+    check: (result: {issues: unknown[]; slides: {native: number; pictures: number}[]; pptx: Uint8Array}, label: string) => {
+      assert.deepEqual(result.issues, [], label);
+      assert.deepEqual(result.slides.map(({native, pictures}) => [native, pictures]), [[1, 0]], label);
+      zipHeader(result.pptx, label);
+    }},
+    {name: './html', source: `
+      import {emitHtml} from 'svg-diagram/html';
+      import {prepareBands} from 'svg-diagram/core';
+      import {box} from 'svg-diagram/bands/box';
+      export const draw = async () => {
+        const {placed} = await prepareBands([box({title: 'Review'})], {measure: ${measure}});
+        return emitHtml(placed, {fontBox: size => ({ascent: size, descent: 0})});
+      };
+    `, include: 'emit-html.js', exclude: ['web.js', 'web-measure.js'],
+    budget: {esbuild: 239000, Vite: 233000}, check: reviewHtml},
+    {name: './html/bands', source: `
+      import {boxHtml} from 'svg-diagram/html/bands';
+      import {renderBandsHtml} from 'svg-diagram/html/selective';
+      import {box} from 'svg-diagram/bands/box';
+      export const draw = () => renderBandsHtml([box({title: 'Review'})], {
+        measure: ${measure}, fontBox: size => ({ascent: size, descent: 0}),
+        adapters: {box: boxHtml}, strict: true,
+      });
+    `, include: 'html-box-band.js', exclude: [...legacy, 'html-table.js', 'emit-html.js'],
+    budget: {esbuild: 80000, Vite: 101000},
+    check: (result: {html: string; verdict: {ok: boolean}}, label: string) => {
+      assert.equal(result.verdict.ok, true, label);
+      reviewHtml(result.html, label);
+    }},
+    {name: './zip', source: `
+      import {zipEntries} from 'svg-diagram/zip';
+      export const draw = () => zipEntries([{name: 'figure.svg', data: new TextEncoder().encode(${JSON.stringify(tinySvg)})}]);
+    `, include: 'pptx/zip.js', exclude: [...legacy, 'pptx/selective.js', 'pptx/zip-node.js', 'lib/core.js', 'lib/png.js'],
+    budget: {esbuild: 1800, Vite: 2300},
+    check: (zip: Uint8Array, label: string) => {
+      zipHeader(zip, label);
+      assert.ok(new TextDecoder().decode(zip).includes('figure.svg' + tinySvg), label);
+    }},
+  ];
   const cases = [
+    ...browserDrawCases,
     ...specCases,
-    {name: 'SVG', source: "export {renderInBrowser} from 'svg-diagram/browser';", include: 'web.js', exclude: ['emit-html.js', 'math-tex.js']},
-    {name: 'HTML', source: "export {emitHtml} from 'svg-diagram/html';", include: 'emit-html.js', exclude: ['web.js', 'web-measure.js']},
     {name: 'HTML box adapter', source: "export {boxHtml} from 'svg-diagram/html/bands/box';",
       include: 'box-style.js', budget: {esbuild: 5500, Vite: 6500},
       exclude: [...legacy, 'emit-common.js', 'emit-box.js', 'html-banner.js', 'html-grid.js', 'html-row.js', 'html-table.js', 'html-document.js', 'sha1.js']},
@@ -675,9 +798,7 @@ try {
     {name: 'Wireframe button builder', source: "export {btn} from 'svg-diagram/wireframe/parts';",
       include: 'wireframe-builders.js', exclude: [...legacy, 'wireframe-insight.js', 'wireframe.js', 'wireframe-parts.js', 'lib/core.js'],
       budget: {esbuild: 500, Vite: 500}},
-    {name: 'ZIP', source: "export {zipEntries} from 'svg-diagram/zip';", include: 'pptx/zip.js',
-      exclude: [...legacy, 'pptx/selective.js', 'pptx/zip-node.js', 'lib/core.js', 'lib/png.js'], budget: {esbuild: 2500, Vite: 2500}},
-    {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
+    browserMeasureCase,
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
       exclude: [...legacy, 'emit-connect.js', 'verify-connect-geometry.js', 'layout-box-like.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'document-findings.js', 'term-rules.js', 'toc-rules.js', 'verify-bars.js', 'axis-comparison.js', 'axis-selected.js', 'verify-image.js', 'verify-box-like.js', 'verify-shrink.js', 'verify-density.js', 'verify-cause-spacing.js', 'verify-edge-bends.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'verify-caption.js', 'verify-grid.js', 'table-number-rules.js', 'verify-flowchart.js', 'verify-concentric.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 34000, Vite: 44500}},
     {name: 'Document findings', source: `
@@ -851,8 +972,117 @@ try {
     {name: 'combo', source: composedSource([], "combo(['Review', 'Next'], [{label: 'Plan', type: 'bar', values: [4, 5]}])", "import {combo} from 'svg-diagram/bands/combo';"),
       include: 'bands/combo.js', budget: {esbuild: 102000, Vite: 125000}, exclude: [...legacy, 'dsl/charts.js', 'charts-dsl.js', 'lib/charts.js', 'semnet.js', 'charts-compare.js', 'semnet-pert.js', 'semnet-causal.js', 'semnet-dependency.js'], draw: true},
   ];
-  const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
-  const publicEntries = Object.entries<{default?: string; node?: string}>(manifest.exports);
+  const pictureFile = path.join(consumer, 'picture.gif');
+  const imageSource = composedSource([], `imageFile(${JSON.stringify(pictureFile)}, {alt: 'Picture', width: 240})`,
+    "import {imageFile} from 'svg-diagram/bands/image/node';");
+  const mathSource = composedSource(['math'], "math('x^2', {alt: 'Square'})");
+  const nodeSpecSource = `
+    import {renderSpec} from 'svg-diagram/spec/selective/node';
+    import {tablePart} from 'svg-diagram/spec/parts/table';
+    export const draw = () => renderSpec(${edgeTable}, {parts: [tablePart]});
+  `;
+  const diagramFile = path.join(consumer, 'plan.diagram.ts');
+  const pageFile = path.join(consumer, 'plan.md');
+  const markdown = JSON.stringify('![Plan](./plan.diagram.ts)\n');
+  const markdownOptions = `{root: ${JSON.stringify(consumer)}, baseDir: ${JSON.stringify(consumer)}}`;
+  const nodeDrawCases = [
+    {name: '.', source: `
+      import {box, diagram, renderDiagram} from 'svg-diagram';
+      export const draw = () => renderDiagram(diagram({theme: 'blue'}).add(box({title: 'Review'})), {name: 'plan.svg', budget: 'cacheOnly'});
+    `, budget: {esbuild: 1215000, Vite: 1158000}, check: reviewDrawing},
+    {name: './render', source: `
+      import {renderSource} from 'svg-diagram/render';
+      export const draw = () => renderSource(${JSON.stringify(diagramFile)});
+    `, budget: {esbuild: 949000, Vite: 892000},
+    check: (result: {ok: boolean; svg: string; problems: string[]}, label: string) => {
+      assert.deepEqual(result.problems, [], label);
+      assert.equal(result.ok, true, label);
+      reviewSvg(result.svg, label);
+    }},
+    {name: './measure/node', source: `
+      import {fontMeasurer} from 'svg-diagram/measure/node';
+      import {renderBands} from 'svg-diagram/core';
+      import {box} from 'svg-diagram/bands/box';
+      export const draw = () => renderBands([box({title: 'Review'})], {measure: fontMeasurer()});
+    `, budget: {esbuild: 80000, Vite: 76000}, check: reviewDrawing},
+    {name: './png', source: `
+      import {svgToPng} from 'svg-diagram/png';
+      export const draw = () => svgToPng(${JSON.stringify(tinySvg)});
+    `, budget: {esbuild: 24000, Vite: 24000},
+    check: (result: {png: Uint8Array; width: number; height: number}, label: string) => {
+      assert.deepEqual([...result.png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 13, 10, 26, 10], label);
+      assert.deepEqual([result.width, result.height], [8, 8], label);
+    }},
+    {name: './markdown', source: `
+      import {expandMarkdown} from 'svg-diagram/markdown';
+      export const draw = () => expandMarkdown(${markdown}, {
+        file: ${JSON.stringify(pageFile)}, root: ${JSON.stringify(consumer)}, mode: 'inline',
+      });
+    `, budget: {esbuild: 956000, Vite: 899000},
+    check: (result: {markdown: string; problems: string[]}, label: string) => {
+      assert.deepEqual(result.problems, [], label);
+      reviewSvg(result.markdown, label);
+    }},
+    {name: './markdown-it', source: `
+      import MarkdownIt from 'markdown-it';
+      import svgDiagram from 'svg-diagram/markdown-it';
+      export const draw = () => new MarkdownIt().use(svgDiagram, ${markdownOptions}).render(${markdown});
+    `, budget: {esbuild: 6400, Vite: 6400}, check: reviewSvg},
+    {name: './remark', source: `
+      import {unified} from 'unified';
+      import remarkParse from 'remark-parse';
+      import remarkRehype from 'remark-rehype';
+      import rehypeStringify from 'rehype-stringify';
+      import svgDiagram from 'svg-diagram/remark';
+      export const draw = async () => String(await unified()
+        .use(remarkParse).use(svgDiagram, ${markdownOptions}).use(remarkRehype).use(rehypeStringify).process(${markdown}));
+    `, budget: {esbuild: 957000, Vite: 900000}, check: reviewSvg},
+    {name: './vitepress', source: `
+      import MarkdownIt from 'markdown-it';
+      import svgDiagram from 'svg-diagram/vitepress';
+      export const draw = () => {
+        const md = new MarkdownIt();
+        svgDiagram(${markdownOptions})(md);
+        return md.render(${markdown}, {path: ${JSON.stringify(pageFile)}, includes: []});
+      };
+    `, budget: {esbuild: 6500, Vite: 6500},
+    check: (html: string, label: string) => {
+      const encoded = /class="svg-diagram-vue" v-html="([^"]+)"/.exec(html)?.[1];
+      assert.ok(encoded, label);
+      reviewSvg(JSON.parse(encoded.replaceAll('&quot;', '"').replaceAll('&lt;', '<').replaceAll('&amp;', '&')), label);
+    }},
+  ];
+
+  // Read the keys from the fixtures independently of package.json. Shared entries are classified
+  // under browser drawing when they also appear as dependencies in Node drawing fixtures.
+  const browserEntries = new Set(cases.filter(fixture => fixture.draw || 'check' in fixture)
+    .flatMap(fixture => importedEntries(fixture.source)));
+  const coverage = {
+    'ブラウザ描画': browserEntries,
+    'Node.js 描画': [...nodeDrawCases.map(fixture => fixture.source), nodeSpecSource, imageSource, mathSource].flatMap(importedEntries)
+      .filter(key => !browserEntries.has(key)),
+    'バンドルと予算': importedEntries(browserMeasureCase.source),
+    '型のみ': ['./plugin'],
+    'JSON': ['./schema/*.json'],
+  };
+  const classified = new Map<string, string>();
+  for (const [category, keys] of Object.entries(coverage)) {
+    for (const key of new Set(keys)) {
+      if (classified.has(key)) {
+        throw new ExportClassificationError(`${key} の検査分類が重複しています（${classified.get(key)}、${category}）。分類を一つにしてください`);
+      }
+      classified.set(key, category);
+    }
+  }
+  const missing = Object.keys(published).filter(key => !classified.has(key));
+  const stale = [...classified.keys()].filter(key => !Object.hasOwn(published, key));
+  const classificationProblems = [];
+  if (missing.length) classificationProblems.push(`package.json の exports に検査分類がありません。分類を追加してください: ${missing.join(', ')}`);
+  if (stale.length) classificationProblems.push(`package.json の exports に存在しない検査分類があります。分類を見直してください: ${stale.join(', ')}`);
+  if (classificationProblems.length) throw new ExportClassificationError(classificationProblems.join('。'));
+
+  const publicEntries = Object.entries(published).flatMap(([name, target]) =>
+    typeof target === 'string' ? [] : [[name, target] as const]);
   const outputAdapters = publicEntries.filter(([name]) => /^\.\/(?:html|pptx)\/bands\//.test(name));
   const testedOutputAdapters = {esbuild: new Set<string>(), Vite: new Set<string>()};
   const testedBandModules = {esbuild: new Set<string>(), Vite: new Set<string>()};
@@ -866,7 +1096,7 @@ try {
 
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;
-    if (draw) assert.ok(budget, `${name}: バンドルサイズ上限が必要です`);
+    if (draw || 'check' in testCase) assert.ok(budget, `${name}: バンドルサイズ上限が必要です`);
     const catalog = 'catalog' in testCase && testCase.catalog;
     const selectedLayout = 'layout' in testCase ? testCase.layout : undefined;
     const overlaySelection = name === 'Selected wireframe dialog' || name === 'Selected wireframe toast';
@@ -930,9 +1160,13 @@ try {
         assert.ok(code);
         assert.doesNotMatch(code, /['"](?:text|region|fusion|insight)['"]/, label);
       }
-      if (name === '文字測定') assert.ok(bytes <= 4000, `${label} が 4000 バイトを超えています`);
       const limit = budget?.[bundler];
       if (limit !== undefined) assert.ok(bytes <= limit, `${label} が ${limit} バイトを超えています (${bytes})`);
+      if ('check' in testCase) {
+        assert.ok(code);
+        const {draw: render} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+        testCase.check(await render(), label);
+      }
       if (draw) {
         recordBandModules(bundler, files);
         assert.ok(code);
@@ -1146,34 +1380,59 @@ try {
     const [ssrChunk] = ssr.output;
     assert.ok(nodeBundle && esOutput);
     assert.equal(ssrChunk.type, 'chunk');
+    const esChunks: [JsChunk] = [{fileName: 'entry.mjs', code: nodeBundle.text}];
+    const ssrChunks: [JsChunk, ...JsChunk[]] = [ssrChunk, ...ssr.output.slice(1).filter((output: {type: string}) => output.type === 'chunk')];
     return [
-      ['esbuild', Object.entries(esOutput.inputs).filter(([, info]) => info.bytesInOutput > 0).map(([file]) => file), nodeBundle.text],
-      ['Vite', Object.entries(ssrChunk.modules).filter(([, info]) => info.renderedLength > 0).map(([file]) => file), ssrChunk.code],
+      ['esbuild', Object.entries(esOutput.inputs).filter(([, info]) => info.bytesInOutput > 0).map(([file]) => file), esChunks],
+      ['Vite', Object.entries(ssrChunk.modules).filter(([, info]) => info.renderedLength > 0).map(([file]) => file), ssrChunks],
     ] as const;
   }
 
-  const markdownCases = await buildNode(`
-    export {expandMarkdown} from 'svg-diagram/markdown';
-  `, ['harfbuzzjs', 'playwright', 'playwright-chromium', '@resvg/resvg-js']);
-  for (const [bundler, files, code] of markdownCases) {
-    const label = `${bundler} (Node): Markdown source rendering`;
+  // The bundled source loader has moved away from its sibling modules. Resolve the
+  // published DSL here so the on-disk diagram can also be loaded by that bundle.
+  writeFileSync(diagramFile, `
+    import {diagram, box} from ${JSON.stringify(pathToFileURL(require.resolve('svg-diagram')).href)};
+    export default () => diagram({theme: 'blue'}).add(box({title: 'Review'}));
+  `);
+  writeFileSync(path.join(consumer, '.svg-diagram.json'), '{"measure":"font"}');
+  const backends = ['harfbuzzjs', 'playwright', 'playwright-chromium', '@resvg/resvg-js'];
+  const markdownDeps = ['markdown-it', 'unified', 'remark-parse', 'remark-rehype', 'rehype-stringify'];
+  for (const dependency of ['harfbuzzjs', '@resvg/resvg-js', ...markdownDeps]) {
+    const link = path.join(consumer, 'node_modules', dependency);
+    mkdirSync(path.dirname(link), {recursive: true});
+    symlinkSync(path.join(root, 'node_modules', dependency), link, 'junction');
+  }
+  for (const {name, source, budget, check} of nodeDrawCases) {
+    for (const [bundler, files, chunks] of await buildNode(source, [...backends, ...markdownDeps])) {
+      const label = `${bundler} (Node): ${name}`;
+      const bytes = chunks.reduce((total, chunk) => total + Buffer.byteLength(chunk.code), 0);
+      assert.ok(bytes <= budget[bundler], `${label} が ${budget[bundler]} バイトを超えています (${bytes})`);
+      if (name === './markdown') checkMarkdownBundle(bundler, files, label);
+      const output = mkdtempSync(path.join(consumer, 'node-bundle-'));
+      // Markdown-it and VitePress start the published worker as a separate Node process.
+      symlinkSync(path.join(root, 'dist/lib/render-sync-worker.js'), path.join(output, 'render-sync-worker.js'), 'file');
+      for (const chunk of chunks) {
+        const file = path.join(output, chunk.fileName);
+        mkdirSync(path.dirname(file), {recursive: true});
+        writeFileSync(file, chunk.code);
+      }
+      const [main] = chunks;
+      const {draw} = await import(pathToFileURL(path.join(output, main.fileName)).href);
+      check(await draw(), label);
+      console.log(`${label}: ${bytes} bytes`);
+    }
+  }
+
+  function checkMarkdownBundle(bundler: string, files: string[], label: string): void {
     assert.ok(files.some(file => file.replaceAll('\\', '/').endsWith('/render-source-file.js')), label);
     assert.ok(!files.some(file => /\/lib\/(?:(?:spec(?:-render)?|raster)\.js$|spec-parts\/)/.test(file.replaceAll('\\', '/'))), label);
     if (bundler === 'Vite') {
       assert.ok(!files.some(file => /[/\\](?:(?:cdp-)?browser|slide-budget(?:-live)?)\.js$/.test(file)), `${label}: optional browser or Slidev code is in the initial chunk`);
     }
-    console.log(`${label}: ${Buffer.byteLength(code)} bytes`);
   }
 
-  const nodeSpecCases = await buildNode(`
-    import {renderSpec} from 'svg-diagram/spec/selective/node';
-    import {tablePart} from 'svg-diagram/spec/parts/table';
-    export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [
-      {type: 'table', columns: [{label: 'Review'}], rows: [['Done']]},
-    ]}, {parts: [tablePart]});
-  `, ['harfbuzzjs']);
-  symlinkSync(path.dirname(path.dirname(require.resolve('harfbuzzjs'))), path.join(consumer, 'node_modules/harfbuzzjs'), 'junction');
-  for (const [bundler, files, code] of nodeSpecCases) {
+  const nodeSpecCases = await buildNode(nodeSpecSource, ['harfbuzzjs']);
+  for (const [bundler, files, [{code}]] of nodeSpecCases) {
     const label = `${bundler} (Node): Selected table spec`;
     assert.deepEqual(bandModules(files), ['table.js'], label);
     const has = (name: string) => files.some(file => file.replaceAll('\\', '/').endsWith('/' + name));
@@ -1194,11 +1453,9 @@ try {
     console.log(`${label}: ${bytes} bytes`);
   }
 
-  const pictureFile = path.join(consumer, 'picture.gif');
   writeFileSync(pictureFile, Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'));
-  const imageCases = await buildNode(composedSource([], `imageFile(${JSON.stringify(pictureFile)}, {alt: 'Picture', width: 240})`,
-    "import {imageFile} from 'svg-diagram/bands/image/node';"), [], true);
-  for (const [bundler, files, code] of imageCases) {
+  const imageCases = await buildNode(imageSource, [], true);
+  for (const [bundler, files, [{code}]] of imageCases) {
     const label = `${bundler} (Node): Image`;
     assert.deepEqual(bandModules(files), ['image-node.js', 'image.js'], label);
     const has = (name: string) => files.some(file => file.replaceAll('\\', '/').endsWith('/' + name));
@@ -1217,8 +1474,8 @@ try {
     console.log(`${label}: ${bytes} bytes`);
   }
 
-  const mathCases = await buildNode(composedSource(['math'], "math('x^2', {alt: 'Square'})"));
-  for (const [bundler, inputs, code] of mathCases) {
+  const mathCases = await buildNode(mathSource);
+  for (const [bundler, inputs, [{code}]] of mathCases) {
     const label = `${bundler} (Node): Math`;
     assert.deepEqual(bandModules(inputs), ['math.js'], label);
     const files = inputs.map(file => file.replaceAll('\\', '/'));
@@ -1262,6 +1519,10 @@ try {
     packages: 'external', platform: 'node', format: 'esm', write: false, metafile: true});
   assert.ok(Object.keys(deck.metafile.inputs).every(file => !file.replaceAll('\\', '/').includes('/pptx/')),
     'デッキの読み込みに PPTX のコードが含まれています');
+} catch (error) {
+  if (!(error instanceof ExportClassificationError)) throw error;
+  console.error(error.message);
+  process.exitCode = 1;
 } finally {
   rmSync(consumer, {recursive: true, force: true});
 }
