@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
@@ -57,7 +57,60 @@ try {
     ['wireframe', 'layoutWireframe', "wireframe(wf.col([wf.region('Review')]))"],
     ['screens', 'layoutScreens', "screens([{id: 'review', title: 'Review', root: wf.col([wf.region('Details')])}], {cols: 1})"],
   ] as const;
+  // Every public spec part must draw its example with only the band adapters it can build.
+  const specBands = {
+    'box caption grid group group-row row': ['affinity'],
+    'areas box caption connect group': ['board'],
+    'box connect row': ['steps'],
+    'box caption connect group group-row row spacer': ['versus'],
+    'caption cause': ['why-why-tree'],
+    'box connect swimlane': ['swimlane'],
+    bars: ['bars', 'histogram', 'pareto', 'range-bars'],
+    catplot: ['boxplot'],
+    causal: ['causal-loop'],
+    cause: ['cause-tree', 'pdpc', 'relation-diagram'],
+    classes: ['class-diagram'],
+    dependency: ['dependency-network'],
+    fta: ['fault-tree'],
+    plane: ['burndown', 'burnup', 'control-chart', 'lines', 'scatter', 'strategy-canvas'],
+    stacked: ['mekko', 'stacked-bars'],
+    states: ['flowchart', 'state-diagram'],
+    table: ['check-sheet', 'fmea', 'is-is-not', 'journey-map', 'matrix', 'qfd', 'raci', 'table', 'why-why-table'],
+    tree: ['mindmap', 'tree'],
+  };
+  const standaloneSpecBands = [
+    'bowtie', 'bpmn', 'bubble', 'butterfly', 'chevron', 'cloud', 'combo', 'compare', 'concentric', 'cycle',
+    'funnel', 'gantt', 'harvey', 'heatmap', 'pert', 'pyramid', 'quadrant', 'radar', 'sankey', 'sequence',
+    'timeline', 'tornado', 'treemap', 'value-chain', 'venn', 'waterfall',
+  ];
+  const specBandEntries = [
+    ...Object.entries(specBands).flatMap(([bands, parts]) => parts.map(part => ({
+      part, bands: bands.split(' ').map(band => band + '.js').sort(),
+    }))),
+    ...standaloneSpecBands.map(part => ({part, bands: [part + '.js']})),
+  ];
+  const {exports: published} = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as {exports: Record<string, unknown>};
+  assert.deepEqual(specBandEntries.map(({part}) => './spec/parts/' + part).sort(),
+    Object.keys(published).filter(key => key.startsWith('./spec/parts/')).sort());
+  const specCases = specBandEntries.map(({part, bands}) => {
+    const binding = part.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase()) + 'Part';
+    return {
+      name: 'Spec catalog: ' + part,
+      source: `
+        import {renderSpec} from 'svg-diagram/spec/selective';
+        import {${binding}} from 'svg-diagram/spec/parts/${part}';
+        export const draw = () => renderSpec({version: 1, title: 'Catalog example', legend: false, parts: [${binding}.example]}, {
+          measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [${binding}],
+        });
+      `,
+      include: 'spec-parts/selective/' + part + '.js',
+      exclude: [...legacy, 'lib/spec.js', 'dsl-pure.js', 'legend-notation.js',
+        ...Array.from({length: 7}, (_, n) => 'spec-parts/r' + (n + 1) + '.js')],
+      bands, draw: true, catalog: true,
+    };
+  });
   const cases = [
+    ...specCases,
     {name: 'SVG', source: "export {renderInBrowser} from 'svg-diagram/browser';", include: 'web.js', exclude: ['emit-html.js', 'math-tex.js']},
     {name: 'HTML', source: "export {emitHtml} from 'svg-diagram/html';", include: 'emit-html.js', exclude: ['web.js', 'web-measure.js']},
     {name: 'Selective HTML', source: `
@@ -328,6 +381,7 @@ try {
   ];
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;
+    const catalog = 'catalog' in testCase && testCase.catalog;
     const selectedLayout = 'layout' in testCase ? testCase.layout : undefined;
     writeFileSync(entry, source);
     const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true, keepNames: !!selectedLayout,
@@ -347,6 +401,10 @@ try {
       const label = `${bundler}: ${name}`;
       const has = (filename: string) => files.some(file => ('/' + file.replaceAll('\\', '/')).endsWith('/' + filename));
       assert.ok(has(include), `${label} に ${include} が必要です`);
+      if (catalog) {
+        const entries = specBandEntries.filter(({part}) => has('spec-parts/selective/' + part + '.js'));
+        assert.deepEqual(entries.map(({part}) => 'spec-parts/selective/' + part + '.js'), [include], label);
+      }
       if (name === 'Core' || draw) {
         const usedBands = files.flatMap(file => /(?:^|\/)bands\/([^/]+\.js)$/.exec(file.replaceAll('\\', '/'))?.[1] ?? []);
         assert.deepEqual(usedBands.sort(), bands ?? (draw ? [path.basename(include)] : []), `${label} の帯`);
@@ -388,6 +446,13 @@ try {
           assert.doesNotMatch(code, /<table style=/, label);
           assert.deepEqual(result.fallbacks, [], label);
           assert.equal(result.verdict.ok, true, label);
+          console.log(`${label}: ${bytes} bytes`);
+          continue;
+        }
+        if (catalog) {
+          assert.match(result.svg, /<svg\b/, label);
+          assert.match(result.svg, /<text\b/, label);
+          assert.deepEqual(result.xml, [], label);
           console.log(`${label}: ${bytes} bytes`);
           continue;
         }

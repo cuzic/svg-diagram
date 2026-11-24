@@ -185,3 +185,15 @@ test('automatic legends match the legacy catalog SVG in Japanese and English', a
     }
   }
 });
+
+test('every catalog part matches its legacy SVG on a large canvas', async () => {
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  for (const part of [flowchartPart, pyramidPart, funnelPart, ...moreParts]) {
+    const input = {version: 1, title: 'Plan', legend: false,
+      canvas: {width: 1920, height: 1080, minText: 20}, parts: [part.example]};
+    const actual = await renderSpec(input, {parts: [part], measure});
+    const expected = await renderInBrowser(specToDiagram(input), {measure});
+    assert.equal(body(actual.svg), body(expected.svg), part.type);
+  }
+});

@@ -22,7 +22,8 @@ import {originOf, placedBand, rectOf, setScope} from './layout-placed.ts';
 import {layoutTree} from './layout-tree.ts';
 import {layoutStatesBand} from './states.ts';
 import {statesWords} from './states-words.ts';
-import {layoutCauseBand, layoutCloudBand} from './toc.ts';
+import {placeCause} from './layout-cause.ts';
+import {layoutCloudBand} from './cloud.ts';
 import {layoutGantt} from './gantt.ts';
 import {layoutStatus} from './status.ts';
 import {layoutClassesBand} from './classes.ts';
@@ -99,23 +100,8 @@ const layoutClasses = placedBand((band: BandOf<'classes'>, x, y, w, ctx) => layo
 const canvasGeom = (ctx: LayoutCtx): number => ctx.d.canvas ? canvasFontScale(ctx.d.canvas.minText) : 1;
 const scaledGeometry = <B extends {labelRole?: LabelRole}>(band: B, ctx: LayoutCtx): B => ctx.d.canvas && band.labelRole === undefined ? {...band, labelRole: 'note'} : band;
 const layoutGanttBand = placedBand((band: BandOf<'gantt'>, x, y, w, ctx) => layoutGantt(band, x, y, w, ctx.widthOf, ctx.roles, canvasGeom(ctx)), 'a gantt takes an id that another anchor already has', 'a gantt task takes an id that another anchor already has');
-/** ADR 0070 D7: a cause tree's own band (not pdpc / relationDiagram / whyWhyTree) has its lines scale with the canvas's text (never below 1: a canvas with small text keeps today's spacing); `WrapEnv.lineScale`. */
-const scaledLines = (ctx: LayoutCtx, band: {base?: unknown; layerFrom?: unknown}): number | undefined => { const s = Math.max(1, canvasGeom(ctx)); return s > 1 && band.base === undefined && band.layerFrom === undefined ? s : undefined; };
-/** The band's lines: the canvas's scale, or none for a band that `fitLineScale` (the whole-figure retry) drops it from. `retried`: it was dropped by the retry (told like the band's own fallback does). */
-const lineEnv = (ctx: LayoutCtx, band: {base?: unknown; layerFrom?: unknown}): {env: LayoutCtx; retried: boolean} => {
-  const s = scaledLines(ctx, band);
-  if (s === undefined) return {env: ctx, retried: false};
-  return ctx.lines.seen++ < ctx.lines.drop ? {env: ctx, retried: true} : {env: {...ctx, lineScale: s}, retried: false};
-};
-const layoutCauseBandHere = (band: Band & {type: 'cause'}, x: number, y: number, w: number, ctx: LayoutCtx) => {
-  const {env, retried} = lineEnv(ctx, band);
-  const laid = layoutCauseBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx.lines.exchange ? {...env, tallerSeen: () => { ctx.lines.taller = true; }} : {...env, exchange: false}, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight, ctx.d.canvas?.height !== undefined);
-  if (retried) laid.lineScaleDropped = true;
-  return laid;
-};
-const layoutCauseOrCloud = placedBand((band: Band & {type: 'cause' | 'cloud'}, x, y, w, ctx) => band.type === 'cause' ? layoutCauseBandHere(band, x, y, w, ctx) : layoutCloudBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx),
-  band => `${band.type === 'cause' ? 'a cause tree' : 'a cloud'} takes an id that another anchor already has`,
-  band => `${band.type === 'cause' ? 'a cause tree node' : 'a cloud box'} takes an id that another anchor already has`);
+const layoutCloud = placedBand((band: BandOf<'cloud'>, x, y, w, ctx) => layoutCloudBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx),
+  'a cloud takes an id that another anchor already has', 'a cloud box takes an id that another anchor already has');
 const layoutStates = placedBand((band: BandOf<'states'>, x, y, w, ctx) => layoutStatesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), band => `${statesWords(band.flavor).diagram} takes an id that another anchor already has`, band => `a ${statesWords(band.flavor).node} takes an id that another anchor already has`);
 const layoutBarsBand = placedBand((band: BandOf<'bars'>, x, y, w, ctx) => layoutBars(scaledGeometry(band, ctx), x, y, w, ctx.widthOf, ctx.roles, canvasGeom(ctx)), 'a bars band takes an id that another anchor already has', 'a bar takes an id that another anchor already has');
 const layoutChartBand = placedBand((band: BandOf<'chart'>, x, y, w, ctx) => layoutChart(band, x, y, w, ctx.widthOf, ctx.roles, ctx.wrap, canvasGeom(ctx)), 'a chart takes an id that another anchor already has', 'a chart element takes an id that another anchor already has');
@@ -143,8 +129,8 @@ export const LAYOUT_HANDLERS = {
   comic: layoutComicBand,
   classes: layoutClasses,
   gantt: layoutGanttBand,
-  cause: layoutCauseOrCloud,
-  cloud: layoutCauseOrCloud,
+  cause: placeCause,
+  cloud: layoutCloud,
   states: layoutStates,
   tree: layoutTree,
   bars: layoutBarsBand,

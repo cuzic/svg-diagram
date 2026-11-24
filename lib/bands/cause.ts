@@ -3,9 +3,8 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {causeTree as buildTree, pdpc as buildPdpc, relationDiagram as buildRelation} from '../dsl/cause.ts';
 import type {PdpcLink, PdpcNode, RelationNode, RelationOpts} from '../dsl/cause.ts';
 import {renderCause} from '../emit-figures.ts';
-import {snapGrid} from '../layout-util.ts';
-import {scopeOf} from '../scope-name.ts';
-import {causeTexts, layoutCauseBand} from '../toc.ts';
+import {placeCause} from '../layout-cause.ts';
+import {causeTexts} from '../toc.ts';
 import type {CauseBand, CauseLink, CauseNode, CauseOpts, LaidOutCause} from '../types/diagrams.ts';
 import {causeFindings} from '../verify-cause.ts';
 import {anchorRects} from '../verify-rects.ts';
@@ -18,13 +17,8 @@ export const causeDefinition: BandDef<CauseBand, LaidOutCause> = {
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of causeTexts(data, roles)) atoms(text, size, weight, font);
   },
-  layout(data, {x, y, w, widthOf, roles, wrap}) {
-    const scope = scopeOf(data);
-    const placed = layoutCauseBand(data, x, snapGrid(y), w, widthOf, roles, {wrap, keepWords: false});
-    const laid = scope ? {...placed, scope} : placed;
-    const anchors = laid.anchors.filter(anchor => !data.unanchored?.includes(anchor.id));
-    return {laid, h: laid.h, anchors};
-  },
+  internal: true,
+  layout: placeCause,
   emit: (laid, {theme, tones}) => renderCause(laid, theme, tones),
   verify: {
     rects: laid => anchorRects(laid),
