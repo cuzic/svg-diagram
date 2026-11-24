@@ -120,6 +120,9 @@ try {
     ...specCases,
     {name: 'SVG', source: "export {renderInBrowser} from 'svg-diagram/browser';", include: 'web.js', exclude: ['emit-html.js', 'math-tex.js']},
     {name: 'HTML', source: "export {emitHtml} from 'svg-diagram/html';", include: 'emit-html.js', exclude: ['web.js', 'web-measure.js']},
+    {name: 'HTML box adapter', source: "export {boxHtml} from 'svg-diagram/html/bands/box';",
+      include: 'box-style.js', budget: {esbuild: 5500, Vite: 6500},
+      exclude: [...legacy, 'emit-common.js', 'emit-box.js', 'html-banner.js', 'html-grid.js', 'html-row.js', 'html-table.js']},
     {name: 'Selective HTML', source: `
       import {renderBandsHtml} from 'svg-diagram/html/selective';
       import {boxHtml} from 'svg-diagram/html/bands/box';

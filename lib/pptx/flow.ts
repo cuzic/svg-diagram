@@ -4,7 +4,7 @@
 // is a text box at its baseline. Items with an id stay glueable through an invisible rectangle over their anchor. A dimmed band stays a
 // picture.
 import {PALETTE, colorOf, type ToneEnv} from '../tokens.ts';
-import {resolveBoxStyle} from '../emit-common.ts';
+import {resolveBoxStyle} from '../box-style.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutFlowShape} from '../flow-shapes.ts';
 import type {Anchor} from '../types/core.ts';

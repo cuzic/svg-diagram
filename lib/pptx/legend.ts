@@ -1,7 +1,7 @@
 // A legend band as native shapes: each item's sample (a box of a tone or a cause-tree role, a hexagon, a line with its heads, an AND, a
 // return, a cutting arrow) and its label as a text box. A legend with fault-tree symbols or a double line stays a picture (legendNative).
 import {PALETTE, STRONG_STROKE, type ToneEnv} from '../tokens.ts';
-import {resolveBoxStyle} from '../emit-common.ts';
+import {resolveBoxStyle} from '../box-style.ts';
 import {LEGEND_SWATCH_W} from '../layout-util.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutLegend} from '../types/containers.ts';

@@ -1,4 +1,4 @@
-import {resolveBoxStyle} from '../emit-common.ts';
+import {resolveBoxStyle} from '../box-style.ts';
 import type {ToneEnv} from '../tokens.ts';
 import {BOX_PAD_X, BOX_PAD_Y} from '../layout-util.ts';
 import type {LaidOutDiagram} from '../types/index.ts';

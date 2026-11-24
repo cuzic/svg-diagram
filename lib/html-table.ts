@@ -1,4 +1,4 @@
-import {resolveBoxStyle} from './emit-common.ts';
+import {resolveBoxStyle} from './box-style.ts';
 import {escapeHtmlText as esc, type FontBox, type HtmlBandAdapter} from './html-adapter.ts';
 import {px} from './html-document.ts';
 import {must} from './must.ts';

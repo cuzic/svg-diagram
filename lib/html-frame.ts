@@ -1,4 +1,4 @@
-import {resolveBoxStyle} from './emit-common.ts';
+import {resolveBoxStyle} from './box-style.ts';
 import {px} from './html-document.ts';
 import {PALETTE} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
