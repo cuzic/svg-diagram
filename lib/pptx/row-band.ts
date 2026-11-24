@@ -5,8 +5,8 @@ import {must} from '../must.ts';
 import {fitConnector, siteIndex} from './geom.ts';
 import {namedAs} from './prims.ts';
 import {groupXml} from './shapes.ts';
-import {rowArrowXml} from './connectors.ts';
-import type {Glue} from './connectors.ts';
+import {rowArrowXml} from './row-arrow.ts';
+import type {Glue} from './connector-geometry-xml.ts';
 import type {BandXml} from './adapter.ts';
 
 export const rowPptx: BandXml<LaidOutOf<'row'>> = (band, ctx) => {

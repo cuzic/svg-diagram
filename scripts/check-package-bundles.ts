@@ -230,12 +230,15 @@ try {
       import {rowPptx} from 'svg-diagram/pptx/bands/row';
       import {row} from 'svg-diagram/bands/row';
       import {box} from 'svg-diagram/bands/box';
-      export const draw = () => renderBandsPptx([row([box({title: 'Review'}), box({title: 'Done'})])], {
+      export const draw = () => renderBandsPptx([row([box({title: 'Review'}), box({title: 'Done'})], {arrows: 'between'})], {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
         bands: {row: rowPptx}, strict: true,
       });
     `, include: 'pptx/selective.js', budget: {esbuild: 155000, Vite: 184000}, bands: ['box.js', 'row.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/box-bands.js', 'pptx/grid-band.js', 'pptx/group-band.js', 'pptx/slide.js', 'pptx/image-band.js', 'pptx/table.js', 'pptx/group-span.js', 'pptx/swimlane-span.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'svg-outline.js', 'lib/emit.js'], draw: true},
+    {name: 'PPTX row adapter', source: "export {rowPptx} from 'svg-diagram/pptx/bands/row';",
+      include: 'pptx/row-arrow.js', budget: {esbuild: 19500, Vite: 24000},
+      exclude: [...legacy, 'pptx/connectors.js', 'pptx/grid-band.js', 'pptx/group-band.js', 'pptx/svg-shapes.js', 'emit-common.js']},
     {name: 'PPTX box adapter', source: "export {boxPptx} from 'svg-diagram/pptx/bands/box';",
       include: 'box-step-geometry.js', budget: {esbuild: 18000, Vite: 23500},
       exclude: [...legacy, 'pptx/banner-band.js', 'pptx/grid-band.js', 'pptx/row-band.js', 'pptx/svg-shapes.js', 'emit-common.js', 'emit-box.js', 'emit-boxes.js', 'icon-svg.js']},
@@ -813,7 +816,9 @@ try {
           assert.equal(result.verdict.ok, true, label);
           const expected = name === 'Selective PPTX Table' ? /<a:tbl>[\s\S]*>Done<\/a:t>/
             : (name === 'Selective PPTX Caption' || name === 'Selective PPTX Banner') ? /<p:sp>[\s\S]*>Review<\/a:t>/ : /<p:grpSp>[\s\S]*>Review<\/a:t>/;
-          assert.match(new TextDecoder().decode(result.pptx), expected, label);
+          const slide = new TextDecoder().decode(result.pptx);
+          assert.match(slide, expected, label);
+          if (name === 'Selective PPTX') assert.match(slide, /<p:cxnSp>[\s\S]*?name="row-arrow-0"/, label);
           assert.doesNotMatch(code, /@resvg|HarfBuzz/, label);
           console.log(`${label}: ${bytes} bytes`);
           continue;

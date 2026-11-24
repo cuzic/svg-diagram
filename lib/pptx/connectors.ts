@@ -1,27 +1,17 @@
-import {PALETTE, textColorOf} from '../tokens.ts';
+import {textColorOf} from '../tokens.ts';
 import {namedAs} from './prims.ts';
+import {cxnXfrm, glueXml} from './connector-geometry-xml.ts';
+import type {Glue} from './connector-geometry-xml.ts';
 import type {ToneEnv} from '../tokens.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutConnect} from '../types/containers.ts';
 import type {ConnXfrm} from './geom.ts';
 import {emu, endSize, solidFill, arrowEnds, cxnSp} from './xml.ts';
 
-export interface Glue {id: number; idx: number}
-function cxnXfrm(x: Omit<ConnXfrm, 'prst'>, withRot: boolean): string {
-  const rot = withRot && x.rot ? ` rot="${x.rot}"` : '';
-  return `<a:xfrm${rot}${x.flipH ? ' flipH="1"' : ''}${x.flipV ? ' flipV="1"' : ''}><a:off x="${x.offX}" y="${x.offY}"/><a:ext cx="${x.extX}" cy="${x.extY}"/></a:xfrm>`;
-}
-
-const glueXml = (start?: Glue, end?: Glue): string =>
-  `${start ? `<a:stCxn id="${start.id}" idx="${start.idx}"/>` : ''}${end ? `<a:endCxn id="${end.id}" idx="${end.idx}"/>` : ''}`;
+export type {Glue} from './connector-geometry-xml.ts';
 
 const widthPx = (c: LaidOutConnect): number => c.weight === 'strong' ? 5 : 2;
 const lineWidth = (c: LaidOutConnect): number => emu(widthPx(c));
-
-/** A straight arrow between two boxes of a `row` band, 2.5px as the svg draws it. */
-export function rowArrowXml(id: number, name: string, x: ConnXfrm, start?: Glue, end?: Glue): string {
-  return cxnSp(id, name, glueXml(start, end), `${cxnXfrm(x, false)}<a:prstGeom prst="straightConnector1"><a:avLst/></a:prstGeom><a:ln w="${emu(2.5)}">${solidFill(PALETTE.text)}${arrowEnds('end', 2.5)}</a:ln>`);
-}
 
 /** A `bentConnector` fitted to the routed points, glued at either end where the shape is a native one. */
 export function connectorXml(id: number, c: LaidOutConnect, x: ConnXfrm, day: LaidOutDiagram['day'], tones: ToneEnv, start?: Glue, end?: Glue): string {
