@@ -5,7 +5,7 @@ import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {classesTexts, layoutClassesBand} from '../classes.ts';
 import {classDiagram as build} from '../dsl/classes.ts';
-import {renderClasses} from '../emit-figures.ts';
+import {renderClasses} from '../emit-classes.ts';
 import {snapGrid} from '../layout-util.ts';
 import {scopeOf} from '../scope-name.ts';
 import type {ClassesBand, ClassesOpts, LaidOutClasses, ClassItem, ClassRelation} from '../types/diagrams.ts';

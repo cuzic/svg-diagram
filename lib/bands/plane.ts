@@ -1,7 +1,7 @@
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {plane as build} from '../dsl/plane.ts';
-import {renderPlane} from '../emit-figures.ts';
+import {renderPlane} from '../emit-plane.ts';
 import {layoutPlane, planeTexts} from '../plane.ts';
 import {revealPlane} from '../reveal-plane.ts';
 import type {LaidOutPlane, PlaneBand, PlaneOpts} from '../types/figures.ts';

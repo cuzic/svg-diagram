@@ -561,7 +561,7 @@ try {
       name, layout, source: composedSource([name], sample),
       budget: name === 'concentric' ? {esbuild: 84000, Vite: 115000} : {esbuild: 83000, Vite: 114000},
       include: `bands/${name === 'valueChain' ? 'value-chain' : name}.js`,
-      exclude: [...legacy, 'layout-connect.js', 'layout-pyramid.js', 'gantt.js', 'quadrant.js', 'verify-quadrant.js', 'verify-flowchart.js', 'wordart.js',
+      exclude: [...legacy, 'emit-figures.js', 'layout-connect.js', 'layout-pyramid.js', 'gantt.js', 'quadrant.js', 'verify-quadrant.js', 'verify-flowchart.js', 'wordart.js',
         ...(name === 'funnel' ? [] : ['verify-funnel.js']), ...(name === 'concentric' ? [] : ['verify-concentric.js'])], draw: true,
     })),
     ...quantitySamples.map(([name, layout, sample]) => ({
@@ -570,7 +570,7 @@ try {
       include: `bands/${name}.js`, exclude: [...legacy, 'timeline.js', 'emit-boxes.js', ...(name === 'dots' ? ['emit-people.js'] : ['emit-dots.js']), 'layout-connect.js', 'gantt.js'], draw: true,
     })),
     {name: 'Timeline', source: composedSource(['timeline'], "timeline({unit: 'ms', from: 0, to: 100, events: [{at: 25, label: 'Review'}]})"),
-      include: 'bands/timeline.js', budget: {esbuild: 72000, Vite: 96500}, exclude: [...legacy, 'people.js', 'gantt.js', 'layout-connect.js'], draw: true},
+      include: 'bands/timeline.js', budget: {esbuild: 72000, Vite: 96500}, exclude: [...legacy, 'emit-figures.js', 'people.js', 'gantt.js', 'layout-connect.js'], draw: true},
     {name: 'Status', source: composedSource(['status'], "status('draft', 'Review')"),
       include: 'bands/status.js', budget: {esbuild: 56500, Vite: 76000}, exclude: [...legacy, 'emit-boxes.js', 'emit-raw.js', 'wordart.js', 'flow-shapes.js', 'gantt.js', 'layout-connect.js'], draw: true},
     {name: 'Wordart', source: composedSource(['wordart'], "wordart('Review', {style: 'outline', size: 40})"),
@@ -578,11 +578,11 @@ try {
     {name: 'Legend', source: composedSource(['legend'], "legend([{label: 'Review', role: 'root'}, {label: 'Gate', ftaGate: 'and'}, {label: 'Link', weight: 'strong'}])"),
       include: 'bands/legend.js', budget: {esbuild: 63500, Vite: 84500}, exclude: [...legacy, 'emit-boxes.js', 'emit-swimlane.js', 'toc.js', 'fta.js', 'emit-fta.js', 'gantt.js', 'layout-connect.js'], draw: true},
     {name: 'Quadrant', source: composedSource(['quadrant'], "quadrant.preset('bcg', {items: [{label: 'Review', cell: [0, 0]}]})"),
-      include: 'bands/quadrant.js', budget: {esbuild: 101000, Vite: 129000}, exclude: [...legacy, 'flow-shapes.js', 'plane.js', 'gantt.js', 'layout-connect.js', 'dsl/figures.js'], draw: true},
+      include: 'bands/quadrant.js', budget: {esbuild: 101000, Vite: 129000}, exclude: [...legacy, 'emit-figures.js', 'flow-shapes.js', 'plane.js', 'gantt.js', 'layout-connect.js', 'dsl/figures.js'], draw: true},
     {name: 'Plane', source: composedSource(['plane'], "plane({x: {max: 20, step: 10}, y: {max: 10, step: 5}, points: [{at: [10, 5], label: 'Review', reveal: 2}]})"),
-      include: 'bands/plane.js', budget: {esbuild: 78000, Vite: 104000}, exclude: [...legacy, 'quadrant.js', 'flow-shapes.js', 'gantt.js', 'reveal-handlers.js', 'layout-connect.js'], draw: true},
+      include: 'bands/plane.js', budget: {esbuild: 78000, Vite: 104000}, exclude: [...legacy, 'emit-figures.js', 'quadrant.js', 'flow-shapes.js', 'gantt.js', 'reveal-handlers.js', 'layout-connect.js'], draw: true},
     {name: 'Bars', source: composedSource(['bars'], "bars([{id: 'old', label: 'Draft', value: 4}, {label: 'Review', value: 6, reveal: 2, replaces: 'old'}])"),
-      include: 'bands/bars.js', budget: {esbuild: 85500, Vite: 113500}, exclude: [...legacy, 'axis-rules.js', 'charts-waterfall.js', 'charts-stacked.js', 'charts-tornado.js', 'verify-image.js', 'plane.js', 'qc-plane.js', 'qc.js', 'gantt.js', 'reveal-handlers.js'], draw: true},
+      include: 'bands/bars.js', budget: {esbuild: 85500, Vite: 113500}, exclude: [...legacy, 'emit-figures.js', 'axis-rules.js', 'charts-waterfall.js', 'charts-stacked.js', 'charts-tornado.js', 'verify-image.js', 'plane.js', 'qc-plane.js', 'qc.js', 'gantt.js', 'reveal-handlers.js'], draw: true},
     ...tableSamples.map(([name, layout, sample]) => ({
       name, layout, source: composedSource([name], sample), include: `bands/${name}.js`,
       budget: {esbuild: name === 'table' ? 82500 : 77000, Vite: name === 'table' ? 107500 : 102000},
@@ -598,17 +598,17 @@ try {
     {name: 'Bowtie', source: composedSource(['bowtie'], "bowtie({top: 'Review', threats: [{label: 'Failure'}], consequences: [{label: 'Delay'}]})"),
       include: 'bands/bowtie.js', budget: {esbuild: 76500, Vite: 100000}, exclude: [...legacy, 'fta.js', 'emit-fta.js', 'layout-connect.js', 'dsl/diagrams.js'], draw: true},
     {name: 'Cloud', source: composedSource(['cloud'], "cloud({a: 'Goal', b: 'Quality', c: 'Time', d: 'Test', d2: 'Ship'}, {assumptions: [{on: 'bd', text: 'Review'}]})"),
-      include: 'bands/cloud.js', budget: {esbuild: 67500, Vite: 89500}, exclude: [...legacy, 'toc.js', 'layered-route.js', 'cause-hop.js', 'layout-connect.js', 'dsl/diagrams.js'], draw: true},
+      include: 'bands/cloud.js', budget: {esbuild: 67500, Vite: 89500}, exclude: [...legacy, 'emit-figures.js', 'toc.js', 'layered-route.js', 'cause-hop.js', 'layout-connect.js', 'dsl/diagrams.js'], draw: true},
     {name: 'Classes', source: composedSource([], "classDiagram([{id: 'a', name: 'Review'}, {id: 'b'}], [{from: 'b', to: 'a', kind: 'inherit'}])", "import {classDiagram} from 'svg-diagram/bands/classes';"),
-      include: 'bands/classes.js', budget: {esbuild: 142000, Vite: 200000}, exclude: [...legacy, 'bpmn.js', 'bpmn-vertical.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
+      include: 'bands/classes.js', budget: {esbuild: 142000, Vite: 200000}, exclude: [...legacy, 'emit-figures.js', 'bpmn.js', 'bpmn-vertical.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
     {name: 'BPMN', source: composedSource(['bpmn'], "bpmn([{id: 'work', label: 'Work'}], [{id: 'a', lane: 'work', label: 'Review'}], [])"),
-      include: 'bands/bpmn.js', budget: {esbuild: 121000, Vite: 165000}, exclude: [...legacy, 'classes.js', 'verify-density.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
+      include: 'bands/bpmn.js', budget: {esbuild: 121000, Vite: 165000}, exclude: [...legacy, 'emit-figures.js', 'classes.js', 'verify-density.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
     {name: 'States', source: composedSource([], "stateDiagram([{id: 'a', label: 'Review'}, {id: 'b', label: 'Done'}], [{from: 'a', to: 'b'}])", "import {stateDiagram} from 'svg-diagram/bands/states';"),
-      include: 'bands/states.js', budget: {esbuild: 160000, Vite: 222000}, exclude: [...legacy, 'classes.js', 'bpmn.js', 'verify-cause-spacing.js', 'verify-shrink.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
+      include: 'bands/states.js', budget: {esbuild: 160000, Vite: 222000}, exclude: [...legacy, 'emit-figures.js', 'classes.js', 'bpmn.js', 'verify-cause-spacing.js', 'verify-shrink.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
     {name: 'Tree', source: composedSource(['tree'], "tree({label: 'Review', children: [{label: 'Plan'}, {label: 'Decide'}]})"),
-      include: 'bands/tree.js', budget: {esbuild: 90000, Vite: 120000}, exclude: [...legacy, 'states.js', 'toc.js', 'layout-connect.js', 'dsl/diagrams.js', 'layout-row.js', 'layout-grid.js'], draw: true},
+      include: 'bands/tree.js', budget: {esbuild: 90000, Vite: 120000}, exclude: [...legacy, 'emit-figures.js', 'states.js', 'toc.js', 'layout-connect.js', 'dsl/diagrams.js', 'layout-row.js', 'layout-grid.js'], draw: true},
     {name: 'Cause', source: composedSource([], "causeTree([{id: 'a', label: 'Review'}, {id: 'b', label: 'Done'}], [{from: 'a', to: 'b'}], {tree: 'crt'})", "import {causeTree} from 'svg-diagram/bands/cause';"),
-      include: 'layout-cause-fit.js', bands: ['cause.js'], budget: {esbuild: 177000, Vite: 238000}, exclude: [...legacy, 'cloud.js', 'states.js', 'classes.js', 'dsl/diagrams.js', 'layout-connect.js', 'rca-rules.js'], draw: true},
+      include: 'layout-cause-fit.js', bands: ['cause.js'], budget: {esbuild: 177000, Vite: 238000}, exclude: [...legacy, 'emit-figures.js', 'cloud.js', 'states.js', 'classes.js', 'dsl/diagrams.js', 'layout-connect.js', 'rca-rules.js'], draw: true},
     {name: 'Swimlane', source: composedSource(['swimlane'], "...swimlane([{id: 'work', label: 'Work'}], [{id: 'a', lane: 'work', title: 'Review'}])"),
       include: 'bands/swimlane.js', budget: {esbuild: 101500, Vite: 130000}, exclude: [...legacy, 'emit-boxes.js', 'emit-legend.js', 'layout-connect.js', 'bands/connect.js', 'seq-table.js', 'wireframe.js', 'layout-row.js'], draw: true,
       bands: ['box.js', 'swimlane.js']},
@@ -943,7 +943,7 @@ try {
     const files = inputs.map(file => file.replaceAll('\\', '/'));
     assert.ok(files.some(file => file.endsWith('/bands/math.js')), `${label}: missing selective math entry`);
     assert.ok(files.some(file => file.endsWith('/math-tex.js')), `${label}: missing TeX conversion`);
-    for (const file of ['dsl/io.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'layout-connect.js', 'gantt.js']) {
+    for (const file of ['dsl/io.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'emit-figures.js', 'layout-connect.js', 'gantt.js']) {
       assert.ok(!files.some(input => input.endsWith('/' + file)), `${label}: unexpected ${file}`);
     }
     assert.ok(!files.some(file => file.includes('/mathjax-full/')), `${label}: MathJax must be loaded at runtime`);

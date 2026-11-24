@@ -1,5 +1,5 @@
 import type {BandDef, PublicEnv} from './band-def.ts';
-import {renderFlowShape} from './emit-figures.ts';
+import {renderFlowShape} from './emit-flow-shape.ts';
 import {placeFlowShape} from './flow-shapes.ts';
 import type {FlowLayout, FlowShapeBand, LaidOutFlowShape} from './flow-shapes.ts';
 import {snapGrid} from './layout-util.ts';

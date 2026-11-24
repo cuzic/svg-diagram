@@ -3,7 +3,7 @@ import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {cloudTexts, layoutCloudBand} from '../cloud.ts';
 import {cloud as build} from '../dsl/cloud.ts';
-import {renderCloud} from '../emit-figures.ts';
+import {renderCloud} from '../emit-cloud.ts';
 import {snapGrid} from '../layout-util.ts';
 import {scopeOf} from '../scope-name.ts';
 import type {CloudBand, CloudBox, CloudOpts, LaidOutCloud} from '../types/diagrams.ts';

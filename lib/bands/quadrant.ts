@@ -4,7 +4,7 @@ import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import type {quadrant as legacy} from '../dsl/figures.ts';
 import {withHandle} from '../dsl/shared.ts';
-import {renderQuadrant} from '../emit-figures.ts';
+import {renderQuadrant} from '../emit-quadrant.ts';
 import {layoutQuadrant, quadrantBand, quadrantTexts} from '../quadrant.ts';
 import type {LaidOutQuadrant, QuadrantBand, QuadrantItem, QuadrantOpts, QuadrantPreset} from '../quadrant.ts';
 import {scopeOf} from '../scope-name.ts';

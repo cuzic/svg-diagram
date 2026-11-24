@@ -6,7 +6,7 @@ import {textsAndLabels} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {flowchart as buildFlowchart, stateDiagram as buildStateDiagram} from '../dsl/states.ts';
-import {renderStates} from '../emit-figures.ts';
+import {renderStates} from '../emit-states.ts';
 import {snapGrid} from '../layout-util.ts';
 import {scopeOf} from '../scope-name.ts';
 import {layoutStatesBand, statesTexts} from '../states.ts';

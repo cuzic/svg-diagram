@@ -2,7 +2,7 @@ import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {buildTimeline} from '../dsl/timeline.ts';
-import {renderTimeline} from '../emit-figures.ts';
+import {renderTimeline} from '../emit-timeline.ts';
 import type {Declares, HandleOf} from '../strict.ts';
 import {layoutTimeline, timelineTexts} from '../timeline.ts';
 import type {LaidOutTimeline, NumericTimelineBand, NumericTimelineOpts, TimelineBand, TimelineOpts} from '../types/timeline.ts';

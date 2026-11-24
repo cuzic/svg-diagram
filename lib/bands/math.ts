@@ -2,7 +2,7 @@ import {oneLine} from '../diagram-description.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {math as build} from '../dsl/math.ts';
-import {renderMath} from '../emit-figures.ts';
+import {renderMath} from '../emit-math.ts';
 import {snapGrid} from '../layout-util.ts';
 import {layoutMath} from '../math.ts';
 import type {LaidOutMath, MathBand, MathOpts} from '../types/math.ts';

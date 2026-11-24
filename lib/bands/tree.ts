@@ -3,7 +3,7 @@ import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {mindmap as buildMindmap, tree as buildTree} from '../dsl/tree.ts';
-import {renderTree} from '../emit-figures.ts';
+import {renderTree} from '../emit-tree.ts';
 import {layoutTree} from '../layout-tree.ts';
 import {treeItems, treeTexts} from '../tree.ts';
 import type {LaidOutTree, MindmapOpts, TreeBand, TreeItem, TreeOpts} from '../types/diagrams.ts';

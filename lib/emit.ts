@@ -12,7 +12,7 @@ import type {WrappedRun} from './types/text-bands.ts';
 
 export {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 export type {BoxStyle} from './emit-common.ts';
-export {renderFlowShape} from './emit-figures.ts';
+export {renderFlowShape} from './emit-flow-shape.ts';
 
 function defsNeeded(band: LaidOutBand): SvgBandDefs {
   const runs = 'wrappedRuns' in band ? band.wrappedRuns : 'children' in band ? band.children : [];

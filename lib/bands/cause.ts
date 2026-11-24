@@ -10,7 +10,7 @@ import {band, walkDefinedBands} from '../band-def.ts';
 import type {BandDef, DiagramFindings, WithBandDef} from '../band-def.ts';
 import {causeTree as buildTree, pdpc as buildPdpc, relationDiagram as buildRelation} from '../dsl/cause.ts';
 import type {PdpcLink, PdpcNode, RelationNode, RelationOpts} from '../dsl/cause.ts';
-import {renderCause} from '../emit-figures.ts';
+import {renderCause} from '../emit-cause.ts';
 import {placeCause} from '../layout-cause.ts';
 import {causeTexts} from '../toc.ts';
 import type {CauseBand, CauseLink, CauseNode, CauseOpts, LaidOutCause} from '../types/diagrams.ts';

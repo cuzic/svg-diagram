@@ -8,7 +8,7 @@ import type {BandDef, DiagramFindings, WithBandDef} from '../band-def.ts';
 import {barsTexts, layoutBars, barsValueAxis} from '../bars.ts';
 import {bars as build, histogram as buildHistogram, pareto as buildPareto, rangeBars as buildRangeBars} from '../dsl/bars.ts';
 import type {HistogramOpts, ParetoOpts} from '../dsl/bars.ts';
-import {renderBars} from '../emit-figures.ts';
+import {renderBars} from '../emit-bars.ts';
 import {snapGrid} from '../layout-util.ts';
 import {revealBarElements} from '../reveal-bars.ts';
 import {scopeOf} from '../scope-name.ts';

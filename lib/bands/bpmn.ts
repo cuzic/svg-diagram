@@ -6,7 +6,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {bpmnTexts, layoutBpmn} from '../bpmn.ts';
 import {layoutBpmnVertical} from '../bpmn-vertical.ts';
 import {bpmn as build} from '../dsl/bpmn.ts';
-import {renderBpmn} from '../emit-figures.ts';
+import {renderBpmn} from '../emit-bpmn.ts';
 import {snapGrid} from '../layout-util.ts';
 import {scopeOf} from '../scope-name.ts';
 import type {BpmnBand, BpmnOpts, LaidOutBpmn, BpmnLane, BpmnNode, BpmnFlow} from '../types/diagrams.ts';
