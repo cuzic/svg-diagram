@@ -224,6 +224,10 @@
       "types": "./dist/lib/web.d.ts",
       "default": "./dist/lib/web.js"
     },
+    "./compose/why-why-tree": {
+      "types": "./dist/lib/compose/selective/why-why-tree.d.ts",
+      "default": "./dist/lib/compose/selective/why-why-tree.js"
+    },
     "./core": {
       "types": "./dist/lib/core.d.ts",
       "default": "./dist/lib/core.js"

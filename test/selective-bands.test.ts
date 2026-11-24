@@ -778,3 +778,30 @@ test('selected arrow diagrams preserve the critical path and omit an optional ca
     assert.equal(body(actual.svg), body(old.svg));
   }
 });
+
+test('the table DSL preserves RACI rendering and table handles', async () => {
+  const {raci} = await import('../lib/bands/table.ts');
+  const {raci: legacyRaci} = await import('../lib/web.ts');
+  const modern = raci(['Review'], ['Owner', 'Writer'], [['A', 'R']], {id: 'roles'});
+  assert.equal(modern.right, 'roles:right');
+  const actual = await renderBands([modern], {measure, title: 'Roles'});
+  const old = await renderInBrowser(diagram({theme: 'blue', title: 'Roles', legend: false})
+    .add(legacyRaci(['Review'], ['Owner', 'Writer'], [['A', 'R']], {id: 'roles'})), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.equal(body(actual.svg), body(old.svg));
+});
+
+test('the selective why-why tree keeps the captions and RCA findings', async () => {
+  const {whyWhyTree} = await import('../lib/compose/selective/why-why-tree.ts');
+  const {whyWhyTree: legacyTree} = await import('../lib/web.ts');
+  const whys = [{why: '検証が遅れた', trueCause: true, measure: '検証を先にする'}] as const;
+  const selected = whyWhyTree('リリース遅延', whys, {id: 'analysis'});
+  assert.equal(selected[0].right, 'analysis:right');
+  const actual = await renderBands(selected, {measure, title: '対策'});
+  const old = await renderInBrowser(diagram({theme: 'blue', title: '対策', legend: false})
+    .add(...legacyTree('リリース遅延', whys, {id: 'analysis'})), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.equal(body(actual.svg), body(old.svg));
+  assert.deepEqual(actual.verdict.findings.filter(f => f.rule.startsWith('whywhy-')).map(f => f.message),
+    old.verdict.findings.filter(f => f.rule.startsWith('whywhy-')).map(f => f.message));
+});

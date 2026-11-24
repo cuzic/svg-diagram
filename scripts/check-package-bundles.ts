@@ -191,6 +191,14 @@ try {
       });
     `, include: 'pptx/timeline.js', budget: {esbuild: 145000, Vite: 178000}, bands: ['timeline.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/flow.js', 'pptx/pyramid.js'], draw: true},
+    {name: 'RACI table', source: composedSource([], "raci(['Review'], ['Owner', 'Writer'], [['A', 'R']])",
+      "import {raci} from 'svg-diagram/bands/table';"), include: 'bands/table.js',
+      budget: {esbuild: 91000, Vite: 114000}, bands: ['table.js'],
+      exclude: [...legacy, 'bands/cause.js', 'bands/screens.js', 'bands/sequence.js', 'bands/gantt.js'], draw: true},
+    {name: 'Composer Why-why tree', source: composedSource([], "...whyWhyTree('Review', [{why: 'Missing tests', trueCause: true}])",
+      "import {whyWhyTree} from 'svg-diagram/compose/why-why-tree';"),
+      include: 'compose/selective/why-why-tree.js', budget: {esbuild: 177000, Vite: 239000}, bands: ['caption.js', 'cause.js'],
+      exclude: [...legacy, 'bands/states.js', 'bands/table.js', 'bands/box.js', 'bands/gantt.js', 'qc.js'], draw: true},
     {name: 'Composer Arrow diagram', source: composedSource([], "...arrowDiagram([{from: 1, to: 2, name: 'Review', days: 3}])",
       "import {arrowDiagram} from 'svg-diagram/compose/arrow-diagram';"),
       include: 'compose/selective/arrow-diagram.js', budget: {esbuild: 160000, Vite: 219000}, bands: ['caption.js', 'states.js'],
@@ -501,6 +509,7 @@ try {
           assert.match(result.svg, /<image [^>]*href="data:image\/gif;base64,/);
           assert.doesNotMatch(code, /\bBuffer\b/, label);
         }
+        if (name === 'RACI table') assert.ok(!/fmea\(\)|qfd\(\)|whyWhyTree\(/.test(code), label);
         if (name === 'Selected fault tree spec with legend') assert.match(result.svg, /OR gate/, label);
         if (name === 'Row loop-back' || name === 'Selected steps spec') assert.match(result.svg, /Retry/, label);
         assert.deepEqual(result.xml, [], label);

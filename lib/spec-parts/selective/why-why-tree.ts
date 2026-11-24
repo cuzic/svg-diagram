@@ -1,10 +1,5 @@
-import {band} from '../../band-def.ts';
-import {captionDefinition} from '../../bands/caption.ts';
-import {causeDefinition} from '../../bands/cause.ts';
-import {whyWhyTree as build} from '../../dsl/diagrams.ts';
+import {whyWhyTree} from '../../compose/selective/why-why-tree.ts';
+import type {PartDef} from '../../spec-kit.ts';
 import {defineWhyWhyTreePart} from '../why-why-tree.ts';
 
-const whyWhyTree = (...args: Parameters<typeof build>) => build(...args).map(item =>
-  item.type === 'cause' ? band(causeDefinition, item) : band(captionDefinition, item));
-
-export const whyWhyTreePart = /* @__PURE__ */ defineWhyWhyTreePart(whyWhyTree);
+export const whyWhyTreePart: PartDef<ReturnType<typeof whyWhyTree>> = /* @__PURE__ */ defineWhyWhyTreePart(whyWhyTree);
