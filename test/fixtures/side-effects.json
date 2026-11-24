@@ -136,5 +136,6 @@
   "serve-diagram.ts": {"count": 170, "reason": "Runs the serve CLI and starts the presenter server."},
   "show-diagram.ts": {"count": 222, "reason": "Runs the show CLI and displays or writes diagram previews."},
   "site-diagram.ts": {"count": 295, "reason": "Runs the site CLI and writes the deck website."},
+  "spec-diagram.ts": {"count":10,"reason":"Runs the JSON spec CLI and reports its exit code."},
   "typecheck.ts": {"count": 101, "reason": "Runs the typecheck CLI and launches the project compiler."}
 }

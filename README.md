@@ -158,6 +158,8 @@ Edge で選択した部品を描画して文字を輪郭化するには、`svg-d
 
 Node.js では `svg-diagram/spec/selective/node` の `renderSpec(spec, {parts, fonts})` を使えます。`fonts` は従来の `render` 入口と同じフォントファイル指定です。この入口は HarfBuzz のフォント測定を使います。文字測定だけなら `svg-diagram/measure/node` の `fontMeasurer(fonts)`、SVG を PNG に変換する場合は `svg-diagram/png` の `svgToPng(svg, options)` を使います。ZIP だけを作るには `svg-diagram/zip` の `zipEntries(entries)` を使えます。
 
+CLI では `svg-diagram spec 比較.json --part table > 比較.svg` で描画できます。複数の部品を許可する場合は `--part` を繰り返します。名前は `spec/parts` の公開名です。SVG は標準出力、検査結果は標準エラーに出ます。
+
 ```ts
 import {renderBands} from 'svg-diagram/core';
 import {box} from 'svg-diagram/bands/box';

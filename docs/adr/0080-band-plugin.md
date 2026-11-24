@@ -721,6 +721,7 @@ U0 は、この PR。U1 以降は、どの単位も Opus のレビューで Bloc
 - PPTX のグループ化を `groupSpan` と `swimlaneSpan` に分け、必要な帯だけスライドプランナーに渡す。従来の入口は両方を渡す。
 - PPTX のフロー図形・ピラミッド・タイムラインを分け、各入口の束で相互の描画コードが外れることを検証した。フロー図形は配置された図形を変換する共通処理を使う。
 - `compose/canvas`、`compose/hero`、`compose/icon-row`、`compose/versus` は既存の合成関数を使い、生成した帯に各定義を付ける。個別入口の束に必要な帯だけが含まれることを検証する。
+- JSON 単体を描く `svg-diagram spec` は `--part` で許可した既存部品だけを読み込む。JSON に書かれた名前からモジュールのパスは組み立てない。
 - Node.js の `spec/selective/node` は選択した帯とフォント測定を使う。測定と PNG 変換は `measure/node` と `png` から個別に利用できる。PPTX と同じ ZIP ライターは `zip` から個別に利用できる。
 - Edge の選択描画は `spec/selective/edge` から部品と文字エンジンを渡す。輪郭化と検査結果の変換は従来入口と共有する。
 - 枠の配置に関する所見は対象の帯から共通の `verify.diagramFindings` を登録して集計する。同じ関数は図ごとに一度だけ実行する。

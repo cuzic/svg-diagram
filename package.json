@@ -211,6 +211,7 @@
     "./dist/serve-diagram.js",
     "./dist/show-diagram.js",
     "./dist/site-diagram.js",
+    "./dist/spec-diagram.js",
     "./dist/typecheck.js"
   ],
   "types": "./dist/lib/dsl.d.ts",
