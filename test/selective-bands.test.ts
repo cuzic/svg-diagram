@@ -1342,3 +1342,22 @@ test('selected loop-side connectors diagnose canvas overflow like the full rende
   assert.match(legacy.verdict.problems.join('\n'), /runs outside the .* canvas/);
   assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
 });
+
+test('selected brackets, callouts and branches preserve the full renderer geometry', async () => {
+  const {bracket, branch, callout} = await import('../lib/bands/connect.ts');
+  const {bracket: legacyBracket, branch: legacyBranch, callout: legacyCallout} = await import('../lib/web.ts');
+  const source = {id: 'source', title: '開始'} as const;
+  const left = {id: 'left', title: '確認'} as const;
+  const right = {id: 'right', title: '承認'} as const;
+  const span = {label: '対象の範囲', side: 'below'} as const;
+  const note = {text: '開始条件', side: 'above'} as const;
+  const selected = await renderBands([box(source), row([box(left), box(right)]),
+    bracket('left:left', 'right:right', span), callout('source', note),
+    ...branch('source:bottom', [{to: 'left:top'}, {to: 'right:top'}])], {measure});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false}).add(
+    legacyBox(source), legacyRow([legacyBox(left), legacyBox(right)]),
+    legacyBracket('left:left', 'right:right', span), legacyCallout('source', note),
+    legacyBranch('source:bottom', [{to: 'left:top'}, {to: 'right:top'}])), {measure});
+  assert.equal(selected.svg, legacy.svg);
+  assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
+});

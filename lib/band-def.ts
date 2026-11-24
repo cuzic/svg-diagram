@@ -1,3 +1,4 @@
+import type {LaidOutConnect} from './types/containers.ts';
 import type {connectorSvgDefs} from './emit-connect.ts';
 import type {checkConnectionGeometry} from './verify-connect-geometry.ts';
 import type {layoutBoxLike} from './layout-box-like.ts';
@@ -134,6 +135,7 @@ interface InternalLayout<D> {
   decorateCaptions?(data: DiagramData): Band[];
   areasPrelayout?: typeof areasPrelayout;
   outputTypes?: readonly string[];
+  revealConnector?(placed: LaidOutConnect, ids: ReadonlyMap<string, {start: number; end?: number}>): LaidOutConnect;
   resolveConnect?: typeof resolveConnect;
   checkConnectionGeometry?: typeof checkConnectionGeometry;
   connectorDefs?: typeof connectorSvgDefs;

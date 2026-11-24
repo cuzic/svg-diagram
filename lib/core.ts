@@ -233,14 +233,8 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   });
   const placed = layout({...data, bands: source}, roles, widthOf);
   placed.canvasHeight = Math.max(1, placed.canvasHeight);
-  // A link follows its endpoints unless it has an explicit end stage.
-  placed.connects = placed.connects.map(connector => {
-    const from = ids.get(connector.fromId), to = ids.get(connector.toId);
-    const reveal = Math.max(connector.reveal ?? 0, from?.start ?? 0, to?.start ?? 0);
-    const end = connector.until ?? Math.min(from?.end ?? Infinity, to?.end ?? Infinity);
-    if (end <= reveal) throw new Error(`renderBands: connector "${connector.fromId}" → "${connector.toId}" is never visible`);
-    return {...connector, ...(reveal ? {reveal} : {}), ...(Number.isFinite(end) ? {until: end} : {})};
-  });
+  const revealConnector = connection?.internal ? connection.revealConnector : undefined;
+  if (revealConnector) placed.connects = placed.connects.map(connector => revealConnector(connector, ids));
   const stage = opts.stage ?? last;
   const ink = toneEnv(tones);
   const ctx = {theme, tones: ink, appearance: placed.appearance, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};

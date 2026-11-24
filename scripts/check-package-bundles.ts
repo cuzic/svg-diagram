@@ -573,7 +573,11 @@ try {
         const entries = specBandEntries.filter(({part}) => has('spec-parts/selective/' + part + '.js'));
         assert.deepEqual(entries.map(({part}) => 'spec-parts/selective/' + part + '.js'), [include], label);
       }
-      if (name === 'Connect') assert.ok(has('verify-connect-crossings.js') && has('verify-connection-graph.js'), label);
+      if (name === 'Connect') {
+        assert.ok(has('verify-connect-crossings.js') && has('verify-connection-graph.js'), label);
+        assert.ok(code);
+        assert.doesNotMatch(code, /bracket\(\): label must not be empty|callout\(\): text is required/, label);
+      }
       if (name === 'Selected table spec') assert.ok(has('table-number-rules.js'), label);
       if (name === 'Core') assert.ok(!code?.includes('許容するなら diagram'), label);
       if (name === 'Core' || draw) {
