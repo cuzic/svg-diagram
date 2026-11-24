@@ -277,7 +277,9 @@ test('the caption adapter renders editable PPTX text without box adapters', asyn
 
 test('the banner adapter renders editable PPTX text without box adapters', async () => {
   const {banner} = await import('../lib/bands/banner.ts');
-  const {bannerPptx} = await import('../lib/pptx/box-band.ts');
+  const {boxPptx} = await import('../lib/pptx/box-band.ts');
+  const {planSlideWith} = await import('../lib/pptx/slide-core.ts');
+  const {bannerPptx} = await import('../lib/pptx/banner-band.ts');
   const {prepareBands} = await import('../lib/core.ts');
   const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
   const input = [banner({headline: 'Review & approve', stamp: 'Draft'})];
@@ -289,6 +291,11 @@ test('the banner adapter renders editable PPTX text without box adapters', async
   const rendered = await renderBandsPptx(input, {...opts, bands: {banner: bannerPptx}, strict: true});
   const xml = unzipEntry(Buffer.from(rendered.pptx), 'ppt/slides/slide1.xml').toString();
   assert.equal(xml, planSlide(placed, fontsOf()).xml);
+  const sharedBox = planSlideWith(placed, fontsOf(), (band, ctx) => {
+    assert.equal(band.type, 'banner');
+    return boxPptx(band, ctx);
+  }, {title: opts.title});
+  assert.equal(xml, sharedBox.xml);
   assert.deepEqual(rendered.fallbacks, []);
   assert.match(xml, /<a:t>Draft<\/a:t>/);
   assert.match(xml, /<a:t>Review &amp; approve<\/a:t>/);

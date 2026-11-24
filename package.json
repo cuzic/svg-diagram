@@ -912,8 +912,8 @@
       "default": "./dist/lib/pptx/selective.js"
     },
     "./pptx/bands/banner": {
-      "types": "./dist/lib/pptx/box-band.d.ts",
-      "default": "./dist/lib/pptx/box-band.js"
+      "types": "./dist/lib/pptx/banner-band.d.ts",
+      "default": "./dist/lib/pptx/banner-band.js"
     },
     "./pptx/bands/caption": {
       "types": "./dist/lib/pptx/caption-band.d.ts",

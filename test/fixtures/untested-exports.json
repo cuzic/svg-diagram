@@ -398,6 +398,8 @@
   "pptx-edge-core:outlinePptxPictures",
   "pptx/adapter:register",
   "pptx/bands:bandXml",
+  "pptx/box-decoration:boxBadge",
+  "pptx/box-decoration:stampBadge",
   "pptx/cause-band:causePptx",
   "pptx/connectors:connectorXml",
   "pptx/connectors:freeformXml",
