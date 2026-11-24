@@ -17,7 +17,7 @@ import {checkToday} from './today-auto.ts';
 import {canvasFontScale, checkMinText, checkTones, colorOf, rolesAt, SLIDE_CANVAS, THEMES, toneEnv} from './tokens.ts';
 import type {Appearance, FontFamily, Measured, MeasureRequest, DiagramData, RevealOpts, SlideCanvas, Theme, WidthOf, WrapMode} from './types/core.ts';
 import type {Band, LaidOutBand, LaidOutDiagram} from './types/index.ts';
-import type {Issue} from './types/verdicts.ts';
+import type {Finding, Issue} from './types/verdicts.ts';
 import {xmlProblems} from './xml-check.ts';
 
 export type {BandDef} from './band-def.ts';
@@ -84,6 +84,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
   const scopeTable = emptyScopes();
   let last = 0;
   const revealWarnings: string[] = [];
+  const bandFindings: Finding[] = [];
   let source = cloneData(bands) as unknown as Band[];
   const data: DiagramData = {
     day: theme, medium: 'doc', width, pad: canvas ? Math.round(pad) : pad, gap: canvas ? Math.round(gap) : gap,
@@ -149,6 +150,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
         ids.set(qualify(scope, item.id), {start: item.reveal ?? start, end: item.until ?? end});
       }
     }
+    if (def.verify?.findings) bandFindings.push(...def.verify.findings(data));
     def.measure?.(data, measureEnv);
     for (const generated of def.generated?.(data) ?? []) collect(generated, start, stop);
     for (const child of def.children?.(data) ?? []) collect(child, start, stop);
@@ -210,9 +212,9 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
     }),
     contrastProblems: () => [],
     lintDiagram: figure => figure.canvas && figure.contentHeight !== undefined && figure.contentHeight > figure.canvas.height
-      ? [{rule: 'slide-canvas-overflow', severity: 'warn',
+      ? [...bandFindings, {rule: 'slide-canvas-overflow', severity: 'warn',
         message: `内容の高さ ${figure.contentHeight}px が、キャンバスの高さ ${figure.canvas.height}px を超える。行・文字を減らすか、図を分ける`}]
-      : [],
+      : bandFindings,
     acceptHint: () => undefined,
     mergeFindingSides: () => [],
     hasMutedBox: () => false,

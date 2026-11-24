@@ -1,3 +1,5 @@
+import {analysisFindings} from '../finding-rules.ts';
+import {tocFindings} from '../toc-rules.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {causeTree as buildTree, pdpc as buildPdpc, relationDiagram as buildRelation} from '../dsl/cause.ts';
@@ -21,6 +23,7 @@ export const causeDefinition: BandDef<CauseBand, LaidOutCause> = {
   layout: placeCause,
   emit: (laid, {theme, tones}) => renderCause(laid, theme, tones),
   verify: {
+    findings: data => analysisFindings(data, [...(data.rca?.findings ?? []), ...tocFindings(data)]),
     rects: laid => anchorRects(laid),
     check(laid) {
       const {problems, warnings} = causeFindings(laid);

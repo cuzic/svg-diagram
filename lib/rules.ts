@@ -14,7 +14,7 @@ import {ceil4, connectRoom, labelCover, hidesArrow} from './connect-rules.ts';
 import {axisMismatches} from './axis-rules.ts';
 import {qualify, scopeOf} from './anchor-scope.ts';
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
-import {at, fromSources} from './finding-rules.ts';
+import {analysisFindings, at, fromSources} from './finding-rules.ts';
 import type {SourceRef} from './source-ref.ts';
 import {legendKeys, legendLabelsFor, missingLegendItems, usedNotation, walkBands, wordedCanvasBands} from './legend-notation.ts';
 export {DEFAULT_LEGEND_LABELS, legendKeys, legendLabelsFor, usedNotation, walkBands} from './legend-notation.ts';
@@ -662,9 +662,9 @@ function comicRules(d: LintTarget, out: Finding[]): void {
 function rcaRules(d: LintTarget, out: Finding[]): void {
   const severity = rcaSeverity(d);
   for (const b of walkBands(d.bands)) {
-    if (b.type === 'fta') for (const f of ftaFindings(b)) out.push({...at(b), rule: f.rule, severity: f.severity ?? severity, message: f.message});
-    if (b.type === 'bowtie') for (const f of bowtieFindings(b)) out.push({...at(b), rule: f.rule, severity: f.severity ?? severity, message: f.message});
-    if ((b.type === 'table' || b.type === 'cause') && b.rca) for (const f of b.rca.findings) out.push({...at(b), rule: f.rule, severity: f.severity ?? severity, message: f.message});
+    if (b.type === 'fta') out.push(...analysisFindings(b, ftaFindings(b), severity));
+    if (b.type === 'bowtie') out.push(...analysisFindings(b, bowtieFindings(b), severity));
+    if ((b.type === 'table' || b.type === 'cause') && b.rca) out.push(...analysisFindings(b, b.rca.findings, severity));
   }
 }
 
@@ -679,7 +679,7 @@ function tocRules(d: LintTarget, out: Finding[]): void {
   const severity = tocSeverity(d);
   // a TOC tree on a diagram that says nothing about its legend: the roles are told apart only by a legend (ADR 0029 D1)
   if (d.legend === undefined && walkBands(d.bands).some(b => b.type === 'cause' && b.tree !== undefined)) out.push({rule: 'toc-legend-suggested', severity: 'info', message: "TOC の図に凡例が無い。役割（根本原因・施策・障害など）は色と枠でしか区別されない。diagram({legend: 'auto'}) を付けるか、causeTree({roleTags: true}) で役割を文字にする"});
-  for (const b of walkBands(d.bands)) if (b.type === 'cause') for (const f of tocFindings(b)) out.push({...at(b), rule: f.rule, severity: f.severity ?? severity, message: f.message});
+  for (const b of walkBands(d.bands)) if (b.type === 'cause') out.push(...analysisFindings(b, tocFindings(b), severity));
 }
 
 // Alignment and whitespace (ADR 0014): measured on the laid-out bands (lib/layout-metrics.ts), reported at layoutSeverity(d).

@@ -195,6 +195,7 @@
   "emit-tables:renderPrims",
   "emit-tables:renderSequence",
   "emit-tables:renderTable",
+  "finding-rules:analysisFindings",
   "fit-handlers:bandTextSizes",
   "fit-split:splitByHeight",
   "fit-split:splitWidest",

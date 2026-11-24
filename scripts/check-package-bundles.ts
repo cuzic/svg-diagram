@@ -105,7 +105,9 @@ try {
       `,
       include: 'spec-parts/selective/' + part + '.js',
       exclude: [...legacy, 'lib/spec.js', 'dsl-pure.js', 'legend-notation.js',
-        ...Array.from({length: 7}, (_, n) => 'spec-parts/r' + (n + 1) + '.js')],
+        ...Array.from({length: 7}, (_, n) => 'spec-parts/r' + (n + 1) + '.js'),
+        ...(!bands.includes('cause.js') ? ['toc-rules.js'] : []),
+        ...(!bands.includes('fta.js') ? ['fta-rules.js'] : [])],
       bands, draw: true, catalog: true,
     };
   });

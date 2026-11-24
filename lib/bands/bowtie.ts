@@ -1,3 +1,5 @@
+import {analysisFindings} from '../finding-rules.ts';
+import {bowtieFindings} from '../rca-rules.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {bowtieMeasure, layoutBowtie} from '../bowtie.ts';
@@ -17,7 +19,7 @@ const definition = {
     return {laid, h: laid.h};
   },
   emit: (laid, {theme, tones}) => renderBowtie(laid, theme, tones),
-  verify: {rects: bowtieRects},
+  verify: {rects: bowtieRects, findings: data => analysisFindings(data, bowtieFindings(data))},
 } satisfies BandDef<BowtieBand, LaidOutBowtie>;
 
 export function bowtie<const Id extends string = never>(input: BowtieInput, opts?: BowtieOpts & {id?: Id}): WithBandDef<ReturnType<typeof build<Id>>, LaidOutBowtie> {
