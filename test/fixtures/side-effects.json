@@ -134,12 +134,12 @@
   "manage-icons.ts": {"count": 229, "reason": "Runs the icons CLI and manages project icon data."},
   "markdown-diagram.ts": {"count": 68, "reason": "Runs the Markdown CLI and writes Markdown and diagram outputs."},
   "notes-diagram.ts": {"count": 26, "reason": "Runs the notes CLI and prints wireframe notes."},
-  "pptx-deck-diagram.ts": {"count": 123, "reason": "Runs the PPTX deck CLI and writes a presentation."},
+  "pptx-deck-diagram.ts": {"count": 124, "reason": "Runs the PPTX deck CLI and writes a presentation."},
   "pptx-diagram.ts": {"count": 81, "reason": "Runs the PPTX CLI and exports presentations."},
   "preview-svg.ts": {"count": 63, "reason": "Runs the preview CLI and renders a PNG or terminal image."},
   "serve-diagram.ts": {"count": 170, "reason": "Runs the serve CLI and starts the presenter server."},
   "show-diagram.ts": {"count": 222, "reason": "Runs the show CLI and displays or writes diagram previews."},
-  "site-diagram.ts": {"count": 295, "reason": "Runs the site CLI and writes the deck website."},
+  "site-diagram.ts": {"count": 296, "reason": "Runs the site CLI and writes the deck website."},
   "spec-diagram.ts": {"count":10,"reason":"Runs the JSON spec CLI and reports its exit code."},
   "typecheck.ts": {"count": 101, "reason": "Runs the typecheck CLI and launches the project compiler."}
 }

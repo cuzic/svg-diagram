@@ -69,8 +69,20 @@ export const columnFigurePath = (i: number, j: number, path: string | null): str
 
 /** Every problem with `input`, each with its place; empty when it can be drawn. At most MAX_ISSUES (the last says how many more). */
 export function validateDeckWith(input: unknown, validateFigure: (figure: unknown) => SpecIssue[]): SpecIssue[] {
+  return capped(deckIssues(input, (figure, at) => validateFigure(figure).map(f => ({path: at(f.path), message: f.message}))).flat());
+}
+
+/** Use asynchronously loaded figure validators while retaining the deck's issue order. */
+export async function validateDeckWithAsync(input: unknown, validateFigure: (figure: unknown) => Promise<SpecIssue[]>): Promise<SpecIssue[]> {
+  const issues = deckIssues(input, async (figure, at) => (await validateFigure(figure)).map(f => ({path: at(f.path), message: f.message})));
+  return capped((await Promise.all(issues)).flat());
+}
+
+type FigureLocation = (path: string | null) => string;
+
+function deckIssues<T>(input: unknown, validateFigure: (figure: unknown, at: FigureLocation) => T): (SpecIssue | T)[] {
   const flat = withoutBreaks(withoutSchemaField(input)); // a deck file names its schema for the editor (ADR 0071)
-  const issues = validateAgainst(SHAPE, flat);
+  const issues: (SpecIssue | T)[] = validateAgainst(SHAPE, flat);
   const slides = (flat as Json | null)?.['slides'];
   if (Array.isArray(slides)) slides.forEach((s: unknown, i) => {
     if (typeof s !== 'object' || s === null) return;
@@ -93,7 +105,7 @@ export function validateDeckWith(input: unknown, validateFigure: (figure: unknow
       if (has('figure')) checkFigure(col['figure'], path => columnFigurePath(i, j, path), issues, validateFigure);
     });
   });
-  return capped(issues);
+  return issues;
 }
 
 /**
@@ -101,11 +113,11 @@ export function validateDeckWith(input: unknown, validateFigure: (figure: unknow
  * column, ADR 0059); a canvas is a whole slide of its own, so the two cannot both decide. Said once, not with the canvas's own mistakes,
  * and the rest of the figure is checked without it, so a bad canvas does not hide its other mistakes.
  */
-function checkFigure(figure: unknown, at: (path: string | null) => string, issues: SpecIssue[], validateFigure: (figure: unknown) => SpecIssue[]): void {
+function checkFigure<T>(figure: unknown, at: FigureLocation, issues: (SpecIssue | T)[], validateFigure: (figure: unknown, at: FigureLocation) => T): void {
   const canvas = typeof figure === 'object' && figure !== null && !Array.isArray(figure) && Object.hasOwn(figure, 'canvas');
   if (canvas) issues.push({path: at('canvas'), message: 'is for a figure drawn alone: a deck slide sizes its figure to the room left on the slide (leave canvas out)'});
   const {canvas: _refused, ...rest} = canvas ? figure as Json : {};
-  for (const f of validateFigure(canvas ? rest : figure)) issues.push({path: at(f.path), message: f.message});
+  issues.push(validateFigure(canvas ? rest : figure, at));
 }
 
 /** The input with the line breaks of every slide's notes and column texts replaced by spaces (only for checking). */

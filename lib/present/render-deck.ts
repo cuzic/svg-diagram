@@ -3,7 +3,8 @@
 import {createHash} from 'node:crypto';
 import {chooseColumns, columnWidths, deckTexts, figureRooms, maxScale, planDeckLayout, roomMessage, smallTextWarning, type FigureFit, type TextWidth} from '../deck-layout.ts';
 import {autoColumns, fitOf, sharedColumns} from '../deck-spec-core.ts';
-import {drawColumnFigure, figureKey, hasSource, renderDeckFigure, type LoadedDeck} from '../deck-load.ts';
+import {figureKey, hasSource, type LoadedDeck} from '../deck-file.ts';
+import {drawColumnFigure, renderDeckFigure} from '../deck-render-figure.ts';
 import {figureMinPt} from '../pptx/deck-figure.ts';
 import {measureAll, splitAtoms, textWidth} from '../measure.ts';
 import {outlineFontFromFiles, textBox} from '../font-metrics.ts';

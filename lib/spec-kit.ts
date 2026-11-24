@@ -11,6 +11,7 @@ export const CANVAS_LIMITS = {width: [1280, 3840], height: [360, 2160], minText:
 
 /** All the text of a spec together, in characters. The per-field limits alone would allow a figure that takes seconds to lay out. */
 export const MAX_TOTAL_TEXT = 6000;
+export const MAX_SPEC_PARTS = 4;
 /** Emoji in a whole spec. They cost far more to draw than other characters: a colour glyph is a picture, and a few hundred take many seconds. */
 export const MAX_EMOJI = 30;
 /** The columns a swimlane has room for at the figure's width. */

@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {spawnSync} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import {build as bundle} from 'esbuild';
@@ -291,4 +292,48 @@ test('the deck validator does not bundle the full spec catalog', async () => {
   assert.ok(inputs.includes('lib/deck-spec-core.ts'));
   assert.ok(inputs.includes('lib/spec-parts/selective/pyramid.ts'));
   assert.ok(!inputs.some(input => /^lib\/(?:deck-spec\.ts|spec\.ts|spec-parts\/r[1-7]\.ts)$/.test(input)), inputs.join('\n'));
+});
+
+test('selective deck loading checks JSON paths and columns with the same locations', async () => {
+  const {loadDeckSelective} = await import('../lib/deck-load-selective.ts');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'svg-selective-deck-'));
+  try {
+    const file = path.join(dir, 'deck.json');
+    const figureFile = path.join(dir, 'figure.json');
+    fs.writeFileSync(figureFile, JSON.stringify({...spec('pyramid'), $schema: './schema.json'}));
+    const write = (figure: unknown) => fs.writeFileSync(file, JSON.stringify({
+      slides: [{figure: 'figure.json'}, {columns: [{figure}, {text: '説明'}]}],
+    }));
+    write(spec('table'));
+    const loaded = await loadDeckSelective(file);
+    assert.ok(loaded.ok);
+    assert.deepEqual(loaded, loadDeck(file));
+    assert.deepEqual(loaded.loaded.files, [file, figureFile]);
+    const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
+      import {registerHooks} from 'node:module';
+      const urls = new Set();
+      registerHooks({load(url, context, next) {
+        urls.add(url);
+        return next(url, context);
+      }});
+      const {loadDeckSelective} = await import('./lib/deck-load-selective.ts');
+      const result = await loadDeckSelective(process.argv[1]);
+      if (!result.ok) throw new Error(result.errors.join('\\n'));
+      console.log(JSON.stringify([...urls]));
+    `, file], {cwd: path.join(import.meta.dirname, '..'), encoding: 'utf8'});
+    assert.equal(child.status, 0, child.stderr);
+    const urls: string[] = JSON.parse(child.stdout);
+    const selected = urls.flatMap(url => /\/spec-parts\/selective\/([^/]+)\.ts$/.exec(url)?.[1] ?? []);
+    assert.deepEqual(selected.sort(), ['pyramid', 'table']);
+    assert.ok(!urls.some(url => /\/(?:spec|deck-spec|spec-parts\/r[1-7])\.ts$/.test(url)));
+    for (const type of ['pyramid', 'unknown', 'constructor']) {
+      write({version: 1, title: '不正な図', parts: [{type}]});
+      const invalid = await loadDeckSelective(file);
+      assert.ok(!invalid.ok);
+      assert.deepEqual(invalid, loadDeck(file));
+      assert.match(invalid.errors[0] ?? '', /^slides\[1\]\.columns\[0\]\.figure/);
+    }
+  } finally {
+    fs.rmSync(dir, {recursive: true, force: true});
+  }
 });

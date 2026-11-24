@@ -1,5 +1,5 @@
 import {SLIDE_CANVAS} from './tokens.ts';
-import {CANVAS_LIMITS, SPEC_VERSION, SPEC_WIDTH, list, object, oneOf, text} from './spec-kit.ts';
+import {CANVAS_LIMITS, MAX_SPEC_PARTS, SPEC_VERSION, SPEC_WIDTH, list, object, oneOf, text} from './spec-kit.ts';
 import type {JsonSchema, PartDef} from './spec-kit.ts';
 
 /** The width a figure without a canvas is drawn at: a document's text column (diagram() in lib/dsl/diagram.ts). */
@@ -25,6 +25,6 @@ export function schemaForParts(parts: readonly PartDef[], autoLegend = true): Js
       minText: {type: 'number', minimum: CANVAS_LIMITS.minText[0], maximum: CANVAS_LIMITS.minText[1], description: `The smallest text in px (default ${SLIDE_CANVAS.minText}). Every text, box and gap grows by minText / 14.`},
       fit: {...oneOf('content'), description: "'content': the canvas is as tall as what it holds, up to height. Left out: always height tall."},
     }, [], `A figure for a slide or a screen, shown at its own size (1920x1080 for a full HD slide), instead of a figure for a document (${DOC_WIDTH}px wide, shown in a text column). Text and boxes grow with minText, so a large canvas holds more only when minText stays small.`),
-    parts: list({oneOf: parts.map(p => p.schema)}, 4, 1),
+    parts: list({oneOf: parts.map(p => p.schema)}, MAX_SPEC_PARTS, 1),
   }, ['version', 'title', 'parts']);
 }

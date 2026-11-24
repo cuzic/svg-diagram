@@ -12,7 +12,7 @@ import {recordImageReads} from './lib/image-file.ts';
 import {loadConfig} from './lib/config.ts';
 import {outlineFontCheck} from './lib/font-metrics.ts';
 import {closeMeasurer, configureMeasure, currentMeasure} from './lib/measure.ts';
-import {loadDeck} from './lib/deck-load.ts';
+import {loadDeckSelective} from './lib/deck-load-selective.ts';
 import {renderDeck, type RenderedSlide} from './lib/present/render-deck.ts';
 import {PAGE_CSP_META, PRESENT_CSS, PRESENT_JS, printPage, SITE_CSS, siteIndexPage, viewerPage, type PageConfig} from './lib/present/ui.ts';
 import {assignSlugs, extraClash, headersFile, isInside, manifestJson, onlyOsFiles, parseSite, slidesJson, strangers, writtenBefore, type ManifestDeck, type SiteDeck, type SitePlan} from './lib/site.ts';
@@ -125,7 +125,7 @@ for (const [i, d] of plan.decks.entries()) {
   for (const f of fonts.files) reads.add(path.resolve(dir, f));
   configureMeasure(cfg);
   if (currentMeasure().backend === 'chromium') chromium = true;
-  const got = loadDeck(d.deck);
+  const got = await loadDeckSelective(d.deck);
   if (!got.ok) { errors.push(...got.errors); continue; }
   for (const f of got.loaded.files) reads.add(f);
   for (const f of got.loaded.sources.values()) reads.add(f);
