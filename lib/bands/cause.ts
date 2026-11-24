@@ -19,9 +19,13 @@ import {anchorRects} from '../verify-rects.ts';
 
 export {transitionUnits} from '../dsl/cause.ts';
 
-const legendFindings: DiagramFindings = d =>
-  d.legend === undefined && walkDefinedBands(d.bands).some(b => b.type === 'cause' && b.tree !== undefined)
-    ? [tocLegendFinding()] : [];
+const tocDiagramFindings: DiagramFindings = d => {
+  const causes = walkDefinedBands(d.bands).filter(b => b.type === 'cause');
+  const findings = causes.flatMap(b => analysisFindings(b, tocFindings(b)));
+  // Match the legacy TOC pass: a single diagram-wide suggestion precedes the tree findings.
+  if (d.legend === undefined && causes.some(b => b.tree !== undefined)) findings.unshift(tocLegendFinding());
+  return findings;
+};
 
 export const causeDefinition: BandDef<CauseBand, LaidOutCause> = {
   type: 'cause',
@@ -37,8 +41,8 @@ export const causeDefinition: BandDef<CauseBand, LaidOutCause> = {
   rules: layoutFitRules,
   verify: {
     ...layoutFitVerification,
-    diagramFindings: [densityRestorationFindings, parallelEdgeFindings, edgeBendFindings, legendFindings],
-    findings: data => analysisFindings(data, [...(data.rca?.findings ?? []), ...tocFindings(data)]),
+    diagramFindings: [tocDiagramFindings, densityRestorationFindings, parallelEdgeFindings, edgeBendFindings],
+    findings: data => analysisFindings(data, data.rca?.findings ?? []),
     rects: laid => anchorRects(laid),
     check(laid) {
       const {problems, warnings} = causeFindings(laid);

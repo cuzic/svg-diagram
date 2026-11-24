@@ -5,6 +5,7 @@ import path from 'node:path';
 import {build as bundle} from 'esbuild';
 import {closeMeasurer} from '../lib/dsl.ts';
 import {partCatalog} from '../lib/spec.ts';
+import {loadSpecPartsFor} from '../lib/spec-cli-parts.ts';
 import {TextEngineError, guardedEngine, renderSpecEdge, type OutlineFont} from '../lib/spec-edge.ts';
 import {JA_FONTS, realEngine} from './helpers/text-engine.ts';
 import {renderSpec, svgToPng} from '../lib/spec-render.ts';
@@ -322,4 +323,29 @@ test('the selected edge renderer preserves tall document diagnostics', async () 
   assert.ok(legacy.findings.some(finding => finding.rule === 'aspect-tall'), JSON.stringify(legacy.issues));
   const selected = await renderSelected(input, engine, {parts: [tablePart]});
   assert.deepEqual(selected, legacy);
+});
+
+test('the selected edge renderer matches the legacy catalog results in finding order', async () => {
+  const {renderSpecEdge: renderSelected} = await import('../lib/spec-selective-edge.ts');
+  const {captionDefinition} = await import('../lib/bands/caption.ts');
+  const {autoLegend} = await import('../lib/bands/legend.ts');
+  const engine = realEngine();
+  const variants = [
+    {name: 'default', settings: {}},
+    {name: 'automatic legend and captions', settings: {legend: 'auto', showTitle: true, sourceLine: '出典: 例'}},
+    {name: 'English dark canvas', settings: {lang: 'en', appearance: 'dark', canvas: {width: 1280, height: 720}}},
+  ];
+  for (const {type, example} of partCatalog()) {
+    const base = spec(example);
+    const parts = await loadSpecPartsFor(base);
+    assert.ok(parts, type);
+    for (const {name, settings} of variants) {
+      const input = {...base, ...settings};
+      const label = `${type} (${name})`;
+      const legacy = await renderSpecEdge(input, engine);
+      const selected = await renderSelected(input, engine, {parts, captions: captionDefinition, autoLegend});
+      assert.deepEqual(selected, legacy, label);
+      assert.ok(legacy.svg, `${label} should draw an SVG`);
+    }
+  }
 });
