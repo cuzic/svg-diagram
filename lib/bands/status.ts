@@ -6,10 +6,20 @@ import {layoutStatus, statusText, statusTexts} from '../status.ts';
 import type {LaidOutStatus, StatusBand} from '../types/containers.ts';
 import {statusRects} from '../verify-rects.ts';
 import type {DiagramStatus} from '../types/core.ts';
+import type {Finding} from '../types/verdicts.ts';
+
+/** @internal Shared wording for the diagram-level finding. */
+export function draftStatusFinding(status: DiagramStatus): Finding {
+  return {rule: 'draft-status', severity: 'info', message: `この図は下書き(status: '${status}')。公開前に外す`};
+}
 
 const definition = {
   type: 'status',
-  verify: {rects: statusRects, figureExtent: () => null},
+  verify: {
+    rects: statusRects,
+    figureExtent: () => null,
+    diagramFindings: ({accept}) => accept?.['draft-status'] ? [] : [draftStatusFinding('draft')],
+  },
   textSizes: band => [band.size],
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of statusTexts(data, roles)) atoms(text, size, weight, font);

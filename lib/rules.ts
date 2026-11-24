@@ -11,6 +11,7 @@ import {canvasRegionFindings} from './verify-grid.ts';
 import {concentricFindings} from './verify-concentric.ts';
 import {flowchartFindings} from './verify-flowchart.ts';
 import {stateMatrixFindings} from './state-matrix-rules.ts';
+import {draftStatusFinding} from './bands/status.ts';
 // Diagram rules ("svg-diagram check"): semantic checks that need the diagram model, not
 // the rendered pixels — accessibility contrast, legend completeness, lane order, edge
 // crossings, density. Each finding is {rule, severity: 'warn' | 'info', message}.
@@ -667,7 +668,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   for (const b of walkBands(d.bands)) if (b.type === 'image') out.push(...imageSizeFindings(b));
   out.push(...thinBarFindings(d));
   headlineLength(d, out);
-  if (d.status !== undefined) out.push({rule: 'draft-status', severity: 'info', message: `この図は下書き(status: '${d.status}')。公開前に外す`});
+  if (d.status !== undefined) out.push(draftStatusFinding(d.status));
   for (const b of d.laidOut ?? []) if (b.type === 'caption') out.push(...sourceLineFindings(b));
   for (const b of d.laidOut ?? []) if (b.type === 'quadrant') out.push(...quadrantLayoutFindings(b));
   for (const b of walkBands(d.bands)) if (b.type === 'quadrant') out.push(...quadrantFindings(b));

@@ -51,7 +51,7 @@ import {plane} from '../lib/bands/plane.ts';
 import {emitSvg} from '../lib/emit.ts';
 import {quadrant} from '../lib/bands/quadrant.ts';
 import {legend} from '../lib/bands/legend.ts';
-import {status} from '../lib/bands/status.ts';
+import {draftStatusFinding, status} from '../lib/bands/status.ts';
 import {wordart} from '../lib/bands/wordart.ts';
 import {people} from '../lib/bands/people.ts';
 import {dots} from '../lib/bands/dots.ts';
@@ -82,6 +82,9 @@ import {band, DEF} from '../lib/band-def.ts';
 import type {BandDef} from '../lib/band-def.ts';
 import type {LaidOutType} from '../lib/band-table.ts';
 import {prepareBands, renderBands} from '../lib/core.ts';
+import {rowSlotStages} from '../lib/reveal-row.ts';
+import {resolveRevealId, warnConnectorReveal, warnEarlyReveal} from '../lib/reveal-warnings.ts';
+import {emptyScopes} from '../lib/scope-table.ts';
 import {em} from '../lib/rich.ts';
 import {markSpecPart} from '../lib/source-ref.ts';
 import type {LaidOutBand} from '../lib/types/index.ts';
@@ -168,6 +171,89 @@ test('a connector inherits the reveal of its named endpoints', async () => {
   const last = await renderBands(bands, {measure});
   assert.doesNotMatch(first.svg, /marker-end=/);
   assert.match(last.svg, /marker-end=/);
+});
+
+const warningSet = ({verdict}: Awaited<ReturnType<typeof renderBands>>) => new Set(verdict.warnings);
+
+test('reveal diagnostics keep anchor references in messages and compare strict stage boundaries', () => {
+  const authored = {from: 'plot.a:right@0.5', to: 'b:top', reveal: 2, until: 4};
+  const scopes = emptyScopes();
+  assert.equal(resolveRevealId(scopes, authored.from, () => true), 'plot.a');
+  assert.equal(resolveRevealId(scopes, 'b', () => true), 'b');
+  const warnings: string[] = [];
+  warnConnectorReveal(warnings, authored, {start: 2, end: 4});
+  warnConnectorReveal(warnings, authored, {start: 3});
+  warnEarlyReveal(warnings, 'plane() path 1', 2, 3);
+  assert.deepEqual(warnings, [
+    'connect(plot.a:right@0.5 -> b:top) reveal 2 is earlier than an endpoint (reveal 3)',
+    'plane() path 1 reveal 2 is earlier than an endpoint (reveal 3)',
+  ]);
+});
+
+test('row slot stages follow spans and leave unoccupied columns out', () => {
+  const cells = row([box({col: 2, span: 2, reveal: 2, until: 4}), box({reveal: 1})], {id: 'cells', cols: 4});
+  assert.deepEqual(rowSlotStages(cells), new Map([
+    ['cells#2', {start: 2, end: 4}], ['cells#3', {start: 2, end: 4}], ['cells#4', {start: 1, end: undefined}],
+  ]));
+});
+
+test('selected connectors warn about reveal and until outside their endpoints', async () => {
+  const opts = {theme: 'blue', legend: false, title: 'T'} as const;
+  for (const [timing, expected] of [
+    [{reveal: 1}, ['connect(a:bottom -> b:top) reveal 1 is earlier than an endpoint (reveal 2)']],
+    [{until: 4}, ["connect(a:bottom -> b:top) until 4 is later than an endpoint's (vanishes at 3)"]],
+    [{reveal: 2, until: 3}, []],
+    [{}, []],
+  ] as const) {
+    const from = {id: 'a', title: 'A', until: 'until' in timing ? 4 : undefined} as const;
+    const to = {id: 'b', title: 'B', reveal: 2, until: 'until' in timing ? 3 : undefined} as const;
+    const legacy = await renderInBrowser(diagram(opts).add(legacyBox(from), legacyBox(to),
+      legacyConnect('a:bottom', 'b:top', timing)), {measure});
+    const selected = await renderBands([box(from), box(to), connect('a:bottom', 'b:top', timing)],
+      {...opts, measure, connectors: connectDefinition});
+    assert.deepEqual(warningSet(selected), new Set(expected));
+    assert.deepEqual(warningSet(legacy), warningSet(selected));
+  }
+});
+
+test('selected connectors report reveal warnings at row slots', async () => {
+  const next = {id: 'next', title: 'Next'} as const;
+  const child = {reveal: 2, until: 4};
+  const timing = {reveal: 1, until: 5};
+  const opts = {theme: 'blue', legend: false, title: 'T'} as const;
+  const slot = 'cells#2:bottom';
+  const rows = [
+    [row([box({title: 'First'}), box({title: 'Later', ...child})], {id: 'cells'}),
+      legacyRow([legacyBox({title: 'First'}), legacyBox({title: 'Later', ...child})], {id: 'cells'})],
+    [groupRow([group(box({title: 'Inside'}), {title: 'Group', span: 2, ...child}), box({title: 'Last'})], {id: 'cells', cols: 3}),
+      legacyRow([legacyGroup(legacyBox({title: 'Inside'}), {title: 'Group', span: 2, ...child}), legacyBox({title: 'Last'})], {id: 'cells', cols: 3})],
+  ] as const;
+  for (const [selectedRow, legacyRow] of rows) {
+    const legacy = await renderInBrowser(diagram(opts).add(legacyRow, legacyBox(next), legacyConnect(slot, 'next:top', timing)), {measure});
+    const selected = await renderBands([selectedRow, box(next), connect(slot, 'next:top', timing)], {...opts, measure});
+    assert.deepEqual(warningSet(legacy), new Set([
+      'connect(cells#2:bottom -> next:top) reveal 1 is earlier than an endpoint (reveal 2)',
+      "connect(cells#2:bottom -> next:top) until 5 is later than an endpoint's (vanishes at 4)",
+    ]));
+    assert.deepEqual(warningSet(selected), warningSet(legacy));
+  }
+});
+
+test('selected connectors compare authored reveal against inherited stages and scoped anchors', async () => {
+  const next = {id: 'next', title: 'Next'} as const;
+  const values = [{id: 'later', label: '値', value: 4, reveal: 3}];
+  const barsOpts = {scope: 'plot', max: 8};
+  const timing = {reveal: 1};
+  const groupOpts = {reveal: 2};
+  const opts = {theme: 'blue', legend: false, title: 'T'} as const;
+  const legacy = await renderInBrowser(diagram(opts).add(legacyGroup([
+    legacyBars(values, barsOpts), legacyBox(next), legacyConnect('later:bottom', 'next:top', timing),
+  ], groupOpts)), {measure});
+  const selected = await renderBands([group([
+    bars(values, barsOpts), box(next), connect('later:bottom', 'next:top', timing),
+  ], groupOpts)], {...opts, measure});
+  assert.ok(warningSet(legacy).has('connect(later:bottom -> next:top) reveal 1 is earlier than an endpoint (reveal 3)'));
+  assert.deepEqual(warningSet(selected), warningSet(legacy));
 });
 
 test('connect can target a row column with no explicit box id', async () => {
@@ -340,6 +426,19 @@ test('selective status matches browser overlap verification next to a box', asyn
   assert.equal(selected.svg, legacy.svg);
 });
 
+test('selected status reports the draft-status finding unless accepted', async () => {
+  const opts = {theme: 'blue', legend: false, title: 'T'} as const;
+  const bands = [status('draft', 'レビュー中'), box({title: '内容'})];
+  const draftFindings = ({verdict}: Awaited<ReturnType<typeof renderBands>>) => verdict.findings.filter(f => f.rule === 'draft-status');
+  const legacy = await renderInBrowser(diagram({...opts, status: 'draft', statusLabel: 'レビュー中'}).add(legacyBox({title: '内容'})), {measure});
+  const expected = {rule: 'draft-status', severity: 'info', message: "この図は下書き(status: 'draft')。公開前に外す"};
+  assert.deepEqual(draftStatusFinding('draft'), expected);
+  assert.deepEqual(draftFindings(legacy), [expected]);
+  assert.deepEqual(draftFindings(await renderBands(bands, {...opts, measure})), draftFindings(legacy));
+  assert.deepEqual(draftFindings(await renderBands(bands, {...opts, measure, accept: {'draft-status': '検討中の図'}})), []);
+  assert.deepEqual(draftFindings(await renderBands([box({title: '内容'})], {...opts, measure})), []);
+});
+
 test('selective captions distinguish the group title ink from standalone captions in overlap checks', async () => {
   const top = {id: 'top', title: '開始'};
   const bottom = {id: 'bottom', title: '結果'};
@@ -510,6 +609,25 @@ test('selective plane preserves axes, growing paths and staged point labels', as
     if (stage === undefined) assert.match(result.svg, />Review<\/text>/);
   }
   assert.equal(opts.points[0]?.reveal, undefined);
+});
+
+test('selected planes report reveal warnings for lines, fixed paths and dimensions', async () => {
+  const input = {
+    x: {max: 10}, y: {max: 10},
+    points: [{id: 'a', at: [1, 1]}, {id: 'b', at: [5, 5], reveal: 3}],
+    lines: [{from: 'a', to: 'b', reveal: 2}],
+    paths: [{through: ['a', 'b'], reveal: 2}, {through: ['a', 'b'], reveal: 2, grow: true}],
+    dims: [{from: 'a', to: 'b', label: '距離', reveal: 2}],
+  } satisfies Parameters<typeof plane>[0];
+  const opts = {theme: 'blue', legend: false, title: 'T'} as const;
+  const legacy = await renderInBrowser(diagram(opts).add(legacyPlane(input)), {measure});
+  const selected = await renderBands([plane(input)], {...opts, measure});
+  assert.deepEqual(warningSet(legacy), new Set([
+    'plane() line 1 (a -> b) reveal 2 is earlier than an endpoint (reveal 3)',
+    'plane() path 1 reveal 2 is earlier than an endpoint (reveal 3)',
+    'plane() dim "距離" reveal 2 is earlier than an endpoint (reveal 3)',
+  ]));
+  assert.deepEqual(warningSet(selected), warningSet(legacy));
 });
 
 test('selective bars preserve replacement stages and the range, Pareto and histogram variants', async () => {

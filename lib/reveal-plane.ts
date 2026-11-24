@@ -1,4 +1,5 @@
 import {checked} from './reveal-visibility.ts';
+import {warnEarlyReveal} from './reveal-warnings.ts';
 import type {PlaneBand} from './types/figures.ts';
 
 // plane(): each point / line / dim / label / path takes max(the plane's, its own) — and a line / dim / path the later of the
@@ -17,7 +18,7 @@ export function revealPlane(p: PlaneBand, n: number): {last: number; warnings: s
   const ends = (refs: unknown[]): number => Math.max(0, ...refs.map(r => typeof r === 'string' ? lvl.get(r) ?? 0 : 0));
   const derived = (x: {reveal?: number}, refs: unknown[], where: string, what: string): void => {
     const explicit = own(x, where), e = ends(refs);
-    if (explicit !== undefined && explicit < e) warnings.push(`${what} reveal ${explicit} is earlier than an endpoint (reveal ${e})`);
+    warnEarlyReveal(warnings, what, explicit, e);
     const r = Math.max(n, explicit ?? e);
     if (r) x.reveal = r;
     last = Math.max(last, r);

@@ -21,6 +21,7 @@ import type {CaptionBand, LaidOutCaption} from './types/text-bands.ts';
 import type {ConnectBand, LaidOutConnect} from './types/containers.ts';
 import {must} from './must.ts';
 import {checked, visibleAt} from './reveal-visibility.ts';
+import type {RevealAnchor, RevealElements, RevealWarningCheck} from './reveal-warnings.ts';
 import {checkToday} from './today-auto.ts';
 import {canvasFontScale, checkMinText, checkTones, colorOf, rolesAt, SLIDE_CANVAS, THEMES, toneEnv} from './tokens.ts';
 import type {Appearance, FontFamily, Measured, MeasureRequest, DiagramData, RevealOpts, SlideCanvas, Theme, WidthOf} from './types/core.ts';
@@ -99,7 +100,8 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const measureEnv = {roles, today, atoms(text: string, size: number, weight: number, font: FontFamily = 'sans') {
     for (const atom of splitAtoms(text)) requests.set(keyOf(atom, size, weight, font), {text: atom, size, weight, font});
   }};
-  const ids = new Map<string, {start: number; end?: number}>();
+  const ids = new Map<string, RevealAnchor>();
+  const endpointChecks: RevealWarningCheck[] = [];
   const definitions = new Map<string, BandDef>();
   const syntheticOutputs = new Map<string, BandDef>();
   const scopeTable = emptyScopes();
@@ -156,22 +158,24 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     const stop = Math.min(checked(reveal.until, `${data.type} (until)`) ?? Infinity, inheritedEnd);
     const end = Number.isFinite(stop) ? stop : undefined;
     if (end !== undefined && end <= start) throw new Error(`renderBands: ${data.type} until must be later than its reveal`);
+    // Endpoint checks compare authored connector stages with the resolved stages of their anchors.
+    const elements: RevealElements | undefined = def.revealElements?.(data, start, end);
     if (start) reveal.reveal = start;
     if (end !== undefined) reveal.until = end;
     last = Math.max(last, end ?? start);
     if (reveal.id) {
       if (ids.has(reveal.id)) throw new Error(`renderBands: duplicate band id "${reveal.id}"`);
-      ids.set(reveal.id, {start, end});
+      ids.set(reveal.id, {start, end, band: data});
     }
     const scope = scopeOf(data);
     for (const id of def.ids?.(data) ?? []) {
       if (scope) addScoped(scopeTable, scope, id);
       ids.set(qualify(scope, id), {start, end});
     }
-    const elements = def.revealElements?.(data, start, end);
     if (elements) {
       last = Math.max(last, elements.last);
       revealWarnings.push(...elements.warnings);
+      if (elements.checkEndpoints) endpointChecks.push(elements.checkEndpoints);
       for (const item of elements.items ?? []) {
         if (!item.id) continue;
         if (scope) addScoped(scopeTable, scope, item.id);
@@ -240,6 +244,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   placed.canvasHeight = Math.max(1, placed.canvasHeight);
   const revealConnector = connection?.internal ? connection.revealConnector : undefined;
   if (revealConnector) placed.connects = placed.connects.map(connector => revealConnector(connector, ids));
+  for (const check of endpointChecks) check(ids, scopeTable, revealWarnings);
   const stage = opts.stage ?? last;
   const ink = toneEnv(tones);
   const ctx = {theme, tones: ink, appearance: placed.appearance, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};

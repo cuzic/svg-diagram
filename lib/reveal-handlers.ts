@@ -4,9 +4,9 @@
 // (UnrevealedBandTypes), and test/reveal-handlers.test.ts checks the table at run time.
 
 import {childrenOf} from './band-children.ts';
-import {must} from './must.ts';
 import {revealBars} from './reveal-bars.ts';
 import {revealPlane} from './reveal-plane.ts';
+import {rowSlotStages} from './reveal-row.ts';
 import type {Band} from './types/index.ts';
 
 type BandOf<T extends Band['type']> = Extract<Band, {type: T}>;
@@ -62,22 +62,10 @@ const unrevealed: RevealHandler<never> = {stage: false};
 function revealRow(b: BandOf<'row'> | BandOf<'grouprow'>, n: number, u: number | undefined, ctx: RevealCtx): void {
   const childLevels = b.children.map((c, i) => ctx.set(c, n, `row() child ${i + 1}`, u));
   b.children.forEach((c, i) => { if ('children' in c) ctx.walk(c.children, childLevels[i], c.until); }); // a group in a grouprow
-  if (!b.id) return;
-  // row#k: the stage its cell appears at and the stage it vanishes at (the latest of its children; none if any child stays)
-  const slotUntil = new Map<string, number>(), stays = new Set<string>();
-  const cell = (key: string, r: number, until: number | undefined): void => {
-    ctx.ids.set(key, Math.max(ctx.ids.get(key) ?? 0, r));
-    if (until === undefined) stays.add(key); else slotUntil.set(key, Math.max(slotUntil.get(key) ?? 0, until));
-  };
-  if (b.cols) {
-    let next = 1;
-    b.children.forEach((c, i) => {
-      const span = c.span ?? 1, col = c.col ?? next;
-      for (let a = col; a < col + span; a++) cell(`${b.id}#${a}`, must(childLevels[i]), c.until);
-      next = col + span;
-    });
-  } else b.children.forEach((c, i) => cell(`${b.id}#${i + 1}`, must(childLevels[i]), c.until));
-  for (const [key, un] of slotUntil) if (!stays.has(key)) ctx.untils.set(key, un);
+  for (const [key, {start, end}] of rowSlotStages(b)) {
+    ctx.ids.set(key, Math.max(ctx.ids.get(key) ?? 0, start));
+    if (end !== undefined) ctx.untils.set(key, end);
+  }
 }
 
 // areas: like a row, the cells are set (each named area carries its own reveal) and a group in a cell is walked

@@ -1,12 +1,11 @@
-import {resolveAnchor, scopeOf, scopesOf} from './anchor-scope.ts';
+import {scopeOf, scopesOf} from './anchor-scope.ts';
 import {nodeIdsOf} from './band-ids.ts';
 import {checked, earlier, revealHandlerFor} from './reveal-handlers.ts';
 import type {Revealed, RevealCtx} from './reveal-handlers.ts';
 import type {DiagramData} from './types/core.ts';
 import type {Band} from './types/index.ts';
 import {atBand} from './source-ref.ts';
-
-const refId = (ref: string): string => ref.split(':')[0] ?? ref;
+import {resolveRevealId, warnConnectorReveal} from './reveal-warnings.ts';
 
 /** Resolve inheritance once, before the one full layout shared by every stage. The per-band-type parts live in reveal-handlers.ts. */
 export function prepareReveal(d: DiagramData): number {
@@ -48,19 +47,17 @@ export function prepareReveal(d: DiagramData): number {
   ctx.walk(d.bands);
   let max = ctx.max;
   const known = (name: string): boolean => ids.has(name) || untils.has(name);
-  const nameOf = (ref: string): string => resolveAnchor(scopes, refId(ref), known) ?? refId(ref); // throws when a bare id names several scoped items
+  const nameOf = (ref: string): string => resolveRevealId(scopes, ref, known);
   for (const c of connects) atBand(c, () => {
     const from = nameOf(c.from), to = nameOf(c.to);
     const ends = Math.max(ids.get(from) ?? 0, ids.get(to) ?? 0);
-    const explicit = c.reveal;
-    if (explicit !== undefined && explicit < ends) warnings.push(`connect(${c.from} -> ${c.to}) reveal ${explicit} is earlier than an endpoint (reveal ${ends})`);
-    c.reveal = explicit ?? (ends || undefined);
+    const endpointUntil = earlier(untils.get(from), untils.get(to));
+    warnConnectorReveal(warnings, c, {start: ends, end: endpointUntil});
+    c.reveal ??= ends || undefined;
     max = Math.max(max, c.reveal ?? 0);
     // a connector goes with the first of its ends to vanish
-    const gone = c.until ?? earlier(untils.get(from), untils.get(to));
+    const gone = c.until ?? endpointUntil;
     if (gone !== undefined) {
-      const ends2 = earlier(untils.get(from), untils.get(to));
-      if (c.until !== undefined && ends2 !== undefined && c.until > ends2) warnings.push(`connect(${c.from} -> ${c.to}) until ${c.until} is later than an endpoint's (vanishes at ${ends2})`);
       if (gone <= (c.reveal ?? 0)) throw new Error(`connect(${c.from} -> ${c.to}): until ${gone} must be later than its reveal ${c.reveal ?? '(shown from the start)'} (an arrow between two things that are never on screen together has nothing to show)`);
       c.until = gone;
       max = Math.max(max, gone);

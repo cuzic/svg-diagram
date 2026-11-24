@@ -812,7 +812,7 @@ try {
     `, include: 'document-findings.js', bands: ['box.js'], exclude: [...legacy, 'term-rules.js', 'layout-connect.js'],
       budget: {esbuild: 89000, Vite: 113000}, draw: true},
     {name: 'Box', source: bandSource('box'), include: 'bands/box.js',
-      exclude: [...legacy, 'emit-boxes.js', 'emit-grid.js', 'emit-row.js', 'dsl/node.js', 'dsl/stat.js', 'emit-connect.js', 'verify-connect-geometry.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 71000, Vite: 89500}, draw: true},
+      exclude: [...legacy, 'emit-boxes.js', 'emit-grid.js', 'emit-row.js', 'dsl/node.js', 'dsl/stat.js', 'emit-connect.js', 'reveal-warnings.js', 'reveal-handlers.js', 'reveal-row.js', 'verify-connect-geometry.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 71000, Vite: 89500}, draw: true},
     {name: 'Node and stat', source: composedSource([], "node({icon: 'check', label: 'Review'}), stat(12, 'Count', {source: 'Report'})",
       "import {icon, node, stat} from 'svg-diagram/bands/box'; icon.use({version: 1, icons: {check: {d: 'M2 2h20v20H2z', vb: [0, 0, 24], from: 'file:check.svg', license: 'local'}}});"),
       include: 'dsl/stat.js', budget: {esbuild: 75000, Vite: 96000}, bands: ['box.js'],

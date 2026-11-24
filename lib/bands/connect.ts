@@ -16,18 +16,42 @@ import {connectorSvgDefs, renderConnect} from '../emit-connect.ts';
 import {layoutConnect, resolveConnect} from '../layout-connect.ts';
 import type {BranchInput, ConnectInput, Ok} from '../strict.ts';
 import {loopBackConnectors} from '../loop-back-connectors.ts';
+import {rowSlotStages} from '../reveal-row.ts';
+import {resolveRevealId, warnConnectorReveal} from '../reveal-warnings.ts';
+import type {RevealAnchor, RevealElements, RevealStage} from '../reveal-warnings.ts';
 import {CONNECT_LABEL_SIZE} from '../tokens.ts';
 import type {ConnectBand, LaidOutConnect} from '../types/containers.ts';
 
-type EndpointStage = {start: number; end?: number};
-
 /** A link follows its endpoints unless it sets its own end stage. */
-function revealConnector(connector: LaidOutConnect, ids: ReadonlyMap<string, EndpointStage>): LaidOutConnect {
+function revealConnector(connector: LaidOutConnect, ids: ReadonlyMap<string, RevealStage>): LaidOutConnect {
   const from = ids.get(connector.fromId), to = ids.get(connector.toId);
   const reveal = Math.max(connector.reveal ?? 0, from?.start ?? 0, to?.start ?? 0);
   const end = connector.until ?? Math.min(from?.end ?? Infinity, to?.end ?? Infinity);
   if (end <= reveal) throw new Error(`renderBands: connector "${connector.fromId}" → "${connector.toId}" is never visible`);
   return {...connector, ...(reveal ? {reveal} : {}), ...(Number.isFinite(end) ? {until: end} : {})};
+}
+
+function endpointStage(ids: ReadonlyMap<string, RevealAnchor>, id: string): RevealStage | undefined {
+  const direct = ids.get(id);
+  const slot = id.lastIndexOf('#');
+  if (direct || slot < 0) return direct;
+  const row = ids.get(id.slice(0, slot))?.band;
+  if (row?.type !== 'row' && row?.type !== 'grouprow') return;
+  return rowSlotStages(row).get(id);
+}
+
+function revealElements(data: ConnectBand, start: number): RevealElements {
+  const {from, to, reveal, until} = data;
+  const result: RevealElements = {last: start, warnings: []};
+  if (reveal === undefined && until === undefined) return result;
+  const authored = {from, to, reveal, until};
+  result.checkEndpoints = (ids, scopes, warnings) => {
+    const known = (id: string) => endpointStage(ids, id) !== undefined;
+    const stageOf = (ref: string) => endpointStage(ids, resolveRevealId(scopes, ref, known));
+    const a = stageOf(from), b = stageOf(to);
+    warnConnectorReveal(warnings, authored, {start: Math.max(a?.start ?? 0, b?.start ?? 0), end: Math.min(a?.end ?? Infinity, b?.end ?? Infinity)});
+  };
+  return result;
 }
 
 const selectedGraphFindings: DiagramFindings = diagram =>
@@ -42,6 +66,7 @@ export const connectDefinition: BandDef<ConnectBand, LaidOutConnect> = {
   connectorGaps: prepareConnectorGaps,
   resolveConnect,
   revealConnector,
+  revealElements,
   connectorInventory,
   rules: connectorRules,
   verify: {
