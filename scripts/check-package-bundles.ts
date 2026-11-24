@@ -548,7 +548,7 @@ try {
     {name: 'Group', source: composedSource(['box', 'group'], "group(box({title: 'Review'}), {title: 'Plan'})"),
       include: 'bands/group.js', budget: {esbuild: 89500, Vite: 114000}, bands: ['box.js', 'caption.js', 'group.js'], exclude: [...legacy, 'emit-boxes.js', 'emit-grid.js', 'emit-row.js', 'layout-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Group row', source: composedSource(['box', 'group', 'groupRow'], "groupRow([group(box({title: 'Review'})), box({title: 'Next'})])"),
-      include: 'bands/group-row.js', budget: {esbuild: 99500, Vite: 126500}, bands: ['box.js', 'caption.js', 'group-row.js', 'group.js'], exclude: [...legacy, 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
+      include: 'bands/group-row.js', budget: {esbuild: 99500, Vite: 126500}, bands: ['box.js', 'caption.js', 'group-row.js', 'group.js'], exclude: [...legacy, 'dsl/row.js', 'dsl/box-row.js', 'loop-back-options.js', 'loop-back-connectors.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Areas', source: composedSource(['areas', 'box'], "areas(['wide wide', 'left right'], {wide: box({title: 'Review'}), left: box({title: 'Left'}), right: box({title: 'Right'})})"),
       include: 'layout-areas-gaps.js', budget: {esbuild: 95500, Vite: 120000}, bands: ['areas.js', 'box.js', 'caption.js', 'group.js'], exclude: [...legacy, 'dsl/containers.js', 'dsl/row.js', 'dsl/grid.js', 'layout-connect-gaps.js', 'layout-group-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Banner', source: composedSource(['banner'], "banner({headline: 'Review', stamp: 'Draft'})"),

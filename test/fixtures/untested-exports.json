@@ -151,6 +151,8 @@
   "dsl/container-children:wrappable",
   "dsl/defaults:applyConnectDefaults",
   "dsl/defaults:connectBand",
+  "dsl/mixed-row:buildMixedRow",
+  "dsl/mixed-row:normalizeRowChildren",
   "dsl/row-options:spanRow",
   "dsl/row-options:validateRowOptions",
   "dsl/row-options:withRowHandle",
