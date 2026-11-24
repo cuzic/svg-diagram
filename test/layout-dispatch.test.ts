@@ -7,7 +7,7 @@ import {box} from '../lib/dsl/box.ts';
 import {layoutWith} from '../lib/layout.ts';
 import {createLayoutWith} from '../lib/layout-core.ts';
 import {collectMeasures, MEASURE_HANDLERS} from '../lib/layout-measure.ts';
-import {createMeasureCollector} from '../lib/measure-core.ts';
+import {createMeasureCollector, widthOfMeasured} from '../lib/measure-core.ts';
 import {LAYOUT_HANDLERS, layoutHandlerFor} from '../lib/layout-handlers.ts';
 import {ROLES} from '../lib/tokens.ts';
 
@@ -51,4 +51,11 @@ test('measurement resolves handlers per diagram without changing the request set
   });
   assert.deepEqual(collect(data, ROLES), collectMeasures(data, ROLES));
   assert.deepEqual(seen, ['box']);
+});
+
+test('the shared measurement lookup preserves strict and permissive missing-atom behavior', () => {
+  const measured = new Map([['Review 18 400 sans', {w: 48, h: 21}]]);
+  assert.equal(widthOfMeasured(measured, true)('Review', 18, 400, 'sans'), 48);
+  assert.equal(widthOfMeasured(measured, false)('missing', 18, 400, 'sans'), 0);
+  assert.throws(() => widthOfMeasured(measured, true)('missing', 18, 400, 'sans'), /not registered/);
 });
