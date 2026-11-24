@@ -1,41 +1,17 @@
-import {escapeHtmlText as esc, type FontBox, type HtmlBandAdapter} from './html-adapter.ts';
-import {PALETTE, runColorOf} from './tokens.ts';
+import {textRuns} from './html-text-runs.ts';
+import type {FontBox, HtmlBandAdapter} from './html-adapter.ts';
+import {PALETTE} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import {resolveBoxStyle} from './emit-common.ts';
 import {visibleAt} from './reveal-visibility.ts';
 import {BOX_PAD_X, BOX_PAD_Y} from './layout-util.ts';
 import type {LaidOutGroup} from './types/containers.ts';
-import type {Theme, Align, EmphasisTone, Rect} from './types/core.ts';
-import type {LaidOutBox, LaidOutBanner, LaidOutCaption, WrappedRun, Span} from './types/text-bands.ts';
-import {must} from './must.ts';
+import type {Theme, EmphasisTone, Rect} from './types/core.ts';
+import type {LaidOutBox, LaidOutBanner} from './types/text-bands.ts';
 import {px} from './html-document.ts';
 
 // emit.ts snaps shapes (not text) to a 4px grid; the same here, so a box sits where its SVG twin does
 const snap4 = (n: number): number => Math.round(n / 4) * 4;
-
-function spans(sp: Span[], run: WrappedRun, color: string, day: Theme, tones: ToneEnv, dim?: boolean): string {
-  return sp.map(s => {
-    const fill = !dim && s.tone ? runColorOf(tones, s.tone, undefined, day) : color;
-    const style = `${s.bold && run.weight !== 700 ? 'font-weight:700;' : ''}${fill !== color ? `color:${fill};` : ''}`;
-    return style ? `<span style="${style}">${esc(s.text)}</span>` : esc(s.text);
-  }).join('');
-}
-
-function textRuns(runs: WrappedRun[], o: {originX: number; originY: number; w: number; align: Align; day: Theme; tones: ToneEnv; fb: FontBox; dim?: boolean; boxTone?: EmphasisTone}): string {
-  const out: string[] = [];
-  for (const run of runs) {
-    const color = o.dim ? PALETTE.muted : runColorOf(o.tones, run.tone, o.boxTone, o.day);
-    const indent = run.indent ?? 0;
-    const {ascent, descent} = o.fb(run.size, run.weight, run.mono);
-    run.lines.forEach((line, i) => {
-      const top = o.originY + must(run.lineYs[i]) - ascent; // one y per line
-      const lineSpans = run.lineSpans?.[i];
-      const content = lineSpans ? spans(lineSpans, run, color, o.day, o.tones, o.dim) : esc(line).trim();
-      out.push(`<div class="sd-t${run.mono ? ' sd-m' : ''}" style="left:${px(o.originX + indent)};top:${px(top)};width:${px(o.w - indent)};text-align:${o.align};font-size:${run.size}px;font-weight:${run.weight};line-height:${ascent + descent}px;color:${color}">${content}</div>`);
-    });
-  }
-  return out.join('');
-}
 
 function shape(r: Rect, o: {tone?: EmphasisTone; dashed?: boolean; dim?: boolean}, day: Theme, tones: ToneEnv, fallbackTone: EmphasisTone): string {
   const st = resolveBoxStyle(tones, o.tone ?? fallbackTone, day, o.dashed);
@@ -58,10 +34,6 @@ function banner(b: LaidOutBanner, day: Theme, tones: ToneEnv, fb: FontBox): stri
   return shape(b, b, day, tones, 'accent') + textRuns(b.wrappedRuns, {originX: b.x + px_, originY: b.y + py, w: b.w - 2 * px_, align: b.align ?? 'center', day, tones, fb, dim: b.dim, boxTone: b.tone});
 }
 
-function caption(b: LaidOutCaption, day: Theme, tones: ToneEnv, fb: FontBox): string {
-  return textRuns(b.wrappedRuns, {originX: b.x, originY: b.y, w: b.w, align: b.align ?? 'center', day, tones, fb, dim: b.dim});
-}
-
 function group(b: LaidOutGroup, day: Theme, tones: ToneEnv, _fb: FontBox): string {
   return b.frame === false ? '' : shape(b, b, day, tones, 'muted');
 }
@@ -71,7 +43,7 @@ export const boxHtml: HtmlBandAdapter<'box'> = {
   accepts: b => b.step == null && !b.icon && !b.tagBox && !b.stamp,
   render: box,
 };
-export const captionHtml: HtmlBandAdapter<'caption'> = {type: 'caption', accepts: b => !b.tagBox, render: caption};
+export {captionHtml} from './html-caption.ts';
 export const bannerHtml: HtmlBandAdapter<'banner'> = {type: 'banner', accepts: b => !b.tagBox && !b.stamp, render: banner};
 export const groupHtml: HtmlBandAdapter<'group'> = {type: 'group', accepts: b => !b.stamp, render: group};
 export const rowHtml: HtmlBandAdapter<'row'> = {

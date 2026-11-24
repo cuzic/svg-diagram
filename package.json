@@ -544,6 +544,10 @@
       "types": "./dist/lib/html-native.d.ts",
       "default": "./dist/lib/html-native.js"
     },
+    "./html/bands/caption": {
+      "types": "./dist/lib/html-caption.d.ts",
+      "default": "./dist/lib/html-caption.js"
+    },
     "./html/bands/box": {
       "types": "./dist/lib/html-box.d.ts",
       "default": "./dist/lib/html-box.js"
@@ -887,6 +891,10 @@
     "./pptx": {
       "types": "./dist/lib/pptx/selective.d.ts",
       "default": "./dist/lib/pptx/selective.js"
+    },
+    "./pptx/bands/caption": {
+      "types": "./dist/lib/pptx/caption-band.d.ts",
+      "default": "./dist/lib/pptx/caption-band.js"
     },
     "./pptx/bands/box": {
       "types": "./dist/lib/pptx/box-bands.d.ts",

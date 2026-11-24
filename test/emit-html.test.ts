@@ -263,3 +263,20 @@ test('the optional HTML overlay matches legacy output and keeps raw SVG text int
   assert.doesNotMatch(result.html, /<text[^>]*>(?:時間|次へ)<\/text>/);
   await assert.rejects(renderBandsHtml(bands, {...opts, overlay: renderHtmlOverlay, strict: true}), /SVG fallback/);
 });
+
+test('the caption adapter renders selectable HTML without box adapters', async () => {
+  const {caption} = await import('../lib/bands/caption.ts');
+  const {captionHtml} = await import('../lib/html-caption.ts');
+  const {emitHtml} = await import('../lib/emit-html.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    fontBox: (size: number) => ({ascent: size, descent: 0}),
+  };
+  const input = [caption('Review & approve', {align: 'left', mono: true})];
+  const {placed, stage} = await prepareBands(input, opts);
+  const rendered = await renderBandsHtml(input, {...opts, adapters: {caption: captionHtml}, strict: true});
+  assert.equal(rendered.html, emitHtml(placed, {...opts, reveal: stage}));
+  assert.deepEqual(rendered.fallbacks, []);
+  assert.match(rendered.html, /Review &amp; approve/);
+});

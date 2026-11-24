@@ -44,12 +44,7 @@ export const boxPptx = (b: BoxLike, ctx: Ctx): string => {
   return groupXml(ctx.next(), namedAs('node', text, b.id), {x: b.x, y: minY, w: b.w, h: maxY - minY}, main + extra.join(''));
 };
 
-/** Text only: no frame, no padding (the svg writes it at band.x / band.y). Its `tone` colours the text, which the runs already carry, so it is not passed as the box's. */
-export const captionPptx: BandXml<LaidOutOf<'caption'>> = (band, ctx) => {
-  const id = ctx.next();
-  const text: TextBox = {...band, tone: undefined, frame: false, padX: 0, padY: 0, align: band.align ?? 'center'};
-  return boxXml(id, namedAs('caption', textOf(text)), text, ctx.ld.day, ctx.tones, ctx.fonts);
-};
+export {captionPptx} from './caption-band.ts';
 
 const verticalExtent = (children: Rect[]): {y: number; h: number} => {
   const y = Math.min(...children.map(c => c.y));

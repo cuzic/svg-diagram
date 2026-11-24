@@ -256,3 +256,21 @@ test('PPTX fallback drawing shares the legacy SVG shape grouping', async () => {
   assert.deepEqual(selected.pictures, []);
   assert.equal(selected.xml, legacy.xml);
 });
+
+test('the caption adapter renders editable PPTX text without box adapters', async () => {
+  const {caption} = await import('../lib/bands/caption.ts');
+  const {captionPptx} = await import('../lib/pptx/caption-band.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const input = [caption('Review & approve', {align: 'left', mono: true})];
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    title: 'Review',
+  };
+  const {placed} = await prepareBands(input, opts);
+  const rendered = await renderBandsPptx(input, {...opts, bands: {caption: captionPptx}, strict: true});
+  const xml = unzipEntry(Buffer.from(rendered.pptx), 'ppt/slides/slide1.xml').toString();
+  assert.equal(xml, planSlide(placed, fontsOf()).xml);
+  assert.deepEqual(rendered.fallbacks, []);
+  assert.match(xml, /<a:t>Review &amp; approve<\/a:t>/);
+});

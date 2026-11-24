@@ -130,6 +130,17 @@ try {
         adapters: {box: boxHtml}, strict: true,
       });
     `, include: 'html-selective.js', budget: {esbuild: 87000, Vite: 111000}, bands: ['box.js'], exclude: [...legacy, 'emit-html.js', 'lib/emit.js', 'svg-to-css.js', 'html-overlay.js', 'html-native.js', 'html-table.js', 'emit-tables.js', 'image-file.js'], draw: true},
+    {name: 'Selective HTML caption', source: `
+      import {renderBandsHtml} from 'svg-diagram/html/selective';
+      import {captionHtml} from 'svg-diagram/html/bands/caption';
+      import {caption} from 'svg-diagram/bands/caption';
+      export const draw = () => renderBandsHtml([caption('Review')], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        fontBox: size => ({ascent: size, descent: 0}),
+        adapters: {caption: captionHtml}, strict: true,
+      });
+    `, include: 'html-caption.js', budget: {esbuild: 51000, Vite: 65000}, bands: ['caption.js'],
+      exclude: [...legacy, 'html-box.js', 'html-table.js', 'html-native.js', 'html-overlay.js', 'layout-connect.js'], draw: true},
     {name: 'Selective HTML table', source: `
       import {renderBandsHtml} from 'svg-diagram/html/selective';
       import {tableHtml} from 'svg-diagram/html/bands/table';
@@ -163,6 +174,16 @@ try {
       });
     `, include: 'pptx/selective.js', budget: {esbuild: 155000, Vite: 184000}, bands: ['box.js', 'row.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/slide.js', 'pptx/image-band.js', 'pptx/table.js', 'pptx/group-span.js', 'pptx/swimlane-span.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'svg-outline.js', 'lib/emit.js'], draw: true},
+    {name: 'Selective PPTX Caption', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {captionPptx} from 'svg-diagram/pptx/bands/caption';
+      import {caption} from 'svg-diagram/bands/caption';
+      export const draw = () => renderBandsPptx([caption('Review')], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        bands: {caption: captionPptx}, strict: true,
+      });
+    `, include: 'pptx/caption-band.js', budget: {esbuild: 104000, Vite: 121000}, bands: ['caption.js'],
+      exclude: [...legacy, 'pptx/box-bands.js', 'pptx/bands.js', 'pptx/table-band.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js'], draw: true},
     {name: 'Selective PPTX SVG shapes', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
       import {svgShapesXml} from 'svg-diagram/pptx/svg-shapes';
@@ -679,7 +700,8 @@ try {
         if (name.startsWith('Selective PPTX')) {
           assert.deepEqual(result.fallbacks, [], label);
           assert.equal(result.verdict.ok, true, label);
-          const expected = name === 'Selective PPTX Table' ? /<a:tbl>[\s\S]*>Done<\/a:t>/ : /<p:grpSp>[\s\S]*>Review<\/a:t>/;
+          const expected = name === 'Selective PPTX Table' ? /<a:tbl>[\s\S]*>Done<\/a:t>/
+            : name === 'Selective PPTX Caption' ? /<p:sp>[\s\S]*>Review<\/a:t>/ : /<p:grpSp>[\s\S]*>Review<\/a:t>/;
           assert.match(new TextDecoder().decode(result.pptx), expected, label);
           assert.doesNotMatch(code, /@resvg|HarfBuzz/, label);
           console.log(`${label}: ${bytes} bytes`);
@@ -689,6 +711,14 @@ try {
           assert.match(result.html, /class="sd-b"[\s\S]*>Review<\/div>/, label);
           assert.doesNotMatch(result.html, /<svg|<table/, label);
           assert.doesNotMatch(code, /<table style=/, label);
+          assert.deepEqual(result.fallbacks, [], label);
+          assert.equal(result.verdict.ok, true, label);
+          console.log(`${label}: ${bytes} bytes`);
+          continue;
+        }
+        if (name === 'Selective HTML caption') {
+          assert.match(result.html, /class="sd-t"[^>]*>Review<\/div>/, label);
+          assert.doesNotMatch(result.html, /class="sd-b"|<svg\b/, label);
           assert.deepEqual(result.fallbacks, [], label);
           assert.equal(result.verdict.ok, true, label);
           console.log(`${label}: ${bytes} bytes`);
