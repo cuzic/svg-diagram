@@ -107,6 +107,7 @@
 - [x] composer の `canvas`、`hero`、`iconRow`、`versus` がそれぞれ使用する帯だけを引く。代表作例で従来の SVG と照合済み。
 - [ ] spec 部品ごとの入口が必要な帯だけを引き、全部入りの入口は既存の部品とスキーマを保つ。
   - [x] フローチャート・ファネル・ピラミッドを `spec/selective` で描画。ピラミッドの個別バンドルと既存スキーマの同値を検証。
+  - [x] `cause-tree`、`cloud`、`value-chain`、`mindmap`、`quadrant`、`chevron`、`cycle`、`state-diagram`、`gantt`、`venn`、`table`、`journey-map`、`raci`、`swimlane`、`sequence` を追加し、既存カタログの SVG と照合。表の単独バンドルを検証。
   - [ ] 残る部品、図全体の設定、edge・CLI の配線。
 - [ ] HTML、PPTX、該当する Excel のアダプターを帯ごとに選べる。
   - [x] HTML で箱・行・グリッド・キャプション・バナー・グループ・表のアダプターを選べる。SVG に切り替えた帯を報告し、strict ではエラーにする。

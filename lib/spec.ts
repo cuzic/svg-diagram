@@ -12,9 +12,8 @@ import {SOURCE, SourceRef, sourceOf} from './source-ref.ts';
 import type {RenderChecks} from './svg-lint.ts';
 import {SLIDE_CANVAS} from './tokens.ts';
 import type {BandInput, Diagram, Issue, Verdict} from './types/index.ts';
-import {quadrantDefaults} from './quadrant.ts';
 
-import {ARROW, BOX_TONE, CANVAS_LIMITS, CELL, DATE, SPEC_WIDTH, EMPHASIS_TONE, LEGEND_EN, LINE, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_NODE_WIDTH, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, MAX_TREE_NODES, PART_EN, QUADRANT_GRID, SPEC_VERSION, STEP_REF, SpecError, TEXT_TONE, axis, checkFlowEnd, count, dayOf, flowSteps, id, isDay, items, list, mustExist, object, oneOf, pair, refIssue, text, treeItem, treeSize, uniqueIds, whyNode, whySize, withoutSchemaField, withoutType} from './spec-kit.ts';
+import {CANVAS_LIMITS, SPEC_WIDTH, LEGEND_EN, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_TOTAL_TEXT, PART_EN, SPEC_VERSION, SpecError, items, list, object, oneOf, text, whyNode, whySize, withoutSchemaField} from './spec-kit.ts';
 import type {Json, JsonSchema, PartDef, SpecIssue} from './spec-kit.ts';
 export {SPEC_VERSION, CANVAS_LIMITS, MAX_TOTAL_TEXT, MAX_EMOJI, MAX_SWIMLANE_COLS, MAX_TREE_DEPTH, MAX_TREE_NODES, MAX_CAUSE_NODES, MAX_CAUSE_LINKS, MAX_ISSUES, SpecError, withoutSchemaField} from './spec-kit.ts';
 export type {JsonSchema, SpecIssue} from './spec-kit.ts';
@@ -28,407 +27,41 @@ import {PARTS_R7} from './spec-parts/r7.ts';
 import {BOARD} from './spec-parts/board.ts';
 
 import {defineFlowchartPart} from './spec-parts/flowchart.ts';
-
 import {definePyramidPart} from './spec-parts/pyramid.ts';
-
 import {defineFunnelPart} from './spec-parts/funnel.ts';
+import {defineCauseTreePart} from './spec-parts/cause-tree.ts';
+import {defineCloudPart} from './spec-parts/cloud.ts';
+import {defineValueChainPart} from './spec-parts/value-chain.ts';
+import {defineMindmapPart} from './spec-parts/mindmap.ts';
+import {defineQuadrantPart} from './spec-parts/quadrant.ts';
+import {defineChevronPart} from './spec-parts/chevron.ts';
+import {defineCyclePart} from './spec-parts/cycle.ts';
+import {defineStateDiagramPart} from './spec-parts/state-diagram.ts';
+import {defineGanttPart} from './spec-parts/gantt.ts';
+import {defineVennPart} from './spec-parts/venn.ts';
+import {defineTablePart} from './spec-parts/table.ts';
+import {defineJourneyMapPart} from './spec-parts/journey-map.ts';
+import {defineRaciPart} from './spec-parts/raci.ts';
+import {defineSwimlanePart} from './spec-parts/swimlane.ts';
+import {defineSequencePart} from './spec-parts/sequence.ts';
 
 const PARTS: readonly PartDef[] = [
   defineFlowchartPart<ReturnType<typeof flowchart>>(flowchart),
-  {
-    type: 'causeTree',
-    anchors: 'nodes',
-    description: "A Theory of Constraints logic tree or another cause-and-effect diagram: boxes joined by arrows from cause to effect. Set `tree`: 'crt' for a Current Reality Tree (undesirable effects as role ude at the top, root causes as role root at the bottom), 'frt' for a Future Reality Tree (changes as role injection, results as role de, facts nobody controls as role precondition), 'prt' for a Prerequisite Tree, 'tt' for a Transition Tree, 'nbr' for a Negative Branch. Give a link an array as `from` when the causes are only sufficient together (AND). Saying `tree` also turns on the checks for that kind of tree.",
-    schema: object({
-      type: {const: 'causeTree'},
-      nodes: list(object({
-        id: id('Referred to by links.'),
-        label: text('One entity, written as a statement.'),
-        sub: text('A second, muted line.'),
-        role: {...oneOf('effect', 'ude', 'root', 'de', 'injection', 'precondition', 'goal', 'obstacle', 'io', 'action', 'need', 'tipping', 'trim'), description: "ude: undesirable effect. root: root cause. de: desirable effect. injection: the change put in. precondition: a fact nobody controls. goal, obstacle, io (intermediate objective): prerequisite tree. action, need: transition tree. tipping, trim: negative branch. Default effect."},
-        tone: EMPHASIS_TONE,
-      }, ['id', 'label']), MAX_CAUSE_NODES, 1),
-      links: list(object({
-        from: {oneOf: [id('The cause.'), {type: 'array', items: id('A cause.'), minItems: 2, maxItems: 5, description: 'Causes that are sufficient only together (AND).'}], description: 'A node id, or several for an AND.'},
-        to: id('The effect.'),
-        line: LINE,
-        kind: {...oneOf('cause', 'blocks'), description: 'blocks: this entity cuts that one (a negative branch). Needs a single cause.'},
-        back: {enum: [true], description: 'true: the return arrow of a loop. Needs a single cause; one per cycle.'},
-      }, ['from', 'to']), MAX_CAUSE_LINKS),
-      tree: {...oneOf('crt', 'frt', 'prt', 'tt', 'nbr'), description: 'Which kind of tree this is. It does not change the drawing; it turns on the checks for that kind.'},
-      dir: {...oneOf('up', 'down', 'right', 'left', 'auto'), description: 'The way the arrows run (default up: causes at the bottom).'},
-      coreDriver: {type: 'boolean', description: 'true: mark the starting entity that reaches the most undesirable effects.'},
-      coreDriverLabel: text("The line under each starting entity with coreDriver: '{n}' is how many undesirable effects it reaches, '{total}' all of them.", 40),
-      maxNodeW: MAX_NODE_WIDTH,
-    }, ['type', 'nodes', 'links']),
-    example: {type: 'causeTree', tree: 'crt', nodes: [{id: 'late', label: '納期に遅れる', role: 'ude'}, {id: 'wip', label: '仕掛りが多い'}, {id: 'kpi', label: '稼働率で評価される', role: 'root'}], links: [{from: 'kpi', to: 'wip'}, {from: 'wip', to: 'late'}]},
-    check(part, at, issues) {
-      const nodes = uniqueIds(part, 'nodes', at, issues);
-      items(part, 'links').forEach((l, i) => {
-        const from = l['from'];
-        if (Array.isArray(from)) {
-          from.forEach((c, j) => mustExist(c, nodes, `${at}.links[${i}].from[${j}]`, 'node id', issues));
-          for (const key of ['kind', 'back']) if (l[key] !== undefined && !(key === 'kind' && l[key] === 'cause')) issues.push({path: `${at}.links[${i}].${key}`, message: 'needs a single cause, not an AND'});
-        } else mustExist(from, nodes, `${at}.links[${i}].from`, 'node id', issues);
-        mustExist(l['to'], nodes, `${at}.links[${i}].to`, 'node id', issues);
-      });
-    },
-    build(part) {
-      const {nodes, links, ...opts} = withoutType(part);
-      return causeTree(nodes as never, links as never, opts as never);
-    },
-  },
-  {
-    type: 'cloud',
-    description: 'A Theory of Constraints conflict cloud (evaporating cloud): the common objective A, the needs B and C, and the conflicting wants D and D2. B needs D, C needs D2. List the assumptions behind an arrow, and the injection that makes one false.',
-    schema: object({
-      type: {const: 'cloud'},
-      a: text('The common objective.'),
-      b: text('The need that D serves.'),
-      c: text('The need that D2 serves.'),
-      d: text('One side of the conflict.'),
-      d2: text('The other side of the conflict.'),
-      assumptions: list(object({
-        on: {...oneOf('ab', 'ac', 'bd', 'cd', 'dd'), description: 'The arrow: ab = B to A, ac = C to A, bd = D to B, cd = D2 to C, dd = the conflict between D and D2.'},
-        text: text('Written so that it reads as a belief that could be false.'),
-        injection: text('A change that makes the assumption false.'),
-      }, ['on', 'text']), 12),
-      conflictLabel: text('A word on the conflict arrow.', 20),
-      maxNodeW: MAX_NODE_WIDTH,
-    }, ['type', 'a', 'b', 'c', 'd', 'd2']),
-    example: {type: 'cloud', a: '製品を成功させる', b: '品質を確保する', c: '市場機会を逃さない', d: '検証に時間をかける', d2: '早くリリースする', assumptions: [{on: 'bd', text: '品質確保には長い検証が必須だ', injection: '自動テストで検証を短くする'}]},
-    check() {},
-    build(part) {
-      const {a, b, c, d, d2, ...opts} = withoutType(part);
-      return cloud({a, b, c, d, d2} as never, opts as never);
-    },
-  },
-  {
-    type: 'valueChain',
-    description: "Porter's value chain: support activities across the top and primary activities along the bottom, with a margin arrow at the right end.",
-    schema: object({
-      type: {const: 'valueChain'},
-      support: list(object({label: text('The activity.', 60), sub: text('What it covers.', 60), tone: EMPHASIS_TONE}, ['label']), 6),
-      primary: list(object({label: text('The activity.', 60), sub: text('What it covers.', 60), tone: EMPHASIS_TONE}, ['label']), 8, 1),
-      margin: {oneOf: [text('The label of the margin arrow.', 20), {type: 'boolean', enum: [false]}], description: 'The label of the arrow at the right end (default マージン), or false for none.'},
-      titles: {type: 'array', items: text('A heading.', 20), minItems: 2, maxItems: 2, description: 'The headings of the support and the primary activities (default 支援活動, 主活動).'},
-    }, ['type', 'primary']),
-    example: {type: 'valueChain', support: [{label: '全般管理'}, {label: '人事・労務管理'}, {label: '技術開発'}, {label: '調達活動'}], primary: [{label: '購買物流'}, {label: '製造'}, {label: '出荷物流'}, {label: '販売・マーケティング'}, {label: 'サービス'}]},
-    check() {},
-    build(part) {
-      const {support, primary, ...opts} = withoutType(part);
-      return valueChain({...(support === undefined ? {} : {support}), primary} as never, opts as never);
-    },
-  },
-  {
-    type: 'mindmap',
-    description: "A mind map: one root with branches, for organising a topic. `layout` also gives an org chart ('org'), an indented list ('list'), a brace map ('brace'), a fishbone cause-and-effect chart ('fishbone') and a timeline ('timeline').",
-    schema: object({
-      type: {const: 'mindmap'},
-      root: treeItem(MAX_TREE_DEPTH),
-      layout: {...oneOf('radial', 'right', 'left', 'down', 'up', 'org', 'list', 'brace', 'fishbone', 'timeline'), description: 'How the branches are laid out (default radial).'},
-      edges: {enum: ['elbow', 'curve', 'straight', false], description: 'How a branch line is drawn (default elbow); false for none.'},
-      maxNodeW: MAX_NODE_WIDTH,
-    }, ['type', 'root']),
-    example: {type: 'mindmap', root: {label: '在庫管理アプリ', tone: 'accent', children: [{label: '目的', children: [{label: '棚卸しの時間を半分に'}, {label: '欠品の防止'}]}, {label: '機能', children: [{label: 'バーコード読み取り'}, {label: '発注点アラート'}]}]}},
-    check(part, at, issues) {
-      const n = treeSize(part['root'] as Json);
-      if (n > MAX_TREE_NODES) issues.push({path: `${at}.root`, message: `has ${n} nodes; the limit is ${MAX_TREE_NODES}`});
-    },
-    build(part) {
-      const {root, ...opts} = withoutType(part);
-      return mindmap(root as never, opts as never);
-    },
-  },
-  {
-    type: 'quadrant',
-    description: "A matrix between two axes: 2x2 (or up to 4x4) cells, with items placed in a cell or at a coordinate, optionally as bubbles sized by a value. `preset` fills the axes and cells of a known framework: bcg (growth-share), ge (GE-McKinsey nine box), ansoff, nineBox (talent), impactEffort, risk (likelihood x impact), stakeholder (power x interest), positioning, eisenhower (urgent x important), actMatrix (ACT Matrix: five senses / inside x away / toward, with 気づいている自分 at the centre). The presets write their axes and cells in Japanese: with lang en, give x, y and cells (and centre) instead.",
-    schema: object({
-      type: {const: 'quadrant'},
-      preset: oneOf('bcg', 'ge', 'ansoff', 'nineBox', 'impactEffort', 'risk', 'stakeholder', 'positioning', 'eisenhower', 'actMatrix'),
-      x: axis('The horizontal axis.'),
-      y: axis('The vertical axis.'),
-      grid: pair({type: 'integer', minimum: 1, maximum: QUADRANT_GRID}, 'Columns and rows (default 2 x 2, or the preset).'),
-      cells: list(list(object({title: text('The caption of the cell.', 30), note: text('A note under it.', 60), tone: BOX_TONE}, []), QUADRANT_GRID), QUADRANT_GRID),
-      items: list(object({
-        label: text('The item.', 40),
-        cell: pair({type: 'integer', minimum: 0, maximum: QUADRANT_GRID - 1}, '[column, row] from the top-left as drawn.'),
-        at: pair({type: 'number', minimum: 0, maximum: 1}, '[x, y] from 0 to 1, 1 being high, instead of a cell.'),
-        size: {type: 'number', minimum: 0, maximum: 1e12, description: 'A bubble whose area is proportional to it.'},
-        tone: oneOf('accent', 'text', 'muted', 'danger'),
-        group: text('Items of one group share a marker and are listed in a legend.', 20),
-      }, ['label']), 40),
-      crosshair: {type: 'boolean', description: 'true: no gaps between the cells, read as one plot.'},
-      centre: {type: 'string', maxLength: 24, description: "A word where the crosshair lines meet (2 x 2 with crosshair only), such as the ACT Matrix's 気づいている自分; '' leaves out the preset's."},
-    }, ['type']),
-    example: {type: 'quadrant', preset: 'eisenhower', items: [{label: '障害の一次対応', cell: [0, 0]}, {label: '新人の育成計画', cell: [1, 0]}, {label: '定例会議の出席', cell: [0, 1]}, {label: 'ニュースの巡回', cell: [1, 1]}]},
-    check(part, at, issues) {
-      if (part['preset'] === undefined) for (const k of ['x', 'y']) if (part[k] === undefined) issues.push({path: `${at}.${k}`, message: 'is required without a preset: {title, low, high}'});
-      // centre: where the crosshair lines meet, so a 2 x 2 grid with crosshair (actMatrix has both, and a centre of its own)
-      // (the grid and the crosshair as quadrant() takes them: given, else the preset's, else the cells')
-      const {grid, crosshair, presetCentre} = quadrantDefaults(part as never), fromPreset = part['centre'] === undefined && presetCentre !== undefined;
-      const centre = typeof part['centre'] === 'string' ? part['centre'].trim() : presetCentre ?? '';
-      if (centre && !(grid[0] === 2 && grid[1] === 2 && crosshair)) issues.push(fromPreset
-        ? {path: `${at}.preset`, message: `${String(part['preset'])} writes ${presetCentre} where the crosshair lines meet: keep a 2 x 2 grid with crosshair, or write centre: ''`}
-        : {path: `${at}.centre`, message: `is written where the crosshair lines meet: it needs a 2 x 2 grid with crosshair: true (this one is ${grid[0]} x ${grid[1]}${crosshair ? '' : ' without crosshair'})`});
-      const sized = items(part, 'items').map(it => it['size'] !== undefined);
-      if (sized.includes(true)) sized.forEach((has, i) => { if (!has) issues.push({path: `${at}.items[${i}].size`, message: 'is required: give every item a size, or none (a bubble without one would read as a small value)'}); });
-      items(part, 'items').forEach((it, i) => {
-        if (it['cell'] === undefined && it['at'] === undefined) issues.push({path: `${at}.items[${i}]`, message: 'needs a cell ([column, row]) or a place (at: [x, y])'});
-        if (it['cell'] !== undefined && it['at'] !== undefined) issues.push({path: `${at}.items[${i}].at`, message: 'give a cell or a place, not both'});
-      });
-    },
-    build(part) {
-      return quadrant(withoutType(part) as never);
-    },
-  },
-  {
-    type: 'chevron',
-    description: 'Process steps as arrow shapes in a row (or a column): a sequence with no branches, such as the phases of a project. `current` marks the step in progress.',
-    schema: object({
-      type: {const: 'chevron'},
-      steps: flowSteps(2, 8),
-      direction: oneOf('horizontal', 'vertical'),
-      current: {type: 'integer', minimum: 1, maximum: 8, description: 'The step in progress, from 1.'},
-    }, ['type', 'steps']),
-    example: {type: 'chevron', steps: [{label: '計画', sub: '要件を確認'}, {label: '実装', sub: '小さく作る'}, {label: '検証', sub: '品質を確認'}, {label: '公開', sub: '利用を開始'}], current: 3},
-    check(part, at, issues) {
-      const n = items(part, 'steps').length, c = part['current'];
-      if (typeof c === 'number' && c > n) issues.push({path: `${at}.current`, message: `is ${c}, but there are ${n} steps`});
-    },
-    build(part) {
-      // the spec counts steps from 1 (as `steps` and loopBack do); chevron() takes a zero-based index
-      const {steps, current, ...opts} = withoutType(part);
-      return chevron(steps as never, {...opts, ...(typeof current === 'number' ? {current: current - 1} : {})} as never);
-    },
-  },
-  {
-    type: 'cycle',
-    description: 'Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model.',
-    schema: object({
-      type: {const: 'cycle'},
-      steps: flowSteps(3, 8),
-      centre: text('A word in the middle.', 30),
-      direction: {...oneOf('cw', 'ccw'), description: 'Clockwise (default) or counter-clockwise. Not with links.'},
-      links: {oneOf: [{type: 'string', enum: ['all']}, list(object({
-        from: STEP_REF('A step: a number from 1, its label or id.'),
-        to: STEP_REF('Another step.'),
-        label: text('The text on the link.', 20),
-        direction: {...oneOf('both', 'forward'), description: 'both (default): arrows at both ends; forward: from -> to.'},
-      }, ['from', 'to']), 28, 1)], description: "Instead of the arrows round the ring, the steps on a regular polygon (four on a square) joined pair by pair: 'all' (every pair, two-way; up to 6 steps) or the links to draw. The CBT five-part model (thoughts, emotions, body, behaviour)."},
-      frame: text('A frame round the figure and its name, such as 状況・環境 or the situation itself.', 60),
-    }, ['type', 'steps']),
-    example: {type: 'cycle', steps: [{label: 'Plan'}, {label: 'Do'}, {label: 'Check'}, {label: 'Act'}], centre: '継続改善'},
-    check(part, at, issues) {
-      const steps = items(part, 'steps'), links = part['links'];
-      if (links !== undefined && part['direction'] !== undefined) issues.push({path: `${at}.direction`, message: "turns the arrows round the ring; with links each link says its own (direction: 'forward')"});
-      if (links === 'all' && steps.length > 6) issues.push({path: `${at}.links`, message: `'all' joins every pair of up to 6 steps (there are ${steps.length}); list the links instead`});
-      // a step as a 0-based index (a number from 1, or a label / id), for the checks below
-      const index = (v: unknown) => typeof v === 'number' ? v - 1 : steps.findIndex(x => x['label'] === v || x['id'] === v);
-      const pairs = new Set<string>();
-      if (Array.isArray(links)) items(part, 'links').forEach((l, i) => {
-        const before = issues.length;
-        for (const k of ['from', 'to']) refIssue(l[k], steps.length, steps, `${at}.links[${i}].${k}`, 'steps', issues);
-        if (issues.length > before) return; // (a name that is no step, or two: which pair it joins is not known)
-        const a = index(l['from']), b = index(l['to']);
-        if (a < 0 || b < 0 || a >= steps.length || b >= steps.length) return;
-        if (a === b) { issues.push({path: `${at}.links[${i}]`, message: 'joins a step to itself'}); return; }
-        const key = `${Math.min(a, b)},${Math.max(a, b)}`;
-        if (pairs.has(key)) issues.push({path: `${at}.links[${i}]`, message: "joins two steps another link already joins: keep one (it is two-way unless direction: 'forward')"});
-        pairs.add(key);
-      });
-    },
-    build(part) {
-      const {steps, ...opts} = withoutType(part);
-      return cycle(steps as never, opts as never);
-    },
-  },
+  defineCauseTreePart<ReturnType<typeof causeTree>>(causeTree),
+  defineCloudPart<ReturnType<typeof cloud>>(cloud),
+  defineValueChainPart<ReturnType<typeof valueChain>>(valueChain),
+  defineMindmapPart<ReturnType<typeof mindmap>>(mindmap),
+  defineQuadrantPart<ReturnType<typeof quadrant>>(quadrant),
+  defineChevronPart<ReturnType<typeof chevron>>(chevron),
+  defineCyclePart<ReturnType<typeof cycle>>(cycle),
   definePyramidPart(pyramid),
-  {
-    type: 'stateDiagram',
-    anchors: 'states',
-    description: 'A state diagram: the states something goes through and the events that move it, such as an order or a ticket. `initial` draws the start dot; a final state has a double outline.',
-    schema: object({
-      type: {const: 'stateDiagram'},
-      states: list(object({
-        id: id('Referred to by transitions.'),
-        label: text('The state.', 40),
-        sub: text('A second, muted line.', 60),
-        tone: EMPHASIS_TONE,
-        final: {type: 'boolean', description: 'true: an end state (double outline).'},
-      }, ['id', 'label']), 25, 1),
-      transitions: list(object({
-        from: id('A state id.'),
-        to: id('A state id (the same one for a loop).'),
-        label: text('The event or condition.', 40),
-        line: LINE,
-        tone: oneOf('danger', 'accent', 'muted'),
-      }, ['from', 'to']), 40),
-      initial: id('The state that starts.'),
-      dir: {...oneOf('right', 'down', 'auto'), description: 'The direction of the flow (default right, turning when it does not fit).'},
-    }, ['type', 'states', 'transitions']),
-    example: {type: 'stateDiagram', initial: 'new', states: [{id: 'new', label: '受付済み'}, {id: 'paid', label: '入金済み'}, {id: 'done', label: '完了', final: true}], transitions: [{from: 'new', to: 'paid', label: '入金'}, {from: 'paid', to: 'done', label: '出荷'}]},
-    check(part, at, issues) {
-      const states = uniqueIds(part, 'states', at, issues);
-      items(part, 'transitions').forEach((t, i) => {
-        mustExist(t['from'], states, `${at}.transitions[${i}].from`, 'state id', issues);
-        mustExist(t['to'], states, `${at}.transitions[${i}].to`, 'state id', issues);
-      });
-      if (part['initial'] !== undefined) mustExist(part['initial'], states, `${at}.initial`, 'state id', issues);
-    },
-    build(part) {
-      const {states, transitions, ...opts} = withoutType(part);
-      return stateDiagram(states as never, transitions as never, opts as never);
-    },
-  },
-  {
-    type: 'gantt',
-    anchors: 'rows',
-    description: 'A Gantt chart: tasks as bars on a calendar, grouped by sections, with milestones, progress and arrows from the tasks a task waits for. Dates are YYYY-MM-DD; give `today` to draw the line of today.',
-    schema: object({
-      type: {const: 'gantt'},
-      rows: list({oneOf: [
-        object({section: text('The name of a group of tasks.', 40)}, ['section']),
-        object({
-          label: text('The task.', 40),
-          id: id('Needed to be named in `after`.'),
-          start: DATE,
-          end: {...DATE, description: 'The last day (inclusive). Or give days.'},
-          days: {type: 'integer', minimum: 1, maximum: 730, description: 'How many days, instead of end.'},
-          milestone: {type: 'boolean', description: 'true: one day, drawn as a diamond.'},
-          progress: {type: 'number', minimum: 0, maximum: 1, description: 'How much is done, 0 to 1.'},
-          after: {oneOf: [id('A task id.'), {type: 'array', items: id('A task id.'), minItems: 1, maxItems: 5}], description: 'The tasks this one waits for.'},
-          tone: oneOf('danger', 'accent', 'muted'),
-        }, ['label', 'start']),
-      ]}, 30, 1),
-      today: {...DATE, description: 'Today, for the line of today (YYYY-MM-DD).'},
-      todayLabel: text('The word on the line of today.', 20),
-      from: {...DATE, description: 'Where the calendar starts (default: the first start).'},
-      to: {...DATE, description: 'Where the calendar ends (default: the last end).'},
-    }, ['type', 'rows']),
-    example: {type: 'gantt', today: '2026-10-26', rows: [{section: '設計'}, {id: 'req', label: '要件定義', start: '2026-10-05', end: '2026-10-16', progress: 1}, {id: 'ui', label: '画面設計', start: '2026-10-19', end: '2026-10-30', progress: 0.5, after: 'req'}, {section: '開発'}, {id: 'app', label: '実装', start: '2026-11-02', end: '2026-11-20', after: 'ui'}, {label: 'リリース', start: '2026-11-24', milestone: true, after: 'app'}]},
-    check(part, at, issues) {
-      const tasks = items(part, 'rows').filter(r => r['section'] === undefined);
-      const ids = new Set(tasks.flatMap(t => typeof t['id'] === 'string' ? [t['id']] : []));
-      items(part, 'rows').forEach((r, i) => {
-        if (r['section'] !== undefined) return;
-        for (const k of ['start', 'end']) if (r[k] !== undefined && !isDay(r[k])) issues.push({path: `${at}.rows[${i}].${k}`, message: `"${String(r[k])}" is not a day written YYYY-MM-DD`});
-        if (r['end'] !== undefined && r['days'] !== undefined) issues.push({path: `${at}.rows[${i}].days`, message: 'give end or days, not both'});
-        if (isDay(r['start']) && isDay(r['end']) && dayOf(r['end'] as string) < dayOf(r['start'] as string)) issues.push({path: `${at}.rows[${i}].end`, message: 'is before start'});
-        if (r['milestone'] !== true && r['end'] === undefined && r['days'] === undefined) issues.push({path: `${at}.rows[${i}]`, message: 'needs end, days, or milestone: true'});
-        const after = r['after'];
-        (Array.isArray(after) ? after : after === undefined ? [] : [after]).forEach((a, j) => mustExist(a, ids, Array.isArray(after) ? `${at}.rows[${i}].after[${j}]` : `${at}.rows[${i}].after`, 'task id', issues));
-      });
-      for (const k of ['today', 'from', 'to']) if (part[k] !== undefined && !isDay(part[k])) issues.push({path: `${at}.${k}`, message: `"${String(part[k])}" is not a day written YYYY-MM-DD`});
-      const days = tasks.flatMap(t => [t['start'], t['end']]).filter(isDay).map(v => dayOf(v as string));
-      if (days.length && Math.max(...days) - Math.min(...days) > 1100) issues.push({path: `${at}.rows`, message: 'span more than three years: split the plan, or give it in larger steps'});
-    },
-    build(part) {
-      const {rows, ...opts} = withoutType(part);
-      return gantt(rows as never, opts as never);
-    },
-  },
-  {
-    type: 'venn',
-    description: 'A Venn diagram of two or three sets: what each has, and what they share. Overlaps are named by the names of their sets.',
-    schema: object({
-      type: {const: 'venn'},
-      sets: list(object({name: text('The name of the set.', 20), label: text('What is only in this set.', 40), tone: TEXT_TONE}, ['name']), 3, 2),
-      overlaps: list(object({sets: {type: 'array', items: text('A set name.', 20), minItems: 2, maxItems: 3}, label: text('What the sets share.', 40)}, ['sets', 'label']), 4),
-      centre: text('What all the sets share.', 30),
-      universe: text('The name of the whole, drawn as a frame.', 30),
-    }, ['type', 'sets']),
-    example: {type: 'venn', sets: [{name: '技術'}, {name: '顧客理解'}], overlaps: [{sets: ['技術', '顧客理解'], label: '価値'}], universe: 'チーム'},
-    check(part, at, issues) {
-      const names = uniqueIds(part, 'sets', at, issues, 'name');
-      items(part, 'overlaps').forEach((o, i) => ((o['sets'] as unknown[] | undefined) ?? []).forEach((n, j) => mustExist(n, names, `${at}.overlaps[${i}].sets[${j}]`, 'set name', issues)));
-    },
-    build(part) {
-      const {sets, ...opts} = withoutType(part);
-      return venn(sets as never, opts as never);
-    },
-  },
+  defineStateDiagramPart<ReturnType<typeof stateDiagram>>(stateDiagram),
+  defineGanttPart<ReturnType<typeof gantt>>(gantt),
+  defineVennPart<ReturnType<typeof venn>>(venn),
   defineFunnelPart(funnel),
-  {
-    type: 'table',
-    description: 'A table: columns with headings and rows of text or numbers, such as a comparison of options. A row can be an object with a tone to stand out.',
-    schema: object({
-      type: {const: 'table'},
-      columns: list(object({label: text('The heading.', 30), flex: {type: 'integer', minimum: 1, maximum: 6, description: 'The share of the width (default 1).'}}, ['label']), 8, 1),
-      rows: list({oneOf: [
-        {type: 'array', items: CELL, minItems: 1, maxItems: 8, description: 'The cells, one per column.'},
-        object({cells: {type: 'array', items: CELL, minItems: 1, maxItems: 8}, tone: BOX_TONE}, ['cells']),
-      ]}, 30, 1),
-      title: text('A title bar over the table.', 40),
-      rowHeader: {type: 'boolean', description: 'true: the first column is a heading for its row.'},
-      dense: {type: 'boolean', description: 'true: tighter rows.'},
-    }, ['type', 'columns', 'rows']),
-    example: {type: 'table', title: 'プランの比較', rowHeader: true, columns: [{label: '項目'}, {label: 'ライト'}, {label: 'スタンダード'}, {label: 'プロ'}], rows: [['月額', '980 円', '2,980 円', '9,800 円'], ['利用人数', '1 人', '10 人', '無制限'], {cells: ['サポート', 'メール', 'メール・チャット', '専任担当'], tone: 'accent'}]},
-    check(part, at, issues) {
-      const n = items(part, 'columns').length;
-      (part['rows'] as unknown[]).forEach((r, i) => {
-        const cells = Array.isArray(r) ? r : (r as Json)['cells'];
-        if (Array.isArray(cells) && cells.length !== n) issues.push({path: `${at}.rows[${i}]`, message: `has ${cells.length} cells; the table has ${n} columns`});
-      });
-    },
-    build(part) {
-      const {columns, rows, ...opts} = withoutType(part);
-      return table(columns as never, rows as never, opts as never);
-    },
-  },
-  {
-    type: 'journeyMap',
-    description: "A customer journey map: the stages across the top, and rows (lanes) such as actions, touchpoints, feelings and issues. The lane with id 'emotion' holds a number from -2 (bad) to 2 (good) per stage and is drawn as a curve of feelings.",
-    schema: object({
-      type: {const: 'journeyMap'},
-      stages: list(text('A stage.', 20), 8, 2),
-      lanes: list(object({id: id('A name for the lane.'), label: text('What the lane holds.', 20), cells: {type: 'array', items: CELL, minItems: 1, maxItems: 8, description: 'One per stage.'}}, ['id', 'label', 'cells']), 8, 1),
-      title: text('A title bar.', 40),
-      corner: text('The top-left heading.', 30),
-    }, ['type', 'stages', 'lanes']),
-    example: {type: 'journeyMap', stages: ['認知', '検討', '購入', '利用'], lanes: [{id: 'act', label: '行動', cells: ['広告を見る', '比較する', '申し込む', '使う']}, {id: 'emotion', label: '感情', cells: [0, -1, 1, 2]}, {id: 'issue', label: '課題', cells: ['違いが不明', '送料が不明', '入力が多い', '使い方が不明']}]},
-    check(part, at, issues) {
-      const n = items(part, 'stages').length;
-      uniqueIds(part, 'lanes', at, issues);
-      items(part, 'lanes').forEach((l, i) => {
-        const cells = l['cells'] as unknown[];
-        if (cells.length !== n) issues.push({path: `${at}.lanes[${i}].cells`, message: `has ${cells.length} cells; there are ${n} stages`});
-        if (l['id'] === 'emotion') cells.forEach((c, j) => { if (typeof c !== 'number' || c < -2 || c > 2) issues.push({path: `${at}.lanes[${i}].cells[${j}]`, message: 'a feeling is a number from -2 (bad) to 2 (good)'}); });
-      });
-    },
-    build(part) {
-      const {stages, lanes, ...opts} = withoutType(part);
-      return journeyMap(stages as never, lanes as never, opts as never);
-    },
-  },
-  {
-    type: 'raci',
-    description: 'A RACI chart: who is Responsible, Accountable, Consulted and Informed for each task. Each task has exactly one A and at least one R. A cell can hold several letters, such as A/R.',
-    schema: object({
-      type: {const: 'raci'},
-      tasks: list(text('A task.', 40), 15, 1),
-      roles: list(text('A role.', 20), 8, 1),
-      assignments: list({type: 'array', items: {type: 'string', maxLength: 7, description: "R, A, C, I, a combination such as 'A/R', or '' for none."}, minItems: 1, maxItems: 8}, 15, 1),
-      title: text('A title bar.', 40),
-      corner: text('The top-left heading.', 30),
-      legend: {type: 'boolean', description: 'true: add a row that spells out the four letters.'},
-    }, ['type', 'tasks', 'roles', 'assignments']),
-    example: {type: 'raci', title: 'RACI 責任分担表', legend: true, tasks: ['要件定義', '画面設計', 'リリース判定'], roles: ['PM', 'デザイン', '開発', '事業責任者'], assignments: [['R', 'C', 'C', 'A'], ['A', 'R', 'C', 'I'], ['R', 'I', 'C', 'A']]},
-    check(part, at, issues) {
-      const tasks = items(part, 'tasks').length, roles = items(part, 'roles').length, rows = part['assignments'] as unknown[][];
-      if (rows.length !== tasks) issues.push({path: `${at}.assignments`, message: `has ${rows.length} rows; there are ${tasks} tasks`});
-      rows.forEach((r, i) => {
-        if (r.length !== roles) issues.push({path: `${at}.assignments[${i}]`, message: `has ${r.length} cells; there are ${roles} roles`});
-        r.forEach((c, j) => { if (typeof c === 'string' && !/^\s*(?:[RACI](?:\s*\/\s*[RACI])*)?\s*$/i.test(c)) issues.push({path: `${at}.assignments[${i}][${j}]`, message: `"${c}" must be R, A, C, I, letters joined by /, or empty`}); });
-        if (r.every(c => typeof c === 'string') && r.filter(c => /A/i.test(c as string)).length !== 1) issues.push({path: `${at}.assignments[${i}]`, message: 'needs exactly one A (Accountable)'});
-        if (r.every(c => typeof c === 'string') && !r.some(c => /R/i.test(c as string))) issues.push({path: `${at}.assignments[${i}]`, message: 'needs at least one R (Responsible)'});
-      });
-    },
-    build(part) {
-      const {tasks, roles, assignments, ...opts} = withoutType(part);
-      return raci(tasks as never, roles as never, assignments as never, opts as never);
-    },
-  },
+  defineTablePart<ReturnType<typeof table>>(table),
+  defineJourneyMapPart<ReturnType<typeof journeyMap>>(journeyMap),
+  defineRaciPart<ReturnType<typeof raci>>(raci),
   {
     type: 'whyWhyTree',
     description: 'A why-why analysis (5 whys): the problem at the top, each answer to "why?" below the one it explains, root causes in a double frame, and what is done about each. Each answer should be a fact, not a person.',
@@ -447,117 +80,8 @@ const PARTS: readonly PartDef[] = [
       return whyWhyTree(part['problem'] as string, part['whys'] as never, part['readingNote'] === undefined ? {} : {readingNote: part['readingNote'] as boolean});
     },
   },
-  {
-    type: 'swimlane',
-    anchors: 'steps',
-    description: 'A swimlane: who does what over time. Lanes are the actors, columns are time. A step without `col` goes in the column after the step written before it, in any lane, so give `col` to line steps up; at most 8 columns. A label on a flow needs room: it fits on a flow that crosses both a lane and a column, but rarely between two touching steps.',
-    schema: object({
-      type: {const: 'swimlane'},
-      lanes: list(object({
-        id: id('Referred to by steps.'),
-        label: text('The name of the lane.', 60),
-        tone: BOX_TONE,
-      }, ['id', 'label']), 12, 1),
-      steps: list(object({
-        id: id('Needed to be the end of a flow.'),
-        lane: id('A lane id.'),
-        title: text('The text of the step.'),
-        body: text('A second, smaller text.'),
-        note: text('A small note.'),
-        tag: text('A short tag on the corner.', 20),
-        tone: BOX_TONE,
-        col: count('The column, from 1.', MAX_SWIMLANE_COLS),
-        span: count('How many columns it covers.', MAX_SWIMLANE_COLS),
-        row: count('Stacks overlapping work in one lane, from 1.', 8),
-      }, ['lane', 'title']), 50, 1),
-      flows: list(object({
-        from: id("A step id, or 'id:side' (left, right, top, bottom, center)."),
-        to: id("A step id, or 'id:side'."),
-        label: text('The text on the arrow.', 60),
-        line: LINE,
-        arrow: ARROW,
-        tone: TEXT_TONE,
-      }, ['from', 'to']), 60),
-      phases: list(object({
-        label: text('The name of the stage.', 60),
-        from: count('The first column.', MAX_SWIMLANE_COLS),
-        to: count('The last column.', MAX_SWIMLANE_COLS),
-      }, ['label', 'from', 'to']), 20),
-      colGap: {type: 'integer', minimum: 12, maximum: 96, description: 'The gap between columns in px (default 28). Raise it to make room for labels on flows between neighbouring columns.'},
-      boundaries: list({oneOf: [
-        object({after: id('A lane id: the line goes below it.'), label: text('The name of the line.', 40)}, ['after']),
-        object({between: {type: 'array', items: id('A lane id.'), minItems: 2, maxItems: 2, description: 'Two neighbouring lane ids.'}, label: text('The name of the line.', 40)}, ['between']),
-      ]}, 12),
-    }, ['type', 'lanes', 'steps']),
-    example: {type: 'swimlane', lanes: [{id: 'c', label: '顧客'}, {id: 's', label: '営業'}], steps: [{id: 'a', lane: 'c', title: '問い合わせる'}, {id: 'b', lane: 's', title: '見積もりを出す', col: 2}], flows: [{from: 'a', to: 'b'}]},
-    check(part, at, issues) {
-      const lanes = uniqueIds(part, 'lanes', at, issues), steps = uniqueIds(part, 'steps', at, issues);
-      items(part, 'steps').forEach((s, i) => {
-        mustExist(s['lane'], lanes, `${at}.steps[${i}].lane`, 'lane id', issues);
-        if (typeof s['id'] === 'string' && /[:@]/.test(s['id'])) issues.push({path: `${at}.steps[${i}].id`, message: `"${s['id']}" must not contain ':' or '@' (a flow reads what follows them as a side and a position)`});
-      });
-      items(part, 'phases').forEach((p, i) => {
-        if ((p['from'] as number) > (p['to'] as number)) issues.push({path: `${at}.phases[${i}].to`, message: `must not be before from (${String(p['from'])})`});
-      });
-      items(part, 'flows').forEach((f, i) => {
-        checkFlowEnd(f['from'], steps, `${at}.flows[${i}].from`, issues);
-        checkFlowEnd(f['to'], steps, `${at}.flows[${i}].to`, issues);
-      });
-      const order = items(part, 'lanes').map(l => l['id']);
-      items(part, 'boundaries').forEach((b, i) => {
-        if (b['after'] !== undefined) {
-          mustExist(b['after'], lanes, `${at}.boundaries[${i}].after`, 'lane id', issues);
-          if (b['after'] === order[order.length - 1]) issues.push({path: `${at}.boundaries[${i}].after`, message: `"${String(b['after'])}" is the last lane: there is no boundary below it`});
-        }
-        const between = (b['between'] as unknown[] | undefined) ?? [];
-        between.forEach((l, j) => mustExist(l, lanes, `${at}.boundaries[${i}].between[${j}]`, 'lane id', issues));
-        if (between.length === 2 && between.every(l => order.includes(l)) && order.indexOf(between[1]) - order.indexOf(between[0]) !== 1) issues.push({path: `${at}.boundaries[${i}].between`, message: 'must name two neighbouring lanes, the upper one first'});
-      });
-    },
-    build(part, at) {
-      const {lanes, steps, ...opts} = withoutType(part);
-      // the spec counts rows from 1 (as it does col); swimlane() stacks sub-rows from 0
-      const placed = (steps as Json[]).map(s => typeof s['row'] === 'number' ? {...s, row: s['row'] - 1} : s);
-      const bands = swimlane(lanes as never, placed as never, opts as never) as unknown as {type: string; cols?: number}[];
-      const cols = bands.find(b => b.type === 'swimlane')?.cols ?? 0;
-      if (cols > MAX_SWIMLANE_COLS) throw new SpecError([{path: `${at}.steps`, message: `uses ${cols} columns; the limit is ${MAX_SWIMLANE_COLS}. Give steps that happen together the same col`}]);
-      const late = items(part, 'phases').flatMap((p, i) => (p['to'] as number) > cols ? [{path: `${at}.phases[${i}].to`, message: `is ${String(p['to'])}, but the steps use ${cols} column(s)`}] : []);
-      if (late.length) throw new SpecError(late);
-      return bands;
-    },
-  },
-  {
-    type: 'sequence',
-    description: 'A sequence diagram: messages between participants in time order. A step is a message (from, to, label), a self call (self, label), a note (note, over) or a divider (divider).',
-    schema: object({
-      type: {const: 'sequence'},
-      actors: list(object({
-        id: id('Referred to by steps.'),
-        label: text('The name of the participant.', 60),
-        tone: BOX_TONE,
-      }, ['id', 'label']), 12, 1),
-      steps: list({oneOf: [
-        object({from: id('An actor id.'), to: id('An actor id.'), label: text('The message.'), line: oneOf('solid', 'dashed', 'dotted'), arrow: ARROW, tone: TEXT_TONE}, ['from', 'to', 'label']),
-        object({self: id('An actor id.'), label: text('The call.'), line: LINE, tone: TEXT_TONE}, ['self', 'label']),
-        object({note: text('The note.'), over: list(id('An actor id.'), 12, 1), tone: BOX_TONE}, ['note', 'over']),
-        object({divider: text('The name of the phase.', 60)}, ['divider']),
-      ]}, 50, 1),
-      numbered: {type: 'boolean', description: 'false: do not number the messages.'},
-    }, ['type', 'actors', 'steps']),
-    example: {type: 'sequence', actors: [{id: 'u', label: '利用者'}, {id: 'api', label: 'API'}], steps: [{from: 'u', to: 'api', label: 'ログインする'}, {from: 'api', to: 'u', label: 'トークンを返す', line: 'dashed'}]},
-    check(part, at, issues) {
-      const actors = uniqueIds(part, 'actors', at, issues);
-      items(part, 'steps').forEach((s, i) => {
-        for (const key of ['from', 'to', 'self']) if (s[key] !== undefined) mustExist(s[key], actors, `${at}.steps[${i}].${key}`, 'actor id', issues);
-        if (s['from'] !== undefined && s['from'] === s['to']) issues.push({path: `${at}.steps[${i}].to`, message: "is the same actor as from: write a self call (self, label) instead"});
-        ((s['over'] as unknown[] | undefined) ?? []).forEach((a, j) => mustExist(a, actors, `${at}.steps[${i}].over[${j}]`, 'actor id', issues));
-      });
-    },
-    build(part) {
-      const {actors, steps, ...opts} = withoutType(part);
-      return sequence(actors as never, steps as never, opts as never);
-    },
-  },
+  defineSwimlanePart<ReturnType<typeof swimlane>>(swimlane),
+  defineSequencePart<ReturnType<typeof sequence>>(sequence),
   ...PARTS_R1, ...PARTS_R2, ...PARTS_R3, ...PARTS_R4, ...PARTS_R5, ...PARTS_R6, ...PARTS_R7,
   BOARD,
 ];

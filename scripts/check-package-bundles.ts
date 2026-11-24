@@ -148,6 +148,13 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [pyramidPart],
       });
     `, include: 'spec-selective.js', budget: {esbuild: 66000, Vite: 88000}, bands: ['pyramid.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/flowchart.js', 'spec-parts/funnel.js', 'spec-parts/r1.js', 'dsl-pure.js', 'layout-connect.js'], draw: true},
+    {name: 'Selected table spec', source: `
+      import {renderSpec} from 'svg-diagram/spec/selective';
+      import {tablePart} from 'svg-diagram/spec/parts/table';
+      export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [{type: 'table', columns: [{label: 'Review'}], rows: [['Done']]}]}, {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [tablePart],
+      });
+    `, include: 'spec-parts/selective/table.js', budget: {esbuild: 83000, Vite: 108000}, bands: ['table.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/swimlane.js', 'spec-parts/gantt.js', 'dsl-pure.js', 'layout-connect.js'], draw: true},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
       exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 52000, Vite: 65000}},

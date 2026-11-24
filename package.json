@@ -122,9 +122,24 @@
     "./dist/lib/spec-parts/r5.js",
     "./dist/lib/spec-parts/r6.js",
     "./dist/lib/spec-parts/r7.js",
+    "./dist/lib/spec-parts/selective/cause-tree.js",
+    "./dist/lib/spec-parts/selective/chevron.js",
+    "./dist/lib/spec-parts/selective/cloud.js",
+    "./dist/lib/spec-parts/selective/cycle.js",
     "./dist/lib/spec-parts/selective/flowchart.js",
     "./dist/lib/spec-parts/selective/funnel.js",
+    "./dist/lib/spec-parts/selective/gantt.js",
+    "./dist/lib/spec-parts/selective/journey-map.js",
+    "./dist/lib/spec-parts/selective/mindmap.js",
     "./dist/lib/spec-parts/selective/pyramid.js",
+    "./dist/lib/spec-parts/selective/quadrant.js",
+    "./dist/lib/spec-parts/selective/raci.js",
+    "./dist/lib/spec-parts/selective/sequence.js",
+    "./dist/lib/spec-parts/selective/state-diagram.js",
+    "./dist/lib/spec-parts/selective/swimlane.js",
+    "./dist/lib/spec-parts/selective/table.js",
+    "./dist/lib/spec-parts/selective/value-chain.js",
+    "./dist/lib/spec-parts/selective/venn.js",
     "./dist/lib/spec.js",
     "./dist/lib/svg-outline.js",
     "./dist/lib/tokens.js",
@@ -479,17 +494,77 @@
       "types": "./dist/lib/render-source.d.ts",
       "default": "./dist/lib/render-source.js"
     },
+    "./spec/parts/cause-tree": {
+      "types": "./dist/lib/spec-parts/selective/cause-tree.d.ts",
+      "default": "./dist/lib/spec-parts/selective/cause-tree.js"
+    },
+    "./spec/parts/chevron": {
+      "types": "./dist/lib/spec-parts/selective/chevron.d.ts",
+      "default": "./dist/lib/spec-parts/selective/chevron.js"
+    },
+    "./spec/parts/cloud": {
+      "types": "./dist/lib/spec-parts/selective/cloud.d.ts",
+      "default": "./dist/lib/spec-parts/selective/cloud.js"
+    },
+    "./spec/parts/cycle": {
+      "types": "./dist/lib/spec-parts/selective/cycle.d.ts",
+      "default": "./dist/lib/spec-parts/selective/cycle.js"
+    },
+    "./spec/parts/flowchart": {
+      "types": "./dist/lib/spec-parts/selective/flowchart.d.ts",
+      "default": "./dist/lib/spec-parts/selective/flowchart.js"
+    },
     "./spec/parts/funnel": {
       "types": "./dist/lib/spec-parts/selective/funnel.d.ts",
       "default": "./dist/lib/spec-parts/selective/funnel.js"
+    },
+    "./spec/parts/gantt": {
+      "types": "./dist/lib/spec-parts/selective/gantt.d.ts",
+      "default": "./dist/lib/spec-parts/selective/gantt.js"
+    },
+    "./spec/parts/journey-map": {
+      "types": "./dist/lib/spec-parts/selective/journey-map.d.ts",
+      "default": "./dist/lib/spec-parts/selective/journey-map.js"
+    },
+    "./spec/parts/mindmap": {
+      "types": "./dist/lib/spec-parts/selective/mindmap.d.ts",
+      "default": "./dist/lib/spec-parts/selective/mindmap.js"
     },
     "./spec/parts/pyramid": {
       "types": "./dist/lib/spec-parts/selective/pyramid.d.ts",
       "default": "./dist/lib/spec-parts/selective/pyramid.js"
     },
-    "./spec/parts/flowchart": {
-      "types": "./dist/lib/spec-parts/selective/flowchart.d.ts",
-      "default": "./dist/lib/spec-parts/selective/flowchart.js"
+    "./spec/parts/quadrant": {
+      "types": "./dist/lib/spec-parts/selective/quadrant.d.ts",
+      "default": "./dist/lib/spec-parts/selective/quadrant.js"
+    },
+    "./spec/parts/raci": {
+      "types": "./dist/lib/spec-parts/selective/raci.d.ts",
+      "default": "./dist/lib/spec-parts/selective/raci.js"
+    },
+    "./spec/parts/sequence": {
+      "types": "./dist/lib/spec-parts/selective/sequence.d.ts",
+      "default": "./dist/lib/spec-parts/selective/sequence.js"
+    },
+    "./spec/parts/state-diagram": {
+      "types": "./dist/lib/spec-parts/selective/state-diagram.d.ts",
+      "default": "./dist/lib/spec-parts/selective/state-diagram.js"
+    },
+    "./spec/parts/swimlane": {
+      "types": "./dist/lib/spec-parts/selective/swimlane.d.ts",
+      "default": "./dist/lib/spec-parts/selective/swimlane.js"
+    },
+    "./spec/parts/table": {
+      "types": "./dist/lib/spec-parts/selective/table.d.ts",
+      "default": "./dist/lib/spec-parts/selective/table.js"
+    },
+    "./spec/parts/value-chain": {
+      "types": "./dist/lib/spec-parts/selective/value-chain.d.ts",
+      "default": "./dist/lib/spec-parts/selective/value-chain.js"
+    },
+    "./spec/parts/venn": {
+      "types": "./dist/lib/spec-parts/selective/venn.d.ts",
+      "default": "./dist/lib/spec-parts/selective/venn.js"
     },
     "./spec/selective": {
       "types": "./dist/lib/spec-selective.d.ts",

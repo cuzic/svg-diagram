@@ -8,7 +8,7 @@ import type {LaidOutTable, TableBand, TableColumn, TableOpts, TableRow} from '..
 
 export {cell} from '../dsl/sequence-table-swimlane.ts';
 
-const definition = {
+export const tableDefinition: BandDef<TableBand, LaidOutTable> = {
   type: 'table',
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of tableTexts(data, roles)) atoms(text, size, weight, font);
@@ -19,9 +19,9 @@ const definition = {
   },
   emit: (laid, {theme, tones, roles}) => renderTable(laid, theme, tones, roles),
   svgDefs: laid => ({mono: laid.rows.some(row => row.cells.some(cell => cell.mono && cell.lines.length))}),
-} satisfies BandDef<TableBand, LaidOutTable>;
+};
 
 export function table<const Id extends string = never>(columns: TableColumn[], rows: readonly TableRow[], opts?: TableOpts & {id?: Id}): WithBandDef<ReturnType<typeof build<Id>>, LaidOutTable> {
   const data = build<Id>(columns, rows, opts);
-  return band<typeof data, LaidOutTable>(definition, data);
+  return band<typeof data, LaidOutTable>(tableDefinition, data);
 }
