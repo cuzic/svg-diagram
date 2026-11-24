@@ -706,6 +706,14 @@ try {
     {name: 'combo', source: composedSource([], "combo(['Review', 'Next'], [{label: 'Plan', type: 'bar', values: [4, 5]}])", "import {combo} from 'svg-diagram/bands/combo';"),
       include: 'bands/combo.js', budget: {esbuild: 102000, Vite: 125000}, exclude: [...legacy, 'dsl/charts.js', 'charts-dsl.js', 'lib/charts.js', 'semnet.js', 'charts-compare.js', 'semnet-pert.js', 'semnet-causal.js', 'semnet-dependency.js'], draw: true},
   ];
+  const testedBandModules = {esbuild: new Set<string>(), Vite: new Set<string>()};
+  function recordBandModules(bundler: keyof typeof testedBandModules, files: readonly string[]) {
+    for (const file of files) {
+      const match = /(?:^|\/)bands\/([^/]+\.js)$/.exec(file.replaceAll('\\', '/'));
+      if (match?.[1]) testedBandModules[bundler].add(match[1]);
+    }
+  }
+
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;
     const catalog = 'catalog' in testCase && testCase.catalog;
@@ -772,6 +780,7 @@ try {
       const limit = budget?.[bundler];
       if (limit !== undefined) assert.ok(bytes <= limit, `${label} が ${limit} バイトを超えています (${bytes})`);
       if (draw) {
+        recordBandModules(bundler, files);
         assert.ok(code);
         if (overlaySelection) {
           assert.equal(code.includes('"drawDialog"'), name === 'Selected wireframe dialog', label);
@@ -1020,6 +1029,7 @@ try {
     assert.match(result.svg, /<image [^>]*href="data:image\/gif;base64,/);
     assert.deepEqual(result.xml, []);
     assert.equal(result.verdict.ok, true);
+    recordBandModules(bundler, files);
     const bytes = Buffer.byteLength(code);
     assert.ok(bytes <= 70000, `${label}: ${bytes} bytes exceeds 70000`);
     console.log(`${label}: ${bytes} bytes`);
@@ -1048,7 +1058,17 @@ try {
     assert.match(drawn.svg, /<g data-math=""[^>]*aria-label="Square"[^>]*>[\s\S]*?<path /);
     assert.deepEqual(drawn.xml, []);
     assert.equal(drawn.verdict.ok, true);
+    recordBandModules(bundler, files);
     console.log(`${label}: ${bytes} bytes`);
+  }
+
+  const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const bandEntries = Object.entries<{default?: string; node?: string}>(manifest.exports)
+    .filter(([name]) => name.startsWith('./bands/'));
+  for (const [bundler, seen] of Object.entries(testedBandModules)) {
+    const missing = bandEntries.filter(([, conditions]) =>
+      !seen.has(path.basename(conditions.default ?? conditions.node ?? ''))).map(([name]) => name);
+    assert.deepEqual(missing, [], `${bundler}: 未描画の帯の公開入口`);
   }
 
   const deck = await esbuild({absWorkingDir: root, entryPoints: ['dist/lib/deck-load.js'], bundle: true,
