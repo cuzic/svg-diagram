@@ -2,7 +2,6 @@
 // written (before layout). reveal.ts gives each the band's own stage, so a connect() to a node appears with the figure.
 import {treeItems} from './tree.ts';
 import {ftaIds} from './fta.ts';
-import {quadrantIds} from './quadrant.ts';
 import {flowShapeIds} from './flow-shapes.ts';
 import {qualify} from './scope-name.ts';
 import type {Band} from './types/index.ts';
@@ -12,13 +11,14 @@ const qual = (b: Band, ids: string[]): string[] => { const s = (b as {scope?: st
 /** The names a self-placing band's nodes are registered under (qualified with the band's `scope`, when it has one). */
 export function nodeIdsOf(b: Band): string[] { return qual(b, bareNodeIds(b)); }
 
+const itemNames = (items: readonly {id?: string}[]): string[] => items.flatMap(item => item.id ? [item.id] : []);
+
 /** Every item id a band gives (bare): its nodes, and the bars / marks / steps that layout registers one by one. */
 export function itemIdsOf(b: Band): string[] {
-  const own = (xs: readonly {id?: string}[]): string[] => xs.flatMap(x => x.id ? [x.id] : []);
   switch (b.type) {
-    case 'bars': return own(b.data);
-    case 'image': return own(b.marks ?? []);
-    case 'swimlane': return own(b.steps);
+    case 'bars': return itemNames(b.data);
+    case 'image': return itemNames(b.marks ?? []);
+    case 'swimlane': return itemNames(b.steps);
     default: return bareNodeIds(b);
   }
 }
@@ -34,7 +34,7 @@ function bareNodeIds(b: Band): string[] {
     case 'classes': return b.classes.map(c => c.id);
     case 'bpmn': return b.nodes.map(n => n.id);
     case 'fta': return ftaIds(b.root);
-    case 'quadrant': return quadrantIds(b);
+    case 'quadrant': return itemNames(b.items);
     case 'chevron': case 'funnel': case 'cycle': case 'venn': case 'concentric': case 'emblem': case 'valueChain': return flowShapeIds(b);
     default: return [];
   }

@@ -370,8 +370,6 @@ export function quadrantBand(opts: QuadrantOpts): QuadrantBand {
   };
 }
 
-/** The anchor ids of the band's items (read before layout, so reveal gives each the figure's stage). */
-export const quadrantIds = (b: QuadrantBand): string[] => b.items.flatMap(i => i.id ? [i.id] : []);
 
 // ---------------------------------------------------------------------------------------------------------------------------
 // sizes

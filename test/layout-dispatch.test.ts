@@ -17,7 +17,8 @@ test('layout and measurement bundle independently of the legacy band tables', as
     outdir: 'out',
     bundle: true, platform: 'browser', write: false, metafile: true,
   });
-  assert.ok(Object.keys(metafile.inputs).every(file => !file.endsWith('/layout-handlers.ts') && !file.endsWith('/layout-measure.ts')));
+  const excluded = ['/layout-handlers.ts', '/layout-measure.ts', '/quadrant.ts'];
+  assert.ok(Object.keys(metafile.inputs).every(file => excluded.every(suffix => !file.endsWith(suffix))));
 });
 
 test('layout resolution is local to one layout function', () => {
