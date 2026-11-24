@@ -7,7 +7,7 @@ import {frameLayoutFindings} from '../layout-metrics.ts';
 import {childRuns} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {row as buildRow} from '../dsl/row.ts';
+import {boxRow as buildRow} from '../dsl/box-row.ts';
 import {renderRow, rowSvgDefs} from '../emit-row.ts';
 import {layoutRow} from '../layout-row.ts';
 import type {Declares, IdsOf, RowHandleOf} from '../strict.ts';
@@ -31,7 +31,6 @@ export function row<C extends BoxBand & {readonly [DEF]: object}, const Id exten
   children: C[], opts?: RowOpts & {id?: Id},
 ): WithBandDef<RowBand & Declares<IdsOf<C> | Id> & RowHandleOf<Id>, LaidOutRow> {
   const data = buildRow<C, Id>(children, opts);
-  if (data.type !== 'row') throw new Error('bands/row: box() の子を指定してください');
   return band<typeof data, LaidOutRow>(rowDefinition, data);
 }
 
