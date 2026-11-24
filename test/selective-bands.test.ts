@@ -869,3 +869,19 @@ test('wireframe decorations can be selected independently', async () => {
   await assert.rejects(renderBands([stateOnly(map)], {measure}), /robot marker/);
   await assert.rejects(renderBands([markerOnly(loading)], {measure}), /loading/);
 });
+
+test('dialog and toast overlays opt in separately and preserve their SVG', async () => {
+  const {createWireframe, btnRenderer, dialogRenderer, textRenderer, toastRenderer} = await import('../lib/wireframe-renderers.ts');
+  const root = wf.text('Overview');
+  const dialog = wf.dialog('Confirm', {body: 'Ready to send?', buttons: [wf.btn('Send')]});
+  const toast = wf.toast('Sent');
+  const dialogs = createWireframe([textRenderer, btnRenderer], {dialog: dialogRenderer});
+  const toasts = createWireframe([textRenderer], {toast: toastRenderer});
+  for (const [draw, overlay] of [[dialogs, dialog], [toasts, toast]] as const) {
+    const a = await renderBands([draw(root, {overlays: [overlay]})], {measure});
+    const b = await renderBands([wireframe(root, {overlays: [overlay]})], {measure});
+    assert.equal(a.svg, b.svg);
+  }
+  await assert.rejects(renderBands([dialogs(root, {overlays: [toast]})], {measure}), /toast/);
+  await assert.rejects(renderBands([toasts(root, {overlays: [dialog]})], {measure}), /dialog/);
+});

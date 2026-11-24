@@ -172,6 +172,8 @@ CLI では `svg-diagram spec 比較.json --part table > 比較.svg` で描画で
 
 状態表示には `createWireframe(renderers, {states: widgetStates})`、方向や視野付きのロボットマーカーには `createWireframe(renderers, {robotMarkers})` を使います。`widgetStates` と `robotMarkers` は `svg-diagram/wireframe/renderers` から必要なものを import します。
 
+ダイアログは `{dialog: dialogRenderer}`、トーストは `{toast: toastRenderer}` を `createWireframe` のオプションに渡します。ダイアログにボタンを置く場合は `btnRenderer` も部品に登録します。基本描画の一括入口 `bands/wireframe/basic` には両方が含まれます。
+
 RACI、FMEA、QFD、チェックシート、マトリクス、ジャーニーマップ、IS/IS NOT、なぜなぜ分析表は `svg-diagram/bands/table` から個別に import できます。木でなぜなぜ分析を描く場合は `svg-diagram/compose/why-why-tree` の `whyWhyTree` を使います。
 
 ```ts

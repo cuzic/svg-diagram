@@ -1,5 +1,5 @@
 import * as builders from './wireframe-builders.ts';
-import {collectTextRequestsWith, layoutScreensWith, layoutWireframeWith, wireframeHelpers} from './wireframe-layout-core.ts';
+import {dialogRenderer, toastRenderer, collectTextRequestsWith, layoutScreensWith, layoutWireframeWith, wireframeHelpers} from './wireframe-layout-core.ts';
 import type {WireframeRuntime} from './wireframe-layout-core.ts';
 import {installParts, robotMarkers, widgetStates} from './wireframe-parts.ts';
 import type {Wf} from './types/wireframe-nodes.ts';
@@ -21,7 +21,7 @@ const helpers = wireframeHelpers();
 const parts = installParts(helpers);
 const runtime: WireframeRuntime = {
   draw: helpers.DRAW, nat: helpers.NAT, autoWidth: helpers.AUTO_W, states: widgetStates, robotMarkers,
-  strings: parts.strings, always: parts.always,
+  strings: parts.strings, always: parts.always, dialog: dialogRenderer, toast: toastRenderer,
 };
 
 export function collectTextRequests(band: Parameters<typeof collectTextRequestsWith>[0]) {

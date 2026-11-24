@@ -26,7 +26,7 @@ import {wrapAtoms} from './wrap.ts';
 import {badgeBox, BADGE_R} from './badge.ts';
 import type {BadgeBox} from './badge.ts';
 import type {ColorKey, Anchor, Rect, TextRequest, WidthOf, WrapMode} from './types/core.ts';
-import type {WfHelpers, WfPartsApi, WfNode, WfNodeOf, WfCtx, WfRow, WfText, WfType, WfDrawFn, WfNatFn, WfDrawTable, WfNatTable, WfAutoWTable, WfTone, WfMark, WfChipSpec, WfFrameDecor, WfMapMarker, WfMapLegendItem, WfOverlay, WfKvPair, WfListItemSpec, WfTableCellSpec, BadgeOpts, DrawShapeOpts, DrawTextOpts, WfAutoWFn} from './types/wireframe-nodes.ts';
+import type {WfHelpers, WfPartsApi, WfNode, WfNodeOf, WfCtx, WfRow, WfText, WfType, WfDrawFn, WfNatFn, WfDrawTable, WfNatTable, WfAutoWTable, WfTone, WfMark, WfChipSpec, WfDialog, WfToast, WfFrameDecor, WfMapMarker, WfMapLegendItem, WfOverlay, WfKvPair, WfListItemSpec, WfTableCellSpec, BadgeOpts, DrawShapeOpts, DrawTextOpts, WfAutoWFn} from './types/wireframe-nodes.ts';
 import type {WfScreen, WireframeBand, ScreensBand, StateMatrixCell, LaidOutWireframe, LaidOutScreens} from './types/wireframe.ts';
 
 const S = 14, T = 15, LHF = 1.4, GAP = 12;
@@ -57,7 +57,11 @@ export function collectTextRequestsWith(band: WireframeBand | ScreensBand, runti
 }
 
 // ---- drawing context ---------------------------------------------------------------------
+type OverlayRenderer<T extends WfOverlay> = (overlay: T, ctx: WfCtx, x: number, y: number, w: number, h: number) => void;
+
 export interface WireframeDecorations {
+  dialog?: OverlayRenderer<WfDialog>;
+  toast?: OverlayRenderer<WfToast>;
   states?: Pick<WfPartsApi, 'drawState' | 'stateMinH'> & {labels(): readonly string[]};
   robotMarkers?: Pick<WfPartsApi, 'glyph' | 'fovSector' | 'headingArrow'>;
 }
@@ -736,22 +740,20 @@ function hideUnder(ctx: WfCtx, X: number, Y: number, W: number, H: number): void
   });
 }
 
-// dialog: a dimmed screen with a centred card; toast: a dark notice at the bottom right. Both sit over the screen.
-function drawOverlay(o: WfOverlay, ctx: WfCtx, x: number, y: number, w: number, h: number): void {
-  if (o.t === 'toast') {
-    const tone = toneOf(o.tone);
-    const lead = o.n != null ? 28 : 0; // room for the callout inside the toast
-    const tw_ = tw(ctx, o.text, S, 700) + 32 + lead, H = 36;
-    const tx = x + w - 14 - tw_, ty = y + h - 14 - H;
-    hideUnder(ctx, tx, ty, tw_, H);
-    rect(ctx, tx, ty, tw_, H, {r: 6, fill: tone === 'danger' ? 'danger' : 'text'});
-    text(ctx, o.text, tx + lead + (tw_ - lead) / 2, mid(ty + H / 2), {weight: 700, fill: 'bg', anchor: 'middle'});
-    if (o.n != null) {
-      ctx.callouts.push({n: o.n as number, x: tx + 18, y: ty + H / 2}); // wireframe() has replaced `true` by a number
-    }
-    return;
+export const toastRenderer: OverlayRenderer<WfToast> = function drawToast(o, ctx, x, y, w, h) {
+  const tone = toneOf(o.tone);
+  const lead = o.n != null ? 28 : 0; // room for the callout inside the toast
+  const tw_ = tw(ctx, o.text, S, 700) + 32 + lead, H = 36;
+  const tx = x + w - 14 - tw_, ty = y + h - 14 - H;
+  hideUnder(ctx, tx, ty, tw_, H);
+  rect(ctx, tx, ty, tw_, H, {r: 6, fill: tone === 'danger' ? 'danger' : 'text'});
+  text(ctx, o.text, tx + lead + (tw_ - lead) / 2, mid(ty + H / 2), {weight: 700, fill: 'bg', anchor: 'middle'});
+  if (o.n != null) {
+    ctx.callouts.push({n: o.n as number, x: tx + 18, y: ty + H / 2}); // wireframe() has replaced `true` by a number
   }
-  if (o.t !== 'dialog') throw new Error(`wireframe(): overlay must be wf.dialog or wf.toast, got "${(o as {t: string}).t}"`); // o is `never` here for valid input
+};
+
+export const dialogRenderer: OverlayRenderer<WfDialog> = function drawDialog(o, ctx, x, y, w, h) {
   const dw = o.w ?? Math.min(380, w - 48), pad = 16;
   const body = o.body ? wrapT(ctx, o.body, S, 400, dw - 2 * pad) : [];
   const buttons = o.buttons ?? [];
@@ -771,6 +773,12 @@ function drawOverlay(o: WfOverlay, ctx: WfCtx, x: number, y: number, w: number, 
     bx -= 8;
   }
   if (o.n != null) ctx.callouts.push({n: o.n as number, x: dx + dw - 18, y: dy + 18}); // wireframe() has replaced `true` by a number
+};
+
+function drawOverlay(o: WfOverlay, ctx: WfCtx, x: number, y: number, w: number, h: number): void {
+  if (o.t === 'toast') decoration(ctx, 'toast', 'toast')(o, ctx, x, y, w, h);
+  else if (o.t === 'dialog') decoration(ctx, 'dialog', 'dialog')(o, ctx, x, y, w, h);
+  else throw new Error(`wireframe(): overlay must be wf.dialog or wf.toast, got "${(o as {t: string}).t}"`);
 }
 function flushCallouts(ctx: WfCtx): void {
   for (const c of ctx.callouts) {
@@ -917,7 +925,7 @@ export function layoutScreensWith(runtime: WireframeRuntime, band: ScreensBand, 
 }
 
 /** Build a private renderer table from explicit widget definitions. */
-export function makeWireframeRuntime(renderers: readonly WireframeWidgetRenderer[]): WireframeRuntime {
+export function makeWireframeRuntime(renderers: readonly WireframeWidgetRenderer[], decorations: WireframeDecorations = {}): WireframeRuntime {
   const draw: WfDrawTable = {}, nat: WfNatTable = {}, autoWidth: WfAutoWTable = {};
   const stringsByType = new Map<WfType, (node: never) => readonly string[]>();
   for (const renderer of renderers) {
@@ -929,7 +937,7 @@ export function makeWireframeRuntime(renderers: readonly WireframeWidgetRenderer
     if (renderer.width) autoWidth[type] = renderer.width as never;
     if (renderer.strings) stringsByType.set(type, renderer.strings);
   }
-  return {draw, nat, autoWidth, strings: node => stringsByType.get(node.t)?.(node as never) ?? []};
+  return {...decorations, draw, nat, autoWidth, strings: node => stringsByType.get(node.t)?.(node as never) ?? []};
 }
 
 /** Native widgets and frame layout, without monitoring widgets or state decoration. */
@@ -940,7 +948,7 @@ export const basicWireframeRuntime = /* @__PURE__ */ makeWireframeRuntime([
   kvRenderer, statRenderer, listRenderer, tableRenderer,
   alertRenderer, imageRenderer, videoRenderer, heatRenderer,
   pointcloudRenderer, chartRenderer, mapRenderer,
-]);
+], {dialog: dialogRenderer, toast: toastRenderer});
 
 export function wireframeHelpers(): Pick<WfHelpers, 'DRAW' | 'NAT' | 'AUTO_W'> {
   return {DRAW: {...basicWireframeRuntime.draw}, NAT: {...basicWireframeRuntime.nat}, AUTO_W: {...basicWireframeRuntime.autoWidth}};

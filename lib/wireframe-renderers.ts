@@ -9,7 +9,7 @@ export {
   selectRenderer, tabsRenderer, appbarRenderer, seekRenderer,
   kvRenderer, statRenderer, listRenderer, tableRenderer,
   alertRenderer, imageRenderer, videoRenderer, heatRenderer,
-  pointcloudRenderer, chartRenderer, mapRenderer,
+  pointcloudRenderer, chartRenderer, mapRenderer, dialogRenderer, toastRenderer,
 } from './wireframe-layout-core.ts';
 
 export {
@@ -21,5 +21,5 @@ export {
 
 /** Create a wireframe builder with only the supplied drawing and measurement callbacks. */
 export function createWireframe(renderers: readonly WireframeWidgetRenderer[], decorations: WireframeDecorations = {}) {
-  return wireframeFor({...makeWireframeRuntime(renderers), ...decorations});
+  return wireframeFor(makeWireframeRuntime(renderers, decorations));
 }

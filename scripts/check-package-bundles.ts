@@ -284,6 +284,14 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [stepsPart],
       });
     `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 118000, Vite: 150000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
+    {name: 'Selected wireframe dialog', source: composedSource([], "wireframe(text('Overview'), {overlays: [dialog('Review', {buttons: [btn('Send')]})]})",
+      "import {createWireframe, textRenderer, btnRenderer, dialogRenderer} from 'svg-diagram/wireframe/renderers'; import {text, btn, dialog} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([textRenderer, btnRenderer], {dialog: dialogRenderer});"),
+      include: 'wireframe-renderers.js', bands: ['wireframe-basic.js'], budget: {esbuild: 72000, Vite: 98000},
+      exclude: [...legacy, 'lib/wireframe.js', 'lib/wireframe-parts.js', 'bands/screens.js'], draw: true},
+    {name: 'Selected wireframe toast', source: composedSource([], "wireframe(text('Overview'), {overlays: [toast('Review')]})",
+      "import {createWireframe, textRenderer, toastRenderer} from 'svg-diagram/wireframe/renderers'; import {text, toast} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([textRenderer], {toast: toastRenderer});"),
+      include: 'wireframe-renderers.js', bands: ['wireframe-basic.js'], budget: {esbuild: 72000, Vite: 98000},
+      exclude: [...legacy, 'lib/wireframe.js', 'lib/wireframe-parts.js', 'bands/screens.js'], draw: true},
     {name: 'Selected wireframe states', source: composedSource([], "wireframe(region('Review', {state: 'stale'}))",
       "import {createWireframe, regionRenderer, widgetStates} from 'svg-diagram/wireframe/renderers'; import {region} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([regionRenderer], {states: widgetStates});"),
       include: 'wireframe-parts.js', bands: ['wireframe-basic.js'], budget: {esbuild: 75000, Vite: 103000},
@@ -446,16 +454,17 @@ try {
     const {name, source, include, exclude, budget, draw, bands} = testCase;
     const catalog = 'catalog' in testCase && testCase.catalog;
     const selectedLayout = 'layout' in testCase ? testCase.layout : undefined;
+    const overlaySelection = name === 'Selected wireframe dialog' || name === 'Selected wireframe toast';
     const decorationSelection = name === 'Selected wireframe states' || name === 'Selected robot markers';
     const widgetSelection = name === 'Selected wireframe widgets' || name === 'Selected monitoring widget';
     writeFileSync(entry, source);
-    const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true, keepNames: !!selectedLayout || widgetSelection || decorationSelection,
+    const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true, keepNames: !!selectedLayout || widgetSelection || decorationSelection || overlaySelection,
       platform: 'browser', format: 'esm', write: false, metafile: true});
     const esOutput = Object.values(es.metafile.outputs)[0];
     assert.ok(esOutput);
     const [viteOutput] = await viteBuild({root: consumer, configFile: false, logLevel: 'silent',
       resolve: {preserveSymlinks: true},
-      esbuild: {keepNames: !!selectedLayout || widgetSelection || decorationSelection},
+      esbuild: {keepNames: !!selectedLayout || widgetSelection || decorationSelection || overlaySelection},
       build: {write: false, minify: 'esbuild', lib: {entry, formats: ['es']}}});
     const [chunk] = viteOutput.output;
     assert.equal(chunk.type, 'chunk');
@@ -484,6 +493,10 @@ try {
       if (limit !== undefined) assert.ok(bytes <= limit, `${label} が ${limit} バイトを超えています (${bytes})`);
       if (draw) {
         assert.ok(code);
+        if (overlaySelection) {
+          assert.equal(code.includes('"drawDialog"'), name === 'Selected wireframe dialog', label);
+          assert.equal(code.includes('"drawToast"'), name === 'Selected wireframe toast', label);
+        }
         if (decorationSelection) {
           assert.equal(code.includes('"drawStateIcon"'), name === 'Selected wireframe states', label);
           assert.equal(code.includes('"fovSector"'), name === 'Selected robot markers', label);
