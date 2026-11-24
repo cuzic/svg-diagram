@@ -599,6 +599,10 @@ try {
     {name: 'Banner', source: composedSource(['banner'], "banner({headline: 'Review', stamp: 'Draft'})"),
       include: 'emit-banner.js', budget: {esbuild: 61000, Vite: 78000}, bands: ['banner.js'],
       exclude: [...legacy, 'emit-box.js', 'emit-boxes.js', 'emit-caption.js', 'emit-raw.js', 'layout-connect.js'], draw: true},
+    {name: 'Raw', source: composedSource(['raw'], `raw({h: 40, draw: ({x, y, color}) =>
+      '<text x="' + x + '" y="' + (y + 20) + '" fill="' + color('accent') + '">Review</text>'})`),
+      include: 'dsl/raw.js', budget: {esbuild: 36500, Vite: 48000}, bands: ['raw.js'],
+      exclude: [...legacy, 'dsl/text-bands.js', 'dsl/banner.js', 'emit-boxes.js', 'emit-banner.js', 'emit-box.js', 'layout-box-like.js'], draw: true},
     {name: 'Banner and raw', source: composedSource(['banner', 'raw'], `banner({headline: 'Review'}), raw({h: 32, draw: ({x, y}) => '<rect x="' + x + '" y="' + y + '" width="24" height="24"/>'})`),
       include: 'bands/banner.js', budget: {esbuild: 63500, Vite: 85500}, bands: ['banner.js', 'raw.js'], exclude: [...legacy, 'emit-boxes.js', 'emit-status.js', 'layout-areas.js', 'layout-group.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Curve', source: composedSource(['curve'], "curve([{y: 0.3, dropLine: true}, {y: 0.8}], {xLabel: 'Review'})"),

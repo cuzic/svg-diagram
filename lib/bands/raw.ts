@@ -1,6 +1,6 @@
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {raw as buildRaw} from '../dsl/text-bands.ts';
+import {raw as buildRaw} from '../dsl/raw.ts';
 import {renderRaw} from '../emit-raw.ts';
 import {layoutRaw} from '../layout-raw.ts';
 import type {LaidOutRaw, RawBand, RawOpts} from '../types/containers.ts';
