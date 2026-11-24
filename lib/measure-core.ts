@@ -1,7 +1,5 @@
 import {splitAtoms} from './atoms.ts';
 import {styledAtoms, textRuns} from './layout-text.ts';
-import {withSourceLine, withTitleLine} from './layout-util.ts';
-import {withStatus} from './status.ts';
 import {TAG_SIZE} from './tokens.ts';
 import type {DiagramData, FontFamily, MeasureRequest, Measured, Roles, WidthOf} from './types/core.ts';
 import type {Band} from './types/index.ts';
@@ -46,9 +44,9 @@ function registerRequests(requests: Requests, band: Band, roles: Roles): void {
 }
 
 /** Pass 1: every atom this diagram needs measured, at the font sizes of `roles`. */
-export function createMeasureCollector(resolve: (band: Band) => MeasureHandler<never>) {
+export function createMeasureCollector(resolve: (band: Band) => MeasureHandler<never>, decorate?: (data: DiagramData) => DiagramData) {
   return function collectMeasures(data: DiagramData, roles: Roles): Requests {
-    const d = withStatus(withSourceLine(withTitleLine(data)));
+    const d = decorate?.(data) ?? data;
     const requests: Requests = new Map();
     const m: MeasureCtx = {
       roles,

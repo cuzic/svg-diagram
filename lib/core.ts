@@ -5,7 +5,6 @@ import {applyFindingAcceptance, at} from './finding-rules.ts';
 import {canvasFindings} from './canvas-findings.ts';
 import {splitAtoms} from './atoms.ts';
 import {band, defOf, DEF, EXTERNAL, walkDefinedBands} from './band-def.ts';
-import {withSourceLine, withTitleLine} from './layout-util.ts';
 import {cloneData} from './clone-data.ts';
 import {emitSvgWith} from './emit-svg-core.ts';
 import {createLayoutWith} from './layout-core.ts';
@@ -109,10 +108,10 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   };
   if (opts.showTitle && opts.title || opts.sourceLine !== undefined) {
     const captions = opts.captions;
-    if (!captions) throw new Error('renderBands: pass captionDefinition as captions for showTitle or sourceLine');
-    const {bands} = withSourceLine(withTitleLine({...data, showTitle: opts.showTitle, sourceLine: opts.sourceLine}));
-    source = bands.map(item => item.type === 'caption' && !defOf(item) && (item.titleLine || item.sourceLine)
-      ? band(captions, item) : item);
+    if (!captions?.internal || !captions.decorateCaptions) {
+      throw new Error('renderBands: pass captionDefinition as captions for showTitle or sourceLine');
+    }
+    source = captions.decorateCaptions({...data, showTitle: opts.showTitle, sourceLine: opts.sourceLine});
   }
   let nextLoopId = 0;
   const expandLoopBacks = (bands: Band[]): Band[] => bands.flatMap(data => {

@@ -1,3 +1,4 @@
+import {decorateDiagram} from './layout-decoration.ts';
 // Pass 1 of the layout: every atom a diagram needs measured, collected into one request map for the single batched measureAll call.
 // What each band type needs is one entry of MEASURE_HANDLERS (a typed table: a band type without one fails to compile).
 
@@ -105,4 +106,4 @@ export const MEASURE_HANDLERS = {
 } satisfies MeasureHandlerTable;
 
 export const collectMeasures = createMeasureCollector(band =>
-  must((MEASURE_HANDLERS as unknown as Record<string, MeasureHandler<Band>>)[band.type]));
+  must((MEASURE_HANDLERS as unknown as Record<string, MeasureHandler<Band>>)[band.type]), decorateDiagram);

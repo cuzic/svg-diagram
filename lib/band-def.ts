@@ -11,7 +11,7 @@ import type {resolveConnect} from './layout-connect.ts';
 import type {BandLayoutHandler} from './layout-ctx.ts';
 import type {RevealHandler} from './reveal-handlers.ts';
 import type {ToneEnv} from './tokens.ts';
-import type {Anchor, Appearance, ColorKey, FontFamily, FontWeight, Rect, RevealOpts, Roles, ScopeOpts, SlideCanvas, TextTone, Theme, WidthOf, WrapMode} from './types/core.ts';
+import type {Anchor, Appearance, ColorKey, DiagramData, FontFamily, FontWeight, Rect, RevealOpts, Roles, ScopeOpts, SlideCanvas, TextTone, Theme, WidthOf, WrapMode} from './types/core.ts';
 import type {Band, LaidOutBand, LaidOutDiagram} from './types/index.ts';
 import type {InventoryItem} from './types/inventory.ts';
 import type {CheckRect, Finding} from './types/verdicts.ts';
@@ -125,6 +125,7 @@ interface PublicLayout<D, L extends object> {
 
 interface InternalLayout<D> {
   internal: true;
+  decorateCaptions?(data: DiagramData): Band[];
   areasPrelayout?: typeof areasPrelayout;
   outputTypes?: readonly string[];
   resolveConnect?: typeof resolveConnect;

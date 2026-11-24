@@ -1,7 +1,8 @@
+import {withSourceLine, withTitleLine} from '../layout-caption-lines.ts';
 import {ownRunSizes} from '../band-text-sizes.ts';
 import {captionItems} from '../inventory-boxes.ts';
 import {duplicateTitleFindings, sourceLineFindings} from '../verify-caption.ts';
-import {band, walkDefinedBands} from '../band-def.ts';
+import {band, defOf, walkDefinedBands} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {caption as buildCaption} from '../dsl/caption.ts';
 import {textSvgDefs, renderCaption} from '../emit-boxes.ts';
@@ -18,6 +19,11 @@ export const captionDefinition: BandDef<CaptionBand, LaidOutCaption> = {
   title: data => data.text ? [0, data.text] : undefined,
   internal: true,
   layout: layoutBoxLikeBand,
+  decorateCaptions(data) {
+    return withSourceLine(withTitleLine(data)).bands.map(item =>
+      item.type === 'caption' && (item.titleLine || item.sourceLine) && !defOf(item)
+        ? band(captionDefinition, item) : item);
+  },
   measure(data, {atoms, roles}) {
     for (const run of textRuns(data, roles)) {
       for (const {text, weight} of styledAtoms(run)) atoms(text, run.size, weight, run.mono ? 'mono' : 'sans');

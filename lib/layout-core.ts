@@ -15,7 +15,6 @@
 // consume vertical space; they're resolved in a final pass once every named
 // anchor (any box/child with an explicit `id`) has a known rect.
 
-import {withStatus} from './status.ts';
 import {atBand, sourceOf, withSource} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
 import type {BandLayoutHandler, LayoutCtx, Placed} from './layout-ctx.ts';
@@ -27,7 +26,7 @@ import type {ScopeTable} from './scope-table.ts';
 import {qualify} from './scope-name.ts';
 import type {ContentInventory} from './types/inventory.ts';
 import {
-  anchorRect, topIcon, withSourceLine, withTitleLine,
+  anchorRect, topIcon,
 } from './layout-util.ts';
 import type {AreasBand, LaidOutConnect, ConnectBand} from './types/containers.ts';
 import type {areasPrelayout} from './layout-areas-gaps.ts';
@@ -42,6 +41,7 @@ import {must} from './must.ts';
 type LayoutResult = Omit<LaidOutDiagram, 'inventory'>;
 
 export interface LayoutServices {
+  decorate?: (data: DiagramData) => DiagramData;
   resolveConnect: typeof resolveConnect;
   resolve: (band: Band) => BandLayoutHandler<never>;
   hasChildrenHandler: (band: Band) => boolean;
@@ -97,7 +97,7 @@ const spaceOf = (density: 'normal' | 'compact' | undefined): number => density =
 
 function layoutBands(services: LayoutServices, data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean, space = 1, lines = {seen: 0, drop: 0, exchange: true, taller: false}): LayoutResult {
   const {resolve, hasChildrenHandler, childrenOf, scopesOf} = services;
-  const d = withStatus(withSourceLine(withTitleLine(data)));
+  const d = services.decorate?.(data) ?? data;
   const contentWidth = d.width - 2 * d.pad;
 
   // A labelled straight connector between two side-by-side children (right side -> left side) needs room in the gap

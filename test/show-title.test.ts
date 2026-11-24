@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {box, caption, checkDiagram, closeMeasurer, diagram, renderDiagram} from '../lib/dsl.ts';
-import {withTitleLine} from '../lib/layout-util.ts';
+import {withTitleLine} from '../lib/layout-caption-lines.ts';
 
 test.after(() => closeMeasurer());
 
