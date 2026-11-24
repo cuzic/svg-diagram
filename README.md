@@ -178,7 +178,7 @@ Edge で選択した JSON spec 部品から PowerPoint を作るには、`svg-di
 
 複数スライドでは `svg-diagram/pptx/deck/selective/edge` の `renderDeckPptxEdge(deck, engine, {parts, bands, rasterize})` を使います。列の配置や幅調整も行い、無効な図には `slides[0].columns[1].figure` のようにデッキ内の位置を返します。
 
-Edge で選択した部品を描画して文字を輪郭化するには、`svg-diagram/spec/selective/edge` の `renderSpecEdge(spec, engine, {parts})` を使います。`engine` は `spec/edge` と同じ `TextEngine` です。必要に応じて `captions`、`autoLegend`、`maxHeight` も渡せます。日本語の説明文を付ける場合は spec の `desc` に記述します。
+Edge で選択した部品を描画して文字を輪郭化するには、`svg-diagram/spec/selective/edge` の `renderSpecEdge(spec, engine, {parts})` を使います。`engine` は `spec/edge` と同じ `TextEngine` です。必要に応じて `captions`、`autoLegend`、`maxHeight` も渡せます。日本語の説明文を付ける場合は spec の `desc` に記述します。Node.js と Edge の選択入口は、帯の検査に加えて、縦長の図や文字量などの文書全体の所見も返します。
 
 Node.js では `svg-diagram/spec/selective/node` の `renderSpec(spec, {parts, fonts})` を使えます。`fonts` は従来の `render` 入口と同じフォントファイル指定です。この入口は HarfBuzz のフォント測定を使います。文字測定だけなら `svg-diagram/measure/node` の `fontMeasurer(fonts)`、SVG を PNG に変換する場合は `svg-diagram/png` の `svgToPng(svg, options)` を使います。ZIP だけを作るには `svg-diagram/zip` の `zipEntries(entries)` を使えます。
 

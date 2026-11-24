@@ -311,3 +311,15 @@ test('the selected edge path matches outlining and rejects parts outside its reg
   const tooTall = await renderSelected(input, engine, {...options, maxHeight: 1});
   assert.match(tooTall.issues[0]?.message ?? '', /limit is 1px/);
 });
+
+test('the selected edge renderer preserves tall document diagnostics', async () => {
+  const {renderSpecEdge: renderSelected} = await import('../lib/spec-selective-edge.ts');
+  const {tablePart} = await import('../lib/spec-parts/selective/table.ts');
+  const rows = Array.from({length: 22}, (_, index) => [`Plan ${index}`, 'Check', 'Ready', 'Done']);
+  const input = {...spec({...tablePart.example, rows}), width: 480};
+  const engine = realEngine();
+  const legacy = await renderSpecEdge(input, engine);
+  assert.ok(legacy.findings.some(finding => finding.rule === 'aspect-tall'), JSON.stringify(legacy.issues));
+  const selected = await renderSelected(input, engine, {parts: [tablePart]});
+  assert.deepEqual(selected, legacy);
+});

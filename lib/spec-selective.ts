@@ -131,11 +131,23 @@ function prepareSpec(input: unknown, options: PrepareOptions) {
     sourceLine, canvas, legend: doc.legend, desc: desc ?? (lang === 'en' ? title : undefined), connectors}};
 }
 
+function specFindings(terms?: SpecProject['terms']): Pick<RenderOptions, 'diagramFindings' | 'diagramAcceptHint'> {
+  return {
+    diagramFindings: (diagram, stage) => [...midWordFindings(diagram), ...termFindings(diagram.bands, terms), ...documentFindings(diagram, stage)],
+    diagramAcceptHint: rule => rule === 'term-variant' || rule === 'term-avoid' || rule === 'text-mid-word-break' ? findingAcceptanceHint(rule) : documentAcceptHint(rule),
+  };
+}
+
 /** @internal Validate before drawing so Edge can distinguish validation from layout errors. */
-export function prepareSpecRender(input: unknown, options: PrepareOptions) {
+function prepareSpecRender(input: unknown, options: PrepareOptions, findings?: ReturnType<typeof specFindings>) {
   const {doc, bands, drawOptions} = prepareSpec(input, options);
   addLegend(bands, doc, options);
-  return (measure: RenderOptions['measure']) => renderBands(bands, {...drawOptions, measure});
+  return (measure: RenderOptions['measure']) => renderBands(bands, {...drawOptions, ...findings, measure});
+}
+
+/** @internal Include document diagnostics in the Node and Edge spec results. */
+export function prepareVerifiedSpecRender(input: unknown, options: PrepareOptions) {
+  return prepareSpecRender(input, options, specFindings());
 }
 
 /** @internal Provide the prepared geometry and SVG emitter to consumers such as the deck renderer. */
@@ -146,8 +158,7 @@ export function prepareSpecLayout(input: unknown, options: PrepareOptions & {pro
   return async (measurement: RenderOptions['measure'] | BatchMeasurement) => {
     const prepared = await prepareBands(bands, {
       ...drawOptions, wrap, keepWords, tones, maxWidth, accept, legend: doc.legend ?? options.project?.legend,
-      diagramFindings: (diagram, stage) => [...midWordFindings(diagram), ...termFindings(diagram.bands, terms), ...documentFindings(diagram, stage)],
-      diagramAcceptHint: rule => rule === 'term-variant' || rule === 'term-avoid' || rule === 'text-mid-word-break' ? findingAcceptanceHint(rule) : documentAcceptHint(rule),
+      ...specFindings(terms),
       ...(typeof measurement === 'function' ? {measure: measurement} : measurement),
     });
     const {emit} = prepared;

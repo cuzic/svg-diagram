@@ -622,7 +622,6 @@
   "spec-result:locateIn",
   "spec-result:messageOf",
   "spec-schema:schemaForParts",
-  "spec-selective:prepareSpecRender",
   "spec-validation:checkAnchors",
   "spec-validation:countEmoji",
   "spec-validation:join",

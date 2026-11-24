@@ -275,6 +275,11 @@ test('selected Node rendering measures from font files and matches the legacy SV
   const actual = await renderSelected(input, {parts: [tablePart], fonts: JA_FONTS});
   assert.deepEqual(actual, await renderLegacy(input, {config: {measure: 'font', fonts: JA_FONTS}}));
   assert.ok(actual.svg);
+  const rows = Array.from({length: 22}, (_, index) => [`Plan ${index}`, 'Check', 'Ready', 'Done']);
+  const tall = {...input, width: 480, parts: [{...tablePart.example, rows}]};
+  const expectedTall = await renderLegacy(tall, {config: {measure: 'font', fonts: JA_FONTS}});
+  assert.ok(expectedTall.findings.some(finding => finding.rule === 'aspect-tall'));
+  assert.deepEqual(await renderSelected(tall, {parts: [tablePart], fonts: JA_FONTS}), expectedTall);
   const invalid = await renderSelected(input, {parts: [ganttPart], fonts: JA_FONTS});
   assert.equal(invalid.svg, null);
   assert.ok(invalid.issues.length);
@@ -447,4 +452,17 @@ test('every catalog part keeps legacy output or reports the same layout failure 
       }
     }
   }
+});
+
+test('prepareVerifiedSpecRender adds document diagnostics while the lightweight renderer keeps them optional', async () => {
+  const {prepareVerifiedSpecRender} = await import('../lib/spec-selective.ts');
+  const rows = Array.from({length: 22}, (_, index) => [`Plan ${index}`, 'Check', 'Ready', 'Done']);
+  const input = {version: 1, title: '比較', width: 480, parts: [{...tablePart.example, rows}]};
+  const options = {parts: [tablePart]};
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const light = await renderSpec(input, {...options, measure});
+  const verified = await prepareVerifiedSpecRender(input, options)(measure);
+  assert.equal(verified.svg, light.svg);
+  assert.ok(verified.verdict.findings.some(finding => finding.rule === 'aspect-tall'));
+  assert.ok(!light.verdict.findings.some(finding => finding.rule === 'aspect-tall'));
 });
