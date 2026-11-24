@@ -356,7 +356,7 @@ test('JSON deck rendering draws the selected part without loading the full catal
   assert.match(svg, /先行テスト/);
   assert.match(svg, /<desc id="svg-desc">表: 列 案<\/desc>/);
   assert.ok(urls.some(url => url.endsWith('/spec-parts/selective/table.ts')));
-  assert.ok(!urls.some(url => /\/(?:spec|dsl\/render|spec-parts\/r[1-7])\.ts$/.test(url)));
+  assert.ok(!urls.some(url => /\/(?:spec|verify|verify-handlers|dsl\/render|spec-parts\/r[1-7])\.ts$/.test(url)));
 });
 
 test('selected deck rendering preserves the catalog SVG, fit and CLI diagnostics', async () => {

@@ -4,7 +4,6 @@ import {measureAll} from './measure.ts';
 import {measureSettingsOf} from './measure-settings.ts';
 import {loadSpecPartsFor} from './spec-cli-parts.ts';
 import {prepareSpecLayout} from './spec-selective.ts';
-import {verifyDiagram} from './verify.ts';
 import {xmlProblems} from './xml-check.ts';
 import type {Config} from './types/project.ts';
 import type {RenderResult} from './types/verdicts.ts';
@@ -23,11 +22,10 @@ export async function renderDeckSpec(spec: unknown, cfg: Config): Promise<Render
     ]);
     const measure = measureSettingsOf(cfg);
     const draw = prepareSpecLayout(spec, {parts, captions, autoLegend, project: cfg});
-    const {placed, emit} = await draw({measureBatch: requests => measureAll(requests, measure)});
+    const {placed, emit, verdict} = await draw({measureBatch: requests => measureAll(requests, measure)});
     const laidOut = applyConfig({...placed, legend: doc.legend, measure, fontScale: 1,
       showTitle: doc.showTitle === true, sourceLine: typeof doc.sourceLine === 'string' ? doc.sourceLine : undefined}, cfg);
-    // The deck uses the compatibility verifier for warning text, locations and column width search.
-    const verdict = verifyDiagram(laidOut), svg = emit(laidOut);
+    const svg = emit(laidOut);
     return {svg, laidOut, verdict, xml: xmlProblems(svg), notes: [], width: laidOut.width,
       height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget: null, budgetSource: null, fontScale: 1};
   } catch {
