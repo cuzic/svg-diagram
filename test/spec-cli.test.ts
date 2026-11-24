@@ -37,3 +37,40 @@ test('spec CLI loads only selected parts and writes SVG to stdout', () => {
     rmSync(dir, {recursive: true, force: true});
   }
 });
+
+test('spec CLI renders captions and automatic legends with just the requested spec part', async () => {
+  const {causeTreePart} = await import('../lib/spec-parts/selective/cause-tree.ts');
+  const {renderSpec} = await import('../lib/spec-render.ts');
+  const dir = mkdtempSync(path.join(tmpdir(), 'svg-spec-cli-caption-'));
+  try {
+    const input = {
+      version: 1, title: '検討結果', desc: '原因を比較する', showTitle: true, sourceLine: '会議資料',
+      legend: 'auto', parts: [causeTreePart.example],
+    };
+    const pathToSpec = path.join(dir, 'cause.json');
+    writeFileSync(pathToSpec, JSON.stringify(input));
+    const hook = `import {registerHooks} from "node:module";
+      registerHooks({resolve(specifier, context, next) {
+        const result = next(specifier, context);
+        const path = new URL(result.url).pathname;
+        if (path.includes('/spec-parts/selective/') && !path.endsWith('/cause-tree.ts')) {
+          throw new Error("Unexpected spec part: " + path);
+        }
+        if (['/lib/spec.ts', '/lib/web.ts', '/lib/raster.ts'].some(file => path.endsWith(file))) {
+          throw new Error("Unexpected compatibility entry: " + path);
+        }
+        return result;
+      }});`;
+    const rendered = spawnSync(process.execPath, ['--import', 'data:text/javascript,' + encodeURIComponent(hook),
+      cli, pathToSpec, '--part', 'cause-tree'], {cwd: dir, encoding: 'utf8'});
+    const legacy = await renderSpec(input, {config: {measure: 'font'}});
+    assert.ok(legacy.svg);
+    assert.equal(rendered.status, legacy.ok ? 0 : 1, rendered.stderr);
+    assert.equal(rendered.stdout, legacy.svg);
+    assert.match(rendered.stdout, />検討結果<\/text>/);
+    assert.match(rendered.stdout, /会議資料/);
+    assert.match(rendered.stdout, />根本原因<\/text>/);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
