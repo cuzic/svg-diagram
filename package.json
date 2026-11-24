@@ -565,8 +565,8 @@
       "default": "./dist/lib/html-row.js"
     },
     "./html/bands/box": {
-      "types": "./dist/lib/html-box.d.ts",
-      "default": "./dist/lib/html-box.js"
+      "types": "./dist/lib/html-box-band.d.ts",
+      "default": "./dist/lib/html-box-band.js"
     },
     "./html/bands/table": {
       "types": "./dist/lib/html-table.d.ts",

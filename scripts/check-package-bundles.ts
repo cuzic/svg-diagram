@@ -129,7 +129,7 @@ try {
         fontBox: size => ({ascent: size, descent: 0}),
         adapters: {box: boxHtml}, strict: true,
       });
-    `, include: 'html-selective.js', budget: {esbuild: 87000, Vite: 111000}, bands: ['box.js'], exclude: [...legacy, 'emit-html.js', 'lib/emit.js', 'svg-to-css.js', 'html-overlay.js', 'html-native.js', 'html-table.js', 'emit-tables.js', 'image-file.js'], draw: true},
+    `, include: 'html-selective.js', budget: {esbuild: 87000, Vite: 111000}, bands: ['box.js'], exclude: [...legacy, 'html-box.js', 'html-row.js', 'html-grid.js', 'html-group.js', 'emit-html.js', 'lib/emit.js', 'svg-to-css.js', 'html-overlay.js', 'html-native.js', 'html-table.js', 'emit-tables.js', 'image-file.js'], draw: true},
     {name: 'Selective HTML caption', source: `
       import {renderBandsHtml} from 'svg-diagram/html/selective';
       import {captionHtml} from 'svg-diagram/html/bands/caption';
@@ -164,6 +164,31 @@ try {
       });
     `, include: 'html-grid.js', budget: {esbuild: 92000, Vite: 119000}, bands: ['box.js', 'grid.js'],
       exclude: [...legacy, 'html-box.js', 'html-row.js', 'html-group.js', 'html-table.js', 'layout-connect.js'], draw: true},
+    {name: 'Selective HTML row', source: `
+      import {renderBandsHtml} from 'svg-diagram/html/selective';
+      import {rowHtml} from 'svg-diagram/html/bands/row';
+      import {box} from 'svg-diagram/bands/box';
+      import {row} from 'svg-diagram/bands/row';
+      export const draw = () => renderBandsHtml([row([box({title: 'Review'}), box({title: 'Done'})])], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        fontBox: size => ({ascent: size, descent: 0}),
+        adapters: {row: rowHtml}, strict: true,
+      });
+    `, include: 'html-row.js', budget: {esbuild: 92000, Vite: 118000}, bands: ['box.js', 'row.js'],
+      exclude: [...legacy, 'html-box.js', 'html-grid.js', 'html-group.js', 'html-table.js'], draw: true},
+    {name: 'Selective HTML group', source: `
+      import {renderBandsHtml} from 'svg-diagram/html/selective';
+      import {groupHtml} from 'svg-diagram/html/bands/group';
+      import {boxHtml} from 'svg-diagram/html/bands/box';
+      import {box} from 'svg-diagram/bands/box';
+      import {group} from 'svg-diagram/bands/group';
+      export const draw = () => renderBandsHtml([group(box({title: 'Review'}))], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        fontBox: size => ({ascent: size, descent: 0}),
+        adapters: {group: groupHtml, box: boxHtml}, strict: true,
+      });
+    `, include: 'html-group.js', budget: {esbuild: 92000, Vite: 119000}, bands: ['box.js', 'caption.js', 'group.js'],
+      exclude: [...legacy, 'html-box.js', 'html-grid.js', 'html-row.js', 'html-table.js', 'layout-connect.js'], draw: true},
     {name: 'Selective HTML table', source: `
       import {renderBandsHtml} from 'svg-diagram/html/selective';
       import {tableHtml} from 'svg-diagram/html/bands/table';
@@ -196,7 +221,7 @@ try {
         bands: {row: rowPptx}, strict: true,
       });
     `, include: 'pptx/selective.js', budget: {esbuild: 155000, Vite: 184000}, bands: ['box.js', 'row.js'],
-      exclude: [...legacy, 'pptx/bands.js', 'pptx/slide.js', 'pptx/image-band.js', 'pptx/table.js', 'pptx/group-span.js', 'pptx/swimlane-span.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'svg-outline.js', 'lib/emit.js'], draw: true},
+      exclude: [...legacy, 'pptx/bands.js', 'pptx/box-bands.js', 'pptx/grid-band.js', 'pptx/group-band.js', 'pptx/slide.js', 'pptx/image-band.js', 'pptx/table.js', 'pptx/group-span.js', 'pptx/swimlane-span.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'svg-outline.js', 'lib/emit.js'], draw: true},
     {name: 'Selective PPTX Caption', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
       import {captionPptx} from 'svg-diagram/pptx/bands/caption';
@@ -751,7 +776,7 @@ try {
           console.log(`${label}: ${bytes} bytes`);
           continue;
         }
-        if (name === 'Selective HTML' || name === 'Selective HTML grid') {
+        if (['Selective HTML', 'Selective HTML grid', 'Selective HTML row', 'Selective HTML group'].includes(name)) {
           assert.match(result.html, /class="sd-b"[\s\S]*>Review<\/div>/, label);
           assert.doesNotMatch(result.html, /<svg|<table/, label);
           assert.doesNotMatch(code, /<table style=/, label);
