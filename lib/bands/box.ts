@@ -2,7 +2,7 @@ import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {box as buildBox} from '../dsl/box.ts';
 import {renderBox} from '../emit-boxes.ts';
-import {layoutBoxLike} from '../layout-box-like.ts';
+import {layoutBoxLikeBand} from '../layout-box-like.ts';
 import {styledAtoms, textRuns} from '../layout-text.ts';
 import type {BoxInput} from '../strict.ts';
 import {TAG_SIZE} from '../tokens.ts';
@@ -21,10 +21,8 @@ const definition = {
       }
     }
   },
-  layout(data, {x, y, w, widthOf, roles, wrap}) {
-    const laid = layoutBoxLike(data, x, y, w, true, widthOf, roles, wrap);
-    return {h: laid.h, laid};
-  },
+  internal: true,
+  layout: layoutBoxLikeBand,
   emit(laid, {theme, tones, roles}) {
     return renderBox(laid, theme, tones, roles);
   },

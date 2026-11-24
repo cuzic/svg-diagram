@@ -12,12 +12,13 @@ const withToday = (data: GanttBand, today: string | undefined): GanttBand =>
 
 const definition = {
   type: 'gantt',
+  ids: data => data.rows.flatMap(row => 'id' in row && row.id ? [row.id] : []),
   measure(data, {atoms, roles, today}) {
     for (const [text, size, weight, font] of ganttTexts(withToday(data, today), roles)) atoms(text, size, weight, font);
   },
   layout(data, {x, y, w, widthOf, roles, today}) {
     const laid = layoutGantt(withToday(data, today), x, snapGrid(y), w, widthOf, roles);
-    return {laid, h: laid.h};
+    return {laid, h: laid.h, anchors: laid.anchors};
   },
   emit(laid, {theme}) {
     return renderGantt(laid, theme);

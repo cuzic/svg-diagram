@@ -1,4 +1,5 @@
 import {BandError} from './band-error.ts';
+import type {resolveConnect} from './layout-connect.ts';
 import type {BandLayoutHandler} from './layout-ctx.ts';
 import type {RevealHandler} from './reveal-handlers.ts';
 import type {ToneEnv} from './tokens.ts';
@@ -45,6 +46,7 @@ interface MeasureEnv {
 }
 
 interface EmitEnv {
+  readonly stage?: number;
   readonly theme: Theme;
   readonly roles: Roles;
   readonly tones: ToneEnv;
@@ -68,7 +70,7 @@ interface BandFinding {
   where?: string;
 }
 
-interface BandHooks<D, L extends Rect> {
+interface BandHooks<D, L extends object> {
   type: string;
   readonly [EXTERNAL]?: true;
   emit(laid: L, env: EmitEnv): string;
@@ -89,24 +91,25 @@ interface BandHooks<D, L extends Rect> {
   offGrid?: boolean;
 }
 
-interface PublicLayout<D, L extends Rect> {
+interface PublicLayout<D, L extends object> {
   internal?: never;
-  layout(data: D, env: PublicEnv): {h: number; anchors?: Anchor[]; texts?: TextItem[]; paper?: boolean; laid: L};
+  layout(data: D, env: PublicEnv): {h: number; anchors?: Anchor[]; texts?: TextItem[]; paper?: boolean; laid: L & Rect};
 }
 
 interface InternalLayout<D> {
   internal: true;
+  resolveConnect?: typeof resolveConnect;
   layout(...args: Parameters<BandLayoutHandler<D>>): void;
 }
 
-export type BandDef<D = unknown, L extends Rect = Rect> = BandHooks<D, L> & (PublicLayout<D, L> | InternalLayout<D>);
+export type BandDef<D = unknown, L extends object = Rect> = BandHooks<D, L> & (PublicLayout<D, L> | InternalLayout<D>);
 type ExternalType = `${string}:${string}`;
 type ExternalBand<T> = T extends ExternalType ? {type: T; id?: string} & ScopeOpts & RevealOpts : never;
 
 export type BandValue<T extends Band['type'] | ExternalType> =
   (Extract<Band, {type: T}> | ExternalBand<T>) & {readonly [DEF]: BandDef};
 
-export function assertTrustedBandFields(def: BandDef): void {
+export function assertTrustedBandFields(def: Pick<BandDef, 'type' | 'internal' | 'nodeIds' | 'rectsQualified' | typeof EXTERNAL>): void {
   const separator = def.type.indexOf(':');
   if (!def[EXTERNAL] && separator < 0) return;
   const field = def.internal === true ? 'internal'
@@ -119,9 +122,9 @@ export function assertTrustedBandFields(def: BandDef): void {
   }
 }
 
-export type WithBandDef<D, L extends Rect> = D & {readonly [DEF]: BandDef<D, L>};
+export type WithBandDef<D, L extends object> = D & {readonly [DEF]: BandDef<D, L>};
 
-export function band<D extends {type: string}, L extends Rect>(def: BandDef<D, L>, data: D): WithBandDef<D, L> {
+export function band<D extends {type: string}, L extends object>(def: BandDef<D, L>, data: D): WithBandDef<D, L> {
   if (def.type !== data.type) throw new Error(`帯の定義の型 "${def.type}" とデータの型 "${data.type}" が一致しません。同じ型の定義とデータを渡してください`);
   assertTrustedBandFields(def);
   return Object.defineProperty(copyBand(data), DEF, {value: def, enumerable: true, writable: true, configurable: true}) as WithBandDef<D, L>;

@@ -1,13 +1,19 @@
 import {splitAtoms} from './atoms.ts';
 import {defOf, DEF, EXTERNAL} from './band-def.ts';
 import {cloneData} from './clone-data.ts';
-import {escapeXml} from './emit-common.ts';
+import {emitSvgWith} from './emit-svg-core.ts';
+import {createLayoutWith} from './layout-core.ts';
+import {addScoped, emptyScopes} from './scope-table.ts';
+import {qualify, scopeOf} from './scope-name.ts';
+import {verifyWithServices} from './verify-core.ts';
+import type {BandDef} from './band-def.ts';
 import {must} from './must.ts';
-import {checked, visibleAt} from './reveal-visibility.ts';
+import {checked} from './reveal-visibility.ts';
 import {checkToday} from './today-auto.ts';
-import {checkTones, colorOf, FONT_STACKS, PALETTE, rolesAt, THEMES, toneEnv} from './tokens.ts';
-import type {FontFamily, Measured, MeasureRequest, Rect, RevealOpts, Theme, WidthOf, WrapMode} from './types/core.ts';
-import {outsideBox} from './verify-base.ts';
+import {checkTones, colorOf, rolesAt, THEMES, toneEnv} from './tokens.ts';
+import type {FontFamily, Measured, MeasureRequest, DiagramData, RevealOpts, Theme, WidthOf, WrapMode} from './types/core.ts';
+import type {Band, LaidOutBand, LaidOutDiagram} from './types/index.ts';
+import type {Issue} from './types/verdicts.ts';
 import {xmlProblems} from './xml-check.ts';
 
 export type {BandDef} from './band-def.ts';
@@ -42,7 +48,7 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
   size('content width', contentWidth, 1);
   const theme = opts.theme ?? 'blue';
   if (!THEMES.includes(String(theme))) throw new Error(`renderBands: unknown theme "${theme}"`);
-  const tones = toneEnv(opts.tones === undefined ? undefined : checkTones(opts.tones, 'renderBands'));
+  const tones = opts.tones === undefined ? undefined : checkTones(opts.tones, 'renderBands');
   const today = opts.today === undefined ? undefined : checkToday(opts.today, 'renderBands({today})');
   if (opts.stage !== undefined && (!Number.isInteger(opts.stage) || opts.stage < 0)) throw new Error('renderBands: stage must be a nonnegative integer');
 
@@ -51,22 +57,38 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
   const measureEnv = {roles, today, atoms(text: string, size: number, weight: number, font: FontFamily = 'sans') {
     for (const atom of splitAtoms(text)) requests.set(keyOf(atom, size, weight, font), {text: atom, size, weight, font});
   }};
-  const ids = new Set<string>();
-  const items = cloneData(bands).map(data => {
+  const ids = new Map<string, {start: number; end?: number}>();
+  const definitions = new Map<string, BandDef>();
+  const scopeTable = emptyScopes();
+  let last = 0;
+  const source = cloneData(bands) as unknown as Band[];
+  function collect(data: Band): void {
     const def = defOf(data);
-    if (!def || def.type !== data.type || def.internal || def[EXTERNAL]) {
+    if (!def || def.type !== data.type || def[EXTERNAL] || data.type.includes(':')) {
       throw new Error(`renderBands: import the supported band "${data.type}" from its svg-diagram/bands entry`);
     }
-    const start = checked(data.reveal, data.type) ?? 0;
-    const end = checked(data.until, `${data.type} (until)`);
+    if (definitions.has(data.type) && definitions.get(data.type) !== def) {
+      throw new Error(`renderBands: mixed definitions for "${data.type}"`);
+    }
+    definitions.set(data.type, def);
+    const reveal = data as RevealOpts & {id?: string};
+    const start = checked(reveal.reveal, data.type) ?? 0;
+    const end = checked(reveal.until, `${data.type} (until)`);
     if (end !== undefined && end <= start) throw new Error(`renderBands: ${data.type} until must be later than its reveal`);
-    if (data.id) {
-      if (ids.has(data.id)) throw new Error(`renderBands: duplicate band id "${data.id}"`);
-      ids.add(data.id);
+    last = Math.max(last, end ?? start);
+    if (reveal.id) {
+      if (ids.has(reveal.id)) throw new Error(`renderBands: duplicate band id "${reveal.id}"`);
+      ids.set(reveal.id, {start, end});
+    }
+    const scope = scopeOf(data);
+    for (const id of def.ids?.(data) ?? []) {
+      if (scope) addScoped(scopeTable, scope, id);
+      ids.set(qualify(scope, id), {start, end});
     }
     def.measure?.(data, measureEnv);
-    return {data, layout: def.layout, emit: def.emit, verify: def.verify, last: end ?? start};
-  });
+    for (const child of def.children?.(data) ?? []) collect(child);
+  }
+  for (const data of source) collect(data);
   const measured = new Map(await Promise.all([...requests].map(async ([key, request]) => {
     const {w} = await opts.measure(request);
     return [key, size('measured width', w, 0)] as const;
@@ -74,31 +96,76 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
   const widthOf: WidthOf = (text, size, weight, font) => {
     return must(measured.get(keyOf(text, size, weight, font)), `renderBands: width was not measured for "${text}"`);
   };
-  const emitEnv = {theme, roles, tones, color: (key: Parameters<typeof colorOf>[0]) => colorOf(key, theme)};
-  const verifyEnv = {theme, tones, connects: []};
-  const stage = opts.stage ?? items.reduce((last, item) => Math.max(last, item.last), 0);
-  const body: string[] = [];
-  const problems: string[] = [];
-  const warnings: string[] = [];
-  const placed: {type: string; rect: Rect}[] = [];
-  let y = pad;
-  for (const {data, layout, emit, verify} of items) {
-    const {laid, h} = layout(data, {x: pad, y, w: contentWidth, widthOf, roles, theme, tones, wrap: opts.wrap ?? 'phrase', today});
-    y += size('band height', h, 0) + gap;
-    placed.push({type: data.type, rect: laid});
-    for (const finding of verify?.check?.(laid, verifyEnv) ?? []) {
-      if (finding.severity === 'problem') problems.push(finding.message);
-      else warnings.push(finding.message);
-    }
-    if (visibleAt(data, stage)) body.push(emit(laid, emitEnv));
-  }
-  const height = Math.max(1, Math.round(y + pad - (items.length ? gap : 0)));
-  const bounds = {x: 0, y: 0, w: width, h: height};
-  for (const {type, rect} of placed) if (outsideBox(rect, bounds)) problems.push(`${type}: band runs outside the figure`);
-  const title = opts.title === undefined ? '' : `<title>${escapeXml(opts.title)}</title>`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img">${title}`
-    + `<style>text{font-family:${FONT_STACKS.sans}}.mono{font-family:${FONT_STACKS.mono}}.emoji{font-family:${FONT_STACKS.emoji}}</style>`
-    + `<rect width="${width}" height="${height}" fill="${PALETTE.bg}"/>${body.join('\n')}</svg>`;
-  const xml = xmlProblems(svg);
-  return {svg, width, height, xml, verdict: {ok: problems.length === 0, problems, warnings}};
+  const layout = createLayoutWith({
+    resolveConnect: (...args) => {
+      const def = defOf(args[0]);
+      return must(def?.internal ? def.resolveConnect : undefined)(...args);
+    },
+    resolve: input => {
+      const def = must(defOf(input));
+      if (def.internal) return def.layout;
+      const place = def.layout;
+      return (_band, ctx, x, w) => {
+        const {laid, h, anchors} = place(input, {x, y: ctx.y, w, widthOf: ctx.widthOf, roles, theme, tones: ctx.tones, wrap: ctx.wrap, today});
+        if ('id' in input && input.id) ctx.register(input.id, laid, 'each band needs a unique id');
+        for (const anchor of anchors ?? []) {
+          if (anchor.id) ctx.register(anchor.id, anchor, 'each anchor needs a unique id', scopeOf(input));
+        }
+        ctx.laidOut.push(laid as LaidOutBand);
+        ctx.y += size('band height', h, 0) + gap;
+      };
+    },
+    hasChildrenHandler: input => definitions.has(input.type),
+    childrenOf: input => defOf(input)?.children?.(input) ?? [],
+    stackWidthOf: () => null,
+    scopesOf: () => scopeTable,
+    buildInventory: () => ({items: []}),
+  });
+  const data: DiagramData = {day: theme, medium: 'doc', width, pad, gap, fill: false, bands: source, title: opts.title, wrap: opts.wrap, tones};
+  const placed = layout(data, roles, widthOf);
+  placed.canvasHeight = Math.max(1, placed.canvasHeight);
+  // A link follows its endpoints unless it has an explicit end stage.
+  placed.connects = placed.connects.map(connector => {
+    const from = ids.get(connector.fromId), to = ids.get(connector.toId);
+    const reveal = Math.max(connector.reveal ?? 0, from?.start ?? 0, to?.start ?? 0);
+    const end = connector.until ?? Math.min(from?.end ?? Infinity, to?.end ?? Infinity);
+    if (end <= reveal) throw new Error(`renderBands: connector "${connector.fromId}" → "${connector.toId}" is never visible`);
+    return {...connector, ...(reveal ? {reveal} : {}), ...(Number.isFinite(end) ? {until: end} : {})};
+  });
+  const stage = opts.stage ?? last;
+  const ink = toneEnv(tones);
+  const ctx = {theme, tones: ink, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
+  const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => band.type === 'row' || band.type === 'grid' ? band.children : [band]);
+  const verdict = verifyWithServices({
+    collectRects: figure => leaves(figure).map(band => ({...band, label: band.type, id: 'id' in band ? band.id ?? null : null})),
+    contrastProblems: () => [],
+    lintDiagram: () => [],
+    acceptHint: () => undefined,
+    mergeFindingSides: () => [],
+    hasMutedBox: () => false,
+    checkFigures: figure => {
+      const issues: Issue[] = [], warnings: string[] = [];
+      for (const band of leaves(figure)) {
+        for (const finding of definitions.get(band.type)?.verify?.check?.(band, ctx) ?? []) {
+          if (finding.severity === 'problem') issues.push({message: finding.message});
+          else warnings.push(finding.message);
+        }
+      }
+      return {issues, warnings};
+    },
+  }, placed);
+  const emitEnv = {theme, roles, tones: ink, color: (key: Parameters<typeof colorOf>[0]) => colorOf(key, theme), stage};
+  const svg = emitSvgWith({
+    defsNeeded: band => ({
+      arrow: band.type === 'row' && band.arrows.length > 0,
+      mono: (band.type === 'row' || band.type === 'grid' ? band.children.flatMap(b => b.wrappedRuns)
+        : 'wrappedRuns' in band ? band.wrappedRuns : []).some(run => run.mono),
+    }),
+    renderBand: band => must(definitions.get(band.type)).emit(band as never, emitEnv),
+    renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
+    diagramTitle: () => opts.title ?? '',
+    diagramDesc: () => '',
+    spotlightDim: () => 'outline',
+  }, placed, {reveal: stage});
+  return {svg, width, height: placed.canvasHeight, xml: xmlProblems(svg), verdict};
 }

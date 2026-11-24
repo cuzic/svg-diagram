@@ -20,7 +20,8 @@ import {atBand, sourceOf, withSource} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
 import type {BandLayoutHandler, LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
 import {layoutBoxLike} from './layout-box-like.ts';
-import {parseRef, resolveConnect} from './layout-connect.ts';
+import {parseRef} from './connect-geometry.ts';
+import type {resolveConnect} from './layout-connect.ts';
 import {ceil4, labelRoom} from './connect-rules.ts';
 import type {LabelAxis} from './connect-rules.ts';
 import {addScoped} from './scope-table.ts';
@@ -45,6 +46,7 @@ import {must} from './must.ts';
 type LayoutResult = Omit<LaidOutDiagram, 'inventory'>;
 
 export interface LayoutServices {
+  resolveConnect: typeof resolveConnect;
   resolve: (band: Band) => BandLayoutHandler<never>;
   hasChildrenHandler: (band: Band) => boolean;
   childrenOf: (band: Band) => Band[];
@@ -371,7 +373,7 @@ function layoutBands(services: LayoutServices, data: DiagramData, roles: Roles, 
   // the framed groups, for connect({via}) (ADR 0069 D2): their final rectangles (a row / areas() has stretched them by now)
   const frames = laidOut.flatMap(b => b.type === 'group' && b.frame !== false ? [{x: b.x, y: b.y, w: b.w, h: b.h, id: b.id}] : []);
   for (const band of deferred) atBand(band, () => {
-    connects.push(resolveConnect(band, anchors, areaIds, widthOf, roles, nodeBottoms, scopes, frames));
+    connects.push(services.resolveConnect(band, anchors, areaIds, widthOf, roles, nodeBottoms, scopes, frames));
   });
 
   const contentHeight = Math.round(ctx.y - d.gap + d.pad);

@@ -155,6 +155,18 @@
       "types": "./dist/lib/core.d.ts",
       "default": "./dist/lib/core.js"
     },
+    "./bands/connect": {
+      "types": "./dist/lib/bands/connect.d.ts",
+      "default": "./dist/lib/bands/connect.js"
+    },
+    "./bands/grid": {
+      "types": "./dist/lib/bands/grid.d.ts",
+      "default": "./dist/lib/bands/grid.js"
+    },
+    "./bands/row": {
+      "types": "./dist/lib/bands/row.d.ts",
+      "default": "./dist/lib/bands/row.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"

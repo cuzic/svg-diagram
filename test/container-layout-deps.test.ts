@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
+import {parseRef} from '../lib/connect-geometry.ts';
+import {layoutBoxLikeBand} from '../lib/layout-box-like.ts';
 import {layoutConnect} from '../lib/layout-connect.ts';
 import {layoutGridBand} from '../lib/layout-grid.ts';
 import {layoutRow, registerRowSlots} from '../lib/layout-row.ts';
@@ -9,6 +11,8 @@ import {LAYOUT_HANDLERS} from '../lib/layout-handlers.ts';
 import type {Rect} from '../lib/types/core.ts';
 
 test('the legacy table uses the independently importable row, grid and connector handlers', () => {
+  assert.equal(LAYOUT_HANDLERS.box, layoutBoxLikeBand);
+  assert.deepEqual(parseRef('plan#1-2:right@0.25'), {id: 'plan#1-2', side: 'right', at: 0.25});
   assert.equal(LAYOUT_HANDLERS.row, layoutRow);
   assert.equal(LAYOUT_HANDLERS.grid, layoutGridBand);
   assert.equal(LAYOUT_HANDLERS.connect, layoutConnect);

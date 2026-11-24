@@ -38,7 +38,7 @@ import type {PyramidBand, CurveBand, LaidOutPyramidLayer} from './types/figures.
 import type {ImageBand} from './types/image.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
 import type {SwimlaneBand, LaidOutLane, LaidOutPhase, LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
-import type {BoxBand, CaptionBand, BannerBand} from './types/text-bands.ts';
+import type {CaptionBand} from './types/text-bands.ts';
 import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx} from './layout-ctx.ts';
 import {PALETTE, SHADES, blendLuminance, bestTextColor, canvasFontScale, paintOf} from './tokens.ts';
 import {
@@ -47,6 +47,7 @@ import {
 } from './layout-util.ts';
 import {lineWidth} from './layout-text.ts';
 import {layoutConnect} from './layout-connect.ts';
+import {layoutBoxLikeBand} from './layout-box-like.ts';
 import {layoutGridBand} from './layout-grid.ts';
 import {layoutRow, registerRowSlots} from './layout-row.ts';
 import {addScoped, qualify, scopeOf} from './anchor-scope.ts';
@@ -133,14 +134,6 @@ function layoutWordArtBand(band: Band & {type: 'wordart'}, ctx: LayoutCtx, padX:
   const placed = layoutWordArt(band, padX, originOf(band.type, ctx.y), cw, ctx.widthOf, ctx.roles, ctx.wrap);
   if (band.id) { if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'a wordart takes an id that another anchor already has'); ctx.anchors.set(band.id, placed); }
   ctx.laidOut.push(placed); ctx.y += placed.h + ctx.d.gap;
-}
-
-/** caption / box / banner (and, as before, anything a handler does not claim). */
-function layoutBoxLikeBand(band: CaptionBand | BoxBand | BannerBand, ctx: LayoutCtx, padX: number, cw: number): void {
-  const isBoxLike = band.type === 'box' || band.type === 'banner';
-  const placed = ctx.placeBoxLike(band, padX, ctx.y, cw, isBoxLike);
-  ctx.laidOut.push(placed);
-  ctx.y += placed.h + ctx.d.gap;
 }
 
 /** A group stretched taller than its content by a row (ADR 0014 D2): the room to hand to the content, and where it goes. */

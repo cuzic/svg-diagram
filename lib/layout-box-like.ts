@@ -1,5 +1,5 @@
 import {textWidth} from './atoms.ts';
-import type {Placed} from './layout-ctx.ts';
+import type {LayoutCtx, Placed} from './layout-ctx.ts';
 import {layoutBoxContent, lineWidth} from './layout-text.ts';
 import {BOX_PAD_X, BOX_PAD_Y, ICON_H, STAMP_GAP, STAMP_H, TAG_H, TAG_PAD_X, TOP_ICON_GAP, TOP_ICON_SIZE, snapGrid, stampChipW, topIcon} from './layout-util.ts';
 import {must} from './must.ts';
@@ -46,4 +46,12 @@ export function layoutBoxLike<B extends CaptionBand | BoxBand | BannerBand>(
     placed.tagBox = {x: chrome.tagAt === undefined ? x + w - tw - 12 : x + w * chrome.tagAt - tw / 2, y: y - TAG_H / 2, w: tw, h: TAG_H};
   }
   return placed;
+}
+
+/** caption / box / banner (and, as before, anything a handler does not claim). */
+export function layoutBoxLikeBand(band: CaptionBand | BoxBand | BannerBand, ctx: LayoutCtx, padX: number, cw: number): void {
+  const isBoxLike = band.type === 'box' || band.type === 'banner';
+  const placed = ctx.placeBoxLike(band, padX, ctx.y, cw, isBoxLike);
+  ctx.laidOut.push(placed);
+  ctx.y += placed.h + ctx.d.gap;
 }

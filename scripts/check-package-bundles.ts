@@ -27,19 +27,32 @@ try {
       measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
     });
   `;
+  const composedSource = (components: string[], bands: string) => `
+    import {renderBands} from 'svg-diagram/core';
+    ${components.map(name => `import {${name}} from 'svg-diagram/bands/${name}';`).join('\n')}
+    export const draw = () => renderBands([${bands}], {
+      measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+    });
+  `;
   const legacy = ['web.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'rules.js'];
   const cases = [
     {name: 'SVG', source: "export {renderInBrowser} from 'svg-diagram/browser';", include: 'web.js', exclude: ['emit-html.js']},
     {name: 'HTML', source: "export {emitHtml} from 'svg-diagram/html';", include: 'emit-html.js', exclude: ['web.js', 'web-measure.js']},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
-      exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 13000, Vite: 16000}},
+      exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 52000, Vite: 65000}},
     {name: 'Box', source: bandSource('box'), include: 'bands/box.js',
-      exclude: [...legacy, 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 49000, Vite: 56000}, draw: true},
+      exclude: [...legacy, 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 75500, Vite: 95000}, draw: true},
     {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',
-      exclude: [...legacy, 'box.js', 'emit-boxes.js', 'layout-box-like.js', 'timeline.js'], budget: {esbuild: 31000, Vite: 39000}, draw: true},
+      exclude: [...legacy, 'box.js', 'emit-boxes.js', 'layout-connect.js', 'timeline.js'], budget: {esbuild: 68000, Vite: 82000}, draw: true},
+    {name: 'Row', source: composedSource(['box', 'row'], "row([box({title: 'Review'}), box({title: 'Next'})], {arrows: 'between'})"),
+      include: 'bands/row.js', budget: {esbuild: 84000, Vite: 108000}, bands: ['box.js', 'row.js'], exclude: [...legacy, 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
+    {name: 'Grid', source: composedSource(['box', 'grid'], "grid([box({title: 'Review'}), box({title: 'Next'})], {cols: 2})"),
+      include: 'bands/grid.js', budget: {esbuild: 79000, Vite: 102000}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'layout-row.js', 'layout-connect.js', 'gantt.js'], draw: true},
+    {name: 'Connect', source: composedSource(['box', 'connect'], "connect('a:bottom', 'b:top'), box({id: 'a', title: 'Review'}), box({id: 'b', title: 'Next'})"),
+      include: 'bands/connect.js', budget: {esbuild: 89000, Vite: 115000}, bands: ['box.js', 'connect.js'], exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'gantt.js'], draw: true},
   ];
-  for (const {name, source, include, exclude, budget, draw} of cases) {
+  for (const {name, source, include, exclude, budget, draw, bands} of cases) {
     writeFileSync(entry, source);
     const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true,
       platform: 'browser', format: 'esm', write: false, metafile: true});
@@ -59,7 +72,7 @@ try {
       assert.ok(has(include), `${label} に ${include} が必要です`);
       if (name === 'Core' || draw) {
         const usedBands = files.flatMap(file => /(?:^|\/)bands\/([^/]+\.js)$/.exec(file.replaceAll('\\', '/'))?.[1] ?? []);
-        assert.deepEqual(usedBands, draw ? [path.basename(include)] : [], `${label} の帯`);
+        assert.deepEqual(usedBands.sort(), bands ?? (draw ? [path.basename(include)] : []), `${label} の帯`);
       }
       for (const filename of exclude) assert.ok(!has(filename), `${label} に ${filename} が残っています`);
       if (name === '文字測定') assert.ok(bytes <= 4000, `${label} が 4000 バイトを超えています`);
