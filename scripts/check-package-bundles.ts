@@ -93,6 +93,76 @@ try {
   const {exports: published} = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as {exports: Record<string, unknown>};
   assert.deepEqual(specBandEntries.map(({part}) => './spec/parts/' + part).sort(),
     Object.keys(published).filter(key => key.startsWith('./spec/parts/')).sort());
+  // Minified byte budgets for the catalog examples, with 10% headroom rounded up to 1,000 bytes.
+  const specBudgets = new Map<string, {esbuild: number; Vite: number}>([
+    ['affinity', {esbuild: 119000, Vite: 149000}],
+    ['bars', {esbuild: 87000, Vite: 112000}],
+    ['board', {esbuild: 167000, Vite: 210000}],
+    ['bowtie', {esbuild: 79000, Vite: 99000}],
+    ['boxplot', {esbuild: 89000, Vite: 110000}],
+    ['bpmn', {esbuild: 128000, Vite: 170000}],
+    ['bubble', {esbuild: 83000, Vite: 103000}],
+    ['burndown', {esbuild: 84000, Vite: 110000}],
+    ['burnup', {esbuild: 84000, Vite: 111000}],
+    ['butterfly', {esbuild: 77000, Vite: 95000}],
+    ['causal-loop', {esbuild: 160000, Vite: 216000}],
+    ['cause-tree', {esbuild: 191000, Vite: 254000}],
+    ['check-sheet', {esbuild: 100000, Vite: 121000}],
+    ['chevron', {esbuild: 65000, Vite: 85000}],
+    ['class-diagram', {esbuild: 147000, Vite: 203000}],
+    ['cloud', {esbuild: 68000, Vite: 88000}],
+    ['combo', {esbuild: 87000, Vite: 108000}],
+    ['compare', {esbuild: 79000, Vite: 97000}],
+    ['concentric', {esbuild: 85000, Vite: 112000}],
+    ['control-chart', {esbuild: 107000, Vite: 135000}],
+    ['cycle', {esbuild: 73000, Vite: 96000}],
+    ['dependency-network', {esbuild: 148000, Vite: 200000}],
+    ['fault-tree', {esbuild: 96000, Vite: 122000}],
+    ['flowchart', {esbuild: 170000, Vite: 230000}],
+    ['fmea', {esbuild: 100000, Vite: 122000}],
+    ['funnel', {esbuild: 64000, Vite: 84000}],
+    ['gantt', {esbuild: 69000, Vite: 89000}],
+    ['harvey', {esbuild: 80000, Vite: 99000}],
+    ['heatmap', {esbuild: 80000, Vite: 99000}],
+    ['histogram', {esbuild: 90000, Vite: 116000}],
+    ['is-is-not', {esbuild: 100000, Vite: 121000}],
+    ['journey-map', {esbuild: 99000, Vite: 121000}],
+    ['lines', {esbuild: 85000, Vite: 111000}],
+    ['matrix', {esbuild: 101000, Vite: 122000}],
+    ['mekko', {esbuild: 85000, Vite: 104000}],
+    ['mindmap', {esbuild: 94000, Vite: 122000}],
+    ['pareto', {esbuild: 88000, Vite: 113000}],
+    ['pdpc', {esbuild: 191000, Vite: 254000}],
+    ['pert', {esbuild: 148000, Vite: 199000}],
+    ['pyramid', {esbuild: 56000, Vite: 73000}],
+    ['qfd', {esbuild: 100000, Vite: 122000}],
+    ['quadrant', {esbuild: 108000, Vite: 135000}],
+    ['raci', {esbuild: 100000, Vite: 122000}],
+    ['radar', {esbuild: 82000, Vite: 101000}],
+    ['range-bars', {esbuild: 86000, Vite: 111000}],
+    ['relation-diagram', {esbuild: 192000, Vite: 255000}],
+    ['sankey', {esbuild: 90000, Vite: 110000}],
+    ['scatter', {esbuild: 83000, Vite: 107000}],
+    ['sequence', {esbuild: 74000, Vite: 94000}],
+    ['stacked-bars', {esbuild: 85000, Vite: 105000}],
+    ['state-diagram', {esbuild: 169000, Vite: 229000}],
+    ['steps', {esbuild: 141000, Vite: 178000}],
+    ['strategy-canvas', {esbuild: 84000, Vite: 110000}],
+    ['swimlane', {esbuild: 152000, Vite: 192000}],
+    ['table', {esbuild: 80000, Vite: 100000}],
+    ['timeline', {esbuild: 76000, Vite: 98000}],
+    ['tornado', {esbuild: 83000, Vite: 102000}],
+    ['tree', {esbuild: 92000, Vite: 121000}],
+    ['treemap', {esbuild: 80000, Vite: 100000}],
+    ['value-chain', {esbuild: 65000, Vite: 85000}],
+    ['venn', {esbuild: 63000, Vite: 83000}],
+    ['versus', {esbuild: 152000, Vite: 190000}],
+    ['waterfall', {esbuild: 86000, Vite: 106000}],
+    ['why-why-table', {esbuild: 100000, Vite: 121000}],
+    ['why-why-tree', {esbuild: 206000, Vite: 272000}],
+  ]);
+  assert.deepEqual([...specBudgets.keys()].sort(), specBandEntries.map(({part}) => part).sort(),
+    '公開 spec 部品ごとのバンドルサイズ上限');
   const specCases = specBandEntries.map(({part, bands}) => {
     const binding = part.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase()) + 'Part';
     return {
@@ -105,6 +175,7 @@ try {
         });
       `,
       include: 'spec-parts/selective/' + part + '.js',
+      budget: specBudgets.get(part),
       exclude: [...legacy, 'lib/spec.js', 'dsl-pure.js', 'legend-notation.js',
         ...Array.from({length: 7}, (_, n) => 'spec-parts/r' + (n + 1) + '.js'),
         ...(!bands.includes('cause.js') ? ['toc-rules.js'] : []),
@@ -716,6 +787,7 @@ try {
 
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;
+    if (draw) assert.ok(budget, `${name}: バンドルサイズ上限が必要です`);
     const catalog = 'catalog' in testCase && testCase.catalog;
     const selectedLayout = 'layout' in testCase ? testCase.layout : undefined;
     const overlaySelection = name === 'Selected wireframe dialog' || name === 'Selected wireframe toast';
