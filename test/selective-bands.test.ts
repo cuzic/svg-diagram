@@ -1121,3 +1121,29 @@ test('selected document checks preserve pictograph, aspect and text budget diagn
   assert.deepEqual(notes(accepted).map(f => f.severity), ['info', 'info', 'info']);
   assert.deepEqual(warnings(accepted), []);
 });
+
+test('selected connectors detect orphan boxes and disconnected components like legacy rendering', async () => {
+  const {graphFindings} = await import('../lib/verify-connection-graph.ts');
+  const {SourceRef, withSource} = await import('../lib/source-ref.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const items = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'orphan'].map(id => ({id, title: id}));
+  const refs = items.map((_, index) => new SourceRef(undefined, `parts[${index}]`));
+  const bands = [
+    ...items.map((item, index) => withSource(box(item), refs[index])),
+    connect('alpha', 'beta'), connect('beta', 'gamma'), connect('delta', 'epsilon'),
+  ];
+  const selected = await renderBands(bands, {measure});
+  const {placed} = await prepareBands(bands, {measure});
+  assert.deepEqual(graphFindings({...placed, connects: placed.connects.slice(0, 2)}, data => data, () => []), []);
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false}).add(
+    items.map((item, index) => withSource(legacyBox(item), refs[index])),
+    legacyConnect('alpha', 'beta'), legacyConnect('beta', 'gamma'), legacyConnect('delta', 'epsilon'),
+  ), {measure});
+  const rules = ['graph-orphan-node', 'graph-disconnected'];
+  const notes = ({verdict}: Pick<typeof selected, 'verdict'>) => verdict.findings.filter(f => rules.includes(f.rule));
+  assert.deepEqual(notes(legacy).map(f => f.rule), rules);
+  assert.deepEqual(notes(selected), notes(legacy));
+  assert.deepEqual(notes(selected).map(f => f.loc?.specPath), ['parts[5]', 'parts[3]']);
+  const warnings = ({verdict}: Pick<typeof selected, 'verdict'>) => verdict.warnings.filter(w => w.startsWith('[graph-'));
+  assert.deepEqual(warnings(selected), warnings(legacy));
+});

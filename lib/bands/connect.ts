@@ -1,8 +1,9 @@
 import {findingAcceptanceHint} from '../finding-rules.ts';
 import {connectorFindings, connectorRules} from '../verify-connect-crossings.ts';
 import {labelCoverFindings} from '../verify-connect-label.ts';
-import {band} from '../band-def.ts';
-import type {BandDef, WithBandDef} from '../band-def.ts';
+import {graphFindings} from '../verify-connection-graph.ts';
+import {band, defOf, walkDefinedBands} from '../band-def.ts';
+import type {BandDef, DiagramFindings, WithBandDef} from '../band-def.ts';
 import {connect as buildConnect} from '../dsl/connect.ts';
 import {renderConnect} from '../emit-boxes.ts';
 import {layoutConnect, resolveConnect} from '../layout-connect.ts';
@@ -11,6 +12,9 @@ import {expandLoopBacks} from '../loop-back.ts';
 import {CONNECT_LABEL_SIZE} from '../tokens.ts';
 import type {ConnectBand, LaidOutConnect} from '../types/containers.ts';
 
+const selectedGraphFindings: DiagramFindings = diagram =>
+  graphFindings(diagram, walkDefinedBands, data => defOf(data)?.ids?.(data) ?? []);
+
 export const connectDefinition: BandDef<ConnectBand, LaidOutConnect> = {
   type: 'connect',
   internal: true,
@@ -18,7 +22,7 @@ export const connectDefinition: BandDef<ConnectBand, LaidOutConnect> = {
   resolveConnect,
   rules: connectorRules,
   verify: {
-    diagramFindings: [labelCoverFindings, connectorFindings],
+    diagramFindings: [labelCoverFindings, connectorFindings, selectedGraphFindings],
     acceptHint: rule => Object.hasOwn(connectorRules, rule) ? findingAcceptanceHint(rule) : undefined,
   },
   expandLoopBacks,

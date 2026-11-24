@@ -26,7 +26,7 @@ import {midWordFindings} from './mid-word-findings.ts';
 import {labelCoverFindings} from './verify-connect-label.ts';
 import {axisMismatches} from './axis-rules.ts';
 import {axisMismatchFindings} from './axis-comparison.ts';
-import {qualify, scopeOf} from './anchor-scope.ts';
+import {graphFindings} from './verify-connection-graph.ts';
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {applyFindingAcceptance, analysisFindings, at, findingAcceptanceHint, fromSources} from './finding-rules.ts';
 import type {SourceRef} from './source-ref.ts';
@@ -53,7 +53,7 @@ import {dimmedBands} from './spotlight.ts';
 import type {BarsBand} from './types/bars.ts';
 import type {CaptionBand} from './types/text-bands.ts';
 import type {LegendBand} from './types/containers.ts';
-import type {EmphasisTone, DiagramData, Rect, RuleId} from './types/core.ts';
+import type {EmphasisTone, DiagramData, RuleId} from './types/core.ts';
 import {connectorFindings, connectorRules} from './verify-connect-crossings.ts';
 export {edgePairs, edgeStats} from './verify-connect-crossings.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
@@ -143,8 +143,8 @@ export const RULE_DOCS = {
   'toc-chain-only': 'crt / frt が分岐も合流も AND も無い 1 本鎖(途中の原因を飛ばしている可能性)。diagram({tocCheck: "strict"}) で warn',
   'toc-orphan': 'causeTree({tree}) の実体のうち、どのリンクにも出てこないものがある(graph-orphan-node は connect() の線しか見ない)。diagram({tocCheck: "strict"}) で warn',
   'toc-cycle-undeclared': 'causeTree({tree}) に循環があるのに、戻りの矢印に back: true が付いていない(配置が戻りとして扱った矢印を示す)。diagram({tocCheck: "strict"}) で warn',
-  'graph-orphan-node': '矢印でつないだ図の中に、どの矢印にもつながっていない箱がある（つなぎ忘れか、図に要らない箱。意図した注記なら id を付けない）',
-  'graph-disconnected': '矢印でつないだ図が、互いにつながらない 2 つ以上のかたまりに分かれている（1 図 1 話なら、つなぎ忘れか、図を分ける）',
+  'graph-orphan-node': connectorRules['graph-orphan-node'].doc,
+  'graph-disconnected': connectorRules['graph-disconnected'].doc,
   'term-variant': '同じ語の表記が 1 つの図の中で揺れている（ユーザ / ユーザー、API / Api など）。1 つに揃える',
   'term-avoid': '用語集（.svg-diagram.json の "terms"）で、別の語に統一すると決めた語が使われている',
   'table-sum-mismatch': tableRules['table-sum-mismatch'].doc,
@@ -268,8 +268,8 @@ export const RULE_LOCATION = {
   'toc-chain-only': 'band',
   'toc-orphan': 'band',
   'toc-cycle-undeclared': 'band',
-  'graph-orphan-node': 'band-grouped',
-  'graph-disconnected': 'band-grouped',
+  'graph-orphan-node': connectorRules['graph-orphan-node'].scope,
+  'graph-disconnected': connectorRules['graph-disconnected'].scope,
   'term-variant': 'band-grouped',
   'term-avoid': 'band-grouped',
   'table-sum-mismatch': tableRules['table-sum-mismatch'].scope,
@@ -675,38 +675,6 @@ function headlineLength(d: LintTarget, out: Finding[]): void {
 
 // a connected diagram (3+ arrows) should read as one graph: a box with an id that no arrow touches is a forgotten link,
 // and arrows that split into separate clumps are probably two stories in one picture
-function graphRules(d: LintTarget, out: Finding[]): void {
-  const connects = (d.connects ?? []).filter(c => !c.loopBack); // the arrow back of a step row is not an edge of a graph
-  if (connects.length < 3) return;
-  const parent = new Map<string, string>();
-  const find = (x: string): string => { let r = x; for (let up = parent.get(r); up !== undefined && up !== r; up = parent.get(r)) r = up; parent.set(x, r); return r; };
-  const add = (x: string) => { if (!parent.has(x)) parent.set(x, x); };
-  // a row / column end (sources.col(1)) stands for the boxes inside it
-  const placed = (d.laidOut ?? []).flatMap(b => b.type === 'box' ? [b] : b.type === 'row' || b.type === 'grid' ? b.children : []).filter(b => !!b.id);
-  const inside = (b: Rect, a: Rect) => Math.min(b.x + b.w, a.x + a.w) - Math.max(b.x, a.x) > 0.5 && Math.min(b.y + b.h, a.y + a.h) - Math.max(b.y, a.y) > 0.5; // even partly, as layout counts it
-  const endIds = (id: string, area?: Rect): string[] => [id, ...(area ? placed.flatMap(b => b.id && inside(b, area) ? [b.id] : []) : [])];
-  for (const c of connects) {
-    if (!c.fromId || !c.toId) continue;
-    const ids = [...endIds(c.fromId, c.fromArea), ...endIds(c.toId, c.toArea)];
-    for (const id of ids) add(id);
-    for (const id of ids) parent.set(find(id), find(must(ids[0])));
-  }
-  const all = walkBands(d.bands);
-  const boxes = all.filter((b): b is BoxBand => b.type === 'box' && !!b.id && !!b.title);
-  const orphans = boxes.filter(b => !parent.has(must(b.id)));
-  if (orphans.length) out.push({...at(orphans[0], ...orphans.slice(1)), rule: 'graph-orphan-node', severity: 'warn', message: `どの矢印にもつながっていない箱: ${orphans.map(b => `「${oneLine(b.title)}」(${b.id})`).join('、')}。矢印を足すか、箱を消す（注記なら id を付けない）`});
-  const groups = new Map<string, string[]>();
-  for (const id of parent.keys()) { const r = find(id); groups.set(r, [...(groups.get(r) ?? []), id]); }
-  if (groups.size > 1) {
-    const components = [...groups.values()];
-    // Point at the components outside the largest one; keep the first component on a tie.
-    const largest = components.reduce((a, b) => a.length >= b.length ? a : b);
-    const disconnected = new Set(components.filter(g => g !== largest).flat());
-    const refs = all.filter(b => ('id' in b && b.id && disconnected.has(b.id))
-      || itemIdsOf(b).some(id => disconnected.has(qualify(scopeOf(b), id)))).map(b => sourceOf(b));
-    out.push({...fromSources(refs), rule: 'graph-disconnected', severity: 'warn', message: `矢印でつないだ図が ${groups.size} つのかたまりに分かれている（${components.map(g => g.slice(0, 3).join('・') + (g.length > 3 ? '…' : '')).join(' ／ ')}）。つなぎ忘れがないか、図を分けるか確かめる`});
-  }
-}
 // `density: 'compact'` that was not applied to a band (ADR 0036 D6): the compact figure had an arrow through a box or a label on another one
 const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()', fta: 'faultTree()', bowtie: 'bowtie()'} as const;
 // what the layout changed on its own to make a figure fit its width (ADR 0010 D3): left out is a warning, `dir: 'auto'` is the author's own choice
@@ -747,7 +715,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   wireframeRules(d, out);
   rowHeaderRules(d, tones, out);
   grayToneRules(d, tones, out);
-  graphRules(d, out);
+  out.push(...graphFindings(d, walkBands, itemIdsOf));
   out.push(...termFindings(d.bands, d.terms), ...tableFindings(walkBands(d.bands)));
 
   out.push(...connectorFindings(d));

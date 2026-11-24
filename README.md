@@ -145,7 +145,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 
 本文の表示幅、縦長の図、文節折り返し、表示できない可能性がある絵記号、文字量や箱の数を選択描画で検査するには、`svg-diagram/verify/document` の `documentFindings` と `documentAcceptHint` を `renderBands(bands, {measure, maxWidth, diagramFindings: documentFindings, diagramAcceptHint: documentAcceptHint})` に渡します。デッキ用の `prepareSpecLayout` では自動で検査し、プロジェクトの `terms` に基づく用語の検査も行います。
 
-`svg-diagram/bands/connect` を使う選択描画では、接続線の交差や重なり、一部の矢印にしかラベルが付いていない場合の所見も返します。戻り線の交差や重なりには配置に応じた修正案が付きます。
+`svg-diagram/bands/connect` を使う選択描画では、接続線の交差や重なり、一部の矢印にしかラベルが付いていない場合の所見も返します。戻り線の交差や重なりには配置に応じた修正案が付きます。矢印につながらない箱や、矢印でつないだ図が複数に分かれている場合も検査します。
 
 選択描画では、箱・キャプション・バナー・棒グラフ・画像が持つ文字のコントラスト検査も実行します。`appearance: 'auto'` のときは両方の配色を検査し、暗い配色でだけ起きる問題にはその旨を付記します。
 
