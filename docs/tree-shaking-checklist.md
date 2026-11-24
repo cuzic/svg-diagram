@@ -53,11 +53,11 @@
   - [x] `radar`
   - [x] `treemap`
   - [x] `sankey`
-  - [ ] `catplot`
-  - [ ] `distplot`
-  - [ ] `multiplot`
-  - [ ] `regplot`
-  - [ ] `clustermap`
+  - [x] `catplot`
+  - [x] `distplot`
+  - [x] `multiplot`
+  - [x] `regplot`
+  - [x] `clustermap`
   - [x] `bubble`
   - [x] `butterfly`
   - [ ] `combo`

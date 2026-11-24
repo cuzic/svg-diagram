@@ -170,6 +170,16 @@ try {
       include: 'bands/butterfly.js', budget: {esbuild: 93000, Vite: 114000}, exclude: [...legacy, 'lib/charts.js', 'charts-tornado.js', 'charts-bubble.js', 'charts-harvey.js', 'charts-heatmap.js'], draw: true},
     {name: 'Tornado', source: composedSource(['tornado'], "tornado([{label: 'Review', low: 3, high: 9}], {base: 5})"),
       include: 'bands/tornado.js', budget: {esbuild: 97000, Vite: 118000}, exclude: [...legacy, 'lib/charts.js', 'charts-butterfly.js', 'charts-bubble.js', 'charts-harvey.js', 'charts-heatmap.js'], draw: true},
+    {name: 'clustermap', source: composedSource([], "clustermap(['Review', 'Next'], ['A', 'B'], [[1, 3], [4, 2]])", "import {clustermap} from 'svg-diagram/bands/clustermap';"),
+      include: 'bands/clustermap.js', budget: {esbuild: 78000, Vite: 98000}, exclude: [...legacy, 'lib/charts.js', 'charts-cat.js', 'charts-dist.js', 'charts-multi.js', 'charts-reg.js'], draw: true},
+    {name: 'regplot', source: composedSource([], "regplot({x: [1, 2, 3, 4, 5], y: [2, 5, 5, 7, 9]}, {xLabel: 'Review'})", "import {regplot} from 'svg-diagram/bands/regplot';"),
+      include: 'bands/regplot.js', budget: {esbuild: 82000, Vite: 105000}, exclude: [...legacy, 'lib/charts.js', 'charts-cat.js', 'charts-dist.js', 'charts-multi.js', 'charts-cluster.js'], draw: true},
+    {name: 'multiplot', source: composedSource([], "hist2d({x: [1, 2, 3, 4], y: [1, 3, 4, 2]}, {xLabel: 'Review'})", "import {hist2d} from 'svg-diagram/bands/multiplot';"),
+      include: 'bands/multiplot.js', budget: {esbuild: 88000, Vite: 113000}, exclude: [...legacy, 'lib/charts.js', 'charts-cat.js', 'charts-dist.js', 'charts-reg.js', 'charts-cluster.js'], draw: true},
+    {name: 'distplot', source: composedSource([], "histplot([1, 2, 3, 4, 5], {label: 'Review'})", "import {histplot} from 'svg-diagram/bands/distplot';"),
+      include: 'bands/distplot.js', budget: {esbuild: 83000, Vite: 104000}, exclude: [...legacy, 'lib/charts.js', 'charts-cat.js', 'charts-multi.js', 'charts-reg.js', 'charts-cluster.js'], draw: true},
+    {name: 'catplot', source: composedSource([], "catplot({Review: [1, 2, 3, 4, 5]})", "import {catplot} from 'svg-diagram/bands/catplot';"),
+      include: 'bands/catplot.js', budget: {esbuild: 87000, Vite: 111000}, exclude: [...legacy, 'lib/charts.js', 'charts-dist.js', 'charts-multi.js', 'charts-reg.js', 'charts-cluster.js'], draw: true},
   ];
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;

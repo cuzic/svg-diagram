@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {TreeItem} from '../lib/types/diagrams.ts';
 import {caption} from '../lib/bands/caption.ts';
+import {catplot, boxplot} from '../lib/bands/catplot.ts';
+import {displot, histplot} from '../lib/bands/distplot.ts';
+import {hist2d, jointplot} from '../lib/bands/multiplot.ts';
+import {regplot, residplot} from '../lib/bands/regplot.ts';
+import {clustermap} from '../lib/bands/clustermap.ts';
+import {catplot as legacyCat, boxplot as legacyBoxplot, displot as legacyDist, histplot as legacyHist, hist2d as legacyHist2d, jointplot as legacyJoint, regplot as legacyReg, residplot as legacyResid, clustermap as legacyCluster} from '../lib/web.ts';
 import {tornado} from '../lib/bands/tornado.ts';
 import {butterfly} from '../lib/bands/butterfly.ts';
 import {bubble} from '../lib/bands/bubble.ts';
@@ -628,6 +634,30 @@ test('selective tornado, butterfly, bubble and Harvey charts preserve SVG and di
   const legacy = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false}).add(
     legacyTornado(cases, {base: 8, domain: [0, 15]}), legacyButterfly(groups, comparison),
     legacyBubble(points, thresholds), legacyHarvey(rows, cols, values, {highlight: ['甲']}),
+  ), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.deepEqual(selected.xml, []);
+  assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
+  assert.equal(body(selected.svg), body(legacy.svg));
+});
+
+test('selective statistical charts preserve legacy SVG and share each family definition', async () => {
+  const values = [1, 2, 3, 3, 5, 7];
+  const columns = {x: [1, 2, 3, 4, 5, 6], y: [2, 5, 5, 7, 9, 10]};
+  const rows = ['東京', '大阪'], cols = ['朝', '昼'], cells = [[2, 5], [6, 3]];
+  const selected = await renderBands([
+    catplot({東京: values}, {kind: ['box', 'strip']}), boxplot({大阪: values}),
+    displot(values, {kind: ['hist', 'rug']}), histplot(values),
+    hist2d(columns), jointplot(columns),
+    regplot(columns), residplot(columns),
+    clustermap(rows, cols, cells),
+  ], {measure, title: 'Plan'});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false}).add(
+    legacyCat({東京: values}, {kind: ['box', 'strip']}), legacyBoxplot({大阪: values}),
+    legacyDist(values, {kind: ['hist', 'rug']}), legacyHist(values),
+    legacyHist2d(columns), legacyJoint(columns),
+    legacyReg(columns), legacyResid(columns),
+    legacyCluster(rows, cols, cells),
   ), {measure});
   const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
   assert.deepEqual(selected.xml, []);

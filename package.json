@@ -348,6 +348,26 @@
       "types": "./dist/lib/bands/harvey.d.ts",
       "default": "./dist/lib/bands/harvey.js"
     },
+    "./bands/catplot": {
+      "types": "./dist/lib/bands/catplot.d.ts",
+      "default": "./dist/lib/bands/catplot.js"
+    },
+    "./bands/distplot": {
+      "types": "./dist/lib/bands/distplot.d.ts",
+      "default": "./dist/lib/bands/distplot.js"
+    },
+    "./bands/multiplot": {
+      "types": "./dist/lib/bands/multiplot.d.ts",
+      "default": "./dist/lib/bands/multiplot.js"
+    },
+    "./bands/regplot": {
+      "types": "./dist/lib/bands/regplot.d.ts",
+      "default": "./dist/lib/bands/regplot.js"
+    },
+    "./bands/clustermap": {
+      "types": "./dist/lib/bands/clustermap.d.ts",
+      "default": "./dist/lib/bands/clustermap.js"
+    },
     "./bands/stacked": {
       "types": "./dist/lib/bands/stacked.d.ts",
       "default": "./dist/lib/bands/stacked.js"

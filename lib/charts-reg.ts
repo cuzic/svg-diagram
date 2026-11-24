@@ -4,7 +4,7 @@
 import {must} from './must.ts';
 import {Canvas, checkIds, checkText, fail, finiteNum, niceScale, numText} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
-import {markerPath, SHAPES} from './charts-cat.ts';
+import {markerPath, SHAPES} from './chart-markers.ts';
 import {lowessFit, meanOf, polyFit} from './stats.ts';
 import type {PolyFit} from './stats.ts';
 
