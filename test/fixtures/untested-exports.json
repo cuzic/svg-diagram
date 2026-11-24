@@ -516,6 +516,7 @@
   "spec-parts/waterfall:defineWaterfallPart",
   "spec-parts/why-why-table:defineWhyWhyTablePart",
   "spec-parts/why-why-tree:defineWhyWhyTreePart",
+  "spec-schema:schemaForParts",
   "spec-validation:checkAnchors",
   "spec-validation:countEmoji",
   "spec-validation:join",

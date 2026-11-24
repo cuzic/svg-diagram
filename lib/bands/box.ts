@@ -29,10 +29,10 @@ export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
   },
   verify: {
     rects: ownRect,
-    check(laid, {theme, tones}) {
+    check(laid, {theme, tones, appearance}) {
       return [
         ...nowrapProblems(laid).map(message => ({rule: 'nowrap', severity: 'problem' as const, message})),
-        ...boxLikeContrastProblems(laid, laid.tone ?? 'plain', theme, tones).map(message => ({rule: 'contrast', severity: 'problem' as const, message})),
+        ...boxLikeContrastProblems(laid, laid.tone ?? 'plain', theme, tones, appearance).map(message => ({rule: 'contrast', severity: 'problem' as const, message})),
       ];
     },
   },

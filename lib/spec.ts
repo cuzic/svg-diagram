@@ -10,10 +10,10 @@ import {causeTree, chevron, cloud, cycle, diagram, flowchart, funnel, gantt, jou
 import {walkBands} from './rules.ts';
 import {SOURCE, SourceRef, sourceOf} from './source-ref.ts';
 import type {RenderChecks} from './svg-lint.ts';
-import {SLIDE_CANVAS} from './tokens.ts';
+import {schemaForParts} from './spec-schema.ts';
 import type {BandInput, Diagram, Issue, Verdict} from './types/index.ts';
 
-import {CANVAS_LIMITS, SPEC_WIDTH, LEGEND_EN, MAX_EMOJI, MAX_ISSUES, MAX_TOTAL_TEXT, PART_EN, SPEC_VERSION, SpecError, items, list, object, oneOf, text, withoutSchemaField} from './spec-kit.ts';
+import {LEGEND_EN, MAX_EMOJI, MAX_ISSUES, MAX_TOTAL_TEXT, PART_EN, SpecError, items, withoutSchemaField} from './spec-kit.ts';
 import type {Json, JsonSchema, PartDef, SpecIssue} from './spec-kit.ts';
 export {SPEC_VERSION, CANVAS_LIMITS, MAX_TOTAL_TEXT, MAX_EMOJI, MAX_SWIMLANE_COLS, MAX_TREE_DEPTH, MAX_TREE_NODES, MAX_CAUSE_NODES, MAX_CAUSE_LINKS, MAX_ISSUES, SpecError, withoutSchemaField} from './spec-kit.ts';
 export type {JsonSchema, SpecIssue} from './spec-kit.ts';
@@ -73,30 +73,7 @@ const PARTS: readonly PartDef[] = [
 
 const partOf = (type: unknown): PartDef | undefined => PARTS.find(p => p.type === type);
 
-/** The width a figure without a canvas is drawn at: a document's text column (diagram() in lib/dsl/diagram.ts). */
-const DOC_WIDTH = 940;
-
-/** The JSON Schema of a whole spec. */
-export const specSchema: JsonSchema = object({
-  version: {const: SPEC_VERSION, description: 'Always 1.'},
-  lang: {...oneOf('ja', 'en'), description: "The language of the words the figure writes by itself (legends, headings such as 'Today'): ja (default) or en. Write your own text in the same language."},
-  title: text('The accessible name of the figure. Drawn above it only with showTitle.', 120),
-  showTitle: {type: 'boolean', description: 'true: draw the title above the figure.'},
-  desc: text('A one-sentence description for screen readers.', 400),
-  sourceLine: text('Where the content comes from, printed under the figure.', 120),
-  theme: {...oneOf('blue', 'teal', 'amber'), description: 'Default blue.'},
-  appearance: oneOf('light', 'dark'),
-  density: oneOf('normal', 'compact'),
-  width: {type: 'integer', minimum: SPEC_WIDTH.min, maximum: SPEC_WIDTH.max, description: `The width the figure is laid out at, in px (${SPEC_WIDTH.min} to ${SPEC_WIDTH.max}, default ${SPEC_WIDTH.max}): narrower makes boxes and tables wrap their text instead of the figure being shrunk later (a column of a slide). Text sizes do not change.`},
-  legend: {enum: ['auto', false], description: "'auto' lists the notation used; false shows no legend."},
-  canvas: object({
-    width: {type: 'integer', minimum: CANVAS_LIMITS.width[0], maximum: CANVAS_LIMITS.width[1], description: `The width of the canvas in px (default ${SLIDE_CANVAS.width}).`},
-    height: {type: 'integer', minimum: CANVAS_LIMITS.height[0], maximum: CANVAS_LIMITS.height[1], description: `The height of the canvas in px (default ${SLIDE_CANVAS.height}). With fit 'content', the most it may be.`},
-    minText: {type: 'number', minimum: CANVAS_LIMITS.minText[0], maximum: CANVAS_LIMITS.minText[1], description: `The smallest text in px (default ${SLIDE_CANVAS.minText}). Every text, box and gap grows by minText / 14.`},
-    fit: {...oneOf('content'), description: "'content': the canvas is as tall as what it holds, up to height. Left out: always height tall."},
-  }, [], `A figure for a slide or a screen, shown at its own size (1920x1080 for a full HD slide), instead of a figure for a document (${DOC_WIDTH}px wide, shown in a text column). Text and boxes grow with minText, so a large canvas holds more only when minText stays small.`),
-  parts: list({oneOf: PARTS.map(p => p.schema)}, 4, 1),
-}, ['version', 'title', 'parts']);
+export const specSchema = schemaForParts(PARTS);
 
 /** The parts a spec can hold, for a caller that writes specs: what each is for, its schema and a small valid example. */
 export function partCatalog(): {type: string; description: string; schema: JsonSchema; example: Json}[] {

@@ -16,9 +16,10 @@ const definition = {
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of barsTexts(data, roles)) atoms(text, size, weight, font);
   },
-  layout(data, {x, y, w, widthOf, roles}) {
+  layout(data, {x, y, w, widthOf, roles, canvas, geometryScale}) {
     const scope = scopeOf(data);
-    const placed = layoutBars(data, x, snapGrid(y), w, widthOf, roles);
+    const sized = canvas && data.labelRole === undefined ? {...data, labelRole: 'note' as const} : data;
+    const placed = layoutBars(sized, x, snapGrid(y), w, widthOf, roles, geometryScale);
     const laid = scope ? {...placed, scope} : placed;
     return {laid, h: laid.h, anchors: laid.anchors};
   },
@@ -26,8 +27,8 @@ const definition = {
   emit: (laid, {theme, stage}) => renderBars(laid, theme, stage),
   verify: {
     rects: barsRects,
-    check(laid, {theme, tones}) {
-      const paint = paintOf(tones, undefined);
+    check(laid, {theme, tones, appearance}) {
+      const paint = paintOf(tones, appearance);
       return [...barsProblems(laid), ...barsContrastProblems(laid, theme, hex => luminance(paint(hex)))]
         .map(message => ({rule: 'bars', severity: 'problem', message}));
     },

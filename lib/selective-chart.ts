@@ -18,8 +18,8 @@ export function measureChart(data: ChartBand, {atoms, roles}: MeasureEnv, texts:
   for (const [text, weight] of texts) atoms(text, size, weight);
 }
 
-export function layoutSelectiveChart(data: ChartBand, {x, y, w, widthOf, roles, wrap}: PublicEnv, layout: (g: ChartGeom) => LaidOutChartPart) {
-  const placed = placeChart(data, x, snapGrid(y), w, widthOf, roles, wrap, 1, layout);
+export function layoutSelectiveChart(data: ChartBand, {x, y, w, widthOf, roles, wrap, geometryScale = 1}: PublicEnv, layout: (g: ChartGeom) => LaidOutChartPart) {
+  const placed = placeChart(data, x, snapGrid(y), w, widthOf, roles, wrap, geometryScale, layout);
   const scope = scopeOf(data);
   const laid = scope ? {...placed, scope} : placed;
   return {laid, h: laid.h, anchors: laid.anchors};
@@ -29,6 +29,6 @@ export const chartIds = (data: ChartBand): string[] => data.ids;
 export const emitChart: ChartDefinition['emit'] = (laid, {theme, stage}) => renderChart(laid, theme, emojiSpan, stage);
 export const verifyChart: NonNullable<ChartDefinition['verify']> = {
   rects: laid => anchorRects(laid),
-  check: (laid, {theme, tones}) => checkChart(laid, {day: theme}, tones)
+  check: (laid, {theme, tones, appearance}) => checkChart(laid, {day: theme, appearance}, tones)
     .map(message => ({rule: 'chart', severity: 'problem', message})),
 };

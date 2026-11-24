@@ -35,8 +35,8 @@ export const imageDefinition: BandDef<ImageBand, LaidOutImage> = {
   emit: (laid, {theme, tones, stage}) => renderImage(laid, theme, tones, stage),
   verify: {
     rects: imageRects,
-    check(laid, {theme, tones}) {
-      const problems = [...imageProblems(laid), ...imageContrast(laid, theme, undefined, tones)]
+    check(laid, {theme, tones, appearance}) {
+      const problems = [...imageProblems(laid), ...imageContrast(laid, theme, appearance, tones)]
         .map(message => ({rule: 'image', severity: 'problem' as const, message}));
       const warning = largeImageWarning(laid.bytes);
       return warning ? [...problems, {rule: 'image-large', severity: 'warn', message: warning}] : problems;

@@ -1,9 +1,9 @@
 import {must} from './must.ts';
 import {renderBands} from './core.ts';
-import {MAX_EMOJI, MAX_TOTAL_TEXT, SPEC_VERSION, SPEC_WIDTH, SpecError, list, object, oneOf, text, withoutSchemaField} from './spec-kit.ts';
+import {MAX_EMOJI, MAX_TOTAL_TEXT, PART_EN, SpecError, withoutSchemaField} from './spec-kit.ts';
 import type {Json, JsonSchema, PartDef, SpecIssue} from './spec-kit.ts';
 import {capped, checkAnchors, countEmoji, totalText, validateAgainst} from './spec-validation.ts';
-import type {Theme} from './types/core.ts';
+import {schemaForParts} from './spec-schema.ts';
 
 type SelectedBand = Parameters<typeof renderBands>[0][number];
 type Connectors = Parameters<typeof renderBands>[1]['connectors'];
@@ -44,42 +44,40 @@ function registry(parts: readonly SelectedPart[]): Map<string, SelectedPart> {
 
 /** Schema of the parts supplied by the caller and the document options supported by renderBands. */
 export function specSchemaFor({parts}: PartOptions): JsonSchema {
-  return documentSchema([...registry(parts).values()]);
-}
-
-function documentSchema(parts: readonly SelectedPart[]): JsonSchema {
-  return object({
-    version: {const: SPEC_VERSION, description: 'Always 1.'},
-    title: text('The accessible name of the figure.', 120),
-    theme: oneOf('blue', 'teal', 'amber'),
-    width: {type: 'integer', minimum: SPEC_WIDTH.min, maximum: SPEC_WIDTH.max},
-    legend: {enum: [false]},
-    parts: list({oneOf: parts.map(part => part.schema)}, 4, 1),
-  }, ['version', 'title', 'parts']);
+  return schemaForParts([...registry(parts).values()], false);
 }
 
 export function partCatalog({parts}: PartOptions) {
   return [...registry(parts).values()].map(({type, description, schema, example}) => ({type, description, schema, example}));
 }
 
-type SpecDocument = {title: string; theme?: Theme; width?: number; parts: Json[]};
+type RenderOptions = Parameters<typeof renderBands>[1];
+type SpecDocument = Pick<RenderOptions, 'theme' | 'width' | 'appearance' | 'density' | 'desc' | 'showTitle' | 'sourceLine' | 'canvas'>
+  & {title: string; lang?: 'en' | 'ja'; parts: Json[]};
 
 function assemble(written: unknown, options: PartOptions) {
   const parts = registry(options.parts);
   const input = withoutSchemaField(written);
-  const issues = validateAgainst(documentSchema([...parts.values()]), input);
+  const issues = validateAgainst(schemaForParts([...parts.values()], false), input);
   const bands: SelectedBand[] = [];
   const doc = input as SpecDocument;
   if (issues.length) return {doc, bands, issues: capped(issues)};
+  if (doc.width !== undefined && doc.canvas !== undefined) {
+    return {doc, bands, issues: [{path: 'width', message: 'does not go with canvas: give the canvas its width (canvas.width) and leave width out'}]};
+  }
   const chars = totalText(input);
   if (chars > MAX_TOTAL_TEXT) return {doc, bands, issues: [{path: '', message: `holds ${chars} characters of text; the limit is ${MAX_TOTAL_TEXT}`}]};
   const emoji = countEmoji(input);
   if (emoji > MAX_EMOJI) return {doc, bands, issues: [{path: '', message: `holds ${emoji} emoji; the limit is ${MAX_EMOJI}`}]};
   const partOf = (type: unknown) => typeof type === 'string' ? parts.get(type) : undefined;
-  doc.parts.forEach((part, index) => must(partOf(part['type'])).check(part, `parts[${index}]`, issues));
-  checkAnchors(doc.parts, issues, partOf);
+  const list = doc.lang === 'en' ? doc.parts.map(part => {
+    const type = part['type'] as string, defaults = PART_EN[type] ?? partOf(type)?.en;
+    return defaults ? {...defaults, ...part} : part;
+  }) : doc.parts;
+  list.forEach((part, index) => must(partOf(part['type'])).check(part, `parts[${index}]`, issues));
+  checkAnchors(list, issues, partOf);
   if (issues.length) return {doc, bands, issues: capped(issues)};
-  doc.parts.forEach((part, index) => {
+  list.forEach((part, index) => {
     const at = `parts[${index}]`;
     try {
       const built = must(partOf(part['type'])).build(part, at);
@@ -96,9 +94,11 @@ export function validateSpec(input: unknown, options: PartOptions): SpecIssue[] 
   return assemble(input, options).issues;
 }
 
-export async function renderSpec(input: unknown, options: PartOptions & Pick<Parameters<typeof renderBands>[1], 'measure'>) {
+export async function renderSpec(input: unknown, options: PartOptions & Pick<RenderOptions, 'measure' | 'captions'>) {
   const {doc, bands, issues} = assemble(input, options);
   if (issues.length) throw new SpecError(issues);
   const connectors = options.parts.find(part => part.connectors)?.connectors;
-  return renderBands(bands, {measure: options.measure, title: doc.title, theme: doc.theme, width: doc.width, connectors});
+  const {title, theme, width, appearance, density, showTitle, sourceLine, canvas, lang, desc} = doc;
+  return renderBands(bands, {measure: options.measure, captions: options.captions, title, theme, width, appearance, density, showTitle,
+    sourceLine, canvas, desc: desc ?? (lang === 'en' ? title : undefined), connectors});
 }

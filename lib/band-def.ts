@@ -4,7 +4,7 @@ import type {resolveConnect} from './layout-connect.ts';
 import type {BandLayoutHandler} from './layout-ctx.ts';
 import type {RevealHandler} from './reveal-handlers.ts';
 import type {ToneEnv} from './tokens.ts';
-import type {Anchor, ColorKey, FontFamily, FontWeight, Rect, RevealOpts, Roles, ScopeOpts, TextTone, Theme, WidthOf, WrapMode} from './types/core.ts';
+import type {Anchor, Appearance, ColorKey, FontFamily, FontWeight, Rect, RevealOpts, Roles, ScopeOpts, SlideCanvas, TextTone, Theme, WidthOf, WrapMode} from './types/core.ts';
 import type {Band} from './types/index.ts';
 import type {InventoryItem} from './types/inventory.ts';
 import type {CheckRect} from './types/verdicts.ts';
@@ -23,6 +23,8 @@ export interface PublicEnv extends Pick<Rect, 'x' | 'y' | 'w'> {
   tones: ToneEnv;
   wrap: WrapMode;
   today?: string;
+  canvas?: SlideCanvas;
+  geometryScale?: number;
 }
 
 export interface TextItem {
@@ -57,6 +59,7 @@ interface EmitEnv {
 interface VerifyCtx {
   readonly theme: Theme;
   readonly tones: ToneEnv;
+  readonly appearance?: Appearance;
   readonly connects: readonly {
     readonly fromId: string;
     readonly toId: string;

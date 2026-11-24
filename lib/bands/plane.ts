@@ -12,8 +12,9 @@ export const planeDefinition: BandDef<PlaneBand, LaidOutPlane> = {
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of planeTexts(data, roles)) atoms(text, size, weight, font);
   },
-  layout(data, {x, y, w, widthOf, roles}) {
-    const laid = layoutPlane(data, x, y, w, widthOf, roles);
+  layout(data, {x, y, w, widthOf, roles, canvas, geometryScale}) {
+    const sized = canvas && data.labelRole === undefined ? {...data, labelRole: 'note' as const} : data;
+    const laid = layoutPlane(sized, x, y, w, widthOf, roles, geometryScale);
     return {laid, h: laid.h};
   },
   revealElements: revealPlane,

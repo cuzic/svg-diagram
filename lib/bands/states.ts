@@ -15,9 +15,9 @@ const definition = {
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of statesTexts(data, roles)) atoms(text, size, weight, font);
   },
-  layout(data, {x, y, w, widthOf, roles, wrap}) {
+  layout(data, {x, y, w, widthOf, roles, wrap, canvas}) {
     const scope = scopeOf(data);
-    const placed = layoutStatesBand(data, x, snapGrid(y), w, widthOf, roles, {wrap, keepWords: false});
+    const placed = layoutStatesBand(data, x, snapGrid(y), w, widthOf, roles, {wrap, keepWords: false}, canvas?.height);
     const laid = scope ? {...placed, scope} : placed;
     return {laid, h: laid.h, anchors: laid.anchors};
   },

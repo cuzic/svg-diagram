@@ -16,8 +16,8 @@ const definition = {
   measure(data, {atoms, roles, today}) {
     for (const [text, size, weight, font] of ganttTexts(withToday(data, today), roles)) atoms(text, size, weight, font);
   },
-  layout(data, {x, y, w, widthOf, roles, today}) {
-    const laid = layoutGantt(withToday(data, today), x, snapGrid(y), w, widthOf, roles);
+  layout(data, {x, y, w, widthOf, roles, today, geometryScale}) {
+    const laid = layoutGantt(withToday(data, today), x, snapGrid(y), w, widthOf, roles, geometryScale);
     return {laid, h: laid.h, anchors: laid.anchors};
   },
   emit(laid, {theme}) {

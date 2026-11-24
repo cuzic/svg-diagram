@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {renderSpec, partCatalog, specSchemaFor, validateSpec} from '../lib/spec-selective.ts';
+import {captionDefinition} from '../lib/bands/caption.ts';
 import {flowchartPart} from '../lib/spec-parts/selective/flowchart.ts';
 import {funnelPart} from '../lib/spec-parts/selective/funnel.ts';
 import {pyramidPart} from '../lib/spec-parts/selective/pyramid.ts';
@@ -85,7 +86,7 @@ test('selected parts reuse legacy schemas and draw without the full spec registr
   assert.deepEqual(actual.xml, []);
   assert.equal(body(actual.svg), body(old.svg));
   assert.match(validateSpec({...input, parts: [funnelPart.example]}, {parts: [pyramidPart]})[0]!.message, /pyramid.*funnel/);
-  assert.equal(validateSpec({...input, canvas: {}}, {parts})[0]!.path, 'canvas');
+  assert.equal(validateSpec({...input, width: 800, canvas: {}}, {parts})[0]!.path, 'width');
   const dup = validateSpec({...input, parts: [flowchartPart.example, flowchartPart.example]}, {parts});
   assert.equal(dup[0]!.path, 'parts[1].nodes[0].id');
 });
@@ -121,4 +122,42 @@ test('every existing spec part has a selectable definition with the same schema 
   const parts = [flowchartPart, pyramidPart, funnelPart, ...moreParts];
   const ordered = (list: ReturnType<typeof legacyCatalog>) => list.toSorted((a, b) => a.type.localeCompare(b.type));
   assert.deepEqual(ordered(partCatalog({parts})), ordered(legacyCatalog()));
+});
+
+test('selected spec supports document styling, language and a fixed-size canvas', async () => {
+  const part = stepsPart;
+  const input = {
+    version: 1, title: 'Project', showTitle: true, desc: 'A sprint plan',
+    sourceLine: 'Source: project team', appearance: 'dark', density: 'compact',
+    lang: 'en', canvas: {width: 1280, height: 720, minText: 14},
+    legend: false, parts: [part.example],
+  };
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const actual = await renderSpec(input, {measure, parts: [part], captions: captionDefinition});
+  const expected = await renderInBrowser(specToDiagram(input), {measure});
+  assert.deepEqual(actual.xml, []);
+  assert.equal(actual.width, 1280);
+  assert.equal(actual.height, 720);
+  assert.match(actual.svg, /data-appearance="dark"/);
+  assert.match(actual.svg, /<desc id="svg-desc">A sprint plan<\/desc>/);
+  assert.match(actual.svg, /aria-label="Step 1"|>Step 1</);
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.equal(body(actual.svg), body(expected.svg));
+  await assert.rejects(renderSpec(input, {measure, parts: [part]}), /captionDefinition/);
+});
+
+test('selected canvas scales text and chart geometry and honors content fit', async () => {
+  const parts = [ganttPart, radarPart];
+  const input = {
+    version: 1, title: 'Plan', legend: false, canvas: {width: 1600, height: 900, minText: 20, fit: 'content'},
+    parts: parts.map(part => part.example),
+  };
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const actual = await renderSpec(input, {measure, parts});
+  const expected = await renderInBrowser(specToDiagram(input), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.equal(actual.height, expected.height);
+  assert.equal(body(actual.svg), body(expected.svg));
+  const overflow = await renderSpec({...input, canvas: {...input.canvas, height: 360}}, {measure, parts});
+  assert.ok(overflow.verdict.warnings.some(warning => warning.includes('slide-canvas-overflow')));
 });

@@ -1,5 +1,6 @@
 import {splitAtoms} from './atoms.ts';
 import {band, defOf, DEF, EXTERNAL} from './band-def.ts';
+import {withSourceLine, withTitleLine} from './layout-util.ts';
 import {cloneData} from './clone-data.ts';
 import {emitSvgWith} from './emit-svg-core.ts';
 import {createLayoutWith} from './layout-core.ts';
@@ -8,12 +9,13 @@ import {qualify, scopeOf} from './scope-name.ts';
 import {scopedRect} from './verify-rects.ts';
 import {verifyWithServices} from './verify-core.ts';
 import type {BandDef} from './band-def.ts';
+import type {CaptionBand, LaidOutCaption} from './types/text-bands.ts';
 import type {ConnectBand, LaidOutConnect} from './types/containers.ts';
 import {must} from './must.ts';
 import {checked} from './reveal-visibility.ts';
 import {checkToday} from './today-auto.ts';
-import {checkTones, colorOf, rolesAt, THEMES, toneEnv} from './tokens.ts';
-import type {FontFamily, Measured, MeasureRequest, DiagramData, RevealOpts, Theme, WidthOf, WrapMode} from './types/core.ts';
+import {canvasFontScale, checkMinText, checkTones, colorOf, rolesAt, SLIDE_CANVAS, THEMES, toneEnv} from './tokens.ts';
+import type {Appearance, FontFamily, Measured, MeasureRequest, DiagramData, RevealOpts, SlideCanvas, Theme, WidthOf, WrapMode} from './types/core.ts';
 import type {Band, LaidOutBand, LaidOutDiagram} from './types/index.ts';
 import type {Issue} from './types/verdicts.ts';
 import {xmlProblems} from './xml-check.ts';
@@ -30,6 +32,13 @@ type Options = {
   tones?: Parameters<typeof toneEnv>[0];
   wrap?: Exclude<WrapMode, 'bunsetsu-soft'>;
   title?: string;
+  desc?: string;
+  appearance?: Appearance;
+  density?: DiagramData['density'];
+  showTitle?: boolean;
+  sourceLine?: string;
+  captions?: BandDef<CaptionBand, LaidOutCaption>;
+  canvas?: Partial<SlideCanvas>;
   today?: string;
   stage?: number;
   connectors?: BandDef<ConnectBand, LaidOutConnect>;
@@ -46,9 +55,16 @@ const definitionKey = (band: Band | LaidOutBand): string => band.type === 'chart
 
 /** @internal Shared layout and SVG emission for selective output formats. */
 export async function prepareBands(bands: readonly DefinedBand[], opts: Options) {
-  const width = size('width', opts.width ?? 940, 1);
-  const pad = size('pad', opts.pad ?? 20, 0);
-  const gap = size('gap', opts.gap ?? 16, 0);
+  const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...opts.canvas};
+  if (canvas) {
+    if (opts.width !== undefined) throw new Error('renderBands: use canvas.width when canvas is set');
+    checkMinText(canvas.minText, 'renderBands({canvas})');
+    size('canvas height', canvas.height, 1);
+  }
+  const scale = canvas ? canvasFontScale(canvas.minText) : 1;
+  const width = size('width', opts.width ?? canvas?.width ?? 940, 1);
+  const pad = size('pad', opts.pad ?? 20, 0) * scale;
+  const gap = size('gap', opts.gap ?? 16, 0) * scale;
   const contentWidth = width - 2 * pad;
   size('content width', contentWidth, 1);
   const theme = opts.theme ?? 'blue';
@@ -57,7 +73,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
   const today = opts.today === undefined ? undefined : checkToday(opts.today, 'renderBands({today})');
   if (opts.stage !== undefined && (!Number.isInteger(opts.stage) || opts.stage < 0)) throw new Error('renderBands: stage must be a nonnegative integer');
 
-  const roles = rolesAt(false, 1);
+  const roles = rolesAt(!!canvas, scale);
   const requests = new Map<string, Required<MeasureRequest>>();
   const measureEnv = {roles, today, atoms(text: string, size: number, weight: number, font: FontFamily = 'sans') {
     for (const atom of splitAtoms(text)) requests.set(keyOf(atom, size, weight, font), {text: atom, size, weight, font});
@@ -69,6 +85,18 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
   let last = 0;
   const revealWarnings: string[] = [];
   let source = cloneData(bands) as unknown as Band[];
+  const data: DiagramData = {
+    day: theme, medium: 'doc', width, pad: canvas ? Math.round(pad) : pad, gap: canvas ? Math.round(gap) : gap,
+    fill: false, bands: source, title: opts.title, desc: opts.desc, wrap: opts.wrap, tones, canvas,
+    appearance: opts.appearance, density: opts.density,
+  };
+  if (opts.showTitle && opts.title || opts.sourceLine !== undefined) {
+    const captions = opts.captions;
+    if (!captions) throw new Error('renderBands: pass captionDefinition as captions for showTitle or sourceLine');
+    const {bands} = withSourceLine(withTitleLine({...data, showTitle: opts.showTitle, sourceLine: opts.sourceLine}));
+    source = bands.map(item => item.type === 'caption' && !defOf(item) && (item.titleLine || item.sourceLine)
+      ? band(captions, item) : item);
+  }
   const hasLoopBack = (data: Band): boolean =>
     (data.type === 'row' || data.type === 'chevron') && !!data.loopBack || (defOf(data)?.children?.(data) ?? []).some(hasLoopBack);
   if (source.some(hasLoopBack)) {
@@ -143,13 +171,13 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
       if (def.internal) return def.layout;
       const place = def.layout;
       return (_band, ctx, x, w) => {
-        const {laid, h, anchors} = place(input, {x, y: ctx.y, w, widthOf: ctx.widthOf, roles, theme, tones: ctx.tones, wrap: ctx.wrap, today});
+        const {laid, h, anchors} = place(input, {x, y: ctx.y, w, widthOf: ctx.widthOf, roles, theme, tones: ctx.tones, wrap: ctx.wrap, today, canvas, geometryScale: scale});
         if ('id' in input && input.id) ctx.register(input.id, laid, 'each band needs a unique id');
         for (const anchor of anchors ?? []) {
           if (anchor.id) ctx.register(anchor.id, anchor, 'each anchor needs a unique id', scopeOf(input));
         }
         ctx.laidOut.push(laid as LaidOutBand);
-        ctx.y += size('band height', h, 0) + gap;
+        ctx.y += size('band height', h, 0) + ctx.d.gap;
       };
     },
     hasChildrenHandler: input => definitions.has(definitionKey(input)),
@@ -158,8 +186,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
     scopesOf: () => scopeTable,
     buildInventory: () => ({items: []}),
   });
-  const data: DiagramData = {day: theme, medium: 'doc', width, pad, gap, fill: false, bands: source, title: opts.title, wrap: opts.wrap, tones};
-  const placed = layout(data, roles, widthOf);
+  const placed = layout({...data, bands: source}, roles, widthOf);
   placed.canvasHeight = Math.max(1, placed.canvasHeight);
   // A link follows its endpoints unless it has an explicit end stage.
   placed.connects = placed.connects.map(connector => {
@@ -182,14 +209,17 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
       return scope && !def?.rectsQualified ? rects.map(rect => scopedRect(band, scope, rect)) : rects;
     }),
     contrastProblems: () => [],
-    lintDiagram: () => [],
+    lintDiagram: figure => figure.canvas && figure.contentHeight !== undefined && figure.contentHeight > figure.canvas.height
+      ? [{rule: 'slide-canvas-overflow', severity: 'warn',
+        message: `内容の高さ ${figure.contentHeight}px が、キャンバスの高さ ${figure.canvas.height}px を超える。行・文字を減らすか、図を分ける`}]
+      : [],
     acceptHint: () => undefined,
     mergeFindingSides: () => [],
     hasMutedBox: () => false,
     checkFigures: figure => {
       const issues: Issue[] = [], warnings: string[] = [];
       for (const band of leaves(figure)) {
-        for (const finding of (definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type))?.verify?.check?.(band, ctx) ?? []) {
+        for (const finding of (definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type))?.verify?.check?.(band, {...ctx, appearance: figure.appearance}) ?? []) {
           if (finding.severity === 'problem') issues.push({message: finding.message});
           else warnings.push(finding.message);
         }
@@ -208,7 +238,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
     renderBand: band => must(definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type)).emit(band as never, emitEnv),
     renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
     diagramTitle: () => opts.title ?? '',
-    diagramDesc: () => '',
+    diagramDesc: () => opts.desc ?? '',
     spotlightDim: () => 'outline',
   }, figure, {reveal: stage, noRecolor});
   return {placed, stage, verdict, emit};

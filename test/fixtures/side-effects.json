@@ -118,7 +118,7 @@
   "lib/spec-parts/selective/why-why-table.ts": {"count": 1, "reason": "Builds a selective schema and its builder."},
   "lib/spec-parts/selective/why-why-tree.ts": {"count": 1, "reason": "Builds a selective schema and its builder."},
   "lib/spec-parts/treemap.ts": {"count": 7, "reason": "Builds shared schema fragments for these parts."},
-  "lib/spec.ts": {"count": 31, "reason": "Builds the spec schema and its part tables."},
+  "lib/spec.ts": {"count": 20, "reason": "Builds the spec schema and its part tables."},
   "lib/svg-outline.ts": {"count": 1, "reason": "Builds the unsupported CSS property pattern from the property list."},
   "lib/tokens.ts": {"count": 6, "reason": "Builds sets and lists of palette tokens and theme names."},
   "lib/web.ts": {"count": 2, "reason": "Creates the browser stubs for Node-only builders."},
