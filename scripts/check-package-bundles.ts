@@ -1065,7 +1065,7 @@ try {
     assert.ok(files.some(file => file.replaceAll('\\', '/').endsWith('/render-source-file.js')), label);
     assert.ok(!files.some(file => /\/lib\/(?:(?:spec(?:-render)?|raster)\.js$|spec-parts\/)/.test(file.replaceAll('\\', '/'))), label);
     if (bundler === 'Vite') {
-      assert.ok(!files.some(file => /[/\\](?:cdp-)?browser\.js$/.test(file)), `${label}: Chromium is in the initial chunk`);
+      assert.ok(!files.some(file => /[/\\](?:(?:cdp-)?browser|slide-budget(?:-live)?)\.js$/.test(file)), `${label}: optional browser or Slidev code is in the initial chunk`);
     }
     console.log(`${label}: ${Buffer.byteLength(code)} bytes`);
   }

@@ -6,7 +6,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {banner, bars, box, build, checkDiagram, closeMeasurer, connect, diagram, group, plane, renderDiagram, row, table} from '../lib/dsl.ts';
 import {emitSvg} from '../lib/emit.ts';
-import {imgSelector} from '../lib/slide-budget.ts';
+import {imgSelector} from '../lib/slide-budget-live.ts';
 
 test.after(() => closeMeasurer());
 

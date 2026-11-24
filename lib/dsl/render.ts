@@ -1,6 +1,5 @@
 import {layoutDiagram} from '../layout-measured.ts';
 import {analyzeFit} from '../fit.ts';
-import {getSlideBudget, readSlideBudgetCache} from '../slide-budget.ts';
 import {emitOutputs, runChecked} from '../pipeline.ts';
 import {resolveImages} from '../image-file.ts';
 import {canvasFontScale, canvasRoles, rolesAt} from '../tokens.ts';
@@ -39,6 +38,7 @@ async function render(input: Diagram, opts: RenderOptions): Promise<RenderResult
     // A diagram that names its slide gets a measured height budget and width
     // (cached) instead of fit.ts's defaults.
     if (d.slide) {
+      const {getSlideBudget, readSlideBudgetCache} = await import('../slide-budget.ts');
       const key = {...d.slide, svg: opts.name};
       if (opts.budget === 'measure') {
         budget = await getSlideBudget(key);

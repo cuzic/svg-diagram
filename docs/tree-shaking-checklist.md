@@ -192,4 +192,5 @@
 - [x] Markdown の TypeScript 図は JSON spec カタログと独立して描画できる。CLI の実行時に spec カタログをロードせず、esbuild と Vite の Node 向けバンドルにも含まれないことを検証。
 - [x] Node の SVG 描画時は HTML の変換、HTML 用のフォント計測、ラスタライズをロードしない。Markdown-it の SVG ワーカーで検証し、HTML を要求する作例も回帰試験する。
 - [x] フォント測定の SVG 描画は Chromium の起動・接続処理をロードしない。Markdown-it の SVG ワーカーと Vite の初期チャンクで確認。
+- [x] スライド指定のない描画では Slidev の予算処理をロードしない。キャッシュが有効なら実測用の dev server 処理をロードせず、キャッシュ読み取りと実測指定で同じ SVG を返す。
 - [ ] 既存のパッケージ入口、CLI、デッキ、Markdown、MCP の描画互換性を確認する。

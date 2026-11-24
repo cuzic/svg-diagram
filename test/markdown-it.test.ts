@@ -138,7 +138,7 @@ test('the markdown-it SVG worker leaves optional output and Chromium modules unl
       registerHooks({resolve(specifier, context, next) {
         const result = next(specifier, context);
         const file = new URL(result.url).pathname;
-        if (['/lib/emit-html.ts', '/lib/font-box.ts', '/lib/raster.ts', '/lib/browser.ts', '/lib/cdp-browser.ts'].some(suffix => file.endsWith(suffix))) {
+        if (['/lib/emit-html.ts', '/lib/font-box.ts', '/lib/raster.ts', '/lib/browser.ts', '/lib/cdp-browser.ts', '/lib/slide-budget.ts'].some(suffix => file.endsWith(suffix))) {
           throw new Error("Unexpected optional dependency: " + file);
         }
         return result;

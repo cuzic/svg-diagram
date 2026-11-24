@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {registerHooks} from 'node:module';
 import {diagram, row, box, connect, build, renderDiagram, closeMeasurer} from '../lib/dsl.ts';
 
 test.after(() => closeMeasurer());
@@ -48,11 +49,16 @@ test("a slide that has no cached budget is drawn at the default size with a note
 });
 
 test('fill: true with a slide budget draws a table at the scaled font size (emit reads ROLES, so it must run before they are restored)', async () => {
-  const {slideCacheKeyForTest} = await import('./helpers/slide-fixture.ts');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'render-fill-'));
   const cwd = process.cwd();
+  const hook = registerHooks({resolve(specifier, context, next) {
+    const resolved = next(specifier, context);
+    assert.ok(!new URL(resolved.url).pathname.endsWith('/lib/slide-budget-live.ts'), 'a cache hit must not load Slidev measurement');
+    return resolved;
+  }});
   try {
     process.chdir(dir);
+    const {slideCacheKeyForTest} = await import('./helpers/slide-fixture.ts');
     slideCacheKeyForTest(dir, {maxHeight: 900, contentWidth: 800});
     const {table, cell} = await import('../lib/dsl.ts');
     const slide = {page: 'pages/p.md', heading: '見出し'};
@@ -60,10 +66,17 @@ test('fill: true with a slide budget draws a table at the scaled font size (emit
     const sizes = (svg: string) => [...svg.matchAll(/font-size="(\d+)"/g)].map(m => Number(m[1]));
     const plain = await renderDiagram(mk(false), {name: 'p.svg', budget: 'cacheOnly'});
     const filled = await renderDiagram(mk(true), {name: 'p.svg', budget: 'cacheOnly'});
+    const measured = await renderDiagram(mk(true), {name: 'p.svg', budget: 'measure'});
     assert.equal(filled.budgetSource, 'cache');
+    assert.equal(measured.budgetSource, 'cache');
+    assert.deepEqual(measured.budget, filled.budget);
+    assert.equal(measured.svg, filled.svg);
+    const {getSlideBudget} = await import('../lib/slide-budget.ts');
+    await assert.rejects(getSlideBudget({...slide, svg: 'p.svg', refresh: true}), /must not load Slidev measurement/);
     assert.ok((filled.fontScale ?? 1) > 1, `expected a font scale above 1, got ${filled.fontScale}`);
     assert.ok(Math.min(...sizes(filled.svg)) > Math.min(...sizes(plain.svg)), 'every size, the table cells included, is scaled');
   } finally {
+    hook.deregister();
     process.chdir(cwd);
     fs.rmSync(dir, {recursive: true});
   }
