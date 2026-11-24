@@ -8,7 +8,7 @@ import {childRuns} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {row as buildRow} from '../dsl/containers.ts';
-import {renderRow, rowSvgDefs} from '../emit-boxes.ts';
+import {renderRow, rowSvgDefs} from '../emit-row.ts';
 import {layoutRow} from '../layout-row.ts';
 import type {Declares, IdsOf, RowHandleOf} from '../strict.ts';
 import type {LaidOutRow, RowBand, RowOpts} from '../types/containers.ts';

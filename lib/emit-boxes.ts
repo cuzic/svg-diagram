@@ -1,149 +1,29 @@
 import type {SvgBandDefs} from './emit-svg-core.ts';
-import {PALETTE, STRONG_STROKE, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
+import {PALETTE, STRONG_STROKE, colorOf, textColorOf, toneStyle} from './tokens.ts';
 import {marked, partAttr, partStep, partsOn} from './parts.ts';
 import type {ToneEnv} from './tokens.ts';
-import {badgeSvg, pillSvg} from './badge.ts';
-import type {LaidOutGroup, LaidOutLegend, LaidOutRow, LaidOutGrid, LaidOutRaw, LaidOutStatus, RawColorTone} from './types/containers.ts';
-import type {Theme, EmphasisTone, Align, Rect, Roles} from './types/core.ts';
+import {pillSvg} from './badge.ts';
+import type {LaidOutLegend, LaidOutRaw, LaidOutStatus, RawColorTone} from './types/containers.ts';
+import type {Theme, Roles} from './types/core.ts';
 import type {LaidOutPyramid, LaidOutCurve} from './types/figures.ts';
 import type {LaidOutPeople, LaidOutDots} from './types/people-dots.ts';
 import type {LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
-import type {LaidOutBox, LaidOutCaption, LaidOutBanner, WrappedRun} from './types/text-bands.ts';
-import {iconSvg} from './icon-svg.ts';
-import {boundaryChipH, ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W, stepBadgeGeom} from './layout-util.ts';
-import {visibleAt} from './reveal-visibility.ts';
+import {boundaryChipH, LEGEND_SWATCH_W} from './layout-util.ts';
 import {PERSON_BOX, PERSON_PATH} from './people.ts';
-import {arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
+import {arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, lineAttrs, arrowMarkers, trimEnds, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
 import {ftaLegendSwatch} from './emit-fta-symbols.ts';
 
-import {must} from './must.ts';
-// Numbered circle badge for box({step}) — solid accent fill, white number,
-// centered on the title's own baseline (same offset every hand-authored
-// "① foo" box in this deck used between the badge and its number glyph).
-// On a solid box the badge / tag pill has the box's own fill, so a white ring keeps it apart from the box.
-export const ringed = (band: Pick<LaidOutBox, 'dim' | 'tone'>): boolean => !band.dim && isSolidTone(band.tone);
+export {captionTextPlacement, renderCaption} from './emit-caption.ts';
+export {renderBanner} from './emit-banner.ts';
+export {renderGroup} from './emit-group.ts';
+export {ringed, stepBadgeAt, renderStepBadge, renderBoxIcon, tagGeometry, renderTag, renderBox} from './emit-box.ts';
+export {frameGeometry, renderBoxRect, stampGeometry, renderStamp} from './emit-box-frame.ts';
+export type {BoxLike} from './emit-box-frame.ts';
+export {boxTextPlacement} from './emit-box-text.ts';
+export {textSvgDefs, childTextSvgDefs} from './emit-box-defs.ts';
+export {rowSvgDefs, renderRow} from './emit-row.ts';
+export {renderGrid} from './emit-grid.ts';
 
-
-/** Where a box's step badge is: its centre and radius, the number's size and baseline (the title's own). The svg and the PPTX place it alike. */
-export function stepBadgeAt(band: Pick<LaidOutBox, 'x' | 'y' | 'w' | 'wrappedRuns' | 'padX' | 'padY' | 'align' | 'iconAt' | 'titleW' | 'icon'>, roles?: Roles): {cx: number; cy: number; r: number; size: number; baseline: number} {
-  const g = roles ? stepBadgeGeom(roles) : {r: STEP_BADGE_R, offset: STEP_BADGE_BASELINE_OFFSET, indent: STEP_INDENT, size: 16}, R = g.r; // a canvas diagram grows the badge with its text
-  const titleRun = must(band.wrappedRuns[0]);
-  // the same padding the text and the icon use (a swimlane step has its own)
-  const px = band.padX ?? BOX_PAD_X, titleBaselineY = band.y + (band.padY ?? BOX_PAD_Y) + must(titleRun.lineYs[0]);
-  // a centred / right-aligned title: the badge goes just before its first line (titleW, from layout); else at the left edge, after a left icon
-  const indent = titleRun.indent ?? 0, left = band.x + px + indent, right = band.x + band.w - px;
-  const align = band.align ?? (band.iconAt === 'top' ? 'center' : 'left');
-  const textX = band.titleW === undefined || align === 'left' ? undefined : align === 'center' ? (left + right) / 2 - band.titleW / 2 : right - band.titleW;
-  const cx = textX !== undefined ? textX - g.indent + R : band.x + px + R + (band.icon && band.iconAt !== 'top' ? ICON_INDENT : 0);
-  return {cx, cy: titleBaselineY - g.offset, r: R, size: g.size, baseline: titleBaselineY};
-}
-
-export function renderStepBadge(band: LaidOutBox, day: Theme, roles?: Roles): string {
-  const {cx, cy, r: R, size, baseline} = stepBadgeAt(band, roles);
-  return badgeSvg({cx, cy, r: R, w: 2 * R, shape: 'circle', label: String(band.step), aria: `${band.stepWord ?? '手順'} ${band.step}`, size, fill: PALETTE[day].accent, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), baseline, snap: snap4, esc: escapeXml});
-}
-
-
-// box({icon}): the icon's path scaled from its source viewBox to ICON_SIZE, at the box's top-left. Its colour is a text tone
-// (a dimmed box: muted). With a title the label carries the meaning, so the icon is hidden from assistive technology.
-export function renderBoxIcon(band: LaidOutBox, day: Theme, tones: ToneEnv): string {
-  const top = band.iconAt === 'top', size = top ? band.iconSize ?? TOP_ICON_SIZE : ICON_SIZE;
-  const x = top ? band.x + band.w / 2 - size / 2 : band.x + (band.padX ?? BOX_PAD_X), y = band.y + (band.padY ?? BOX_PAD_Y);
-  const color = band.dim ? PALETTE.muted : runColorOf(tones, band.iconTone, band.tone, day);
-  return '\n  ' + iconSvg({glyph: must(band.iconGlyph), name: must(band.icon), x, y, size, color, dim: band.dim, labelled: !!band.title});
-}
-
-
-export function captionTextPlacement(band: LaidOutCaption): {originX: number; originY: number; w: number; align: Align} {
-  return {originX: band.x, originY: band.y, w: band.w, align: band.align ?? 'center'};
-}
-
-
-export function renderCaption(band: LaidOutCaption, day: Theme, tones: ToneEnv): string {
-  return renderTextRuns(band.wrappedRuns, {...captionTextPlacement(band), day, tones, dim: band.dim});
-}
-
-
-export type BoxLike = Rect & {tone?: EmphasisTone; dashed?: boolean; dim?: boolean; /** ADR 0034: written as `data-node` on the frame */ dataNode?: string};
-
-export function frameGeometry(rect: Rect): Rect {
-  // Snap the right edge too, so adjacent frames with the same extent end at the same point.
-  const x = snap4(rect.x);
-  return {x, y: snap4(rect.y), w: snap4(rect.x + rect.w) - x, h: snap4(rect.h)};
-}
-
-export function renderBoxRect(band: BoxLike, day: Theme, tones: ToneEnv, defaultTone: EmphasisTone): string {
-  const style = resolveBoxStyle(tones, band.tone ?? defaultTone, day, band.dashed);
-  if (band.dim) { style.fill = PALETTE.bg; style.stroke = PALETTE.muted; }
-  const dash = style.dashed ? ' stroke-dasharray="6,4"' : band.dim ? ' stroke-dasharray="2,5" stroke-linecap="round"' : '';
-  const {x: rx, y: ry, w: rw, h: rh} = frameGeometry(band);
-  return `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" rx="8" fill="${style.fill}" stroke="${style.stroke}" stroke-width="2.5"${dash}${band.dataNode ? ` data-node="${escapeAttr(band.dataNode)}"` : ''}/>`;
-}
-
-
-export function boxTextPlacement(band: LaidOutBox | LaidOutBanner): {originX: number; originY: number; w: number; align: Align} {
-  const align = band.align ?? (band.type === 'banner' || band.iconAt === 'top' ? 'center' : 'left');
-  const px = band.padX ?? BOX_PAD_X, py = band.padY ?? BOX_PAD_Y;
-  return {originX: band.x + px, originY: band.y + py, w: band.w - 2 * px, align};
-}
-
-
-function renderBoxText(band: LaidOutBox | LaidOutBanner, day: Theme, tones: ToneEnv): string {
-  return renderTextRuns(band.wrappedRuns, {...boxTextPlacement(band), day, tones, dim: band.dim, boxTone: band.tone});
-}
-
-
-export function tagGeometry({x, y, w, h}: Rect): Rect {
-  return {x: snap4(x), y: snap4(y), w: snap4(w), h};
-}
-
-
-export function renderTag(band: LaidOutBox, day: Theme, tones: ToneEnv, roles: Roles): string {
-  const t = band.tagBox as Rect; // caller checked tagBox
-  const fill = band.dim ? PALETTE.muted : colorOf(toneStyle(tones, band.tagTone === 'danger' || band.tagTone === 'muted' ? band.tagTone : 'accent').ink, day);
-  return pillSvg({...tagGeometry(t), fill, cx: t.x + t.w / 2, baseline: t.y + 17, rawY: t.y, text: PALETTE.bg, ...(ringed(band) ? {stroke: PALETTE.bg} : {}), size: (roles.tag ?? TAG_SIZE), labelHtml: emojiSpan(band.tag as string)});
-}
-
-
-// The stamp chip follows the bottom edge even when layout stretches the frame.
-export function stampGeometry(band: Rect, stampW: number): Rect {
-  return {x: snap4(band.x + band.w - 8 - stampW), y: snap4(band.y + band.h - 6 - 24), w: snap4(stampW), h: 24};
-}
-
-
-export function renderStamp(band: Rect & {stamp?: string; stampW?: number}, roles: Roles): string {
-  if (!band.stamp || band.stampW === undefined) return '';
-  const {x, y, w, h} = stampGeometry(band, band.stampW);
-  return `\n  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${PALETTE.bg}" stroke="${PALETTE.border}" stroke-width="1"/>\n  <text x="${snap4(band.x + band.w - 8 - band.stampW / 2)}" y="${y + 17}" font-size="${roles.note}" text-anchor="middle" fill="${PALETTE.muted}">${emojiSpan(band.stamp)}</text>`;
-}
-
-
-export function renderBox(band: LaidOutBox, day: Theme, tones: ToneEnv, roles: Roles): string {
-  const badge = band.step != null ? `\n  ${renderStepBadge(band, day, roles)}` : '';
-  const iconText = band.icon ? renderBoxIcon(band, day, tones) : '';
-  const tag = band.tagBox ? `\n  ${renderTag(band, day, tones, roles)}` : '';
-  const frame = band.frame === false ? '' : `${renderBoxRect(band, day, tones, 'plain')}\n  `;
-  return `${frame}${renderBoxText(band, day, tones)}${badge}${iconText}${tag}${renderStamp(band, roles)}`;
-}
-
-
-export function renderGroup(band: LaidOutGroup, day: Theme, tones: ToneEnv, roles: Roles): string {
-  if (band.frame === false) return renderStamp(band, roles);
-  return renderBoxRect(band, day, tones, 'muted') + renderStamp(band, roles);
-}
-
-
-export function textSvgDefs(band: {wrappedRuns: readonly WrappedRun[]}): SvgBandDefs {
-  return {mono: band.wrappedRuns.some(run => run.mono)};
-}
-
-export function childTextSvgDefs(band: {children: readonly {wrappedRuns: readonly WrappedRun[]}[]}): SvgBandDefs {
-  return {mono: band.children.some(child => textSvgDefs(child).mono)};
-}
-
-export function rowSvgDefs(band: LaidOutRow): SvgBandDefs {
-  return {...childTextSvgDefs(band), arrow: band.arrows.length > 0};
-}
 
 // A line sample (and optional arrowhead) + label per item, laid out by layout.ts.
 export function legendSvgDefs(band: LaidOutLegend): SvgBandDefs {
@@ -193,26 +73,6 @@ export function renderLegend(band: LaidOutLegend, day: Theme, tones: ToneEnv, ro
   }
   return parts.join('\n  ');
 }
-
-
-export function renderBanner(band: LaidOutBanner, day: Theme, tones: ToneEnv, roles: Roles): string {
-  return `${renderBoxRect(band, day, tones, 'accent')}\n  ${renderBoxText(band, day, tones)}${renderStamp(band, roles)}`;
-}
-
-
-export function renderRow(band: LaidOutRow, day: Theme, tones: ToneEnv, roles: Roles, stage?: number): string {
-  const boxes = band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day, tones, roles)).join('\n\n  ');
-  const arrows = band.arrows.filter((_, i) => visibleAt(must(band.children[i]), stage) && visibleAt(must(band.children[i + 1]), stage)).map(a =>
-    `<path d="M${snap4(a.x1)},${Math.round(a.y1)} L${snap4(a.x2)},${Math.round(a.y2)}" fill="none" stroke="${band.dim ? PALETTE.muted : PALETTE.text}" stroke-width="2.5" marker-end="url(#${band.dim ? 'dsl-arrow-dim' : 'dsl-arrow'})"/>`,
-  ).join('\n  ');
-  return arrows ? `${boxes}\n\n  ${arrows}` : boxes;
-}
-
-
-export function renderGrid(band: LaidOutGrid, day: Theme, tones: ToneEnv, roles: Roles, stage?: number): string {
-  return band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day, tones, roles)).join('\n\n  ');
-}
-
 
 export function renderPyramid(band: LaidOutPyramid, roles: Roles): string {
   return band.layers.map(layer => {
@@ -335,4 +195,3 @@ export function renderSwimlane(b: LaidOutSwimlane, day: Theme, roles: Roles): st
   parts.push(`<path d="${rrPath(b.x, b.y, b.w, b.h, {tl: R, tr: R, bl: R, br: R})}" fill="none" stroke="${PALETTE.text}" stroke-width="2.5"/>`);
   return all.join('\n  ');
 }
-

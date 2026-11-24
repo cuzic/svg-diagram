@@ -4,7 +4,7 @@ import {frameLayoutFindings} from '../layout-metrics.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {group as buildGroup} from '../dsl/group.ts';
-import {renderGroup} from '../emit-boxes.ts';
+import {renderGroup} from '../emit-group.ts';
 import {layoutGroup} from '../layout-group.ts';
 import {groupTitleBand} from '../layout-util.ts';
 import type {GroupBand, GroupOpts, LaidOutGroup} from '../types/containers.ts';

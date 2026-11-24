@@ -1,6 +1,6 @@
 import type {LaidOutOf} from '../band-table.ts';
 import {PALETTE} from '../tokens.ts';
-import {ringed, stepBadgeAt} from '../emit-boxes.ts';
+import {ringed, stepBadgeAt} from '../emit-box.ts';
 import {badgeTextKey} from '../badge.ts';
 import {boxTextXml, geomShapeXml, linesText, namedAs, roundGeomXml} from './prims.ts';
 import {boxXml, plainBox, groupXml} from './shapes.ts';

@@ -13,7 +13,7 @@ import type {LaidOutFlowShape} from './flow-shapes.ts';
 import {snap4, escapeAttr, escapeXml, emojiSpan, resolveTextColor, lineAttrs, arrowPath, resolveBoxStyle} from './emit-common.ts';
 import type {PathCut} from './emit-common.ts';
 import {HOP_R} from './cause-hop.ts';
-import {frameGeometry, renderBoxRect} from './emit-boxes.ts';
+import {frameGeometry, renderBoxRect} from './emit-box-frame.ts';
 import {CORE_BADGE_H, CORE_BADGE_W, CORE_BADGE_GAP, DOUBLE_INSET} from './cause-roles.ts';
 
 import {must} from './must.ts';

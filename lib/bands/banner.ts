@@ -1,9 +1,10 @@
+import {textSvgDefs} from '../emit-box-defs.ts';
 import {ownRunSizes} from '../band-text-sizes.ts';
 import {boxItems} from '../inventory-boxes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {banner as buildBanner} from '../dsl/banner.ts';
-import {textSvgDefs, renderBanner} from '../emit-boxes.ts';
+import {renderBanner} from '../emit-banner.ts';
 import {layoutBoxLike, layoutBoxLikeBand} from '../layout-box-like.ts';
 import {styledAtoms, textRuns} from '../layout-text.ts';
 import type {BannerBand, BannerOpts, LaidOutBanner} from '../types/text-bands.ts';

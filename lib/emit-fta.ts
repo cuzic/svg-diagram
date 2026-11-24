@@ -7,7 +7,7 @@ import type {ToneEnv} from './tokens.ts';
 import type {Theme} from './types/core.ts';
 import type {LaidOutFta} from './types/diagrams.ts';
 import {snap4, emojiSpan} from './emit-common.ts';
-import {renderBoxRect} from './emit-boxes.ts';
+import {renderBoxRect} from './emit-box-frame.ts';
 import {pillSvg} from './badge.ts';
 
 import {gatePath, markPath} from './emit-fta-symbols.ts';

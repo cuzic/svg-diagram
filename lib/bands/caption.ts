@@ -1,3 +1,4 @@
+import {textSvgDefs} from '../emit-box-defs.ts';
 import {withSourceLine, withTitleLine} from '../layout-caption-lines.ts';
 import {ownRunSizes} from '../band-text-sizes.ts';
 import {captionItems} from '../inventory-boxes.ts';
@@ -5,7 +6,7 @@ import {duplicateTitleFindings, sourceLineFindings} from '../verify-caption.ts';
 import {band, defOf, walkDefinedBands} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {caption as buildCaption} from '../dsl/caption.ts';
-import {textSvgDefs, renderCaption} from '../emit-boxes.ts';
+import {renderCaption} from '../emit-caption.ts';
 import {layoutBoxLike, layoutBoxLikeBand} from '../layout-box-like.ts';
 import {styledAtoms, textRuns} from '../layout-text.ts';
 import type {CaptionBand, CaptionOpts, LaidOutCaption, RichText} from '../types/text-bands.ts';
