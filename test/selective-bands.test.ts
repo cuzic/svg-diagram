@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {caption} from '../lib/bands/caption.ts';
+import {faultTree} from '../lib/bands/fta.ts';
+import {bowtie} from '../lib/bands/bowtie.ts';
 import {wireframe, wf} from '../lib/bands/wireframe.ts';
 import {screens} from '../lib/bands/screens.ts';
 import {sequence} from '../lib/bands/sequence.ts';
@@ -37,7 +39,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -427,4 +429,17 @@ test('selective wireframes and screens preserve callouts and screen-frame anchor
   assert.deepEqual(selected.xml, []);
   assert.deepEqual(selected.verdict.problems, expected.verdict.problems);
   assert.equal(selected.svg.slice(selected.svg.indexOf('  <defs>')), expected.svg.slice(expected.svg.indexOf('  <defs>')));
+});
+
+test('selective fault trees and bow-ties preserve gates, barriers and event anchors', async () => {
+  const tree = {label: '停止', gate: 'or', children: [{id: 'event' as const, label: '電源', kind: 'basic'}, {label: '回線', kind: 'basic'}]} satisfies Parameters<typeof faultTree>[0];
+  const risk = {top: '中断', threats: [{label: '故障', barriers: ['点検']}], consequences: [{label: '遅延', barriers: ['復旧']}]};
+  const link = {label: 'Review'};
+  const result = await renderBands([faultTree(tree), bowtie(risk, {id: 'risk'}), connect('event:bottom', 'risk:top', link)], {measure, title: 'Plan', gap: 56});
+  const expected = await renderInBrowser(diagram({theme: 'blue', legend: false, title: 'Plan', gap: 56})
+    .add(legacyFaultTree(tree), legacyBowtie(risk, {id: 'risk'}), legacyConnect('event:bottom', 'risk:top', link)), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <defs>'));
+  assert.deepEqual(result.xml, []);
+  assert.deepEqual(result.verdict.problems, expected.verdict.problems);
+  assert.equal(body(result.svg), body(expected.svg));
 });

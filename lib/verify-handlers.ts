@@ -14,6 +14,8 @@ import {legibilityProblem} from './wordart.ts';
 import {andClashes} from './cause-clash.ts';
 import {sourceOf} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
+import {bowtieRects} from './verify-bowtie-rects.ts';
+import {ftaRects} from './verify-fta-rects.ts';
 import {anchorRects, frameRects, ownRect, scopedRect} from './verify-rects.ts';
 import {planeProblems} from './verify-plane.ts';
 import {quadrantProblems} from './verify-quadrant.ts';
@@ -285,9 +287,9 @@ export const VERIFY_HANDLERS = {
   emblem: {rects: emblemRects, check: flowCheck},
   valueChain: {rects: figureRects, check: flowCheck},
   timeline: {rects: ownRect, check: {phase: 'timeline', run: (band, _d, out) => { out.problems.push(...timelineProblems(band)); }}},
-  bowtie: {rects: band => band.nodes.map((n, i) => ({id: null, label: band.labelBoxes[i]?.label ?? 'box', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
+  bowtie: {rects: bowtieRects},
   comic: {rects: comicRects, check: {phase: 'comic', run: checkComic}},
-  fta: {rects: band => band.nodes.map((n, i) => ({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'event', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
+  fta: {rects: ftaRects},
   // a band node has no label box and is checked as the band it is (its own rects), so the label boxes count only the text nodes
   tree: {rects: band => { let li = 0; return band.nodes.flatMap(n => n.band ? [] : [{id: n.id ?? null, label: band.labelBoxes[li++]?.label ?? 'node', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}]); }},
   states: {rects: figureRects, check: {phase: 'states', run: checkStates}},

@@ -288,6 +288,14 @@
       "types": "./dist/lib/bands/screens.d.ts",
       "default": "./dist/lib/bands/screens.js"
     },
+    "./bands/bowtie": {
+      "types": "./dist/lib/bands/bowtie.d.ts",
+      "default": "./dist/lib/bands/bowtie.js"
+    },
+    "./bands/fta": {
+      "types": "./dist/lib/bands/fta.d.ts",
+      "default": "./dist/lib/bands/fta.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"
