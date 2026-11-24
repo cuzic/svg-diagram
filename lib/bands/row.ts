@@ -1,3 +1,6 @@
+import {steps as buildSteps} from '../steps.ts';
+import type {StepItem, StepsOpts} from '../steps.ts';
+import {boxDefinition} from './box.ts';
 import {rowLoopBack} from '../loop-back.ts';
 import {rowItems} from '../inventory-boxes.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
@@ -29,5 +32,15 @@ export function row<C extends BoxBand & {readonly [DEF]: object}, const Id exten
 ): WithBandDef<RowBand & Declares<IdsOf<C> | Id> & RowHandleOf<Id>, LaidOutRow> {
   const data = buildRow<C, Id>(children, opts);
   if (data.type !== 'row') throw new Error('bands/row: box() の子を指定してください');
+  return band<typeof data, LaidOutRow>(rowDefinition, data);
+}
+
+export type {StepItem, StepsOpts} from '../steps.ts';
+
+export function steps<const Id extends string = never>(
+  items: StepItem[], opts?: StepsOpts & {id?: Id},
+): WithBandDef<ReturnType<typeof buildSteps<Id>>, LaidOutRow> {
+  const data = buildSteps(items, opts);
+  data.children = data.children.map(child => band(boxDefinition, child));
   return band<typeof data, LaidOutRow>(rowDefinition, data);
 }

@@ -1361,3 +1361,14 @@ test('selected brackets, callouts and branches preserve the full renderer geomet
   assert.equal(selected.svg, legacy.svg);
   assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
 });
+
+test('selected steps preserve numbered boxes, focus and loop-back connectors', async () => {
+  const {steps} = await import('../lib/bands/row.ts');
+  const {steps: legacySteps} = await import('../lib/web.ts');
+  const items = [{title: '確認'}, {title: '修正'}, {title: '承認'}];
+  const opts = {id: 'workflow', numbered: true, focus: 2, loopBack: {from: 3, to: 1, label: '差し戻し'}} as const;
+  const selected = await renderBands([steps(items, opts)], {measure, connectors: connectDefinition});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false}).add(legacySteps(items, opts)), {measure});
+  assert.match(selected.svg, /差し戻し/);
+  assert.equal(selected.svg, legacy.svg);
+});
