@@ -1,6 +1,7 @@
 // lib/resolve-hook.ts: `import 'svg-diagram'` and the fresh-load query that reaches every local file of a re-read source.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {existsSync, readFileSync} from 'node:fs';
 import {resolve, FRESH_PARAM} from '../lib/resolve-hook.ts';
 
 const DSL = new URL('../lib/dsl.ts', import.meta.url).href;
@@ -13,6 +14,45 @@ test('"svg-diagram" is the DSL module, without asking the next resolver', async 
   const r = await resolve('svg-diagram', ctx('file:///p/a.ts'), async () => { throw new Error('should not be called'); });
   assert.equal(r.url, DSL);
   assert.equal(r.shortCircuit, true);
+});
+
+test('every explicit code export resolves to an existing TypeScript source', async () => {
+  const root = new URL('../', import.meta.url);
+  const {exports} = JSON.parse(readFileSync(new URL('package.json', root), 'utf8')) as {
+    exports: Record<string, string | {node?: string; default?: string}>;
+  };
+  for (const [key, entry] of Object.entries(exports)) {
+    if (key.includes('*')) continue;
+    const target = typeof entry === 'string' ? entry : entry.node ?? entry.default;
+    if (!target?.endsWith('.js')) continue;
+    const specifier = `svg-diagram${key.slice(1)}`;
+    const expected = new URL(target.replace(/^\.\/dist\//, './').replace(/\.js$/, '.ts'), root);
+    const result = await resolve(specifier, ctx('file:///p/a.ts'), async () => { throw new Error(`unexpected delegation for ${specifier}`); });
+    assert.deepEqual(result, {url: expected.href, shortCircuit: true}, specifier);
+    assert.ok(existsSync(expected), `missing source for ${specifier}`);
+  }
+});
+
+test('row and core subpaths keep their source URLs on a fresh load', async () => {
+  const parent = ctx(fresh('file:///p/a.ts'));
+  for (const [subpath, source] of [['bands/row', '../lib/bands/row.ts'], ['core', '../lib/core.ts']] as const) {
+    const result = await resolve(`svg-diagram/${subpath}`, parent, async () => { throw new Error('should not be called'); });
+    assert.deepEqual(result, {url: new URL(source, import.meta.url).href, shortCircuit: true});
+  }
+});
+
+test('unexported subpaths and schema patterns are left to the next resolver', async () => {
+  for (const subpath of ['lib/x.ts', 'schema/diagram.schema.json', 'schema/*.json']) {
+    const specifier = `svg-diagram/${subpath}`;
+    const context = ctx('file:///p/a.ts');
+    const expected = {url: `file:///p/node_modules/${specifier}`};
+    const result = await resolve(specifier, context, async (actual, receivedContext) => {
+      assert.equal(actual, specifier);
+      assert.equal(receivedContext, context);
+      return expected;
+    });
+    assert.equal(result, expected);
+  }
 });
 
 test('anything else is left to the next resolver when the importer is not a fresh load', async () => {

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {expandMarkdown} from '../lib/markdown.ts';
 import {renderSource, close} from '../lib/render-source.ts';
 
 test.after(() => close());
@@ -21,6 +22,52 @@ test('renders a source that imports from "svg-diagram" and lists the files it de
   assert.deepEqual(r.deps, [src, path.join(dir, 'helper.ts')]);
   assert.deepEqual(fs.readdirSync(dir).sort(), ['helper.ts', 'ok.ts']);
   fs.rmSync(dir, {recursive: true});
+});
+
+test('public subpath imports render the same diagram through renderSource and expandMarkdown', async (t) => {
+  const dir = tmp();
+  t.after(() => fs.rmSync(dir, {recursive: true}));
+  const split = path.join(dir, 'split.diagram.ts');
+  const full = path.join(dir, 'full.diagram.ts');
+  const define = `
+export default function define() {
+  return diagram({theme: 'blue', title: '承認の流れ'}).add(
+    caption('申請から承認まで'),
+    row([
+      box({id: 'a', title: '申請', body: 'フォームに入力'}),
+      box({id: 'b', title: '確認'}),
+      box({id: 'c', title: '承認'}),
+    ]),
+    connect('a', 'b'),
+    connect('b', 'c'),
+  );
+}
+`;
+  fs.writeFileSync(split, `import {diagram} from 'svg-diagram';
+import {row} from 'svg-diagram/bands/row';
+import {box} from 'svg-diagram/bands/box';
+import {connect} from 'svg-diagram/bands/connect';
+import {caption} from 'svg-diagram/bands/caption';${define}`);
+  fs.writeFileSync(full, `import {diagram, row, box, connect, caption} from 'svg-diagram';${define}`);
+
+  const expected = await renderSource(full, {html: true, fresh: true});
+  const actual = await renderSource(split, {html: true, fresh: true});
+  assert.deepEqual(actual.problems, []);
+  assert.equal(actual.svg, expected.svg);
+  assert.equal(actual.html, expected.html);
+  assert.deepEqual(actual.warnings, expected.warnings);
+  assert.deepEqual(actual.deps, [split]);
+
+  const page = await expandMarkdown('![申請](split.diagram.ts)\n\n![申請](full.diagram.ts)', {
+    file: path.join(dir, 'page.md'), root: dir, fresh: true,
+  });
+  assert.deepEqual(page.problems, []);
+  assert.equal(page.figures.length, 2);
+  for (const figure of page.figures) {
+    assert.equal(figure.svg, expected.svg);
+    assert.equal(figure.html, expected.html);
+    assert.deepEqual(figure.warnings, expected.warnings);
+  }
 });
 
 test('a source that fails verification still returns its picture, with ok: false and the problems', async () => {
