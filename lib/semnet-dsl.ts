@@ -1,6 +1,8 @@
 import type {ChartBand} from './charts.ts';
 import type {CausalLink, PertTask} from './semnet-analysis.ts';
-import {causalAlt, dependencyAlt, pertAlt, resolveCausal, resolveDependency, resolvePert} from './semnet.ts';
+import {causalAlt, resolveCausal} from './semnet-causal.ts';
+import {dependencyAlt, resolveDependency} from './semnet-dependency.ts';
+import {pertAlt, resolvePert} from './semnet-pert.ts';
 import type {CausalNode, CausalOpts, DependencyEdge, DependencyNode, DependencyOpts, PertOpts} from './semnet.ts';
 
 const common = (opts: {id?: string; width?: number; height?: number; labelRole?: 'note' | 'banner' | 'stat'; reveal?: number; until?: number}) => ({...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.width === undefined ? {} : {width: opts.width}), ...(opts.height === undefined ? {} : {height: opts.height}), ...(opts.labelRole === undefined ? {} : {labelRole: opts.labelRole}), ...(opts.reveal === undefined ? {} : {reveal: opts.reveal}), ...(opts.until === undefined ? {} : {until: opts.until})});

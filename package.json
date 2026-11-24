@@ -368,6 +368,26 @@
       "types": "./dist/lib/bands/clustermap.d.ts",
       "default": "./dist/lib/bands/clustermap.js"
     },
+    "./bands/combo": {
+      "types": "./dist/lib/bands/combo.d.ts",
+      "default": "./dist/lib/bands/combo.js"
+    },
+    "./bands/compare": {
+      "types": "./dist/lib/bands/compare.d.ts",
+      "default": "./dist/lib/bands/compare.js"
+    },
+    "./bands/pert": {
+      "types": "./dist/lib/bands/pert.d.ts",
+      "default": "./dist/lib/bands/pert.js"
+    },
+    "./bands/causal": {
+      "types": "./dist/lib/bands/causal.d.ts",
+      "default": "./dist/lib/bands/causal.js"
+    },
+    "./bands/dependency": {
+      "types": "./dist/lib/bands/dependency.d.ts",
+      "default": "./dist/lib/bands/dependency.js"
+    },
     "./bands/stacked": {
       "types": "./dist/lib/bands/stacked.d.ts",
       "default": "./dist/lib/bands/stacked.js"

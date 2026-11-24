@@ -180,6 +180,16 @@ try {
       include: 'bands/distplot.js', budget: {esbuild: 83000, Vite: 104000}, exclude: [...legacy, 'lib/charts.js', 'charts-cat.js', 'charts-multi.js', 'charts-reg.js', 'charts-cluster.js'], draw: true},
     {name: 'catplot', source: composedSource([], "catplot({Review: [1, 2, 3, 4, 5]})", "import {catplot} from 'svg-diagram/bands/catplot';"),
       include: 'bands/catplot.js', budget: {esbuild: 87000, Vite: 111000}, exclude: [...legacy, 'lib/charts.js', 'charts-dist.js', 'charts-multi.js', 'charts-reg.js', 'charts-cluster.js'], draw: true},
+    {name: 'dependency', source: composedSource([], "dependencyNetwork([{id: 'a', label: 'Review'}, {id: 'b', label: 'Next'}], [{from: 'a', to: 'b', type: 'uses'}])", "import {dependencyNetwork} from 'svg-diagram/bands/dependency';"),
+      include: 'bands/dependency.js', budget: {esbuild: 161000, Vite: 215000}, exclude: [...legacy, 'lib/charts.js', 'semnet.js', 'charts-combo.js', 'charts-compare.js', 'semnet-pert.js', 'semnet-causal.js'], draw: true},
+    {name: 'causal', source: composedSource([], "causalLoop([{id: 'a', label: 'Review'}, {id: 'b', label: 'Next'}], [{from: 'a', to: 'b', polarity: '+'}])", "import {causalLoop} from 'svg-diagram/bands/causal';"),
+      include: 'bands/causal.js', budget: {esbuild: 172000, Vite: 231000}, exclude: [...legacy, 'lib/charts.js', 'semnet.js', 'charts-combo.js', 'charts-compare.js', 'semnet-pert.js', 'semnet-dependency.js'], draw: true},
+    {name: 'pert', source: composedSource([], "pert([{id: 'a', label: 'Review', duration: 2}])", "import {pert} from 'svg-diagram/bands/pert';"),
+      include: 'bands/pert.js', budget: {esbuild: 161000, Vite: 215000}, exclude: [...legacy, 'lib/charts.js', 'semnet.js', 'charts-combo.js', 'charts-compare.js', 'semnet-causal.js', 'semnet-dependency.js'], draw: true},
+    {name: 'compare', source: composedSource([], "compare(['Review'], ['Plan'], [[['○', 'Ready']]])", "import {compare} from 'svg-diagram/bands/compare';"),
+      include: 'bands/compare.js', budget: {esbuild: 94000, Vite: 115000}, exclude: [...legacy, 'lib/charts.js', 'semnet.js', 'charts-combo.js', 'semnet-pert.js', 'semnet-causal.js', 'semnet-dependency.js'], draw: true},
+    {name: 'combo', source: composedSource([], "combo(['Review', 'Next'], [{label: 'Plan', type: 'bar', values: [4, 5]}])", "import {combo} from 'svg-diagram/bands/combo';"),
+      include: 'bands/combo.js', budget: {esbuild: 102000, Vite: 125000}, exclude: [...legacy, 'lib/charts.js', 'semnet.js', 'charts-compare.js', 'semnet-pert.js', 'semnet-causal.js', 'semnet-dependency.js'], draw: true},
   ];
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;

@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {TreeItem} from '../lib/types/diagrams.ts';
 import {caption} from '../lib/bands/caption.ts';
+import {combo} from '../lib/bands/combo.ts';
+import {compare} from '../lib/bands/compare.ts';
+import {pert} from '../lib/bands/pert.ts';
+import {causalLoop} from '../lib/bands/causal.ts';
+import {dependencyNetwork} from '../lib/bands/dependency.ts';
+import {combo as legacyCombo, compare as legacyCompare, pert as legacyPert, causalLoop as legacyCausal, dependencyNetwork as legacyDependency} from '../lib/web.ts';
 import {catplot, boxplot} from '../lib/bands/catplot.ts';
 import {displot, histplot} from '../lib/bands/distplot.ts';
 import {hist2d, jointplot} from '../lib/bands/multiplot.ts';
@@ -658,6 +664,30 @@ test('selective statistical charts preserve legacy SVG and share each family def
     legacyHist2d(columns), legacyJoint(columns),
     legacyReg(columns), legacyResid(columns),
     legacyCluster(rows, cols, cells),
+  ), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.deepEqual(selected.xml, []);
+  assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
+  assert.equal(body(selected.svg), body(legacy.svg));
+});
+
+test('selective comparison and network charts preserve legacy SVG and diagnostics', async () => {
+  const categories = ['前期', '今期'];
+  const series = [{label: '売上', type: 'bar' as const, values: [7, 8]}, {label: '利益率', type: 'line' as const, values: [2, 4]}];
+  const axis = {y2: {min: 0, max: 5}};
+  const cells = [[['○', '流用'], ['△', '要検討']]] as const;
+  const tasks = [{id: 'start', label: '開始', duration: 1}, {id: 'finish', label: '完了', duration: 2, predecessors: ['start']}];
+  const nodes = [{id: 'demand', label: '需要'}, {id: 'supply', label: '供給'}];
+  const links = [{from: 'demand', to: 'supply', polarity: '+' as const}, {from: 'supply', to: 'demand', polarity: '-' as const, delay: true}];
+  const deps = [{id: 'ui', label: '画面', kind: 'app'}, {id: 'api', label: 'API', kind: 'service'}];
+  const edges = [{from: 'ui', to: 'api', type: 'uses', weight: 3}];
+  const selected = await renderBands([
+    combo(categories, series, axis), compare(['費用'], ['案A', '案B'], cells), pert(tasks, {compact: true}),
+    causalLoop(nodes, links), dependencyNetwork(deps, edges),
+  ], {measure, title: 'Plan'});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false}).add(
+    legacyCombo(categories, series, axis), legacyCompare(['費用'], ['案A', '案B'], cells), legacyPert(tasks, {compact: true}),
+    legacyCausal(nodes, links), legacyDependency(deps, edges),
   ), {measure});
   const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
   assert.deepEqual(selected.xml, []);
