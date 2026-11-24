@@ -2,8 +2,8 @@
 // bracket() / callout() annotations. Pure functions of the anchors laid out so far.
 
 import {textWidth} from './atoms.ts';
-import {resolveAnchor, unknownHint} from './anchor-scope.ts';
-import type {ScopeTable} from './anchor-scope.ts';
+import {resolveAnchor, unknownHint} from './scope-table.ts';
+import type {ScopeTable} from './scope-table.ts';
 import {CONNECT_LABEL_SIZE} from './tokens.ts';
 import type {ConnectBand, LaidOutConnect} from './types/containers.ts';
 import type {Bend, ConnectRef, Point, Rect, Roles, WidthOf} from './types/core.ts';

@@ -8,21 +8,13 @@
 import {itemIdsOf} from './band-ids.ts';
 import {childrenOf} from './band-children.ts';
 import {assertScope, qualify, scopeOf} from './scope-name.ts';
+import {addScoped, emptyScopes} from './scope-table.ts';
+import type {ScopeTable} from './scope-table.ts';
 import type {Band} from './types/index.ts';
 
 export {assertScope, qualify, scopeOf};
-
-/** Every scoped name of a figure, by the bare id it answers to. Empty (the usual case) means nothing is scoped. */
-export interface ScopeTable {readonly byBare: Map<string, string[]>}
-
-export const emptyScopes = (): ScopeTable => ({byBare: new Map()});
-
-/** Adds one scoped item (`bare` of the band `scope`) to the table. */
-export function addScoped(table: ScopeTable, scope: string, bare: string): void {
-  const name = qualify(scope, bare), list = table.byBare.get(bare);
-  if (!list) table.byBare.set(bare, [name]);
-  else if (!list.includes(name)) list.push(name);
-}
+export {addScoped, emptyScopes, bareNameIn, resolveAnchor, unknownHint} from './scope-table.ts';
+export type {ScopeTable} from './scope-table.ts';
 
 /** The table of a band list, read before layout (and before reveal): every item of every scoped band, nested bands included. */
 export function scopesOf(bands: readonly Band[], table: ScopeTable = emptyScopes()): ScopeTable {
@@ -32,32 +24,4 @@ export function scopesOf(bands: readonly Band[], table: ScopeTable = emptyScopes
     scopesOf(childrenOf(b), table);
   }
   return table;
-}
-
-/**
- * What `id` names. `has(name)` says whether a name is registered as it is written (an unscoped id, a column id, a qualified name).
- *  1. a registered name and no scoped item with that bare id  -> itself;
- *  2. not registered, and exactly one scoped item has that bare id -> that item's qualified name (it may not be placed yet);
- *  3. two or more names answer (counting the registered one) -> throws, naming them;
- *  4. none -> undefined (the caller says "unknown anchor id", with unknownHint()).
- */
-export function resolveAnchor(table: ScopeTable, id: string, has: (name: string) => boolean): string | undefined {
-  const hits = table.byBare.get(id);
-  if (!hits || !hits.length) return has(id) ? id : undefined;
-  const all = has(id) && !hits.includes(id) ? [id, ...hits] : hits;
-  if (all.length > 1) throw new Error(`ambiguous anchor id "${id}": ${all.join(', ')} — write one of them`);
-  return all[0];
-}
-
-/** ' (did you mean "plan.p0"?)' when a qualified-looking reference names no registered item but another scope has its last part. */
-export function unknownHint(table: ScopeTable, id: string): string {
-  const tail = id.includes('.') ? id.slice(id.lastIndexOf('.') + 1) : undefined;
-  const hits = tail ? table.byBare.get(tail) : undefined;
-  return hits?.length ? ` (did you mean ${hits.map(h => `"${h}"`).join(' or ')}?)` : '';
-}
-
-/** The band's own (bare) name of a name written for the whole figure: `plan.p0` -> `p0` in the band scoped `plan`; undefined when it is not this band's. */
-export function bareNameIn(scope: string | undefined, name: string): string | undefined {
-  if (!scope) return name;
-  return name.startsWith(`${scope}.`) ? name.slice(scope.length + 1) : undefined;
 }

@@ -19,13 +19,14 @@ import {withStatus} from './status.ts';
 import {atBand, sourceOf, withSource} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
 import type {BandLayoutHandler, LayoutCtx, Placed, RowLike} from './layout-ctx.ts';
-import {CHILD_BANDS, childrenOf, stackWidthOf} from './band-children.ts';
 import {layoutBoxLike} from './layout-box-like.ts';
-import {buildInventory} from './inventory.ts';
 import {parseRef, resolveConnect} from './layout-connect.ts';
 import {ceil4, labelRoom} from './connect-rules.ts';
 import type {LabelAxis} from './connect-rules.ts';
-import {addScoped, qualify, scopesOf} from './anchor-scope.ts';
+import {addScoped} from './scope-table.ts';
+import type {ScopeTable} from './scope-table.ts';
+import {qualify} from './scope-name.ts';
+import type {ContentInventory} from './types/inventory.ts';
 import {
   BOX_PAD_Y, CANVAS_MIN_REGION_W,
   anchorRect, colSlots, rowChildGeometry, topIcon, withSourceLine, withTitleLine,
@@ -43,10 +44,19 @@ import {must} from './must.ts';
 
 type LayoutResult = Omit<LaidOutDiagram, 'inventory'>;
 
+export interface LayoutServices {
+  resolve: (band: Band) => BandLayoutHandler<never>;
+  hasChildrenHandler: (band: Band) => boolean;
+  childrenOf: (band: Band) => Band[];
+  stackWidthOf: (band: Band, width: number) => number | null;
+  scopesOf: (bands: readonly Band[]) => ScopeTable;
+  buildInventory: (bands: LaidOutBand[], connects: LaidOutConnect[], widthOf: WidthOf, labelSize?: number) => ContentInventory;
+}
+
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
-export function createLayoutWith(resolve: (band: Band) => BandLayoutHandler<never>) {
+export function createLayoutWith(services: LayoutServices) {
   return function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
-    const lay = (mode: WrapMode): LayoutResult => fitLineScale(data, lines => layoutBands(resolve, data, roles, widthOf, toneEnv(data.tones), mode, data.keepWords === true, spaceOf(data.density), lines));
+    const lay = (mode: WrapMode): LayoutResult => fitLineScale(data, lines => layoutBands(services, data, roles, widthOf, toneEnv(data.tones), mode, data.keepWords === true, spaceOf(data.density), lines));
     const setting = data.wrap ?? 'phrase';
     const layWithFallback = (): LayoutResult => {
       if (setting !== 'bunsetsu-soft') return lay(setting);
@@ -56,7 +66,7 @@ export function createLayoutWith(resolve: (band: Band) => BandLayoutHandler<neve
     };
     const out = layWithFallback();
     // Inventory errors propagate after layout has selected its final geometry.
-    return {...out, inventory: buildInventory(out.laidOut, out.connects, widthOf, roles.connectLabel)};
+    return {...out, inventory: services.buildInventory(out.laidOut, out.connects, widthOf, roles.connectLabel)};
   };
 }
 
@@ -85,7 +95,8 @@ export function fitLineScale<T extends LayoutResult>(data: DiagramData, layout: 
 /** The scale of the gaps of the layered figures (`WrapEnv.space`): 'compact' closes them by a quarter. */
 const spaceOf = (density: 'normal' | 'compact' | undefined): number => density === 'compact' ? 0.75 : 1;
 
-function layoutBands(resolve: (band: Band) => BandLayoutHandler<never>, data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean, space = 1, lines = {seen: 0, drop: 0, exchange: true, taller: false}): LayoutResult {
+function layoutBands(services: LayoutServices, data: DiagramData, roles: Roles, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, keepWords: boolean, space = 1, lines = {seen: 0, drop: 0, exchange: true, taller: false}): LayoutResult {
+  const {resolve, hasChildrenHandler, childrenOf, stackWidthOf, scopesOf} = services;
   const d = withStatus(withSourceLine(withTitleLine(data)));
   const contentWidth = d.width - 2 * d.pad;
 
@@ -100,7 +111,7 @@ function layoutBands(resolve: (band: Band) => BandLayoutHandler<never>, data: Di
     for (const b of bs) {
       // Report missing layout definitions before walking the legacy child table.
       // ADR 0080 D4: U1a-2 replaces this guard by walking children through the band definition.
-      if (!Object.hasOwn(CHILD_BANDS, b.type)) atBand(b, () => resolve(b));
+      if (!hasChildrenHandler(b)) atBand(b, () => resolve(b));
       if (b.type === 'connect' && b.label && b.route === 'straight' && !b.annot) labelled.push(b);
       else collectConnects(childrenOf(b));
     }

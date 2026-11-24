@@ -686,7 +686,7 @@ U0 は、この PR。U1 以降は、どの単位も Opus のレビューで Bloc
 
 ### U1b の実装メモ
 
-帯と入出力の進捗は [Tree shaking 移行チェックリスト](../tree-shaking-checklist.md) を参照。配置と測定は、既存の処理を共有したまま解決元を呼び出し側から受け取れるようにした。
+帯と入出力の進捗は [Tree shaking 移行チェックリスト](../tree-shaking-checklist.md) を参照。配置と測定は、既存の処理を共有したまま解決元を呼び出し側から受け取れるようにした。配置の共通処理は子の探索、スタック幅、スコープ、inventory も呼び出し側から受け取る。行とグリッドを内包する図で、ラベル付き接続線の配置と inventory の一致を確認した。
 
 - SVG のパイプラインから HTML の出力を分け、Node の `renderDiagram(d, {html: true})` が HTML を組み立てるようにした。HTML 出力は `svg-diagram/html`、ブラウザの測定器は `svg-diagram/measure/browser` から個別に利用できる。
 - デッキのファイル読み込みから、PPTX の列探索に使う文字サイズの計測を分けた。
