@@ -599,6 +599,7 @@
   "verify-box-like:nowrapProblems",
   "verify-bpmn:bpmnProblems",
   "verify-caption:sourceLineFindings",
+  "verify-cause-spacing:parallelEdgeFindings",
   "verify-cause:causeFindings",
   "verify-classes:classesProblems",
   "verify-cloud:cloudProblems",

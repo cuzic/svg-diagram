@@ -1,3 +1,4 @@
+import {parallelEdgeFindings} from '../verify-cause-spacing.ts';
 import {densityRestorationFindings} from '../verify-density.ts';
 import {texts} from '../band-text-sizes.ts';
 import {analysisFindings} from '../finding-rules.ts';
@@ -26,7 +27,7 @@ export const causeDefinition: BandDef<CauseBand, LaidOutCause> = {
   layout: placeCause,
   emit: (laid, {theme, tones}) => renderCause(laid, theme, tones),
   verify: {
-    diagramFindings: densityRestorationFindings,
+    diagramFindings: [densityRestorationFindings, parallelEdgeFindings],
     findings: data => analysisFindings(data, [...(data.rca?.findings ?? []), ...tocFindings(data)]),
     rects: laid => anchorRects(laid),
     check(laid) {

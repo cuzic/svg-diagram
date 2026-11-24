@@ -161,8 +161,8 @@ test('a figure drawn with the old lines is told so (cause-line-scale-dropped, in
   const {renderBands} = await import('../lib/core.ts');
   const selected = await renderBands([selectedCauseTree(CRT_REPORT_NODES, CRT_REPORT_LINKS, CRT_REPORT_OPTIONS)],
     {measure: fontMeasurer(), canvas: {width: 2600, height: 1700, minText: 18, fit: 'content'}});
-  const spacingNotes = (findings: typeof found) => findings.filter(f => f.rule === 'cause-line-scale-dropped')
-    .map(({severity, message}) => ({severity, message}));
+  const spacingNotes = (findings: typeof found) => findings.filter(f => f.rule === 'cause-line-scale-dropped' || f.rule === 'edge-parallel')
+    .map(({rule, severity, message, data}) => ({rule, severity, message, data})).sort((a, b) => a.rule.localeCompare(b.rule));
   assert.deepEqual(spacingNotes(selected.verdict.findings), spacingNotes(found));
   assert.ok(minSpacing(band) < laneStepOf(S18), 'the old lines are 14px apart');
   // edge-parallel: measured at 18px on a canvas, so the fallback figure's 14px lanes are reported; the scaled figure's are not

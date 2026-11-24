@@ -1,4 +1,5 @@
-import {causeBandsOf, densityRestorationFindings} from './verify-density.ts';
+import {parallelEdgeFindings} from './verify-cause-spacing.ts';
+import {densityRestorationFindings} from './verify-density.ts';
 import {narrowTextFindings} from './verify-shrink.ts';
 import {boxSizeFindings} from './verify-box-like.ts';
 import {fullWidthUnits, sourceLineFindings} from './verify-caption.ts';
@@ -33,7 +34,7 @@ import {canvasFindings} from './canvas-findings.ts';
 import {minTextSize} from './fit.ts';
 import {imageSizeFindings} from './verify-image.ts';
 import {thinBarFindings} from './verify-bars.ts';
-import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv, canvasFontScale} from './tokens.ts';
+import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 
 // contrast is judged on the colours as drawn: in a dark diagram the light tokens are looked up in the dark set first
@@ -50,8 +51,7 @@ import type {BarsBand} from './types/bars.ts';
 import type {CaptionBand} from './types/text-bands.ts';
 import type {LaidOutConnect, LegendBand} from './types/containers.ts';
 import type {EmphasisTone, DiagramData, Point, Rect, RuleId} from './types/core.ts';
-import {bendsOf, crossingsOf, parallelRuns} from './polyline-metrics.ts';
-import {laneStepOf} from './layered-route.ts';
+import {bendsOf, crossingsOf} from './polyline-metrics.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
 import type {SwimlaneBand} from './types/sequence-table-swimlane.ts';
 import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
@@ -693,28 +693,6 @@ function edgeBendsRules(d: LintTarget, out: Finding[]): void {
   }
 }
 
-// ---- edge-parallel (ADR 0070 D2) ---------------------------------------------------------------------------------------------
-// Runs of two arrows side by side closer than the lane step, the gap the router keeps between its lanes: a bundle of such lines cannot be
-// followed. Only a cause tree's band (no `origin`): the other routed figures keep short runs at the port step by design (states / classes
-// shrink their ports on a short side, so the last run of a fan-in always counts). Arrows that share a tail or a head count too.
-function edgeParallelRules(d: LintTarget, out: Finding[]): void {
-  if (!d.laidOut) return;
-  const severity = layoutSeverity(d);
-  for (const band of causeBandsOf(d.laidOut)) {
-    if (band.origin !== undefined) continue;
-    // ADR 0070 D7 (U5): on a canvas the lines scale with the text (`WrapEnv.lineScale`), so the lane step does too; a band drawn with the old lines (`lineScaleDropped`) is measured at the scaled step as well, and is reported when it is crowded
-    const sep = laneStepOf((d.density === 'compact' && !band.densityRestored ? 0.75 : 1) * (d.canvas ? Math.max(1, canvasFontScale(d.canvas.minText)) : 1));
-    const edges = band.edges.filter(e => e.from !== e.to && e.points.length >= 2);
-    const pairs = parallelRuns(edges.map(e => e.points), sep).sort((p, q) => q.overlap - p.overlap);
-    const total = Math.round(pairs.reduce((n, p) => n + p.overlap, 0));
-    if (total <= 2 * sep) continue;
-    const name = `cause${band.id ? ` ${band.id}` : ''}`;
-    const arrow = (i: number): string => { const e = edges[i] as {from: string; to: string}; return `${e.from} → ${e.to}`; };
-    const worst = pairs.slice(0, 3).map(p => `${arrow(p.a)} と ${arrow(p.b)}（間隔 ${Math.round(p.gap)}px、${Math.round(p.overlap)}px）`).join('、');
-    out.push({...at(band), rule: 'edge-parallel', severity, message: `${name}: 矢印どうしが ${sep}px より近くで並ぶ所が ${pairs.length} 組、計 ${total}px（${worst}${pairs.length > 3 ? ' ほか' : ''}）。平行線の束はたどれない`, data: {band: name, measured: total, threshold: 2 * sep, fix: "前提条件を行き先の近くに置く（causeTree({tree: 'crt'}) の既定、または layer: 'alap'）、層を飛ぶ矢印を減らす。意図した形なら accept で許容する"}});
-  }
-}
-
 /** stat-fit-shrunk (ADR 0024 D5): a stat() value drawn smaller than its role's size to fit its box. Info: shrinking is the specified behaviour. */
 function statFitFindings(d: LintTarget, out: Finding[]): void {
   const boxes: LaidOutBand[] = [];
@@ -898,7 +876,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   glyphRules(d, out);
   layoutQualityRules(d, out);
   edgeBendsRules(d, out);
-  edgeParallelRules(d, out);
+  out.push(...parallelEdgeFindings(d));
   tocRules(d, out);
   rcaRules(d, out);
   comicRules(d, out);
