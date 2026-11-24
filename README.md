@@ -152,6 +152,8 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 
 1 枚の PowerPoint は `svg-diagram/pptx` の `renderBandsPptx` で出力できます。`svg-diagram/pptx/bands/box` から `boxPptx` や `rowPptx` を import し、`bands: {box: boxPptx, row: rowPptx}` を渡すと編集可能な図形になります。箱系に加え、`pptx/bands/table`、`tree`、`quadrant`、`states`、`cause`、`legend`、`flow`、`pyramid`、`timeline` の各入口から対応するアダプターを選べます。絵として埋め込む帯は `fallbacks` に載り、その場合は `rasterize(svg, scale)` が必要です。文字を輪郭化する場合は `outline(svg)` を渡します。`strict: true` は絵への切り替えをエラーにします。 グループやスイムレーンの構成要素を PowerPoint 上でまとめる場合は、`pptx/bands/group` の `groupSpan` や `pptx/bands/swimlane` の `swimlaneSpan` を `spans` に渡します。
 
+JSON spec の部品を限定するには、`svg-diagram/spec/selective` の `renderSpec(spec, {parts, measure})` を使います。`svg-diagram/spec/parts/flowchart`、`spec/parts/funnel`、`spec/parts/pyramid` から必要な部品を選び、`parts` に渡します。同じ一覧から `specSchemaFor({parts})` と `partCatalog({parts})` も生成できます。この入口の図全体の項目は `version`、`title`、`parts`、`theme`、`width`、`legend: false` です。全種類と図全体のオプションを使う場合は `svg-diagram/spec` を利用します。
+
 ```ts
 import {renderBands} from 'svg-diagram/core';
 import {box} from 'svg-diagram/bands/box';

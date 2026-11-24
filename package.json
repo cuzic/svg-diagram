@@ -122,6 +122,9 @@
     "./dist/lib/spec-parts/r5.js",
     "./dist/lib/spec-parts/r6.js",
     "./dist/lib/spec-parts/r7.js",
+    "./dist/lib/spec-parts/selective/flowchart.js",
+    "./dist/lib/spec-parts/selective/funnel.js",
+    "./dist/lib/spec-parts/selective/pyramid.js",
     "./dist/lib/spec.js",
     "./dist/lib/svg-outline.js",
     "./dist/lib/tokens.js",
@@ -475,6 +478,22 @@
     "./render": {
       "types": "./dist/lib/render-source.d.ts",
       "default": "./dist/lib/render-source.js"
+    },
+    "./spec/parts/funnel": {
+      "types": "./dist/lib/spec-parts/selective/funnel.d.ts",
+      "default": "./dist/lib/spec-parts/selective/funnel.js"
+    },
+    "./spec/parts/pyramid": {
+      "types": "./dist/lib/spec-parts/selective/pyramid.d.ts",
+      "default": "./dist/lib/spec-parts/selective/pyramid.js"
+    },
+    "./spec/parts/flowchart": {
+      "types": "./dist/lib/spec-parts/selective/flowchart.d.ts",
+      "default": "./dist/lib/spec-parts/selective/flowchart.js"
+    },
+    "./spec/selective": {
+      "types": "./dist/lib/spec-selective.d.ts",
+      "default": "./dist/lib/spec-selective.js"
     },
     "./spec": {
       "types": "./dist/lib/spec.d.ts",

@@ -1,3 +1,5 @@
+import {capped, checkAnchors, countEmoji, join, totalText, validateAgainst} from './spec-validation.ts';
+export {capped, validateAgainst} from './spec-validation.ts';
 // A diagram as JSON data ("svg-diagram/spec"): the input for callers that must not run a `.ts` source, such as a public server taking
 // diagrams from a model. A source is code (lib/load-source.ts imports it); a spec is data, checked against a schema and turned into builder
 // calls from a fixed list. Each part below keeps its schema, its example and its builder together, so they change in one commit.
@@ -8,11 +10,11 @@ import {causeTree, chevron, cloud, cycle, diagram, flowchart, funnel, gantt, jou
 import {walkBands} from './rules.ts';
 import {SOURCE, SourceRef, sourceOf} from './source-ref.ts';
 import type {RenderChecks} from './svg-lint.ts';
-import {EMOJI_RE, SLIDE_CANVAS} from './tokens.ts';
+import {SLIDE_CANVAS} from './tokens.ts';
 import type {BandInput, Diagram, Issue, Verdict} from './types/index.ts';
 import {quadrantDefaults} from './quadrant.ts';
 
-import {ARROW, BOX_TONE, CANVAS_LIMITS, CELL, DATE, SPEC_WIDTH, EMPHASIS_TONE, LEGEND_EN, LINE, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_NODE_WIDTH, MAX_QUOTED, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, MAX_TREE_NODES, PART_EN, QUADRANT_GRID, SPEC_VERSION, STEP_REF, SpecError, TEXT_TONE, axis, checkFlowEnd, count, dayOf, flowSteps, id, isDay, items, list, mustExist, object, oneOf, pair, refIssue, text, treeItem, treeSize, uniqueIds, whyNode, whySize, withoutSchemaField, withoutType} from './spec-kit.ts';
+import {ARROW, BOX_TONE, CANVAS_LIMITS, CELL, DATE, SPEC_WIDTH, EMPHASIS_TONE, LEGEND_EN, LINE, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_NODE_WIDTH, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, MAX_TREE_NODES, PART_EN, QUADRANT_GRID, SPEC_VERSION, STEP_REF, SpecError, TEXT_TONE, axis, checkFlowEnd, count, dayOf, flowSteps, id, isDay, items, list, mustExist, object, oneOf, pair, refIssue, text, treeItem, treeSize, uniqueIds, whyNode, whySize, withoutSchemaField, withoutType} from './spec-kit.ts';
 import type {Json, JsonSchema, PartDef, SpecIssue} from './spec-kit.ts';
 export {SPEC_VERSION, CANVAS_LIMITS, MAX_TOTAL_TEXT, MAX_EMOJI, MAX_SWIMLANE_COLS, MAX_TREE_DEPTH, MAX_TREE_NODES, MAX_CAUSE_NODES, MAX_CAUSE_LINKS, MAX_ISSUES, SpecError, withoutSchemaField} from './spec-kit.ts';
 export type {JsonSchema, SpecIssue} from './spec-kit.ts';
@@ -25,43 +27,14 @@ import {PARTS_R6} from './spec-parts/r6.ts';
 import {PARTS_R7} from './spec-parts/r7.ts';
 import {BOARD} from './spec-parts/board.ts';
 
+import {defineFlowchartPart} from './spec-parts/flowchart.ts';
+
+import {definePyramidPart} from './spec-parts/pyramid.ts';
+
+import {defineFunnelPart} from './spec-parts/funnel.ts';
+
 const PARTS: readonly PartDef[] = [
-  {
-    type: 'flowchart',
-    anchors: 'nodes',
-    description: 'A flowchart: steps, decisions (a diamond holding the question) and start / end pills joined by arrows. Use for a process with branches or loops. Put Yes / No on the edges that leave a decision.',
-    schema: object({
-      type: {const: 'flowchart'},
-      nodes: list(object({
-        id: id('Referred to by edges.'),
-        label: text('The text of the node.'),
-        sub: text('A second, muted line.'),
-        kind: {...oneOf('process', 'decision', 'terminator'), description: 'process: a step (default). decision: a diamond. terminator: a start / end pill.'},
-        tone: oneOf('plain', 'accent', 'new', 'changed', 'removed', 'muted', 'danger', 'solid', 'solid-danger'),
-      }, ['id', 'label']), 40, 1),
-      edges: list(object({
-        from: id('A node id.'),
-        to: id('A node id.'),
-        label: text('The condition on the arrow.', 60),
-        line: LINE,
-        tone: oneOf('danger', 'accent', 'muted'),
-        strong: {type: 'boolean', description: 'A thick arrow.'},
-      }, ['from', 'to']), 60),
-      dir: {...oneOf('right', 'down', 'auto'), description: 'The direction of the flow (default: down, turning when it does not fit).'},
-    }, ['type', 'nodes', 'edges']),
-    example: {type: 'flowchart', nodes: [{id: 'start', kind: 'terminator', label: '受付'}, {id: 'q', kind: 'decision', label: '在庫はある？'}, {id: 'ship', label: '発送する'}, {id: 'order', label: '取り寄せる'}], edges: [{from: 'start', to: 'q'}, {from: 'q', to: 'ship', label: 'Yes'}, {from: 'q', to: 'order', label: 'No'}]},
-    check(part, at, issues) {
-      const nodes = uniqueIds(part, 'nodes', at, issues);
-      items(part, 'edges').forEach((e, i) => {
-        mustExist(e['from'], nodes, `${at}.edges[${i}].from`, 'node id', issues);
-        mustExist(e['to'], nodes, `${at}.edges[${i}].to`, 'node id', issues);
-      });
-    },
-    build(part) {
-      const {nodes, edges, ...opts} = withoutType(part);
-      return flowchart(nodes as never, edges as never, opts as never);
-    },
-  },
+  defineFlowchartPart<ReturnType<typeof flowchart>>(flowchart),
   {
     type: 'causeTree',
     anchors: 'nodes',
@@ -270,19 +243,7 @@ const PARTS: readonly PartDef[] = [
       return cycle(steps as never, opts as never);
     },
   },
-  {
-    type: 'pyramid',
-    description: 'Layers stacked from a wide base to a narrow top, such as a hierarchy of needs or of priorities. The first layer is the base, the last the top.',
-    schema: object({
-      type: {const: 'pyramid'},
-      layers: list(text('A layer, the base first.', 40), 7, 2),
-    }, ['type', 'layers']),
-    example: {type: 'pyramid', layers: ['日々の業務', '戦術', '戦略', 'ビジョン']},
-    check() {},
-    build(part) {
-      return pyramid(part['layers'] as never);
-    },
-  },
+  definePyramidPart(pyramid),
   {
     type: 'stateDiagram',
     anchors: 'states',
@@ -387,25 +348,7 @@ const PARTS: readonly PartDef[] = [
       return venn(sets as never, opts as never);
     },
   },
-  {
-    type: 'funnel',
-    description: 'A funnel: stages that narrow, such as visits to orders. With values, the widths follow them and the rate between stages can be written.',
-    schema: object({
-      type: {const: 'funnel'},
-      stages: list(object({label: text('The stage.', 30), value: {type: 'number', minimum: 0, maximum: 1e12}, tone: EMPHASIS_TONE}, ['label']), 7, 2),
-      scale: {...oneOf('value', 'even'), description: 'value: widths follow the values. even: equal steps.'},
-      showRate: {type: 'boolean', description: 'true: write the rate from each stage to the next.'},
-    }, ['type', 'stages']),
-    example: {type: 'funnel', scale: 'value', showRate: true, stages: [{label: '訪問', value: 1200}, {label: '問い合わせ', value: 420}, {label: '商談', value: 160}, {label: '成約', value: 52}]},
-    check(part, at, issues) {
-      const valued = items(part, 'stages').map(s => s['value'] !== undefined);
-      if ((part['scale'] === 'value' || part['showRate'] === true) && valued.includes(false)) valued.forEach((v, i) => { if (!v) issues.push({path: `${at}.stages[${i}].value`, message: 'is required when the widths or the rates follow the values'}); });
-    },
-    build(part) {
-      const {stages, ...opts} = withoutType(part);
-      return funnel(stages as never, opts as never);
-    },
-  },
+  defineFunnelPart(funnel),
   {
     type: 'table',
     description: 'A table: columns with headings and rows of text or numbers, such as a comparison of options. A row can be an object with a tone to stand out.',
@@ -651,118 +594,13 @@ export function partCatalog(): {type: string; description: string; schema: JsonS
   return PARTS.map(({type, description, schema, example}) => ({type, description, schema, example}));
 }
 
-/** Control characters (a line break too: every field is one line) and what XML forbids. */
-const UNDRAWABLE = /[\p{Cc}\p{Cs}\ufffe\uffff]/u;
-/** A value from the input, at a length a message can carry: a bad spec must not make the answer huge. */
-const clip = (s: string): string => s.length <= MAX_QUOTED ? s : `${s.slice(0, MAX_QUOTED)}…`;
-const describe = (v: unknown): string => v === undefined ? 'nothing' : v === null ? 'null' : Array.isArray(v) ? 'an array' : typeof v === 'object' ? 'an object' : clip(JSON.stringify(v));
-const join = (at: string, key: string): string => at ? `${at}.${clip(key)}` : clip(key);
-
-function validate(s: JsonSchema, v: unknown, at: string, out: SpecIssue[]): void {
-  if (s.oneOf) { validateOneOf(s.oneOf, v, at, out); return; }
-  if (s.const !== undefined) { if (v !== s.const) out.push({path: at, message: `must be ${JSON.stringify(s.const)} (got ${describe(v)})`}); return; }
-  if (s.enum && !s.enum.includes(v as never)) { out.push({path: at, message: `must be one of ${s.enum.map(x => JSON.stringify(x)).join(', ')} (got ${describe(v)})`}); return; }
-  switch (s.type) {
-    case 'string':
-      if (typeof v !== 'string') { out.push({path: at, message: `must be a string (got ${describe(v)})`}); return; }
-      if (s.minLength !== undefined && !v.trim()) out.push({path: at, message: 'must not be empty'});
-      { const bad = UNDRAWABLE.exec(v); if (bad) out.push({path: at, message: `contains U+${(bad[0].codePointAt(0) as number).toString(16).toUpperCase().padStart(4, '0')}, which cannot be drawn: write plain text on one line`}); }
-      if (s.maxLength !== undefined && v.length > s.maxLength) out.push({path: at, message: `is ${v.length} characters; the limit is ${s.maxLength}`});
-      return;
-    case 'integer':
-      if (typeof v !== 'number' || !Number.isInteger(v)) { out.push({path: at, message: `must be an integer (got ${describe(v)})`}); return; }
-      if ((s.minimum !== undefined && v < s.minimum) || (s.maximum !== undefined && v > s.maximum)) out.push({path: at, message: `must be between ${s.minimum} and ${s.maximum} (got ${v})`});
-      return;
-    case 'number':
-      if (typeof v !== 'number' || !Number.isFinite(v)) { out.push({path: at, message: `must be a number (got ${describe(v)})`}); return; }
-      if ((s.minimum !== undefined && v < s.minimum) || (s.maximum !== undefined && v > s.maximum)) out.push({path: at, message: `must be between ${s.minimum} and ${s.maximum} (got ${v})`});
-      return;
-    case 'boolean':
-      if (typeof v !== 'boolean') out.push({path: at, message: `must be true or false (got ${describe(v)})`});
-      return;
-    case 'array':
-      if (!Array.isArray(v)) { out.push({path: at, message: `must be an array (got ${describe(v)})`}); return; }
-      if (s.minItems !== undefined && v.length < s.minItems) out.push({path: at, message: `needs at least ${s.minItems} item(s)`});
-      if (s.maxItems !== undefined && v.length > s.maxItems) { out.push({path: at, message: `has ${v.length} items; the limit is ${s.maxItems}`}); return; }
-      if (s.items) v.forEach((x, i) => validate(s.items as JsonSchema, x, `${at}[${i}]`, out));
-      return;
-    case 'object': {
-      if (typeof v !== 'object' || v === null || Array.isArray(v)) { out.push({path: at, message: `must be an object (got ${describe(v)})`}); return; }
-      const o = v as Json, props = s.properties ?? {};
-      for (const k of s.required ?? []) if (!Object.hasOwn(o, k)) out.push({path: join(at, k), message: 'is required'});
-      for (const k of Object.keys(o)) {
-        if (Object.hasOwn(props, k)) validate(props[k] as JsonSchema, o[k], join(at, k), out);
-        else out.push({path: join(at, k), message: `is not a known field (known: ${Object.keys(props).join(', ')})`});
-      }
-      return;
-    }
-    default:
-  }
-}
-
-/** The branch is the one whose `const` fields match and whose required fields are all there, so the issues are about that branch. */
-function validateOneOf(branches: readonly JsonSchema[], v: unknown, at: string, out: SpecIssue[]): void {
-  // a choice between kinds of value (a text or a list, a list or an object): the kind of the value says which
-  const isObject = typeof v === 'object' && v !== null && !Array.isArray(v);
-  const kindOf = (b: JsonSchema): boolean => b.type === 'array' ? Array.isArray(v) : b.type === 'integer' || b.type === 'number' ? typeof v === 'number' : b.type !== 'object' && b.type !== undefined && typeof v === b.type;
-  const objects = branches.filter(b => b.type === 'object');
-  if (!isObject || objects.length === 0) {
-    const hit = branches.find(kindOf);
-    if (hit) validate(hit, v, at, out);
-    else out.push({path: at, message: `must be ${[...new Set(branches.map(b => b.type === 'object' ? 'an object' : `a ${b.type}`))].join(' or ')} (got ${describe(v)})`});
-    return;
-  }
-  const o = v as Json;
-  const constsOf = (b: JsonSchema) => Object.entries(b.properties ?? {}).filter(([, p]) => p.const !== undefined);
-  if (objects.every(b => constsOf(b).length > 0)) {
-    const hit = objects.find(b => constsOf(b).every(([k, p]) => o[k] === p.const));
-    if (hit) { validate(hit, v, at, out); return; }
-    const key = (constsOf(objects[0] as JsonSchema)[0] as [string, JsonSchema])[0];
-    out.push({path: join(at, key), message: `must be one of ${objects.map(b => JSON.stringify(b.properties?.[key]?.const)).join(', ')} (got ${describe(o[key])})`});
-    return;
-  }
-  const hit = objects.find(b => (b.required ?? []).every(k => Object.hasOwn(o, k)));
-  if (hit) { validate(hit, v, at, out); return; }
-  out.push({path: at, message: `must have the fields of one of these forms: ${objects.map(b => (b.required ?? []).join(' + ')).join(' / ')}`});
-}
-
-/** What the emitter draws as emoji, so a character cannot be cheap to the count and costly to draw. */
-const EMOJI_ALL = new RegExp(EMOJI_RE.source, 'gu');
-function countEmoji(v: unknown): number {
-  if (typeof v === 'string') return v.match(EMOJI_ALL)?.length ?? 0;
-  if (Array.isArray(v)) return v.reduce((n: number, x) => n + countEmoji(x), 0);
-  return typeof v === 'object' && v !== null ? Object.values(v).reduce((n: number, x) => n + countEmoji(x), 0) : 0;
-}
-
-function totalText(v: unknown): number {
-  if (typeof v === 'string') return v.length;
-  if (Array.isArray(v)) return v.reduce((n: number, x) => n + totalText(x), 0);
-  return typeof v === 'object' && v !== null ? Object.values(v).reduce((n: number, x) => n + totalText(x), 0) : 0;
-}
-
-/** The ids that become anchors of the figure, against each other across parts (a repeat inside a part is reported by that part). */
-function checkAnchors(parts: readonly Json[], issues: SpecIssue[]): void {
-  const first = new Map<string, number>();
-  parts.forEach((part, i) => {
-    const key = partOf(part['type'])?.anchors, at = `parts[${i}]`;
-    if (!key) return;
-    const ids = typeof key === 'function' ? key(part, at) : items(part, key).flatMap((x, j) => typeof x['id'] === 'string' ? [{id: x['id'], path: `${at}.${key}[${j}].id`}] : []);
-    for (const {id: v, path} of ids) {
-      const seen = first.get(v);
-      if (seen === undefined) first.set(v, i);
-      else if (seen !== i) issues.push({path, message: `"${v}" is already used in parts[${seen}] (ids must be unique in the figure)`});
-    }
-  });
-}
-
-export const capped = (issues: SpecIssue[]): SpecIssue[] => issues.length <= MAX_ISSUES ? issues : [...issues.slice(0, MAX_ISSUES), {path: '', message: `and ${issues.length - MAX_ISSUES} more of the same kind: fix these first`}];
 const messageOf = (e: unknown): string => e instanceof Error ? e.message : String(e);
 
 /** Checks `input` all the way, builders included: a builder has rules of its own, and only it knows the columns a swimlane ends up with. */
 function assemble(written: unknown): {diagram: Diagram | null; issues: SpecIssue[]} {
   const input = withoutSchemaField(written); // a spec file names its schema for the editor (ADR 0071)
   const issues: SpecIssue[] = [];
-  validate(specSchema, input, '', issues);
+  issues.push(...validateAgainst(specSchema, input));
   if (issues.length) return {diagram: null, issues: capped(issues)}; // everything below assumes the shapes are right
   // `width` narrows a document figure (ADR 0059); a canvas has its own width (ADR 0057), and the two would disagree on how wide it is
   if ((input as Json)['width'] !== undefined && (input as Json)['canvas'] !== undefined) return {diagram: null, issues: [{path: 'width', message: 'does not go with canvas: give the canvas its width (canvas.width) and leave width out'}]};
@@ -777,7 +615,7 @@ function assemble(written: unknown): {diagram: Diagram | null; issues: SpecIssue
   const enOf = (type: unknown): Json | undefined => PART_EN[type as string] ?? partOf(type)?.en;
   const list = (parts as Json[]).map(p => english && enOf(p['type']) ? {...enOf(p['type']), ...p} : p);
   list.forEach((part, i) => (partOf(part['type']) as PartDef).check(part, `parts[${i}]`, issues));
-  checkAnchors(list, issues);
+  checkAnchors(list, issues, partOf);
   if (issues.length) return {diagram: null, issues: capped(issues)};
   let d: Diagram;
   try { d = diagram({theme: 'blue', ...opts} as never) as unknown as Diagram; }
@@ -979,12 +817,4 @@ export interface RenderSpecResult {
   problems: LocatedMessage[];
   /** Advice that does not fail the figure. */
   findings: LocatedMessage[];
-}
-
-
-/** The schema check alone (no part rules), for inputs that hold specs, such as a deck (lib/deck-spec.ts). */
-export function validateAgainst(schema: JsonSchema, value: unknown, at = ''): SpecIssue[] {
-  const out: SpecIssue[] = [];
-  validate(schema, value, at, out);
-  return out;
 }

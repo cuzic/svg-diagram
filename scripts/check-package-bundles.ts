@@ -141,6 +141,13 @@ try {
       include: 'compose/selective/icon-row.js', budget: {esbuild: 86000, Vite: 114000}, bands: ['box.js', 'row.js'], exclude: [...legacy, 'layout-connect.js', 'bands/grid.js', 'bands/banner.js'], draw: true},
     {name: 'Composer Versus', source: composedSource([], "...versus({children: box({title: 'Review'})}, {children: box({title: 'Next'})})", "import {versus} from 'svg-diagram/compose/versus'; import {box} from 'svg-diagram/bands/box';"),
       include: 'compose/selective/versus.js', budget: {esbuild: 110000, Vite: 140000}, bands: ['box.js', 'caption.js', 'connect.js', 'group-row.js', 'group.js', 'row.js', 'spacer.js'], exclude: [...legacy, 'bands/banner.js', 'bands/grid.js', 'gantt.js'], draw: true},
+    {name: 'Selected pyramid spec', source: `
+      import {renderSpec} from 'svg-diagram/spec/selective';
+      import {pyramidPart} from 'svg-diagram/spec/parts/pyramid';
+      export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [{type: 'pyramid', layers: ['Review', 'Next']}]}, {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [pyramidPart],
+      });
+    `, include: 'spec-selective.js', budget: {esbuild: 66000, Vite: 88000}, bands: ['pyramid.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/flowchart.js', 'spec-parts/funnel.js', 'spec-parts/r1.js', 'dsl-pure.js', 'layout-connect.js'], draw: true},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
       exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 52000, Vite: 65000}},

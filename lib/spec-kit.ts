@@ -110,13 +110,13 @@ export function checkFlowEnd(ref: unknown, steps: ReadonlySet<string>, path: str
   mustExist(m[1], steps, path, 'step id', issues);
 }
 
-export interface PartDef {
+export interface PartDef<Result = unknown> {
   type: string;
   description: string;
   schema: JsonSchema;
   example: Json;
   check: Check;
-  build: (part: Json, at: string) => unknown;
+  build: (part: Json, at: string) => Result;
   /**
    * The ids that become anchors of the whole figure, so they must not repeat between parts: the list whose items' ids they are, or a
    * function that gathers them with their places (a part whose ids are nested, such as board's groups).
