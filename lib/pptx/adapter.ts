@@ -18,7 +18,8 @@ export interface Ctx {
   count: Map<string, number>;
 }
 export type BandXml<B> = (band: B, ctx: Ctx, index: number) => string;
-export type PptxBands = {[T in LaidOutType]?: BandXml<LaidOutOf<T>>};
+export type PptxAdapter<B> = (band: B, ctx: Ctx, index: number) => string | undefined;
+export type PptxBands = {[T in LaidOutType]?: PptxAdapter<LaidOutOf<T>>};
 
 /** Remember a DSL id so connectors can glue to this shape. */
 export const register = (ctx: Ctx, dslId: string | undefined, id: number, rect: Rect): void => {

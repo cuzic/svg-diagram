@@ -5,6 +5,8 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {register} from 'node:module';
 import test from 'node:test';
+import {tablePptx} from '../lib/pptx/table-band.ts';
+import {table as selectedTable} from '../lib/bands/table.ts';
 import {renderBandsPptx} from '../lib/pptx/selective.ts';
 import {boxPptx, rowPptx} from '../lib/pptx/box-bands.ts';
 import {box as selectedBox} from '../lib/bands/box.ts';
@@ -152,7 +154,7 @@ test('selected PPTX adapters preserve editable shapes and report picture fallbac
 
   await assert.rejects(renderBandsPptx([...native, raw], {...opts, strict: true}), /raw/);
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=', 'base64');
-  const withFallback = await renderBandsPptx([...native, raw], {...opts, rasterize(svg, scale) {
+  const withFallback = await renderBandsPptx([...native, raw], {...opts, bands: {...opts.bands, raw: () => undefined}, rasterize(svg, scale) {
     assert.match(svg, /<rect[^>]+width="24"/);
     assert.equal(scale, 2);
     return png;
@@ -160,4 +162,14 @@ test('selected PPTX adapters preserve editable shapes and report picture fallbac
   assert.deepEqual(withFallback.fallbacks, [{type: 'raw'}]);
   assert.deepEqual(unzipEntry(Buffer.from(withFallback.pptx), 'ppt/media/image1.png'), png);
   assert.match(unzipEntry(Buffer.from(withFallback.pptx), 'ppt/media/image1.svg')!.toString(), /<rect[^>]+width="24"/);
+});
+
+test('selective PPTX can embed a native editable table independently', async () => {
+  const {pptx, fallbacks} = await renderBandsPptx([selectedTable([{label: 'Review'}], [['Done']])], {
+    measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+    bands: {table: tablePptx}, strict: true,
+  });
+  const xml = unzipEntry(Buffer.from(pptx), 'ppt/slides/slide1.xml').toString();
+  assert.match(xml, /<a:tbl>[\s\S]*>Done<\/a:t>/);
+  assert.deepEqual(fallbacks, []);
 });

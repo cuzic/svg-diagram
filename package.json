@@ -476,6 +476,34 @@
       "types": "./dist/lib/pptx/box-bands.d.ts",
       "default": "./dist/lib/pptx/box-bands.js"
     },
+    "./pptx/bands/table": {
+      "types": "./dist/lib/pptx/table-band.d.ts",
+      "default": "./dist/lib/pptx/table-band.js"
+    },
+    "./pptx/bands/tree": {
+      "types": "./dist/lib/pptx/tree-band.d.ts",
+      "default": "./dist/lib/pptx/tree-band.js"
+    },
+    "./pptx/bands/quadrant": {
+      "types": "./dist/lib/pptx/quadrant-band.d.ts",
+      "default": "./dist/lib/pptx/quadrant-band.js"
+    },
+    "./pptx/bands/states": {
+      "types": "./dist/lib/pptx/states-band.d.ts",
+      "default": "./dist/lib/pptx/states-band.js"
+    },
+    "./pptx/bands/cause": {
+      "types": "./dist/lib/pptx/cause-band.d.ts",
+      "default": "./dist/lib/pptx/cause-band.js"
+    },
+    "./pptx/bands/legend": {
+      "types": "./dist/lib/pptx/legend-band.d.ts",
+      "default": "./dist/lib/pptx/legend-band.js"
+    },
+    "./pptx/bands/flow": {
+      "types": "./dist/lib/pptx/flow-band.d.ts",
+      "default": "./dist/lib/pptx/flow-band.js"
+    },
     "./pptx/edge": {
       "types": "./dist/lib/pptx-edge.d.ts",
       "default": "./dist/lib/pptx-edge.js"

@@ -3,7 +3,7 @@ import {visibleAt} from '../reveal-visibility.ts';
 import {recolor} from '../tokens.ts';
 import type {LaidOutBand} from '../types/index.ts';
 import {register} from './adapter.ts';
-import type {BandXml, PptxBands} from './adapter.ts';
+import type {PptxAdapter, PptxBands} from './adapter.ts';
 import {bandPicture} from './image-band-core.ts';
 import {imageRids, packageEntries} from './package.ts';
 import {anchorXml, picXml} from './shapes.ts';
@@ -37,8 +37,9 @@ export async function renderBandsPptx(bands: Parameters<typeof prepareBands>[0],
   const ld = {...placed, laidOut, connects: placed.connects.filter(item => visibleAt(item, stage))};
   const plan = planSlideWith(ld, fontsOf(opts.font), (item, ctx, index) => {
     // The table key selects an adapter expecting this exact band type.
-    const adapter = opts.bands?.[item.type] as BandXml<LaidOutBand> | undefined;
-    if (adapter) return adapter(item, ctx, index);
+    const adapter = opts.bands?.[item.type] as PptxAdapter<LaidOutBand> | undefined;
+    const native = adapter?.(item, ctx, index);
+    if (native !== undefined) return native;
     const id = 'id' in item ? item.id : undefined;
     fallbacks.push({type: item.type, ...(id ? {id} : {})});
     if (opts.strict) throw new Error(`renderBandsPptx: picture fallback for ${item.type}${id ? ` "${id}"` : ''}`);
