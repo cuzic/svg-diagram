@@ -845,6 +845,10 @@ try {
     {name: 'combo', source: composedSource([], "combo(['Review', 'Next'], [{label: 'Plan', type: 'bar', values: [4, 5]}])", "import {combo} from 'svg-diagram/bands/combo';"),
       include: 'bands/combo.js', budget: {esbuild: 102000, Vite: 125000}, exclude: [...legacy, 'dsl/charts.js', 'charts-dsl.js', 'lib/charts.js', 'semnet.js', 'charts-compare.js', 'semnet-pert.js', 'semnet-causal.js', 'semnet-dependency.js'], draw: true},
   ];
+  const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const publicEntries = Object.entries<{default?: string; node?: string}>(manifest.exports);
+  const outputAdapters = publicEntries.filter(([name]) => /^\.\/(?:html|pptx)\/bands\//.test(name));
+  const testedOutputAdapters = {esbuild: new Set<string>(), Vite: new Set<string>()};
   const testedBandModules = {esbuild: new Set<string>(), Vite: new Set<string>()};
   function bandModules(files: readonly string[]) {
     return files.flatMap(file => /(?:^|\/)bands\/([^/]+\.js)$/.exec(file.replaceAll('\\', '/'))?.[1] ?? []).sort();
@@ -958,6 +962,14 @@ try {
         }
         const {draw: render} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
         const result = await render();
+        for (const [name, target] of outputAdapters) {
+          if (!source.includes(`'svg-diagram${name.slice(1)}'`)) continue;
+          // This public entry re-exports the implementation used by the fixture.
+          const module = name === './pptx/bands/box' ? 'lib/pptx/box-band.js' : target.default?.replace(/^\.\/dist\//, '');
+          assert.ok(module && has(module), `${label}: ${name} のアダプターが出力されていません`);
+          testedOutputAdapters[bundler].add(name);
+        }
+
         if (name === 'Selected Edge PPTX deck') {
           assert.deepEqual(result.issues, [], label);
           assert.deepEqual(result.slides.map((slide: {native: number; pictures: number}) => [slide.native, slide.pictures]), [[1, 0], [1, 0]], label);
@@ -1227,13 +1239,17 @@ try {
     console.log(`${label}: ${bytes} bytes`);
   }
 
-  const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
-  const bandEntries = Object.entries<{default?: string; node?: string}>(manifest.exports)
+  const bandEntries = publicEntries
     .filter(([name]) => name.startsWith('./bands/'));
   for (const [bundler, seen] of Object.entries(testedBandModules)) {
     const missing = bandEntries.filter(([, conditions]) =>
       !seen.has(path.basename(conditions.default ?? conditions.node ?? ''))).map(([name]) => name);
     assert.deepEqual(missing, [], `${bundler}: 未描画の帯の公開入口`);
+  }
+
+  for (const [bundler, seen] of Object.entries(testedOutputAdapters)) {
+    const missing = outputAdapters.map(([name]) => name).filter(name => !seen.has(name));
+    assert.deepEqual(missing, [], `${bundler}: 未描画の HTML・PPTX アダプターの公開入口`);
   }
 
   const deck = await esbuild({absWorkingDir: root, entryPoints: ['dist/lib/deck-load.js'], bundle: true,
