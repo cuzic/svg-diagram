@@ -5,7 +5,7 @@ import {resolveBoxStyle} from '../box-style.ts';
 import {LEGEND_SWATCH_W} from '../layout-util.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutLegend} from '../types/containers.ts';
-import {freeformPathXml} from './connectors.ts';
+import {freeformPathXml} from './line-shapes.ts';
 import {groupXml} from './shapes.ts';
 import {lineXml, namedAs, nameOf, polygonXml, presetXml, textLineXml, type Paint} from './prims.ts';
 import type {Fonts} from './xml.ts';

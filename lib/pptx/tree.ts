@@ -1,3 +1,4 @@
+import type {Glue} from './connector-geometry-xml.ts';
 // A tree band (tree, mind map, org chart, KPI tree, roadmap, fishbone) as native shapes: each node a rounded rectangle holding its own
 // text, each line a connector glued to the parent and the child (a curved line is a curvedConnector3, an elbow a bentConnector), and a
 // brace a freeform. Moving a node in PowerPoint drags its lines along. A dimmed tree (spotlight) stays a picture.
@@ -12,7 +13,7 @@ import type {WrappedRun} from '../types/text-bands.ts';
 import type {TextTone} from '../types/core.ts';
 import {fitConnector, siteIndex, type Pt} from './geom.ts';
 import {boxXml, groupXml, type TextBox} from './shapes.ts';
-import {connectorShapeXml, freeformPathXml, type Glue} from './connectors.ts';
+import {connectorShapeXml, freeformPathXml} from './line-shapes.ts';
 import type {Fonts, Rect} from './xml.ts';
 import type {ToneEnv} from '../tokens.ts';
 

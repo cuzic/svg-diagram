@@ -8,7 +8,7 @@ import {resolveBoxStyle} from '../box-style.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutFlowShape} from '../flow-shapes.ts';
 import type {Anchor} from '../types/core.ts';
-import {freeformPathXml} from './connectors.ts';
+import {freeformPathXml} from './line-shapes.ts';
 import {bboxOf, drawParts, geomHolder, joined, outlineHolder, polygonHolder, type PartDrawn, type Placed} from './fill.ts';
 import type {Geo} from './parts-group.ts';
 import {anchorXml, groupXml} from './shapes.ts';

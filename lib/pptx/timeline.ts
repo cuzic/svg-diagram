@@ -2,7 +2,7 @@ import {PALETTE, colorOf} from '../tokens.ts';
 import {TIMELINE_AXIS} from '../parts.ts';
 import type {LaidOutTimeline} from '../types/timeline.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
-import {freeformPathXml} from './connectors.ts';
+import {freeformPathXml} from './line-shapes.ts';
 import {drawParts, geomHolder, joined} from './fill.ts';
 import type {Drawn, PartDrawn, Placed} from './fill.ts';
 import {groupXml} from './shapes.ts';

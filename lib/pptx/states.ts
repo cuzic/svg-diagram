@@ -1,3 +1,4 @@
+import type {Glue} from './connector-geometry-xml.ts';
 // A state diagram or flowchart (the `states` band) as native shapes: each node a shape holding its own text (a rounded rectangle, or a
 // diamond, ellipse or pill whose text area is the whole box), each transition an arrow connector glued to the two nodes, a transition's
 // label a text box on a white chip, the start dot an ellipse. Moving a node drags its arrows along. A dimmed band, or one whose nodes
@@ -7,7 +8,7 @@ import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutStates} from '../types/diagrams.ts';
 import {fitConnector, siteIndex, type Pt} from './geom.ts';
 import {boxXml, groupXml, type TextBox} from './shapes.ts';
-import {connectorShapeXml, freeformPathXml, type Glue} from './connectors.ts';
+import {connectorShapeXml, freeformPathXml} from './line-shapes.ts';
 import {boxTextFits, boxTextXml, geomShapeXml, linesText, namedAs, presetXml, prstGeomXml, roundGeomXml, textLineXml} from './prims.ts';
 import {nodeRunsOf} from './tree.ts';
 import type {Fonts, Rect} from './xml.ts';

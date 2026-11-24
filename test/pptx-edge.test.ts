@@ -187,7 +187,7 @@ test('nodeRunsOf: a node\'s lines become runs at the layout\'s baselines, colour
 });
 
 test('the shape writers of the tree: a glued connector of a given colour and width, and an open freeform with curves', async () => {
-  const {connectorShapeXml, freeformPathXml} = await import('../lib/pptx/connectors.ts');
+  const {connectorShapeXml, freeformPathXml} = await import('../lib/pptx/line-shapes.ts');
   const c = connectorShapeXml(7, 'line', {prst: 'curvedConnector3', offX: 0, offY: 0, extX: 100, extY: 50, rot: 0, flipH: false, flipV: true, adj: [50000]}, '#123456', 4, {id: 2, idx: 3}, {id: 3, idx: 1});
   assert.match(c, /<a:stCxn id="2" idx="3"\/><a:endCxn id="3" idx="1"\/>/);
   assert.match(c, /flipV="1"[\s\S]*prst="curvedConnector3"[\s\S]*<a:ln w="38100"><a:solidFill><a:srgbClr val="123456"/);
@@ -430,7 +430,7 @@ test('svgPathSteps: lines, curves and arcs become absolute steps; an arc ends wh
 
 test('pathShapeXml fills a closed outline, dashOfSvg tells dots from dashes, a tinted fill carries its alpha', async () => {
   const {pathShapeXml, dashOfSvg, presetXml} = await import('../lib/pptx/prims.ts');
-  const {pathXml} = await import('../lib/pptx/connectors.ts');
+  const {pathXml} = await import('../lib/pptx/line-shapes.ts');
   assert.match(pathShapeXml(2, 'p', [{op: 'M', pts: [{x: 0, y: 0}]}, {op: 'C', pts: [{x: 5, y: 0}, {x: 10, y: 5}, {x: 10, y: 10}]}, {op: 'Z', pts: []}], {fill: '#ff0000'}), /<a:cubicBezTo>(<a:pt [^>]+\/>){3}<\/a:cubicBezTo><a:close\/>[\s\S]*FF0000/);
   assert.equal(pathXml([{op: 'Z', pts: []}], () => ''), '<a:close/>');
   assert.deepEqual([dashOfSvg('2,4'), dashOfSvg('7,5'), dashOfSvg(undefined)], [{dotted: true}, {dashed: true}, {}]);

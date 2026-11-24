@@ -1,3 +1,4 @@
+import type {Glue} from './connector-geometry-xml.ts';
 // A cause-and-effect band (current / future reality tree, PDPC, relation diagram, why-why tree, negative branch) as native shapes: each
 // entity a shape holding its own text (a hexagon for an obstacle, an inner frame for a double outline, a thick frame and a badge for the
 // core driver), each arrow a connector glued to cause and effect, an AND as a curved freeform across its arrows, a cutting arrow as a
@@ -8,7 +9,7 @@ import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutCause} from '../types/diagrams.ts';
 import {fitConnector, siteIndex, type Pt} from './geom.ts';
 import {boxXml, groupXml, type TextBox} from './shapes.ts';
-import {connectorShapeXml, freeformPathXml, type Glue} from './connectors.ts';
+import {connectorShapeXml, freeformPathXml} from './line-shapes.ts';
 import {boxTextFits, boxTextXml, geomShapeXml, lineXml, linesText, namedAs, presetXml, prstGeomXml, roundGeomXml, textLineXml} from './prims.ts';
 import {nodeRunsOf} from './tree.ts';
 import type {Fonts, Rect} from './xml.ts';

@@ -236,6 +236,9 @@ try {
       });
     `, include: 'pptx/selective.js', budget: {esbuild: 155000, Vite: 184000}, bands: ['box.js', 'row.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/box-bands.js', 'pptx/grid-band.js', 'pptx/group-band.js', 'pptx/slide.js', 'pptx/image-band.js', 'pptx/table.js', 'pptx/group-span.js', 'pptx/swimlane-span.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'svg-outline.js', 'lib/emit.js'], draw: true},
+    {name: 'PPTX flow adapter', source: "export {flowPptx} from 'svg-diagram/pptx/bands/flow';",
+      include: 'pptx/line-shapes.js', budget: {esbuild: 30000, Vite: 38000},
+      exclude: [...legacy, 'pptx/connectors.js', 'pptx/row-arrow.js', 'pptx/pyramid-band.js', 'pptx/timeline-band.js', 'pptx/svg-shapes.js']},
     {name: 'PPTX row adapter', source: "export {rowPptx} from 'svg-diagram/pptx/bands/row';",
       include: 'pptx/row-arrow.js', budget: {esbuild: 19500, Vite: 24000},
       exclude: [...legacy, 'pptx/connectors.js', 'pptx/grid-band.js', 'pptx/group-band.js', 'pptx/svg-shapes.js', 'emit-common.js']},

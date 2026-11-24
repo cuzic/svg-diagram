@@ -1,3 +1,4 @@
+import type {Glue} from './connector-geometry-xml.ts';
 // A band with no mapping of its own (charts, swimlanes, sequence and Gantt diagrams, BPMN, ...) drawn as native shapes from its own SVG.
 // The SVG the band draws is the source, so the slide looks as the figure does; it is read in two passes so that the slide is also edited
 // as a diagram is:
@@ -10,7 +11,7 @@
 import {estimatedWidth} from './fill.ts';
 import {parseXml, type El} from '../svg-dom.ts';
 import {fitConnector, inOutline, siteIndex, type Pt} from './geom.ts';
-import {connectorShapeXml, freeformPathXml, type EndType, type Glue, type PathStep} from './connectors.ts';
+import {connectorShapeXml, freeformPathXml, type EndType, type PathStep} from './line-shapes.ts';
 import {boxTextFits, boxTextXml, dashOfSvg, geomShapeXml, nameOf, outlineGeomXml, pathShapeXml, polygonXml, prstGeomXml, roundGeomXml, textLineXml, type Paint, type TextLine} from './prims.ts';
 import {svgPathSteps} from './svg-path.ts';
 import {assembleParts, type Geo, type Piece} from './parts-group.ts';

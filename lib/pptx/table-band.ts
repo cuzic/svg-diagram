@@ -4,7 +4,7 @@ import type {PptxAdapter, Ctx} from './adapter.ts';
 import {PALETTE} from '../tokens.ts';
 import {lineXml, presetXml} from './prims.ts';
 import {groupXml} from './shapes.ts';
-import {freeformPathXml} from './connectors.ts';
+import {freeformPathXml} from './line-shapes.ts';
 import {tableXml} from './table.ts';
 
 export const tablePptx: PptxAdapter<LaidOutOf<'table'>> = (band, ctx) => {
