@@ -231,6 +231,18 @@
       "types": "./dist/lib/bands/value-chain.d.ts",
       "default": "./dist/lib/bands/value-chain.js"
     },
+    "./bands/people": {
+      "types": "./dist/lib/bands/people.d.ts",
+      "default": "./dist/lib/bands/people.js"
+    },
+    "./bands/dots": {
+      "types": "./dist/lib/bands/dots.d.ts",
+      "default": "./dist/lib/bands/dots.js"
+    },
+    "./bands/timeline": {
+      "types": "./dist/lib/bands/timeline.d.ts",
+      "default": "./dist/lib/bands/timeline.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"

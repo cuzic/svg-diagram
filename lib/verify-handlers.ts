@@ -14,6 +14,7 @@ import {legibilityProblem} from './wordart.ts';
 import {andClashes} from './cause-clash.ts';
 import {sourceOf} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
+import {timelineProblems} from './verify-timeline.ts';
 import {flowProblems} from './verify-flow.ts';
 import {ganttProblems} from './verify-gantt.ts';
 import {CONTRAST_THRESHOLD, dxdy, eachOverlap, issueAt, labelOf, neverTogether, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes, statesProblems} from './verify-base.ts';
@@ -91,18 +92,6 @@ function comicRects(band: LaidOutComic): CheckRect[] {
 }
 
 // ---- figure checks ----
-
-const checkTimeline = (band: LaidOutOf<'timeline'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
-  const line = band.fullLine && {x: band.fullLine.x - 1, y: band.fullLine.y1, w: 2, h: band.fullLine.y2 - band.fullLine.y1};
-  for (const [i, b] of band.labelBoxes.entries()) {
-    if (line && rectOverlap(b, line)) problems.push(`timeline: label "${b.label}" is crossed by the deadline line (move the mark or change the axis range)`);
-    if (outsideX(b, band)) problems.push(`timeline: label "${b.label}" runs outside the figure (shorten it or widen the figure)`);
-    for (let j = i + 1; j < band.labelBoxes.length; j++) {
-      const o = rectOverlap(b, must(band.labelBoxes[j]));
-      if (o) problems.push(`timeline: label "${b.label}" overlaps label "${must(band.labelBoxes[j]).label}" by ${dxdy(o)}`);
-    }
-  }
-};
 
 // A transition must not run through a state it does not touch; its label chip must stay inside the figure and clear of states and other chips.
 const checkStates = (band: LaidOutOf<'states'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
@@ -375,7 +364,7 @@ export const VERIFY_HANDLERS = {
   concentric: {rects: overlappingFigureRects, check: flowCheck},
   emblem: {rects: emblemRects, check: flowCheck},
   valueChain: {rects: figureRects, check: flowCheck},
-  timeline: {rects: ownRect, check: {phase: 'timeline', run: checkTimeline}},
+  timeline: {rects: ownRect, check: {phase: 'timeline', run: (band, _d, out) => { out.problems.push(...timelineProblems(band)); }}},
   bowtie: {rects: band => band.nodes.map((n, i) => ({id: null, label: band.labelBoxes[i]?.label ?? 'box', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},
   comic: {rects: comicRects, check: {phase: 'comic', run: checkComic}},
   fta: {rects: band => band.nodes.map((n, i) => ({id: n.id ?? null, label: band.labelBoxes[i]?.label ?? 'event', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}))},

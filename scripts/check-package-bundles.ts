@@ -44,6 +44,10 @@ try {
     ['emblem', 'layoutEmblem', "emblem('Review')"],
     ['valueChain', 'layoutValueChain', "valueChain({primary: ['Review', 'Release']})"],
   ] as const;
+  const quantitySamples = [
+    ['people', 'layoutPeople', "people(10, 7, {side: {value: 'Review'}})"],
+    ['dots', 'layoutDots', "dots([0.2, 0.2, 0.8], {lowLabel: 'Review'})"],
+  ] as const;
   const cases = [
     {name: 'SVG', source: "export {renderInBrowser} from 'svg-diagram/browser';", include: 'web.js', exclude: ['emit-html.js']},
     {name: 'HTML', source: "export {emitHtml} from 'svg-diagram/html';", include: 'emit-html.js', exclude: ['web.js', 'web-measure.js']},
@@ -83,24 +87,31 @@ try {
       include: 'bands/curve.js', budget: {esbuild: 55000, Vite: 74000}, exclude: [...legacy, 'layout-pyramid.js', 'layout-connect.js', 'flow-shapes.js', 'gantt.js'], draw: true},
     {name: 'Pyramid', source: composedSource(['pyramid'], "pyramid(['Review', 'Plan'])"),
       include: 'bands/pyramid.js', budget: {esbuild: 55000, Vite: 74000}, exclude: [...legacy, 'layout-curve.js', 'layout-connect.js', 'flow-shapes.js', 'gantt.js'], draw: true},
-    ...flowSamples.map(([name, flowLayout, sample]) => ({
-      name, flowLayout, source: composedSource([name], sample),
+    ...flowSamples.map(([name, layout, sample]) => ({
+      name, layout, source: composedSource([name], sample),
       budget: {esbuild: 83000, Vite: 114000},
       include: `bands/${name === 'valueChain' ? 'value-chain' : name}.js`,
       exclude: [...legacy, 'layout-connect.js', 'layout-pyramid.js', 'gantt.js', 'quadrant.js', 'wordart.js'], draw: true,
     })),
+    ...quantitySamples.map(([name, layout, sample]) => ({
+      name, layout, source: composedSource([name], sample),
+      budget: {esbuild: 62000, Vite: 85000},
+      include: `bands/${name}.js`, exclude: [...legacy, 'timeline.js', 'layout-connect.js', 'gantt.js'], draw: true,
+    })),
+    {name: 'Timeline', source: composedSource(['timeline'], "timeline({unit: 'ms', from: 0, to: 100, events: [{at: 25, label: 'Review'}]})"),
+      include: 'bands/timeline.js', budget: {esbuild: 72000, Vite: 96000}, exclude: [...legacy, 'people.js', 'gantt.js', 'layout-connect.js'], draw: true},
   ];
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;
-    const flowLayout = 'flowLayout' in testCase ? testCase.flowLayout : undefined;
+    const selectedLayout = 'layout' in testCase ? testCase.layout : undefined;
     writeFileSync(entry, source);
-    const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true, keepNames: !!flowLayout,
+    const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true, keepNames: !!selectedLayout,
       platform: 'browser', format: 'esm', write: false, metafile: true});
     const esOutput = Object.values(es.metafile.outputs)[0];
     assert.ok(esOutput);
     const [viteOutput] = await viteBuild({root: consumer, configFile: false, logLevel: 'silent',
       resolve: {preserveSymlinks: true},
-      esbuild: {keepNames: !!flowLayout},
+      esbuild: {keepNames: !!selectedLayout},
       build: {write: false, minify: 'esbuild', lib: {entry, formats: ['es']}}});
     const [chunk] = viteOutput.output;
     assert.equal(chunk.type, 'chunk');
@@ -121,11 +132,11 @@ try {
       if (limit !== undefined) assert.ok(bytes <= limit, `${label} が ${limit} バイトを超えています (${bytes})`);
       if (draw) {
         assert.ok(code);
-        if (flowLayout) {
+        if (selectedLayout) {
           // These functions share a source module. Keep their names so the test can detect unused implementations inside it.
-          for (const [shape, layout] of flowSamples) {
-            assert.equal(code.includes(JSON.stringify(layout)), layout === flowLayout, `${label}: ${layout}`);
-            assert.equal(code.includes(JSON.stringify(shape + 'Texts')), layout === flowLayout, `${label}: ${shape}Texts`);
+          for (const [shape, layout] of [...flowSamples, ...quantitySamples]) {
+            assert.equal(code.includes(JSON.stringify(layout)), layout === selectedLayout, `${label}: ${layout}`);
+            assert.equal(code.includes(JSON.stringify(shape + 'Texts')), layout === selectedLayout, `${label}: ${shape}Texts`);
           }
         }
         const {draw: render} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
