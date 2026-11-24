@@ -89,9 +89,9 @@
   - [x] `combo`
   - [x] `harvey`
   - [x] `compare`
-  - [x] `pert`
-  - [x] `causal`
-  - [x] `dependency`
+  - [x] `pert`（クリティカルパス分析だけを読み込む）
+  - [x] `causal`（因果ループ分析だけを読み込む）
+  - [x] `dependency`（PERT と因果ループの分析を含まない）
 - [ ] `bars`（段階表示、範囲棒、パレート、ヒストグラムと、個別入口からの SVG・依存除外、1px 以下の棒の警告は検証済み）
 - [ ] `people`（個別入口からの SVG と依存除外は検証済み）
 - [ ] `dots`（個別入口からの SVG と依存除外は検証済み）

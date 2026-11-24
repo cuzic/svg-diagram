@@ -1,5 +1,5 @@
 import {edgeBendFindings} from '../verify-edge-bends.ts';
-import type {PertTask} from '../semnet-analysis.ts';
+import type {PertTask} from '../semnet-critical-path.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutPert, pertTexts} from '../semnet-pert.ts';

@@ -3,8 +3,8 @@ import {partStep} from './parts.ts';
 import type {LaidOutChartPart, ChartGeom} from './charts-base.ts';
 import {checkIds, numText} from './charts-base.ts';
 import {textWidth} from './atoms.ts';
-import {analyzeCriticalPath} from './semnet-analysis.ts';
-import type {PertAnalysis, PertTask} from './semnet-analysis.ts';
+import {analyzeCriticalPath} from './semnet-critical-path.ts';
+import type {PertAnalysis, PertTask} from './semnet-critical-path.ts';
 import {arrow, direction, straightenOf, networkCanvas, nodeBox, pathOf} from './semnet-common.ts';
 import type {SemnetDirection, SemnetOpts} from './semnet-common.ts';
 

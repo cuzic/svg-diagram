@@ -1,5 +1,5 @@
 import {edgeBendFindings} from '../verify-edge-bends.ts';
-import type {CausalLink} from '../semnet-analysis.ts';
+import type {CausalLink} from '../semnet-causal-loops.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutCausal, causalTexts} from '../semnet-causal.ts';
