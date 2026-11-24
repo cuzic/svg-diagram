@@ -337,6 +337,16 @@ try {
       });
     `, include: 'pptx/caption-band.js', budget: {esbuild: 104000, Vite: 121000}, bands: ['caption.js'],
       exclude: [...legacy, 'pptx/box-bands.js', 'pptx/bands.js', 'pptx/table-band.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js'], draw: true},
+    {name: 'Selective PPTX Legend', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {legendPptx} from 'svg-diagram/pptx/bands/legend';
+      import {legend} from 'svg-diagram/bands/legend';
+      export const draw = () => renderBandsPptx([legend([{label: 'Review', edge: 'and'}, {label: 'Blocked', edge: 'blocks'}])], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        bands: {legend: legendPptx}, strict: true,
+      });
+    `, include: 'pptx/legend-band.js', budget: {esbuild: 112000, Vite: 131000}, bands: ['legend.js'],
+      exclude: [...legacy, 'pptx/bands.js', 'pptx/cause-band.js', 'pptx/box-band.js', 'pptx/table-band.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'legend-notation.js', 'layout-connect.js'], draw: true},
     {name: 'Selective PPTX Banner', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
       import {bannerPptx} from 'svg-diagram/pptx/bands/banner';
@@ -778,11 +788,12 @@ try {
       include: 'bands/combo.js', budget: {esbuild: 102000, Vite: 125000}, exclude: [...legacy, 'dsl/charts.js', 'charts-dsl.js', 'lib/charts.js', 'semnet.js', 'charts-compare.js', 'semnet-pert.js', 'semnet-causal.js', 'semnet-dependency.js'], draw: true},
   ];
   const testedBandModules = {esbuild: new Set<string>(), Vite: new Set<string>()};
+  function bandModules(files: readonly string[]) {
+    return files.flatMap(file => /(?:^|\/)bands\/([^/]+\.js)$/.exec(file.replaceAll('\\', '/'))?.[1] ?? []).sort();
+  }
+
   function recordBandModules(bundler: keyof typeof testedBandModules, files: readonly string[]) {
-    for (const file of files) {
-      const match = /(?:^|\/)bands\/([^/]+\.js)$/.exec(file.replaceAll('\\', '/'));
-      if (match?.[1]) testedBandModules[bundler].add(match[1]);
-    }
+    for (const file of bandModules(files)) testedBandModules[bundler].add(file);
   }
 
   for (const testCase of cases) {
@@ -840,8 +851,7 @@ try {
       if (name === 'Selected table spec') assert.ok(has('table-number-rules.js'), label);
       if (name === 'Core') assert.ok(!code?.includes('許容するなら diagram'), label);
       if (name === 'Core' || draw) {
-        const usedBands = files.flatMap(file => /(?:^|\/)bands\/([^/]+\.js)$/.exec(file.replaceAll('\\', '/'))?.[1] ?? []);
-        assert.deepEqual(usedBands.sort(), bands ?? (draw ? [path.basename(include)] : []), `${label} の帯`);
+        assert.deepEqual(bandModules(files), bands ?? (draw ? [path.basename(include)] : []), `${label} の帯`);
       }
       for (const filename of exclude) assert.ok(!has(filename), `${label} に ${filename} が残っています`);
       if (name === 'Wireframe button builder') {
@@ -920,6 +930,7 @@ try {
             : (name === 'Selective PPTX Caption' || name === 'Selective PPTX Banner') ? /<p:sp>[\s\S]*>Review<\/a:t>/ : /<p:grpSp>[\s\S]*>Review<\/a:t>/;
           const slide = new TextDecoder().decode(result.pptx);
           assert.match(slide, expected, label);
+          if (name === 'Selective PPTX Legend') assert.match(slide, /name="legend-and-arc"/, label);
           if (name === 'Selective PPTX') assert.match(slide, /<p:cxnSp>[\s\S]*?name="row-arrow-0"/, label);
           assert.doesNotMatch(code, /@resvg|HarfBuzz/, label);
           console.log(`${label}: ${bytes} bytes`);
@@ -1080,6 +1091,7 @@ try {
   symlinkSync(path.dirname(path.dirname(require.resolve('harfbuzzjs'))), path.join(consumer, 'node_modules/harfbuzzjs'), 'junction');
   for (const [bundler, files, code] of nodeSpecCases) {
     const label = `${bundler} (Node): Selected table spec`;
+    assert.deepEqual(bandModules(files), ['table.js'], label);
     const has = (name: string) => files.some(file => file.replaceAll('\\', '/').endsWith('/' + name));
     for (const file of ['spec-selective-node.js', 'node-measure.js', 'font-metrics.js', 'bands/table.js']) assert.ok(has(file), `${label}: missing ${file}`);
     for (const file of [...legacy, 'lib/spec.js', 'spec-render.js', 'measure.js', 'png.js', 'raster.js', 'bands/gantt.js', 'bands/box.js']) {
@@ -1104,6 +1116,7 @@ try {
     "import {imageFile} from 'svg-diagram/bands/image/node';"), [], true);
   for (const [bundler, files, code] of imageCases) {
     const label = `${bundler} (Node): Image`;
+    assert.deepEqual(bandModules(files), ['image-node.js', 'image.js'], label);
     const has = (name: string) => files.some(file => file.replaceAll('\\', '/').endsWith('/' + name));
     for (const file of ['bands/image-node.js', 'image-file.js', 'emit-image.js']) assert.ok(has(file), `${label}: missing ${file}`);
     for (const file of [...legacy, 'dsl/io.js', 'layout-connect.js', 'bands/box.js']) assert.ok(!has(file), `${label}: unexpected ${file}`);
@@ -1123,6 +1136,7 @@ try {
   const mathCases = await buildNode(composedSource(['math'], "math('x^2', {alt: 'Square'})"));
   for (const [bundler, inputs, code] of mathCases) {
     const label = `${bundler} (Node): Math`;
+    assert.deepEqual(bandModules(inputs), ['math.js'], label);
     const files = inputs.map(file => file.replaceAll('\\', '/'));
     assert.ok(files.some(file => file.endsWith('/bands/math.js')), `${label}: missing selective math entry`);
     assert.ok(files.some(file => file.endsWith('/math-tex.js')), `${label}: missing TeX conversion`);

@@ -345,3 +345,37 @@ test('shared XML escaping preserves text and protects quoted attributes', async 
   assert.equal(escapeXml('比較 <A> & "B"'), '比較 &lt;A&gt; &amp; "B"');
   assert.equal(escapeAttr('比較 <A> & "B"'), '比較 &lt;A&gt; &amp; &quot;B&quot;');
 });
+
+test('selective PPTX legends preserve editable samples and the picture fallback', async () => {
+  const {legend} = await import('../lib/bands/legend.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {legendPptx} = await import('../lib/pptx/legend-band.ts');
+  const {planPreparedPptx} = await import('../lib/pptx/selective.ts');
+  const {svgShapesXml} = await import('../lib/pptx/svg-shapes.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    title: '凡例',
+  };
+  const native = await prepareBands([legend([
+    {label: 'レビュー & 承認', edge: 'and'},
+    {label: '制約', edge: 'blocks'},
+    {label: '強い関係', line: 'dotted', arrow: 'both', weight: 'strong'},
+  ])], opts);
+  const selected = planPreparedPptx(native, {...opts, bands: {legend: legendPptx}, strict: true});
+  assert.equal(selected.plan.xml, planSlide(native.placed, fontsOf()).xml);
+  assert.deepEqual(selected.fallbacks, []);
+  assert.equal(selected.native, 1);
+  assert.match(selected.plan.xml, /name="legend-and-arc"/);
+  assert.match(selected.plan.xml, /<a:t>レビュー &amp; 承認<\/a:t>/);
+
+  const gate = await prepareBands([legend([{label: 'AND gate', ftaGate: 'and'}])], opts);
+  const fallback = planPreparedPptx(gate, {...opts, bands: {legend: legendPptx}});
+  const legacy = planSlide(gate.placed, fontsOf());
+  const compatible = planPreparedPptx(gate, {...opts, bands: {legend: legendPptx}, svgShapes: svgShapesXml});
+  assert.equal(compatible.plan.xml, legacy.xml);
+  assert.deepEqual(compatible.plan.pictures, legacy.pictures);
+  assert.deepEqual(fallback.fallbacks, [{type: 'legend'}]);
+  assert.equal(fallback.plan.pictures.length, 1);
+  assert.match(fallback.plan.xml, /<p:pic>/);
+});
