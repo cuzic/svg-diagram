@@ -113,7 +113,7 @@
   - [x] `fault-tree`、`bowtie`、`fmea`、`is-is-not`、`matrix`、`pdpc`、`relation-diagram`、`causal-loop`、`why-why-tree` を追加。障害木の単独バンドルを検証。
   - [x] `affinity`、`steps`、`versus`、`burndown`、`burnup`、`board` を追加。全 65 部品の個別入口、schema、作例を確認。
   - [x] 選択入口で言語・説明・配色・密度・キャンバス・題名と出典の表示に対応。
-  - [x] 凡例の自動生成を必要な構成だけに組み込む。日英で既存 SVG と照合。
+  - [x] 凡例の自動生成を必要な構成だけに組み込む。全 65 部品の作例を日英で既存 SVG と照合。
   - [ ] 全帯でのキャンバス配置と検査の同値、edge・CLI の配線、全入口の単独バンドル検証。
 - [ ] HTML、PPTX、該当する Excel のアダプターを帯ごとに選べる。
   - [x] HTML で箱・行・グリッド・キャプション・バナー・グループ・表のアダプターを選べる。SVG に切り替えた帯を報告し、strict ではエラーにする。

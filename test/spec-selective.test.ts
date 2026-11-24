@@ -162,17 +162,26 @@ test('selected canvas scales text and chart geometry and honors content fit', as
   assert.ok(overflow.verdict.warnings.some(warning => warning.includes('slide-canvas-overflow')));
 });
 
-test('automatic legends are opt-in and match the legacy SVG in Japanese and English', async () => {
+test('automatic legends require an adapter in the selected schema', async () => {
+  const {autoLegend} = await import('../lib/bands/legend.ts');
+  const parts = [faultTreePart];
+  const input = {version: 1, title: 'Example', legend: 'auto', parts: [faultTreePart.example]};
+  assert.ok(validateSpec(input, {parts}).some(issue => issue.path === 'legend'));
+  assert.deepEqual(validateSpec(input, {parts, autoLegend}), []);
+  assert.deepEqual(specSchemaFor({parts, autoLegend}).properties?.['legend']?.enum, ['auto', false]);
+});
+
+test('automatic legends match the legacy catalog SVG in Japanese and English', async () => {
   const {autoLegend} = await import('../lib/bands/legend.ts');
   const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
-  const parts = [faultTreePart];
+  const parts = [flowchartPart, pyramidPart, funnelPart, ...moreParts];
   const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
-  for (const lang of ['ja', 'en']) {
-    const input = {version: 1, title: 'Example', legend: 'auto', lang, parts: [faultTreePart.example]};
-    assert.ok(validateSpec(input, {parts}).some(issue => issue.path === 'legend'));
-    assert.deepEqual(validateSpec(input, {parts, autoLegend}), []);
-    const actual = await renderSpec(input, {parts, measure, autoLegend});
-    const old = await renderInBrowser(specToDiagram(input), {measure});
-    assert.equal(body(actual.svg), body(old.svg));
+  for (const part of parts) {
+    for (const lang of ['ja', 'en']) {
+      const input = {version: 1, title: 'Example', legend: 'auto', lang, parts: [part.example]};
+      const actual = await renderSpec(input, {parts: [part], measure, autoLegend});
+      const old = await renderInBrowser(specToDiagram(input), {measure});
+      assert.equal(body(actual.svg), body(old.svg), `${part.type} (${lang})`);
+    }
   }
 });
