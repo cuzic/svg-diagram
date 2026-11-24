@@ -332,6 +332,22 @@
       "types": "./dist/lib/bands/waterfall.d.ts",
       "default": "./dist/lib/bands/waterfall.js"
     },
+    "./bands/tornado": {
+      "types": "./dist/lib/bands/tornado.d.ts",
+      "default": "./dist/lib/bands/tornado.js"
+    },
+    "./bands/butterfly": {
+      "types": "./dist/lib/bands/butterfly.d.ts",
+      "default": "./dist/lib/bands/butterfly.js"
+    },
+    "./bands/bubble": {
+      "types": "./dist/lib/bands/bubble.d.ts",
+      "default": "./dist/lib/bands/bubble.js"
+    },
+    "./bands/harvey": {
+      "types": "./dist/lib/bands/harvey.d.ts",
+      "default": "./dist/lib/bands/harvey.js"
+    },
     "./bands/stacked": {
       "types": "./dist/lib/bands/stacked.d.ts",
       "default": "./dist/lib/bands/stacked.js"

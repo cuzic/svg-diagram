@@ -162,6 +162,14 @@ try {
       include: 'bands/stacked.js', budget: {esbuild: 98000, Vite: 121000}, exclude: [...legacy, 'lib/charts.js', 'charts-treemap.js', 'charts-sankey.js', 'charts-heatmap.js'], draw: true},
     {name: 'Treemap', source: composedSource(['treemap'], "treemap({label: 'Review', value: 5})"),
       include: 'bands/treemap.js', budget: {esbuild: 96000, Vite: 118000}, exclude: [...legacy, 'lib/charts.js', 'charts-stacked.js', 'charts-sankey.js', 'charts-heatmap.js'], draw: true},
+    {name: 'Harvey', source: composedSource(['harvey'], "harvey(['Review'], ['Plan'], [[4]])"),
+      include: 'bands/harvey.js', budget: {esbuild: 96000, Vite: 118000}, exclude: [...legacy, 'lib/charts.js', 'charts-tornado.js', 'charts-butterfly.js', 'charts-bubble.js', 'charts-heatmap.js'], draw: true},
+    {name: 'Bubble', source: composedSource(['bubble'], "bubble([{label: 'Review', x: 2, y: 3, size: 5}], {x: {min: 0, max: 4}, y: {min: 0, max: 6}})"),
+      include: 'bands/bubble.js', budget: {esbuild: 98000, Vite: 121000}, exclude: [...legacy, 'lib/charts.js', 'charts-tornado.js', 'charts-butterfly.js', 'charts-harvey.js', 'charts-heatmap.js'], draw: true},
+    {name: 'Butterfly', source: composedSource(['butterfly'], "butterfly([{label: 'Review', left: 4, right: 5}], {leftLabel: 'Left', rightLabel: 'Right'})"),
+      include: 'bands/butterfly.js', budget: {esbuild: 93000, Vite: 114000}, exclude: [...legacy, 'lib/charts.js', 'charts-tornado.js', 'charts-bubble.js', 'charts-harvey.js', 'charts-heatmap.js'], draw: true},
+    {name: 'Tornado', source: composedSource(['tornado'], "tornado([{label: 'Review', low: 3, high: 9}], {base: 5})"),
+      include: 'bands/tornado.js', budget: {esbuild: 97000, Vite: 118000}, exclude: [...legacy, 'lib/charts.js', 'charts-butterfly.js', 'charts-bubble.js', 'charts-harvey.js', 'charts-heatmap.js'], draw: true},
   ];
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;

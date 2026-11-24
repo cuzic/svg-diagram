@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {TreeItem} from '../lib/types/diagrams.ts';
 import {caption} from '../lib/bands/caption.ts';
+import {tornado} from '../lib/bands/tornado.ts';
+import {butterfly} from '../lib/bands/butterfly.ts';
+import {bubble} from '../lib/bands/bubble.ts';
+import {harvey} from '../lib/bands/harvey.ts';
+import {tornado as legacyTornado, butterfly as legacyButterfly, bubble as legacyBubble, harvey as legacyHarvey} from '../lib/web.ts';
 import {stackedBars, mekko} from '../lib/bands/stacked.ts';
 import {treemap} from '../lib/bands/treemap.ts';
 import {stackedBars as legacyStackedBars, mekko as legacyMekko, treemap as legacyTreemap} from '../lib/web.ts';
@@ -602,6 +607,27 @@ test('selective stacked bars, Mekko and treemap preserve labels and anchors', as
     legacyStackedBars(columns, {id: 'stack', percent: true}),
     legacyMekko(columns.map(({label, parts}) => ({label, parts})), {id: 'mekko'}),
     legacyTreemap(nodes, {percent: true}),
+  ), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.deepEqual(selected.xml, []);
+  assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
+  assert.equal(body(selected.svg), body(legacy.svg));
+});
+
+test('selective tornado, butterfly, bubble and Harvey charts preserve SVG and diagnostics', async () => {
+  const cases = [{label: '単価', low: 12, high: 3, id: 'price'}, {label: '数量', low: 6, high: 10}];
+  const groups = [{label: '品質', left: 6, right: 7, id: 'quality'}, {label: '価格', left: 5, right: 3}];
+  const comparison = {leftLabel: '前期', rightLabel: '今期', sort: 'right' as const};
+  const points = [{label: '主力', x: 2, y: 3, size: 8}, {label: '新規', x: 1, y: 7, size: 4}];
+  const thresholds = {x: {min: 0, max: 4, line: 1.5, lineLabel: '基準'}, y: {min: 0, max: 9}};
+  const rows = [{label: '費用', id: 'cost'}, '機能'], cols = ['甲', '乙'], values = [[4, 1], [null, 2]];
+  const selected = await renderBands([
+    tornado(cases, {base: 8, domain: [0, 15]}), butterfly(groups, comparison),
+    bubble(points, thresholds), harvey(rows, cols, values, {highlight: ['甲']}),
+  ], {measure, title: 'Plan'});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false}).add(
+    legacyTornado(cases, {base: 8, domain: [0, 15]}), legacyButterfly(groups, comparison),
+    legacyBubble(points, thresholds), legacyHarvey(rows, cols, values, {highlight: ['甲']}),
   ), {measure});
   const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
   assert.deepEqual(selected.xml, []);
