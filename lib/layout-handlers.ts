@@ -15,6 +15,8 @@ import {layoutQuadrant} from './quadrant.ts';
 import {layoutFlowShape} from './flow-shapes.ts';
 import {layoutWordArt} from './wordart.ts';
 import {layoutAreas} from './layout-areas.ts';
+import {layoutCurve} from './layout-curve.ts';
+import {layoutPyramid} from './layout-pyramid.ts';
 import {layoutRaw} from './layout-raw.ts';
 import {layoutTreeBand, narrowField, treeItems} from './tree.ts';
 import {resolveAnchor} from './anchor-scope.ts';
@@ -34,12 +36,11 @@ import {layoutWireframe, layoutScreens} from './wireframe.ts';
 import type {LegendBand, SpacerBand, StatusBand, LaidOutLegendItem} from './types/containers.ts';
 import type {LabelRole, Rect} from './types/core.ts';
 import type {LaidOutTree, TreeItem} from './types/diagrams.ts';
-import type {PyramidBand, CurveBand, LaidOutPyramidLayer} from './types/figures.ts';
 import type {ImageBand} from './types/image.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
 import type {SwimlaneBand, LaidOutLane, LaidOutPhase, LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
 import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx} from './layout-ctx.ts';
-import {PALETTE, SHADES, blendLuminance, bestTextColor, canvasFontScale, paintOf} from './tokens.ts';
+import {canvasFontScale} from './tokens.ts';
 import {
   LINE_HEIGHT_EM, boundaryChipH, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, SWIMLANE_COMFY_COL,
   snapGrid,
@@ -259,73 +260,6 @@ function layoutLegend(band: LegendBand, ctx: LayoutCtx, padX: number, cw: number
   });
   const h = rows.length * LEGEND_ROW_H + (rows.length - 1) * 8;
   ctx.laidOut.push({type: 'legend', x: padX, y: snapGrid(ctx.y), w: cw, h, items: placedItems});
-  ctx.y += h + d.gap;
-}
-
-function layoutPyramid(band: PyramidBand, ctx: LayoutCtx, padX: number, cw: number): void {
-  const {d, roles, widthOf} = ctx;
-  const paint = paintOf(ctx.tones, d.appearance);
-  const n = band.layers.length;
-  const baseWidth = band.width ?? Math.min(cw, 520);
-  const apexWidth = baseWidth * band.apexRatio;
-  const layerH = band.layerHeight;
-  const totalH = n * layerH;
-  const cx = padX + cw / 2;
-  const layersOut: LaidOutPyramidLayer[] = [];
-  for (let i = 0; i < n; i++) { // i=0 is the bottom (widest) layer
-    const bottomY = snapGrid(ctx.y) + totalH - i * layerH;
-    const topY = bottomY - layerH;
-    const bottomW = baseWidth - (baseWidth - apexWidth) * (i / n);
-    const topW = baseWidth - (baseWidth - apexWidth) * ((i + 1) / n);
-    // Opacity climbs bottom->top using SHADES (see tokens.ts) — the
-    // apex (i = n-1) always gets SHADES[0] = fully opaque, matching
-    // every hand-authored pyramid/funnel in this deck.
-    const opacity = must(SHADES[Math.min(SHADES.length - 1, n - 1 - i)]);
-    // bg luminance is a real alpha-blend against white, so the text
-    // color choice is provably safe (see tokens.ts's bestTextColor
-    // doc comment) without needing a Playwright-rendered check.
-    const bgLum = blendLuminance(paint(PALETTE.bg), paint(PALETTE[d.day].accent), opacity);
-    const textColor = bestTextColor(bgLum, paint);
-    // Wrapped at the narrower (top) edge of this layer, minus padding —
-    // conservative since the layer is only wider than that going down,
-    // so the label can never spill past the trapezoid's slanted sides.
-    const wrapWidth = Math.max(40, topW - 24);
-    const atomW = (atom: string) => widthOf(atom, roles.title, 700, 'sans');
-    const lines = wrapAtoms(splitAtoms(must(band.layers[i]).text), {maxWidth: wrapWidth, atomWidth: atomW, mode: ctx.wrap});
-    const midY = (topY + bottomY) / 2;
-    const lineGap = roles.title * LINE_HEIGHT_EM;
-    const textYs = lines.map((_, li) => Math.round(midY + (li - (lines.length - 1) / 2) * lineGap + roles.title * 0.35));
-    layersOut.push({
-      points: [[cx - bottomW / 2, bottomY], [cx + bottomW / 2, bottomY], [cx + topW / 2, topY], [cx - topW / 2, topY]],
-      opacity, textColor, lines, textYs, cx,
-    });
-  }
-  ctx.laidOut.push({type: 'pyramid', x: cx - baseWidth / 2, y: snapGrid(ctx.y), w: baseWidth, h: totalH, day: d.day, layers: layersOut});
-  ctx.y += totalH + d.gap;
-}
-
-function layoutCurve(band: CurveBand, ctx: LayoutCtx, padX: number, cw: number): void {
-  const {d} = ctx;
-  const w = band.width ?? cw;
-  const h = band.height;
-  const x = padX + (cw - w) / 2;
-  const y = snapGrid(ctx.y);
-  const AXIS_LABEL_W = 44, AXIS_BOTTOM_GAP = 28, TOP_PAD = 14, RIGHT_PAD = 8;
-  const axisX = x + AXIS_LABEL_W;
-  const axisRight = x + w - RIGHT_PAD;
-  const axisTop = y + TOP_PAD;
-  const axisBottom = y + h - AXIS_BOTTOM_GAP;
-  const n = band.points.length;
-  const points = band.points.map((p, i) => ({
-    x: n === 1 ? axisX : axisX + i * (axisRight - axisX) / (n - 1),
-    y: axisBottom - Math.max(0, Math.min(1, p.y)) * (axisBottom - axisTop),
-    emphasis: p.emphasis,
-    dropLine: !!p.dropLine,
-  }));
-  ctx.laidOut.push({
-    type: 'curve', x, y, w, h, axisX, axisRight, axisTop, axisBottom, points,
-    yTopLabel: band.yTopLabel, yBottomLabel: band.yBottomLabel, xLabel: band.xLabel,
-  });
   ctx.y += h + d.gap;
 }
 

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {caption} from '../lib/bands/caption.ts';
+import {curve} from '../lib/bands/curve.ts';
+import {pyramid} from '../lib/bands/pyramid.ts';
 import {banner} from '../lib/bands/banner.ts';
 import {raw} from '../lib/bands/raw.ts';
 import {areas} from '../lib/bands/areas.ts';
@@ -14,7 +16,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -187,6 +189,19 @@ test('selective banners and raw bands preserve rich text, stamps and custom geom
   const selected = await renderBands([banner(options), raw(shape)], {measure, title: 'Plan'});
   const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false})
     .add(legacyBanner(options), legacyRaw(shape)), {measure});
+  assert.deepEqual(selected.xml, []);
+  assert.equal(selected.height, expected.height);
+  assert.equal(selected.svg.slice(selected.svg.indexOf('  <style>')), expected.svg.slice(expected.svg.indexOf('  <style>')));
+});
+
+test('selective curves and pyramids preserve axis labels, drop lines and wrapped layers', async () => {
+  const selected = await renderBands([
+    curve([{y: 0.25, dropLine: true}, {y: 0.9, emphasis: 'accent'}], {xLabel: '推移', yTopLabel: '上限'}),
+    pyramid(['広い層のラベル', '狭い層の長い日本語ラベル'], {width: 280, layerHeight: 100}),
+  ], {measure, title: 'Plan'});
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false})
+    .add(legacyCurve([{y: 0.25, dropLine: true}, {y: 0.9, emphasis: 'accent'}], {xLabel: '推移', yTopLabel: '上限'}),
+      legacyPyramid(['広い層のラベル', '狭い層の長い日本語ラベル'], {width: 280, layerHeight: 100})), {measure});
   assert.deepEqual(selected.xml, []);
   assert.equal(selected.height, expected.height);
   assert.equal(selected.svg.slice(selected.svg.indexOf('  <style>')), expected.svg.slice(expected.svg.indexOf('  <style>')));

@@ -195,6 +195,14 @@
       "types": "./dist/lib/bands/raw.d.ts",
       "default": "./dist/lib/bands/raw.js"
     },
+    "./bands/curve": {
+      "types": "./dist/lib/bands/curve.d.ts",
+      "default": "./dist/lib/bands/curve.js"
+    },
+    "./bands/pyramid": {
+      "types": "./dist/lib/bands/pyramid.d.ts",
+      "default": "./dist/lib/bands/pyramid.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"

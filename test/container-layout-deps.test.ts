@@ -5,6 +5,8 @@ import {build} from 'esbuild';
 import {parseRef} from '../lib/connect-geometry.ts';
 import {layoutBoxLikeBand} from '../lib/layout-box-like.ts';
 import {layoutAreas} from '../lib/layout-areas.ts';
+import {layoutCurve} from '../lib/layout-curve.ts';
+import {layoutPyramid} from '../lib/layout-pyramid.ts';
 import {layoutRaw} from '../lib/layout-raw.ts';
 import {layoutConnect} from '../lib/layout-connect.ts';
 import {layoutGroup} from '../lib/layout-group.ts';
@@ -18,6 +20,8 @@ test('the legacy table uses the independently importable row, grid and connector
   assert.equal(LAYOUT_HANDLERS.group, layoutGroup);
   assert.equal(LAYOUT_HANDLERS.grouprow, layoutGroupRow);
   assert.equal(LAYOUT_HANDLERS.areas, layoutAreas);
+  assert.equal(LAYOUT_HANDLERS.curve, layoutCurve);
+  assert.equal(LAYOUT_HANDLERS.pyramid, layoutPyramid);
   assert.equal(LAYOUT_HANDLERS.raw, layoutRaw);
   assert.equal(LAYOUT_HANDLERS.box, layoutBoxLikeBand);
   assert.deepEqual(parseRef('plan#1-2:right@0.25'), {id: 'plan#1-2', side: 'right', at: 0.25});

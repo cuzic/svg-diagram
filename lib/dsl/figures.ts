@@ -5,49 +5,13 @@ import type {ChevronBand, ChevronOpts, ConcentricBand, ConcentricMark, Concentri
 import {wordartBand} from '../wordart.ts';
 import type {WordArtBand, WordArtOpts} from '../wordart.ts';
 import {LABEL_ROLES} from '../tokens.ts';
-import type {PlaneBand, PlaneOpts, CurveBand, CurveOpts, PyramidBand, PyramidLayer, PyramidOpts} from '../types/figures.ts';
-import type {CurvePoints, Declares, HandleOf, PyramidLayers} from '../strict.ts';
-import {assertNoReveal, assertTextRole, withHandle} from './shared.ts';
+import type {PlaneBand, PlaneOpts} from '../types/figures.ts';
+import type {Declares, HandleOf} from '../strict.ts';
+import {assertTextRole, withHandle} from './shared.ts';
 
-// Stacked trapezoid layers, bottom (widest) to top (narrowest) — a test
-// pyramid, a maturity model, anything shaped like "few at the top, many at
-// the bottom". `layers`: strings or {text}, bottom-to-top. Opacity and each
-// layer's text color are derived (see tokens.ts's SHADES/bestTextColor),
-// not chosen per diagram, so contrast is provably fine for any 2-6 layers.
-// Types: a tuple of at least 2 layers.
-export function pyramid(layers: PyramidLayers, opts?: PyramidOpts): PyramidBand;
-export function pyramid(layers: (string | PyramidLayer)[], opts: PyramidOpts = {}): PyramidBand {
-  assertNoReveal(opts, 'pyramid()');
-  if (!Array.isArray(layers) || layers.length < 2) throw new Error('pyramid(layers) needs at least 2 layers, bottom to top');
-  return {
-    type: 'pyramid',
-    layers: layers.map(l => typeof l === 'string' ? {text: l} : l),
-    width: opts.width,
-    layerHeight: opts.layerHeight ?? 76,
-    apexRatio: opts.apexRatio ?? 0.3,
-  };
-}
-// An axis + a connected-dot trend line — a decay/growth curve, a shift-left
-// curve, anything shaped like "value over an ordered sequence". `points`:
-// {y: 0..1 (0 = axis bottom, 1 = axis top), emphasis?: 'accent'|'danger'|
-// 'muted', dropLine?: true} evenly spaced left-to-right along the x-axis.
-// Bespoke callouts (leader lines to side notes, etc.) are raw()'s job —
-// curve() only draws the reusable skeleton.
-// Types: a tuple of at least 2 points, each with a numeric y.
-export function curve(points: CurvePoints, opts?: CurveOpts): CurveBand;
-export function curve(points: CurveBand['points'], opts: CurveOpts = {}): CurveBand {
-  assertNoReveal(opts, 'curve()');
-  if (!Array.isArray(points) || points.length < 2) throw new Error('curve(points) needs at least 2 points');
-  for (const p of points) {
-    if (typeof p.y !== 'number') throw new Error('curve(): every point needs a numeric y (0 = axis bottom, 1 = axis top)');
-  }
-  return {
-    type: 'curve', points,
-    height: opts.height ?? 220,
-    width: opts.width,
-    yTopLabel: opts.yTopLabel, yBottomLabel: opts.yBottomLabel, xLabel: opts.xLabel,
-  };
-}
+export {pyramid} from './pyramid.ts';
+export {curve} from './curve.ts';
+
 // A coordinate plane: axes with ticks, points, guide lines, dimension lines and labels, all in the plane's own units.
 //   plane({x: {label: 'x', max: 100, step: 20}, y: {label: 'y', max: 60}, yDown?: true (image coordinates), grid?: true,
 //          points: [{id: 'a', at: [20, 10], label: 'A', labelAt?, tone?, shape?: 'dot' | 'ring' | 'cross'}],
