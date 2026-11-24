@@ -152,6 +152,17 @@ try {
       });
     `, include: 'html-banner.js', budget: {esbuild: 52500, Vite: 69000}, bands: ['banner.js'],
       exclude: [...legacy, 'html-box.js', 'html-table.js', 'html-native.js', 'html-overlay.js', 'layout-connect.js'], draw: true},
+    {name: 'Selective HTML image', source: `
+      import {renderBandsHtml} from 'svg-diagram/html/selective';
+      import {image} from 'svg-diagram/bands/image';
+      export const draw = () => renderBandsHtml([image('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', {
+        id: 'picture', alt: 'Review', width: 240,
+      })], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        fontBox: size => ({ascent: size, descent: 0}),
+      });
+    `, include: 'emit-image.js', budget: {esbuild: 70000, Vite: 92500}, bands: ['image.js'],
+      exclude: [...legacy, 'image-file.js', 'html-native.js', 'html-overlay.js', 'html-box-band.js', 'html-table.js'], draw: true},
     {name: 'Selective HTML grid', source: `
       import {renderBandsHtml} from 'svg-diagram/html/selective';
       import {gridHtml} from 'svg-diagram/html/bands/grid';
@@ -222,6 +233,16 @@ try {
       });
     `, include: 'pptx/selective.js', budget: {esbuild: 155000, Vite: 184000}, bands: ['box.js', 'row.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/box-bands.js', 'pptx/grid-band.js', 'pptx/group-band.js', 'pptx/slide.js', 'pptx/image-band.js', 'pptx/table.js', 'pptx/group-span.js', 'pptx/swimlane-span.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'svg-outline.js', 'lib/emit.js'], draw: true},
+    {name: 'Selective PPTX image', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {image} from 'svg-diagram/bands/image';
+      const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAX+XDSwAAAABJRU5ErkJggg==';
+      export const draw = () => renderBandsPptx([image('data:image/png;base64,' + png, {id: 'picture', alt: 'Review', width: 240})], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        rasterize: () => Uint8Array.from(atob(png), char => char.charCodeAt(0)),
+      });
+    `, include: 'emit-image.js', budget: {esbuild: 115000, Vite: 135000}, bands: ['image.js'],
+      exclude: [...legacy, 'image-file.js', 'pptx/bands.js', 'pptx/image-band.js', 'pptx/box-band.js', 'pptx/table-band.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js'], draw: true},
     {name: 'Selective PPTX Caption', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
       import {captionPptx} from 'svg-diagram/pptx/bands/caption';
@@ -770,6 +791,17 @@ try {
           console.log(`${label}: ${bytes} bytes`);
           continue;
         }
+        if (name === 'Selective PPTX image') {
+          assert.deepEqual(result.fallbacks, [{type: 'image', id: 'picture'}], label);
+          assert.equal(result.verdict.ok, true, label);
+          const pptx = new TextDecoder().decode(result.pptx);
+          assert.match(pptx, /<p:pic>/, label);
+          assert.match(pptx, /name="anchor-picture"/, label);
+          assert.match(pptx, /data:image\/png;base64,/i, label);
+          assert.doesNotMatch(code, /@resvg|HarfBuzz/, label);
+          console.log(`${label}: ${bytes} bytes`);
+          continue;
+        }
         if (name.startsWith('Selective PPTX')) {
           assert.deepEqual(result.fallbacks, [], label);
           assert.equal(result.verdict.ok, true, label);
@@ -777,6 +809,13 @@ try {
             : (name === 'Selective PPTX Caption' || name === 'Selective PPTX Banner') ? /<p:sp>[\s\S]*>Review<\/a:t>/ : /<p:grpSp>[\s\S]*>Review<\/a:t>/;
           assert.match(new TextDecoder().decode(result.pptx), expected, label);
           assert.doesNotMatch(code, /@resvg|HarfBuzz/, label);
+          console.log(`${label}: ${bytes} bytes`);
+          continue;
+        }
+        if (name === 'Selective HTML image') {
+          assert.deepEqual(result.fallbacks, [{type: 'image', id: 'picture'}], label);
+          assert.equal(result.verdict.ok, true, label);
+          assert.match(result.html, /<svg[\s\S]*<image\b[^>]*href="data:image\/gif;base64,/i, label);
           console.log(`${label}: ${bytes} bytes`);
           continue;
         }

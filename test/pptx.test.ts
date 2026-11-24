@@ -311,3 +311,24 @@ test('the standalone grid adapter preserves editable PPTX cells', async () => {
   assert.deepEqual(rendered.fallbacks, []);
   assert.match(xml, /<a:t>比較 &amp; 検討<\/a:t>/);
 });
+
+test('selective PPTX embeds a data URI image with the legacy slide geometry', async () => {
+  const {image} = await import('../lib/bands/image.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planPreparedPptx} = await import('../lib/pptx/selective.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const input = [image('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', {
+    id: 'picture', alt: 'Review', width: 240,
+  })];
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    title: 'Review',
+  };
+  const prepared = await prepareBands(input, opts);
+  const {plan, fallbacks, native} = planPreparedPptx(prepared, opts);
+  const legacy = planSlide(prepared.placed, fontsOf());
+  assert.equal(plan.xml, legacy.xml);
+  assert.deepEqual(plan.pictures, legacy.pictures);
+  assert.deepEqual(fallbacks, [{type: 'image', id: 'picture'}]);
+  assert.equal(native, 0);
+});
