@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {caption} from '../lib/bands/caption.ts';
+import {groupRow} from '../lib/bands/group-row.ts';
+import {group} from '../lib/bands/group.ts';
 import {spacer} from '../lib/bands/spacer.ts';
 import {box} from '../lib/bands/box.ts';
 import {connect, connectDefinition} from '../lib/bands/connect.ts';
@@ -8,7 +10,7 @@ import {row} from '../lib/bands/row.ts';
 import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
-import {box as legacyBox, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -117,4 +119,44 @@ test('selective captions and spacers match shared browser placement and output',
   const result = await renderBands([caption('Review', opts), spacer(24), caption('Next')], {measure, title: 'Review'});
   assert.equal(result.svg, (await renderInBrowser(input, {measure})).svg);
   assert.ok(result.verdict.ok);
+});
+
+test('selected groups lay out their generated titles and nested bands like the browser entry', async () => {
+  const options = {title: 'Plan', stamp: 'Draft', pad: 24} as const;
+  const result = await renderBands([group([box({title: 'Review'}), group(caption('Nested'))], options)], {measure, title: 'Example'});
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Example', legend: false})
+    .add(legacyGroup([legacyBox({title: 'Review'}), legacyGroup(legacyCaption('Nested'))], options)), {measure});
+  assert.equal(result.svg.slice(result.svg.indexOf('  <style>')), expected.svg.slice(expected.svg.indexOf('  <style>')));
+  assert.ok(result.verdict.ok, JSON.stringify(result.verdict.problems));
+});
+
+test('selected group reveal applies to its title and contents', async () => {
+  const input = [group(box({title: 'Review'}), {title: 'Plan', reveal: 2})];
+  const early = await renderBands(input, {measure, stage: 1});
+  const later = await renderBands(input, {measure, stage: 2});
+  assert.equal(early.height, later.height);
+  assert.doesNotMatch(early.svg, /Review|Plan/);
+  assert.match(later.svg, /Review/);
+  assert.match(later.svg, /Plan/);
+});
+
+test('selected mixed group rows preserve stretch geometry and synthetic box cells', async () => {
+  const nested = [box({id: 'start', title: 'Review'}), box({title: 'Next'})];
+  const opts = {title: 'Plan', valign: 'stretch'} as const;
+  const result = await renderBands([
+    groupRow([group(nested, opts), box({id: 'finish', title: 'Finish'})], {gap: 80}),
+    connect('start:right', 'finish:left', {label: 'go'}),
+  ], {measure, title: 'Example'});
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Example', legend: false})
+    .add(legacyRow([legacyGroup([legacyBox({id: 'start', title: 'Review'}), legacyBox({title: 'Next'})], opts), legacyBox({id: 'finish', title: 'Finish'})], {gap: 80}))
+    .add(legacyConnect('start:right', 'finish:left', {label: 'go'})), {measure});
+  assert.equal(result.svg.slice(result.svg.indexOf('  <defs>')), expected.svg.slice(expected.svg.indexOf('  <defs>')));
+  assert.deepEqual(result.xml, []);
+});
+
+test('loop-back expansion also binds the generated connector inside a group', async () => {
+  const result = await renderBands([group(row([box({title: 'Review'}), box({title: 'Next'})],
+    {loopBack: {from: 2, to: 1, label: 'Retry'}}))], {measure, connectors: connectDefinition});
+  assert.match(result.svg, /Retry/);
+  assert.ok(result.verdict.ok, JSON.stringify(result.verdict.problems));
 });

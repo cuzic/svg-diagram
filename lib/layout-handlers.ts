@@ -31,25 +31,28 @@ import {layoutBowtie} from './bowtie.ts';
 import {layoutComic} from './comic/layout.ts';
 import {layoutChart} from './charts.ts';
 import {layoutWireframe, layoutScreens} from './wireframe.ts';
-import type {AreasBand, GroupBand, LegendBand, GroupRowBand, RawBand, SpacerBand, StatusBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow} from './types/containers.ts';
+import type {AreasBand, LegendBand, RawBand, SpacerBand, StatusBand, LaidOutGroup, LaidOutLegendItem, LaidOutRow} from './types/containers.ts';
 import type {LabelRole, Rect} from './types/core.ts';
 import type {LaidOutTree, TreeItem} from './types/diagrams.ts';
 import type {PyramidBand, CurveBand, LaidOutPyramidLayer} from './types/figures.ts';
 import type {ImageBand} from './types/image.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
 import type {SwimlaneBand, LaidOutLane, LaidOutPhase, LaidOutSwimlane} from './types/sequence-table-swimlane.ts';
-import type {CaptionBand} from './types/text-bands.ts';
 import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx} from './layout-ctx.ts';
 import {PALETTE, SHADES, blendLuminance, bestTextColor, canvasFontScale, paintOf} from './tokens.ts';
 import {
-  LINE_HEIGHT_EM, boundaryChipH, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, CANVAS_MIN_REGION_W, SWIMLANE_COMFY_COL, STAMP_GAP, STAMP_H,
-  groupTitleBand, rowChildGeometry, snapGrid, stampChipW,
+  LINE_HEIGHT_EM, boundaryChipH, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, CANVAS_MIN_REGION_W, SWIMLANE_COMFY_COL,
+  snapGrid,
 } from './layout-util.ts';
-import {lineWidth} from './layout-text.ts';
 import {layoutConnect} from './layout-connect.ts';
 import {layoutBoxLikeBand} from './layout-box-like.ts';
+import {GROUP_FILL_MIN, layoutGroup, layoutGroupAt} from './layout-group.ts';
+import type {GroupFill} from './layout-group.ts';
+export {GROUP_FILL_MIN, groupFillPlan} from './layout-group.ts';
+import {snapshotCtx, restoreCtx} from './layout-ctx.ts';
+import {layoutGroupRow} from './layout-group-row.ts';
 import {layoutGridBand} from './layout-grid.ts';
-import {layoutRow, registerRowSlots} from './layout-row.ts';
+import {layoutRow} from './layout-row.ts';
 import {addScoped, qualify, scopeOf} from './anchor-scope.ts';
 
 import {must} from './must.ts';
@@ -134,76 +137,6 @@ function layoutWordArtBand(band: Band & {type: 'wordart'}, ctx: LayoutCtx, padX:
   const placed = layoutWordArt(band, padX, originOf(band.type, ctx.y), cw, ctx.widthOf, ctx.roles, ctx.wrap);
   if (band.id) { if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'a wordart takes an id that another anchor already has'); ctx.anchors.set(band.id, placed); }
   ctx.laidOut.push(placed); ctx.y += placed.h + ctx.d.gap;
-}
-
-/** A group stretched taller than its content by a row (ADR 0014 D2): the room to hand to the content, and where it goes. */
-interface GroupFill { slack: number; valign: 'center' | 'stretch' }
-
-/** Least room (px) a row's stretch must leave a group's content before the content is moved: under it, the content stays at the top. */
-export const GROUP_FILL_MIN = 16;
-const GROUP_FILL_GRID = 4;
-const GROUP_GAP_GROW_MAX = 16;
-
-/**
- * How `slack` px are shared inside a group of `n` children: each of the n-1 gaps grows by up to 16px (in 4px steps), and what is
- * still left is split above and below, the top part on the grid.
- */
-export function groupFillPlan(n: number, slack: number): {top: number; gap: number} {
-  const floor4 = (v: number): number => Math.floor(v / GROUP_FILL_GRID) * GROUP_FILL_GRID;
-  const gap = n > 1 ? Math.min(GROUP_GAP_GROW_MAX, floor4(slack / (n - 1))) : 0;
-  return {gap, top: floor4((slack - gap * (n - 1)) / 2)};
-}
-
-function layoutGroup(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number): void {
-  layoutGroupAt(band, ctx, padX, cw);
-}
-
-function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw: number, fill?: GroupFill): void {
-  const {d, roles, widthOf} = ctx;
-  const gp = band.pad ?? 16;
-  const top0 = ctx.y, startY = snapGrid(top0); // the frame sits on the grid; the cursor moves on from where it was (no drift)
-  const frame: LaidOutGroup = {type: 'group', x: padX, y: startY, w: cw, h: 0, tone: band.tone, dashed: band.dashed, frame: band.frame, id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})};
-  const at = ctx.laidOut.length;
-  ctx.laidOut.push(frame); // pushed first so the frame is drawn under its children
-  ctx.y += gp;
-  if (band.title) {
-    const t = ctx.placeBoxLike({...groupTitleBand(band), reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until})} as CaptionBand, padX + gp, ctx.y, cw - 2 * gp, false);
-    const inkW = Math.max(0, ...t.wrappedRuns.flatMap(r => r.lines.map((_, i) => lineWidth(widthOf, r, i))));
-    const inkX = t.align === 'center' ? t.x + (t.w - inkW) / 2 : t.align === 'right' ? t.x + t.w - inkW : t.x;
-    t.inkBox = {x: inkX, y: t.y, w: inkW, h: t.h};
-    frame.title = t.text;
-    ctx.laidOut.push(t);
-    ctx.y += t.h + d.gap / 2;
-  }
-  const only = band.children.length === 1 ? band.children[0] : undefined;
-  const stretchOnly = fill?.valign === 'stretch' && only?.type === 'box';
-  const plan = fill && !stretchOnly ? groupFillPlan(band.children.length, fill.slack) : {top: 0, gap: 0};
-  ctx.y += plan.top;
-  band.children.forEach((c, i) => {
-    ctx.stack([c], padX + gp, cw - 2 * gp);
-    if (i < band.children.length - 1) ctx.y += plan.gap;
-  });
-  if (fill && stretchOnly) { // the single box takes the whole room
-    const box = ctx.laidOut[ctx.laidOut.length - 1] as unknown as {id?: string; h: number};
-    box.h += fill.slack; ctx.y += fill.slack;
-    if (box.id) ctx.setBox(box.id, box as never, box.h);
-  }
-  ctx.y = ctx.y - d.gap + gp;
-  if (band.stamp) {
-    frame.stamp = band.stamp;
-    frame.stampW = stampChipW(widthOf, band.stamp, roles);
-    if (frame.stampW > cw - 16) throw new Error(`stamp "${band.stamp}" is wider than its group (${Math.round(cw)}px): shorten it or widen the group`);
-    ctx.y += STAMP_H + STAMP_GAP;
-  }
-  frame.h = ctx.y - top0;
-  frame.span = ctx.laidOut.length - at - 1; // its title and contents, nested groups and their contents included (ADR 0054 D5)
-  if (fill) frame.h += fill.slack - (stretchOnly ? fill.slack : plan.top + plan.gap * (band.children.length - 1)); // what is left goes under the content
-  ctx.y = top0 + frame.h; // (the contents were laid out from the cursor itself, not from the snapped top: only the frame is placed on the grid)
-  if (band.id) {
-    if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'a group takes an id that another box, group or row already has');
-    ctx.anchors.set(band.id, {x: frame.x, y: frame.y, w: frame.w, h: frame.h});
-  }
-  ctx.y += d.gap;
 }
 
 function layoutImageBand(band: ImageBand, ctx: LayoutCtx, padX: number, cw: number): void {
@@ -335,56 +268,6 @@ function layoutLegend(band: LegendBand, ctx: LayoutCtx, padX: number, cw: number
   const h = rows.length * LEGEND_ROW_H + (rows.length - 1) * 8;
   ctx.laidOut.push({type: 'legend', x: padX, y: snapGrid(ctx.y), w: cw, h, items: placedItems});
   ctx.y += h + d.gap;
-}
-
-function layoutGroupRow(band: GroupRowBand, ctx: LayoutCtx, padX: number, cw: number): void {
-  const {d} = ctx;
-  // Each child is laid out as if stacked alone at its own x / width, all starting at the row's top; afterwards every
-  // frame / box is stretched to the tallest one. A framed group left GROUP_FILL_MIN px or more of room by that stretch is laid
-  // out again with the room handed to its content (centred by default; group({valign}) changes it: ADR 0014 D2).
-  const rowGap = ctx.gapForLabels(band, cw);
-  const {widths, xOffsets} = rowChildGeometry({...band, gap: rowGap}, cw);
-  const top0 = ctx.y, rowTop = snapGrid(top0); // on the grid; the cursor moves on from where it was (no drift)
-  const before = snapshotCtx(ctx);
-  const place = (fills: (GroupFill | undefined)[]) => {
-    const stretch: ((h: number) => void)[] = [], natural: number[] = [];
-    let rowHeight = 0;
-    band.children.forEach((child, i) => {
-      ctx.y = top0;
-      const x = padX + must(xOffsets[i]), w = must(widths[i]);
-      if (child.type === 'box') {
-        const c = ctx.placeBoxLike(child, x, rowTop, w, true);
-        const rw: LaidOutRow = {type: 'row', x, y: rowTop, w, h: c.h, children: [c], arrows: []};
-        ctx.laidOut.push(rw);
-        natural.push(c.h);
-        rowHeight = Math.max(rowHeight, c.h);
-        stretch.push(h => { c.h = rw.h = h; if (c.id) ctx.setBox(c.id, c as never, h); });
-      } else {
-        const frame = ctx.laidOut.length, fill = fills[i];
-        if (fill) layoutGroupAt(child, ctx, x, w, fill); else ctx.stack([child], x, w);
-        const f = ctx.laidOut[frame] as LaidOutGroup; // ctx.stack() pushes a group's frame first
-        natural.push(f.h);
-        rowHeight = Math.max(rowHeight, f.h);
-        stretch.push(h => { f.h = h; if (child.id) ctx.anchors.set(child.id, {x: f.x, y: f.y, w: f.w, h}); });
-      }
-    });
-    return {rowHeight, natural, stretch};
-  };
-  let placed = place([]);
-  const fills = band.children.map((c, i): GroupFill | undefined => {
-    // a frameless group (also what a caption / table in a row is wrapped in) stays at the top unless it asks for a valign
-    if (c.type !== 'group' || c.valign === 'top' || (c.frame === false && c.valign === undefined)) return undefined;
-    const slack = placed.rowHeight - must(placed.natural[i]);
-    return slack >= GROUP_FILL_MIN ? {slack, valign: c.valign ?? 'center'} : undefined;
-  });
-  if (fills.some(Boolean)) { // start the row over: take back what the first pass registered (ids, connectors), then lay it out with the room
-    restoreCtx(ctx, before);
-    placed = place(fills);
-  }
-  const {rowHeight, stretch} = placed;
-  stretch.forEach(s => s(rowHeight));
-  registerRowSlots(ctx, band.id, band, rowTop, rowHeight, padX, cw, rowGap, widths.map((w, i) => ({x: padX + must(xOffsets[i]), y: rowTop, w, h: rowHeight})));
-  ctx.y = top0 + rowHeight + d.gap;
 }
 
 // areas() (ADR 0069 D3): every named area is laid out at its columns' x and width (areasColumns; the rows share canvas()'s track geometry), first from the top to measure what it needs, then
@@ -541,18 +424,6 @@ const layoutCauseOrCloud = placedBand((band: Band & {type: 'cause' | 'cloud'}, x
   band => `${band.type === 'cause' ? 'a cause tree' : 'a cloud'} takes an id that another anchor already has`,
   band => `${band.type === 'cause' ? 'a cause tree node' : 'a cloud box'} takes an id that another anchor already has`);
 const layoutStates = placedBand((band: BandOf<'states'>, x, y, w, ctx) => layoutStatesBand(band, x, y, w, ctx.widthOf, ctx.roles, ctx, ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight), band => `${statesWords(band.flavor).diagram} takes an id that another anchor already has`, band => `a ${statesWords(band.flavor).node} takes an id that another anchor already has`);
-/** What laying bands out writes into the layout context, copied so that a layout can be taken back (ADR 0049; layoutGroupRow does the same). A new piece of state in LayoutCtx belongs here. */
-function snapshotCtx(ctx: LayoutCtx) {
-  return {n: ctx.laidOut.length, y: ctx.y, seen: ctx.lines.seen, anchors: new Map(ctx.anchors), nodeBottoms: new Map(ctx.nodeBottoms), areaIds: new Set(ctx.areaIds), connects: ctx.connects.length, deferred: ctx.deferred.length, scopes: new Map([...ctx.scopes.byBare].map(([k, v]) => [k, [...v]]))};
-}
-function restoreCtx(ctx: LayoutCtx, s: ReturnType<typeof snapshotCtx>): void {
-  ctx.laidOut.length = s.n; ctx.y = s.y; ctx.lines.seen = s.seen;
-  ctx.anchors.clear(); for (const [k, v] of s.anchors) ctx.anchors.set(k, v);
-  ctx.nodeBottoms.clear(); for (const [k, v] of s.nodeBottoms) ctx.nodeBottoms.set(k, v);
-  ctx.areaIds.clear(); for (const k of s.areaIds) ctx.areaIds.add(k);
-  ctx.connects.length = s.connects; ctx.deferred.length = s.deferred;
-  ctx.scopes.byBare.clear(); for (const [k, v] of s.scopes) ctx.scopes.byBare.set(k, v);
-}
 // A tree whose nodes are bands (ADR 0049): each band is measured once per width (laid out, then taken back), the tree is placed from those sizes, and
 // every band is laid out for real inside its node's rectangle.
 function measureBandHeight(ctx: LayoutCtx, band: Band, w: number): number {

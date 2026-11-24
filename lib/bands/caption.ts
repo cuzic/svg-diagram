@@ -7,7 +7,7 @@ import {styledAtoms, textRuns} from '../layout-text.ts';
 import type {CaptionBand, CaptionOpts, LaidOutCaption, RichText} from '../types/text-bands.ts';
 import {boxLikeContrastProblems} from '../verify-box-like.ts';
 
-const definition = {
+export const captionDefinition: BandDef<CaptionBand, LaidOutCaption> = {
   type: 'caption',
   internal: true,
   layout: layoutBoxLikeBand,
@@ -19,8 +19,8 @@ const definition = {
   emit: (laid, env) => renderCaption(laid, env.theme, env.tones),
   verify: {check: (laid, {theme, tones}) => boxLikeContrastProblems(laid, null, theme, tones)
     .map(message => ({rule: 'contrast', severity: 'problem', message}))},
-} satisfies BandDef<CaptionBand, LaidOutCaption>;
+};
 
 export function caption(text: RichText, opts?: CaptionOpts): WithBandDef<CaptionBand, LaidOutCaption> {
-  return band<CaptionBand, LaidOutCaption>(definition, buildCaption(text, opts));
+  return band<CaptionBand, LaidOutCaption>(captionDefinition, buildCaption(text, opts));
 }

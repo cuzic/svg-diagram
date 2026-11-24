@@ -86,6 +86,8 @@ interface BandHooks<D, L extends object> {
   rules?: Record<string, {doc: string; scope: 'band' | 'band-grouped' | 'diagram'}>;
   docs?: {summary: string; usage: string; example: unknown};
   children?(data: D): Band[];
+  generated?(data: D): Band[];
+  stackWidth?(data: D, width: number): number;
   nodeIds?: 'host' | 'self';
   rectsQualified?: boolean;
   offGrid?: boolean;
@@ -98,6 +100,7 @@ interface PublicLayout<D, L extends object> {
 
 interface InternalLayout<D> {
   internal: true;
+  outputTypes?: readonly string[];
   resolveConnect?: typeof resolveConnect;
   expandLoopBacks?: (bands: Band[]) => Band[];
   layout(...args: Parameters<BandLayoutHandler<D>>): void;

@@ -61,18 +61,25 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
   }};
   const ids = new Map<string, {start: number; end?: number}>();
   const definitions = new Map<string, BandDef>();
+  const syntheticOutputs = new Map<string, BandDef>();
   const scopeTable = emptyScopes();
   let last = 0;
   let source = cloneData(bands) as unknown as Band[];
-  if (source.some(data => data.type === 'row' && data.loopBack)) {
+  const hasLoopBack = (data: Band): boolean =>
+    data.type === 'row' && !!data.loopBack || (defOf(data)?.children?.(data) ?? []).some(hasLoopBack);
+  if (source.some(hasLoopBack)) {
     const connector = opts.connectors;
     if (!connector?.internal || !connector.expandLoopBacks) {
       throw new Error('renderBands: loopBack には bands/connect の connectDefinition を connectors に指定してください');
     }
-    source = connector.expandLoopBacks(source).map(data =>
-      data.type === 'connect' && data.loopBack && !defOf(data) ? band(connector, data) : data);
+    const attach = (data: Band): Band => {
+      if (data.type === 'connect' && data.loopBack && !defOf(data)) return band(connector, data);
+      if (data.type === 'group') data.children = data.children.map(attach);
+      return data;
+    };
+    source = connector.expandLoopBacks(source).map(attach);
   }
-  function collect(data: Band): void {
+  function collect(data: Band, inheritedStart = 0, inheritedEnd = Infinity): void {
     const def = defOf(data);
     if (!def || def.type !== data.type || def[EXTERNAL] || data.type.includes(':')) {
       throw new Error(`renderBands: import the supported band "${data.type}" from its svg-diagram/bands entry`);
@@ -81,10 +88,14 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
       throw new Error(`renderBands: mixed definitions for "${data.type}"`);
     }
     definitions.set(data.type, def);
+    if (def.internal) for (const type of def.outputTypes ?? []) syntheticOutputs.set(type, def);
     const reveal = data as RevealOpts & {id?: string};
-    const start = checked(reveal.reveal, data.type) ?? 0;
-    const end = checked(reveal.until, `${data.type} (until)`);
+    const start = Math.max(checked(reveal.reveal, data.type) ?? 0, inheritedStart);
+    const stop = Math.min(checked(reveal.until, `${data.type} (until)`) ?? Infinity, inheritedEnd);
+    const end = Number.isFinite(stop) ? stop : undefined;
     if (end !== undefined && end <= start) throw new Error(`renderBands: ${data.type} until must be later than its reveal`);
+    if (start) reveal.reveal = start;
+    if (end !== undefined) reveal.until = end;
     last = Math.max(last, end ?? start);
     if (reveal.id) {
       if (ids.has(reveal.id)) throw new Error(`renderBands: duplicate band id "${reveal.id}"`);
@@ -96,7 +107,8 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
       ids.set(qualify(scope, id), {start, end});
     }
     def.measure?.(data, measureEnv);
-    for (const child of def.children?.(data) ?? []) collect(child);
+    for (const generated of def.generated?.(data) ?? []) collect(generated, start, stop);
+    for (const child of def.children?.(data) ?? []) collect(child, start, stop);
   }
   for (const data of source) collect(data);
   const measured = new Map(await Promise.all([...requests].map(async ([key, request]) => {
@@ -127,7 +139,7 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
     },
     hasChildrenHandler: input => definitions.has(input.type),
     childrenOf: input => defOf(input)?.children?.(input) ?? [],
-    stackWidthOf: () => null,
+    stackWidthOf: (input, width) => defOf(input)?.stackWidth?.(input, width) ?? null,
     scopesOf: () => scopeTable,
     buildInventory: () => ({items: []}),
   });
@@ -145,7 +157,7 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
   const stage = opts.stage ?? last;
   const ink = toneEnv(tones);
   const ctx = {theme, tones: ink, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
-  const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => band.type === 'row' || band.type === 'grid' ? band.children : [band]);
+  const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => band.type === 'row' || band.type === 'grid' ? band.children : band.type === 'group' ? [] : [band]);
   const verdict = verifyWithServices({
     collectRects: figure => leaves(figure).map(band => ({...band, label: band.type, id: 'id' in band ? band.id ?? null : null})),
     contrastProblems: () => [],
@@ -171,7 +183,7 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
       mono: (band.type === 'row' || band.type === 'grid' ? band.children.flatMap(b => b.wrappedRuns)
         : 'wrappedRuns' in band ? band.wrappedRuns : []).some(run => run.mono),
     }),
-    renderBand: band => must(definitions.get(band.type)).emit(band as never, emitEnv),
+    renderBand: band => must(definitions.get(band.type) ?? syntheticOutputs.get(band.type)).emit(band as never, emitEnv),
     renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
     diagramTitle: () => opts.title ?? '',
     diagramDesc: () => '',

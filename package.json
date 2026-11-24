@@ -171,6 +171,14 @@
       "types": "./dist/lib/bands/grid.d.ts",
       "default": "./dist/lib/bands/grid.js"
     },
+    "./bands/group": {
+      "types": "./dist/lib/bands/group.d.ts",
+      "default": "./dist/lib/bands/group.js"
+    },
+    "./bands/group-row": {
+      "types": "./dist/lib/bands/group-row.d.ts",
+      "default": "./dist/lib/bands/group-row.js"
+    },
     "./bands/row": {
       "types": "./dist/lib/bands/row.d.ts",
       "default": "./dist/lib/bands/row.js"
