@@ -2,7 +2,7 @@ import {band} from './band-def.ts';
 import type {BandDef, WithBandDef} from './band-def.ts';
 import {stateMatrix as buildMatrix} from './dsl/state-matrix.ts';
 import {screens as build} from './dsl/wireframe.ts';
-import {renderPrims} from './emit-tables.ts';
+import {renderPrims} from './emit-wireframe.ts';
 import type {ScreensItemInput, StateRowLoose, ValidateStateRows} from './strict.ts';
 import type {LaidOutScreens, PartRow, ScreensBand, ScreensOpts, StateMatrixOpts} from './types/wireframe.ts';
 import {frameRects} from './verify-rects.ts';

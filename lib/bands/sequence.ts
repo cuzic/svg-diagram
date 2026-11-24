@@ -2,9 +2,9 @@ import {describeSequence} from '../diagram-description.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {sequence as build} from '../dsl/sequence-table-swimlane.ts';
-import {renderSequence} from '../emit-tables.ts';
+import {renderSequence} from '../emit-sequence.ts';
 import {snapGrid} from '../layout-util.ts';
-import {layoutSequence, sequenceTexts} from '../seq-table.ts';
+import {layoutSequence, sequenceTexts} from '../layout-sequence.ts';
 import type {ActorIn, SeqStepIn} from '../strict.ts';
 import type {LaidOutSequence, SequenceBand, SequenceOpts} from '../types/sequence-table-swimlane.ts';
 

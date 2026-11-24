@@ -1,7 +1,7 @@
 // ADR 0072 D6: a map of the placed parts in viewBox coordinates.
 import {frameGeometry} from './emit-box-frame.ts';
 import {ganttBarGeometry} from './emit-figures.ts';
-import {primRectGeometry} from './emit-tables.ts';
+import {primRectGeometry} from './emit-wireframe.ts';
 import {layoutFinding} from './layout-issues.ts';
 import type {ResolveSource} from './layout-issues.ts';
 import {must} from './must.ts';

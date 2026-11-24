@@ -586,12 +586,12 @@ try {
     ...tableSamples.map(([name, layout, sample]) => ({
       name, layout, source: composedSource([name], sample), include: `bands/${name}.js`,
       budget: {esbuild: name === 'table' ? 82500 : 77000, Vite: name === 'table' ? 107500 : 102000},
-      exclude: [...legacy, 'layout-connect.js', 'gantt.js', 'wireframe.js', 'lane-order.js'], draw: true,
+      exclude: [...legacy, 'layout-connect.js', 'gantt.js', 'wireframe.js', 'lane-order.js', 'emit-tables.js', 'emit-wireframe.js', 'seq-table.js', ...(name === 'table' ? ['emit-sequence.js', 'layout-sequence.js'] : ['emit-table.js', 'layout-table.js'])], draw: true,
     })),
     ...screenSamples.map(([name, layout, sample]) => ({
       name, layout, source: composedSource([name], sample, `import {wf} from 'svg-diagram/bands/${name}';`), include: `bands/${name}.js`,
       budget: {esbuild: 110500, Vite: 152000},
-      exclude: [...legacy, 'layout-connect.js', 'gantt.js', 'seq-table.js', 'flow-shapes.js'], draw: true,
+      exclude: [...legacy, 'layout-connect.js', 'gantt.js', 'seq-table.js', 'flow-shapes.js', 'emit-tables.js', 'emit-table.js', 'emit-sequence.js'], draw: true,
     })),
     {name: 'Fault tree', source: composedSource([], "faultTree({label: 'Review', gate: 'or', children: [{label: 'Power', kind: 'basic'}, {label: 'Network', kind: 'basic'}]})", "import {faultTree} from 'svg-diagram/bands/fta';"),
       include: 'bands/fta.js', budget: {esbuild: 88500, Vite: 115500}, exclude: [...legacy, 'bowtie.js', 'emit-bowtie.js', 'layout-connect.js', 'dsl/diagrams.js'], draw: true},

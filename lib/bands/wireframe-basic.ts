@@ -2,7 +2,7 @@ import {wireframeCalloutRules, wireframeCalloutVerification} from '../verify-wir
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {wireframe as build} from '../dsl/wireframe.ts';
-import {renderPrims} from '../emit-tables.ts';
+import {renderPrims} from '../emit-wireframe.ts';
 import {appendScreen} from '../wireframe-placement.ts';
 import type {LaidOutWireframe, WfRoot, WireframeBand, WireframeOpts} from '../types/wireframe.ts';
 import {ownRect} from '../verify-rects.ts';

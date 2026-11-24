@@ -5,10 +5,10 @@ import {analysisFindings, findingAcceptanceHint} from '../finding-rules.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {table as build} from '../dsl/sequence-table-swimlane.ts';
-import {renderTable} from '../emit-tables.ts';
+import {renderTable} from '../emit-table.ts';
 import {snapGrid} from '../layout-util.ts';
 import {rowHeaderFindings, semanticTableFindings, tableRules} from '../table-rules.ts';
-import {layoutTable, tableTexts} from '../seq-table.ts';
+import {layoutTable, tableTexts} from '../layout-table.ts';
 import type {LaidOutTable, TableBand, TableColumn, TableOpts, TableRow} from '../types/sequence-table-swimlane.ts';
 
 export {cell} from '../dsl/sequence-table-swimlane.ts';
