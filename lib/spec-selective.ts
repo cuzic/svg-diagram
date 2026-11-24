@@ -1,5 +1,7 @@
+import {findingAcceptanceHint} from './finding-rules.ts';
+import {termFindings} from './term-rules.ts';
 import {cloneData} from './clone-data.ts';
-import {documentFindings} from './document-findings.ts';
+import {documentAcceptHint, documentFindings} from './document-findings.ts';
 import {markSpecPart} from './source-ref.ts';
 import {walkDefinedBands} from './band-def.ts';
 import {describeBands, oneLine} from './diagram-description.ts';
@@ -108,7 +110,7 @@ export function validateSpec(input: unknown, options: PartOptions): SpecIssue[] 
 
 type PrepareOptions = PartOptions & Pick<RenderOptions, 'captions'>;
 
-type SpecProject = Pick<Config, 'wrap' | 'keepWords' | 'tones' | 'legend' | 'legendLabels' | 'maxWidth' | 'accept'>;
+type SpecProject = Pick<Config, 'wrap' | 'keepWords' | 'tones' | 'legend' | 'legendLabels' | 'maxWidth' | 'accept' | 'terms'>;
 
 function addLegend(bands: SelectedBand[], doc: SpecDocument, options: PrepareOptions, project?: SpecProject) {
   if ((doc.legend ?? project?.legend) !== 'auto') return;
@@ -138,10 +140,15 @@ export function prepareSpecRender(input: unknown, options: PrepareOptions) {
 /** @internal Provide the prepared geometry and SVG emitter to consumers such as the deck renderer. */
 export function prepareSpecLayout(input: unknown, options: PrepareOptions & {project?: SpecProject}) {
   const {doc, bands, drawOptions} = prepareSpec(input, options);
-  const {wrap, keepWords, tones, maxWidth, accept} = options.project ?? {};
+  const {wrap, keepWords, tones, maxWidth, accept, terms} = options.project ?? {};
   addLegend(bands, doc, options, options.project);
   return async (measurement: RenderOptions['measure'] | BatchMeasurement) => {
-    const prepared = await prepareBands(bands, {...drawOptions, wrap, keepWords, tones, maxWidth, accept, legend: doc.legend ?? options.project?.legend, diagramFindings: documentFindings, ...(typeof measurement === 'function' ? {measure: measurement} : measurement)});
+    const prepared = await prepareBands(bands, {
+      ...drawOptions, wrap, keepWords, tones, maxWidth, accept, legend: doc.legend ?? options.project?.legend,
+      diagramFindings: diagram => [...termFindings(diagram.bands, terms), ...documentFindings(diagram)],
+      diagramAcceptHint: rule => rule === 'term-variant' || rule === 'term-avoid' ? findingAcceptanceHint(rule) : documentAcceptHint(rule),
+      ...(typeof measurement === 'function' ? {measure: measurement} : measurement),
+    });
     const {stage, emit} = prepared;
     return {...prepared, emit(figure: typeof prepared.placed, noRecolor?: boolean) {
       const titled = {...figure, title: oneLine(figure.title)};

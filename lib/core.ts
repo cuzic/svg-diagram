@@ -37,6 +37,7 @@ type DrawOptions = {
   legend?: DiagramData['legend'];
   accept?: DiagramData['accept'];
   diagramFindings?: DiagramFindings;
+  diagramAcceptHint?: (rule: string) => string | undefined;
   pad?: number;
   gap?: number;
   theme?: Theme;
@@ -97,7 +98,6 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   let last = 0;
   const revealWarnings: string[] = [];
   const diagramChecks = new Set<DiagramFindings>();
-  if (opts.diagramFindings) diagramChecks.add(opts.diagramFindings);
   const inputChecks: ((ctx: VerifyCtx) => Finding[])[] = [];
   let source = cloneData(bands) as unknown as Band[];
   const data: DiagramData = {
@@ -237,6 +237,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     if (placed.connects.some(connector => connector.label)) minText = Math.min(minText, roles.connectLabel ?? 14);
     bandFindings.push(...canvasFindings(canvas, minText, placed.contentHeight));
   }
+  if (opts.diagramFindings && !diagramChecks.has(opts.diagramFindings)) bandFindings.push(...opts.diagramFindings(placed));
   const verdict = verifyWithServices({
     collectRects: figure => leaves(figure).flatMap(band => {
       const def = definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
@@ -252,7 +253,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
         const hint = def.verify?.acceptHint?.(rule);
         if (hint) return hint;
       }
-      return undefined;
+      return opts.diagramAcceptHint?.(rule);
     },
     mergeFindingSides: () => [],
     hasMutedBox: () => false,

@@ -374,10 +374,11 @@ test('prepared specs preserve the legacy verdict diagnostics across the catalog'
   const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
   const findings = ({verdict}: Pick<Awaited<ReturnType<typeof renderSpec>>, 'verdict'>) =>
     verdict.findings.toSorted((a, b) => a.rule.localeCompare(b.rule) || a.message.localeCompare(b.message));
+  const project = {maxWidth: 720, terms: {変更: ['テスト']}};
   for (const part of [flowchartPart, pyramidPart, funnelPart, ...moreParts]) {
     const input = {version: 1, title: '計画', width: 940, parts: [part.example]};
-    const selected = await prepareSpecLayout(input, {parts: [part]})(measure);
-    const legacy = await renderInBrowser(specToDiagram(input), {measure});
+    const selected = await prepareSpecLayout(input, {parts: [part], project})(measure);
+    const legacy = await renderInBrowser({...specToDiagram(input), ...project}, {measure});
     assert.deepEqual(findings(selected), findings(legacy), part.type);
     assert.deepEqual(selected.verdict.warnings, legacy.verdict.warnings, part.type);
     assert.deepEqual(selected.verdict.problems, legacy.verdict.problems, part.type);

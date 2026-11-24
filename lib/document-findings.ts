@@ -1,3 +1,4 @@
+import {findingAcceptanceHint} from './finding-rules.ts';
 import type {DiagramData} from './types/core.ts';
 import type {LaidOutDiagram} from './types/index.ts';
 import type {Finding} from './types/verdicts.ts';
@@ -14,4 +15,8 @@ export function wrapFallbackFindings(d: Pick<LaidOutDiagram, 'wrapFellBack'>): F
 /** Opt in to the document-wide width and wrap-fallback checks for selective rendering. */
 export function documentFindings(diagram: LaidOutDiagram): Finding[] {
   return [...wrapFallbackFindings(diagram), ...documentWidthFindings(diagram)];
+}
+
+export function documentAcceptHint(rule: string): string | undefined {
+  return rule === 'doc-width' ? findingAcceptanceHint(rule) : undefined;
 }
