@@ -6,7 +6,7 @@ import {band, defOf, walkDefinedBands} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {caption as buildCaption} from '../dsl/caption.ts';
 import {textSvgDefs, renderCaption} from '../emit-boxes.ts';
-import {layoutBoxLikeBand} from '../layout-box-like.ts';
+import {layoutBoxLike, layoutBoxLikeBand} from '../layout-box-like.ts';
 import {styledAtoms, textRuns} from '../layout-text.ts';
 import type {CaptionBand, CaptionOpts, LaidOutCaption, RichText} from '../types/text-bands.ts';
 import {boxLikeContrastProblems} from '../verify-box-like.ts';
@@ -18,6 +18,7 @@ export const captionDefinition: BandDef<CaptionBand, LaidOutCaption> = {
   svgDefs: textSvgDefs,
   title: data => data.text ? [0, data.text] : undefined,
   internal: true,
+  layoutBoxLike,
   layout: layoutBoxLikeBand,
   decorateCaptions(data) {
     return withSourceLine(withTitleLine(data)).bands.map(item =>

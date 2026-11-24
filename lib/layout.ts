@@ -1,3 +1,4 @@
+import {layoutBoxLike} from './layout-box-like.ts';
 import {fitLineScale} from './layout-cause-fit.ts';
 import {decorateDiagram} from './layout-decoration.ts';
 import {prepareConnectorGaps} from './layout-connect-gaps.ts';
@@ -14,6 +15,7 @@ export {fitLineScale};
 /** The full entry supplies layout handlers for existing band data. */
 export const layoutWith = createLayoutWith({
   fitLineScale,
+  layoutBoxLike,
   decorate: decorateDiagram,
   resolve: layoutHandlerFor, resolveConnect, childrenOf, stackWidthOf, scopesOf, buildInventory,
   connectorGaps: prepareConnectorGaps,

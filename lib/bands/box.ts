@@ -6,7 +6,7 @@ import {band, walkDefinedBands} from '../band-def.ts';
 import type {BandDef, DiagramFindings, WithBandDef} from '../band-def.ts';
 import {box as buildBox} from '../dsl/box.ts';
 import {textSvgDefs, renderBox} from '../emit-boxes.ts';
-import {layoutBoxLikeBand} from '../layout-box-like.ts';
+import {layoutBoxLike, layoutBoxLikeBand} from '../layout-box-like.ts';
 import {styledAtoms, textRuns} from '../layout-text.ts';
 import type {BoxInput} from '../strict.ts';
 import {TAG_SIZE} from '../tokens.ts';
@@ -33,6 +33,7 @@ export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
     }
   },
   internal: true,
+  layoutBoxLike,
   layout: layoutBoxLikeBand,
   emit(laid, {theme, tones, roles}) {
     return renderBox(laid, theme, tones, roles);

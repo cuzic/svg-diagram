@@ -1,3 +1,5 @@
+import {markPlacedSource} from './layout-ctx.ts';
+import {sourceOf} from './source-ref.ts';
 import type {LayoutCtx} from './layout-ctx.ts';
 import {groupTitleBand, snapGrid, stampChipW, STAMP_GAP, STAMP_H} from './layout-util.ts';
 import {lineWidth} from './layout-text.ts';
@@ -72,4 +74,6 @@ export function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw:
     ctx.anchors.set(band.id, {x: frame.x, y: frame.y, w: frame.w, h: frame.h});
   }
   ctx.y += d.gap;
+  // A container may call layoutGroupAt directly to stretch this group.
+  if (fill) markPlacedSource(ctx.laidOut, at, sourceOf(band));
 }

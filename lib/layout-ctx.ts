@@ -1,3 +1,5 @@
+import {withSource} from './source-ref.ts';
+import type {SourceRef} from './source-ref.ts';
 // The mutable state a band handler works on while layoutBands() walks the stack top-to-bottom, and the handler type itself.
 // Handlers (lib/layout-handlers.ts) take the band, this context and the x / width they are placed at; they push what they lay
 // out to `ctx.laidOut`, register anchors, and advance `ctx.y`.
@@ -71,4 +73,14 @@ export function restoreCtx(ctx: LayoutCtx, s: ReturnType<typeof snapshotCtx>): v
   ctx.areaIds.clear(); for (const k of s.areaIds) ctx.areaIds.add(k);
   ctx.connects.length = s.connects; ctx.deferred.length = s.deferred;
   ctx.scopes.byBare.clear(); for (const [k, v] of s.scopes) ctx.scopes.byBare.set(k, v);
+}
+
+/** Propagate a band's source to its output without replacing more specific child sources. */
+export function markPlacedSource(laidOut: LaidOutBand[], start: number, source: SourceRef | undefined): void {
+  if (!source) return;
+  for (let i = start; i < laidOut.length; i++) {
+    const placed = laidOut[i]!;
+    withSource(placed, source);
+    if ('children' in placed) for (const child of placed.children) withSource(child, source);
+  }
 }

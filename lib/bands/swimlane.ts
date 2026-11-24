@@ -1,3 +1,4 @@
+import {layoutBoxLike} from '../layout-box-like.ts';
 import {ownRunSizes} from '../band-text-sizes.ts';
 import {whole} from '../inventory-core.ts';
 import {describeSwimlane} from '../diagram-description.ts';
@@ -24,6 +25,7 @@ const definition = {
   svgDefs: laid => laid.type === 'box' ? boxDefinition.svgDefs?.(laid) ?? {} : {},
   describe: (data, stage) => ['structure', describeSwimlane(data, stage)],
   internal: true,
+  layoutBoxLike,
   layout: layoutSwimlane,
   outputTypes: ['box'],
   measure(data, env) {

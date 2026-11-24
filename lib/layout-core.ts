@@ -16,10 +16,10 @@ import type {fitLineScale} from './layout-cause-fit.ts';
 // consume vertical space; they're resolved in a final pass once every named
 // anchor (any box/child with an explicit `id`) has a known rect.
 
-import {atBand, sourceOf, withSource} from './source-ref.ts';
-import type {SourceRef} from './source-ref.ts';
+import {atBand, sourceOf} from './source-ref.ts';
+import {markPlacedSource} from './layout-ctx.ts';
 import type {BandLayoutHandler, LayoutCtx, Placed} from './layout-ctx.ts';
-import {layoutBoxLike} from './layout-box-like.ts';
+import type {layoutBoxLike} from './layout-box-like.ts';
 import type {resolveConnect} from './layout-connect.ts';
 import type {prepareConnectorGaps} from './layout-connect-gaps.ts';
 import {addScoped} from './scope-table.ts';
@@ -37,11 +37,11 @@ import type {CaptionBand, BoxBand, BannerBand, BoxChrome} from './types/text-ban
 import {toneEnv} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 
-import {must} from './must.ts';
 
 type LayoutResult = Omit<LaidOutDiagram, 'inventory'>;
 
 export interface LayoutServices {
+  layoutBoxLike?: typeof layoutBoxLike;
   fitLineScale?: typeof fitLineScale;
   decorate?: (data: DiagramData) => DiagramData;
   resolveConnect: typeof resolveConnect;
@@ -118,7 +118,9 @@ function layoutBands(services: LayoutServices, data: DiagramData, roles: Roles, 
 
   const scopes = scopesOf(d.bands); // every scoped item, read before layout: a bare id is ambiguous whatever order the bands came in
   const placeBoxLike = <B extends CaptionBand | BoxBand | BannerBand>(band: B, x: number, y0: number, w: number, isBoxLike: boolean, scope?: string): Placed<B> => {
-    const placed = layoutBoxLike(band, x, y0, w, isBoxLike, widthOf, roles, wrap);
+    const place = services.layoutBoxLike;
+    if (!place) throw new Error(`Missing box-like layout for "${band.type}"`);
+    const placed = place(band, x, y0, w, isBoxLike, widthOf, roles, wrap);
     const {y, h} = placed;
     const chrome = band as BoxChrome;
     const name = chrome.id ? qualify(scope, chrome.id) : undefined;
@@ -143,7 +145,7 @@ function layoutBands(services: LayoutServices, data: DiagramData, roles: Roles, 
         const start = laidOut.length;
         resolve(band)(band as never, ctx, padX, cw);
         // resolveConnect spreads the input band, keeping its own SOURCE for immediate and deferred connections.
-        carryLayoutSources(band, laidOut, start);
+        markPlacedSource(laidOut, start, sourceOf(band));
         const extra = gaps?.bandGaps.get(band); // room for a label on the arrow down to the next band (ADR 0069 D1)
         if (extra) ctx.y += extra;
       });
@@ -161,31 +163,4 @@ function layoutBands(services: LayoutServices, data: DiagramData, roles: Roles, 
   const canvasHeight = d.canvas && d.canvas.fit !== 'content' ? Math.max(contentHeight, d.canvas.height) : contentHeight;
 
   return {...data, laidOut, canvasHeight, ...(data.canvas ? {contentHeight} : {}), connects, roles};
-}
-
-/** Fill the parts a handler created, preserving more specific marks from nested stack calls. */
-function carryLayoutSources(band: Band, laidOut: LaidOutBand[], start: number): void {
-  // A row of groups and areas can re-lay a group with extra height, directly rather than through stack.
-  // Each cell emits one row or one group frame followed by its span. Give these groups their own marks first.
-  if ((band.type === 'grouprow' || band.type === 'areas') && band.children.some(c => c.type === 'group' && sourceOf(c))) {
-    let cell = start;
-    for (const child of band.children) {
-      const frame = must(laidOut[cell]);
-      const end = cell + 1 + (frame.type === 'group' ? frame.span ?? 0 : 0);
-      if (child.type === 'group') markLayoutRange(laidOut, cell, end, sourceOf(child));
-      cell = end;
-    }
-  }
-  markLayoutRange(laidOut, start, laidOut.length, sourceOf(band));
-}
-
-function markLayoutRange(laidOut: LaidOutBand[], start: number, end: number, ref: SourceRef | undefined): void {
-  if (!ref) return;
-  for (let i = start; i < end; i++) {
-    const placed = must(laidOut[i]);
-    withSource(placed, ref);
-    if (placed.type === 'row' || placed.type === 'grid') {
-      for (const child of placed.children) withSource(child, ref);
-    }
-  }
 }

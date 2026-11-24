@@ -1,3 +1,4 @@
+import {layoutBoxLike} from '../layout-box-like.ts';
 import {childBoxes} from '../inventory-boxes.ts';
 import {canvasRegionFindings} from '../verify-grid.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
@@ -16,6 +17,7 @@ export const gridDefinition: BandDef<GridBand, LaidOutGrid> = {
   svgDefs: childTextSvgDefs,
   textSizes: childRuns,
   internal: true,
+  layoutBoxLike,
   layout: layoutGridBand,
   children: data => data.children,
   verify: {targets: laid => laid.children, diagramFindings: frameLayoutFindings, findings: canvasRegionFindings},

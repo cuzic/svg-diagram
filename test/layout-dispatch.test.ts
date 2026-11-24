@@ -1,3 +1,4 @@
+import {layoutBoxLike} from '../lib/layout-box-like.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -27,11 +28,11 @@ test('layout and measurement bundle independently of the legacy band tables', as
     outdir: 'out',
     bundle: true, platform: 'browser', write: false, metafile: true,
   });
-  const excluded = ['/layout-handlers.ts', '/layout-measure.ts', '/quadrant.ts', '/band-children.ts', '/band-ids.ts', '/inventory.ts', '/layout-connect.ts', '/layout-connect-gaps.ts', '/layout-caption-lines.ts', '/layout-decoration.ts', '/status.ts'];
+  const excluded = ['/layout-handlers.ts', '/layout-measure.ts', '/quadrant.ts', '/band-children.ts', '/band-ids.ts', '/inventory.ts', '/layout-connect.ts', '/layout-connect-gaps.ts', '/layout-box-like.ts', '/layout-caption-lines.ts', '/layout-decoration.ts', '/status.ts'];
   assert.ok(Object.keys(metafile.inputs).every(file => excluded.every(suffix => !file.endsWith(suffix))));
 });
 
-const layoutServices = {resolveConnect, connectorGaps: prepareConnectorGaps, areasPrelayoutFor: () => areasPrelayout, childrenOf, stackWidthOf, scopesOf, buildInventory, hasChildrenHandler: () => true};
+const layoutServices = {layoutBoxLike, resolveConnect, connectorGaps: prepareConnectorGaps, areasPrelayoutFor: () => areasPrelayout, childrenOf, stackWidthOf, scopesOf, buildInventory, hasChildrenHandler: () => true};
 
 test('layout resolution is local to one layout function', () => {
   const data = diagram({theme: 'blue'}).add(box({title: 'Review'}));

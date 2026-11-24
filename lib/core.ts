@@ -7,6 +7,7 @@ import {splitAtoms} from './atoms.ts';
 import {band, defOf, DEF, EXTERNAL, walkDefinedBands} from './band-def.ts';
 import {cloneData} from './clone-data.ts';
 import {emitSvgWith} from './emit-svg-core.ts';
+import type {layoutBoxLike} from './layout-box-like.ts';
 import type {fitLineScale} from './layout-cause-fit.ts';
 import {createLayoutWith} from './layout-core.ts';
 import {figureLayoutMetrics} from './figure-metrics.ts';
@@ -128,6 +129,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       .map(link => band(connector, link))];
   });
   source = expandLoopBacks(source);
+  let placeBox: typeof layoutBoxLike | undefined;
   let fitLayout: typeof fitLineScale | undefined;
   function collect(data: Band, inheritedStart = 0, inheritedEnd = Infinity): void {
     const def = defOf(data);
@@ -140,6 +142,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     }
     definitions.set(key, def);
     if (def.internal) {
+      placeBox ??= def.layoutBoxLike;
       fitLayout ??= def.fitLineScale;
       for (const type of def.outputTypes ?? []) syntheticOutputs.set(type, def);
     }
@@ -190,6 +193,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const placedDefinition = (band: LaidOutBand) => definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
   const connection = definitions.get('connect');
   const layout = createLayoutWith({
+    layoutBoxLike: placeBox,
     fitLineScale: fitLayout,
     connectorGaps: connection?.internal ? connection.connectorGaps : undefined,
     resolveConnect: (...args) => {

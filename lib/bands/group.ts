@@ -1,3 +1,4 @@
+import {layoutBoxLike} from '../layout-box-like.ts';
 import {groupItems} from '../inventory-boxes.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
 import {band, DEF} from '../band-def.ts';
@@ -18,6 +19,7 @@ export const groupDefinition: BandDef<GroupBand, LaidOutGroup> = {
   inventory: groupItems,
   title: data => data.title ? [1, data.title] : undefined,
   internal: true,
+  layoutBoxLike,
   layout: layoutGroup,
   children: data => data.children,
   stackWidth: (data, width) => width - 2 * (data.pad ?? 16),

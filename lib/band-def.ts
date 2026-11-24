@@ -1,3 +1,4 @@
+import type {layoutBoxLike} from './layout-box-like.ts';
 import type {fitLineScale} from './layout-cause-fit.ts';
 import type {prepareConnectorGaps} from './layout-connect-gaps.ts';
 import type {areasPrelayout} from './layout-areas-gaps.ts';
@@ -126,6 +127,7 @@ interface PublicLayout<D, L extends object> {
 
 interface InternalLayout<D> {
   internal: true;
+  layoutBoxLike?: typeof layoutBoxLike;
   fitLineScale?: typeof fitLineScale;
   decorateCaptions?(data: DiagramData): Band[];
   areasPrelayout?: typeof areasPrelayout;
