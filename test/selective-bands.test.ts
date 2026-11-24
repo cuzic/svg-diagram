@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {TreeItem} from '../lib/types/diagrams.ts';
 import {caption} from '../lib/bands/caption.ts';
+import {image} from '../lib/bands/image.ts';
+import {image as legacyImage} from '../lib/dsl.ts';
 import {combo} from '../lib/bands/combo.ts';
 import {compare} from '../lib/bands/compare.ts';
 import {pert} from '../lib/bands/pert.ts';
@@ -693,4 +695,32 @@ test('selective comparison and network charts preserve legacy SVG and diagnostic
   assert.deepEqual(selected.xml, []);
   assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
   assert.equal(body(selected.svg), body(legacy.svg));
+});
+
+const embeddedPixel = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+test('selective images preserve annotations, overlaid bands and mark connections', async () => {
+  const options = {
+    id: 'picture', width: 360, alt: '会議室',
+    marks: [{id: 'marked', rect: [0.1, 0.65, 0.3, 0.2], label: '入口', reveal: 2}],
+    labels: [{text: '出口', at: [0.7, 0.7]}],
+  } as const;
+  const bands = [
+    image(embeddedPixel, {...options, over: box({title: 'Review'})}),
+    box({id: 'details', title: 'Details'}), connect('marked:bottom', 'details:top'),
+  ];
+  const selected = await renderBands(bands, {measure, title: 'Plan', connectors: connectDefinition});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false}).add(
+    legacyImage(embeddedPixel, {...options, over: legacyBox({title: 'Review'})}),
+    legacyBox({id: 'details', title: 'Details'}), legacyConnect('marked:bottom', 'details:top'),
+  ), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.deepEqual(selected.xml, []);
+  assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
+  assert.equal(body(selected.svg), body(legacy.svg));
+  const early = await renderBands(bands, {measure, stage: 1, connectors: connectDefinition});
+  assert.doesNotMatch(early.svg, /入口|marker-end=/);
+  assert.match(selected.svg, /入口/);
+  assert.match(selected.svg, /marker-end=/);
+  assert.throws(() => image('local.png', {alt: 'Picture'}), /data URI/);
 });

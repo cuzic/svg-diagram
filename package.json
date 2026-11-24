@@ -388,6 +388,10 @@
       "types": "./dist/lib/bands/dependency.d.ts",
       "default": "./dist/lib/bands/dependency.js"
     },
+    "./bands/image": {
+      "types": "./dist/lib/bands/image.d.ts",
+      "default": "./dist/lib/bands/image.js"
+    },
     "./bands/stacked": {
       "types": "./dist/lib/bands/stacked.d.ts",
       "default": "./dist/lib/bands/stacked.js"

@@ -3,10 +3,10 @@
 // One entry per laid-out band type, each checked against its own band type; a band type without one fails to compile.
 
 import {bareNameIn, qualify, scopeOf} from './anchor-scope.ts';
-import {plateStyle} from './image.ts';
+import {imageContrast, imageProblems, imageRects} from './verify-image.ts';
 import {barsContrastProblems, barsProblems, barsRects} from './verify-bars.ts';
 import {checkChart} from './charts-verify.ts';
-import {colorOf, luminance as lightLuminance, paintOf} from './tokens.ts';
+import {luminance as lightLuminance, paintOf} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import {boxLikeContrastProblems, nowrapProblems} from './verify-box-like.ts';
 import {spotlightDim} from './spotlight.ts';
@@ -26,7 +26,7 @@ import {quadrantProblems} from './verify-quadrant.ts';
 import {timelineProblems} from './verify-timeline.ts';
 import {flowProblems} from './verify-flow.ts';
 import {ganttProblems} from './verify-gantt.ts';
-import {CONTRAST_THRESHOLD, dxdy, eachOverlap, issueAt, labelOf, outsideBox, rectOverlap, statesProblems} from './verify-base.ts';
+import {issueAt, labelOf, rectOverlap, statesProblems} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import type {ComicLaidBubble, LaidOutComic} from './types/comic.ts';
 import type {EmphasisTone} from './types/core.ts';
@@ -122,14 +122,6 @@ const checkComic = (band: LaidOutComic, d: LaidOutDiagram, {problems}: VerifyOut
   }
 };
 
-// image(): a label plate must stay inside the picture and clear of the other plates (it sits on the picture, so a plate over a plate hides words).
-const checkImage = (band: LaidOutOf<'image'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
-  for (const p of band.plates) {
-    if (outsideBox(p, band)) problems.push(`image: label "${p.text}" does not fit inside the picture (shorten it or make the picture bigger)`);
-  }
-  eachOverlap(band.plates, (a, b, o) => problems.push(`image: label "${a.text}" overlaps label "${b.text}" by ${dxdy(o)} (move one: its position is a fraction of the picture)`));
-};
-
 const checkNoWrap = (band: LaidOutBox, out: VerifyOut): void => { out.problems.push(...nowrapProblems(band)); };
 
 // wordart(): the letters must read against what is behind them (see legibilityProblem). (The ink always stays inside the band: inkReach
@@ -146,14 +138,6 @@ const lum = (d: LaidOutDiagram, tones: ToneEnv) => { const paint = paintOf(tones
 
 function contrastFor(band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone: EmphasisTone | null, d: LaidOutDiagram, tones: ToneEnv, {problems}: VerifyOut): void {
   problems.push(...boxLikeContrastProblems(band, boxTone, d.day, tones, d.appearance));
-}
-
-function imageContrast(band: LaidOutOf<'image'>, d: LaidOutDiagram, tones: ToneEnv, {problems}: VerifyOut): void {
-  const luminance = lum(d, tones);
-  for (const p of band.plates) {
-    const st = plateStyle(tones, p.tone), fg = colorOf(st.text, d.day), bg = colorOf(st.fill, d.day), delta = Math.abs(luminance(fg) - luminance(bg));
-    if (!p.dim && !band.dim && delta < CONTRAST_THRESHOLD) problems.push(`image: label "${p.text}" (${fg} on ${bg}) has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
-  }
 }
 
 const flowCheck = {phase: 'flow', run: (band: Parameters<typeof flowProblems>[0], _d: LaidOutDiagram, {problems}: VerifyOut) => { problems.push(...flowProblems(band)); }} as const;
@@ -190,9 +174,9 @@ export const VERIFY_HANDLERS = {
     check: {phase: 'chart', run: (band, d, {problems}, tones) => { problems.push(...checkChart(band, d, tones)); }},
   },
   image: {
-    rects: band => [{id: band.id ?? null, label: band.id ?? 'image', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id), ...(band.backdrop ? {backdrop: true} : {})}],
-    check: {phase: 'image', run: checkImage},
-    contrast: imageContrast,
+    rects: imageRects,
+    check: {phase: 'image', run: (band, _d, {problems}) => { problems.push(...imageProblems(band)); }},
+    contrast: (band, d, tones, {problems}) => { problems.push(...imageContrast(band, d.day, d.appearance, tones)); },
   },
   people: {rects: ownRect},
   dots: {rects: ownRect},

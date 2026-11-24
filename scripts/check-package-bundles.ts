@@ -82,6 +82,8 @@ try {
         row([box({title: 'Review'}), box({title: 'Next'})], {loopBack: {from: 2, to: 1, label: 'Retry'}})
       ], {connectors: connectDefinition, measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size})});
     `, include: 'bands/row.js', budget: {esbuild: 100000, Vite: 129000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'layout-grid.js', 'gantt.js'], draw: true},
+    {name: 'Image', source: composedSource(['image'], "image('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', {alt: 'Picture', width: 240, labels: [{text: 'Review', at: [0.3, 0.5]}]})"),
+      include: 'bands/image.js', budget: {esbuild: 68000, Vite: 91000}, exclude: [...legacy, 'dsl/io.js', 'image-file.js', 'charts.js', 'layout-connect.js'], draw: true},
     {name: 'Caption and spacer', source: composedSource(['caption', 'spacer'], "caption('Review', {mono: true}), spacer(24), caption('Next')"),
       include: 'bands/caption.js', budget: {esbuild: 58000, Vite: 77000}, bands: ['caption.js', 'spacer.js'], exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Group', source: composedSource(['box', 'group'], "group(box({title: 'Review'}), {title: 'Plan'})"),
@@ -239,6 +241,10 @@ try {
         const {draw: render} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
         const result = await render();
         assert.match(result.svg, name === 'Sankey' ? /<text[^>]*>Review 5<\/text>/ : /<text[^>]*>Review<\/text>/, label);
+        if (name === 'Image') {
+          assert.match(result.svg, /<image [^>]*href="data:image\/gif;base64,/);
+          assert.doesNotMatch(code, /\bBuffer\b/, label);
+        }
         if (name === 'Row loop-back') assert.match(result.svg, /Retry/, label);
         assert.deepEqual(result.xml, [], label);
         assert.equal(result.verdict.ok, true, label);

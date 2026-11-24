@@ -20,7 +20,7 @@ import {nestedBandsOf} from './band-children.ts';
 import {itemIdsOf} from './band-ids.ts';
 import {sourceOf, withSource} from './source-ref.ts';
 import {minTextSize} from './fit.ts';
-import {IMAGE_WARN_BYTES} from './image.ts';
+import {largeImageWarning} from './image.ts';
 import {PALETTE, MIN_FONT_SIZE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv, canvasFontScale} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 
@@ -1161,7 +1161,10 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   for (const w of budgetWarnings({laidOut: d.laidOut ?? []}, d.medium === 'doc' ? {boxBody: 100, total: 700, boxes: 30} : undefined)) out.push({rule: 'density', severity: 'warn', message: w});
   const allBars = walkBands(d.bands).filter((b): b is BarsBand => b.type === 'bars');
   if (d.medium === 'doc' && !diagramTitle(d) && allBars.some(barsValuesHidden)) out.push({rule: 'bars-values-hidden', severity: 'warn', message: '値を隠した bars があるが、図に題名がなく <desc> も出ない。diagram({title}) を指定する（値の列は自動で <desc> に入る）'});
-  for (const b of walkBands(d.bands)) if (b.type === 'image' && b.bytes > IMAGE_WARN_BYTES) out.push({...at(b), rule: 'image-large', severity: 'warn', message: `画像（${Math.round(b.bytes / 1024)} KB）が大きい。SVG に埋め込まれ、段階表示の各ファイルにも入る。解像度を下げるか圧縮する（${IMAGE_WARN_BYTES / 1024} KB 以下が目安）`});
+  for (const b of walkBands(d.bands)) if (b.type === 'image') {
+    const message = largeImageWarning(b.bytes);
+    if (message) out.push({...at(b), rule: 'image-large', severity: 'warn', message});
+  }
   for (const b of d.laidOut ?? []) if (b.type === 'bars' && b.bars.some(r => (r.w > 0 && r.w <= 1 && r.h > 0) || (r.h > 0 && r.h <= 1 && r.w > 0))) { out.push({...at(b), rule: 'bars-thin-bar', severity: 'warn', message: '棒が 1px 以下になっている。図の高さ・幅を上げるか max を見直す'}); break; }
   headlineLength(d, out);
   if (d.status !== undefined) out.push({rule: 'draft-status', severity: 'info', message: `この図は下書き(status: '${d.status}')。公開前に外す`});

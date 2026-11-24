@@ -1,3 +1,4 @@
+import {renderImage} from './emit-image.ts';
 import {PALETTE} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import type {Theme, Roles} from './types/core.ts';
@@ -11,7 +12,7 @@ import {renderCaption, renderBox, renderGroup, renderLegend, renderBanner, rende
 import {renderFta} from './emit-fta.ts';
 import {renderBowtie} from './emit-bowtie.ts';
 import {renderComicBand} from './comic/emit.ts';
-import {renderPlane, renderBars, renderImage, renderQuadrant, renderFlowShape, renderTimeline, renderTree, renderStates, renderCause, renderCloud, renderGantt, renderClasses, renderBpmn} from './emit-figures.ts';
+import {renderPlane, renderBars, renderQuadrant, renderFlowShape, renderTimeline, renderTree, renderStates, renderCause, renderCloud, renderGantt, renderClasses, renderBpmn} from './emit-figures.ts';
 import {renderSequence, renderTable, renderPrims} from './emit-tables.ts';
 
 // Per-band-type SVG emitters. `selfDimming`: the band draws its own spotlight dim state instead of having it painted over its svg.
