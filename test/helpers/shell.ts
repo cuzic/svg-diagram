@@ -28,6 +28,8 @@ export const SHELL: Record<string, Shell> = {
   'source-capture': {reason: 'ADR 0072 D2: check が有効にするスタックの捕捉の切り替え。既定は無効', through: 'allow', declared: true},
   'source-path': {reason: 'resolveSource(): the working folder and symbolic links'},
   'math-tex': {reason: 'loads MathJax through node:module'},
+  'dsl/math': {reason: 'converts TeX with the Node MathJax loader'},
+  'bands/math': {reason: 'the selective Node TeX entry uses the MathJax loader'},
   'geometry-checks': {reason: 'geometryChecks(): the geometry engine with the text boxes read from the font files'},
   'font-box': {reason: 'the glyph boxes of the HTML emit, read from the font files (a function handed to emit-html)'},
   'measure-settings': {reason: 'reads SVG_DIAGRAM_MEASURE'},

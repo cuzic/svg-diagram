@@ -163,6 +163,8 @@ try {
 
 `renderBands` は実験的な SVG の入口です。`row()` と `grid()` の子には個別入口の `box()` を渡せます。`connect()` は箱の ID や行の列アンカーを参照でき、配列の前に書いても後から配置した端点に接続します。行や横向きの `chevron` で `loopBack` を使う場合は `svg-diagram/bands/connect` から `connectDefinition` を import し、`renderBands(bands, {measure, connectors: connectDefinition})` と渡します。グループを含む行には `bands/group-row` の `groupRow()` に `group()` と `box()` を渡します。下書きバッジを図の上部に置くには、帯の配列の先頭に `status('draft')` を渡します。全規則の検査や他の出力形式には従来の入口を使います。
 
+Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使えます。変換時にオプション依存の `mathjax-full` を読み込みます。この入口は Node.js 専用です。
+
 図を表示するページで「このノードをクリックした」を知りたいとき、`renderDiagram(d, {nodeIds: true})`（ブラウザ入口では `renderInBrowser(d, {measure, nodeIds: true})`）で、`id` を持つノードの図形に `data-node="名前"` が付く。既定は付けない（付けない SVG は 1 バイトも変わらない）。名前は `connect()` や spotlight が使うものと同じ（`scope` があれば `scope.id`）。HTML 出力（`--html`）には付かない。
 
 | 部品 | `data-node` が付く場所 |

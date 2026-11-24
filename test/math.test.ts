@@ -5,6 +5,9 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import {caption, checkDiagram, closeMeasurer, diagram, math, renderDiagram} from '../lib/dsl.ts';
 import type {LaidOutMath} from '../lib/types/math.ts';
+import {math as selectiveMath} from '../lib/bands/math.ts';
+import {renderBands} from '../lib/core.ts';
+import {renderInBrowser} from '../lib/web.ts';
 
 test.after(() => closeMeasurer());
 
@@ -148,4 +151,16 @@ test('array rules, enclose strokes and a proof tree are drawn (MathJax leaves th
 test('a double quote in the TeX source (the default alt) keeps the aria-label well-formed', async () => {
   const r = await renderDiagram(diagram({theme: 'blue'}).add(math('\\text{say "hi"}')), {name: 'm.svg', budget: 'cacheOnly'});
   assert.deepEqual(r.xml, []);
+});
+
+test('selective math preserves the TeX outlines, placement and accessible label', async () => {
+  const opts = {role: 'stat', align: 'right', tone: 'accent', inline: true, alt: '二次方程式の解'} as const;
+  const measure = () => ({w: 0, h: 0});
+  const selected = await renderBands([selectiveMath(FRAC, opts)], {measure, title: 'Formula'});
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Formula', legend: false}).add(math(FRAC, opts)), {measure});
+  const formula = /<g data-math=""[\s\S]*?<!--\/math-->/;
+  assert.deepEqual(selected.xml, []);
+  assert.equal(selected.height, expected.height);
+  assert.ok(formula.test(expected.svg));
+  assert.equal(formula.exec(selected.svg)?.[0], formula.exec(expected.svg)?.[0]);
 });

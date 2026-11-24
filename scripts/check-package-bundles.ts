@@ -34,7 +34,7 @@ try {
       measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
     });
   `;
-  const legacy = ['web.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'rules.js'];
+  const legacy = ['web.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'rules.js', 'math-tex.js'];
   const flowSamples = [
     ['chevron', 'layoutChevron', "chevron([{label: 'Review'}, {label: 'Release'}])"],
     ['funnel', 'layoutFunnel', "funnel([{label: 'Review'}, {label: 'Release'}])"],
@@ -49,7 +49,7 @@ try {
     ['dots', 'layoutDots', "dots([0.2, 0.2, 0.8], {lowLabel: 'Review'})"],
   ] as const;
   const cases = [
-    {name: 'SVG', source: "export {renderInBrowser} from 'svg-diagram/browser';", include: 'web.js', exclude: ['emit-html.js']},
+    {name: 'SVG', source: "export {renderInBrowser} from 'svg-diagram/browser';", include: 'web.js', exclude: ['emit-html.js', 'math-tex.js']},
     {name: 'HTML', source: "export {emitHtml} from 'svg-diagram/html';", include: 'emit-html.js', exclude: ['web.js', 'web-measure.js']},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
@@ -153,6 +153,44 @@ try {
       console.log(`${label}: ${bytes} bytes`);
     }
   }
+  writeFileSync(entry, composedSource(['math'], "math('x^2', {alt: 'Square'})"));
+  const formula = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true,
+    platform: 'node', format: 'esm', write: false, metafile: true});
+  const ssrOutput = await viteBuild({root: consumer, configFile: false, logLevel: 'silent',
+    resolve: {preserveSymlinks: true}, ssr: {noExternal: ['svg-diagram']},
+    build: {ssr: entry, write: false, minify: 'esbuild'}});
+  const [nodeBundle] = formula.outputFiles;
+  const [ssrChunk] = ssrOutput.output;
+  assert.ok(nodeBundle);
+  assert.equal(ssrChunk.type, 'chunk');
+  const mathCases = [
+    ['esbuild', Object.keys(formula.metafile.inputs), nodeBundle.text, 60000],
+    ['Vite', Object.keys(ssrChunk.modules), ssrChunk.code, 85000],
+  ] as const;
+  for (const [bundler, inputs, code, budget] of mathCases) {
+    const label = `${bundler} (Node): Math`;
+    const files = inputs.map(file => file.replaceAll('\\', '/'));
+    assert.ok(files.some(file => file.endsWith('/bands/math.js')), `${label}: missing selective math entry`);
+    assert.ok(files.some(file => file.endsWith('/math-tex.js')), `${label}: missing TeX conversion`);
+    for (const file of ['dsl/io.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'layout-connect.js', 'gantt.js']) {
+      assert.ok(!files.some(input => input.endsWith('/' + file)), `${label}: unexpected ${file}`);
+    }
+    assert.ok(!files.some(file => file.includes('/mathjax-full/')), `${label}: MathJax must be loaded at runtime`);
+    const bytes = Buffer.byteLength(code);
+    assert.ok(bytes <= budget, `${label}: ${bytes} bytes exceeds ${budget}`);
+    const output = path.join(consumer, `formula-${bundler}.mjs`);
+    writeFileSync(output, code);
+    const {draw} = await import(pathToFileURL(output).href);
+    // Even the first bundle can be imported before MathJax is installed in the consumer.
+    const mathjaxPath = path.join(consumer, 'node_modules/mathjax-full');
+    if (bundler === 'esbuild') symlinkSync(path.dirname(require.resolve('mathjax-full/package.json')), mathjaxPath, 'junction');
+    const drawn = await draw();
+    assert.match(drawn.svg, /<g data-math=""[^>]*aria-label="Square"[^>]*>[\s\S]*?<path /);
+    assert.deepEqual(drawn.xml, []);
+    assert.equal(drawn.verdict.ok, true);
+    console.log(`${label}: ${bytes} bytes`);
+  }
+
   const deck = await esbuild({absWorkingDir: root, entryPoints: ['dist/lib/deck-load.js'], bundle: true,
     packages: 'external', platform: 'node', format: 'esm', write: false, metafile: true});
   assert.ok(Object.keys(deck.metafile.inputs).every(file => !file.replaceAll('\\', '/').includes('/pptx/')),
