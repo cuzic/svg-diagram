@@ -1178,3 +1178,26 @@ test('selected fault trees report a node width adjustment without suggesting a d
   assert.deepEqual(verdict.findings.filter(f => f.rule === 'auto-fit-applied'), selected);
   assert.deepEqual(selected, legacy.verdict.findings.filter(f => f.rule === 'auto-fit-applied'));
 });
+
+test('selected wireframes preserve callout notes and reading order diagnostics', async () => {
+  const {calloutNoteFindings, calloutOrderFindings} = await import('../lib/verify-wireframe-callouts.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {wireframe: basic} = await import('../lib/bands/wireframe-basic.ts');
+  const make = () => wf.col([wf.btn('a', {n: 4, h: 80}), wf.btn('b', {n: 2, h: 80}), wf.btn('c', {n: 2, h: 80})]);
+  const opts = {title: '画面', notes: [{n: 1, title: 'a', text: '説明'}]};
+  const band = basic(make(), opts);
+  const {placed} = await prepareBands([band], {measure});
+  const laid = placed.laidOut.find(item => item.type === 'wireframe');
+  assert.ok(laid);
+  assert.equal(calloutNoteFindings(band).length, 4);
+  assert.deepEqual(calloutOrderFindings(laid).map(f => f.rule), ['wf-callout-order']);
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false, title: '比較'}).add(legacyWireframe(make(), opts)), {measure});
+  const findings = ({verdict}: Pick<typeof legacy, 'verdict'>) => verdict.findings
+    .filter(f => f.rule.startsWith('wf-callout-') || f.rule === 'wf-note-no-callout').toSorted((a, b) => a.rule.localeCompare(b.rule));
+  assert.equal(findings(legacy).length, 5);
+  for (const build of [wireframe, basic]) {
+    const result = await renderBands([build(make(), opts)], {measure, title: '比較'});
+    assert.deepEqual(findings(result), findings(legacy));
+    assert.deepEqual(result.verdict.warnings, legacy.verdict.warnings);
+  }
+});

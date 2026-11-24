@@ -369,31 +369,31 @@ try {
       exclude: [...legacy, 'lib/wireframe.js', 'lib/wireframe-parts.js', 'bands/screens.js', 'bands/wireframe-basic.js', 'layout-wireframes.js'], draw: true},
     {name: 'Selected wireframe dialog', source: composedSource([], "wireframe(text('Overview'), {overlays: [dialog('Review', {buttons: [btn('Send')]})]})",
       "import {createWireframe, textRenderer, btnRenderer, dialogRenderer} from 'svg-diagram/wireframe/renderers'; import {text, btn, dialog} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([textRenderer, btnRenderer], {dialog: dialogRenderer});"),
-      include: 'wireframe-renderers.js', bands: ['wireframe-basic.js'], budget: {esbuild: 72500, Vite: 98500},
+      include: 'wireframe-renderers.js', bands: ['wireframe-basic.js'], budget: {esbuild: 75500, Vite: 102000},
       exclude: [...legacy, 'lib/wireframe.js', 'lib/wireframe-parts.js', 'bands/screens.js'], draw: true},
     {name: 'Selected wireframe toast', source: composedSource([], "wireframe(text('Overview'), {overlays: [toast('Review')]})",
       "import {createWireframe, textRenderer, toastRenderer} from 'svg-diagram/wireframe/renderers'; import {text, toast} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([textRenderer], {toast: toastRenderer});"),
-      include: 'wireframe-renderers.js', bands: ['wireframe-basic.js'], budget: {esbuild: 72000, Vite: 98000},
+      include: 'wireframe-renderers.js', bands: ['wireframe-basic.js'], budget: {esbuild: 75000, Vite: 100500},
       exclude: [...legacy, 'lib/wireframe.js', 'lib/wireframe-parts.js', 'bands/screens.js'], draw: true},
     {name: 'Selected wireframe states', source: composedSource([], "wireframe(region('Review', {state: 'stale'}))",
       "import {createWireframe, regionRenderer, widgetStates} from 'svg-diagram/wireframe/renderers'; import {region} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([regionRenderer], {states: widgetStates});"),
-      include: 'wireframe-parts.js', bands: ['wireframe-basic.js'], budget: {esbuild: 75000, Vite: 103000},
+      include: 'wireframe-parts.js', bands: ['wireframe-basic.js'], budget: {esbuild: 78000, Vite: 104500},
       exclude: [...legacy, 'lib/wireframe.js', 'wireframe-insight.js', 'bands/screens.js'], draw: true},
     {name: 'Selected robot markers', source: composedSource([], "wireframe(map({markers: [{id: 'A', x: 0.5, y: 0.5, heading: 90, fov: 60, label: 'Review'}]}))",
       "import {createWireframe, mapRenderer, robotMarkers} from 'svg-diagram/wireframe/renderers'; import {map} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([mapRenderer], {robotMarkers});"),
-      include: 'wireframe-parts.js', bands: ['wireframe-basic.js'], budget: {esbuild: 75000, Vite: 103000},
+      include: 'wireframe-parts.js', bands: ['wireframe-basic.js'], budget: {esbuild: 77500, Vite: 104500},
       exclude: [...legacy, 'lib/wireframe.js', 'wireframe-insight.js', 'bands/screens.js'], draw: true},
     {name: 'Selected monitoring widget', source: composedSource([], "wireframe(col([text('Review'), battery(0.15)]))",
       "import {createWireframe, colRenderer, textRenderer, batteryRenderer} from 'svg-diagram/wireframe/renderers'; import {col, text, battery} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([colRenderer, textRenderer, batteryRenderer]);"),
-      include: 'wireframe-parts.js', bands: ['wireframe-basic.js'], budget: {esbuild: 73000, Vite: 99000},
+      include: 'wireframe-parts.js', bands: ['wireframe-basic.js'], budget: {esbuild: 75500, Vite: 101500},
       exclude: [...legacy, 'lib/wireframe.js', 'wireframe-insight.js', 'bands/screens.js'], draw: true},
     {name: 'Selected wireframe widgets', source: composedSource([], "wireframe(col([text('Review'), btn('Next')]))",
       "import {createWireframe, colRenderer, textRenderer, btnRenderer} from 'svg-diagram/wireframe/renderers'; import {col, text, btn} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([colRenderer, textRenderer, btnRenderer]);"),
-      include: 'wireframe-renderers.js', bands: ['wireframe-basic.js'], budget: {esbuild: 72000, Vite: 98000},
+      include: 'wireframe-renderers.js', bands: ['wireframe-basic.js'], budget: {esbuild: 75000, Vite: 101000},
       exclude: [...legacy, 'lib/wireframe.js', 'lib/wireframe-parts.js', 'bands/screens.js'], draw: true},
-    {name: 'Basic wireframe', source: composedSource([], "wireframe(col([text('Review'), btn('Next')]))",
+    {name: 'Basic wireframe', source: composedSource([], "wireframe(col([text('Review'), btn('Next', {n: 2})]))",
       "import {wireframe} from 'svg-diagram/bands/wireframe/basic'; import {col, text, btn} from 'svg-diagram/wireframe/parts';"),
-      include: 'bands/wireframe-basic.js', bands: ['wireframe-basic.js'], budget: {esbuild: 82000, Vite: 111500},
+      include: 'bands/wireframe-basic.js', bands: ['wireframe-basic.js'], budget: {esbuild: 85000, Vite: 114500},
       exclude: [...legacy, 'lib/wireframe.js', 'lib/wireframe-parts.js', 'bands/wireframe.js', 'bands/screens.js'], draw: true},
     {name: 'Wireframe button builder', source: "export {btn} from 'svg-diagram/wireframe/parts';",
       include: 'wireframe-builders.js', exclude: [...legacy, 'wireframe-insight.js', 'wireframe.js', 'wireframe-parts.js', 'lib/core.js'],
@@ -402,7 +402,7 @@ try {
       exclude: [...legacy, 'pptx/selective.js', 'pptx/zip-node.js', 'lib/core.js', 'lib/png.js'], budget: {esbuild: 2500, Vite: 2500}},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
-      exclude: [...legacy, 'document-findings.js', 'term-rules.js', 'toc-rules.js', 'verify-bars.js', 'axis-comparison.js', 'axis-selected.js', 'verify-image.js', 'verify-box-like.js', 'verify-shrink.js', 'verify-density.js', 'verify-cause-spacing.js', 'verify-edge-bends.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-caption.js', 'verify-grid.js', 'table-number-rules.js', 'verify-flowchart.js', 'verify-concentric.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 53500, Vite: 71500}},
+      exclude: [...legacy, 'document-findings.js', 'term-rules.js', 'toc-rules.js', 'verify-bars.js', 'axis-comparison.js', 'axis-selected.js', 'verify-image.js', 'verify-box-like.js', 'verify-shrink.js', 'verify-density.js', 'verify-cause-spacing.js', 'verify-edge-bends.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'verify-caption.js', 'verify-grid.js', 'table-number-rules.js', 'verify-flowchart.js', 'verify-concentric.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 53500, Vite: 71500}},
     {name: 'Document findings', source: `
       import {renderBands} from 'svg-diagram/core';
       import {box} from 'svg-diagram/bands/box';
@@ -414,7 +414,7 @@ try {
     `, include: 'document-findings.js', bands: ['box.js'], exclude: [...legacy, 'term-rules.js', 'layout-connect.js'],
       budget: {esbuild: 87000, Vite: 110000}, draw: true},
     {name: 'Box', source: bandSource('box'), include: 'bands/box.js',
-      exclude: [...legacy, 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 82000, Vite: 105000}, draw: true},
+      exclude: [...legacy, 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 82000, Vite: 105000}, draw: true},
     {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',
       exclude: [...legacy, 'box.js', 'emit-boxes.js', 'layout-connect.js', 'timeline.js'], budget: {esbuild: 68000, Vite: 89500}, draw: true},
     {name: 'Row', source: composedSource(['box', 'row'], "row([box({title: 'Review'}), box({title: 'Next'})], {arrows: 'between'})"),
@@ -698,6 +698,7 @@ try {
         if (name === 'Selected robot markers') assert.match(result.svg, /ロボット A/, label);
         if (name === 'RACI table') assert.ok(!/fmea\(\)|qfd\(\)|whyWhyTree\(/.test(code), label);
         if (name === 'Selected fault tree spec with legend') assert.match(result.svg, /OR gate/, label);
+        if (name === 'Basic wireframe') assert.ok(result.verdict.warnings.some((warning: string) => warning.includes('check --explain wf-callout-no-note')), label);
         if (name === 'Connect') assert.deepEqual(result.verdict.findings.filter((finding: {rule: string}) => finding.rule.startsWith('graph-')).map((finding: {rule: string}) => finding.rule), ['graph-orphan-node', 'graph-disconnected'], label);
         if (name === 'Cause') assert.equal(result.verdict.findings.filter((finding: {rule: string}) => finding.rule === 'toc-legend-suggested').length, 1, label);
         if (name === 'Document findings') {

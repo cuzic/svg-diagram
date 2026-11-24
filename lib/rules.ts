@@ -60,7 +60,7 @@ import type {Band, LaidOutBand} from './types/index.ts';
 import type {SwimlaneBand} from './types/sequence-table-swimlane.ts';
 import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
 import type {Finding} from './types/verdicts.ts';
-import type {WfCallout} from './types/wireframe-nodes.ts';
+import {calloutNoteFindings, calloutOrderFindings, wireframeCalloutRules} from './verify-wireframe-callouts.ts';
 import type {LintTarget} from './types/verdicts.ts';
 import {layoutFitFindings, layoutFitRules} from './verify-layout-fit.ts';
 import {tocFindings, tocLegendFinding} from './toc-rules.ts';
@@ -166,14 +166,14 @@ export const RULE_DOCS = {
   'density-compact-restored': "diagram({density: 'compact'}) の因果ツリー・状態遷移で、詰めた図のほうが検査の問題(箱を通る矢印・ラベルの重なり)が多いので、通常の間隔で描いた（情報）",
   'density': '文字量・箱の数が多い',
   'concentric-label-crossing': 'concentric の扇形（sectors）の印の見出しが、輪の線か区切り線（layout: stack では段や列の線）をまたぐ、または stack の外枠の外に出る（重ならない場所が見つからなかった。ADR 0065）',
-  'wf-callout-no-note': '図の番号に対応する注釈がない',
-  'wf-note-no-callout': '注釈に対応する番号が図にない',
-  'wf-callout-gap': '図の番号が 1 からの連番になっていない',
-  'wf-callout-duplicate': '同じ番号が複数の場所に付いている（情報）',
+  'wf-callout-no-note': wireframeCalloutRules['wf-callout-no-note'].doc,
+  'wf-note-no-callout': wireframeCalloutRules['wf-note-no-callout'].doc,
+  'wf-callout-gap': wireframeCalloutRules['wf-callout-gap'].doc,
+  'wf-callout-duplicate': wireframeCalloutRules['wf-callout-duplicate'].doc,
   'wf-states-todo': '状態の一覧に「未設計」の欄がある（設計するか、対象外と明示する）',
   'wf-states-required': '状態の一覧に、必須の状態の列がない',
   'wf-states-ragged': '状態の一覧の行に、列より多い欄がある',
-  'wf-callout-order': '図の番号が、読む順（上から下、左から右）に並んでいない（情報）',
+  'wf-callout-order': wireframeCalloutRules['wf-callout-order'].doc,
   'layout-sibling-size': '横に並ぶ枠の幅が 1〜4px だけ違う（等分の行で 4px の格子に丸めた結果。cols / flex で揃える）。diagram({layoutCheck: "strict"}) で warn',
   'layout-edge-misalign': '隣り合う枠の縁（左端・右端・上端）が 1〜4px ずれている（0 は一致、5px 以上は別物として扱う）。diagram({layoutCheck: "strict"}) で warn',
   'layout-gutter-uneven': '横に並ぶ 3 枠以上の間隔が 2px 以上不均一。diagram({layoutCheck: "strict"}) で warn',
@@ -291,14 +291,14 @@ export const RULE_LOCATION = {
   'density-compact-restored': 'band-grouped',
   'density': 'diagram',
   'concentric-label-crossing': 'band',
-  'wf-callout-no-note': 'band',
-  'wf-note-no-callout': 'band',
-  'wf-callout-gap': 'band',
-  'wf-callout-duplicate': 'band',
+  'wf-callout-no-note': wireframeCalloutRules['wf-callout-no-note'].scope,
+  'wf-note-no-callout': wireframeCalloutRules['wf-note-no-callout'].scope,
+  'wf-callout-gap': wireframeCalloutRules['wf-callout-gap'].scope,
+  'wf-callout-duplicate': wireframeCalloutRules['wf-callout-duplicate'].scope,
   'wf-states-todo': 'band',
   'wf-states-required': 'band',
   'wf-states-ragged': 'band',
-  'wf-callout-order': 'band',
+  'wf-callout-order': wireframeCalloutRules['wf-callout-order'].scope,
   'layout-sibling-size': 'band',
   'layout-edge-misalign': 'band',
   'layout-gutter-uneven': 'band',
@@ -493,60 +493,11 @@ function swimlaneRules(d: LintTarget, out: Finding[]): void {
   for (const sl of lanesBands) out.push(...swimlaneFindings(sl, d.connects ?? []));
 }
 
-// ---- wireframes: callout numbers vs notes, and the state matrix --------------------------------
-function calloutsOf(...trees: unknown[]): number[] {
-  const out: number[] = [];
-  const walk = (x: unknown): void => {
-    if (!x || typeof x !== 'object') return;
-    if (Array.isArray(x)) { x.forEach(walk); return; }
-    // a wf node tree is walked generically (any node kind may carry n / parts / markers / children)
-    const nd = x as {t?: unknown; n?: unknown; parts?: Record<string, unknown>; markers?: {n?: unknown}[]; children?: unknown};
-    if (!nd.t) return;
-    if (typeof nd.n === 'number') out.push(nd.n);
-    for (const v of Object.values(nd.parts ?? {})) if (typeof v === 'number') out.push(v);
-    for (const m of nd.markers ?? []) if (typeof m.n === 'number') out.push(m.n);
-    walk(nd.children);
-  };
-  trees.forEach(walk);
-  return out;
-}
-
-// the callout numbers should grow in reading order. Rows read top to bottom, columns (a sidebar, a main area) left to right,
-// so the next number may sit lower, or clearly to the right — only a step back (up-and-left, or left on the same row) is flagged.
-const ORDER_ROW = 48, ORDER_COL = 24;
-function calloutOrder(d: LintTarget, out: Finding[]): void {
-  for (const b of d.laidOut ?? []) {
-    if (b.type !== 'wireframe' || !b.callouts?.length) continue;
-    const first = new Map<number, WfCallout>();
-    for (const c of b.callouts) if (!first.has(c.n)) first.set(c.n, c);
-    const nums = [...first.keys()].sort((x, y) => x - y), bad = [];
-    for (let i = 0; i + 1 < nums.length; i++) {
-      const a = must(first.get(must(nums[i]))), c = must(first.get(must(nums[i + 1])));
-      const leftOfIt = c.x < a.x - ORDER_COL && c.y < a.y + ORDER_ROW;       // not on a later row, yet to the left
-      const aboveIt = c.y < a.y - ORDER_ROW && c.x < a.x + ORDER_COL;        // higher up, and not in a column further right
-      if (leftOfIt || aboveIt) bad.push(`${nums[i]}→${nums[i + 1]}`);
-    }
-    if (bad.length) out.push({...at(b), rule: 'wf-callout-order', severity: 'info', message: `${b.title ? `「${b.title}」` : 'ワイヤーフレーム'}: 番号が読む順でない所: ${bad.join('、')}`});
-  }
-}
-
 function wireframeRules(d: LintTarget, out: Finding[]): void {
-  calloutOrder(d, out);
-  for (const b of walkBands(d.bands)) {
-    if (b.type === 'wireframe') {
-      const calls = calloutsOf(b.root, b.overlays);
-      const noteNums = (b.notes ?? []).map((nt, i) => (typeof nt === 'object' && nt.n != null ? nt.n : i + 1));
-      const where = b.title ? `「${b.title}」` : 'ワイヤーフレーム';
-      const uniq = [...new Set(calls)].sort((x, y) => x - y);
-      const noNote = uniq.filter(c => !noteNums.includes(c));
-      if (noNote.length) out.push({...at(b), rule: 'wf-callout-no-note', severity: 'warn', message: `${where}: 番号 ${noNote.join('・')} に対応する注釈がない`});
-      const noCall = noteNums.filter(nn => !calls.includes(nn));
-      if (b.notes?.length && noCall.length) out.push({...at(b), rule: 'wf-note-no-callout', severity: 'warn', message: `${where}: 注釈 ${noCall.join('・')} に対応する番号が図にない`});
-      if (uniq.length && uniq.some((c, i) => c !== i + 1)) out.push({...at(b), rule: 'wf-callout-gap', severity: 'warn', message: `${where}: 番号が 1 からの連番でない（${uniq.join('・')}）`});
-      const dup = uniq.filter(c => calls.filter(x => x === c).length > 1);
-      if (dup.length) out.push({...at(b), rule: 'wf-callout-duplicate', severity: 'info', message: `${where}: 番号 ${dup.join('・')} が複数の場所に付いている（1 つの注釈を共有）`});
-    }
-    if (b.type === 'screens') out.push(...stateMatrixFindings(b));
+  for (const band of d.laidOut ?? []) if (band.type === 'wireframe') out.push(...calloutOrderFindings(band));
+  for (const band of walkBands(d.bands)) {
+    if (band.type === 'wireframe') out.push(...calloutNoteFindings(band));
+    if (band.type === 'screens') out.push(...stateMatrixFindings(band));
   }
 }
 
