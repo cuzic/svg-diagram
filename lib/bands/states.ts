@@ -10,7 +10,7 @@ import type {FlowEdge, FlowNode, FlowchartOpts, LaidOutStates, StateItem, States
 import {statesProblems} from '../verify-base.ts';
 import {anchorRects} from '../verify-rects.ts';
 
-const definition = {
+export const statesDefinition: BandDef<StatesBand, LaidOutStates> = {
   type: 'states',
   textSizes: textsAndLabels,
   ids: data => data.states.map(item => item.id),
@@ -28,18 +28,18 @@ const definition = {
     rects: laid => anchorRects(laid),
     check: laid => statesProblems(laid).map(message => ({rule: 'states', severity: 'problem', message})),
   },
-} satisfies BandDef<StatesBand, LaidOutStates>;
+};
 
 export function stateDiagram<const S extends readonly StateItem[], const Id extends string = never>(
   states: S, transitions: readonly Transition[], opts?: StatesOpts & {id?: Id},
 ): WithBandDef<ReturnType<typeof buildStateDiagram<S, Id>>, LaidOutStates> {
   const data = buildStateDiagram<S, Id>(states, transitions, opts);
-  return band<typeof data, LaidOutStates>(definition, data);
+  return band<typeof data, LaidOutStates>(statesDefinition, data);
 }
 
 export function flowchart<const N extends readonly FlowNode[], const Id extends string = never>(
   nodes: N, edges: readonly FlowEdge[], opts?: FlowchartOpts & {id?: Id},
 ): WithBandDef<ReturnType<typeof buildFlowchart<N, Id>>, LaidOutStates> {
   const data = buildFlowchart<N, Id>(nodes, edges, opts);
-  return band<typeof data, LaidOutStates>(definition, data);
+  return band<typeof data, LaidOutStates>(statesDefinition, data);
 }

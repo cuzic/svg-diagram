@@ -1,3 +1,4 @@
+import {stateMatrixFindings} from './state-matrix-rules.ts';
 // Diagram rules ("svg-diagram check"): semantic checks that need the diagram model, not
 // the rendered pixels — accessibility contrast, legend completeness, lane order, edge
 // crossings, density. Each finding is {rule, severity: 'warn' | 'info', message}.
@@ -608,17 +609,7 @@ function wireframeRules(d: LintTarget, out: Finding[]): void {
       const dup = uniq.filter(c => calls.filter(x => x === c).length > 1);
       if (dup.length) out.push({...at(b), rule: 'wf-callout-duplicate', severity: 'info', message: `${where}: 番号 ${dup.join('・')} が複数の場所に付いている（1 つの注釈を共有）`});
     }
-    if (b.type === 'screens' && b.matrix) {
-      const m = b.matrix;
-      const miss = (m.required ?? []).filter(c => !m.cols.includes(c));
-      if (miss.length) out.push({...at(b), rule: 'wf-states-required', severity: 'warn', message: `状態の一覧に、必須の状態「${miss.join('」「')}」の列がない`});
-      const todo: string[] = [];
-      for (const row of m.rows) {
-        if (row.cells.length > m.cols.length) out.push({...at(b), rule: 'wf-states-ragged', severity: 'warn', message: `行「${row.label}」の欄が ${row.cells.length} 個で、列（${m.cols.length}）より多い`});
-        m.cols.forEach((col, i) => { const c = row.cells[i]; if (c == null || c === 'todo') todo.push(`${row.label}×${col}`); }); // a row shorter than the columns leaves "未設計" cells
-      }
-      if (todo.length) out.push({...at(b), rule: 'wf-states-todo', severity: 'warn', message: `「未設計」の欄: ${todo.join('、')}`});
-    }
+    if (b.type === 'screens') out.push(...stateMatrixFindings(b));
   }
 }
 

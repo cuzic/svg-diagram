@@ -191,6 +191,14 @@ try {
       });
     `, include: 'pptx/timeline.js', budget: {esbuild: 145000, Vite: 178000}, bands: ['timeline.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/flow.js', 'pptx/pyramid.js'], draw: true},
+    {name: 'Composer Arrow diagram', source: composedSource([], "...arrowDiagram([{from: 1, to: 2, name: 'Review', days: 3}])",
+      "import {arrowDiagram} from 'svg-diagram/compose/arrow-diagram';"),
+      include: 'compose/selective/arrow-diagram.js', budget: {esbuild: 160000, Vite: 219000}, bands: ['caption.js', 'states.js'],
+      exclude: [...legacy, 'bands/cause.js', 'bands/group.js', 'bands/row.js', 'layout-connect.js', 'rca-rules.js'], draw: true},
+    {name: 'State matrix', source: composedSource([], "stateMatrix(['Review'], [{label: 'Page', cells: [wf.text('Ready')]}])",
+      "import {stateMatrix, wf} from 'svg-diagram/bands/screens';"),
+      include: 'state-matrix-rules.js', budget: {esbuild: 99000, Vite: 134000}, bands: ['screens.js'],
+      exclude: [...legacy, 'bands/wireframe.js', 'bands/table.js', 'layout-connect.js'], draw: true},
     {name: 'Composer Canvas', source: composedSource([], "canvas('swot', {strengths: 'Plan'}, {titles: {strengths: 'Review'}})", "import {canvas} from 'svg-diagram/compose/canvas'; "),
       include: 'compose/selective/canvas.js', budget: {esbuild: 83000, Vite: 107000}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'layout-connect.js', 'bands/banner.js', 'bands/row.js'], draw: true},
     {name: 'Composer Hero', source: composedSource([], "...hero({banner: {headline: 'Review'}, flow: [box({title: 'Step'})], stat: {value: 3, label: 'Done'}})", "import {hero} from 'svg-diagram/compose/hero'; import {box} from 'svg-diagram/bands/box';"),
@@ -488,7 +496,7 @@ try {
           console.log(`${label}: ${bytes} bytes`);
           continue;
         }
-        assert.match(result.svg, name === 'Sankey' ? /<text[^>]*>Review 5<\/text>/ : /<text[^>]*>Review<\/text>/, label);
+        assert.match(result.svg, name === 'Sankey' ? /<text[^>]*>Review 5<\/text>/ : name === 'Composer Arrow diagram' ? /<text[^>]*>Review 3<\/text>/ : /<text[^>]*>Review<\/text>/, label);
         if (name === 'Image') {
           assert.match(result.svg, /<image [^>]*href="data:image\/gif;base64,/);
           assert.doesNotMatch(code, /\bBuffer\b/, label);

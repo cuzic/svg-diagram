@@ -160,6 +160,8 @@ Node.js では `svg-diagram/spec/selective/node` の `renderSpec(spec, {parts, f
 
 CLI では `svg-diagram spec 比較.json --part table > 比較.svg` で描画できます。複数の部品を許可する場合は `--part` を繰り返します。名前は `spec/parts` の公開名です。SVG は標準出力、検査結果は標準エラーに出ます。
 
+画面状態マトリクスは `svg-diagram/bands/screens` の `stateMatrix` と `stateRow`、アロー・ダイヤグラムは `svg-diagram/compose/arrow-diagram` の `arrowDiagram` を使います。どちらも `renderBands` に渡して描画できます。
+
 ```ts
 import {renderBands} from 'svg-diagram/core';
 import {box} from 'svg-diagram/bands/box';

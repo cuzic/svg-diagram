@@ -500,6 +500,10 @@
       "types": "./dist/lib/node-measure.d.ts",
       "default": "./dist/lib/node-measure.js"
     },
+    "./compose/arrow-diagram": {
+      "types": "./dist/lib/compose/selective/arrow-diagram.d.ts",
+      "default": "./dist/lib/compose/selective/arrow-diagram.js"
+    },
     "./compose/canvas": {
       "types": "./dist/lib/compose/selective/canvas.d.ts",
       "default": "./dist/lib/compose/selective/canvas.js"

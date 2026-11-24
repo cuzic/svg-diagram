@@ -752,3 +752,29 @@ test('selective composers preserve the SVG of canvas, hero, icon row and versus'
   assert.deepEqual(actual.verdict.problems, expected.verdict.problems);
   assert.equal(body(actual.svg), body(expected.svg));
 });
+
+test('selected state matrices preserve the drawing and missing-state findings', async () => {
+  const {stateMatrix} = await import('../lib/bands/screens.ts');
+  const {stateMatrix: legacyMatrix} = await import('../lib/web.ts');
+  const cols: ['通常', '空'] = ['通常', '空'];
+  const rows = [{label: '一覧', cells: [wf.text('商品'), undefined] as const}];
+  const actual = await renderBands([stateMatrix(cols, rows)], {measure, title: '状態'});
+  const old = await renderInBrowser(diagram({theme: 'blue', title: '状態', legend: false}).add(legacyMatrix(cols, rows)), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.equal(body(actual.svg), body(old.svg));
+  const missing = ({verdict}: typeof actual) => verdict.findings.filter(f => f.rule === 'wf-states-todo').map(f => f.message);
+  assert.ok(missing(old).length);
+  assert.deepEqual(missing(actual), missing(old));
+});
+
+test('selected arrow diagrams preserve the critical path and omit an optional caption', async () => {
+  const {arrowDiagram} = await import('../lib/compose/selective/arrow-diagram.ts');
+  const {arrowDiagram: legacyArrow} = await import('../lib/web.ts');
+  const links = [{from: 1, to: 2, name: '設計', days: 5}, {from: 2, to: 3, name: '試験', days: 7}];
+  for (const summary of [true, false]) {
+    const actual = await renderBands(arrowDiagram(links, {summary}), {measure, title: '予定'});
+    const old = await renderInBrowser(diagram({theme: 'blue', title: '予定', legend: false}).add(...legacyArrow(links, {summary})), {measure});
+    const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+    assert.equal(body(actual.svg), body(old.svg));
+  }
+});

@@ -538,6 +538,7 @@
   "spec-validation:join",
   "spec-validation:totalText",
   "spotlight:dimmedBands",
+  "state-matrix-rules:stateMatrixFindings",
   "states:statesTexts",
   "status:layoutStatus",
   "status:statusText",
