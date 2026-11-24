@@ -23,6 +23,8 @@ export const axisPart = (which: string): string => partStep('axis', {index: whic
 export const LEGEND = partStep('legend', 0, '');
 /** A plane's axes, their ticks and their names: one part (lib/plane.ts). */
 export const PLANE_AXES = partStep('axes', 0, '');
+/** The crosshair and axis texts of a quadrant form one part. */
+export const QUADRANT_AXES = partStep('axes', 0, '');
 /** A Gantt chart's date axis: its line, ticks and dates (lib/gantt.ts). */
 export const GANTT_AXIS = partStep('axis', 0, '');
 /** A timeline's axis: its line, ticks and dates (lib/timeline.ts). */

@@ -7,10 +7,7 @@
 //     is too crowded the rows grow (a `height` is a minimum), and when growing does not help the layout throws and says which item.
 // The rating of a cell is always written (its title / note), the groups are told apart by shape AND colour, and the size of a bubble
 // has a legend: colour is never the only carrier of meaning.
-import {LEGEND, partStep} from './parts.ts';
-
-/** ADR 0054: a quadrant's axes (its crosshair and the axis texts) are one part. */
-export const AXES = partStep('axes', 0, '');
+import {LEGEND, QUADRANT_AXES, partStep} from './parts.ts';
 import {assertScope} from './scope-name.ts';
 import {textWidth} from './atoms.ts';
 import {wrapText} from './wrap.ts';
@@ -583,7 +580,7 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
       const mx0 = plotL + must(colGrid.x[1]), my0 = plotT + must(rowH[0]);
       const x0 = Math.floor((mx0 - wd / 2 - 8) / 4) * 4, y0 = Math.floor((my0 - hh / 2 - 4) / 4) * 4;
       centreChip = {x: x0, y: y0, w: Math.ceil((mx0 + wd / 2 + 8) / 4) * 4 - x0, h: Math.ceil((my0 + hh / 2 + 4) / 4) * 4 - y0, lines};
-      lines.forEach((line, k) => texts.push({text: line, x: mx0, y: my0 - hh / 2 + k * lineN + size, anchor: 'middle', size, bold: true, fill: 'accent', part: AXES}));
+      lines.forEach((line, k) => texts.push({text: line, x: mx0, y: my0 - hh / 2 + k * lineN + size, anchor: 'middle', size, bold: true, fill: 'accent', part: QUADRANT_AXES}));
       headers.push(centreChip);
       labelBoxes.push({x: mx0 - wd / 2, y: my0 - hh / 2, w: wd, h: hh, label: band.centre, kind: 'caption'});
     }
@@ -750,14 +747,14 @@ export function layoutQuadrant(band: QuadrantBand, x: number, y: number, w: numb
   };
   const yx = plotL - 10;
   const topEnd = band.y.reversed ? band.y.low : band.y.high, bottomEnd = band.y.reversed ? band.y.high : band.y.low;
-  if (topEnd) { texts.push({text: topEnd, x: yx, y: plotT + size + 4, anchor: 'end', size, bold: false, fill: 'muted', part: AXES}); axisBox(topEnd, size, 400, 'end', yx, plotT + size + 4); }
-  if (bottomEnd) { texts.push({text: bottomEnd, x: yx, y: plotB - 6, anchor: 'end', size, bold: false, fill: 'muted', part: AXES}); axisBox(bottomEnd, size, 400, 'end', yx, plotB - 6); }
+  if (topEnd) { texts.push({text: topEnd, x: yx, y: plotT + size + 4, anchor: 'end', size, bold: false, fill: 'muted', part: QUADRANT_AXES}); axisBox(topEnd, size, 400, 'end', yx, plotT + size + 4); }
+  if (bottomEnd) { texts.push({text: bottomEnd, x: yx, y: plotB - 6, anchor: 'end', size, bold: false, fill: 'muted', part: QUADRANT_AXES}); axisBox(bottomEnd, size, 400, 'end', yx, plotB - 6); }
   const ty = (plotT + plotB) / 2 - (yTitle.length * lineT) / 2;
-  yTitle.forEach((line, k) => { const base = ty + k * lineT + tSize; texts.push({text: line, x: yx, y: base, anchor: 'end', size: tSize, bold: true, fill: 'text', part: AXES}); axisBox(line, tSize, 700, 'end', yx, base); });
+  yTitle.forEach((line, k) => { const base = ty + k * lineT + tSize; texts.push({text: line, x: yx, y: base, anchor: 'end', size: tSize, bold: true, fill: 'text', part: QUADRANT_AXES}); axisBox(line, tSize, 700, 'end', yx, base); });
   const xBase = plotB + 10 + size;
-  if (xLeft) { texts.push({text: xLeft, x: plotL, y: xBase, anchor: 'start', size, bold: false, fill: 'muted', part: AXES}); axisBox(xLeft, size, 400, 'start', plotL, xBase); }
-  if (xRight) { texts.push({text: xRight, x: plotR, y: xBase, anchor: 'end', size, bold: false, fill: 'muted', part: AXES}); axisBox(xRight, size, 400, 'end', plotR, xBase); }
-  texts.push({text: band.x.title, x: (plotL + plotR) / 2, y: xBase, anchor: 'middle', size: tSize, bold: true, fill: 'text', part: AXES});
+  if (xLeft) { texts.push({text: xLeft, x: plotL, y: xBase, anchor: 'start', size, bold: false, fill: 'muted', part: QUADRANT_AXES}); axisBox(xLeft, size, 400, 'start', plotL, xBase); }
+  if (xRight) { texts.push({text: xRight, x: plotR, y: xBase, anchor: 'end', size, bold: false, fill: 'muted', part: QUADRANT_AXES}); axisBox(xRight, size, 400, 'end', plotR, xBase); }
+  texts.push({text: band.x.title, x: (plotL + plotR) / 2, y: xBase, anchor: 'middle', size: tSize, bold: true, fill: 'text', part: QUADRANT_AXES});
   axisBox(band.x.title, tSize, 700, 'middle', (plotL + plotR) / 2, xBase);
 
   // ---- legends: the groups (shape + colour + name), then what the bubble area means

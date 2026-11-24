@@ -311,6 +311,12 @@ try {
     {name: 'PPTX flow adapter', source: "export {flowPptx} from 'svg-diagram/pptx/bands/flow';",
       include: 'pptx/line-shapes.js', budget: {esbuild: 30000, Vite: 38000},
       exclude: [...legacy, 'pptx/connectors.js', 'pptx/row-arrow.js', 'pptx/pyramid-band.js', 'pptx/timeline-band.js', 'pptx/svg-shapes.js']},
+    {name: 'PPTX quadrant adapter', source: "export {quadrantPptx} from 'svg-diagram/pptx/bands/quadrant';",
+      include: 'pptx/quadrant.js', budget: {esbuild: 22600, Vite: 29500},
+      exclude: [...legacy, 'lib/quadrant.js', 'bands/quadrant.js', 'pptx/svg-shapes.js', 'pptx/cause.js']},
+    {name: 'PPTX swimlane span', source: "export {swimlaneSpan} from 'svg-diagram/pptx/bands/swimlane';",
+      include: 'pptx/swimlane-span.js', budget: {esbuild: 1000, Vite: 1200},
+      exclude: [...legacy, 'bands/swimlane.js', 'pptx/group-span.js', 'pptx/bands.js', 'pptx/svg-shapes.js']},
     {name: 'PPTX row adapter', source: "export {rowPptx} from 'svg-diagram/pptx/bands/row';",
       include: 'pptx/row-arrow.js', budget: {esbuild: 19500, Vite: 24000},
       exclude: [...legacy, 'pptx/connectors.js', 'pptx/grid-band.js', 'pptx/group-band.js', 'pptx/svg-shapes.js', 'emit-common.js']},
@@ -420,6 +426,28 @@ try {
       });
     `, include: 'pptx/pyramid.js', budget: {esbuild: 123000, Vite: 148000}, bands: ['pyramid.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/flow.js', 'pptx/timeline.js'], draw: true},
+    {name: 'Selective PPTX Quadrant', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {quadrantPptx} from 'svg-diagram/pptx/bands/quadrant';
+      import {quadrant} from 'svg-diagram/bands/quadrant';
+      export const draw = () => renderBandsPptx([quadrant.preset('bcg', {items: [{label: 'Review', cell: [0, 0]}]})], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        bands: {quadrant: quadrantPptx}, strict: true,
+      });
+    `, include: 'pptx/quadrant-band.js', budget: {esbuild: 167000, Vite: 199000}, bands: ['quadrant.js'],
+      exclude: [...legacy, 'pptx/bands.js', 'pptx/cause.js', 'pptx/states.js', 'pptx/svg-shapes.js'], draw: true},
+    {name: 'Selective PPTX Swimlane', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {swimlaneSpan} from 'svg-diagram/pptx/bands/swimlane';
+      import {boxPptx} from 'svg-diagram/pptx/bands/box';
+      import {svgShapesXml} from 'svg-diagram/pptx/svg-shapes';
+      import {swimlane} from 'svg-diagram/bands/swimlane';
+      export const draw = () => renderBandsPptx(swimlane([{id: 'work', label: 'Work'}], [{id: 'a', lane: 'work', title: 'Review'}]), {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        bands: {box: boxPptx}, spans: {swimlane: swimlaneSpan}, svgShapes: svgShapesXml, strict: true,
+      });
+    `, include: 'pptx/swimlane-span.js', budget: {esbuild: 185000, Vite: 224000}, bands: ['box.js', 'swimlane.js'],
+      exclude: [...legacy, 'pptx/bands.js', 'pptx/group-span.js', 'pptx/cause.js', 'pptx/states.js'], draw: true},
     {name: 'Selective PPTX Cause', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
       import {causePptx} from 'svg-diagram/pptx/bands/cause';
@@ -963,6 +991,7 @@ try {
           if (/^Selective PPTX (Cause|States|Tree)$/.test(name)) {
             assert.match(slide, /<p:cxnSp>[\s\S]*?<a:stCxn id="\d+" idx="\d+"\/>[\s\S]*?<a:endCxn id="\d+" idx="\d+"\/>/, label);
           }
+          if (name === 'Selective PPTX Swimlane') assert.match(slide, /name="swimlane[^"]*"[\s\S]*name="lanes"/, label);
           if (name === 'Selective PPTX Legend') assert.match(slide, /name="legend-and-arc"/, label);
           if (name === 'Selective PPTX') assert.match(slide, /<p:cxnSp>[\s\S]*?name="row-arrow-0"/, label);
           assert.doesNotMatch(code, /@resvg|HarfBuzz/, label);

@@ -409,3 +409,42 @@ test('the individual cause, state and tree adapters preserve legacy slide XML', 
     assert.deepEqual(selected.fallbacks, [], band.type);
   }
 });
+
+test('the selective quadrant adapter preserves editable axes and item labels', async () => {
+  const {quadrant} = await import('../lib/bands/quadrant.ts');
+  const {quadrantPptx} = await import('../lib/pptx/quadrant-band.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planPreparedPptx} = await import('../lib/pptx/selective.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const opts = {
+    title: '四象限',
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+  };
+  const input = quadrant.preset('bcg', {items: [{label: 'レビュー & 承認', cell: [0, 0]}]});
+  const prepared = await prepareBands([input], opts);
+  const selected = planPreparedPptx(prepared, {...opts, bands: {quadrant: quadrantPptx}, strict: true});
+  assert.equal(selected.plan.xml, planSlide(prepared.placed, fontsOf()).xml);
+  assert.deepEqual(selected.fallbacks, []);
+  assert.match(selected.plan.xml, /name="axes"/);
+  assert.match(selected.plan.xml, /<a:t>レビュー &amp; 承認<\/a:t>/);
+});
+
+test('the selective swimlane span preserves lane and step grouping in PPTX', async () => {
+  const {swimlane} = await import('../lib/bands/swimlane.ts');
+  const {swimlaneSpan} = await import('../lib/pptx/swimlane-span.ts');
+  const {boxPptx} = await import('../lib/pptx/box-band.ts');
+  const {svgShapesXml} = await import('../lib/pptx/svg-shapes.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planPreparedPptx} = await import('../lib/pptx/selective.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const opts = {
+    title: '作業の流れ',
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+  };
+  const input = swimlane([{id: 'team', label: '担当'}], [{id: 'review', lane: 'team', title: 'レビュー'}], {id: 'process'});
+  const prepared = await prepareBands(input, opts);
+  const selected = planPreparedPptx(prepared, {...opts, spans: {swimlane: swimlaneSpan}, bands: {box: boxPptx}, svgShapes: svgShapesXml, strict: true});
+  assert.equal(selected.plan.xml, planSlide(prepared.placed, fontsOf()).xml);
+  assert.deepEqual(selected.fallbacks, []);
+  assert.match(selected.plan.xml, /name="swimlane[^"]*"[\s\S]*name="lanes"[\s\S]*<a:t>レビュー<\/a:t>/);
+});

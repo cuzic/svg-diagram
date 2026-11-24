@@ -5,8 +5,8 @@
 // A dimmed quadrant (spotlight) stays a picture.
 import {PALETTE, colorOf, toneStyle, type ToneEnv} from '../tokens.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
-import {AXES, type LaidOutQuadrant, type QuadrantShape} from '../quadrant.ts';
-import {partStep} from '../parts.ts';
+import type {LaidOutQuadrant, QuadrantShape} from '../quadrant.ts';
+import {QUADRANT_AXES, partStep} from '../parts.ts';
 import type {Geo} from './parts-group.ts';
 import {groupXml} from './shapes.ts';
 import {bboxOf, drawParts, geomHolder, joined, polygonHolder, type Drawn, type PartDrawn, type Placed} from './fill.ts';
@@ -50,7 +50,7 @@ export function quadrantXml(b: LaidOutQuadrant, ld: LaidOutDiagram, tones: ToneE
     const id = next(), pts = r.points.map(([x, y]) => ({x, y}));
     add(polygonHolder(id, texts => nameOf('region', id, joined(texts)), pts, areaPaint(tones, r.tone, ld.day)), rect(bboxOf(pts)));
   }
-  for (const l of b.lines) { const id = next(); add(lineXml(id, nameOf('line', id), {x: l.x1, y: l.y1}, {x: l.x2, y: l.y2}, PALETTE.muted, 2), {kind: 'poly', pts: [{x: l.x1, y: l.y1}, {x: l.x2, y: l.y2}], w: 2}, AXES); }
+  for (const l of b.lines) { const id = next(); add(lineXml(id, nameOf('line', id), {x: l.x1, y: l.y1}, {x: l.x2, y: l.y2}, PALETTE.muted, 2), {kind: 'poly', pts: [{x: l.x1, y: l.y1}, {x: l.x2, y: l.y2}], w: 2}, QUADRANT_AXES); }
   for (const a of b.arrows) { const id = next(); add(lineXml(id, nameOf('arrow', id), {x: a.x1, y: a.y1}, {x: a.x2, y: a.y2}, PALETTE.text, 2, {dashed: a.dashed, arrow: true}), {kind: 'poly', pts: [{x: a.x1, y: a.y1}, {x: a.x2, y: a.y2}], w: 2}); }
   for (const c of b.chips) { const id = next(), r = {x: c.x, y: c.y, w: c.w, h: c.h}; add(geomHolder(id, texts => nameOf('chip', id, joined(texts)), r, prstGeomXml('roundRect', Math.min(c.w, c.h) > 0 ? 4 / Math.min(c.w, c.h) * 100000 : 0), {fill: PALETTE.bg}), rect(r)); }
   // a hollow marker is an outline inside the shape's area (groups 5 to 8); a filled one has a white edge
