@@ -885,3 +885,17 @@ test('dialog and toast overlays opt in separately and preserve their SVG', async
   await assert.rejects(renderBands([dialogs(root, {overlays: [toast]})], {measure}), /toast/);
   await assert.rejects(renderBands([toasts(root, {overlays: [dialog]})], {measure}), /dialog/);
 });
+
+test('selected screens and state matrices use one widget registry', async () => {
+  const {createScreens, textRenderer} = await import('../lib/wireframe-renderers.ts');
+  const {screens: legacyScreens, stateMatrix: legacyMatrix} = await import('../lib/bands/screens.ts');
+  const {screens, stateMatrix} = createScreens([textRenderer]);
+  const items = [{id: 'first', title: '始め', root: wf.text('概要')}, {id: 'next', title: '次', root: wf.text('続き')}];
+  const cols: ['通常', '空'] = ['通常', '空'];
+  const rows = [{label: '内容', cells: [wf.text('商品'), undefined] as const}];
+  const modern = await renderBands([screens(items), stateMatrix(cols, rows)], {measure});
+  const original = await renderBands([legacyScreens(items), legacyMatrix(cols, rows)], {measure});
+  assert.equal(modern.svg, original.svg);
+  assert.ok(modern.verdict.findings.some(finding => finding.rule === 'wf-states-todo'));
+  await assert.rejects(renderBands([screens([{id: 'first', title: '地図', root: wf.map()}])], {measure}), /map/);
+});

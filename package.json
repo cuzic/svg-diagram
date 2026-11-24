@@ -81,6 +81,7 @@
     "./dist/diff-svg.js",
     "./dist/init-project.js",
     "./dist/lib/bands/quadrant.js",
+    "./dist/lib/bands/screens.js",
     "./dist/lib/bands/wireframe-basic.js",
     "./dist/lib/bowtie.js",
     "./dist/lib/comic/constants.js",

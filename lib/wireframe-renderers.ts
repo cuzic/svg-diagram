@@ -1,5 +1,7 @@
 import {wireframeFor} from './bands/wireframe-basic.ts';
-import {makeWireframeRuntime} from './wireframe-layout-core.ts';
+import {screensFor} from './screens-definition.ts';
+import {appendScreen} from './wireframe-placement.ts';
+import {collectTextRequestsWith, layoutScreensWith, makeWireframeRuntime} from './wireframe-layout-core.ts';
 import type {WireframeDecorations, WireframeWidgetRenderer} from './wireframe-layout-core.ts';
 
 export type {WireframeDecorations, WireframeWidgetRenderer};
@@ -22,4 +24,13 @@ export {
 /** Create a wireframe builder with only the supplied drawing and measurement callbacks. */
 export function createWireframe(renderers: readonly WireframeWidgetRenderer[], decorations: WireframeDecorations = {}) {
   return wireframeFor(makeWireframeRuntime(renderers, decorations));
+}
+
+/** Create screen and state matrix builders that share the supplied widget registry. */
+export function createScreens(renderers: readonly WireframeWidgetRenderer[], decorations: WireframeDecorations = {}) {
+  const runtime = makeWireframeRuntime(renderers, decorations);
+  return screensFor(
+    data => collectTextRequestsWith(data, runtime),
+    (data, ctx, x, width) => appendScreen(layoutScreensWith(runtime, data, x, ctx.y, width, ctx.widthOf, ctx.tones, ctx.wrap), ctx),
+  );
 }

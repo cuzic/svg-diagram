@@ -375,6 +375,7 @@
   "rich:richField",
   "scope-name:assertScope",
   "scope-name:scopeOf",
+  "screens-definition:screensFor",
   "selective-chart:chartIds",
   "selective-chart:emitChart",
   "selective-chart:layoutSelectiveChart",

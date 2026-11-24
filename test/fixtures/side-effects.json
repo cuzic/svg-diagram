@@ -6,6 +6,7 @@
   "diff-svg.ts": {"count": 48, "reason": "Runs the diff CLI and reports SVG changes."},
   "init-project.ts": {"count": 40, "reason": "Runs the init CLI and writes project files."},
   "lib/bands/quadrant.ts": {"count": 1, "reason": "Adds the preset method to the local quadrant builder with Object.assign."},
+  "lib/bands/screens.ts": {"count": 1, "reason": "Builds the default screens and state matrix builders."},
   "lib/bands/wireframe-basic.ts": {"count": 1, "reason": "Builds the default basic wireframe renderer."},
   "lib/bowtie.ts": {"count": 1, "reason": "Builds the knot's part descriptor with partStep."},
   "lib/comic/constants.ts": {"count": 8, "reason": "Builds the comic palette with rgb."},

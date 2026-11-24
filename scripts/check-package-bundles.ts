@@ -284,6 +284,10 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [stepsPart],
       });
     `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 118000, Vite: 150000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
+    {name: 'Selected screen widgets', source: composedSource([], "screens([{id: 'review', title: 'Review', root: text('Details')}], {cols: 1})",
+      "import {createScreens, textRenderer} from 'svg-diagram/wireframe/renderers'; import {text} from 'svg-diagram/wireframe/parts'; const {screens} = createScreens([textRenderer]);"),
+      include: 'screens-definition.js', bands: [], budget: {esbuild: 80000, Vite: 108000},
+      exclude: [...legacy, 'lib/wireframe.js', 'lib/wireframe-parts.js', 'bands/screens.js', 'bands/wireframe-basic.js', 'layout-wireframes.js'], draw: true},
     {name: 'Selected wireframe dialog', source: composedSource([], "wireframe(text('Overview'), {overlays: [dialog('Review', {buttons: [btn('Send')]})]})",
       "import {createWireframe, textRenderer, btnRenderer, dialogRenderer} from 'svg-diagram/wireframe/renderers'; import {text, btn, dialog} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([textRenderer, btnRenderer], {dialog: dialogRenderer});"),
       include: 'wireframe-renderers.js', bands: ['wireframe-basic.js'], budget: {esbuild: 72000, Vite: 98000},
@@ -456,7 +460,7 @@ try {
     const selectedLayout = 'layout' in testCase ? testCase.layout : undefined;
     const overlaySelection = name === 'Selected wireframe dialog' || name === 'Selected wireframe toast';
     const decorationSelection = name === 'Selected wireframe states' || name === 'Selected robot markers';
-    const widgetSelection = name === 'Selected wireframe widgets' || name === 'Selected monitoring widget';
+    const widgetSelection = name === 'Selected wireframe widgets' || name === 'Selected monitoring widget' || name === 'Selected screen widgets';
     writeFileSync(entry, source);
     const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true, keepNames: !!selectedLayout || widgetSelection || decorationSelection || overlaySelection,
       platform: 'browser', format: 'esm', write: false, metafile: true});

@@ -174,6 +174,8 @@ CLI では `svg-diagram spec 比較.json --part table > 比較.svg` で描画で
 
 ダイアログは `{dialog: dialogRenderer}`、トーストは `{toast: toastRenderer}` を `createWireframe` のオプションに渡します。ダイアログにボタンを置く場合は `btnRenderer` も部品に登録します。基本描画の一括入口 `bands/wireframe/basic` には両方が含まれます。
 
+画面遷移図と状態マトリクスの描画を絞るには、`svg-diagram/wireframe/renderers` の `const {screens, stateMatrix} = createScreens([textRenderer])` を使います。両方のビルダーで登録を共有でき、装飾は `createWireframe` と同じ第2引数で指定します。
+
 RACI、FMEA、QFD、チェックシート、マトリクス、ジャーニーマップ、IS/IS NOT、なぜなぜ分析表は `svg-diagram/bands/table` から個別に import できます。木でなぜなぜ分析を描く場合は `svg-diagram/compose/why-why-tree` の `whyWhyTree` を使います。
 
 ```ts
