@@ -19,7 +19,9 @@ import {quadrantPptx} from './quadrant-band.ts';
 import {statesPptx} from './states-band.ts';
 import {causePptx} from './cause-band.ts';
 import {legendPptx} from './legend-band.ts';
-import {flowPptx, pyramidPptx, timelinePptx} from './flow-band.ts';
+import {flowPptx} from './flow-band.ts';
+import {pyramidPptx} from './pyramid-band.ts';
+import {timelinePptx} from './timeline-band.ts';
 
 type DrawnBand = Extract<LaidOutBand, {h: number}>;
 

@@ -5,6 +5,12 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {register} from 'node:module';
 import test from 'node:test';
+import {pyramidPptx} from '../lib/pptx/pyramid-band.ts';
+import {timelinePptx} from '../lib/pptx/timeline-band.ts';
+import {flowPptx} from '../lib/pptx/flow-band.ts';
+import {pyramid as selectedPyramid} from '../lib/bands/pyramid.ts';
+import {timeline as selectedTimeline} from '../lib/bands/timeline.ts';
+import {chevron as selectedChevron} from '../lib/bands/chevron.ts';
 import {groupSpan} from '../lib/pptx/group-span.ts';
 import {groupPptx} from '../lib/pptx/box-bands.ts';
 import {group as selectedGroup} from '../lib/bands/group.ts';
@@ -190,4 +196,19 @@ test('selective PPTX groups nested bands only when a span adapter is supplied', 
   assert.doesNotMatch(slide(plain.pptx), /<p:grpSp>/);
   assert.equal([...slide(grouped.pptx).matchAll(/<p:grpSp>/g)].length, 2);
   assert.match(slide(grouped.pptx), />Nested<\/a:t>[\s\S]*<\/p:grpSp><\/p:grpSp>[\s\S]*>Outside<\/a:t>/);
+});
+
+test('selective PPTX composes separate flow, pyramid and timeline renderers', async () => {
+  const result = await renderBandsPptx([
+    selectedChevron([{label: 'Review'}, {label: 'Decide'}]),
+    selectedPyramid(['Layers', 'Base']),
+    selectedTimeline({unit: 'ms', from: 0, to: 100, events: [{at: 25, label: 'Finish'}]}),
+  ], {
+    measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+    bands: {chevron: flowPptx, pyramid: pyramidPptx, timeline: timelinePptx}, strict: true,
+  });
+  const xml = unzipEntry(Buffer.from(result.pptx), 'ppt/slides/slide1.xml').toString();
+  assert.match(xml, />Review<\/a:t>[\s\S]*>Layers<\/a:t>[\s\S]*>Finish<\/a:t>/);
+  assert.doesNotMatch(xml, /<p:pic>/);
+  assert.deepEqual(result.fallbacks, []);
 });

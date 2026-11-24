@@ -103,6 +103,36 @@ try {
       });
     `, include: 'pptx/group-span.js', budget: {esbuild: 147000, Vite: 175000}, bands: ['box.js', 'caption.js', 'group.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/swimlane-span.js', 'pptx/svg-shapes.js'], draw: true},
+    {name: 'Selective PPTX Flow', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {flowPptx} from 'svg-diagram/pptx/bands/flow';
+      import {chevron} from 'svg-diagram/bands/chevron';
+      export const draw = () => renderBandsPptx([chevron([{label: 'Review'}, {label: 'Next'}])], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        bands: {chevron: flowPptx}, strict: true,
+      });
+    `, include: 'pptx/flow.js', budget: {esbuild: 143000, Vite: 173000}, bands: ['chevron.js'],
+      exclude: [...legacy, 'pptx/bands.js', 'pptx/pyramid.js', 'pptx/timeline.js'], draw: true},
+    {name: 'Selective PPTX Pyramid', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {pyramidPptx} from 'svg-diagram/pptx/bands/pyramid';
+      import {pyramid} from 'svg-diagram/bands/pyramid';
+      export const draw = () => renderBandsPptx([pyramid(['Review', 'Base'])], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        bands: {pyramid: pyramidPptx}, strict: true,
+      });
+    `, include: 'pptx/pyramid.js', budget: {esbuild: 123000, Vite: 148000}, bands: ['pyramid.js'],
+      exclude: [...legacy, 'pptx/bands.js', 'pptx/flow.js', 'pptx/timeline.js'], draw: true},
+    {name: 'Selective PPTX Timeline', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {timelinePptx} from 'svg-diagram/pptx/bands/timeline';
+      import {timeline} from 'svg-diagram/bands/timeline';
+      export const draw = () => renderBandsPptx([timeline({unit: 'ms', from: 0, to: 100, events: [{at: 25, label: 'Review'}]})], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        bands: {timeline: timelinePptx}, strict: true,
+      });
+    `, include: 'pptx/timeline.js', budget: {esbuild: 145000, Vite: 178000}, bands: ['timeline.js'],
+      exclude: [...legacy, 'pptx/bands.js', 'pptx/flow.js', 'pptx/pyramid.js'], draw: true},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
       exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 52000, Vite: 65000}},

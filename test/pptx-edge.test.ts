@@ -438,7 +438,9 @@ test('pathShapeXml fills a closed outline, dashOfSvg tells dots from dashes, a t
 });
 
 test('flowShapeXml, pyramidXml and timelineXml: every piece a shape, items glueable through their anchors', async () => {
-  const {flowShapeXml, pyramidXml, timelineXml} = await import('../lib/pptx/flow.ts');
+  const {flowShapeXml} = await import('../lib/pptx/flow.ts');
+  const {pyramidXml} = await import('../lib/pptx/pyramid.ts');
+  const {timelineXml} = await import('../lib/pptx/timeline.ts');
   const {NO_TONES} = await import('../lib/tokens.ts');
   const ld = {day: 'blue', roles: {title: 20, note: 12}} as never, fonts = {sans: 'S', mono: 'M'};
   let n = 0;

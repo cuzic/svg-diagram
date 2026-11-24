@@ -512,6 +512,14 @@
       "types": "./dist/lib/pptx/swimlane-span.d.ts",
       "default": "./dist/lib/pptx/swimlane-span.js"
     },
+    "./pptx/bands/pyramid": {
+      "types": "./dist/lib/pptx/pyramid-band.d.ts",
+      "default": "./dist/lib/pptx/pyramid-band.js"
+    },
+    "./pptx/bands/timeline": {
+      "types": "./dist/lib/pptx/timeline-band.d.ts",
+      "default": "./dist/lib/pptx/timeline-band.js"
+    },
     "./pptx/edge": {
       "types": "./dist/lib/pptx-edge.d.ts",
       "default": "./dist/lib/pptx-edge.js"
