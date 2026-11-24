@@ -556,6 +556,10 @@
       "types": "./dist/lib/remark.d.ts",
       "default": "./dist/lib/remark.js"
     },
+    "./verify/document": {
+      "types": "./dist/lib/document-findings.d.ts",
+      "default": "./dist/lib/document-findings.js"
+    },
     "./vitepress": {
       "types": "./dist/lib/vitepress.d.ts",
       "default": "./dist/lib/vitepress.js"

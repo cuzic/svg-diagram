@@ -1,3 +1,4 @@
+import {applyFindingAcceptance} from './finding-rules.ts';
 import {ownRunSizes} from './band-text-sizes.ts';
 import {canvasFindings} from './canvas-findings.ts';
 import {splitAtoms} from './atoms.ts';
@@ -32,6 +33,9 @@ export type BatchMeasurement = {measureBatch: (requests: Map<string, Required<Me
 type Options = {measure: Measure} & DrawOptions;
 type DrawOptions = {
   width?: number;
+  maxWidth?: number;
+  accept?: DiagramData['accept'];
+  diagramFindings?: DiagramFindings;
   pad?: number;
   gap?: number;
   theme?: Theme;
@@ -92,10 +96,11 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   let last = 0;
   const revealWarnings: string[] = [];
   const diagramChecks = new Set<DiagramFindings>();
+  if (opts.diagramFindings) diagramChecks.add(opts.diagramFindings);
   const inputChecks: ((ctx: VerifyCtx) => Finding[])[] = [];
   let source = cloneData(bands) as unknown as Band[];
   const data: DiagramData = {
-    day: theme, medium: 'doc', width, pad: canvas ? Math.round(pad) : pad, gap: canvas ? Math.round(gap) : gap,
+    day: theme, medium: 'doc', width, maxWidth: opts.maxWidth, accept: opts.accept, pad: canvas ? Math.round(pad) : pad, gap: canvas ? Math.round(gap) : gap,
     fill: false, bands: source, title: opts.title, desc: opts.desc, wrap: opts.wrap, keepWords: opts.keepWords, tones, canvas,
     appearance: opts.appearance, density: opts.density,
   };
@@ -240,7 +245,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       return scope && !def?.rectsQualified ? rects.map(rect => scopedRect(band, scope, rect)) : rects;
     }),
     contrastProblems: () => [],
-    lintDiagram: () => bandFindings,
+    lintDiagram: () => opts.accept ? bandFindings.map(finding => applyFindingAcceptance(finding, opts.accept)) : bandFindings,
     acceptHint: () => undefined,
     mergeFindingSides: () => [],
     hasMutedBox: () => false,

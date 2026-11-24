@@ -266,7 +266,7 @@ try {
         );
         return {svg: emit(placed), verdict};
       };
-    `, include: 'diagram-description.js', budget: {esbuild: 85000, Vite: 109000}, bands: ['table.js'],
+    `, include: 'diagram-description.js', budget: {esbuild: 86500, Vite: 110000}, bands: ['table.js'],
       exclude: [...legacy, 'lib/spec.js', 'lib/bars.js', 'band-children.js', 'layout-connect.js'], draw: true},
     {name: 'Selected heatmap spec', source: `
       import {renderSpec} from 'svg-diagram/spec/selective';
@@ -335,7 +335,17 @@ try {
       exclude: [...legacy, 'pptx/selective.js', 'pptx/zip-node.js', 'lib/core.js', 'lib/png.js'], budget: {esbuild: 2500, Vite: 2500}},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
-      exclude: [...legacy, 'verify-bars.js', 'axis-comparison.js', 'axis-selected.js', 'verify-image.js', 'verify-box-like.js', 'verify-shrink.js', 'verify-density.js', 'verify-cause-spacing.js', 'verify-edge-bends.js', 'verify-connect-label.js', 'verify-caption.js', 'verify-grid.js', 'verify-flowchart.js', 'verify-concentric.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 53000, Vite: 70500}},
+      exclude: [...legacy, 'document-findings.js', 'verify-bars.js', 'axis-comparison.js', 'axis-selected.js', 'verify-image.js', 'verify-box-like.js', 'verify-shrink.js', 'verify-density.js', 'verify-cause-spacing.js', 'verify-edge-bends.js', 'verify-connect-label.js', 'verify-caption.js', 'verify-grid.js', 'verify-flowchart.js', 'verify-concentric.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 53000, Vite: 70500}},
+    {name: 'Document findings', source: `
+      import {renderBands} from 'svg-diagram/core';
+      import {box} from 'svg-diagram/bands/box';
+      import {documentFindings} from 'svg-diagram/verify/document';
+      export const draw = () => renderBands([box({title: 'Review'})], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        width: 720, maxWidth: 500, diagramFindings: documentFindings,
+      });
+    `, include: 'document-findings.js', bands: ['box.js'], exclude: [...legacy, 'layout-connect.js'],
+      budget: {esbuild: 84000, Vite: 107000}, draw: true},
     {name: 'Box', source: bandSource('box'), include: 'bands/box.js',
       exclude: [...legacy, 'verify-connect-label.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 82000, Vite: 104500}, draw: true},
     {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',
@@ -584,6 +594,7 @@ try {
         if (name === 'Selected robot markers') assert.match(result.svg, /ロボット A/, label);
         if (name === 'RACI table') assert.ok(!/fmea\(\)|qfd\(\)|whyWhyTree\(/.test(code), label);
         if (name === 'Selected fault tree spec with legend') assert.match(result.svg, /OR gate/, label);
+        if (name === 'Document findings') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'doc-width'), label);
         if (name === 'Box') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'box-size-ignored'), label);
         if (name === 'Composer Canvas') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'canvas-region-empty'), label);
         if (name === 'funnel') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'funnel-values-rise'), label);

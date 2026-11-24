@@ -1,3 +1,4 @@
+import {documentWidthFindings, wrapFallbackFindings} from './document-findings.ts';
 import {edgeBendFindings} from './verify-edge-bends.ts';
 export {EDGE_BENDS_MAX, EDGE_BENDS_MEAN} from './verify-edge-bends.ts';
 import {parallelEdgeFindings} from './verify-cause-spacing.ts';
@@ -27,7 +28,7 @@ import {axisMismatches} from './axis-rules.ts';
 import {axisMismatchFindings} from './axis-comparison.ts';
 import {qualify, scopeOf} from './anchor-scope.ts';
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
-import {analysisFindings, at, fromSources} from './finding-rules.ts';
+import {applyFindingAcceptance, analysisFindings, at, fromSources} from './finding-rules.ts';
 import type {SourceRef} from './source-ref.ts';
 import {legendKeys, legendLabelsFor, missingLegendItems, usedNotation, walkBands, wordedCanvasBands} from './legend-notation.ts';
 export {DEFAULT_LEGEND_LABELS, legendKeys, legendLabelsFor, usedNotation, walkBands} from './legend-notation.ts';
@@ -693,12 +694,9 @@ export function lintDiagram(d: LintTarget): Finding[] {
   }
   const out = lintAll(d, toneEnv(d.tones));
   const diagramLocation = at(d);
-  // diagram({accept: {'rule-id': 'reason'}}): a known, accepted finding is kept as info with its reason
-  const reasonOf = (rule: string): string | undefined => d.accept?.[rule as RuleId] ?? (rule === 'toc-no-desired-result' ? d.accept?.['toc-parts'] : undefined); // before ADR 0037 the missing desired result was toc-parts
   return out.map(f => {
     const located = RULE_LOCATION[f.rule as RuleId] === 'diagram' || !f.loc ? {...f, ...diagramLocation} : f;
-    const why = reasonOf(f.rule);
-    return why ? {...located, severity: 'info' as const, message: `${f.message}（許容: ${why}）`} : located;
+    return applyFindingAcceptance(located, d.accept);
   });
 }
 
@@ -817,7 +815,7 @@ function glyphRules(d: LintTarget, out: Finding[]): void {
 }
 function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   const out: Finding[] = [];
-  if (d.wrapFellBack) out.push({rule: 'wrap-fell-back', severity: 'info', message: "wrap: 'bunsetsu-soft': 文節で折ると図が幅に収まらなかったので、従来の折り方（phrase）で配置した。漢字・ひらがなの途中で折れる行が残る。図を 2 枚に分ける、文言を短くする、図の幅を広げると、文節で折れる"});
+  out.push(...wrapFallbackFindings(d));
   out.push(...axisMismatchFindings(axisMismatches(d.bands)));
   out.push(...labelCoverFindings(d));
   midWordRules(d, out);
@@ -873,7 +871,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
     ];
     out.push({rule: 'aspect-tall', severity: 'info', message: `幅 ${d.width}px に対して高さ ${d.canvasHeight}px（縦横比 ${(d.canvasHeight / d.width).toFixed(2)}）。本の 1 ページに収まりにくい。${ways.join('、')}を検討する（${ASPECT_TALL} 倍までは出さない）`});
   }
-  if (d.medium === 'doc' && !d.canvas && d.width > (d.maxWidth ?? 940)) out.push({rule: 'doc-width', severity: 'warn', message: `幅 ${d.width}px。本文の表示幅（約 930px）に縮められ、文字が小さくなる（${d.maxWidth ?? 940}px 以下にする）`});
+  out.push(...documentWidthFindings(d));
   // doc diagrams are read at length on a page, so their budget is larger than the slide decks' (see budget.ts)
   for (const w of budgetWarnings({laidOut: d.laidOut ?? []}, d.medium === 'doc' ? {boxBody: 100, total: 700, boxes: 30} : undefined)) out.push({rule: 'density', severity: 'warn', message: w});
   const allBars = walkBands(d.bands).filter((b): b is BarsBand => b.type === 'bars');

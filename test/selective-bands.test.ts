@@ -1047,3 +1047,18 @@ test('selected connectors report labels that obscure arrows', async () => {
   assert.equal(notes(legacy).length, 1);
   assert.deepEqual(notes(selected), notes(legacy));
 });
+
+test('selected document width warnings honor the project limit and acceptance', async () => {
+  const {documentFindings} = await import('../lib/document-findings.ts');
+  const opts = {title: '幅の比較', width: 800, maxWidth: 720};
+  const notes = ({verdict}: Awaited<ReturnType<typeof renderBands>>) => verdict.findings.filter(f => f.rule === 'doc-width')
+    .map(({severity, message}) => ({severity, message}));
+  for (const accept of [undefined, {'doc-width': '横長の表を表示する'}]) {
+    const selected = await renderBands([box({title: '比較'})], {...opts, measure, accept, diagramFindings: documentFindings});
+    const legacy = await renderInBrowser(diagram({...opts, theme: 'blue', legend: false, accept}).add(legacyBox({title: '比較'})), {measure});
+    assert.equal(notes(legacy)[0]?.severity, accept ? 'info' : 'warn');
+    assert.deepEqual(notes(selected), notes(legacy));
+  }
+  assert.deepEqual(notes(await renderBands([box({title: '比較'})],
+    {measure, maxWidth: 720, diagramFindings: documentFindings, canvas: {width: 800, height: 400}})), []);
+});

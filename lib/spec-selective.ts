@@ -1,3 +1,4 @@
+import {documentFindings} from './document-findings.ts';
 import {walkDefinedBands} from './band-def.ts';
 import {describeBands, oneLine} from './diagram-description.ts';
 import type {Config} from './types/project.ts';
@@ -102,7 +103,7 @@ export function validateSpec(input: unknown, options: PartOptions): SpecIssue[] 
 
 type PrepareOptions = PartOptions & Pick<RenderOptions, 'captions'>;
 
-type SpecProject = Pick<Config, 'wrap' | 'keepWords' | 'tones' | 'legend' | 'legendLabels'>;
+type SpecProject = Pick<Config, 'wrap' | 'keepWords' | 'tones' | 'legend' | 'legendLabels' | 'maxWidth' | 'accept'>;
 
 function addLegend(bands: SelectedBand[], doc: SpecDocument, options: PrepareOptions, project?: SpecProject) {
   if ((doc.legend ?? project?.legend) !== 'auto') return;
@@ -132,10 +133,10 @@ export function prepareSpecRender(input: unknown, options: PrepareOptions) {
 /** @internal Provide the prepared geometry and SVG emitter to consumers such as the deck renderer. */
 export function prepareSpecLayout(input: unknown, options: PrepareOptions & {project?: SpecProject}) {
   const {doc, bands, drawOptions} = prepareSpec(input, options);
-  const {wrap, keepWords, tones} = options.project ?? {};
+  const {wrap, keepWords, tones, maxWidth, accept} = options.project ?? {};
   addLegend(bands, doc, options, options.project);
   return async (measurement: RenderOptions['measure'] | BatchMeasurement) => {
-    const prepared = await prepareBands(bands, {...drawOptions, wrap, keepWords, tones, ...(typeof measurement === 'function' ? {measure: measurement} : measurement)});
+    const prepared = await prepareBands(bands, {...drawOptions, wrap, keepWords, tones, maxWidth, accept, diagramFindings: documentFindings, ...(typeof measurement === 'function' ? {measure: measurement} : measurement)});
     const {stage, emit} = prepared;
     return {...prepared, emit(figure: typeof prepared.placed, noRecolor?: boolean) {
       const titled = {...figure, title: oneLine(figure.title)};
