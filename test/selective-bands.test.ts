@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {caption} from '../lib/bands/caption.ts';
+import {stateDiagram, flowchart} from '../lib/bands/states.ts';
 import {classDiagram} from '../lib/bands/classes.ts';
 import {bpmn} from '../lib/bands/bpmn.ts';
 import {cloud} from '../lib/bands/cloud.ts';
@@ -42,7 +43,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {classDiagram as legacyClassDiagram, bpmn as legacyBpmn, cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {stateDiagram as legacyStateDiagram, flowchart as legacyFlowchart, classDiagram as legacyClassDiagram, bpmn as legacyBpmn, cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -476,4 +477,22 @@ test('selective class and BPMN diagrams preserve relations, lanes and both orien
   assert.deepEqual(result.xml, []);
   assert.deepEqual(result.verdict.problems, expected.verdict.problems);
   assert.equal(body(result.svg), body(expected.svg));
+});
+
+test('selective states and flowcharts preserve loops, decisions and scoped anchors', async () => {
+  const states = [{id: 'idle', label: '待機'}, {id: 'active', label: 'Review', final: true}] as const;
+  const transitions = [{from: 'idle', to: 'active', label: '開始'}, {from: 'active', to: 'active', label: '継続'}];
+  const nodes = [{id: 'start', label: '開始', kind: 'terminator'}, {id: 'active', label: '承認する？', kind: 'decision'}, {id: 'done', label: '完了'}] as const;
+  const flows = [{from: 'start', to: 'active'}, {from: 'active', to: 'done', label: 'はい'}];
+  const a = {initial: 'idle', scope: 'state'};
+  const b = {scope: 'flow'};
+  const link = {label: '次へ'};
+  const opts = {measure, title: 'Plan', gap: 60};
+  const result = await renderBands([stateDiagram(states, transitions, a), flowchart(nodes, flows, b), connect('state.active:bottom', 'flow.start:top', link)], opts);
+  const legacy = await renderInBrowser(diagram({theme: 'blue', title: opts.title, gap: opts.gap, legend: false})
+    .add(legacyStateDiagram(states, transitions, a), legacyFlowchart(nodes, flows, b), legacyConnect('state.active:bottom', 'flow.start:top', link)), {measure});
+  assert.deepEqual(result.xml, []);
+  assert.deepEqual(result.verdict.problems, legacy.verdict.problems);
+  const body = (svg: string) => svg.slice(svg.indexOf('  <defs>'));
+  assert.equal(body(result.svg), body(legacy.svg));
 });

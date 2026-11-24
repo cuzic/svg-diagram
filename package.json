@@ -308,6 +308,10 @@
       "types": "./dist/lib/bands/classes.d.ts",
       "default": "./dist/lib/bands/classes.js"
     },
+    "./bands/states": {
+      "types": "./dist/lib/bands/states.d.ts",
+      "default": "./dist/lib/bands/states.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"

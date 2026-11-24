@@ -74,7 +74,7 @@
 ## グラフ・図式
 
 - [ ] `tree`（組織図、mindmap など）
-- [ ] `states`
+- [ ] `states`（状態遷移図・フローチャートの SVG と依存除外は検証済み。アロー・ダイヤグラムは移行対象）
 - [ ] `cause`（causeTree、relationDiagram、PDPC、なぜなぜ分析など）
 - [ ] `cloud`（前提・解消策と、個別入口からの SVG・依存除外は検証済み）
 - [ ] `classes`（個別入口からの SVG と依存除外は検証済み）

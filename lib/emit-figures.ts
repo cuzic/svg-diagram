@@ -16,7 +16,7 @@ import {snap4, escapeAttr, escapeXml, emojiSpan, resolveTextColor, lineAttrs, ar
 import type {PathCut} from './emit-common.ts';
 import {HOP_R} from './cause-hop.ts';
 import {frameGeometry, renderBoxRect} from './emit-boxes.ts';
-import {CORE_BADGE_H, CORE_BADGE_W, CORE_BADGE_GAP, DOUBLE_INSET} from './toc.ts';
+import {CORE_BADGE_H, CORE_BADGE_W, CORE_BADGE_GAP, DOUBLE_INSET} from './cause-roles.ts';
 
 import {must} from './must.ts';
 import {marked, partAttr, partStep, partsOn, PLANE_AXES} from './parts.ts';

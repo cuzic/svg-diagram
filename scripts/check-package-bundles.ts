@@ -141,6 +141,8 @@ try {
       include: 'bands/classes.js', budget: {esbuild: 142000, Vite: 200000}, exclude: [...legacy, 'bpmn.js', 'bpmn-vertical.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
     {name: 'BPMN', source: composedSource(['bpmn'], "bpmn([{id: 'work', label: 'Work'}], [{id: 'a', lane: 'work', label: 'Review'}], [])"),
       include: 'bands/bpmn.js', budget: {esbuild: 121000, Vite: 165000}, exclude: [...legacy, 'classes.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
+    {name: 'States', source: composedSource([], "stateDiagram([{id: 'a', label: 'Review'}, {id: 'b', label: 'Done'}], [{from: 'a', to: 'b'}])", "import {stateDiagram} from 'svg-diagram/bands/states';"),
+      include: 'bands/states.js', budget: {esbuild: 160000, Vite: 222000}, exclude: [...legacy, 'classes.js', 'bpmn.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
   ];
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;

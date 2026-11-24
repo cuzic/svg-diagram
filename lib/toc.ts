@@ -4,8 +4,8 @@
 //               figure: an arrow across an AND arc means "together", separate arrows mean "either".
 //  cloud():     the Evaporating Cloud: five boxes in a fixed place (A the common objective, B and C the needs, D and D' the
 //               conflicting wants), the arrows between them with their assumptions numbered, and the numbered list under the figure.
-import {CAUSE_ROLES} from './cause-roles.ts';
-export {CAUSE_ROLES} from './cause-roles.ts';
+import {CAUSE_ROLES, CORE_BADGE_H, CORE_BADGE_W, CORE_BADGE_GAP, DOUBLE_INSET} from './cause-roles.ts';
+export {CAUSE_ROLES, CORE_BADGE_H, CORE_BADGE_W, CORE_BADGE_GAP, DOUBLE_INSET} from './cause-roles.ts';
 import {orderCrossings, type LayeredOpts} from './graph-layout.ts';
 import type {RowSearchResult} from './layer-order-search.ts';
 import {andClashes} from './cause-clash.ts';
@@ -24,11 +24,6 @@ import {must} from './must.ts';
 
 const GAP = 28, LEVEL = 64, PORT = 22; // PORT: the step between the arrows that meet one side of an entity (the arrowheads of an AND stay apart)
 /** The arc across the arrows of an AND: where its ends and its middle are, as distances from the arrowheads' tips. */
-/** The 中核 badge (ADR 0015 D4): its height and its gap to the frame; emit-figures draws it, the layout keeps the room. */
-export const CORE_BADGE_H = 22, CORE_BADGE_W = 44, CORE_BADGE_GAP = 2;
-/** How far inside the frame a `double` box's second outline runs (emit-figures draws it): the box is that much taller at both ends, so
- *  the text keeps the same padding from the inner outline that a plain box keeps from its frame (#378). */
-export const DOUBLE_INSET = 4;
 /** The arc of an AND (ADR 0070 D8, a cause tree's band): its middle `peak` from the tips leaves a visible gap to the arrowhead's base of 0.4 x
  *  the text size (14 x `s`, the line half-width taken off); its ends are 6 x `s` farther; it reaches `reach` past the outer arrows.
  *  pdpc / relationDiagram / whyWhyTree keep the old arc (21 / 15 / 10). `s` is 1 until the lines scale with the canvas text (D7). */
