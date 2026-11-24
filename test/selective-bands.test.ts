@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {caption} from '../lib/bands/caption.ts';
+import {status} from '../lib/bands/status.ts';
+import {wordart} from '../lib/bands/wordart.ts';
 import {people} from '../lib/bands/people.ts';
 import {dots} from '../lib/bands/dots.ts';
 import {timeline} from '../lib/bands/timeline.ts';
@@ -26,7 +28,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -252,6 +254,20 @@ test('selective people, dots and both timeline variants preserve browser SVG', a
   ], {measure, title: 'Plan', gap: 17});
   const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false, gap: 17})
     .add(legacyPeople(10, [3, 4], iconOpts), legacyDots(values, {lowLabel: '低', highLabel: '高'}), legacyTimeline(dates), legacyTimeline(numeric)), {measure});
+  assert.deepEqual(selected.xml, []);
+  assert.equal(selected.height, expected.height);
+  assert.equal(selected.svg.slice(selected.svg.indexOf('  <style>')), expected.svg.slice(expected.svg.indexOf('  <style>')));
+});
+
+test('selective status and horizontal and vertical wordart preserve browser SVG', async () => {
+  const vertical = {style: 'sticker', writing: 'vertical', size: 36} as const;
+  const horizontal = {style: 'gradient', size: 40, rotate: -6} as const;
+  const selected = await renderBands([
+    status('draft', 'レビュー中'), wordart('進捗報告', vertical), wordart('Review', horizontal),
+  ], {measure, title: 'Plan', gap: 17});
+  const expected = await renderInBrowser(diagram({
+    theme: 'blue', title: 'Plan', legend: false, gap: 17, status: 'draft', statusLabel: 'レビュー中',
+  }).add(legacyWordart('進捗報告', vertical), legacyWordart('Review', horizontal)), {measure});
   assert.deepEqual(selected.xml, []);
   assert.equal(selected.height, expected.height);
   assert.equal(selected.svg.slice(selected.svg.indexOf('  <style>')), expected.svg.slice(expected.svg.indexOf('  <style>')));

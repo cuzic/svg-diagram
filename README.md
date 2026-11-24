@@ -141,7 +141,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 
 ### 使う帯だけをバンドルする
 
-`svg-diagram/core` の `renderBands` は、配列に渡した帯を縦に並べて SVG に描きます。帯ごとの入口は現在 `svg-diagram/bands/box`、`bands/gantt`、`bands/row`、`bands/grid`、`bands/connect`、`bands/caption`、`bands/spacer`、`bands/group`、`bands/group-row`、`bands/areas`、`bands/banner`、`bands/raw`、`bands/curve`、`bands/pyramid`、`bands/chevron`、`bands/funnel`、`bands/cycle`、`bands/venn`、`bands/concentric`、`bands/emblem`、`bands/value-chain`、`bands/people`、`bands/dots`、`bands/timeline` にあります。使う帯だけを import すると、esbuild や Vite は使わない帯の実装をバンドルから除外できます。
+`svg-diagram/core` の `renderBands` は、配列に渡した帯を縦に並べて SVG に描きます。帯ごとの入口は現在 `svg-diagram/bands/box`、`bands/gantt`、`bands/row`、`bands/grid`、`bands/connect`、`bands/caption`、`bands/spacer`、`bands/group`、`bands/group-row`、`bands/areas`、`bands/banner`、`bands/raw`、`bands/curve`、`bands/pyramid`、`bands/chevron`、`bands/funnel`、`bands/cycle`、`bands/venn`、`bands/concentric`、`bands/emblem`、`bands/value-chain`、`bands/people`、`bands/dots`、`bands/timeline`、`bands/status`、`bands/wordart` にあります。使う帯だけを import すると、esbuild や Vite は使わない帯の実装をバンドルから除外できます。
 
 ```ts
 import {renderBands} from 'svg-diagram/core';
@@ -161,7 +161,7 @@ try {
 }
 ```
 
-`renderBands` は実験的な SVG の入口です。`row()` と `grid()` の子には個別入口の `box()` を渡せます。`connect()` は箱の ID や行の列アンカーを参照でき、配列の前に書いても後から配置した端点に接続します。行や横向きの `chevron` で `loopBack` を使う場合は `svg-diagram/bands/connect` から `connectDefinition` を import し、`renderBands(bands, {measure, connectors: connectDefinition})` と渡します。グループを含む行には `bands/group-row` の `groupRow()` に `group()` と `box()` を渡します。全規則の検査や他の出力形式には従来の入口を使います。
+`renderBands` は実験的な SVG の入口です。`row()` と `grid()` の子には個別入口の `box()` を渡せます。`connect()` は箱の ID や行の列アンカーを参照でき、配列の前に書いても後から配置した端点に接続します。行や横向きの `chevron` で `loopBack` を使う場合は `svg-diagram/bands/connect` から `connectDefinition` を import し、`renderBands(bands, {measure, connectors: connectDefinition})` と渡します。グループを含む行には `bands/group-row` の `groupRow()` に `group()` と `box()` を渡します。下書きバッジを図の上部に置くには、帯の配列の先頭に `status('draft')` を渡します。全規則の検査や他の出力形式には従来の入口を使います。
 
 図を表示するページで「このノードをクリックした」を知りたいとき、`renderDiagram(d, {nodeIds: true})`（ブラウザ入口では `renderInBrowser(d, {measure, nodeIds: true})`）で、`id` を持つノードの図形に `data-node="名前"` が付く。既定は付けない（付けない SVG は 1 バイトも変わらない）。名前は `connect()` や spotlight が使うものと同じ（`scope` があれば `scope.id`）。HTML 出力（`--html`）には付かない。
 

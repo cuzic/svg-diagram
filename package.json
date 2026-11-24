@@ -243,6 +243,14 @@
       "types": "./dist/lib/bands/timeline.d.ts",
       "default": "./dist/lib/bands/timeline.js"
     },
+    "./bands/status": {
+      "types": "./dist/lib/bands/status.d.ts",
+      "default": "./dist/lib/bands/status.js"
+    },
+    "./bands/wordart": {
+      "types": "./dist/lib/bands/wordart.d.ts",
+      "default": "./dist/lib/bands/wordart.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"

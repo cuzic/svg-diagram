@@ -1,7 +1,5 @@
 import {quadrantBand} from '../quadrant.ts';
 import type {QuadrantBand, QuadrantItem, QuadrantOpts, QuadrantPreset} from '../quadrant.ts';
-import {wordartBand} from '../wordart.ts';
-import type {WordArtBand, WordArtOpts} from '../wordart.ts';
 import {LABEL_ROLES} from '../tokens.ts';
 import type {PlaneBand, PlaneOpts} from '../types/figures.ts';
 import type {Declares, HandleOf} from '../strict.ts';
@@ -72,13 +70,4 @@ export const quadrant: QuadrantFn = Object.assign(
   {preset: (name: QuadrantPreset, opts: Omit<QuadrantOpts, 'preset'> = {}): QuadrantBand => withHandle(quadrantBand({...opts, preset: name}), opts.id)},
 ) as QuadrantFn;
 export {chevron, concentric, cycle, emblem, funnel, valueChain, venn} from './flow.ts';
-/**
- * Decorated headline text (ワードアート): bold, outlined (縁取り), shadowed, glowing, bent, turned ..., set horizontally or vertically
- * (縦書き), as one band.
- *   wordart('新製品発表', {style: 'sticker', writing: 'vertical', size: 'display'})
- *   wordart('SALE', {style: 'outline', size: 72})
- * `style` picks a look ('plain' | 'bold' | 'outline' | 'shadow' | 'sticker' | 'glow' | 'emboss' | '3d' | 'gradient' | 'reflect'); `tone`,
- * `gradient`, `outline`, `shadow`, `glow`, `bevel`, `extrude`, `reflection`, `arc`, `rotate`, `flip`, `font`, `plate` adjust it.
- * Colours are tone keys. verifyDiagram() rejects letters that would not read (a white letter with no dark outline on a white page).
- */
-export function wordart<const Id extends string = never>(text: string, opts?: WordArtOpts & {id?: Id}): WordArtBand & Declares<Id> & HandleOf<Id> { return withHandle(wordartBand(text, opts), opts?.id) as WordArtBand & Declares<Id> & HandleOf<Id>; }
+export {wordart} from './wordart.ts';
