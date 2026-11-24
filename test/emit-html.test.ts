@@ -280,3 +280,20 @@ test('the caption adapter renders selectable HTML without box adapters', async (
   assert.deepEqual(rendered.fallbacks, []);
   assert.match(rendered.html, /Review &amp; approve/);
 });
+
+test('the banner adapter renders selectable HTML without box adapters', async () => {
+  const {banner} = await import('../lib/bands/banner.ts');
+  const {bannerHtml} = await import('../lib/html-banner.ts');
+  const {emitHtml} = await import('../lib/emit-html.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    fontBox: (size: number) => ({ascent: size, descent: 0}),
+  };
+  const input = [banner({headline: 'Review & approve', sub: 'Details'})];
+  const {placed, stage} = await prepareBands(input, opts);
+  const rendered = await renderBandsHtml(input, {...opts, adapters: {banner: bannerHtml}, strict: true});
+  assert.equal(rendered.html, emitHtml(placed, {...opts, reveal: stage}));
+  assert.deepEqual(rendered.fallbacks, []);
+  assert.match(rendered.html, /Review &amp; approve/);
+});

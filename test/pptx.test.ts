@@ -274,3 +274,22 @@ test('the caption adapter renders editable PPTX text without box adapters', asyn
   assert.deepEqual(rendered.fallbacks, []);
   assert.match(xml, /<a:t>Review &amp; approve<\/a:t>/);
 });
+
+test('the banner adapter renders editable PPTX text without box adapters', async () => {
+  const {banner} = await import('../lib/bands/banner.ts');
+  const {bannerPptx} = await import('../lib/pptx/box-band.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const input = [banner({headline: 'Review & approve', stamp: 'Draft'})];
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    title: 'Review',
+  };
+  const {placed} = await prepareBands(input, opts);
+  const rendered = await renderBandsPptx(input, {...opts, bands: {banner: bannerPptx}, strict: true});
+  const xml = unzipEntry(Buffer.from(rendered.pptx), 'ppt/slides/slide1.xml').toString();
+  assert.equal(xml, planSlide(placed, fontsOf()).xml);
+  assert.deepEqual(rendered.fallbacks, []);
+  assert.match(xml, /<a:t>Draft<\/a:t>/);
+  assert.match(xml, /<a:t>Review &amp; approve<\/a:t>/);
+});

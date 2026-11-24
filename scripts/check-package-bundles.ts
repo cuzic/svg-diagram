@@ -141,6 +141,17 @@ try {
       });
     `, include: 'html-caption.js', budget: {esbuild: 51000, Vite: 65000}, bands: ['caption.js'],
       exclude: [...legacy, 'html-box.js', 'html-table.js', 'html-native.js', 'html-overlay.js', 'layout-connect.js'], draw: true},
+    {name: 'Selective HTML banner', source: `
+      import {renderBandsHtml} from 'svg-diagram/html/selective';
+      import {bannerHtml} from 'svg-diagram/html/bands/banner';
+      import {banner} from 'svg-diagram/bands/banner';
+      export const draw = () => renderBandsHtml([banner({headline: 'Review'})], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        fontBox: size => ({ascent: size, descent: 0}),
+        adapters: {banner: bannerHtml}, strict: true,
+      });
+    `, include: 'html-banner.js', budget: {esbuild: 52500, Vite: 69000}, bands: ['banner.js'],
+      exclude: [...legacy, 'html-box.js', 'html-table.js', 'html-native.js', 'html-overlay.js', 'layout-connect.js'], draw: true},
     {name: 'Selective HTML table', source: `
       import {renderBandsHtml} from 'svg-diagram/html/selective';
       import {tableHtml} from 'svg-diagram/html/bands/table';
@@ -183,6 +194,16 @@ try {
         bands: {caption: captionPptx}, strict: true,
       });
     `, include: 'pptx/caption-band.js', budget: {esbuild: 104000, Vite: 121000}, bands: ['caption.js'],
+      exclude: [...legacy, 'pptx/box-bands.js', 'pptx/bands.js', 'pptx/table-band.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js'], draw: true},
+    {name: 'Selective PPTX Banner', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {bannerPptx} from 'svg-diagram/pptx/bands/banner';
+      import {banner} from 'svg-diagram/bands/banner';
+      export const draw = () => renderBandsPptx([banner({headline: 'Review'})], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        bands: {banner: bannerPptx}, strict: true,
+      });
+    `, include: 'pptx/box-band.js', budget: {esbuild: 110000, Vite: 130000}, bands: ['banner.js'],
       exclude: [...legacy, 'pptx/box-bands.js', 'pptx/bands.js', 'pptx/table-band.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js'], draw: true},
     {name: 'Selective PPTX SVG shapes', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
@@ -701,7 +722,7 @@ try {
           assert.deepEqual(result.fallbacks, [], label);
           assert.equal(result.verdict.ok, true, label);
           const expected = name === 'Selective PPTX Table' ? /<a:tbl>[\s\S]*>Done<\/a:t>/
-            : name === 'Selective PPTX Caption' ? /<p:sp>[\s\S]*>Review<\/a:t>/ : /<p:grpSp>[\s\S]*>Review<\/a:t>/;
+            : (name === 'Selective PPTX Caption' || name === 'Selective PPTX Banner') ? /<p:sp>[\s\S]*>Review<\/a:t>/ : /<p:grpSp>[\s\S]*>Review<\/a:t>/;
           assert.match(new TextDecoder().decode(result.pptx), expected, label);
           assert.doesNotMatch(code, /@resvg|HarfBuzz/, label);
           console.log(`${label}: ${bytes} bytes`);
@@ -719,6 +740,15 @@ try {
         if (name === 'Selective HTML caption') {
           assert.match(result.html, /class="sd-t"[^>]*>Review<\/div>/, label);
           assert.doesNotMatch(result.html, /class="sd-b"|<svg\b/, label);
+          assert.deepEqual(result.fallbacks, [], label);
+          assert.equal(result.verdict.ok, true, label);
+          console.log(`${label}: ${bytes} bytes`);
+          continue;
+        }
+        if (name === 'Selective HTML banner') {
+          assert.match(result.html, /class="sd-t"[^>]*>Review<\/div>/, label);
+          assert.match(result.html, /class="sd-b"/, label);
+          assert.doesNotMatch(result.html, /<svg\b/, label);
           assert.deepEqual(result.fallbacks, [], label);
           assert.equal(result.verdict.ok, true, label);
           console.log(`${label}: ${bytes} bytes`);

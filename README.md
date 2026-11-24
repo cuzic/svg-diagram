@@ -164,7 +164,7 @@ SVG の題名を省略すると、表示中のキャプションやバナー、�
 
 従来の HTML 出力と同じように、SVG フォールバックの文字を選択・検索できる HTML に変換するには、`svg-diagram/html/overlay` の `renderHtmlOverlay` を `renderBandsHtml` の `overlay` に渡します。変換できる図形は CSS になり、`raw` と `wordart` はインライン SVG のままです。
 
-キャプションだけを出力する場合は、`svg-diagram/html/bands/caption` の `captionHtml` または `svg-diagram/pptx/bands/caption` の `captionPptx` を選べます。
+キャプションだけを出力する場合は、`svg-diagram/html/bands/caption` の `captionHtml` または `svg-diagram/pptx/bands/caption` の `captionPptx` を選べます。バナー用には `svg-diagram/html/bands/banner` の `bannerHtml` と `svg-diagram/pptx/bands/banner` の `bannerPptx` があります。
 
 1 枚の PowerPoint は `svg-diagram/pptx` の `renderBandsPptx` で出力できます。`svg-diagram/pptx/bands/box` から `boxPptx` や `rowPptx` を import し、`bands: {box: boxPptx, row: rowPptx}` を渡すと編集可能な図形になります。箱系に加え、`pptx/bands/table`、`tree`、`quadrant`、`states`、`cause`、`legend`、`flow`、`pyramid`、`timeline` の各入口から対応するアダプターを選べます。絵として埋め込む帯は `fallbacks` に載り、その場合は `rasterize(svg, scale)` が必要です。文字を輪郭化する場合は `outline(svg)` を渡します。`strict: true` は絵への切り替えをエラーにします。 グループやスイムレーンの構成要素を PowerPoint 上でまとめる場合は、`pptx/bands/group` の `groupSpan` や `pptx/bands/swimlane` の `swimlaneSpan` を `spans` に渡します。
 
