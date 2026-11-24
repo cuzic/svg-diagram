@@ -5,7 +5,7 @@ import {cloneData} from './clone-data.ts';
 import {documentAcceptHint, documentFindings} from './document-findings.ts';
 import {markSpecPart} from './source-ref.ts';
 import {walkDefinedBands} from './band-def.ts';
-import {describeBands, oneLine} from './diagram-description.ts';
+import {oneLine} from './diagram-description.ts';
 import type {Config} from './types/project.ts';
 import type {Band} from './types/index.ts';
 import {must} from './must.ts';
@@ -150,11 +150,11 @@ export function prepareSpecLayout(input: unknown, options: PrepareOptions & {pro
       diagramAcceptHint: rule => rule === 'term-variant' || rule === 'term-avoid' || rule === 'text-mid-word-break' ? findingAcceptanceHint(rule) : documentAcceptHint(rule),
       ...(typeof measurement === 'function' ? {measure: measurement} : measurement),
     });
-    const {stage, emit} = prepared;
+    const {emit} = prepared;
     return {...prepared, emit(figure: typeof prepared.placed, noRecolor?: boolean) {
       const titled = {...figure, title: oneLine(figure.title)};
       if (figure.desc) return emit(titled, noRecolor, oneLine(figure.desc));
-      return emit(titled, noRecolor, describeBands(walkDefinedBands(figure.bands), stage));
+      return emit(titled, noRecolor);
     }};
   };
 }

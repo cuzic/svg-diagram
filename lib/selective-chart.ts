@@ -1,3 +1,4 @@
+import {oneLine, type BandDescription} from './diagram-description.ts';
 import type {BandDef, PublicEnv} from './band-def.ts';
 import {placeChart} from './chart-placement.ts';
 import {sizeOf} from './charts-base.ts';
@@ -12,6 +13,8 @@ import {anchorRects} from './verify-rects.ts';
 
 type ChartDefinition = BandDef<ChartBand, LaidOutChart>;
 type MeasureEnv = Parameters<NonNullable<ChartDefinition['measure']>>[1];
+
+export const describeChart = (data: ChartBand): BandDescription => ['chart', oneLine(data.alt)];
 
 export function measureChart(data: ChartBand, {atoms, roles}: MeasureEnv, texts: readonly [string, number][]): void {
   const size = sizeOf(data.labelRole, roles);

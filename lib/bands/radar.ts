@@ -4,10 +4,11 @@ import {layoutRadar, radarTexts} from '../charts-radar.ts';
 import type {RadarOpts, RadarSpec, RadarSeries} from '../charts-radar.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {radar as build} from '../dsl/charts.ts';
-import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, radarTexts(data.spec as RadarSpec)),

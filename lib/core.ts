@@ -1,3 +1,4 @@
+import {joinBandDescriptions} from './diagram-description.ts';
 import {definedDiagramTitle} from './diagram-title.ts';
 import {applyFindingAcceptance, at} from './finding-rules.ts';
 import {ownRunSizes} from './band-text-sizes.ts';
@@ -286,8 +287,11 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     renderBand: band => must(placedDefinition(band)).emit(band as never, emitEnv),
     renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
     diagramTitle: diagram => definedDiagramTitle(diagram, stage),
-    diagramDesc: diagram => description ?? walkDefinedBands(diagram.bands)
-      .flatMap(band => visibleAt(band, stage) ? defOf(band)?.describe?.(band, stage) || [] : []).join('。'),
+    diagramDesc: diagram => description ?? joinBandDescriptions(walkDefinedBands(diagram.bands)
+      .flatMap(band => {
+        const part = visibleAt(band, stage) ? defOf(band)?.describe?.(band, stage) : undefined;
+        return part ? [part] : [];
+      })),
     spotlightDim: () => 'outline',
   }, figure, {reveal: stage, noRecolor});
   return {placed, stage, verdict, emit};

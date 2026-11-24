@@ -6,10 +6,11 @@ import {layoutPert, pertTexts} from '../semnet-pert.ts';
 import type {PertOpts, PertSpec} from '../semnet-pert.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {pert as build} from '../dsl/charts.ts';
-import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, pertTexts(data.spec as PertSpec)),

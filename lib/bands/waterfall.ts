@@ -5,10 +5,11 @@ import {layoutWaterfall, waterfallTexts, waterfallValueAxis} from '../charts-wat
 import type {WaterfallOpts, WaterfallSpec, WaterfallStep} from '../charts-waterfall.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {waterfall as build} from '../dsl/charts.ts';
-import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  describe: describeChart,
   valueAxis: data => waterfallValueAxis(data.spec as WaterfallSpec),
   textSizes: band => [band.size],
   ids: chartIds,

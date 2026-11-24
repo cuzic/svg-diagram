@@ -440,11 +440,14 @@ test('a connection to a replaced bar follows its scoped endpoint lifetime', asyn
 });
 
 test('selective sequence and table preserve message markers and monospace cells', async () => {
+  const {describeSequence, describeTable} = await import('../lib/diagram-description.ts');
   const actors = [{id: 'ui', label: '画面'}, {id: 'api', label: 'API'}] as const;
   const steps = [{from: 'ui', to: 'api', label: '送信'}, {self: 'api', label: '検証'}] as const;
   const cols = [{label: '項目'}, {label: '値', mono: true}];
   const rows = [['識別子', cell('ABC-123')]];
   const options = {rowHeader: true, title: '結果'};
+  assert.equal(describeSequence(sequence([...actors], [...steps])), '参加者: 画面、API');
+  assert.equal(describeTable(table(cols, rows, options)), '表「結果」: 列 項目、値');
   const result = await renderBands([sequence([...actors], [...steps]), table(cols, rows, options)], {measure, title: 'Plan'});
   const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false})
     .add(legacySequence([...actors], [...steps]), legacyTable(cols, rows, options)), {measure});
@@ -571,10 +574,14 @@ test('selective cause diagrams preserve AND arcs, relation counts and PDPC branc
 });
 
 test('selective swimlanes preserve lane frames, step reveal and labelled hand-offs', async () => {
+  const {describeSwimlane} = await import('../lib/diagram-description.ts');
   const lanes = [{id: 'a', label: '画面'}, {id: 'b', label: '処理'}];
   const steps = [{id: 'start', lane: 'a', title: '開始', body: 'ABC', bodyMono: true}, {id: 'done', lane: 'b', title: '完了', reveal: 2}];
   const options = {flows: [{from: 'start', to: 'done', label: 'Review'}], boundaries: [{after: 'a', label: '境界'}]};
   const selected = swimlane(lanes, steps, options, connectDefinition);
+  const laneBand = selected.find(band => band.type === 'swimlane');
+  assert.ok(laneBand);
+  assert.equal(describeSwimlane(laneBand, 1), 'レーン: 画面、処理。手順: 開始');
   const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false})
     .add(legacySwimlane(lanes, steps, options)), {measure});
   for (const stage of [0, 2]) {
@@ -1210,7 +1217,7 @@ test('selected bands infer one accessible title with the legacy precedence', asy
     legacyBanner({headline: '見出し'}), legacyCaption('後の説明')), {measure});
   assert.match(legacy.svg, /<title id="svg-title">見出し<\/title>/);
   assert.equal(selected.svg.match(/<title[^>]*>[^<]*<\/title>/)?.[0], legacy.svg.match(/<title[^>]*>[^<]*<\/title>/)?.[0]);
-  assert.match(selected.svg, /aria-labelledby="svg-title"/);
+  assert.match(selected.svg, /aria-labelledby="svg-title svg-desc"/);
 });
 
 test('selected document checks warn when no accessible title can be inferred', async () => {
@@ -1258,4 +1265,31 @@ test('selected captions flag a duplicated title except when showTitle is enabled
     assert.equal(findings(legacy).length, showTitle ? 0 : 1);
     assert.deepEqual(findings(selected), findings(legacy));
   }
+});
+
+test('selected SVG descriptions assemble visible band summaries in the legacy order', async () => {
+  const {joinBandDescriptions} = await import('../lib/diagram-description.ts');
+  const {describeChart} = await import('../lib/selective-chart.ts');
+  const chart = heatmap(['状態'], ['結果'], [[1]], {alt: '分布'});
+  assert.deepEqual(describeChart(chart), ['chart', '分布']);
+  assert.equal(joinBandDescriptions([['image', '画像'], ['box', '要素'], describeChart(chart)]), '要素: 要素。画像。分布');
+  const src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  const rows = [{label: '対象'}], values = [{label: '前', value: 20}];
+  const opts = {labels: 'none', axis: false} as const;
+  const selected = await renderBands([
+    image(src, {alt: '画像の説明', width: 120}),
+    box({title: '補足'}), table(rows, [['内容']], {title: '結果'}),
+    bars(values, opts), chart,
+  ], {measure, title: '比較'});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', title: '比較', legend: false}).add(
+    legacyImage(src, {alt: '画像の説明', width: 120}),
+    legacyBox({title: '補足'}), legacyTable(rows, [['内容']], {title: '結果'}),
+    legacyBars(values, opts), legacyHeatmap(['状態'], ['結果'], [[1]], {alt: '分布'}),
+  ), {measure});
+  const desc = (svg: string) => svg.match(/<desc id="svg-desc">([^<]*)<\/desc>/)?.[1];
+  assert.equal(desc(legacy.svg), '表「結果」: 列 対象。画像: 画像の説明。値: 前 20。分布');
+  assert.equal(desc(selected.svg), desc(legacy.svg));
+  const early = await renderBands([image(src, {alt: 'あとで表示', reveal: 2, width: 120}), box({title: '先に表示'})],
+    {measure, title: '比較', stage: 1});
+  assert.equal(desc(early.svg), '要素: 先に表示');
 });

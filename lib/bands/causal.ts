@@ -6,10 +6,11 @@ import {layoutCausal, causalTexts} from '../semnet-causal.ts';
 import type {CausalIntervention, CausalNode, CausalOpts, CausalSpec} from '../semnet-causal.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {causalLoop as build} from '../dsl/charts.ts';
-import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, causalTexts(data.spec as CausalSpec)),

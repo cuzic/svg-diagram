@@ -21,7 +21,10 @@ const hiddenValuesFindings: DiagramFindings = (diagram, stage) =>
 
 const definition = {
   type: 'bars',
-  describe: hiddenBarsDescription,
+  describe(data, stage) {
+    const description = hiddenBarsDescription(data, stage);
+    return description ? ['values', description] : undefined;
+  },
   valueAxis: barsValueAxis,
   textSizes: texts,
   measure(data, {atoms, roles}) {

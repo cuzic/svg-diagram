@@ -4,10 +4,11 @@ import {layoutCluster, clusterTexts} from '../charts-cluster.ts';
 import type {ClusterOpts, ClusterSpec} from '../charts-cluster.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {clustermap as buildClustermap} from '../dsl/charts-stats.ts';
-import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, clusterTexts(data.spec as ClusterSpec)),

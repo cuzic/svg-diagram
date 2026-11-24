@@ -1,3 +1,4 @@
+import {describeSequence} from '../diagram-description.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {sequence as build} from '../dsl/sequence-table-swimlane.ts';
@@ -9,6 +10,7 @@ import type {LaidOutSequence, SequenceBand, SequenceOpts} from '../types/sequenc
 
 const definition = {
   type: 'sequence',
+  describe: data => ['structure', describeSequence(data)],
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of sequenceTexts(data, roles)) atoms(text, size, weight, font);
   },

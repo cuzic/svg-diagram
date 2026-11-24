@@ -5,10 +5,11 @@ import {layoutStacked, stackedTexts, stackedValueAxis} from '../charts-stacked.t
 import type {StackColumn, StackedOpts, StackedSpec} from '../charts-stacked.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {stackedBars as buildStacked, mekko as buildMekko} from '../dsl/charts.ts';
-import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  describe: describeChart,
   valueAxis: data => stackedValueAxis(data.spec as StackedSpec),
   textSizes: band => [band.size],
   ids: chartIds,

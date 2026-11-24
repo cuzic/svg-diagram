@@ -4,10 +4,11 @@ import {layoutSankey, sankeyTexts} from '../charts-sankey.ts';
 import type {SankeyOpts, SankeySpec, SankeyNode, SankeyLink} from '../charts-sankey.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {sankey as build} from '../dsl/charts.ts';
-import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, sankeyTexts(data.spec as SankeySpec)),

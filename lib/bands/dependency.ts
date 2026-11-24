@@ -5,10 +5,11 @@ import {layoutDependency, dependencyTexts} from '../semnet-dependency.ts';
 import type {DependencyEdge, DependencyNode, DependencyOpts, DependencySpec} from '../semnet-dependency.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {dependencyNetwork as build} from '../dsl/charts.ts';
-import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, dependencyTexts(data.spec as DependencySpec)),

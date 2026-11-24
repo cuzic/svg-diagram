@@ -1,3 +1,4 @@
+import {oneLine} from '../diagram-description.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
 import {band, walkDefinedBands} from '../band-def.ts';
 import type {BandDef, DiagramFindings, WithBandDef} from '../band-def.ts';
@@ -15,6 +16,7 @@ const selectedBoxSizeFindings: DiagramFindings = ({bands}) => boxSizeFindings(wa
 
 export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
   type: 'box',
+  describe: data => data.title ? ['box', oneLine(data.title)] : undefined,
   measure(data, {atoms, roles}) {
     if (data.tag) atoms(data.tag, roles.tag ?? TAG_SIZE, 700);
     if (data.stamp) atoms(data.stamp, roles.note, 400);

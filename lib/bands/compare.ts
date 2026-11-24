@@ -4,10 +4,11 @@ import {layoutCompare, compareTexts} from '../charts-compare.ts';
 import type {CompareCell, CompareOpts, CompareSpec} from '../charts-compare.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {compare as build} from '../dsl/charts.ts';
-import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, compareTexts(data.spec as CompareSpec)),

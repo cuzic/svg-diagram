@@ -4,10 +4,11 @@ import {layoutReg, regTexts} from '../charts-reg.ts';
 import type {RegData, RegOpts, RegSpec} from '../charts-reg.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {regplot as buildRegplot, residplot as buildResidplot} from '../dsl/charts-stats.ts';
-import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, regTexts(data.spec as RegSpec)),

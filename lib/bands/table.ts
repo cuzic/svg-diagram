@@ -1,3 +1,4 @@
+import {describeTable} from '../diagram-description.ts';
 import {tableNumberFindings} from '../table-number-rules.ts';
 import * as semantic from '../dsl/qc-semantic.ts';
 import {analysisFindings, findingAcceptanceHint} from '../finding-rules.ts';
@@ -14,6 +15,7 @@ export {cell} from '../dsl/sequence-table-swimlane.ts';
 
 export const tableDefinition: BandDef<TableBand, LaidOutTable> = {
   type: 'table',
+  describe: data => ['structure', describeTable(data)],
   rules: tableRules,
   textSizes: band => [band.bodySize],
   measure(data, {atoms, roles}) {

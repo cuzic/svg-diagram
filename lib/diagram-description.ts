@@ -2,7 +2,7 @@ import {fmt} from './axis-ticks.ts';
 import {visibleAt} from './reveal-visibility.ts';
 import type {BarsBand} from './types/bars.ts';
 import type {Band} from './types/index.ts';
-import type {BoxBand} from './types/text-bands.ts';
+import type {SequenceBand, SwimlaneBand, TableBand} from './types/sequence-table-swimlane.ts';
 
 export const oneLine = (t: unknown): string => String(t ?? '').replace(/\s*\n\s*/g, ' ').trim();
 
@@ -14,28 +14,40 @@ export function hiddenBarsDescription(b: BarsBand, stage?: number): string {
   return barsValuesHidden(b) ? `値: ${b.data.filter(x => visibleAt(x, stage)).map(x => `${oneLine(x.label)} ${x.range ? `${fmt(x.range[0])}〜${fmt(x.range[1])}` : fmt(x.value ?? 0)}${b.unit ?? ''}`).join('、')}` : '';
 }
 
-/** Describe the visible content in the supplied band order. */
+export type BandDescription = readonly [section: 'structure' | 'box' | 'image' | 'math' | 'values' | 'chart', text: string];
+
+export const describeTable = (band: TableBand): string =>
+  `表${band.title ? `「${oneLine(band.title)}」` : ''}: 列 ${band.columns.map(column => oneLine(column.label)).join('、')}`;
+export const describeSequence = (band: SequenceBand): string =>
+  `参加者: ${band.actors.map(actor => oneLine(actor.label)).join('、')}`;
+export function describeSwimlane(band: SwimlaneBand, stage?: number): string {
+  const lanes = band.lanes.map(lane => oneLine(lane.label)).join('、');
+  const steps = band.steps.filter(step => visibleAt(step, stage)).map(step => oneLine(step.title)).join('、');
+  return `レーン: ${lanes}。手順: ${steps}`;
+}
+
+/** Group accessible descriptions in reading order, using box titles as a fallback. */
+export function joinBandDescriptions(parts: Iterable<BandDescription>): string {
+  const sections: Record<BandDescription[0], string[]> = {structure: [], box: [], image: [], math: [], values: [], chart: []};
+  for (const [section, text] of parts) sections[section].push(text);
+  const {structure, box, image, math, values, chart} = sections;
+  const first = structure.length ? structure : box.length ? [`要素: ${box.slice(0, 16).join('、')}${box.length > 16 ? ' ほか' : ''}`] : [];
+  return [...first, ...image, ...math, ...values, ...chart].join('。');
+}
+
+/** The complete renderer uses the original band model. */
 export function describeBands(all: Band[], stage?: number): string {
-  const parts: string[] = [];
-  const bands = all.filter(b => visibleAt(b as {reveal?: number; until?: number}, stage));
-  for (const b of bands) {
-    if (b.type === 'swimlane') {
-      parts.push(`レーン: ${b.lanes.map(l => oneLine(l.label)).join('、')}`);
-      parts.push(`手順: ${b.steps.filter(s => visibleAt(s, stage)).map(s => oneLine(s.title)).join('、')}`);
-    } else if (b.type === 'sequence') parts.push(`参加者: ${b.actors.map(a => oneLine(a.label)).join('、')}`);
-    else if (b.type === 'table') parts.push(`表${b.title ? `「${oneLine(b.title)}」` : ''}: 列 ${b.columns.map(c => oneLine(c.label)).join('、')}`);
+  const parts: BandDescription[] = [];
+  for (const band of all) {
+    if (band.type === 'image' && band.alt) parts.push(['image', `画像: ${oneLine(band.alt)}`]);
+    if (band.type === 'math') parts.push(['math', `数式: ${oneLine(band.alt)}`]);
+    if (!visibleAt(band, stage)) continue;
+    if (band.type === 'swimlane') parts.push(['structure', describeSwimlane(band, stage)]);
+    else if (band.type === 'sequence') parts.push(['structure', describeSequence(band)]);
+    else if (band.type === 'table') parts.push(['structure', describeTable(band)]);
+    else if (band.type === 'box' && band.title) parts.push(['box', oneLine(band.title)]);
+    else if (band.type === 'bars' && barsValuesHidden(band)) parts.push(['values', hiddenBarsDescription(band, stage)]);
+    else if (band.type === 'chart') parts.push(['chart', oneLine(band.alt)]);
   }
-  if (!parts.length) {
-    const titles = bands.filter((b): b is BoxBand => b.type === 'box' && !!b.title).map(b => oneLine(b.title));
-    if (titles.length) parts.push(`要素: ${titles.slice(0, 16).join('、')}${titles.length > 16 ? ' ほか' : ''}`);
-  }
-  for (const b of all) if (b.type === 'image' && b.alt) parts.push(`画像: ${oneLine(b.alt)}`);
-  for (const b of all) if (b.type === 'math') parts.push(`数式: ${oneLine(b.alt)}`);
-  // outside the fallback above, so boxes and hidden-value bars can share one description
-  for (const b of bands) if (b.type === 'bars') {
-    const description = hiddenBarsDescription(b, stage);
-    if (description) parts.push(description);
-  }
-  for (const b of bands) if (b.type === 'chart') parts.push(oneLine(b.alt));
-  return parts.join('。');
+  return joinBandDescriptions(parts);
 }

@@ -5,10 +5,11 @@ import {layoutTornado, tornadoTexts, tornadoValueAxis} from '../charts-tornado.t
 import type {TornadoItem, TornadoOpts, TornadoSpec} from '../charts-tornado.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {tornado as build} from '../dsl/charts.ts';
-import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  describe: describeChart,
   valueAxis: data => tornadoValueAxis(data.spec as TornadoSpec),
   textSizes: band => [band.size],
   ids: chartIds,

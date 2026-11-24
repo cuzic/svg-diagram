@@ -1,3 +1,4 @@
+import {oneLine} from '../diagram-description.ts';
 import {sizesOf} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -14,6 +15,7 @@ export type SelectedBand = Band & {readonly [DEF]: object};
 
 export const imageDefinition: BandDef<ImageBand, LaidOutImage> = {
   type: 'image',
+  describe: data => data.alt ? ['image', `画像: ${oneLine(data.alt)}`] : undefined,
   textSizes: band => sizesOf(band.plates),
   internal: true,
   layout: layoutImageBand,

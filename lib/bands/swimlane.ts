@@ -1,3 +1,4 @@
+import {describeSwimlane} from '../diagram-description.ts';
 import {narrowTextFindings} from '../verify-shrink.ts';
 import {band} from '../band-def.ts';
 import type {BandDef} from '../band-def.ts';
@@ -16,6 +17,7 @@ import {boxDefinition} from './box.ts';
 
 const definition = {
   type: 'swimlane',
+  describe: (data, stage) => ['structure', describeSwimlane(data, stage)],
   internal: true,
   layout: layoutSwimlane,
   outputTypes: ['box'],

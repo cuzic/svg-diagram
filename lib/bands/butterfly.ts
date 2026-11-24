@@ -4,10 +4,11 @@ import {layoutButterfly, butterflyTexts} from '../charts-butterfly.ts';
 import type {ButterflyRow, ButterflyOpts, ButterflySpec} from '../charts-butterfly.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {butterfly as build} from '../dsl/charts.ts';
-import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, butterflyTexts(data.spec as ButterflySpec)),
