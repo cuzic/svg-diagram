@@ -17,6 +17,7 @@ import type {SourceRef} from './source-ref.ts';
 import {bowtieRects} from './verify-bowtie-rects.ts';
 import {ftaRects} from './verify-fta-rects.ts';
 import {anchorRects, frameRects, ownRect, scopedRect} from './verify-rects.ts';
+import {cloudProblems, cloudRects} from './verify-cloud.ts';
 import {planeProblems} from './verify-plane.ts';
 import {quadrantProblems} from './verify-quadrant.ts';
 import {timelineProblems} from './verify-timeline.ts';
@@ -172,16 +173,6 @@ const checkCause = (band: LaidOutOf<'cause'>, _d: LaidOutDiagram, {problems, war
   for (const to of band.loose) problems.push(`cause: the arrows into "${to}" do not reach it on one side, so their AND arc is not drawn (an arrow of a cycle arrives from the other side: break the cycle, or split the AND)`);
 };
 
-// The numbers on a cloud's arrows must clear the boxes and each other, and stay inside the figure.
-const checkCloud = (band: LaidOutOf<'cloud'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
-  for (const [i, c] of band.chips.entries()) {
-    if (outsideX(c, band)) problems.push(`cloud: the number "${c.text}" on the ${c.arrow} arrow runs outside the figure`);
-    for (const n of band.nodes) if (rectOverlap(c, n)) problems.push(`cloud: the number "${c.text}" on the ${c.arrow} arrow overlaps box ${n.key.toUpperCase()} (fewer assumptions on one arrow, or a wider figure)`);
-    for (const e of band.edges) if (e.arrow !== c.arrow && routeHits(e.points, c)) problems.push(`cloud: ${c.conflict ? 'the conflict label' : `the number "${c.text}"`} sits on the ${e.arrow} arrow (shorten it)`);
-    for (let j = i + 1; j < band.chips.length; j++) if (rectOverlap(c, must(band.chips[j]))) problems.push(`cloud: ${c.conflict || must(band.chips[j]).conflict ? 'the conflict label and the numbers' : `the numbers on the ${c.arrow} and ${must(band.chips[j]).arrow} arrows`} overlap`);
-  }
-};
-
 // A comic's data and layout problems (ADR 0074 D6): the findings of its layout that are mistakes (the advice ones are lint findings, lib/rules.ts).
 const checkComic = (band: LaidOutComic, d: LaidOutDiagram, {problems}: VerifyOut): void => {
   for (const f of band.findings) if (f.severity === 'problem') problems.push(`comic: ${f.message} [${f.rule}]`);
@@ -294,7 +285,7 @@ export const VERIFY_HANDLERS = {
   tree: {rects: band => { let li = 0; return band.nodes.flatMap(n => n.band ? [] : [{id: n.id ?? null, label: band.labelBoxes[li++]?.label ?? 'node', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}]); }},
   states: {rects: figureRects, check: {phase: 'states', run: checkStates}},
   cause: {rects: figureRects, check: {phase: 'cause', run: checkCause}},
-  cloud: {rects: band => band.nodes.map(n => ({id: n.id ?? null, label: n.id ?? `cloud box ${n.key.toUpperCase()}`, x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)})), check: {phase: 'cloud', run: checkCloud}}, // every box is its own rect (also one without an id)
+  cloud: {rects: cloudRects, check: {phase: 'cloud', run: (band, _d, out) => { out.problems.push(...cloudProblems(band)); }}},
   gantt: {rects: figureRects, check: {phase: 'gantt', run: (band, _d, out) => { out.problems.push(...ganttProblems(band)); }}},
   classes: {rects: figureRects, check: {phase: 'classes', run: checkClasses}},
   bpmn: {rects: figureRects, check: {phase: 'bpmn', run: checkBpmn}},

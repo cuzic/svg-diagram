@@ -1,6 +1,7 @@
 // Where a return arrow of a cause tree crosses another line, and which crossings get a hop (an arc over the other line) (ADR 0028).
 // Pure geometry of the laid-out figure: the layout calls it once and keeps the result in `LaidOutCause.crossings`; the renderer only draws it.
 import {must} from './must.ts';
+import {FILLED_ARROW_LENGTH} from './tokens.ts';
 export interface HopPt {x: number; y: number}
 export interface HopEdge {from: string; to: string; points: HopPt[]; line: 'solid' | 'dashed' | 'dotted'; back?: true; reversed?: true; kind?: 'blocks'}
 export type HopFlow = 'up' | 'down' | 'right' | 'left';
@@ -8,7 +9,7 @@ export type HopSkip = 'dashed' | 'corner' | 'arrowhead' | 'bar' | 'neighbour' | 
 export interface Crossing {over: number; under: number; x: number; y: number; /** the unit step the hop bulges toward (against the flow) */ side: HopPt; skipped?: HopSkip}
 
 export const HOP_R = 6;
-export const ARROW_L = 12;
+export {FILLED_ARROW_LENGTH as ARROW_L};
 const BAR_HALF = 10;
 const widthOf = (e: HopEdge): number => e.kind === 'blocks' ? 2 : e.back ? 3 : 2;
 
@@ -56,7 +57,7 @@ export function causeCrossings(edges: readonly HopEdge[], flow: HopFlow, band: {
       else if (tRun) {
         const last = tRun[2] + 2 === under.points.length, tip = tipOf(under);
         if (under.kind === 'blocks' && last && dist(tip, here) < x + BAR_HALF) skip = 'bar';
-        else if (last && dist(tip, here) < x + ARROW_L) skip = 'arrowhead';
+        else if (last && dist(tip, here) < x + FILLED_ARROW_LENGTH) skip = 'arrowhead';
         else if ([tRun[0], tRun[1]].some(e => dist(e, here) < x)) skip = 'corner';
       }
       if (!skip && found.some(o => o !== c && o.si === c.si && dist(o as HopPt, here) < 2 * x)) skip = 'neighbour';

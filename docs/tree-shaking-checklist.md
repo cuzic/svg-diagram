@@ -76,7 +76,7 @@
 - [ ] `tree`（組織図、mindmap など）
 - [ ] `states`
 - [ ] `cause`（causeTree、relationDiagram、PDPC、なぜなぜ分析など）
-- [ ] `cloud`
+- [ ] `cloud`（前提・解消策と、個別入口からの SVG・依存除外は検証済み）
 - [ ] `classes`
 - [ ] `bpmn`
 - [ ] `fta`（個別入口からの SVG と依存除外は検証済み。RCA 規則は移行対象）

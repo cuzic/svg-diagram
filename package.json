@@ -296,6 +296,10 @@
       "types": "./dist/lib/bands/fta.d.ts",
       "default": "./dist/lib/bands/fta.js"
     },
+    "./bands/cloud": {
+      "types": "./dist/lib/bands/cloud.d.ts",
+      "default": "./dist/lib/bands/cloud.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"
