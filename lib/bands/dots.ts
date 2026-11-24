@@ -1,9 +1,9 @@
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {dots as build} from '../dsl/people-dots.ts';
+import {dots as build} from '../dsl/dots.ts';
 import {renderDots} from '../emit-dots.ts';
 import {snapGrid} from '../layout-util.ts';
-import {layoutDots, dotsTexts} from '../people.ts';
+import {layoutDots, dotsTexts} from '../layout-dots.ts';
 import type {LaidOutDots, DotsBand, DotsOpts, DotDatum} from '../types/people-dots.ts';
 
 const definition = {

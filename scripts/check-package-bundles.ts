@@ -592,7 +592,7 @@ try {
     ...quantitySamples.map(([name, layout, sample]) => ({
       name, layout, source: composedSource([name], sample),
       budget: {esbuild: name === 'dots' ? 64000 : 63500, Vite: name === 'dots' ? 87500 : 86000},
-      include: `bands/${name}.js`, exclude: [...legacy, 'timeline.js', 'emit-boxes.js', ...(name === 'dots' ? ['emit-people.js'] : ['emit-dots.js']), 'layout-connect.js', 'gantt.js'], draw: true,
+      include: `bands/${name}.js`, exclude: [...legacy, 'timeline.js', 'emit-boxes.js', 'dsl/people-dots.js', ...(name === 'dots' ? ['emit-people.js', 'lib/people.js', 'dsl/people.js'] : ['emit-dots.js', 'layout-dots.js', 'dsl/dots.js']), 'layout-connect.js', 'gantt.js'], draw: true,
     })),
     {name: 'Timeline', source: composedSource(['timeline'], "timeline({unit: 'ms', from: 0, to: 100, events: [{at: 25, label: 'Review'}]})"),
       include: 'bands/timeline.js', budget: {esbuild: 72000, Vite: 96500}, exclude: [...legacy, 'emit-figures.js', 'people.js', 'gantt.js', 'layout-connect.js'], draw: true},

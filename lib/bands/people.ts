@@ -1,6 +1,6 @@
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {people as build} from '../dsl/people-dots.ts';
+import {people as build} from '../dsl/people.ts';
 import {renderPeople} from '../emit-people.ts';
 import {snapGrid} from '../layout-util.ts';
 import {layoutPeople, peopleTexts} from '../people.ts';
