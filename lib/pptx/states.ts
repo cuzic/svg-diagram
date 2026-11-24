@@ -10,11 +10,11 @@ import {fitConnector, siteIndex, type Pt} from './geom.ts';
 import {boxXml, groupXml, type TextBox} from './shapes.ts';
 import {connectorShapeXml, freeformPathXml} from './line-shapes.ts';
 import {boxTextFits, boxTextXml, geomShapeXml, linesText, namedAs, presetXml, prstGeomXml, roundGeomXml, textLineXml} from './prims.ts';
-import {nodeRunsOf} from './tree.ts';
+import {NODE_TEXT_PAD_Y as PAD_Y, nodeRunsOf} from './node-runs.ts';
 import type {Fonts, Rect} from './xml.ts';
 
 /** The tree's padding, which states lays its text out with (lib/tree.ts nodeRuns). */
-const PAD_X = 14, PAD_Y = 8;
+const PAD_X = 14;
 
 type Node = LaidOutStates['nodes'][number];
 

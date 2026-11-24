@@ -176,7 +176,7 @@ test('a mind map with curved edges draws them as curved connectors, and a fishbo
 });
 
 test('nodeRunsOf: a node\'s lines become runs at the layout\'s baselines, coloured as the svg colours them', async () => {
-  const {nodeRunsOf} = await import('../lib/pptx/tree.ts');
+  const {nodeRunsOf} = await import('../lib/pptx/node-runs.ts');
   const {NO_TONES} = await import('../lib/tokens.ts');
   const node = {x: 0, y: 0, w: 100, h: 50, tone: 'plain' as const};
   const texts = [{text: '見出し', x: 50, y: 22, size: 14, bold: true, muted: false}, {text: '補足', x: 50, y: 40, size: 12, bold: false, muted: true}, {text: '外', x: 500, y: 40, size: 12, bold: false, muted: false}];
@@ -330,7 +330,7 @@ test('roundGeomXml: the whole box is the text area, the sites are top, left, bot
 
 test('statesXml reports each node by its DSL id, and a node line takes its tone\'s text colour', async () => {
   const {statesXml} = await import('../lib/pptx/states.ts');
-  const {nodeRunsOf} = await import('../lib/pptx/tree.ts');
+  const {nodeRunsOf} = await import('../lib/pptx/node-runs.ts');
   const {NO_TONES} = await import('../lib/tokens.ts');
   const band = {type: 'states', x: 0, y: 0, w: 200, h: 60, nodes: [{x: 0, y: 0, w: 60, h: 30, tone: 'plain'}, {x: 100, y: 0, w: 60, h: 30, tone: 'accent', shape: 'diamond'}], edges: [{from: 's', to: 't', points: [{x: 60, y: 15}, {x: 100, y: 15}], line: 'solid'}], texts: [], icons: [], labels: [], anchors: [{id: 's', x: 0, y: 0, w: 60, h: 30}, {id: 't', x: 100, y: 0, w: 60, h: 30}], labelBoxes: []};
   let n = 0;

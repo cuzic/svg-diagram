@@ -379,3 +379,33 @@ test('selective PPTX legends preserve editable samples and the picture fallback'
   assert.equal(fallback.plan.pictures.length, 1);
   assert.match(fallback.plan.xml, /<p:pic>/);
 });
+
+test('the individual cause, state and tree adapters preserve legacy slide XML', async () => {
+  const {causeTree} = await import('../lib/bands/cause.ts');
+  const {flowchart} = await import('../lib/bands/states.ts');
+  const {tree} = await import('../lib/bands/tree.ts');
+  const {causePptx} = await import('../lib/pptx/cause-band.ts');
+  const {statesPptx} = await import('../lib/pptx/states-band.ts');
+  const {treePptx} = await import('../lib/pptx/tree-band.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planPreparedPptx} = await import('../lib/pptx/selective.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const nodes = [{id: 'a', label: 'レビュー'}, {id: 'b', label: '承認'}];
+  const edges = [{from: 'a', to: 'b'}];
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    title: '審査',
+  };
+  const fixtures = [
+    {band: causeTree(nodes, edges), adapters: {cause: causePptx}},
+    {band: flowchart(nodes, edges), adapters: {states: statesPptx}},
+    {band: tree({label: 'レビュー', children: [{label: '承認'}]}), adapters: {tree: treePptx}},
+  ];
+  for (const {band, adapters} of fixtures) {
+    const prepared = await prepareBands([band], opts);
+    const selected = planPreparedPptx(prepared, {...opts, bands: adapters, strict: true});
+    assert.equal(selected.plan.xml, planSlide(prepared.placed, fontsOf()).xml, band.type);
+    assert.equal(selected.native, 1, band.type);
+    assert.deepEqual(selected.fallbacks, [], band.type);
+  }
+});

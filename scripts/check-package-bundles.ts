@@ -420,6 +420,36 @@ try {
       });
     `, include: 'pptx/pyramid.js', budget: {esbuild: 123000, Vite: 148000}, bands: ['pyramid.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/flow.js', 'pptx/timeline.js'], draw: true},
+    {name: 'Selective PPTX Cause', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {causePptx} from 'svg-diagram/pptx/bands/cause';
+      import {causeTree} from 'svg-diagram/bands/cause';
+      export const draw = () => renderBandsPptx([causeTree([{id: 'a', label: 'Review'}, {id: 'b', label: 'Next'}], [{from: 'a', to: 'b'}])], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        bands: {cause: causePptx}, strict: true,
+      });
+    `, include: 'pptx/cause.js', budget: {esbuild: 245000, Vite: 310000}, bands: ['cause.js'],
+      exclude: [...legacy, 'pptx/bands.js', 'pptx/states.js', 'pptx/tree.js', 'pptx/svg-shapes.js'], draw: true},
+    {name: 'Selective PPTX States', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {statesPptx} from 'svg-diagram/pptx/bands/states';
+      import {flowchart} from 'svg-diagram/bands/states';
+      export const draw = () => renderBandsPptx([flowchart([{id: 'a', label: 'Review'}, {id: 'b', label: 'Next'}], [{from: 'a', to: 'b'}])], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        bands: {states: statesPptx}, strict: true,
+      });
+    `, include: 'pptx/states.js', budget: {esbuild: 225000, Vite: 287000}, bands: ['states.js'],
+      exclude: [...legacy, 'pptx/bands.js', 'pptx/cause.js', 'pptx/tree.js', 'pptx/svg-shapes.js'], draw: true},
+    {name: 'Selective PPTX Tree', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {treePptx} from 'svg-diagram/pptx/bands/tree';
+      import {tree} from 'svg-diagram/bands/tree';
+      export const draw = () => renderBandsPptx([tree({label: 'Review', children: [{label: 'Next'}]})], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        bands: {tree: treePptx}, strict: true,
+      });
+    `, include: 'pptx/tree.js', budget: {esbuild: 147000, Vite: 180000}, bands: ['tree.js'],
+      exclude: [...legacy, 'pptx/bands.js', 'pptx/cause.js', 'pptx/states.js', 'pptx/svg-shapes.js'], draw: true},
     {name: 'Selective PPTX Timeline', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
       import {timelinePptx} from 'svg-diagram/pptx/bands/timeline';
@@ -930,6 +960,9 @@ try {
             : (name === 'Selective PPTX Caption' || name === 'Selective PPTX Banner') ? /<p:sp>[\s\S]*>Review<\/a:t>/ : /<p:grpSp>[\s\S]*>Review<\/a:t>/;
           const slide = new TextDecoder().decode(result.pptx);
           assert.match(slide, expected, label);
+          if (/^Selective PPTX (Cause|States|Tree)$/.test(name)) {
+            assert.match(slide, /<p:cxnSp>[\s\S]*?<a:stCxn id="\d+" idx="\d+"\/>[\s\S]*?<a:endCxn id="\d+" idx="\d+"\/>/, label);
+          }
           if (name === 'Selective PPTX Legend') assert.match(slide, /name="legend-and-arc"/, label);
           if (name === 'Selective PPTX') assert.match(slide, /<p:cxnSp>[\s\S]*?name="row-arrow-0"/, label);
           assert.doesNotMatch(code, /@resvg|HarfBuzz/, label);
