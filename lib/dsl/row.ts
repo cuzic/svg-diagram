@@ -1,4 +1,4 @@
-import {resolveLoopBacks} from '../loop-back.ts';
+import {resolveLoopBacks} from '../loop-back-options.ts';
 import type {AreasBand, ConnectBand, GridBand, GroupBand, RowBand, RowOpts, SpacerBand, GroupRowBand} from '../types/containers.ts';
 import type {Band} from '../types/index.ts';
 import type {BoxBand} from '../types/text-bands.ts';

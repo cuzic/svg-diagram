@@ -1,4 +1,4 @@
-import {resolveLoopBacks} from './loop-back.ts';
+import {resolveLoopBacks} from './loop-back-options.ts';
 import {assertScope} from './scope-name.ts';
 import type {FontFamily, Roles} from './types/core.ts';
 import {must} from './must.ts';

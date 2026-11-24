@@ -1,4 +1,4 @@
-import {chevronLoopBack} from '../loop-back.ts';
+import {chevronLoopBack} from '../loop-back-source.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';

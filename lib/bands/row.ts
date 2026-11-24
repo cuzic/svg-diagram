@@ -1,7 +1,7 @@
 import {steps as buildSteps} from '../steps.ts';
 import type {StepItem, StepsOpts} from '../steps.ts';
 import {boxDefinition} from './box.ts';
-import {rowLoopBack} from '../loop-back.ts';
+import {rowLoopBack} from '../loop-back-source.ts';
 import {rowItems} from '../inventory-boxes.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
 import {childRuns} from '../band-text-sizes.ts';

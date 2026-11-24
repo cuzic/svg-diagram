@@ -12,7 +12,7 @@ import type {BracketOpts, CalloutOpts} from '../dsl/connect.ts';
 import {connectorSvgDefs, renderConnect} from '../emit-connect.ts';
 import {layoutConnect, resolveConnect} from '../layout-connect.ts';
 import type {BranchInput, ConnectInput, Ok} from '../strict.ts';
-import {loopBackConnectors} from '../loop-back.ts';
+import {loopBackConnectors} from '../loop-back-connectors.ts';
 import {CONNECT_LABEL_SIZE} from '../tokens.ts';
 import type {ConnectBand, LaidOutConnect} from '../types/containers.ts';
 
