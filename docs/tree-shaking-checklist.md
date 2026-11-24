@@ -190,4 +190,5 @@
 - [x] Node とブラウザの文字測定、Node の PNG 変換、ポータブル ZIP を個別入口に分離。
 - [x] 選択 spec CLI で因果図・題名・出典・自動凡例を描画し、既定の Node.js 測定で従来版の SVG と照合。未指定の spec 部品と従来の全体入口をロードしないことを実行時に検査。
 - [x] Markdown の TypeScript 図は JSON spec カタログと独立して描画できる。CLI の実行時に spec カタログをロードせず、esbuild と Vite の Node 向けバンドルにも含まれないことを検証。
+- [x] Node の SVG 描画時は HTML の変換、HTML 用のフォント計測、ラスタライズをロードしない。Markdown-it の SVG ワーカーで検証し、HTML を要求する作例も回帰試験する。
 - [ ] 既存のパッケージ入口、CLI、デッキ、Markdown、MCP の描画互換性を確認する。

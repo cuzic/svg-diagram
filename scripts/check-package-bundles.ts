@@ -1063,7 +1063,7 @@ try {
   for (const [bundler, files, code] of markdownCases) {
     const label = `${bundler} (Node): Markdown source rendering`;
     assert.ok(files.some(file => file.replaceAll('\\', '/').endsWith('/render-source-file.js')), label);
-    assert.ok(!files.some(file => /\/lib\/(?:spec(?:-render)?\.js$|spec-parts\/)/.test(file.replaceAll('\\', '/'))), label);
+    assert.ok(!files.some(file => /\/lib\/(?:(?:spec(?:-render)?|raster)\.js$|spec-parts\/)/.test(file.replaceAll('\\', '/'))), label);
     console.log(`${label}: ${Buffer.byteLength(code)} bytes`);
   }
 

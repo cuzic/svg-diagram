@@ -20,7 +20,7 @@
 
 import type {Browser} from 'playwright-chromium';
 import {launchChromium} from './browser.ts';
-import {svgSize} from './raster.ts';
+import {svgSize} from './svg-size.ts';
 import type {Raster} from './raster.ts';
 import {FONT_STACKS} from './tokens.ts';
 import {splitAtoms, textWidth} from './atoms.ts';

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {spawnSync} from 'node:child_process';
 import MarkdownIt from 'markdown-it';
 import svgDiagram from '../lib/markdown-it.ts';
 
@@ -126,4 +127,31 @@ test('a source that ignores SIGTERM is still stopped by the timeout; the HTML fo
   assert.match(err, /^<div class="svg-diagram-vue" v-html=/);
   assert.doesNotMatch(err, new RegExp(dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   fs.rmSync(dir, {recursive: true});
+});
+
+test('the markdown-it SVG worker leaves HTML and raster emitters unloaded', () => {
+  const dir = tmp();
+  try {
+    const source = path.join(dir, 'flow.diagram.ts');
+    fs.writeFileSync(source, ok('Review'));
+    const hook = `import {registerHooks} from "node:module";
+      registerHooks({resolve(specifier, context, next) {
+        const result = next(specifier, context);
+        const file = new URL(result.url).pathname;
+        if (['/lib/emit-html.ts', '/lib/font-box.ts', '/lib/raster.ts'].some(suffix => file.endsWith(suffix))) {
+          throw new Error("Unexpected output dependency: " + file);
+        }
+        return result;
+      }});`;
+    const worker = path.join(ROOT, 'lib/render-sync-worker.ts');
+    const rendered = spawnSync(process.execPath, ['--import', 'data:text/javascript,' + encodeURIComponent(hook), worker, source, '0'],
+      {cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe', 'pipe']});
+    assert.equal(rendered.status, 0, rendered.stderr);
+    const figure = JSON.parse(rendered.output[3] ?? '');
+    assert.equal(figure.ok, true);
+    assert.match(figure.svg, />Review<\/text>/);
+    assert.equal(figure.html, undefined);
+  } finally {
+    fs.rmSync(dir, {recursive: true, force: true});
+  }
 });

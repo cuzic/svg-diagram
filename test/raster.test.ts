@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {rasterize, svgSize, embedSvg, rasterizeWithResvg, prepareResvgFonts, resvgMarkers} from '../lib/raster.ts';
+import {rasterize, embedSvg, rasterizeWithResvg, prepareResvgFonts, resvgMarkers} from '../lib/raster.ts';
+import {svgSize} from '../lib/svg-size.ts';
 import {closeMeasurer} from '../lib/measure.ts';
 import {resolveFontFile} from '../lib/font-metrics.ts';
 
