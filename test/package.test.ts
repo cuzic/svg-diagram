@@ -98,3 +98,12 @@ test('the README says what it needs: Node, and that a browser is optional', () =
   assert.match(readme, /playwright-chromium/);
   assert.match(readme, /ブラウザ/);
 });
+
+test('deck spec loading resolves every catalog discriminant to its published part', async () => {
+  const {loadSpecPartsFor} = await import('../lib/spec-cli-parts.ts');
+  const {partCatalog} = await import('../lib/spec.ts');
+  for (const {type, example} of partCatalog()) {
+    const parts = await loadSpecPartsFor({parts: [example, example]});
+    assert.deepEqual(parts?.map(part => part.type), [type], type);
+  }
+});

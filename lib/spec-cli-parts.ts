@@ -77,8 +77,11 @@ export async function loadSpecPartsFor(figure: unknown): Promise<SelectedPart[] 
   const names = new Set(parts.map(part => (part as {type?: unknown} | null)?.type));
   const loaders: (() => Promise<SelectedPart>)[] = [];
   for (const name of names) {
-    if (typeof name !== 'string' || !Object.hasOwn(specPartLoaders, name)) return undefined;
-    const load = specPartLoaders[name];
+    if (typeof name !== 'string') return undefined;
+    // JSON preserves the catalog's camelCase names. Package paths use kebab-case.
+    const entry = name.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase());
+    if (!Object.hasOwn(specPartLoaders, entry)) return undefined;
+    const load = specPartLoaders[entry];
     if (load) loaders.push(load);
   }
   return Promise.all(loaders.map(load => load()));
