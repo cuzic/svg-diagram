@@ -7,7 +7,7 @@ import {revealPlane} from '../reveal-plane.ts';
 import type {LaidOutPlane, PlaneBand, PlaneOpts} from '../types/figures.ts';
 import {planeProblems} from '../verify-plane.ts';
 
-const definition = {
+export const planeDefinition: BandDef<PlaneBand, LaidOutPlane> = {
   type: 'plane',
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of planeTexts(data, roles)) atoms(text, size, weight, font);
@@ -21,9 +21,9 @@ const definition = {
   verify: {
     check: laid => planeProblems(laid).map(message => ({rule: 'plane', severity: 'problem', message})),
   },
-} satisfies BandDef<PlaneBand, LaidOutPlane>;
+};
 
 export function plane<const Id extends string = never>(opts: PlaneOpts & {id?: Id}): WithBandDef<ReturnType<typeof build<Id>>, LaidOutPlane> {
   const data = build<Id>(opts);
-  return band<typeof data, LaidOutPlane>(definition, data);
+  return band<typeof data, LaidOutPlane>(planeDefinition, data);
 }

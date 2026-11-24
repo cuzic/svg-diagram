@@ -115,31 +115,52 @@
     "./dist/lib/source-location-io.js",
     "./dist/lib/spec-kit.js",
     "./dist/lib/spec-parts/board.js",
+    "./dist/lib/spec-parts/r1-common.js",
     "./dist/lib/spec-parts/r1.js",
     "./dist/lib/spec-parts/r2.js",
+    "./dist/lib/spec-parts/r3-common.js",
     "./dist/lib/spec-parts/r3.js",
     "./dist/lib/spec-parts/r4.js",
     "./dist/lib/spec-parts/r5.js",
     "./dist/lib/spec-parts/r6.js",
     "./dist/lib/spec-parts/r7.js",
+    "./dist/lib/spec-parts/selective/bars.js",
+    "./dist/lib/spec-parts/selective/bpmn.js",
+    "./dist/lib/spec-parts/selective/bubble.js",
     "./dist/lib/spec-parts/selective/cause-tree.js",
     "./dist/lib/spec-parts/selective/chevron.js",
+    "./dist/lib/spec-parts/selective/class-diagram.js",
     "./dist/lib/spec-parts/selective/cloud.js",
     "./dist/lib/spec-parts/selective/cycle.js",
+    "./dist/lib/spec-parts/selective/dependency-network.js",
     "./dist/lib/spec-parts/selective/flowchart.js",
     "./dist/lib/spec-parts/selective/funnel.js",
     "./dist/lib/spec-parts/selective/gantt.js",
+    "./dist/lib/spec-parts/selective/heatmap.js",
     "./dist/lib/spec-parts/selective/journey-map.js",
+    "./dist/lib/spec-parts/selective/lines.js",
     "./dist/lib/spec-parts/selective/mindmap.js",
+    "./dist/lib/spec-parts/selective/pareto.js",
+    "./dist/lib/spec-parts/selective/pert.js",
     "./dist/lib/spec-parts/selective/pyramid.js",
     "./dist/lib/spec-parts/selective/quadrant.js",
     "./dist/lib/spec-parts/selective/raci.js",
+    "./dist/lib/spec-parts/selective/radar.js",
+    "./dist/lib/spec-parts/selective/sankey.js",
     "./dist/lib/spec-parts/selective/sequence.js",
+    "./dist/lib/spec-parts/selective/stacked-bars.js",
     "./dist/lib/spec-parts/selective/state-diagram.js",
+    "./dist/lib/spec-parts/selective/strategy-canvas.js",
     "./dist/lib/spec-parts/selective/swimlane.js",
     "./dist/lib/spec-parts/selective/table.js",
+    "./dist/lib/spec-parts/selective/timeline.js",
+    "./dist/lib/spec-parts/selective/tornado.js",
+    "./dist/lib/spec-parts/selective/tree.js",
+    "./dist/lib/spec-parts/selective/treemap.js",
     "./dist/lib/spec-parts/selective/value-chain.js",
     "./dist/lib/spec-parts/selective/venn.js",
+    "./dist/lib/spec-parts/selective/waterfall.js",
+    "./dist/lib/spec-parts/treemap.js",
     "./dist/lib/spec.js",
     "./dist/lib/svg-outline.js",
     "./dist/lib/tokens.js",
@@ -494,6 +515,18 @@
       "types": "./dist/lib/render-source.d.ts",
       "default": "./dist/lib/render-source.js"
     },
+    "./spec/parts/bars": {
+      "types": "./dist/lib/spec-parts/selective/bars.d.ts",
+      "default": "./dist/lib/spec-parts/selective/bars.js"
+    },
+    "./spec/parts/bpmn": {
+      "types": "./dist/lib/spec-parts/selective/bpmn.d.ts",
+      "default": "./dist/lib/spec-parts/selective/bpmn.js"
+    },
+    "./spec/parts/bubble": {
+      "types": "./dist/lib/spec-parts/selective/bubble.d.ts",
+      "default": "./dist/lib/spec-parts/selective/bubble.js"
+    },
     "./spec/parts/cause-tree": {
       "types": "./dist/lib/spec-parts/selective/cause-tree.d.ts",
       "default": "./dist/lib/spec-parts/selective/cause-tree.js"
@@ -502,6 +535,10 @@
       "types": "./dist/lib/spec-parts/selective/chevron.d.ts",
       "default": "./dist/lib/spec-parts/selective/chevron.js"
     },
+    "./spec/parts/class-diagram": {
+      "types": "./dist/lib/spec-parts/selective/class-diagram.d.ts",
+      "default": "./dist/lib/spec-parts/selective/class-diagram.js"
+    },
     "./spec/parts/cloud": {
       "types": "./dist/lib/spec-parts/selective/cloud.d.ts",
       "default": "./dist/lib/spec-parts/selective/cloud.js"
@@ -509,6 +546,10 @@
     "./spec/parts/cycle": {
       "types": "./dist/lib/spec-parts/selective/cycle.d.ts",
       "default": "./dist/lib/spec-parts/selective/cycle.js"
+    },
+    "./spec/parts/dependency-network": {
+      "types": "./dist/lib/spec-parts/selective/dependency-network.d.ts",
+      "default": "./dist/lib/spec-parts/selective/dependency-network.js"
     },
     "./spec/parts/flowchart": {
       "types": "./dist/lib/spec-parts/selective/flowchart.d.ts",
@@ -522,13 +563,29 @@
       "types": "./dist/lib/spec-parts/selective/gantt.d.ts",
       "default": "./dist/lib/spec-parts/selective/gantt.js"
     },
+    "./spec/parts/heatmap": {
+      "types": "./dist/lib/spec-parts/selective/heatmap.d.ts",
+      "default": "./dist/lib/spec-parts/selective/heatmap.js"
+    },
     "./spec/parts/journey-map": {
       "types": "./dist/lib/spec-parts/selective/journey-map.d.ts",
       "default": "./dist/lib/spec-parts/selective/journey-map.js"
     },
+    "./spec/parts/lines": {
+      "types": "./dist/lib/spec-parts/selective/lines.d.ts",
+      "default": "./dist/lib/spec-parts/selective/lines.js"
+    },
     "./spec/parts/mindmap": {
       "types": "./dist/lib/spec-parts/selective/mindmap.d.ts",
       "default": "./dist/lib/spec-parts/selective/mindmap.js"
+    },
+    "./spec/parts/pareto": {
+      "types": "./dist/lib/spec-parts/selective/pareto.d.ts",
+      "default": "./dist/lib/spec-parts/selective/pareto.js"
+    },
+    "./spec/parts/pert": {
+      "types": "./dist/lib/spec-parts/selective/pert.d.ts",
+      "default": "./dist/lib/spec-parts/selective/pert.js"
     },
     "./spec/parts/pyramid": {
       "types": "./dist/lib/spec-parts/selective/pyramid.d.ts",
@@ -542,13 +599,29 @@
       "types": "./dist/lib/spec-parts/selective/raci.d.ts",
       "default": "./dist/lib/spec-parts/selective/raci.js"
     },
+    "./spec/parts/radar": {
+      "types": "./dist/lib/spec-parts/selective/radar.d.ts",
+      "default": "./dist/lib/spec-parts/selective/radar.js"
+    },
+    "./spec/parts/sankey": {
+      "types": "./dist/lib/spec-parts/selective/sankey.d.ts",
+      "default": "./dist/lib/spec-parts/selective/sankey.js"
+    },
     "./spec/parts/sequence": {
       "types": "./dist/lib/spec-parts/selective/sequence.d.ts",
       "default": "./dist/lib/spec-parts/selective/sequence.js"
     },
+    "./spec/parts/stacked-bars": {
+      "types": "./dist/lib/spec-parts/selective/stacked-bars.d.ts",
+      "default": "./dist/lib/spec-parts/selective/stacked-bars.js"
+    },
     "./spec/parts/state-diagram": {
       "types": "./dist/lib/spec-parts/selective/state-diagram.d.ts",
       "default": "./dist/lib/spec-parts/selective/state-diagram.js"
+    },
+    "./spec/parts/strategy-canvas": {
+      "types": "./dist/lib/spec-parts/selective/strategy-canvas.d.ts",
+      "default": "./dist/lib/spec-parts/selective/strategy-canvas.js"
     },
     "./spec/parts/swimlane": {
       "types": "./dist/lib/spec-parts/selective/swimlane.d.ts",
@@ -558,6 +631,22 @@
       "types": "./dist/lib/spec-parts/selective/table.d.ts",
       "default": "./dist/lib/spec-parts/selective/table.js"
     },
+    "./spec/parts/timeline": {
+      "types": "./dist/lib/spec-parts/selective/timeline.d.ts",
+      "default": "./dist/lib/spec-parts/selective/timeline.js"
+    },
+    "./spec/parts/tornado": {
+      "types": "./dist/lib/spec-parts/selective/tornado.d.ts",
+      "default": "./dist/lib/spec-parts/selective/tornado.js"
+    },
+    "./spec/parts/tree": {
+      "types": "./dist/lib/spec-parts/selective/tree.d.ts",
+      "default": "./dist/lib/spec-parts/selective/tree.js"
+    },
+    "./spec/parts/treemap": {
+      "types": "./dist/lib/spec-parts/selective/treemap.d.ts",
+      "default": "./dist/lib/spec-parts/selective/treemap.js"
+    },
     "./spec/parts/value-chain": {
       "types": "./dist/lib/spec-parts/selective/value-chain.d.ts",
       "default": "./dist/lib/spec-parts/selective/value-chain.js"
@@ -565,6 +654,10 @@
     "./spec/parts/venn": {
       "types": "./dist/lib/spec-parts/selective/venn.d.ts",
       "default": "./dist/lib/spec-parts/selective/venn.js"
+    },
+    "./spec/parts/waterfall": {
+      "types": "./dist/lib/spec-parts/selective/waterfall.d.ts",
+      "default": "./dist/lib/spec-parts/selective/waterfall.js"
     },
     "./spec/selective": {
       "types": "./dist/lib/spec-selective.d.ts",

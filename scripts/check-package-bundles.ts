@@ -155,6 +155,13 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [tablePart],
       });
     `, include: 'spec-parts/selective/table.js', budget: {esbuild: 83000, Vite: 108000}, bands: ['table.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/swimlane.js', 'spec-parts/gantt.js', 'dsl-pure.js', 'layout-connect.js'], draw: true},
+    {name: 'Selected heatmap spec', source: `
+      import {renderSpec} from 'svg-diagram/spec/selective';
+      import {heatmapPart} from 'svg-diagram/spec/parts/heatmap';
+      export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [{type: 'heatmap', rows: ['Review'], cols: ['Done'], values: [[1]]}]}, {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [heatmapPart],
+      });
+    `, include: 'spec-parts/selective/heatmap.js', budget: {esbuild: 107000, Vite: 131000}, bands: ['heatmap.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r2.js', 'spec-parts/treemap.js', 'charts-treemap.js', 'charts-sankey.js', 'charts-tornado.js', 'dsl-pure.js'], draw: true},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
       exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 52000, Vite: 65000}},
