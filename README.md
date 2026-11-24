@@ -141,7 +141,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 
 ### 使う帯だけをバンドルする
 
-`svg-diagram/core` の `renderBands` は、配列に渡した帯を縦に並べて SVG に描きます。帯ごとの入口は現在 `svg-diagram/bands/box`、`bands/gantt`、`bands/row`、`bands/grid`、`bands/connect`、`bands/caption`、`bands/spacer`、`bands/group`、`bands/group-row`、`bands/areas`、`bands/banner`、`bands/raw`、`bands/curve`、`bands/pyramid`、`bands/chevron`、`bands/funnel`、`bands/cycle`、`bands/venn`、`bands/concentric`、`bands/emblem`、`bands/value-chain`、`bands/people`、`bands/dots`、`bands/timeline`、`bands/status`、`bands/wordart`、`bands/legend`、`bands/quadrant`、`bands/plane`、`bands/bars`、`bands/sequence`、`bands/table`、`bands/wireframe`、`bands/screens`、`bands/fta`、`bands/bowtie`、`bands/cloud`、`bands/classes`、`bands/bpmn`、`bands/states`、`bands/tree` にあります。使う帯だけを import すると、esbuild や Vite は使わない帯の実装をバンドルから除外できます。
+`svg-diagram/core` の `renderBands` は、配列に渡した帯を縦に並べて SVG に描きます。帯ごとの入口は現在 `svg-diagram/bands/box`、`bands/gantt`、`bands/row`、`bands/grid`、`bands/connect`、`bands/caption`、`bands/spacer`、`bands/group`、`bands/group-row`、`bands/areas`、`bands/banner`、`bands/raw`、`bands/curve`、`bands/pyramid`、`bands/chevron`、`bands/funnel`、`bands/cycle`、`bands/venn`、`bands/concentric`、`bands/emblem`、`bands/value-chain`、`bands/people`、`bands/dots`、`bands/timeline`、`bands/status`、`bands/wordart`、`bands/legend`、`bands/quadrant`、`bands/plane`、`bands/bars`、`bands/sequence`、`bands/table`、`bands/wireframe`、`bands/screens`、`bands/fta`、`bands/bowtie`、`bands/cloud`、`bands/classes`、`bands/bpmn`、`bands/states`、`bands/tree`、`bands/cause` にあります。使う帯だけを import すると、esbuild や Vite は使わない帯の実装をバンドルから除外できます。
 
 ```ts
 import {renderBands} from 'svg-diagram/core';

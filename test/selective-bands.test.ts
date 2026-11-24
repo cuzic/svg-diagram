@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {TreeItem} from '../lib/types/diagrams.ts';
 import {caption} from '../lib/bands/caption.ts';
+import {causeTree, relationDiagram, pdpc} from '../lib/bands/cause.ts';
 import {tree, mindmap} from '../lib/bands/tree.ts';
 import {stateDiagram, flowchart} from '../lib/bands/states.ts';
 import {classDiagram} from '../lib/bands/classes.ts';
@@ -45,7 +46,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {tree as legacyTree, mindmap as legacyMindmap, stateDiagram as legacyStateDiagram, flowchart as legacyFlowchart, classDiagram as legacyClassDiagram, bpmn as legacyBpmn, cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {causeTree as legacyCauseTree, relationDiagram as legacyRelationDiagram, pdpc as legacyPdpc, tree as legacyTree, mindmap as legacyMindmap, stateDiagram as legacyStateDiagram, flowchart as legacyFlowchart, classDiagram as legacyClassDiagram, bpmn as legacyBpmn, cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -518,4 +519,21 @@ test('selective trees and mindmaps preserve nested bands, funnel edges and stage
     assert.equal(body(selected.svg), body(emitSvg(expected.laidOut, {reveal: stage})));
     assert.equal(selected.svg.includes('>詳細</text>'), stage === 2);
   }
+});
+
+test('selective cause diagrams preserve AND arcs, relation counts and PDPC branches', async () => {
+  const nodes = [{id: 'a', label: 'Review'}, {id: 'b', label: '手順'}, {id: 'c', label: '結果'}];
+  const links = [{from: 'a', to: 'b'}, {from: 'a', to: 'c'}];
+  const and = [{from: ['a', 'b'], to: 'c'}];
+  const opts = {measure, title: 'Plan'};
+  const result = await renderBands([
+    causeTree(nodes, and, {scope: 'cause'}), relationDiagram(nodes, links, {scope: 'relation'}), pdpc(nodes, links, {scope: 'plan'}),
+  ], opts);
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: opts.title, legend: false})
+    .add(legacyCauseTree(nodes, and, {scope: 'cause'}), legacyRelationDiagram(nodes, links, {scope: 'relation'}), legacyPdpc(nodes, links, {scope: 'plan'})), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.deepEqual(result.xml, []);
+  assert.deepEqual(result.verdict.problems, expected.verdict.problems);
+  assert.match(result.svg, /出 2・入 0/);
+  assert.equal(body(result.svg), body(expected.svg));
 });

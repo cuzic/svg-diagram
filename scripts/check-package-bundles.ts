@@ -145,6 +145,8 @@ try {
       include: 'bands/states.js', budget: {esbuild: 160000, Vite: 222000}, exclude: [...legacy, 'classes.js', 'bpmn.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
     {name: 'Tree', source: composedSource(['tree'], "tree({label: 'Review', children: [{label: 'Plan'}, {label: 'Decide'}]})"),
       include: 'bands/tree.js', budget: {esbuild: 89000, Vite: 120000}, exclude: [...legacy, 'states.js', 'toc.js', 'layout-connect.js', 'dsl/diagrams.js', 'layout-row.js', 'layout-grid.js'], draw: true},
+    {name: 'Cause', source: composedSource([], "causeTree([{id: 'a', label: 'Review'}, {id: 'b', label: 'Done'}], [{from: 'a', to: 'b'}])", "import {causeTree} from 'svg-diagram/bands/cause';"),
+      include: 'bands/cause.js', budget: {esbuild: 166000, Vite: 233000}, exclude: [...legacy, 'cloud.js', 'states.js', 'classes.js', 'dsl/diagrams.js', 'layout-connect.js', 'rca-rules.js'], draw: true},
   ];
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;

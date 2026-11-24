@@ -1,17 +1,14 @@
-import {CAUSE_ROLES} from '../toc.ts';
-import {coreDrivers, reachCounts} from '../toc-analysis.ts';
 import {whyWhyTreeFindings} from '../rca-rules.ts';
 import {criticalPath, exact} from '../qc.ts';
 import type {ArrowActivity} from '../qc.ts';
 import type {GroupBand, RowBand, GroupRowBand} from '../types/containers.ts';
-import type {WhyNode, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseRole, CauseOpts} from '../types/diagrams.ts';
+import type {WhyNode, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseOpts} from '../types/diagrams.ts';
 import type {Band} from '../types/index.ts';
 import type {CaptionBand} from '../types/text-bands.ts';
-import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
-import {graphTones, resolveFocus} from '../focus.ts';
-import {must} from '../must.ts';
+import type {Declares, HandleOf} from '../strict.ts';
+import {causeBand} from './cause.ts';
 import {grid, row} from './containers.ts';
-import {revealOf, scopeOpt, TREE_TONES, withAnchors, withHandle} from './shared.ts';
+import {revealOf, scopeOpt} from './shared.ts';
 import {stateDiagram} from './states.ts';
 import {box, caption, group} from './text-bands.ts';
 
@@ -19,111 +16,8 @@ export {tree, mindmap} from './tree.ts';
 export {bpmn} from './bpmn.ts';
 export {classDiagram} from './classes.ts';
 export {flowchart, stateDiagram} from './states.ts';
-type CauseIds<N extends readonly CauseNode[]> = Extract<N[number]['id'], string>;
-/**
- * A cause-and-effect tree of the Theory of Constraints: entities (boxes) and the arrows from cause to effect, placed in layers with
- * the causes at the bottom and the effects at the top (dir: 'down' / 'right' / 'left' turn it). The one figure behind the Current
- * and Future Reality Trees, the Prerequisite Tree and the Transition Tree: a link whose `from` is an array is an AND (the causes
- * together; an arc is drawn across their arrows), separate links are alternatives. `role` colours an entity: ude (undesirable
- * effect), root (root cause), de (desirable effect), injection, goal, obstacle, io (intermediate objective), action.
- *   causeTree([{id: 'late', label: '納期遅れ', role: 'ude'}, {id: 'multi', label: '並行作業が多い', role: 'root'}, {id: 'sw', label: '切替ロス'}],
- *             [{from: 'multi', to: 'sw'}, {from: 'sw', to: 'late'}])
- */
-/** The words `roleTags` writes, by role. */
-const ROLE_TAGS = {root: '根本原因', goal: 'ゴール', injection: '施策', start: '開始'} as const;
-export function causeTree<const N extends readonly CauseNode[], const Id extends string = never>(nodes: N, links: readonly CauseLink[], opts?: CauseOpts & {id?: Id}): CauseBand & Declares<Id | CauseIds<N>> & HandleOf<Id> & AnchorsOf<CauseIds<N>>;
-export function causeTree(nodes: readonly CauseNode[], links: readonly CauseLink[], opts: CauseOpts = {}): CauseBand {
-  return causeBand(nodes, links, opts);
-}
-/** One unit of a transition tree: the current reality (the first unit; the next ones start from the result before), a need and an action make a new reality. */
-export interface TransitionUnit {
-  /** The id of the unit's result; the other entities are `<id>.need`, `<id>.action` and, in the first unit, `<id>.current`. */
-  id: string;
-  /** The current reality: the first unit only (it is a `precondition`); a later unit starts from the result of the one before. */
-  current?: string;
-  need: string;
-  action: string;
-  result: string;
-  /** The role of the result (default 'io'; the last one is often a 'goal'). */
-  resultRole?: CauseRole;
-}
-/**
- * The entities and links of a transition tree written as units (current reality + need + action → new reality, the result being the next unit's current
- * reality): a 3-input AND for each unit, to be given to causeTree(nodes, links, {tree: 'tt'}).
- *   const {nodes, links} = transitionUnits([{id: 'u1', current: '受注順に着手している', need: '納期を守りたい', action: '着手の枠を決める', result: '仕掛りが見える'}, ...]);
- */
-export function transitionUnits(units: readonly TransitionUnit[]): {nodes: CauseNode[]; links: CauseLink[]} {
-  if (!Array.isArray(units) || units.length === 0) throw new Error('transitionUnits(units) needs at least one unit');
-  const nodes: CauseNode[] = [], links: CauseLink[] = [], seen = new Set<string>();
-  const text = (u: TransitionUnit, key: 'need' | 'action' | 'result' | 'current'): string => {
-    const v = u[key];
-    if (typeof v !== 'string' || !v.trim()) throw new Error(`transitionUnits(): unit "${u.id}" needs a ${key} text`);
-    return v;
-  };
-  units.forEach((u, i) => {
-    if (typeof u.id !== 'string' || !u.id) throw new Error('transitionUnits(): every unit needs an id');
-    if (seen.has(u.id)) throw new Error(`transitionUnits(): duplicate unit id "${u.id}"`);
-    seen.add(u.id);
-    if (i === 0 && u.current === undefined) throw new Error(`transitionUnits(): the first unit "${u.id}" needs the current reality (current)`);
-    if (i > 0 && u.current !== undefined) throw new Error(`transitionUnits(): unit "${u.id}" starts from the result of the unit before it: leave current out`);
-    if (u.resultRole !== undefined && !(u.resultRole in CAUSE_ROLES)) throw new Error(`transitionUnits(): unit "${u.id}" has resultRole ${String(u.resultRole)}`);
-    const current = i === 0 ? `${u.id}.current` : units[i - 1].id;
-    if (i === 0) nodes.push({id: current, label: text(u, 'current'), role: 'precondition'});
-    nodes.push({id: `${u.id}.need`, label: text(u, 'need'), role: 'need'}, {id: `${u.id}.action`, label: text(u, 'action'), role: 'action'}, {id: u.id, label: text(u, 'result'), role: u.resultRole ?? 'io'});
-    links.push({from: [current, `${u.id}.need`, `${u.id}.action`], to: u.id});
-  });
-  return {nodes, links};
-}
-/** causeTree's body; pdpc() and relationDiagram() pass `base: 'down'` (their direction when `dir` is left out, from which they may also turn to 'right' to fit). */
-function causeBand(nodes: readonly CauseNode[], links: readonly CauseLink[], opts: CauseOpts, base?: 'down', unanchored: readonly string[] = []): CauseBand {
-  if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('causeTree(nodes, links) needs at least one node');
-  if (!Array.isArray(links)) throw new Error('causeTree(nodes, links): links must be an array');
-  if (opts.dir !== undefined && !['up', 'down', 'right', 'left', 'auto'].includes(opts.dir)) throw new Error(`causeTree(): dir must be 'up', 'down', 'right', 'left' or 'auto' (got ${String(opts.dir)})`);
-  if (opts.maxNodeW !== undefined && opts.maxNodeW !== 'auto' && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`causeTree(): maxNodeW must be a number >= 80 or 'auto' (got ${String(opts.maxNodeW)})`);
-  for (const l of links) if (l.line !== undefined && !['solid', 'dashed', 'dotted'].includes(l.line)) throw new Error(`causeTree(): link to ${l.to} has line ${String(l.line)}`);
-  if (opts.hop !== undefined && typeof opts.hop !== 'boolean' && opts.hop !== 'all') throw new Error(`causeTree(): hop must be true, false or 'all' (got ${String(opts.hop)})`);
-  if (opts.fold !== undefined && typeof opts.fold !== 'boolean') throw new Error(`causeTree(): fold must be true or false (got ${String(opts.fold)})`);
-  if (opts.straighten !== undefined && typeof opts.straighten !== 'boolean') throw new Error(`causeTree(): straighten must be true or false (got ${String(opts.straighten)})`);
-  if (opts.returns !== undefined && opts.returns !== 'inline' && opts.returns !== 'outer') throw new Error(`causeTree(): returns must be 'inline' or 'outer' (got ${String(opts.returns)})`);
-  for (const l of links) {
-    if (l.kind !== undefined && l.kind !== 'cause' && l.kind !== 'blocks') throw new Error(`causeTree(): link to ${l.to} has kind ${String(l.kind)} (use 'cause' or 'blocks')`);
-    if (l.kind === 'blocks' && typeof l.from !== 'string') throw new Error(`causeTree(): a 'blocks' link to ${l.to} needs one entity as its from (a string, not an AND)`);
-    if (l.back === undefined) continue;
-    if (l.back !== true) throw new Error(`causeTree(): link to ${l.to} has back ${String(l.back)} (write back: true, or leave it out)`);
-    if (typeof l.from !== 'string') throw new Error(`causeTree(): a link to "${l.to}" is an AND (from is a list) and also back: true. A return is one arrow: write the link that returns on its own`);
-  }
-  for (const n of nodes) {
-    if (n.role !== undefined && !(n.role in CAUSE_ROLES)) throw new Error(`causeTree(): node "${n.id}" has role ${String(n.role)} (use ${Object.keys(CAUSE_ROLES).join(', ')})`);
-    if (n.tone !== undefined && !TREE_TONES.includes(n.tone)) throw new Error(`causeTree(): node "${n.id}" has tone ${String(n.tone)} (use ${TREE_TONES.join(', ')})`);
-  }
-  if (opts.tree !== undefined && !['crt', 'frt', 'prt', 'tt', 'nbr'].includes(opts.tree)) throw new Error(`causeTree(): tree must be 'crt', 'frt', 'prt', 'tt' or 'nbr' (got ${String(opts.tree)})`);
-  if (opts.mirrors !== undefined && (opts.mirrors.type !== 'cause' || opts.mirrors.tree !== 'crt')) throw new Error("causeTree(): mirrors is the band causeTree() made for tree: 'crt' (the current reality tree this one answers)");
-  for (const n of nodes) if (n.mirrors !== undefined && (typeof n.mirrors !== 'string' || !n.mirrors || (n.role !== 'de' && n.role !== 'goal'))) throw new Error(`causeTree(): node "${n.id}" has mirrors ${JSON.stringify(n.mirrors)} (the id of a ude of the current reality tree; only a role: 'de' or 'goal' node takes it)`);
-  if (opts.layer !== undefined && opts.layer !== 'asap' && opts.layer !== 'alap') throw new Error(`causeTree(): layer must be 'asap' or 'alap' (got ${String(opts.layer)})`);
-  if (opts.roleTags !== undefined && opts.roleTags !== true && (typeof opts.roleTags !== 'object' || opts.roleTags === null || Object.entries(opts.roleTags).some(([k, v]) => !(k in ROLE_TAGS) || typeof v !== 'string' || !v.trim() || /[\r\n]/.test(v)))) throw new Error(`causeTree(): roleTags is true, or an object with root / goal / injection / start, each a non-empty one-line text (got ${JSON.stringify(opts.roleTags)})`);
-  if (opts.coreBadge !== undefined && (typeof opts.coreBadge !== 'string' || !opts.coreBadge.trim() || opts.coreBadge.length > 6)) throw new Error(`causeTree(): coreBadge must be a short word (at most 6 characters; got ${JSON.stringify(opts.coreBadge)})`);
-  if (opts.coreDriverLabel !== undefined && (typeof opts.coreDriverLabel !== 'string' || !opts.coreDriverLabel.trim() || /[\r\n]/.test(opts.coreDriverLabel))) throw new Error(`causeTree(): coreDriverLabel is a non-empty one-line text with {n} (the number reached) and {total} (the number of ude entities) (got ${JSON.stringify(opts.coreDriverLabel)})`);
-  if (opts.coreDriver !== undefined && typeof opts.coreDriver !== 'boolean') throw new Error(`causeTree(): coreDriver must be true or false (got ${String(opts.coreDriver)})`);
-  for (const n of nodes) if (n.foldsInto !== undefined && (n.role !== 'trim' || typeof n.foldsInto !== 'string' || !n.foldsInto.trim())) throw new Error(`causeTree(): node "${n.id}" has foldsInto ${JSON.stringify(n.foldsInto)} (foldsInto is a non-empty text, and only a role: 'trim' node takes it)`);
-  // foldsInto is a line under the label (the injection it is folded into need not be in the figure): added here, so that it is measured with the label
-  // roleTags: the words in front of the author's sub line (tag, then sub, then foldsInto / counts)
-  const tagMap = opts.roleTags === undefined ? undefined : {...ROLE_TAGS, ...(opts.roleTags === true ? {} : opts.roleTags)};
-  const tagged = tagMap ? nodes.map(n => { const tag = n.role !== undefined && n.role in tagMap ? tagMap[n.role as keyof typeof tagMap] : undefined; return tag ? {...n, sub: `【${tag}】${n.sub ? `　${n.sub}` : ''}`} : n; }) : nodes;
-  const noted = tagged.map(n => { if (n.foldsInto === undefined) return n; const {foldsInto, ...rest} = n; return {...rest, sub: `${n.sub ? `${n.sub}　` : ''}→ ${foldsInto} に組み込む`}; });
-  const udeTotal = nodes.filter(n => n.role === 'ude').length, coreLabel = (n: number): string => (opts.coreDriverLabel ?? '{n}/{total} 件に届く').replaceAll('{n}', String(n)).replaceAll('{total}', String(udeTotal));
-  const counted = opts.coreDriver ? reachCounts(nodes, links) : undefined, core = new Set(counted ? coreDrivers(counted) : []);
-  const marked = counted ? noted.map(n => { const reach = counted.get(n.id); return reach === undefined || n.role === 'trim' ? n : {...n, ...(core.has(n.id) ? {core: true} : {}), ...(opts.counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}${coreLabel(reach)}`})}; }) : noted;
-  const band: CauseBand = {type: 'cause', ...(opts.coreBadge === undefined ? {} : {coreBadge: opts.coreBadge}), nodes: [...marked], links: links.map(l => ({...l, ...(typeof l.from === 'string' ? {} : {from: [...l.from]})})), ...(opts.dir === undefined ? (base === undefined ? {} : {dir: base, dirLeftOut: true as const}) : {dir: opts.dir}), ...(base === undefined ? {} : {base}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.tree === undefined ? {} : {tree: opts.tree}), ...(tagMap === undefined ? {} : {roleTags: tagMap}), ...(opts.mirrors === undefined ? {} : {mirrorOf: {ids: opts.mirrors.nodes.map(n => n.id), udes: opts.mirrors.nodes.filter(n => n.role === 'ude').map(n => n.id)}}), ...(opts.layer === undefined ? {} : {layer: opts.layer}), ...(opts.returns === undefined ? {} : {returns: opts.returns}), ...(opts.hop === undefined ? (opts.tree === undefined ? {} : {hop: 'all' as const}) : {hop: opts.hop}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.fold === undefined || base !== undefined ? {} : {fold: opts.fold}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'causeTree()'), ...revealOf(opts)};
-  if (unanchored.length) band.unanchored = [...unanchored];
-  if (opts.focus !== undefined) {
-    const ids = band.nodes.map(n => n.id), hit = resolveFocus(opts.focus, ids, 'causeTree()');
-    const pairs = band.links.flatMap(l => (typeof l.from === 'string' ? [l.from] : l.from).map(f => [ids.indexOf(f), ids.indexOf(l.to)] as const));
-    const tones = graphTones(ids.length, pairs, hit);
-    band.nodes = band.nodes.map((n, i) => ({...n, tone: must(tones[i])}));
-    band.focused = [...hit].map(i => must(ids[i]));
-  }
-  return withAnchors(withHandle(band, opts.id), nodes.map(n => n.id).filter(id => !unanchored.includes(id)));
-}
+export {causeTree, pdpc, relationDiagram, transitionUnits} from './cause.ts';
+export type {PdpcNode, PdpcLink, RelationNode, RelationOpts, TransitionUnit} from './cause.ts';
 export interface WhyWhyTreeOpts extends Pick<CauseOpts, 'id' | 'maxNodeW' | 'reveal' | 'until' | 'scope'> {
   /** Leave out the lines under the tree that say how to read it (default: they are there). */
   readingNote?: boolean;
@@ -258,55 +152,6 @@ export function affinity(groups: readonly AffinityGroup[], opts: AffinityOpts = 
     return out;
   };
   return rows(groups, 0, cols);
-}
-export interface PdpcNode extends Omit<CauseNode, 'role'> {
-  /** start / goal (double outline), step (default), risk (what could go wrong: a hexagon), measure (what to do if it does). */
-  role?: 'start' | 'step' | 'risk' | 'measure' | 'goal';
-}
-export interface PdpcLink extends Omit<CauseLink, 'from'> {from: string}
-/**
- * A PDPC (process decision program chart, 過程決定計画図): the way from the start to the goal, the things that could go wrong on the way
- * (risk, a hexagon) and what to do then (measure). The main path is solid; an arrow into or out of a risk or a measure is dashed.
- * Runs top to bottom (`dir: 'right'` for left to right, which needs a narrow `maxNodeW` when the way has many steps).
- *   pdpc([{id: 's', label: '着手', role: 'start'}, {id: 'a', label: '試作'}, {id: 'r', label: '強度が足りない', role: 'risk'}, {id: 'm', label: '材質を変える', role: 'measure'}, {id: 'g', label: '量産開始', role: 'goal'}],
- *        [{from: 's', to: 'a'}, {from: 'a', to: 'g'}, {from: 'a', to: 'r'}, {from: 'r', to: 'm'}, {from: 'm', to: 'a'}])
- */
-export function pdpc<const N extends readonly PdpcNode[], const Id extends string = never>(nodes: N, links: readonly PdpcLink[], opts?: CauseOpts & {id?: Id}): CauseBand & Declares<Id | CauseIds<N>> & HandleOf<Id> & AnchorsOf<CauseIds<N>>;
-export function pdpc(nodes: readonly PdpcNode[], links: readonly PdpcLink[], opts: CauseOpts = {}): CauseBand {
-  if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('pdpc(nodes, links) needs at least one node');
-  const side = new Set((Array.isArray(nodes) ? nodes : []).filter(n => n.role === 'risk' || n.role === 'measure').map(n => n.id));
-  for (const n of nodes ?? []) if (n.role !== undefined && !['start', 'step', 'risk', 'measure', 'goal'].includes(n.role)) throw new Error(`pdpc(): node "${n.id}" has role ${String(n.role)} (use start, step, risk, measure or goal)`);
-  const band = causeBand(nodes.map(n => ({...n, role: n.role ?? 'step'})), (links ?? []).map(l => ({...l, line: l.line ?? (side.has(l.from) || side.has(l.to) ? 'dashed' : 'solid')} as CauseLink)), opts, 'down');
-  band.origin = 'pdpc';
-  return opts.returns === undefined ? Object.assign(band, {returnsDefault: 'outer' as const}) : band;
-}
-export interface RelationNode extends CauseNode {}
-export interface RelationOpts extends CauseOpts {
-  /** The ids of the problem (the result the diagram is about): marked as the effect to resolve. */
-  problem?: string | readonly string[];
-  /** Write how many arrows leave and enter each factor under its text (default true). */
-  counts?: boolean;
-}
-/**
- * A relations diagram (連関図): the factors of a tangled problem and the arrows from cause to effect, which may go back and cross. It counts
- * the arrows of every factor ('出' leaving, '入' entering) and marks the factor with the most leaving arrows (2 or more) as the
- * key cause: the one to act on. `problem` names the result (red). A node's own `role` wins.
- *   relationDiagram([{id: 'late', label: '納期遅れ'}, {id: 'rush', label: '急ぎ作業'}, ...], [{from: 'rush', to: 'late'}, ...], {problem: 'late'})
- */
-export function relationDiagram<const N extends readonly RelationNode[], const Id extends string = never>(nodes: N, links: readonly {from: string; to: string; line?: 'solid' | 'dashed' | 'dotted'; back?: true; kind?: 'cause' | 'blocks'}[], opts?: RelationOpts & {id?: Id}): CauseBand & Declares<Id | CauseIds<N>> & HandleOf<Id> & AnchorsOf<CauseIds<N>>;
-export function relationDiagram(nodes: readonly RelationNode[], links: readonly {from: string; to: string; line?: 'solid' | 'dashed' | 'dotted'; back?: true; kind?: 'cause' | 'blocks'}[], opts: RelationOpts = {}): CauseBand {
-  if (!Array.isArray(nodes) || nodes.length === 0) throw new Error('relationDiagram(nodes, links) needs at least one node');
-  const ids = new Set(nodes.map(n => n.id)), problems = new Set(opts.problem === undefined ? [] : typeof opts.problem === 'string' ? [opts.problem] : opts.problem);
-  for (const p of problems) if (!ids.has(p)) throw new Error(`relationDiagram(): problem names unknown node "${p}"`);
-  for (const l of links ?? []) if (typeof l.from !== 'string') throw new Error(`relationDiagram(): a link to "${l.to}" needs one cause as a string (use causeTree() for an AND)`);
-  const out = new Map(nodes.map(n => [n.id, (links ?? []).filter(l => l.kind !== 'blocks' && l.from === n.id).length])), into = new Map(nodes.map(n => [n.id, (links ?? []).filter(l => l.kind !== 'blocks' && l.to === n.id).length]));
-  const top = Math.max(0, ...nodes.filter(n => !problems.has(n.id) && n.role === undefined).map(n => out.get(n.id) ?? 0));
-  const {problem: _p, counts, ...rest} = opts;
-  return Object.assign(causeBand(nodes.map(n => ({
-    ...n,
-    role: n.role ?? (problems.has(n.id) ? 'ude' : top >= 2 && out.get(n.id) === top ? 'root' : 'effect'),
-    ...(counts === false ? {} : {sub: `${n.sub ? `${n.sub}　` : ''}出 ${out.get(n.id)}・入 ${into.get(n.id)}`}),
-  })), (links ?? []).map(l => ({...l})), rest, 'down'), {origin: 'relation' as const});
 }
 export {cloud} from './cloud.ts';
 export {faultTree} from './fta.ts';

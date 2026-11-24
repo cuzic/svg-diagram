@@ -316,6 +316,10 @@
       "types": "./dist/lib/bands/tree.d.ts",
       "default": "./dist/lib/bands/tree.js"
     },
+    "./bands/cause": {
+      "types": "./dist/lib/bands/cause.d.ts",
+      "default": "./dist/lib/bands/cause.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"
