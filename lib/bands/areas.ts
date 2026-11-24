@@ -1,3 +1,4 @@
+import {rowItems} from '../inventory-boxes.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
 import {childRuns} from '../band-text-sizes.ts';
 import {band, defOf, DEF} from '../band-def.ts';
@@ -11,6 +12,7 @@ import {groupDefinition} from './group.ts';
 
 const definition = {
   type: 'areas',
+  inventory: rowItems,
   svgDefs: rowSvgDefs,
   textSizes: childRuns,
   internal: true,

@@ -1294,3 +1294,20 @@ test('selected SVG descriptions assemble visible band summaries in the legacy or
     {measure, title: '比較', stage: 1});
   assert.equal(desc(early.svg), '要素: 先に表示');
 });
+
+test('selected placement provides the same content inventory as the complete layout', async () => {
+  const {prepareBands} = await import('../lib/core.ts');
+  const {buildInventory} = await import('../lib/inventory.ts');
+  const input = [
+    caption('比較'),
+    row([box({id: 'a', title: '案 A'}), box({id: 'b', title: '案 B'})], {arrows: 'between'}),
+    grid([box({title: '補足'})], {cols: 1}),
+    connect('a:bottom', 'b:bottom', {label: '再検討'}),
+    bars([{label: '例', value: 2}]),
+  ];
+  const {placed} = await prepareBands(input, {measure});
+  const expected = buildInventory(placed.laidOut, placed.connects,
+    (text, size) => measure({text, size}).w, placed.roles.connectLabel);
+  assert.deepEqual(placed.inventory, expected);
+  assert.ok(placed.inventory.items.some(item => item.kind === 'arrowhead'));
+});

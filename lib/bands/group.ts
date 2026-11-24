@@ -1,3 +1,4 @@
+import {groupItems} from '../inventory-boxes.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -13,6 +14,7 @@ type SelectedBand = Band & {readonly [DEF]: object};
 
 export const groupDefinition: BandDef<GroupBand, LaidOutGroup> = {
   type: 'group',
+  inventory: groupItems,
   title: data => data.title ? [1, data.title] : undefined,
   internal: true,
   layout: layoutGroup,

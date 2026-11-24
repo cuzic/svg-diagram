@@ -1,3 +1,4 @@
+import {boxItems} from '../inventory-boxes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {banner as buildBanner} from '../dsl/banner.ts';
@@ -9,6 +10,7 @@ import {boxLikeContrastProblems} from '../verify-box-like.ts';
 
 export const bannerDefinition: BandDef<BannerBand, LaidOutBanner> = {
   type: 'banner',
+  inventory: boxItems,
   svgDefs: textSvgDefs,
   title: data => data.headline ? [0, data.headline] : undefined,
   internal: true,

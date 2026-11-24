@@ -1,3 +1,4 @@
+import {connectorInventory} from '../inventory-lines.ts';
 import {findingAcceptanceHint} from '../finding-rules.ts';
 import {connectorFindings, connectorRules} from '../verify-connect-crossings.ts';
 import {labelCoverFindings} from '../verify-connect-label.ts';
@@ -20,6 +21,7 @@ export const connectDefinition: BandDef<ConnectBand, LaidOutConnect> = {
   internal: true,
   layout: layoutConnect,
   resolveConnect,
+  connectorInventory,
   rules: connectorRules,
   verify: {
     diagramFindings: [labelCoverFindings, connectorFindings, selectedGraphFindings],

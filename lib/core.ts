@@ -1,3 +1,4 @@
+import {buildInventoryWith, whole} from './inventory-core.ts';
 import {joinBandDescriptions} from './diagram-description.ts';
 import {definedDiagramTitle} from './diagram-title.ts';
 import {applyFindingAcceptance, at} from './finding-rules.ts';
@@ -183,6 +184,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const widthOf: WidthOf = (text, size, weight, font) => {
     return must(measured.get(keyOf(text, size, weight, font))?.w, `renderBands: width was not measured for "${text}"`);
   };
+  const placedDefinition = (band: LaidOutBand) => definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
   const layout = createLayoutWith({
     resolveConnect: (...args) => {
       const def = defOf(args[0]);
@@ -206,9 +208,14 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     childrenOf: input => defOf(input)?.children?.(input) ?? [],
     stackWidthOf: (input, width) => defOf(input)?.stackWidth?.(input, width) ?? null,
     scopesOf: () => scopeTable,
-    buildInventory: () => ({items: []}),
+    buildInventory: (laidOut, connects, widthOf, labelSize) => {
+      const items = buildInventoryWith((band, ctx) =>
+        placedDefinition(band)?.inventory?.(band as never, ctx) ?? whole(band, ctx), laidOut, widthOf);
+      const connector = definitions.get('connect');
+      const links = connector?.internal ? connector.connectorInventory?.(connects, labelSize) : undefined;
+      return {items: links ? items.concat(links) : items};
+    },
   });
-  const placedDefinition = (band: LaidOutBand) => definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
   const placed = layout({...data, bands: source}, roles, widthOf);
   placed.canvasHeight = Math.max(1, placed.canvasHeight);
   // A link follows its endpoints unless it has an explicit end stage.

@@ -1,3 +1,4 @@
+import {rowItems} from '../inventory-boxes.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
 import {childRuns} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
@@ -11,6 +12,7 @@ import type {BoxBand} from '../types/text-bands.ts';
 
 export const rowDefinition: BandDef<RowBand, LaidOutRow> = {
   type: 'row',
+  inventory: rowItems,
   svgDefs: rowSvgDefs,
   textSizes: childRuns,
   internal: true,

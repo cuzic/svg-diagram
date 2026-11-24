@@ -270,7 +270,7 @@ const rating = pluginBands(ratingDemo);   // コアが構築関数を作る(loca
 | `texts`(`layout` の返す文字のデータ) | `FIT_HANDLERS`(8)、`INVENTORY_HANDLERS`(9) | 文字があれば | `[]`。各項目: `{x, y, text, size, weight?, font?, anchor?, tone?, lines?, w?, part?, reveal?}`。**外部の帯は文字を `<text>` で出さず、データで返し、コアが描く** |
 | `verify.rects(laid)`、`verify.check(laid, ctx) → findings`、`verify.contrast` | `VERIFY_HANDLERS`(7)、`CHECK_PHASES`(19) | 任意 | `rects` は帯全体 1 つ(`ownRect` 相当)。`check` なし。findings は `{rule, severity: 'problem' \| 'warn' \| 'info', message, where?}`(コアの `advice` は `info`。ホストが `problem` → verdict の問題、`warn` / `info` → findings に写す) |
 | `rules`(`{規則名: {doc, scope: 'band' \| 'band-grouped' \| 'diagram'}}`) | `RULE_DOCS` / `RULE_LOCATION`(18) | **出す規則は全部必須** | 無い規則を出すと `band-rule-undocumented` |
-| `inventory(laid) → items` | `INVENTORY_HANDLERS`(9) | 任意 | `texts` から `text` の項目、図形の全体を `whole` 1 つ(`band` には型名を記録。外部の帯は plugin / kind も)。保守側(重ねの吹き出しが覆ってはいけない内容) |
+| `inventory(laid, ctx) → items` | `INVENTORY_HANDLERS`(9) | 任意 | `texts` から `text` の項目、図形の全体を `whole` 1 つ(`band` には型名を記録。外部の帯は plugin / kind も)。保守側(重ねの吹き出しが覆ってはいけない内容) |
 | `reveal` | `REVEAL_HANDLERS`(3) | 任意 | `{stage: true}`(帯の `reveal` / `until`。anchor もその段)。**帯の部品ごとの reveal と、スポットライトの部品ごとの暗さは外部の帯では持たない**(帯全体で出入り、暗くなる)。`env.focus` と、anchor ごとの `reveal` の名前を予約 |
 | `children` | `CHILD_BANDS`(4)、`STACK_WIDTH`(5) | コアの `group` / `row` / `areas` / `grid` / `grouprow` / `image` / `tree` は持つ。**外部の帯は v1 では不可**(Q9) | 子なし。`STACK_WIDTH` は `null` |
 | `docs`(`summary`、`usage`、`example`) | README、skills、`list_diagram_parts`(24) | 任意 | `description` と `example` から catalog の行を作る。外部のプラグインは自分の README / skill を持つ |
@@ -712,7 +712,7 @@ U0 は、この PR。U1 以降は、どの単位も Opus のレビューで Bloc
 - 複合グラフ・比較表・PERT・因果ループ・依存ネットワークの個別入口を追加した。ネットワーク 3 種類は共通の経路配置を使い、文字測定と配置は種類ごとに読み込む。これで `chart` の全 20 種類に個別の SVG 入口がある。
 - `bands/image` は data URI の画像を埋め込み、注釈・重ねた帯・マークへの接続を描く。Node.js でファイルを読む場合は `bands/image/node` の `imageFile` を追加で読み込む。両入口は同じ帯の定義を使う。
 
-帯と入出力の進捗は [Tree shaking 移行チェックリスト](../tree-shaking-checklist.md) を参照。配置と測定は、既存の処理を共有したまま解決元を呼び出し側から受け取れるようにした。配置の共通処理は子の探索、スタック幅、スコープ、inventory も呼び出し側から受け取る。行とグリッドを内包する図で、ラベル付き接続線の配置と inventory の一致を確認した。 SVG の組み立てと共通の検査も、帯の描画・検査・規則を呼び出し側から受け取る。実行順と XML 検査を共有するパイプラインは従来の入口と選択的な入口の両方から組み立てられる。
+帯と入出力の進捗は [Tree shaking 移行チェックリスト](../tree-shaking-checklist.md) を参照。配置と測定は、既存の処理を共有したまま解決元を呼び出し側から受け取れるようにした。配置の共通処理は子の探索、スタック幅、スコープ、inventory も呼び出し側から受け取る。行とグリッドを内包する図で、ラベル付き接続線の配置と inventory の一致を確認した。各帯の詳細な inventory は帯の定義から取得し、接続線の inventory は接続線の定義から取得する。選択した帯に詳細な定義がなければ、帯の矩形を記録する。SVG の組み立てと共通の検査も、帯の描画・検査・規則を呼び出し側から受け取る。実行順と XML 検査を共有するパイプラインは従来の入口と選択的な入口の両方から組み立てられる。
 
 - SVG のパイプラインから HTML の出力を分け、Node の `renderDiagram(d, {html: true})` が HTML を組み立てるようにした。HTML 出力は `svg-diagram/html`、ブラウザの測定器は `svg-diagram/measure/browser` から個別に利用できる。
 - `html/selective` は選んだ帯と HTML アダプターを使い、未対応の帯と接続線は SVG として埋め込む。`fallbacks` で報告し、`strict` で拒否できる。従来の HTML 出力は同じアダプターと既存の SVG・テキスト変換を使う。

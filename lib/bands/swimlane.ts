@@ -1,3 +1,4 @@
+import {whole} from '../inventory-core.ts';
 import {describeSwimlane} from '../diagram-description.ts';
 import {narrowTextFindings} from '../verify-shrink.ts';
 import {band} from '../band-def.ts';
@@ -17,6 +18,7 @@ import {boxDefinition} from './box.ts';
 
 const definition = {
   type: 'swimlane',
+  inventory: (laid, ctx) => laid.type === 'box' ? boxDefinition.inventory?.(laid, ctx) ?? [] : whole(laid, ctx),
   svgDefs: laid => laid.type === 'box' ? boxDefinition.svgDefs?.(laid) ?? {} : {},
   describe: (data, stage) => ['structure', describeSwimlane(data, stage)],
   internal: true,

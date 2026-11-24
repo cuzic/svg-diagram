@@ -1,3 +1,4 @@
+import {boxItems} from '../inventory-boxes.ts';
 import {oneLine} from '../diagram-description.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
 import {band, walkDefinedBands} from '../band-def.ts';
@@ -16,6 +17,7 @@ const selectedBoxSizeFindings: DiagramFindings = ({bands}) => boxSizeFindings(wa
 
 export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
   type: 'box',
+  inventory: boxItems,
   svgDefs: textSvgDefs,
   describe: data => data.title ? ['box', oneLine(data.title)] : undefined,
   measure(data, {atoms, roles}) {

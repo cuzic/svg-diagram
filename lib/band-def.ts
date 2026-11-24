@@ -1,3 +1,5 @@
+import type {connectorInventory} from './inventory-lines.ts';
+import type {InventoryContext} from './inventory-core.ts';
 import type {BandDescription} from './diagram-description.ts';
 import type {ValueAxis} from './axis-comparison.ts';
 import type {SvgBandDefs} from './emit-svg-core.ts';
@@ -100,7 +102,7 @@ interface BandHooks<D, L extends object> {
   ids?(data: D): string[];
   reveal?: RevealHandler<D>;
   revealElements?(data: D, start: number, end?: number): {last: number; warnings: string[]; items?: readonly {id?: string; reveal?: number; until?: number}[]};
-  inventory?(laid: L): InventoryItem[];
+  inventory?(laid: L, ctx: InventoryContext): InventoryItem[];
   rules?: Record<string, {doc: string; scope: 'band' | 'band-grouped' | 'diagram'}>;
   docs?: {summary: string; usage: string; example: unknown};
   children?(data: D): Band[];
@@ -120,6 +122,7 @@ interface InternalLayout<D> {
   internal: true;
   outputTypes?: readonly string[];
   resolveConnect?: typeof resolveConnect;
+  connectorInventory?: typeof connectorInventory;
   expandLoopBacks?: (bands: Band[]) => Band[];
   layout(...args: Parameters<BandLayoutHandler<D>>): void;
 }

@@ -1,3 +1,4 @@
+import {childBoxes} from '../inventory-boxes.ts';
 import {canvasRegionFindings} from '../verify-grid.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
 import {childRuns} from '../band-text-sizes.ts';
@@ -11,6 +12,7 @@ import type {BoxBand} from '../types/text-bands.ts';
 
 export const gridDefinition: BandDef<GridBand, LaidOutGrid> = {
   type: 'grid',
+  inventory: childBoxes,
   svgDefs: childTextSvgDefs,
   textSizes: childRuns,
   internal: true,
