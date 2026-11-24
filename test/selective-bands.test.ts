@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {TreeItem} from '../lib/types/diagrams.ts';
 import {caption} from '../lib/bands/caption.ts';
+import {sankey} from '../lib/bands/sankey.ts';
+import {heatmap} from '../lib/bands/heatmap.ts';
 import {radar} from '../lib/bands/radar.ts';
 import {waterfall} from '../lib/bands/waterfall.ts';
 import {swimlane} from '../lib/bands/swimlane.ts';
@@ -49,7 +51,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {radar as legacyRadar, waterfall as legacyWaterfall, swimlane as legacySwimlane, causeTree as legacyCauseTree, relationDiagram as legacyRelationDiagram, pdpc as legacyPdpc, tree as legacyTree, mindmap as legacyMindmap, stateDiagram as legacyStateDiagram, flowchart as legacyFlowchart, classDiagram as legacyClassDiagram, bpmn as legacyBpmn, cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {sankey as legacySankey, heatmap as legacyHeatmap, radar as legacyRadar, waterfall as legacyWaterfall, swimlane as legacySwimlane, causeTree as legacyCauseTree, relationDiagram as legacyRelationDiagram, pdpc as legacyPdpc, tree as legacyTree, mindmap as legacyMindmap, stateDiagram as legacyStateDiagram, flowchart as legacyFlowchart, classDiagram as legacyClassDiagram, bpmn as legacyBpmn, cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -567,4 +569,17 @@ test('selective radar and waterfall coexist and preserve legacy drawing and chec
   assert.deepEqual(result.xml, []);
   assert.deepEqual(result.verdict.problems, expected.verdict.problems);
   assert.equal(body(result.svg), body(expected.svg));
+});
+
+test('selective Sankey and heatmap preserve labelled flows, missing cells and scales', async () => {
+  const nodes = ['入力', '出力'];
+  const links = [{from: '入力', to: '出力', value: 5}];
+  const rows = ['甲', '乙'], cols = ['前期', '今期'], values = [[1, null], [2, 5]];
+  const selected = await renderBands([sankey(nodes, links, {linkLabels: true}), heatmap(rows, cols, values, {scale: true})], {measure, title: 'Plan'});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false})
+    .add(legacySankey(nodes, links, {linkLabels: true}), legacyHeatmap(rows, cols, values, {scale: true})), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.deepEqual(selected.xml, []);
+  assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
+  assert.equal(body(selected.svg), body(legacy.svg));
 });

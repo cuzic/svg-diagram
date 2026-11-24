@@ -154,6 +154,10 @@ try {
       include: 'bands/radar.js', budget: {esbuild: 97000, Vite: 120000}, exclude: [...legacy, 'lib/charts.js', 'charts-waterfall.js', 'charts-sankey.js', 'semnet.js', 'layout-connect.js'], draw: true},
     {name: 'Waterfall', source: composedSource(['waterfall'], "waterfall([{label: 'Review', value: 100}, {label: 'Gain', value: 25}])"),
       include: 'bands/waterfall.js', budget: {esbuild: 100000, Vite: 123000}, exclude: [...legacy, 'lib/charts.js', 'charts-radar.js', 'charts-sankey.js', 'semnet.js', 'layout-connect.js'], draw: true},
+    {name: 'Sankey', source: composedSource(['sankey'], "sankey(['Review', 'Done'], [{from: 'Review', to: 'Done', value: 5}])"),
+      include: 'bands/sankey.js', budget: {esbuild: 105000, Vite: 127000}, exclude: [...legacy, 'lib/charts.js', 'charts-heatmap.js', 'charts-radar.js', 'charts-waterfall.js'], draw: true},
+    {name: 'Heatmap', source: composedSource(['heatmap'], "heatmap(['Review', 'Done'], ['A', 'B'], [[1, null], [2, 5]])"),
+      include: 'bands/heatmap.js', budget: {esbuild: 96000, Vite: 117000}, exclude: [...legacy, 'lib/charts.js', 'charts-sankey.js', 'charts-radar.js', 'charts-waterfall.js'], draw: true},
   ];
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;
@@ -202,7 +206,7 @@ try {
         }
         const {draw: render} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
         const result = await render();
-        assert.match(result.svg, /<text[^>]*>Review<\/text>/, label);
+        assert.match(result.svg, name === 'Sankey' ? /<text[^>]*>Review 5<\/text>/ : /<text[^>]*>Review<\/text>/, label);
         if (name === 'Row loop-back') assert.match(result.svg, /Retry/, label);
         assert.deepEqual(result.xml, [], label);
         assert.equal(result.verdict.ok, true, label);

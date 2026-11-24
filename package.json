@@ -332,6 +332,14 @@
       "types": "./dist/lib/bands/waterfall.d.ts",
       "default": "./dist/lib/bands/waterfall.js"
     },
+    "./bands/heatmap": {
+      "types": "./dist/lib/bands/heatmap.d.ts",
+      "default": "./dist/lib/bands/heatmap.js"
+    },
+    "./bands/sankey": {
+      "types": "./dist/lib/bands/sankey.d.ts",
+      "default": "./dist/lib/bands/sankey.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"
