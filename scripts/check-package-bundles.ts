@@ -284,6 +284,9 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [stepsPart],
       });
     `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 118000, Vite: 150000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
+    {name: 'Wireframe button builder', source: "export {btn} from 'svg-diagram/wireframe/parts';",
+      include: 'wireframe-builders.js', exclude: [...legacy, 'wireframe-insight.js', 'wireframe.js', 'wireframe-parts.js', 'lib/core.js'],
+      budget: {esbuild: 500, Vite: 500}},
     {name: 'ZIP', source: "export {zipEntries} from 'svg-diagram/zip';", include: 'pptx/zip.js',
       exclude: [...legacy, 'pptx/selective.js', 'pptx/zip-node.js', 'lib/core.js', 'lib/png.js'], budget: {esbuild: 2500, Vite: 2500}},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
@@ -450,6 +453,10 @@ try {
         assert.deepEqual(usedBands.sort(), bands ?? (draw ? [path.basename(include)] : []), `${label} の帯`);
       }
       for (const filename of exclude) assert.ok(!has(filename), `${label} に ${filename} が残っています`);
+      if (name === 'Wireframe button builder') {
+        assert.ok(code);
+        assert.doesNotMatch(code, /['"](?:text|region|fusion|insight)['"]/, label);
+      }
       if (name === '文字測定') assert.ok(bytes <= 4000, `${label} が 4000 バイトを超えています`);
       const limit = budget?.[bundler];
       if (limit !== undefined) assert.ok(bytes <= limit, `${label} が ${limit} バイトを超えています (${bytes})`);

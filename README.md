@@ -162,6 +162,8 @@ CLI では `svg-diagram spec 比較.json --part table > 比較.svg` で描画で
 
 画面状態マトリクスは `svg-diagram/bands/screens` の `stateMatrix` と `stateRow`、アロー・ダイヤグラムは `svg-diagram/compose/arrow-diagram` の `arrowDiagram` を使います。どちらも `renderBands` に渡して描画できます。
 
+ワイヤーフレームの部品は `svg-diagram/wireframe/parts` から `col`、`text`、`btn` などを名前で import できます。組み立てたノードは従来の `wf` と同じ形式で、`wireframe` や `screens` に渡せます。
+
 RACI、FMEA、QFD、チェックシート、マトリクス、ジャーニーマップ、IS/IS NOT、なぜなぜ分析表は `svg-diagram/bands/table` から個別に import できます。木でなぜなぜ分析を描く場合は `svg-diagram/compose/why-why-tree` の `whyWhyTree` を使います。
 
 ```ts

@@ -14,34 +14,17 @@
 // Everything is token-coloured (bg/text/muted/border/code/danger/accent/soft), >= 14px text, and every state
 // is shown by shape, hatching or words as well as colour (WCAG 1.4.1).
 
+import {checkInsight} from './wireframe-insight.ts';
 import {must} from './must.ts';
 import {toneStyle} from './tokens.ts';
 import type {ColorKey} from './types/core.ts';
-import type {GlyphOpts, WfBattery, WfBreadcrumb, WfCheckbox, WfCompare, WfCtx, WfFusion, WfFusionLayerSpec, WfHelpers, WfInsight, WfInsightOpts, WfNode, WfPartKey, WfPartsApi, WfRadio, WfRegion, WfRobot, WfSignal, WfSlider, WfState, WfToggle, WfTone, WfType} from './types/wireframe-nodes.ts';
+import type {GlyphOpts, WfBattery, WfBreadcrumb, WfCheckbox, WfCompare, WfCtx, WfFusion, WfFusionLayerSpec, WfHelpers, WfInsight, WfNode, WfPartKey, WfPartsApi, WfRadio, WfRegion, WfRobot, WfSignal, WfSlider, WfState, WfToggle, WfTone} from './types/wireframe-nodes.ts';
 
 interface StateInfo {title: string; tone: ColorKey}
 interface FusionLayer extends WfFusionLayerSpec {kind: 'camera' | 'cloud' | 'thermal'; bad: WfState | undefined; on: boolean}
 
-export function installParts(h: WfHelpers): WfPartsApi {
-  const {wf, DRAW, NAT, AUTO_W, S, T, lh, rect, circle, badge, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder} = h;
-  const mk = (t: WfType, o: object = {}) => ({t, ...o});
-
-  // ---- constructors ----------------------------------------------------------------------
-  Object.assign(wf, {
-    fusion: (o?: object) => mk('fusion', o),
-    compare: (o?: object) => mk('compare', o),
-    region: (label: string, o?: object) => mk('region', {...o, label}),
-    robot: (o: object) => mk('robot', o),
-    battery: (level: number, o?: object) => mk('battery', {...o, level}),
-    signal: (level: number | undefined, o?: object) => mk('signal', {...o, level}),
-    insight: (o: WfInsightOpts) => { checkInsight(o); return mk('insight', o); },
-    breadcrumb: (items: string[], o?: object) => mk('breadcrumb', {...o, items}),
-    toggle: (label: string, o?: object) => mk('toggle', {...o, label}),
-    checkbox: (label: string, o?: object) => mk('checkbox', {...o, label}),
-    radio: (label: string, o?: object) => mk('radio', {...o, label}),
-    slider: (label: string, o?: object) => mk('slider', {...o, label}),
-  });
-
+export function installParts(h: Omit<WfHelpers, 'wf'>): WfPartsApi {
+  const {DRAW, NAT, AUTO_W, S, T, lh, rect, circle, badge, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder} = h;
   // ---- shared drawing bits -----------------------------------------------------------------
   // A robot marker: shape + letter, so two vehicles never differ by colour alone.
   function glyph(ctx: WfCtx, cx: number, cy: number, o: GlyphOpts = {}) {
@@ -248,11 +231,6 @@ export function installParts(h: WfHelpers): WfPartsApi {
   };
 
   // ---- insight card (evidence + acquisition time are required) -------------------------------------
-  function checkInsight(n: WfInsightOpts) {
-    const name = `wf.insight("${n.title ?? ''}")`;
-    if (!n.evidence?.length) throw new Error(`${name}: evidence is required — an insight shows the data it rests on and when it was taken`);
-    for (const e of n.evidence) if (!e.kind || !e.at) throw new Error(`${name}: every evidence needs {kind, at} — kind of data and its acquisition time`);
-  }
   // an insight level is a chip tone and a label; the card's outline and side bar are that tone's own colours (tokens.ts TONES)
   const LEVEL: Record<'danger' | 'warn' | 'info', {chip: WfTone; label: string}> = {
     danger: {chip: 'solid-danger', label: '要確認'},

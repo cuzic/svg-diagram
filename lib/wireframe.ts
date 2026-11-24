@@ -16,6 +16,7 @@
 // Nodes in a col are full width; widgets in a row take their natural width (btn, chip) or share
 // the rest by flex. map / video / heat / pointcloud / chart / image grow to fill leftover height.
 
+import * as builders from './wireframe-builders.ts';
 import {must} from './must.ts';
 import {splitAtoms, textWidth} from './atoms.ts';
 import {TONE_ALIAS, textKeyOf, toneStyle} from './tokens.ts';
@@ -26,7 +27,7 @@ import {badgeBox, BADGE_R} from './badge.ts';
 import type {BadgeBox} from './badge.ts';
 import {installParts} from './wireframe-parts.ts';
 import type {ColorKey, Anchor, Rect, TextRequest, WidthOf, WrapMode} from './types/core.ts';
-import type {Wf, WfNode, WfCtx, WfRow, WfText, WfType, WfDrawFn, WfNatFn, WfDrawTable, WfNatTable, WfAutoWTable, WfTone, WfMark, WfChipSpec, WfChildren, WfFrameDecor, WfMapMarker, WfMapLegendItem, WfOverlay, WfKvPair, WfListItemSpec, WfTableCellSpec, BadgeOpts, DrawShapeOpts, DrawTextOpts, WfAutoWFn} from './types/wireframe-nodes.ts';
+import type {Wf, WfNode, WfCtx, WfRow, WfText, WfType, WfDrawFn, WfNatFn, WfDrawTable, WfNatTable, WfAutoWTable, WfTone, WfMark, WfChipSpec, WfFrameDecor, WfMapMarker, WfMapLegendItem, WfOverlay, WfKvPair, WfListItemSpec, WfTableCellSpec, BadgeOpts, DrawShapeOpts, DrawTextOpts, WfAutoWFn} from './types/wireframe-nodes.ts';
 import type {WfScreen, WireframeBand, ScreensBand, StateMatrixCell, LaidOutWireframe, LaidOutScreens} from './types/wireframe.ts';
 
 const S = 14, T = 15, LHF = 1.4, GAP = 12;
@@ -34,38 +35,18 @@ const lh = (s: number): number => s * LHF;
 const VISUAL: ReadonlySet<string> = new Set(['map', 'video', 'heat', 'pointcloud', 'chart', 'image', 'compare', 'fusion', 'region']);
 const CONTAINER: ReadonlySet<string> = new Set(['col', 'row', 'card']);
 
-// ---- constructors -------------------------------------------------------------------------
-const mk = (t: string, o: object = {}) => ({t, ...o});
-const kids = (c: WfChildren): WfNode[] => ([c] as unknown[]).flat(Infinity).filter(Boolean) as WfNode[]; // nested arrays / falsy dropped
-// The parts below `toast` (fusion, compare, region, robot ...) are added by installParts() at the bottom of this file.
-export const wf = {
-  col: (c: WfChildren, o?: object) => mk('col', {...o, children: kids(c)}),
-  row: (c: WfChildren, o?: object) => mk('row', {...o, children: kids(c)}),
-  card: (c: WfChildren, o?: object) => mk('card', {...o, children: kids(c)}),
-  spacer: (h = 8, o?: object) => mk('spacer', {h, ...o}),
-  text: (text: string, o?: object) => mk('text', {...o, text}),
-  btn: (label: string, o?: object) => mk('btn', {...o, label}),
-  input: (label: string, o?: object) => mk('input', {...o, label}),
-  select: (label: string, o?: object) => mk('select', {...o, label}),
-  chip: (label: string, o?: object) => mk('chip', {...o, label}),
-  tabs: (labels: string[], o?: object) => mk('tabs', {...o, labels}),
-  appbar: (title: string, o?: object) => mk('appbar', {...o, title}),
-  seek: (o?: object) => mk('seek', o),
-  kv: (pairs: WfKvPair[], o?: object) => mk('kv', {...o, pairs}),
-  stat: (value: string | number, label: string, o?: object) => mk('stat', {...o, value: String(value), label}),
-  list: (items: (string | WfListItemSpec)[], o?: object) => mk('list', {...o, items}),
-  table: (columns: unknown[], rows: unknown[][], o?: object) => mk('table', {...o, columns, rows}),
-  alert: (text: string, o?: object) => mk('alert', {...o, text}),
-  map: (o?: object) => mk('map', o),
-  video: (o?: object) => mk('video', o),
-  heat: (o?: object) => mk('heat', o),
-  pointcloud: (o?: object) => mk('pointcloud', o),
-  chart: (o?: object) => mk('chart', o),
-  image: (label: string, o?: object) => mk('image', {...o, label}),
-  // Overlays — pass them to wireframe(root, {overlays: [...]}) / a screens() item's `overlays`.
-  dialog: (title: string, o?: object) => mk('dialog', {...o, title}),   // {body, buttons: [wf.btn...], w, n}: modal over a dimmed screen
-  toast: (text: string, o?: object) => mk('toast', {...o, text}),       // {tone: 'danger'}: a notice at the bottom right
-} as unknown as Wf; // loosely typed constructors; the public shape is the Wf interface
+export const wf: Wf = {
+  col: builders.col, row: builders.row, card: builders.card, spacer: builders.spacer,
+  text: builders.text, btn: builders.btn, input: builders.input, select: builders.select,
+  chip: builders.chip, tabs: builders.tabs, appbar: builders.appbar, seek: builders.seek,
+  kv: builders.kv, stat: builders.stat, list: builders.list, table: builders.table,
+  alert: builders.alert, map: builders.map, video: builders.video, heat: builders.heat,
+  pointcloud: builders.pointcloud, chart: builders.chart, image: builders.image, dialog: builders.dialog,
+  toast: builders.toast, fusion: builders.fusion, compare: builders.compare, region: builders.region,
+  robot: builders.robot, battery: builders.battery, signal: builders.signal, insight: builders.insight,
+  breadcrumb: builders.breadcrumb, toggle: builders.toggle, checkbox: builders.checkbox, radio: builders.radio,
+  slider: builders.slider,
+};
 
 // ---- text requests (everything the layout may measure) ---------------------------------------
 const DEFAULT_STRINGS = ['LIVE', '!', '新規', '改修', '対象外', '未設計'];
@@ -841,4 +822,4 @@ export function layoutScreens(band: ScreensBand, x: number, y: number, w: number
 
 // ---- parts defined in wireframe-parts.ts (states, fusion, robot status, insight, compare, controls) ----
 const AUTO_W: WfAutoWTable = {}, NAT: WfNatTable = {};
-const PARTS = installParts({wf, DRAW, NAT, AUTO_W, S, T, lh, rect, circle, badge, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder});
+const PARTS = installParts({DRAW, NAT, AUTO_W, S, T, lh, rect, circle, badge, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder});

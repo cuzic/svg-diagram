@@ -828,6 +828,10 @@
       "types": "./dist/lib/spec-selective-edge.d.ts",
       "default": "./dist/lib/spec-selective-edge.js"
     },
+    "./wireframe/parts": {
+      "types": "./dist/lib/wireframe-builders.d.ts",
+      "default": "./dist/lib/wireframe-builders.js"
+    },
     "./zip": {
       "types": "./dist/lib/pptx/zip.d.ts",
       "default": "./dist/lib/pptx/zip.js"

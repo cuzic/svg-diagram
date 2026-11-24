@@ -603,6 +603,7 @@
   "verify-rects:scopedRect",
   "verify-timeline:timelineProblems",
   "verify-tree:treeRects",
+  "wireframe-insight:checkInsight",
   "wireframe-parts:installParts",
   "wordart-look:asList",
   "wordart-look:isArtTone",

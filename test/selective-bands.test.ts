@@ -805,3 +805,17 @@ test('the selective why-why tree keeps the captions and RCA findings', async () 
   assert.deepEqual(actual.verdict.findings.filter(f => f.rule.startsWith('whywhy-')).map(f => f.message),
     old.verdict.findings.filter(f => f.rule.startsWith('whywhy-')).map(f => f.message));
 });
+
+test('wireframe constructors can be imported and composed independently', async () => {
+  const builders = await import('../lib/wireframe-builders.ts');
+  assert.deepEqual(Object.keys(builders), Object.keys(wf).sort());
+  for (const name of Object.keys(builders) as (keyof typeof builders)[]) assert.equal(builders[name], wf[name]);
+  const {col, btn, text: wfText, insight} = builders;
+  const modern = col([[wfText('Overview'), false], btn('Next')]);
+  assert.deepEqual(modern, wf.col([[wf.text('Overview'), false], wf.btn('Next')]));
+  assert.throws(() => insight({title: 'Unread', evidence: []}), /evidence is required/);
+  const actual = await renderBands([wireframe(modern)], {measure, title: 'Review'});
+  const old = await renderInBrowser(diagram({theme: 'blue', title: 'Review', legend: false}).add(legacyWireframe(modern)), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.equal(body(actual.svg), body(old.svg));
+});
