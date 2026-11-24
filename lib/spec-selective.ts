@@ -1,5 +1,5 @@
 import {must} from './must.ts';
-import {renderBands} from './core.ts';
+import {prepareBands, renderBands} from './core.ts';
 import {LEGEND_EN, MAX_EMOJI, MAX_TOTAL_TEXT, PART_EN, SpecError, withoutSchemaField} from './spec-kit.ts';
 import type {Json, JsonSchema, PartDef, SpecIssue} from './spec-kit.ts';
 import {capped, checkAnchors, countEmoji, totalText, validateAgainst} from './spec-validation.ts';
@@ -97,8 +97,9 @@ export function validateSpec(input: unknown, options: PartOptions): SpecIssue[] 
   return assemble(input, options).issues;
 }
 
-/** @internal Validate the request and return a draw callback, so Edge can distinguish validation from layout errors. */
-export function prepareSpecRender(input: unknown, options: PartOptions & Pick<RenderOptions, 'captions'>) {
+type PrepareOptions = PartOptions & Pick<RenderOptions, 'captions'>;
+
+function prepareSpec<Result>(input: unknown, options: PrepareOptions, draw: (bands: SelectedBand[], options: RenderOptions) => Result) {
   const {doc, bands, issues} = assemble(input, options);
   if (issues.length) throw new SpecError(issues);
   if (doc.legend === 'auto') {
@@ -108,8 +109,18 @@ export function prepareSpecRender(input: unknown, options: PartOptions & Pick<Re
   }
   const connectors = options.parts.find(part => part.connectors)?.connectors;
   const {title, theme, width, appearance, density, showTitle, sourceLine, canvas, lang, desc} = doc;
-  return (measure: RenderOptions['measure']) => renderBands(bands, {measure, captions: options.captions, title, theme, width, appearance, density, showTitle,
+  return (measure: RenderOptions['measure']) => draw(bands, {measure, captions: options.captions, title, theme, width, appearance, density, showTitle,
     sourceLine, canvas, desc: desc ?? (lang === 'en' ? title : undefined), connectors});
+}
+
+/** @internal Validate before drawing so Edge can distinguish validation from layout errors. */
+export function prepareSpecRender(input: unknown, options: PrepareOptions) {
+  return prepareSpec(input, options, renderBands);
+}
+
+/** @internal Provide the prepared geometry and SVG emitter to consumers such as the deck renderer. */
+export function prepareSpecLayout(input: unknown, options: PrepareOptions) {
+  return prepareSpec(input, options, prepareBands);
 }
 
 export async function renderSpec(input: unknown, options: PartOptions & Pick<RenderOptions, 'measure' | 'captions'>) {

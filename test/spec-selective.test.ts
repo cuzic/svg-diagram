@@ -276,3 +276,21 @@ test('selected Node rendering measures from font files and matches the legacy SV
   assert.equal(invalid.svg, null);
   assert.ok(invalid.issues.length);
 });
+
+test('selective spec preparation retains layout geometry for deck consumers', async () => {
+  const {prepareSpecLayout} = await import('../lib/spec-selective.ts');
+  const {loadSpecPartsFor} = await import('../lib/spec-cli-parts.ts');
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  for (const part of [tablePart, stepsPart, pyramidPart]) {
+    const spec = {version: 1, title: 'Plan', desc: 'Deck figure', legend: false, width: 480, parts: [part.example]};
+    const parts = await loadSpecPartsFor(spec);
+    assert.deepEqual(parts?.map(p => p.type), [part.type]);
+    assert.ok(parts);
+    const layout = await prepareSpecLayout(spec, {parts})(measure);
+    const expected = await renderInBrowser(specToDiagram(spec), {measure});
+    assert.equal(layout.placed.width, expected.width, part.type);
+    assert.equal(layout.placed.canvasHeight, expected.height, part.type);
+    assert.ok(layout.placed.laidOut.length, part.type);
+    assert.equal(layout.emit(layout.placed), expected.svg, part.type);
+  }
+});

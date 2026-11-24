@@ -1,3 +1,4 @@
+import {MAX_SPEC_PARTS} from './spec-kit.ts';
 import type {SelectedPart} from './spec-selective.ts';
 
 // A name from the CLI can select only these package-owned modules.
@@ -68,3 +69,17 @@ export const specPartLoaders: Readonly<Record<string, () => Promise<SelectedPart
   'why-why-table': () => import('./spec-parts/selective/why-why-table.ts').then(m => m.whyWhyTablePart),
   'why-why-tree': () => import('./spec-parts/selective/why-why-tree.ts').then(m => m.whyWhyTreePart),
 };
+
+/** Load definitions for the discriminants present in a structurally plausible JSON figure. */
+export async function loadSpecPartsFor(figure: unknown): Promise<SelectedPart[] | undefined> {
+  const parts = (figure as {parts?: unknown} | null)?.parts;
+  if (!Array.isArray(parts) || parts.length === 0 || parts.length > MAX_SPEC_PARTS) return undefined;
+  const names = new Set(parts.map(part => (part as {type?: unknown} | null)?.type));
+  const loaders: (() => Promise<SelectedPart>)[] = [];
+  for (const name of names) {
+    if (typeof name !== 'string' || !Object.hasOwn(specPartLoaders, name)) return undefined;
+    const load = specPartLoaders[name];
+    if (load) loaders.push(load);
+  }
+  return Promise.all(loaders.map(load => load()));
+}
