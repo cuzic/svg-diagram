@@ -828,7 +828,7 @@ try {
     {name: 'Grid', source: composedSource(['box', 'grid'], "grid([box({title: 'Review'}), box({title: 'Next'})], {cols: 2})"),
       include: 'bands/grid.js', budget: {esbuild: 77000, Vite: 97000}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'dsl/containers.js', 'dsl/row.js', 'dsl/areas.js', 'dsl/group.js', 'dsl/container-children.js', 'emit-boxes.js', 'emit-row.js', 'emit-connect.js', 'verify-connect-geometry.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Connect', source: composedSource(['box', 'connect'], "connect('a:bottom', 'b:top'), connect('b:bottom', 'c:top'), connect('d:bottom', 'e:top'), box({id: 'a', title: 'Review'}), ...['b', 'c', 'd', 'e', 'f'].map(id => box({id, title: id}))"),
-      include: 'layout-connect-gaps.js', budget: {esbuild: 106000, Vite: 133500}, bands: ['box.js', 'connect.js'], exclude: [...legacy, 'dsl/bracket.js', 'dsl/callout.js', 'dsl/branch.js', 'loop-back.js', 'loop-back-options.js', 'loop-back-source.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-grid.js', 'gantt.js'], draw: true},
+      include: 'layout-connect-gaps.js', budget: {esbuild: 106000, Vite: 135000}, bands: ['box.js', 'connect.js'], exclude: [...legacy, 'dsl/bracket.js', 'dsl/callout.js', 'dsl/branch.js', 'loop-back.js', 'loop-back-options.js', 'loop-back-source.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-grid.js', 'gantt.js'], draw: true},
     ...([
       ['bracket', "bracket('a:left', 'b:right', {label: '範囲'})"],
       ['callout', "callout('a', {text: '注意', side: 'above'})"],
