@@ -907,6 +907,10 @@ try {
         assert.ok(code?.includes('"layoutStateMatrixWith"') && !code.includes('"layoutScreenGridWith"'), label);
       }
       if (name === 'Selected table spec') assert.ok(has('table-number-rules.js'), label);
+      if (name === 'PPTX flow adapter') {
+        assert.ok(code);
+        assert.doesNotMatch(code, /\(["'](?:legend|axes|axis)["'],\s*0,\s*["']["']\)/, label);
+      }
       if (name === 'Core') assert.ok(!code?.includes('許容するなら diagram'), label);
       if (name === 'Core' || draw) {
         assert.deepEqual(bandModules(files), bands ?? (draw ? [path.basename(include)] : []), `${label} の帯`);
