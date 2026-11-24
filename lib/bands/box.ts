@@ -1,3 +1,7 @@
+import {node as buildNode} from '../dsl/node.ts';
+import type {NodeOpts} from '../dsl/node.ts';
+import {stat as buildStat} from '../dsl/stat.ts';
+import type {RichText, StatOpts} from '../types/text-bands.ts';
 import {ownRunSizes} from '../band-text-sizes.ts';
 import {boxItems} from '../inventory-boxes.ts';
 import {oneLine} from '../diagram-description.ts';
@@ -50,6 +54,21 @@ export function box<const Id extends string = never>(opts: BoxInput<Id>): WithBa
   const data = buildBox<Id>(opts);
   return band<typeof data, LaidOutBox>(boxDefinition, data);
 }
+
+export function node<const Id extends string = never>(opts: NodeOpts & {id?: Id}): WithBandDef<ReturnType<typeof buildNode<Id>>, LaidOutBox> {
+  const data = buildNode(opts);
+  return band<typeof data, LaidOutBox>(boxDefinition, data);
+}
+
+export function stat<const Id extends string = never>(
+  value: string | number, label: RichText, opts?: StatOpts & {id?: Id},
+): WithBandDef<ReturnType<typeof buildStat<Id>>, LaidOutBox> {
+  const data = buildStat(value, label, opts);
+  return band<typeof data, LaidOutBox>(boxDefinition, data);
+}
+
+export type {NodeOpts} from '../dsl/node.ts';
+export type {StatOpts} from '../types/text-bands.ts';
 
 export {icon} from '../icon-registry.ts';
 export {em} from '../rich.ts';

@@ -418,7 +418,11 @@ try {
     `, include: 'document-findings.js', bands: ['box.js'], exclude: [...legacy, 'term-rules.js', 'layout-connect.js'],
       budget: {esbuild: 89000, Vite: 113000}, draw: true},
     {name: 'Box', source: bandSource('box'), include: 'bands/box.js',
-      exclude: [...legacy, 'emit-connect.js', 'verify-connect-geometry.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 71000, Vite: 89500}, draw: true},
+      exclude: [...legacy, 'dsl/node.js', 'dsl/stat.js', 'emit-connect.js', 'verify-connect-geometry.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 71000, Vite: 89500}, draw: true},
+    {name: 'Node and stat', source: composedSource([], "node({icon: 'check', label: 'Review'}), stat(12, 'Count', {source: 'Report'})",
+      "import {icon, node, stat} from 'svg-diagram/bands/box'; icon.use({version: 1, icons: {check: {d: 'M2 2h20v20H2z', vb: [0, 0, 24], from: 'file:check.svg', license: 'local'}}});"),
+      include: 'dsl/stat.js', budget: {esbuild: 75000, Vite: 96000}, bands: ['box.js'],
+      exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'layout-connect.js', 'layout-areas.js'], draw: true},
     {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',
       exclude: [...legacy, 'emit-connect.js', 'verify-connect-geometry.js', 'layout-box-like.js', 'layout-cause-fit.js', 'box.js', 'emit-boxes.js', 'layout-connect.js', 'timeline.js'], budget: {esbuild: 48000, Vite: 63000}, draw: true},
     {name: 'Row', source: composedSource(['box', 'row'], "row([box({title: 'Review'}), box({title: 'Next'})], {arrows: 'between'})"),
@@ -442,6 +446,9 @@ try {
     `, include: 'bands/row.js', budget: {esbuild: 117500, Vite: 148000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'layout-grid.js', 'gantt.js'], draw: true},
     {name: 'Image', source: composedSource(['image'], "image('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', {alt: 'Picture', width: 240, labels: [{text: 'Review', at: [0.3, 0.5]}]})"),
       include: 'bands/image.js', budget: {esbuild: 68000, Vite: 91000}, exclude: [...legacy, 'verify-bars.js', 'dsl/io.js', 'image-file.js', 'charts.js', 'layout-connect.js'], draw: true},
+    {name: 'Spacer', source: composedSource(['spacer'], 'spacer(24)'),
+      include: 'bands/spacer.js', budget: {esbuild: 37000, Vite: 49000}, bands: ['spacer.js'],
+      exclude: [...legacy, 'bands/caption.js', 'bands/box.js', 'layout-box-like.js', 'emit-boxes.js', 'layout-connect.js'], draw: true},
     {name: 'Caption and spacer', source: composedSource(['caption', 'spacer'], "caption('Review', {mono: true}), spacer(24), caption('Next')"),
       include: 'bands/caption.js', budget: {esbuild: 62000, Vite: 82000}, bands: ['caption.js', 'spacer.js'], exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Group', source: composedSource(['box', 'group'], "group(box({title: 'Review'}), {title: 'Plan'})"),
@@ -586,6 +593,7 @@ try {
         assert.ok(code);
         assert.doesNotMatch(code, /bracket\(\): label must not be empty|callout\(\): text is required/, label);
       }
+      if (name === 'Node and stat') assert.ok(has('dsl/node.js'), label);
       if (name === 'Selected table spec') assert.ok(has('table-number-rules.js'), label);
       if (name === 'Core') assert.ok(!code?.includes('許容するなら diagram'), label);
       if (name === 'Core' || draw) {
@@ -701,6 +709,14 @@ try {
           console.log(`${label}: ${bytes} bytes`);
           continue;
         }
+        if (name === 'Spacer') {
+          assert.match(result.svg, /viewBox="0 0 940 48"/, label);
+          assert.doesNotMatch(result.svg, /<text\b/, label);
+          assert.deepEqual(result.xml, [], label);
+          assert.equal(result.verdict.ok, true, label);
+          console.log(`${label}: ${bytes} bytes`);
+          continue;
+        }
         assert.match(result.svg, name === 'Sankey' ? /<text[^>]*>Review 5<\/text>/ : name === 'funnel' ? /<text[^>]*>Review +1<\/text>/ : name === 'Composer Arrow diagram' ? /<text[^>]*>Review 3<\/text>/ : /<text[^>]*>Review<\/text>/, label);
         if (name === 'Image') {
           assert.match(result.svg, /<image [^>]*href="data:image\/gif;base64,/);
@@ -719,6 +735,7 @@ try {
           assert.ok(result.verdict.warnings.some((warning: string) => warning.includes('check --explain glyph-missing')), label);
         }
         if (name === 'Box') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'box-size-ignored'), label);
+        if (name === 'Node and stat') assert.match(result.svg, /出典: Report/, label);
         if (name === 'Composer Canvas') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'canvas-region-empty'), label);
         if (name === 'funnel') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'funnel-values-rise'), label);
         if (name === 'Row loop-back' || name === 'Selected steps spec') assert.match(result.svg, /Retry/, label);

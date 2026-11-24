@@ -1,13 +1,11 @@
 import {resolveLoopBacks} from '../loop-back.ts';
 import {parseAreaTemplate} from '../areas.ts';
 import type {AreasBand, AreasOpts, ConnectBand, GridBand, GridOpts, GroupBand, RowBand, RowOpts, SpacerBand, GroupRowBand} from '../types/containers.ts';
-import type {TextTone} from '../types/core.ts';
 import type {Band} from '../types/index.ts';
-import type {BoxBand, BoxTone} from '../types/text-bands.ts';
+import type {BoxBand} from '../types/text-bands.ts';
 import type {Declares, IdsOf, HandleOf, Refers, RefsOf, RowHandleOf} from '../strict.ts';
-import type {IconName} from '../icons.ts';
 import {assertNoReveal, assertOneOf, cloneBand, handleFor, withHandle} from './shared.ts';
-import {box, group} from './text-bands.ts';
+import {group} from './group.ts';
 
 export function spacer(h: number, opts?: {reveal?: number}): SpacerBand {
   assertNoReveal(opts, 'spacer()');
@@ -112,34 +110,9 @@ function spanRow<C extends BoxBand | GroupBand>(children: C[], cols: number | nu
   return {cols: cols.reduce((a, b) => a + b, 0), kids};
 }
 /** One node of an architecture diagram: an icon, centred and large, with its label under it (Visio's "shape"). */
-export interface NodeOpts {
-  icon: IconName;
-  label: string;
-  /** a second, muted line under the label (a type, an address) */
-  sub?: string;
-  /** side of the icon in px (default 48) */
-  size?: number;
-  /** `true` draws the box around it (default: no box) */
-  frame?: boolean;
-  tone?: BoxTone;
-  iconTone?: TextTone;
-  tag?: string;
-  tagTone?: import('../types/core.ts').TagTone;
-  flex?: number;
-  width?: number;
-  col?: number;
-  span?: number;
-}
-/**
- * A node: `box({icon, iconAt: 'top', title: label, body: sub, frame})`, centred. Put nodes in row() / grid(), inside group() for a
- * network / VPC / region boundary, and join them with connect() by id.
- */
-export function node<const Id extends string = never>(opts: NodeOpts & {id?: Id}): BoxBand & Declares<Id> & HandleOf<Id>;
-export function node(opts: NodeOpts & {id?: string}): BoxBand {
-  const {label, sub, size, frame, ...rest} = opts;
-  if (size !== undefined && !(size >= 16 && size <= 96)) throw new Error(`node(): size must be between 16 and 96 px (got ${size})`);
-  return box({...rest, title: label, ...(sub !== undefined ? {body: sub} : {}), iconAt: 'top', ...(size !== undefined ? {iconSize: size} : {}), ...(frame ? {} : {frame: false as const}), align: 'center'} as never) as BoxBand;
-}
+export {node} from './node.ts';
+export type {NodeOpts} from './node.ts';
+
 // children: box() descriptors, laid out in `cols` columns (wraps to
 // additional rows automatically). Every cell in the same grid-row shares
 // that row's tallest cell's height, same as row().

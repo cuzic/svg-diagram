@@ -1388,3 +1388,15 @@ test('selected affinity diagrams preserve nested groups and card columns', async
   assert.match(selected.svg, /配布用の版を作る/);
   assert.equal(selected.svg, legacy.svg);
 });
+
+test('selected node and stat boxes preserve top icons and source labels', async () => {
+  const {node, stat} = await import('../lib/bands/box.ts');
+  const {node: legacyNode, stat: legacyStat} = await import('../lib/web.ts');
+  const item = {label: '承認', sub: '次の工程', icon: 'check'} as const;
+  const value = {source: '月次集計', confidence: 'primary'} as const;
+  const selected = await renderBands([grid([node(item), stat(12, '処理件数', value)], {cols: 2})], {measure});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false})
+    .add(legacyGrid([legacyNode(item), legacyStat(12, '処理件数', value)], {cols: 2})), {measure});
+  assert.match(selected.svg, /月次集計/);
+  assert.equal(selected.svg, legacy.svg);
+});
