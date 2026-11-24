@@ -256,6 +256,18 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [tablePart],
       });
     `, include: 'spec-parts/selective/table.js', budget: {esbuild: 86000, Vite: 110000}, bands: ['table.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/swimlane.js', 'spec-parts/gantt.js', 'dsl-pure.js', 'layout-connect.js'], draw: true},
+    {name: 'Prepared table spec with description', source: `
+      import {prepareSpecLayout} from 'svg-diagram/spec/selective';
+      import {tablePart} from 'svg-diagram/spec/parts/table';
+      export const draw = async () => {
+        const spec = {version: 1, title: 'Plan', parts: [{type: 'table', columns: [{label: 'Review'}], rows: [['Done']]}]};
+        const {placed, emit, verdict} = await prepareSpecLayout(spec, {parts: [tablePart]})(
+          ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        );
+        return {svg: emit(placed), verdict};
+      };
+    `, include: 'diagram-description.js', budget: {esbuild: 85000, Vite: 109000}, bands: ['table.js'],
+      exclude: [...legacy, 'lib/spec.js', 'lib/bars.js', 'band-children.js', 'layout-connect.js'], draw: true},
     {name: 'Selected heatmap spec', source: `
       import {renderSpec} from 'svg-diagram/spec/selective';
       import {heatmapPart} from 'svg-diagram/spec/parts/heatmap';
@@ -572,7 +584,8 @@ try {
         if (name === 'RACI table') assert.ok(!/fmea\(\)|qfd\(\)|whyWhyTree\(/.test(code), label);
         if (name === 'Selected fault tree spec with legend') assert.match(result.svg, /OR gate/, label);
         if (name === 'Row loop-back' || name === 'Selected steps spec') assert.match(result.svg, /Retry/, label);
-        assert.deepEqual(result.xml, [], label);
+        if (name === 'Prepared table spec with description') assert.match(result.svg, /<desc id="svg-desc">表: 列 Review<\/desc>/, label);
+        else assert.deepEqual(result.xml, [], label);
         assert.equal(result.verdict.ok, true, label);
       }
       console.log(`${label}: ${bytes} bytes`);

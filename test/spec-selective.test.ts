@@ -281,8 +281,8 @@ test('selective spec preparation retains layout geometry for deck consumers', as
   const {prepareSpecLayout} = await import('../lib/spec-selective.ts');
   const {loadSpecPartsFor} = await import('../lib/spec-cli-parts.ts');
   const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
-  for (const part of [tablePart, stepsPart, pyramidPart]) {
-    const spec = {version: 1, title: 'Plan', desc: 'Deck figure', legend: false, width: 480, parts: [part.example]};
+  for (const part of [tablePart, stepsPart, pyramidPart, sequencePart, swimlanePart]) {
+    const spec = {version: 1, title: '計画', legend: false, width: part === swimlanePart ? 940 : 480, parts: [part.example]};
     const parts = await loadSpecPartsFor(spec);
     assert.deepEqual(parts?.map(p => p.type), [part.type]);
     assert.ok(parts);
@@ -292,5 +292,18 @@ test('selective spec preparation retains layout geometry for deck consumers', as
     assert.equal(layout.placed.canvasHeight, expected.height, part.type);
     assert.ok(layout.placed.laidOut.length, part.type);
     assert.equal(layout.emit(layout.placed), expected.svg, part.type);
+    assert.match(layout.emit({...layout.placed, desc: '  説明を指定  '}), /<desc id="svg-desc">説明を指定<\/desc>/);
+  }
+});
+
+test('prepared spec SVGs describe the same content as the legacy catalog', async () => {
+  const {prepareSpecLayout} = await import('../lib/spec-selective.ts');
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const description = (svg: string) => svg.match(/<desc id="svg-desc">[^<]*<\/desc>/)?.[0];
+  for (const part of [flowchartPart, pyramidPart, funnelPart, ...moreParts]) {
+    const spec = {version: 1, title: '計画', legend: false, parts: [part.example]};
+    const layout = await prepareSpecLayout(spec, {parts: [part]})(measure);
+    const legacy = await renderInBrowser(specToDiagram(spec), {measure});
+    assert.equal(description(layout.emit(layout.placed)), description(legacy.svg), part.type);
   }
 });

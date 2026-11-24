@@ -1,3 +1,6 @@
+import {defOf} from './band-def.ts';
+import {describeBands, oneLine} from './diagram-description.ts';
+import type {Band} from './types/index.ts';
 import {must} from './must.ts';
 import {prepareBands, renderBands} from './core.ts';
 import {LEGEND_EN, MAX_EMOJI, MAX_TOTAL_TEXT, PART_EN, SpecError, withoutSchemaField} from './spec-kit.ts';
@@ -120,7 +123,21 @@ export function prepareSpecRender(input: unknown, options: PrepareOptions) {
 
 /** @internal Provide the prepared geometry and SVG emitter to consumers such as the deck renderer. */
 export function prepareSpecLayout(input: unknown, options: PrepareOptions) {
-  return prepareSpec(input, options, prepareBands);
+  return prepareSpec(input, options, async (bands, renderOptions) => {
+    const prepared = await prepareBands(bands, renderOptions);
+    const {stage, emit} = prepared;
+    return {...prepared, emit(figure: typeof prepared.placed, noRecolor?: boolean) {
+      if (figure.desc) return emit(figure, noRecolor, oneLine(figure.desc));
+      const all: Band[] = [];
+      const walk = (band: Band): void => {
+        all.push(band);
+        const children = band.type === 'swimlane' ? band.steps : defOf(band)?.children?.(band) ?? [];
+        children.forEach(walk);
+      };
+      figure.bands.forEach(walk);
+      return emit(figure, noRecolor, describeBands(all, stage));
+    }};
+  });
 }
 
 export async function renderSpec(input: unknown, options: PartOptions & Pick<RenderOptions, 'measure' | 'captions'>) {

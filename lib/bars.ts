@@ -45,8 +45,6 @@ function flags(band: BarsBand) {
   const labels = band.labels ?? 'all', axis = band.axis !== false;
   return {showValues: labels === 'all', showCats: labels !== 'none', axis, grid: band.grid ?? (axis && !band.cumulative), baseline: band.baseline !== false, labels};
 }
-/** Values are on neither a label nor a scale: the figure alone cannot be read for them. */
-export const barsValuesHidden = (band: BarsBand): boolean => band.labels !== undefined && band.labels !== 'all' && band.axis === false;
 /** Text inside / beside a stacked segment: label and value, or what labels: leaves of them. */
 const segmentOf = (d: BarDatum, band: BarsBand, labels: 'all' | 'category' | 'none') =>
   labels === 'all' ? `${d.label} ${valueText(d, band)}` : labels === 'category' ? d.label : '';

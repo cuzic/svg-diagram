@@ -32,11 +32,9 @@ const wcagIn = (d: LintTarget, tones: ToneEnv) => { const p = paintOf(tones, d.a
 import {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 import {budgetWarnings} from './budget.ts';
 import {termFindings, tableFindings} from './consistency.ts';
-import {barsValuesHidden} from './bars.ts';
-import {fmt} from './axis-ticks.ts';
+import {barsValuesHidden, describeBands, oneLine} from './diagram-description.ts';
 import {layoutMetrics} from './layout-metrics.ts';
 import {dimmedBands} from './spotlight.ts';
-import {visibleAt} from './reveal.ts';
 import type {BarsBand} from './types/bars.ts';
 import type {CaptionBand} from './types/text-bands.ts';
 import type {LaidOutConnect, LegendBand} from './types/containers.ts';
@@ -1033,7 +1031,6 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
 }
 
 // ---- SVG accessible name / description -------------------------------------------------
-const oneLine = (t: unknown): string => String(t ?? '').replace(/\s*\n\s*/g, ' ').trim();
 
 export function diagramTitle(d: DiagramData): string {
   if (d.title) return oneLine(d.title);
@@ -1056,29 +1053,7 @@ export function diagramTitle(d: DiagramData): string {
 
 /** `stage`: a click stage of a revealing diagram; only what is on screen then is listed (nothing is left out without it). */
 export function diagramDesc(d: DiagramData, stage?: number): string {
-  const text = descOf(d, stage);
+  const text = d.desc ? oneLine(d.desc) : describeBands(walkBands(d.bands), stage);
   // a figure with a status says so first, in the badge's own wording ("(下書き)"); one without is unchanged
   return d.status === undefined ? text : `(${statusText(d)})${text ? ` ${text}` : ''}`;
-}
-function descOf(d: DiagramData, stage?: number): string {
-  if (d.desc) return oneLine(d.desc);
-  const parts: string[] = [];
-  const bands = walkBands(d.bands).filter(b => visibleAt(b as {reveal?: number; until?: number}, stage));
-  for (const b of bands) {
-    if (b.type === 'swimlane') {
-      parts.push(`レーン: ${b.lanes.map(l => oneLine(l.label)).join('、')}`);
-      parts.push(`手順: ${b.steps.filter(s => visibleAt(s, stage)).map(s => oneLine(s.title)).join('、')}`);
-    } else if (b.type === 'sequence') parts.push(`参加者: ${b.actors.map(a => oneLine(a.label)).join('、')}`);
-    else if (b.type === 'table') parts.push(`表${b.title ? `「${oneLine(b.title)}」` : ''}: 列 ${b.columns.map(c => oneLine(c.label)).join('、')}`);
-  }
-  if (!parts.length) {
-    const titles = bands.filter((b): b is BoxBand => b.type === 'box' && !!b.title).map(b => oneLine(b.title));
-    if (titles.length) parts.push(`要素: ${titles.slice(0, 16).join('、')}${titles.length > 16 ? ' ほか' : ''}`);
-  }
-  for (const b of walkBands(d.bands)) if (b.type === 'image' && b.alt) parts.push(`画像: ${oneLine(b.alt)}`);
-  for (const b of walkBands(d.bands)) if (b.type === 'math') parts.push(`数式: ${oneLine(b.alt)}`);
-  // outside the fallback above, so boxes and hidden-value bars can share one description
-  for (const b of bands) if (b.type === 'bars' && barsValuesHidden(b)) parts.push(`値: ${b.data.filter(x => visibleAt(x, stage)).map(x => `${oneLine(x.label)} ${x.range ? `${fmt(x.range[0])}〜${fmt(x.range[1])}` : fmt(x.value ?? 0)}${b.unit ?? ''}`).join('、')}`);
-  for (const b of bands) if (b.type === 'chart') parts.push(oneLine(b.alt));
-  return parts.join('。');
 }
