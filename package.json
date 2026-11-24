@@ -120,16 +120,19 @@
     "./dist/lib/spec-parts/r2.js",
     "./dist/lib/spec-parts/r3-common.js",
     "./dist/lib/spec-parts/r3.js",
+    "./dist/lib/spec-parts/r4-common.js",
     "./dist/lib/spec-parts/r4.js",
     "./dist/lib/spec-parts/r5.js",
     "./dist/lib/spec-parts/r6-common.js",
     "./dist/lib/spec-parts/r6.js",
     "./dist/lib/spec-parts/r7.js",
     "./dist/lib/spec-parts/selective/bars.js",
+    "./dist/lib/spec-parts/selective/bowtie.js",
     "./dist/lib/spec-parts/selective/boxplot.js",
     "./dist/lib/spec-parts/selective/bpmn.js",
     "./dist/lib/spec-parts/selective/bubble.js",
     "./dist/lib/spec-parts/selective/butterfly.js",
+    "./dist/lib/spec-parts/selective/causal-loop.js",
     "./dist/lib/spec-parts/selective/cause-tree.js",
     "./dist/lib/spec-parts/selective/check-sheet.js",
     "./dist/lib/spec-parts/selective/chevron.js",
@@ -141,17 +144,22 @@
     "./dist/lib/spec-parts/selective/control-chart.js",
     "./dist/lib/spec-parts/selective/cycle.js",
     "./dist/lib/spec-parts/selective/dependency-network.js",
+    "./dist/lib/spec-parts/selective/fault-tree.js",
     "./dist/lib/spec-parts/selective/flowchart.js",
+    "./dist/lib/spec-parts/selective/fmea.js",
     "./dist/lib/spec-parts/selective/funnel.js",
     "./dist/lib/spec-parts/selective/gantt.js",
     "./dist/lib/spec-parts/selective/harvey.js",
     "./dist/lib/spec-parts/selective/heatmap.js",
     "./dist/lib/spec-parts/selective/histogram.js",
+    "./dist/lib/spec-parts/selective/is-is-not.js",
     "./dist/lib/spec-parts/selective/journey-map.js",
     "./dist/lib/spec-parts/selective/lines.js",
+    "./dist/lib/spec-parts/selective/matrix.js",
     "./dist/lib/spec-parts/selective/mekko.js",
     "./dist/lib/spec-parts/selective/mindmap.js",
     "./dist/lib/spec-parts/selective/pareto.js",
+    "./dist/lib/spec-parts/selective/pdpc.js",
     "./dist/lib/spec-parts/selective/pert.js",
     "./dist/lib/spec-parts/selective/pyramid.js",
     "./dist/lib/spec-parts/selective/qfd.js",
@@ -159,6 +167,7 @@
     "./dist/lib/spec-parts/selective/raci.js",
     "./dist/lib/spec-parts/selective/radar.js",
     "./dist/lib/spec-parts/selective/range-bars.js",
+    "./dist/lib/spec-parts/selective/relation-diagram.js",
     "./dist/lib/spec-parts/selective/sankey.js",
     "./dist/lib/spec-parts/selective/scatter.js",
     "./dist/lib/spec-parts/selective/sequence.js",
@@ -175,6 +184,7 @@
     "./dist/lib/spec-parts/selective/venn.js",
     "./dist/lib/spec-parts/selective/waterfall.js",
     "./dist/lib/spec-parts/selective/why-why-table.js",
+    "./dist/lib/spec-parts/selective/why-why-tree.js",
     "./dist/lib/spec-parts/treemap.js",
     "./dist/lib/spec.js",
     "./dist/lib/svg-outline.js",
@@ -534,6 +544,10 @@
       "types": "./dist/lib/spec-parts/selective/bars.d.ts",
       "default": "./dist/lib/spec-parts/selective/bars.js"
     },
+    "./spec/parts/bowtie": {
+      "types": "./dist/lib/spec-parts/selective/bowtie.d.ts",
+      "default": "./dist/lib/spec-parts/selective/bowtie.js"
+    },
     "./spec/parts/boxplot": {
       "types": "./dist/lib/spec-parts/selective/boxplot.d.ts",
       "default": "./dist/lib/spec-parts/selective/boxplot.js"
@@ -549,6 +563,10 @@
     "./spec/parts/butterfly": {
       "types": "./dist/lib/spec-parts/selective/butterfly.d.ts",
       "default": "./dist/lib/spec-parts/selective/butterfly.js"
+    },
+    "./spec/parts/causal-loop": {
+      "types": "./dist/lib/spec-parts/selective/causal-loop.d.ts",
+      "default": "./dist/lib/spec-parts/selective/causal-loop.js"
     },
     "./spec/parts/cause-tree": {
       "types": "./dist/lib/spec-parts/selective/cause-tree.d.ts",
@@ -594,9 +612,17 @@
       "types": "./dist/lib/spec-parts/selective/dependency-network.d.ts",
       "default": "./dist/lib/spec-parts/selective/dependency-network.js"
     },
+    "./spec/parts/fault-tree": {
+      "types": "./dist/lib/spec-parts/selective/fault-tree.d.ts",
+      "default": "./dist/lib/spec-parts/selective/fault-tree.js"
+    },
     "./spec/parts/flowchart": {
       "types": "./dist/lib/spec-parts/selective/flowchart.d.ts",
       "default": "./dist/lib/spec-parts/selective/flowchart.js"
+    },
+    "./spec/parts/fmea": {
+      "types": "./dist/lib/spec-parts/selective/fmea.d.ts",
+      "default": "./dist/lib/spec-parts/selective/fmea.js"
     },
     "./spec/parts/funnel": {
       "types": "./dist/lib/spec-parts/selective/funnel.d.ts",
@@ -618,6 +644,10 @@
       "types": "./dist/lib/spec-parts/selective/histogram.d.ts",
       "default": "./dist/lib/spec-parts/selective/histogram.js"
     },
+    "./spec/parts/is-is-not": {
+      "types": "./dist/lib/spec-parts/selective/is-is-not.d.ts",
+      "default": "./dist/lib/spec-parts/selective/is-is-not.js"
+    },
     "./spec/parts/journey-map": {
       "types": "./dist/lib/spec-parts/selective/journey-map.d.ts",
       "default": "./dist/lib/spec-parts/selective/journey-map.js"
@@ -625,6 +655,10 @@
     "./spec/parts/lines": {
       "types": "./dist/lib/spec-parts/selective/lines.d.ts",
       "default": "./dist/lib/spec-parts/selective/lines.js"
+    },
+    "./spec/parts/matrix": {
+      "types": "./dist/lib/spec-parts/selective/matrix.d.ts",
+      "default": "./dist/lib/spec-parts/selective/matrix.js"
     },
     "./spec/parts/mekko": {
       "types": "./dist/lib/spec-parts/selective/mekko.d.ts",
@@ -637,6 +671,10 @@
     "./spec/parts/pareto": {
       "types": "./dist/lib/spec-parts/selective/pareto.d.ts",
       "default": "./dist/lib/spec-parts/selective/pareto.js"
+    },
+    "./spec/parts/pdpc": {
+      "types": "./dist/lib/spec-parts/selective/pdpc.d.ts",
+      "default": "./dist/lib/spec-parts/selective/pdpc.js"
     },
     "./spec/parts/pert": {
       "types": "./dist/lib/spec-parts/selective/pert.d.ts",
@@ -665,6 +703,10 @@
     "./spec/parts/range-bars": {
       "types": "./dist/lib/spec-parts/selective/range-bars.d.ts",
       "default": "./dist/lib/spec-parts/selective/range-bars.js"
+    },
+    "./spec/parts/relation-diagram": {
+      "types": "./dist/lib/spec-parts/selective/relation-diagram.d.ts",
+      "default": "./dist/lib/spec-parts/selective/relation-diagram.js"
     },
     "./spec/parts/sankey": {
       "types": "./dist/lib/spec-parts/selective/sankey.d.ts",
@@ -729,6 +771,10 @@
     "./spec/parts/why-why-table": {
       "types": "./dist/lib/spec-parts/selective/why-why-table.d.ts",
       "default": "./dist/lib/spec-parts/selective/why-why-table.js"
+    },
+    "./spec/parts/why-why-tree": {
+      "types": "./dist/lib/spec-parts/selective/why-why-tree.d.ts",
+      "default": "./dist/lib/spec-parts/selective/why-why-tree.js"
     },
     "./spec/selective": {
       "types": "./dist/lib/spec-selective.d.ts",

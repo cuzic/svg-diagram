@@ -12,7 +12,7 @@ import {anchorRects} from '../verify-rects.ts';
 
 export {transitionUnits} from '../dsl/cause.ts';
 
-const definition = {
+export const causeDefinition: BandDef<CauseBand, LaidOutCause> = {
   type: 'cause',
   ids: data => data.nodes.filter(node => !data.unanchored?.includes(node.id)).map(node => node.id),
   measure(data, {atoms, roles}) {
@@ -36,10 +36,10 @@ const definition = {
       ];
     },
   },
-} satisfies BandDef<CauseBand, LaidOutCause>;
+};
 
 function define<D extends CauseBand>(data: D): WithBandDef<D, LaidOutCause> {
-  return band<D, LaidOutCause>(definition, data);
+  return band<D, LaidOutCause>(causeDefinition, data);
 }
 
 export function causeTree<const N extends readonly CauseNode[], const Id extends string = never>(nodes: N, links: readonly CauseLink[], opts?: CauseOpts & {id?: Id}) {

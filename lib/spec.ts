@@ -13,7 +13,7 @@ import type {RenderChecks} from './svg-lint.ts';
 import {SLIDE_CANVAS} from './tokens.ts';
 import type {BandInput, Diagram, Issue, Verdict} from './types/index.ts';
 
-import {CANVAS_LIMITS, SPEC_WIDTH, LEGEND_EN, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_TOTAL_TEXT, PART_EN, SPEC_VERSION, SpecError, items, list, object, oneOf, text, whyNode, whySize, withoutSchemaField} from './spec-kit.ts';
+import {CANVAS_LIMITS, SPEC_WIDTH, LEGEND_EN, MAX_EMOJI, MAX_ISSUES, MAX_TOTAL_TEXT, PART_EN, SPEC_VERSION, SpecError, items, list, object, oneOf, text, withoutSchemaField} from './spec-kit.ts';
 import type {Json, JsonSchema, PartDef, SpecIssue} from './spec-kit.ts';
 export {SPEC_VERSION, CANVAS_LIMITS, MAX_TOTAL_TEXT, MAX_EMOJI, MAX_SWIMLANE_COLS, MAX_TREE_DEPTH, MAX_TREE_NODES, MAX_CAUSE_NODES, MAX_CAUSE_LINKS, MAX_ISSUES, SpecError, withoutSchemaField} from './spec-kit.ts';
 export type {JsonSchema, SpecIssue} from './spec-kit.ts';
@@ -45,6 +45,8 @@ import {defineRaciPart} from './spec-parts/raci.ts';
 import {defineSwimlanePart} from './spec-parts/swimlane.ts';
 import {defineSequencePart} from './spec-parts/sequence.ts';
 
+import {defineWhyWhyTreePart} from './spec-parts/why-why-tree.ts';
+
 const PARTS: readonly PartDef[] = [
   defineFlowchartPart<ReturnType<typeof flowchart>>(flowchart),
   defineCauseTreePart<ReturnType<typeof causeTree>>(causeTree),
@@ -62,24 +64,7 @@ const PARTS: readonly PartDef[] = [
   defineTablePart<ReturnType<typeof table>>(table),
   defineJourneyMapPart<ReturnType<typeof journeyMap>>(journeyMap),
   defineRaciPart<ReturnType<typeof raci>>(raci),
-  {
-    type: 'whyWhyTree',
-    description: 'A why-why analysis (5 whys): the problem at the top, each answer to "why?" below the one it explains, root causes in a double frame, and what is done about each. Each answer should be a fact, not a person.',
-    schema: object({
-      type: {const: 'whyWhyTree'},
-      problem: text('The problem that happened.', 60),
-      readingNote: {type: 'boolean', description: 'false: leave out the lines under the tree that say how to read it.'},
-      whys: list(whyNode(4), 4, 1),
-    }, ['type', 'problem', 'whys']),
-    example: {type: 'whyWhyTree', problem: 'リリースが遅れた', whys: [{why: '修正に時間がかかった', because: [{why: '検証が最後に集中していた', trueCause: true, measure: '結合テストを毎週回す'}]}]},
-    check(part, at, issues) {
-      const n = 1 + items(part, 'whys').reduce((k, w) => k + whySize(w), 0);
-      if (n > MAX_CAUSE_NODES) issues.push({path: `${at}.whys`, message: `make ${n} boxes with the problem and the measures; the limit is ${MAX_CAUSE_NODES}`});
-    },
-    build(part) {
-      return whyWhyTree(part['problem'] as string, part['whys'] as never, part['readingNote'] === undefined ? {} : {readingNote: part['readingNote'] as boolean});
-    },
-  },
+  defineWhyWhyTreePart<ReturnType<typeof whyWhyTree>>(whyWhyTree),
   defineSwimlanePart<ReturnType<typeof swimlane>>(swimlane),
   defineSequencePart<ReturnType<typeof sequence>>(sequence),
   ...PARTS_R1, ...PARTS_R2, ...PARTS_R3, ...PARTS_R4, ...PARTS_R5, ...PARTS_R6, ...PARTS_R7,
