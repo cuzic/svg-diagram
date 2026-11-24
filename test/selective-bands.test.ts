@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {caption} from '../lib/bands/caption.ts';
+import {legend} from '../lib/bands/legend.ts';
 import {status} from '../lib/bands/status.ts';
 import {wordart} from '../lib/bands/wordart.ts';
 import {people} from '../lib/bands/people.ts';
@@ -28,7 +29,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -271,4 +272,39 @@ test('selective status and horizontal and vertical wordart preserve browser SVG'
   assert.deepEqual(selected.xml, []);
   assert.equal(selected.height, expected.height);
   assert.equal(selected.svg.slice(selected.svg.indexOf('  <style>')), expected.svg.slice(expected.svg.indexOf('  <style>')));
+});
+
+test('selective legend preserves wrapping, line markers and semantic swatches', async () => {
+  const items = [
+    {label: 'Review', line: 'dashed', arrow: 'both'},
+    {label: '重要な関係', weight: 'strong'},
+    {label: '根本原因', role: 'root'},
+    {label: '基本事象', ftaEvent: 'basic'},
+  ] satisfies Parameters<typeof legend>[0];
+  const opts = {width: 280, title: 'Plan'};
+  const result = await renderBands([legend(items)], {...opts, measure});
+  const expected = await renderInBrowser(diagram({...opts, theme: 'blue', legend: false})
+    .add(legacyLegend(items)), {measure});
+  assert.equal(result.height, expected.height);
+  assert.deepEqual(result.xml, []);
+  assert.match(result.svg, /<marker id="dsl-arrow"/);
+  assert.match(result.svg, /<marker id="dsl-arrow-strong"/);
+  assert.equal(result.svg.slice(result.svg.indexOf('  <defs>')), expected.svg.slice(expected.svg.indexOf('  <defs>')));
+});
+
+test('a selective cycle supplies its own SVG arrow marker', async () => {
+  const steps = [{label: 'Plan'}, {label: 'Do'}, {label: 'Review'}];
+  const result = await renderBands([cycle(steps)], {measure});
+  assert.match(result.svg, /<marker id="dsl-arrow"/);
+  assert.match(result.svg, /marker-end="url\(#dsl-arrow\)"/);
+});
+
+test('a selective concentric map supplies the marker for movement between rings', async () => {
+  const radar = concentric(4, {
+    sectors: [{label: 'Work'}, {label: 'Health'}],
+    marks: [{label: 'Review', sector: 1, r: 0.3, from: {r: 0.7}}],
+  });
+  const result = await renderBands([radar], {measure});
+  assert.match(result.svg, /<marker id="dsl-arrow"/);
+  assert.match(result.svg, /marker-end="url\(#dsl-arrow\)"/);
 });

@@ -1,3 +1,4 @@
+import type {SvgBandDefs} from './emit-svg-core.ts';
 import {BandError} from './band-error.ts';
 import type {resolveConnect} from './layout-connect.ts';
 import type {BandLayoutHandler} from './layout-ctx.ts';
@@ -74,6 +75,7 @@ interface BandHooks<D, L extends object> {
   type: string;
   readonly [EXTERNAL]?: true;
   emit(laid: L, env: EmitEnv): string;
+  svgDefs?(laid: L): SvgBandDefs;
   measure?(data: D, env: MeasureEnv): void;
   verify?: {
     rects?(laid: L): CheckRect[];

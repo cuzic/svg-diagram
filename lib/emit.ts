@@ -1,4 +1,4 @@
-import {renderConnect} from './emit-boxes.ts';
+import {legendSvgDefs, renderConnect} from './emit-boxes.ts';
 import {renderBand} from './emit-handlers.ts';
 import {withNodeIds} from './emit-node-ids.ts';
 import {emitSvgWith} from './emit-svg-core.ts';
@@ -17,12 +17,13 @@ function defsNeeded(band: LaidOutBand): SvgBandDefs {
   const runs = 'wrappedRuns' in band ? band.wrappedRuns : 'children' in band ? band.children : [];
   const mono = runs.some(run => (run as WrappedRun).mono || ('wrappedRuns' in run && run.wrappedRuns?.some(r => r.mono)))
     || band.type === 'table' && band.rows.some(r => r.cells.some(c => c.mono && c.lines.length));
+  const legend = band.type === 'legend' ? legendSvgDefs(band) : {};
   const arrow = band.type === 'row' && band.arrows.length > 0
-    || band.type === 'legend' && band.items.some(i => i.line && (i.arrow ?? 'end') !== 'none')
+    || !!legend.arrow
     || band.type === 'sequence' && band.steps.some(s => s.kind === 'self' || s.kind === 'msg' && s.arrow !== 'none')
     || band.type === 'cycle'
     || band.type === 'concentric' && band.primitives.some(p => p.k === 'path' && !!p.arrow);
-  const strongArrow = band.type === 'legend' && band.items.some(i => i.weight === 'strong' && (i.arrow ?? 'end') !== 'none');
+  const strongArrow = !!legend.strongArrow;
   return {mono, arrow, dimArrow: !!band.dim && arrow, strongArrow, dimStrongArrow: !!band.dim && strongArrow};
 }
 

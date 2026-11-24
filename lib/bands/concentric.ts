@@ -11,6 +11,7 @@ const definition = {
   measure: (data, env) => measureFlow(data, env, concentricTexts),
   layout: (data, env) => placeFlow(data, env, layoutConcentricShape),
   emit: emitFlow,
+  svgDefs: laid => ({arrow: laid.primitives.some(p => p.k === 'path' && !!p.arrow)}),
   verify: verifyFlow,
 } satisfies BandDef<ConcentricBand, LaidOutFlowShape>;
 

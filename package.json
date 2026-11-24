@@ -255,6 +255,10 @@
       "types": "./dist/lib/bands/math.d.ts",
       "node": "./dist/lib/bands/math.js"
     },
+    "./bands/legend": {
+      "types": "./dist/lib/bands/legend.d.ts",
+      "default": "./dist/lib/bands/legend.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"

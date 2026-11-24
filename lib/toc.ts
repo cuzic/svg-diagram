@@ -4,6 +4,8 @@
 //               figure: an arrow across an AND arc means "together", separate arrows mean "either".
 //  cloud():     the Evaporating Cloud: five boxes in a fixed place (A the common objective, B and C the needs, D and D' the
 //               conflicting wants), the arrows between them with their assumptions numbered, and the numbered list under the figure.
+import {CAUSE_ROLES} from './cause-roles.ts';
+export {CAUSE_ROLES} from './cause-roles.ts';
 import {orderCrossings, type LayeredOpts} from './graph-layout.ts';
 import type {RowSearchResult} from './layer-order-search.ts';
 import {textWidth} from './atoms.ts';
@@ -16,8 +18,8 @@ import {gapFor, laneStepOf, layeredAttempt, lexLess, selectIndex, windowOf} from
 import type {Pt} from './graph-layout.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import {wrapText} from './wrap.ts';
-import type {EmphasisTone, FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
-import type {CauseBand, CauseRole, CloudArrow, CloudBand, CloudBox, LaidOutCause, LaidOutCloud} from './types/diagrams.ts';
+import type {FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
+import type {CauseBand, CloudArrow, CloudBand, CloudBox, LaidOutCause, LaidOutCloud} from './types/diagrams.ts';
 import type {BoxTone} from './types/text-bands.ts';
 
 import {must} from './must.ts';
@@ -38,27 +40,6 @@ export const andArc = (s = 1): {end: number; peak: number; reach: number} => {
   return {peak, end: peak + Math.round(6 * s), reach: Math.round(10 * s)};
 };
 const OLD_ARC = {end: 21, peak: 15, reach: 10};
-
-/** What a role looks like when the node gives no tone. `double`: the box has a second outline (the finding of the figure). */
-export const CAUSE_ROLES: Record<CauseRole, {tone: EmphasisTone; double?: boolean; dashed?: boolean}> = {
-  effect: {tone: 'plain'},
-  ude: {tone: 'danger'},
-  root: {tone: 'accent', double: true},
-  de: {tone: 'new'},
-  injection: {tone: 'changed'},
-  goal: {tone: 'accent', double: true},
-  obstacle: {tone: 'plain'}, // drawn as a hexagon
-  io: {tone: 'new'},
-  action: {tone: 'changed'},
-  start: {tone: 'accent', double: true},
-  step: {tone: 'plain'},
-  risk: {tone: 'danger'}, // drawn as a hexagon
-  measure: {tone: 'changed'},
-  precondition: {tone: 'removed'}, // a fact of the present nobody controls: the grey dashed box
-  tipping: {tone: 'danger', double: true}, // where a negative branch tips over (ADR 0020 D1)
-  trim: {tone: 'changed', dashed: true}, // the injection that cuts a negative branch: a dashed box
-  need: {tone: 'solid'}, // an input of a transition tree's unit (current reality + need + action): the filled box, so that it is not the pale box of an io (ADR 0020 D2)
-};
 
 export function causeTexts(band: CauseBand, roles: Roles): [string, number, number, FontFamily][] {
   const out: [string, number, number, FontFamily][] = [];

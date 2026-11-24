@@ -1,8 +1,7 @@
 import {walkBands} from '../rules.ts';
-import {CAUSE_ROLES} from '../toc.ts';
 import {richField} from '../rich.ts';
 import {ROLES, OPT_IN_TEXT_MAX} from '../tokens.ts';
-import type {LegendBand, LegendItem, LegendOpts, RawBand, RawOpts} from '../types/containers.ts';
+import type {RawBand, RawOpts} from '../types/containers.ts';
 import type {TextTone} from '../types/core.ts';
 import type {Band} from '../types/index.ts';
 import type {BoxBand, RichText, StatConfidence, StatOpts} from '../types/text-bands.ts';
@@ -58,22 +57,7 @@ export {banner} from './banner.ts';
 // frame: false draws no frame and no title (pad 0): a bare container, e.g. to put a table / plane / banner in a row() without a doubled outline.
 // Types: the ids (and connect() refs) of the children are exposed to add().
 export {group} from './group.ts';
-// Key for line styles / tones used in the diagram. items:
-//   {line: 'solid'|'dashed'|'dotted'|'double', arrow?: 'end'|'both'|'none', weight?: 'strong', label}
-//   {tone: 'accent'|'muted'|'plain'|'danger'|'new'|'changed'|'removed', label}
-export function legend(items: LegendItem[], opts: LegendOpts = {}): LegendBand {
-  assertNoReveal(opts, 'legend()');
-  for (const it of items) if (it.weight && it.line === 'double') throw new Error(`legend(): weight '${it.weight}' cannot go with line 'double' ("${it.label}")`);
-  for (const it of items) {
-    if (it.role !== undefined && !(it.role in CAUSE_ROLES)) throw new Error(`legend(): item "${it.label}" has role ${String(it.role)} (use ${Object.keys(CAUSE_ROLES).join(', ')})`);
-    if (it.edge !== undefined && !['and', 'back', 'blocks'].includes(it.edge)) throw new Error(`legend(): item "${it.label}" has edge ${String(it.edge)} (use 'and', 'back' or 'blocks')`);
-    if (it.mark !== undefined && it.mark !== 'core') throw new Error(`legend(): item "${it.label}" has mark ${String(it.mark)} (use 'core')`);
-    if (it.ftaEvent !== undefined && !['basic', 'undeveloped', 'house', 'condition'].includes(it.ftaEvent)) throw new Error(`legend(): item "${it.label}" has ftaEvent ${String(it.ftaEvent)} (use 'basic', 'undeveloped', 'house' or 'condition')`);
-    if (it.ftaGate !== undefined && !['and', 'or', 'vote', 'inhibit'].includes(it.ftaGate)) throw new Error(`legend(): item "${it.label}" has ftaGate ${String(it.ftaGate)} (use 'and', 'or', 'vote' or 'inhibit')`);
-  }
-  // a weight sample is a line sample: the plain line unless `line` says otherwise
-  return {type: 'legend', items: items.map(it => it.weight && !it.line ? {...it, line: 'solid'} : it), align: opts.align ?? 'center'};
-}
+export {legend} from './legend.ts';
 // Escape hatch. `draw(ctx)` must return a raw SVG fragment string; it
 // receives its allocated origin/size and a couple of tone-aware helpers, but
 // nothing stops it from emitting arbitrary markup — the fragment is passed

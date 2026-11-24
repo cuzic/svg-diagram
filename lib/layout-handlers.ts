@@ -17,12 +17,13 @@ import {layoutWordArt} from './wordart.ts';
 import {layoutAreas} from './layout-areas.ts';
 import {layoutCurve} from './layout-curve.ts';
 import {layoutPyramid} from './layout-pyramid.ts';
+import {layoutLegend} from './layout-legend.ts';
 import {layoutRaw} from './layout-raw.ts';
 import {layoutTreeBand, narrowField, treeItems} from './tree.ts';
 import {resolveAnchor} from './anchor-scope.ts';
 import {layoutStatesBand} from './states.ts';
 import {statesWords} from './states-words.ts';
-import {CAUSE_ROLES, layoutCauseBand, layoutCloudBand} from './toc.ts';
+import {layoutCauseBand, layoutCloudBand} from './toc.ts';
 import {layoutGantt} from './gantt.ts';
 import {layoutStatus} from './status.ts';
 import {layoutClassesBand} from './classes.ts';
@@ -33,7 +34,7 @@ import {layoutBowtie} from './bowtie.ts';
 import {layoutComic} from './comic/layout.ts';
 import {layoutChart} from './charts.ts';
 import {layoutWireframe, layoutScreens} from './wireframe.ts';
-import type {LegendBand, SpacerBand, StatusBand, LaidOutLegendItem} from './types/containers.ts';
+import type {LegendBand, SpacerBand, StatusBand} from './types/containers.ts';
 import type {LabelRole, Rect} from './types/core.ts';
 import type {LaidOutTree, TreeItem} from './types/diagrams.ts';
 import type {ImageBand} from './types/image.ts';
@@ -42,7 +43,7 @@ import type {SwimlaneBand, LaidOutLane, LaidOutPhase, LaidOutSwimlane} from './t
 import type {BandLayoutHandler, BandLayoutHandlers, LayoutCtx} from './layout-ctx.ts';
 import {canvasFontScale} from './tokens.ts';
 import {
-  LINE_HEIGHT_EM, boundaryChipH, LEGEND_ITEM_GAP, LEGEND_ROW_H, LEGEND_SWATCH_W, SWIMLANE_COMFY_COL,
+  LINE_HEIGHT_EM, boundaryChipH, SWIMLANE_COMFY_COL,
   snapGrid,
 } from './layout-util.ts';
 import {layoutConnect} from './layout-connect.ts';
@@ -237,32 +238,6 @@ function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: nu
   ctx.y = top0 + (y - startY) + d.gap;
 }
 
-function layoutLegend(band: LegendBand, ctx: LayoutCtx, padX: number, cw: number): void {
-  const {d, roles, widthOf} = ctx;
-  const items = band.items.map(item => {
-    const tw = textWidth(widthOf, item.label, roles.note, 400);
-    const swatch = item.role ? {tone: CAUSE_ROLES[item.role].tone, ...(CAUSE_ROLES[item.role].double ? {double: true} : {}), ...(CAUSE_ROLES[item.role].dashed ? {dashed: true} : {}), ...(item.role === 'obstacle' || item.role === 'risk' ? {hex: true} : {})} : undefined;
-    return {...item, ...(swatch ? {swatch} : {}), textW: tw, w: LEGEND_SWATCH_W + 8 + tw};
-  });
-  const rows: (typeof items)[] = [[]];
-  let rowW = 0;
-  for (const it of items) {
-    const add = (must(rows.at(-1)).length ? LEGEND_ITEM_GAP : 0) + it.w;
-    if (must(rows.at(-1)).length && rowW + add > cw) { rows.push([]); rowW = 0; }
-    rowW += (must(rows.at(-1)).length ? LEGEND_ITEM_GAP : 0) + it.w;
-    must(rows.at(-1)).push(it);
-  }
-  const placedItems: LaidOutLegendItem[] = [];
-  rows.forEach((r, ri) => {
-    const total = r.reduce((a, it) => a + it.w, 0) + (r.length - 1) * LEGEND_ITEM_GAP;
-    let x = band.align === 'left' ? padX : padX + (cw - total) / 2;
-    for (const it of r) { placedItems.push({...it, x, y: snapGrid(ctx.y) + ri * (LEGEND_ROW_H + 8)}); x += it.w + LEGEND_ITEM_GAP; }
-  });
-  const h = rows.length * LEGEND_ROW_H + (rows.length - 1) * 8;
-  ctx.laidOut.push({type: 'legend', x: padX, y: snapGrid(ctx.y), w: cw, h, items: placedItems});
-  ctx.y += h + d.gap;
-}
-
 const layoutTimelineBand = placedBand((band: BandOf<'timeline'>, x, y, w, ctx) => layoutTimeline(band, x, y, w, ctx.widthOf, ctx.roles), 'a timeline takes an id that another anchor already has');
 const layoutBpmnBand = placedBand((band: BandOf<'bpmn'>, x, y, w, ctx) => (band.dir === 'v' ? layoutBpmnVertical : layoutBpmn)(band, x, y, w, ctx.widthOf, ctx.roles, ctx), 'a bpmn diagram takes an id that another anchor already has', 'a bpmn node takes an id that another anchor already has');
 const layoutBowtieBand = placedBand((band: BandOf<'bowtie'>, x, y, w, ctx) => layoutBowtie(band, x, y, w, ctx.widthOf, ctx.roles, ctx), 'a bow-tie takes an id that another anchor already has');
@@ -437,7 +412,11 @@ export const LAYOUT_HANDLERS = {
   wireframe: layoutWireframeBand,
   screens: layoutWireframeBand,
   swimlane: layoutSwimlane,
-  legend: layoutLegend,
+  legend: (band: LegendBand, ctx, x, w) => {
+    const laid = layoutLegend(band, x, ctx.y, w, ctx.widthOf, ctx.roles);
+    ctx.laidOut.push(laid);
+    ctx.y += laid.h + ctx.d.gap;
+  },
   connect: layoutConnect,
   raw: layoutRaw,
   grouprow: layoutGroupRow,

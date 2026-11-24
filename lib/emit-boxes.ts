@@ -1,3 +1,4 @@
+import type {SvgBandDefs} from './emit-svg-core.ts';
 import {PALETTE, CONNECT_LABEL_SIZE, STRONG_STROKE, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
 import {marked, partAttr, partStep, partsOn} from './parts.ts';
 import type {ToneEnv} from './tokens.ts';
@@ -13,7 +14,7 @@ import {boundaryChipH, ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_P
 import {visibleAt} from './reveal-visibility.ts';
 import {PERSON_BOX, PERSON_PATH} from './people.ts';
 import {tonedHead, arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
-import {ftaLegendSwatch} from './emit-fta.ts';
+import {ftaLegendSwatch} from './emit-fta-symbols.ts';
 
 import {must} from './must.ts';
 // Numbered circle badge for box({step}) — solid accent fill, white number,
@@ -133,6 +134,12 @@ export function renderGroup(band: LaidOutGroup, day: Theme, tones: ToneEnv, role
 
 
 // A line sample (and optional arrowhead) + label per item, laid out by layout.ts.
+export function legendSvgDefs(band: LaidOutLegend): SvgBandDefs {
+  const arrow = band.items.some(item => item.line && (item.arrow ?? 'end') !== 'none');
+  const strongArrow = band.items.some(item => item.weight === 'strong' && (item.arrow ?? 'end') !== 'none');
+  return {arrow, strongArrow};
+}
+
 export function renderLegend(band: LaidOutLegend, day: Theme, tones: ToneEnv, roles: Roles): string {
   const parts: string[] = [];
   for (const it of band.items) {

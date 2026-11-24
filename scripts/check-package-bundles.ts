@@ -104,6 +104,8 @@ try {
       include: 'bands/status.js', budget: {esbuild: 55000, Vite: 73000}, exclude: [...legacy, 'wordart.js', 'flow-shapes.js', 'gantt.js', 'layout-connect.js'], draw: true},
     {name: 'Wordart', source: composedSource(['wordart'], "wordart('Review', {style: 'outline', size: 40})"),
       include: 'bands/wordart.js', budget: {esbuild: 75000, Vite: 100000}, exclude: [...legacy, 'flow-shapes.js', 'gantt.js', 'layout-connect.js'], draw: true},
+    {name: 'Legend', source: composedSource(['legend'], "legend([{label: 'Review', role: 'root'}, {label: 'Gate', ftaGate: 'and'}, {label: 'Link', weight: 'strong'}])"),
+      include: 'bands/legend.js', budget: {esbuild: 62000, Vite: 83000}, exclude: [...legacy, 'toc.js', 'fta.js', 'emit-fta.js', 'gantt.js', 'layout-connect.js'], draw: true},
   ];
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;

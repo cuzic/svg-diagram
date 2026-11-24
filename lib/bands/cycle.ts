@@ -11,6 +11,7 @@ const definition = {
   measure: (data, env) => measureFlow(data, env, cycleTexts),
   layout: (data, env) => placeFlow(data, env, layoutCycleShape),
   emit: emitFlow,
+  svgDefs: () => ({arrow: true}),
   verify: verifyFlow,
 } satisfies BandDef<CycleBand, LaidOutFlowShape>;
 
