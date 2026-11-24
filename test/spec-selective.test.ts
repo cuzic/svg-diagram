@@ -384,3 +384,17 @@ test('prepared specs preserve the legacy verdict diagnostics across the catalog'
     assert.deepEqual(selected.verdict.problems, legacy.verdict.problems, part.type);
   }
 });
+
+test('selected contrast problems in steps retain the spec part path', async () => {
+  const {prepareSpecLayout} = await import('../lib/spec-selective.ts');
+  const {darkOf} = await import('../lib/tokens.ts');
+  const tones = {accent: {fill: '#e6d3bd', dark: {fill: darkOf('#22201b')}}};
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const input = {version: 1, title: '計画', appearance: 'dark',
+    parts: [{type: 'steps', items: [{title: '入口', tone: 'accent'}, {title: '出口'}]}]};
+  const selected = await prepareSpecLayout(input, {parts: [stepsPart], project: {tones}})(measure);
+  const legacy = await renderInBrowser({...specToDiagram(input), tones}, {measure});
+  const contrast = ({verdict}: Pick<typeof selected, 'verdict'>) => verdict.issues?.filter(issue => issue.message.includes('low contrast'));
+  assert.equal(contrast(legacy)?.[0]?.loc?.specPath, 'parts[0]');
+  assert.deepEqual(contrast(selected), contrast(legacy));
+});

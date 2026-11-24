@@ -33,12 +33,8 @@ export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
   verify: {
     diagramFindings: [frameLayoutFindings, selectedBoxSizeFindings, statFitFindings],
     rects: ownRect,
-    check(laid, {theme, tones, appearance}) {
-      return [
-        ...nowrapProblems(laid).map(message => ({rule: 'nowrap', severity: 'problem' as const, message})),
-        ...boxLikeContrastProblems(laid, laid.tone ?? 'plain', theme, tones, appearance).map(message => ({rule: 'contrast', severity: 'problem' as const, message})),
-      ];
-    },
+    check: laid => nowrapProblems(laid).map(message => ({rule: 'nowrap', severity: 'problem', message})),
+    contrast: (laid, {theme, tones, appearance}) => boxLikeContrastProblems(laid, laid.tone ?? 'plain', theme, tones, appearance),
   },
 };
 

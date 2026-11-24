@@ -18,8 +18,7 @@ export const bannerDefinition: BandDef<BannerBand, LaidOutBanner> = {
     }
   },
   emit: (laid, env) => renderBanner(laid, env.theme, env.tones, env.roles),
-  verify: {check: (laid, {theme, tones, appearance}) => boxLikeContrastProblems(laid, laid.tone ?? 'accent', theme, tones, appearance)
-    .map(message => ({rule: 'contrast', severity: 'problem', message}))},
+  verify: {contrast: (laid, {theme, tones, appearance}) => boxLikeContrastProblems(laid, laid.tone ?? 'accent', theme, tones, appearance)},
 };
 
 export function banner<const Id extends string = never>(opts: BannerOpts & {id?: Id}): WithBandDef<ReturnType<typeof buildBanner<Id>>, LaidOutBanner> {

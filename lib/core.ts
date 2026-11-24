@@ -1,4 +1,4 @@
-import {applyFindingAcceptance} from './finding-rules.ts';
+import {applyFindingAcceptance, at} from './finding-rules.ts';
 import {ownRunSizes} from './band-text-sizes.ts';
 import {canvasFindings} from './canvas-findings.ts';
 import {splitAtoms} from './atoms.ts';
@@ -206,6 +206,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     scopesOf: () => scopeTable,
     buildInventory: () => ({items: []}),
   });
+  const placedDefinition = (band: LaidOutBand) => definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
   const placed = layout({...data, bands: source}, roles, widthOf);
   placed.canvasHeight = Math.max(1, placed.canvasHeight);
   // A link follows its endpoints unless it has an explicit end stage.
@@ -225,7 +226,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   for (const check of diagramChecks) bandFindings.push(...check(placed));
   let minText = Infinity;
   for (const laid of placed.laidOut) {
-    const def = definitions.get(definitionKey(laid)) ?? syntheticOutputs.get(laid.type);
+    const def = placedDefinition(laid);
     bandFindings.push(...(def?.verify?.layoutFindings?.(laid as never, ctx) ?? []));
     if (canvas) {
       for (const size of ownRunSizes(laid)) minText = Math.min(minText, size);
@@ -240,13 +241,17 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   if (opts.diagramFindings && !diagramChecks.has(opts.diagramFindings)) bandFindings.push(...opts.diagramFindings(placed));
   const verdict = verifyWithServices({
     collectRects: figure => leaves(figure).flatMap(band => {
-      const def = definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
+      const def = placedDefinition(band);
       const rects = def?.verify?.rects?.(band);
       if (!rects) return [{...band, label: band.type, id: 'id' in band ? band.id ?? null : null}];
       const scope = scopeOf(band);
       return scope && !def?.rectsQualified ? rects.map(rect => scopedRect(band, scope, rect)) : rects;
     }),
-    contrastProblems: () => [],
+    contrastProblems: (figure, tones) => leaves(figure).flatMap(band => {
+      const def = placedDefinition(band);
+      const messages = def?.verify?.contrast?.(band, {...ctx, tones, appearance: figure.appearance}) ?? [];
+      return messages.map(message => ({...at(band), message}));
+    }),
     lintDiagram: () => opts.accept ? bandFindings.map(finding => applyFindingAcceptance(finding, opts.accept)) : bandFindings,
     acceptHint(rule) {
       for (const def of definitions.values()) {
@@ -255,12 +260,13 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       }
       return opts.diagramAcceptHint?.(rule);
     },
-    mergeFindingSides: () => [],
+    // Layout findings are computed once and shared by both colour schemes.
+    mergeFindingSides: light => [...light],
     hasMutedBox: () => false,
     checkFigures: figure => {
       const issues: Issue[] = [], warnings: string[] = [];
       for (const band of leaves(figure)) {
-        for (const finding of (definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type))?.verify?.check?.(band, ctx) ?? []) {
+        for (const finding of placedDefinition(band)?.verify?.check?.(band, ctx) ?? []) {
           if (finding.severity === 'problem') issues.push({message: finding.message});
           else warnings.push(finding.message);
         }
@@ -276,7 +282,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
         : 'wrappedRuns' in band ? band.wrappedRuns : []).some(run => run.mono),
       ...definitions.get(definitionKey(band))?.svgDefs?.(band as never),
     }),
-    renderBand: band => must(definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type)).emit(band as never, emitEnv),
+    renderBand: band => must(placedDefinition(band)).emit(band as never, emitEnv),
     renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
     diagramTitle: diagram => diagram.title ?? '',
     diagramDesc: () => description,

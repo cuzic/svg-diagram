@@ -9,7 +9,6 @@ import type {Anchor, Appearance, ColorKey, FontFamily, FontWeight, Rect, RevealO
 import type {Band, LaidOutDiagram} from './types/index.ts';
 import type {InventoryItem} from './types/inventory.ts';
 import type {CheckRect, Finding} from './types/verdicts.ts';
-import type {VerifyHandler} from './verify-handlers.ts';
 import {must} from './must.ts';
 
 export type DiagramFindings = (diagram: LaidOutDiagram) => Finding[];
@@ -91,7 +90,7 @@ interface BandHooks<D, L extends object> {
     layoutFindings?(laid: L, ctx: VerifyCtx): Finding[];
     diagramFindings?: DiagramFindings | readonly DiagramFindings[];
     check?(laid: L, ctx: VerifyCtx): BandFinding[];
-    contrast?: VerifyHandler<L>['contrast'];
+    contrast?(laid: L, ctx: VerifyCtx): string[];
     acceptHint?(rule: string): string | undefined;
   };
   ids?(data: D): string[];

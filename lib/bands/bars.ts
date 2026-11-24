@@ -32,10 +32,10 @@ const definition = {
   verify: {
     rects: barsRects,
     diagramFindings: [thinBarFindings, selectedAxisFindings],
-    check(laid, {theme, tones, appearance}) {
+    check: laid => barsProblems(laid).map(message => ({rule: 'bars', severity: 'problem', message})),
+    contrast(laid, {theme, tones, appearance}) {
       const paint = paintOf(tones, appearance);
-      return [...barsProblems(laid), ...barsContrastProblems(laid, theme, hex => luminance(paint(hex)))]
-        .map(message => ({rule: 'bars', severity: 'problem', message}));
+      return barsContrastProblems(laid, theme, hex => luminance(paint(hex)));
     },
   },
 } satisfies BandDef<BarsBand, LaidOutBars>;

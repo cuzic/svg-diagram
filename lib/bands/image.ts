@@ -38,10 +38,8 @@ export const imageDefinition: BandDef<ImageBand, LaidOutImage> = {
   verify: {
     rects: imageRects,
     findings: imageSizeFindings,
-    check(laid, {theme, tones, appearance}) {
-      return [...imageProblems(laid), ...imageContrast(laid, theme, appearance, tones)]
-        .map(message => ({rule: 'image', severity: 'problem' as const, message}));
-    },
+    check: laid => imageProblems(laid).map(message => ({rule: 'image', severity: 'problem', message})),
+    contrast: (laid, {theme, tones, appearance}) => imageContrast(laid, theme, appearance, tones),
   },
 };
 

@@ -1050,7 +1050,7 @@ test('selected connectors report labels that obscure arrows', async () => {
 
 test('selected document width warnings honor the project limit and acceptance', async () => {
   const {documentAcceptHint, documentFindings} = await import('../lib/document-findings.ts');
-  const opts = {title: '幅の比較', width: 800, maxWidth: 720};
+  const opts = {title: '幅の比較', width: 800, maxWidth: 720, appearance: 'auto'} as const;
   const notes = ({verdict}: Awaited<ReturnType<typeof renderBands>>) => verdict.findings.filter(f => f.rule === 'doc-width')
     .map(({severity, message}) => ({severity, message}));
   for (const accept of [undefined, {'doc-width': '横長の表を表示する'}]) {
@@ -1079,5 +1079,22 @@ test('selected connectors preserve crossing findings and loop-under advice', asy
     assert.deepEqual(finding(selected), finding(legacy));
     const warnings = ({verdict}: typeof selected) => verdict.warnings.filter(warning => warning.startsWith('[edge-crossings]'));
     assert.deepEqual(warnings(selected), warnings(legacy));
+  }
+});
+
+test('selected rows and grids report dark-only text contrast problems like legacy rendering', async () => {
+  const {darkOf} = await import('../lib/tokens.ts');
+  const tones = {accent: {fill: '#e6d3bd', dark: {fill: darkOf('#22201b')}}};
+  const opts = {appearance: 'auto', tones} as const;
+  const input = {title: '入口', body: '本文', tone: 'accent'} as const;
+  for (const [selectedBand, legacyBand] of [
+    [box(input), legacyBox(input)],
+    [row([box(input)]), legacyRow([legacyBox(input)])],
+    [grid([box(input)], {cols: 1}), legacyGrid([legacyBox(input)], {cols: 1})],
+  ] as const) {
+    const selected = await renderBands([selectedBand], {...opts, measure});
+    const legacy = await renderInBrowser(diagram({theme: 'blue', ...opts}).add(legacyBand), {measure});
+    assert.ok(legacy.verdict.problems.some(problem => problem.includes('low contrast') && problem.endsWith('(暗い配色)')));
+    assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
   }
 });
