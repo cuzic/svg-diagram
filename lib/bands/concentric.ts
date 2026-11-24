@@ -2,9 +2,9 @@ import {concentricFindings} from '../verify-concentric.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {concentric as build} from '../dsl/flow.ts';
+import {concentric as build} from '../dsl/concentric.ts';
 import {emitFlow, flowItemIds, measureFlow, placeFlow, verifyFlow} from '../flow-definition.ts';
-import {concentricTexts, layoutConcentricShape} from '../flow-shapes.ts';
+import {concentricTexts, layoutConcentricShape} from '../flow-concentric.ts';
 import type {ConcentricBand, ConcentricOpts, ConcentricRing, LaidOutFlowShape} from '../flow-shapes.ts';
 
 const definition = {

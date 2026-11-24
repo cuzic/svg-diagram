@@ -1,9 +1,9 @@
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {venn as build} from '../dsl/flow.ts';
+import {venn as build} from '../dsl/venn.ts';
 import {emitFlow, flowItemIds, measureFlow, placeFlow, verifyFlow} from '../flow-definition.ts';
-import {vennTexts, layoutVenn} from '../flow-shapes.ts';
+import {vennTexts, layoutVenn} from '../flow-venn.ts';
 import type {VennBand, VennOpts, VennSet, LaidOutFlowShape} from '../flow-shapes.ts';
 
 const definition = {

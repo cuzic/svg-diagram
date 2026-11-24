@@ -2,9 +2,9 @@ import {chevronLoopBack} from '../loop-back.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {chevron as build} from '../dsl/flow.ts';
+import {chevron as build} from '../dsl/chevron.ts';
 import {emitFlow, flowItemIds, measureFlow, placeFlow, verifyFlow} from '../flow-definition.ts';
-import {chevronTexts, layoutChevron} from '../flow-shapes.ts';
+import {chevronTexts, layoutChevron} from '../flow-chevron.ts';
 import type {ChevronBand, ChevronOpts, FlowStep, LaidOutFlowShape} from '../flow-shapes.ts';
 
 const definition = {

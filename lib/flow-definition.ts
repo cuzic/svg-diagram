@@ -1,7 +1,8 @@
 import type {BandDef, PublicEnv} from './band-def.ts';
 import {renderFlowShape} from './emit-flow-shape.ts';
-import {placeFlowShape} from './flow-shapes.ts';
-import type {FlowLayout, FlowShapeBand, LaidOutFlowShape} from './flow-shapes.ts';
+import {placeFlowShape} from './flow-layout-core.ts';
+import type {FlowLayout} from './flow-layout-core.ts';
+import type {FlowShapeBand, LaidOutFlowShape} from './flow-types.ts';
 import {snapGrid} from './layout-util.ts';
 import type {FontFamily, Roles} from './types/core.ts';
 import {flowProblems} from './verify-flow.ts';

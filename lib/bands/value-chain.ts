@@ -1,9 +1,9 @@
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {valueChain as build} from '../dsl/flow.ts';
+import {valueChain as build} from '../dsl/value-chain.ts';
 import {emitFlow, flowItemIds, measureFlow, placeFlow, verifyFlow} from '../flow-definition.ts';
-import {valueChainTexts, layoutValueChain} from '../flow-shapes.ts';
+import {valueChainTexts, layoutValueChain} from '../flow-value-chain.ts';
 import type {ValueChainBand, ValueChainOpts, FlowStep, LaidOutFlowShape} from '../flow-shapes.ts';
 
 const definition = {

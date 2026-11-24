@@ -1,9 +1,9 @@
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {emblem as build} from '../dsl/flow.ts';
+import {emblem as build} from '../dsl/emblem.ts';
 import {emitFlow, flowItemIds, measureFlow, placeFlow, verifyFlow} from '../flow-definition.ts';
-import {emblemTexts, layoutEmblem} from '../flow-shapes.ts';
+import {emblemTexts, layoutEmblem} from '../flow-emblem.ts';
 import type {EmblemBand, EmblemOpts, EmblemItem, LaidOutFlowShape} from '../flow-shapes.ts';
 
 const definition = {

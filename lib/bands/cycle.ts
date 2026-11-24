@@ -1,9 +1,9 @@
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {cycle as build} from '../dsl/flow.ts';
+import {cycle as build} from '../dsl/cycle.ts';
 import {emitFlow, flowItemIds, measureFlow, placeFlow, verifyFlow} from '../flow-definition.ts';
-import {cycleTexts, layoutCycleShape} from '../flow-shapes.ts';
+import {cycleTexts, layoutCycleShape} from '../flow-cycle.ts';
 import type {CycleBand, CycleOpts, FlowStep, LaidOutFlowShape} from '../flow-shapes.ts';
 
 const definition = {

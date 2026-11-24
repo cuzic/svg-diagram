@@ -1,9 +1,9 @@
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {funnel as build} from '../dsl/flow.ts';
+import {funnel as build} from '../dsl/funnel.ts';
 import {emitFlow, flowItemIds, measureFlow, placeFlow, verifyFlow} from '../flow-definition.ts';
-import {funnelTexts, layoutFunnel} from '../flow-shapes.ts';
+import {funnelTexts, layoutFunnel} from '../flow-funnel.ts';
 import {funnelFindings} from '../verify-funnel.ts';
 import type {FunnelBand, FunnelOpts, FunnelStage, LaidOutFlowShape} from '../flow-shapes.ts';
 
