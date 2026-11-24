@@ -2,7 +2,6 @@ import {buildInventoryWith, whole} from './inventory-core.ts';
 import {joinBandDescriptions} from './diagram-description.ts';
 import {definedDiagramTitle} from './diagram-title.ts';
 import {applyFindingAcceptance, at} from './finding-rules.ts';
-import {ownRunSizes} from './band-text-sizes.ts';
 import {canvasFindings} from './canvas-findings.ts';
 import {splitAtoms} from './atoms.ts';
 import {band, defOf, DEF, EXTERNAL, walkDefinedBands} from './band-def.ts';
@@ -229,7 +228,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const stage = opts.stage ?? last;
   const ink = toneEnv(tones);
   const ctx = {theme, tones: ink, appearance: placed.appearance, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
-  const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => band.type === 'row' || band.type === 'grid' ? band.children : band.type === 'group' ? [] : [band]);
+  const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => placedDefinition(band)?.verify?.targets?.(band as never) ?? ('h' in band ? [band] : []));
   const bandFindings = inputChecks.flatMap(check => check(ctx));
   if (!canvas) for (const metric of figureLayoutMetrics(placed.laidOut, placed.width)) bandFindings.push({...metric, severity: 'info'});
   for (const check of diagramChecks) bandFindings.push(...check(placed, stage));
@@ -238,7 +237,6 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     const def = placedDefinition(laid);
     bandFindings.push(...(def?.verify?.layoutFindings?.(laid as never, ctx) ?? []));
     if (canvas) {
-      for (const size of ownRunSizes(laid)) minText = Math.min(minText, size);
       for (const size of def?.textSizes?.(laid as never) ?? []) minText = Math.min(minText, size);
     }
   }

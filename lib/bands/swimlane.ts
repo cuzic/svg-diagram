@@ -1,3 +1,4 @@
+import {ownRunSizes} from '../band-text-sizes.ts';
 import {whole} from '../inventory-core.ts';
 import {describeSwimlane} from '../diagram-description.ts';
 import {narrowTextFindings} from '../verify-shrink.ts';
@@ -18,6 +19,7 @@ import {boxDefinition} from './box.ts';
 
 const definition = {
   type: 'swimlane',
+  textSizes: ownRunSizes,
   inventory: (laid, ctx) => laid.type === 'box' ? boxDefinition.inventory?.(laid, ctx) ?? [] : whole(laid, ctx),
   svgDefs: laid => laid.type === 'box' ? boxDefinition.svgDefs?.(laid) ?? {} : {},
   describe: (data, stage) => ['structure', describeSwimlane(data, stage)],

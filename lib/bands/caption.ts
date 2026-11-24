@@ -1,3 +1,4 @@
+import {ownRunSizes} from '../band-text-sizes.ts';
 import {captionItems} from '../inventory-boxes.ts';
 import {duplicateTitleFindings, sourceLineFindings} from '../verify-caption.ts';
 import {band, walkDefinedBands} from '../band-def.ts';
@@ -11,6 +12,7 @@ import {boxLikeContrastProblems} from '../verify-box-like.ts';
 
 export const captionDefinition: BandDef<CaptionBand, LaidOutCaption> = {
   type: 'caption',
+  textSizes: ownRunSizes,
   inventory: captionItems,
   svgDefs: textSvgDefs,
   title: data => data.text ? [0, data.text] : undefined,

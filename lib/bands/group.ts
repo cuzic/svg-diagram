@@ -25,7 +25,7 @@ export const groupDefinition: BandDef<GroupBand, LaidOutGroup> = {
   measure(data, {atoms, roles}) {
     if (data.stamp) atoms(data.stamp, roles.note, 400);
   },
-  verify: {diagramFindings: frameLayoutFindings},
+  verify: {targets: () => [], diagramFindings: frameLayoutFindings},
   emit: (laid, env) => renderGroup(laid, env.theme, env.tones, env.roles),
 };
 

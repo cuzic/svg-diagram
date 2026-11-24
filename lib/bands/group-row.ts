@@ -19,7 +19,7 @@ export const groupRowDefinition: BandDef<GroupRowBand, LaidOutRow> = {
   layout: layoutGroupRow,
   children: data => data.children,
   outputTypes: ['row'],
-  verify: {diagramFindings: frameLayoutFindings},
+  verify: {targets: laid => laid.children, diagramFindings: frameLayoutFindings},
   emit: (laid, env) => renderRow(laid, env.theme, env.tones, env.roles, env.stage),
 };
 

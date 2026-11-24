@@ -19,7 +19,7 @@ const definition = {
   layout: layoutAreas,
   children: data => data.children,
   outputTypes: ['row'],
-  verify: {diagramFindings: frameLayoutFindings},
+  verify: {targets: laid => laid.children, diagramFindings: frameLayoutFindings},
   emit: (laid, env) => renderRow(laid, env.theme, env.tones, env.roles, env.stage),
 } satisfies BandDef<AreasBand, LaidOutRow>;
 

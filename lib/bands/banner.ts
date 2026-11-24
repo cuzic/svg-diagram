@@ -1,3 +1,4 @@
+import {ownRunSizes} from '../band-text-sizes.ts';
 import {boxItems} from '../inventory-boxes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -10,6 +11,7 @@ import {boxLikeContrastProblems} from '../verify-box-like.ts';
 
 export const bannerDefinition: BandDef<BannerBand, LaidOutBanner> = {
   type: 'banner',
+  textSizes: ownRunSizes,
   inventory: boxItems,
   svgDefs: textSvgDefs,
   title: data => data.headline ? [0, data.headline] : undefined,

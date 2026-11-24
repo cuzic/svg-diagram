@@ -20,7 +20,7 @@ export const rowDefinition: BandDef<RowBand, LaidOutRow> = {
   internal: true,
   layout: layoutRow,
   children: data => data.children,
-  verify: {diagramFindings: frameLayoutFindings},
+  verify: {targets: laid => laid.children, diagramFindings: frameLayoutFindings},
   emit: (laid, env) => renderRow(laid, env.theme, env.tones, env.roles, env.stage),
 };
 

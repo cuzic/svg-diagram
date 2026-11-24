@@ -18,7 +18,7 @@ export const gridDefinition: BandDef<GridBand, LaidOutGrid> = {
   internal: true,
   layout: layoutGridBand,
   children: data => data.children,
-  verify: {diagramFindings: frameLayoutFindings, findings: canvasRegionFindings},
+  verify: {targets: laid => laid.children, diagramFindings: frameLayoutFindings, findings: canvasRegionFindings},
   emit: (laid, env) => renderGrid(laid, env.theme, env.tones, env.roles, env.stage),
 };
 
