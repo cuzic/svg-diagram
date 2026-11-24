@@ -238,3 +238,20 @@ test('canvas の高さ (ADR 0070 U5): 下の帯 (凡例・出典) と合わせ�
   assert.ok(!overflow(fits));
   void oldC;
 });
+
+test('selected cause fitting retries when a following band makes the full canvas overflow', async () => {
+  const {causeTree: selectedCauseTree} = await import('../lib/bands/cause.ts');
+  const {caption: selectedCaption} = await import('../lib/bands/caption.ts');
+  const {fontMeasurer} = await import('../lib/node-measure.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const measure = fontMeasurer();
+  const draw = (height: number) => prepareBands([
+    selectedCauseTree(CRT_REPORT_NODES, CRT_REPORT_LINKS, CRT_REPORT_OPTIONS),
+    selectedCaption('図全体の高さに加える注記'),
+  ], {measure, canvas: {width: 2600, height, minText: 18, fit: 'content'}});
+  const roomy = (await draw(10000)).placed;
+  const height = roomy.contentHeight! - 1;
+  const {placed, verdict} = await draw(height);
+  assert.ok(placed.contentHeight! <= height);
+  assert.ok(verdict.findings.some(finding => finding.rule === 'cause-line-scale-dropped'));
+});

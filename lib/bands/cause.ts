@@ -1,3 +1,4 @@
+import {fitLineScale} from '../layout-cause-fit.ts';
 import {layoutFitRules, layoutFitVerification} from '../verify-layout-fit.ts';
 import {edgeBendFindings} from '../verify-edge-bends.ts';
 import {parallelEdgeFindings} from '../verify-cause-spacing.ts';
@@ -30,6 +31,7 @@ export const causeDefinition: BandDef<CauseBand, LaidOutCause> = {
     for (const [text, size, weight, font] of causeTexts(data, roles)) atoms(text, size, weight, font);
   },
   internal: true,
+  fitLineScale,
   layout: placeCause,
   emit: (laid, {theme, tones}) => renderCause(laid, theme, tones),
   rules: layoutFitRules,

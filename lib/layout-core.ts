@@ -1,3 +1,4 @@
+import type {fitLineScale} from './layout-cause-fit.ts';
 // Vertical-stack layout engine. Top-level bands (caption/box/banner/row/
 // grid/spacer/raw/connect) are stacked with an auto-advancing y cursor —
 // nothing in this file ever asks a caller for a y coordinate. row() and
@@ -41,6 +42,7 @@ import {must} from './must.ts';
 type LayoutResult = Omit<LaidOutDiagram, 'inventory'>;
 
 export interface LayoutServices {
+  fitLineScale?: typeof fitLineScale;
   decorate?: (data: DiagramData) => DiagramData;
   resolveConnect: typeof resolveConnect;
   resolve: (band: Band) => BandLayoutHandler<never>;
@@ -56,7 +58,11 @@ export interface LayoutServices {
 /** Pass 2, synchronous: lay the diagram out with the widths already measured. */
 export function createLayoutWith(services: LayoutServices) {
   return function layoutWith(data: DiagramData, roles: Roles, widthOf: WidthOf): LaidOutDiagram {
-    const lay = (mode: WrapMode): LayoutResult => fitLineScale(data, lines => layoutBands(services, data, roles, widthOf, toneEnv(data.tones), mode, data.keepWords === true, spaceOf(data.density), lines));
+    const lay = (mode: WrapMode): LayoutResult => {
+      const place = (lines?: LayoutCtx['lines']) => layoutBands(
+        services, data, roles, widthOf, toneEnv(data.tones), mode, data.keepWords === true, spaceOf(data.density), lines);
+      return services.fitLineScale ? services.fitLineScale(data, place) : place();
+    };
     const setting = data.wrap ?? 'phrase';
     const layWithFallback = (): LayoutResult => {
       if (setting !== 'bunsetsu-soft') return lay(setting);
@@ -68,28 +74,6 @@ export function createLayoutWith(services: LayoutServices) {
     // Inventory errors propagate after layout has selected its final geometry.
     return {...out, inventory: services.buildInventory(out.laidOut, out.connects, widthOf, roles.connectLabel)};
   };
-}
-
-/**
- * ADR 0070 D7 (U5): on a canvas, the cause bands' lines scale with the text and make the figure taller. When that is what pushes the whole figure (the bands above and below
- * the cause band, the legend, the source line and the padding included) over the canvas height, and the old lines would fit, the figure is laid out again with the old lines.
- * The cause bands are dropped one more at a time in the order they are laid out (top to bottom) until the figure fits; if it never fits, the first layout is kept
- * (the overflow is then not the scale's, and `slide-canvas-overflow` says it). A dropped band is `lineScaleDropped` (the `cause-line-scale-dropped` finding).
- */
-export function fitLineScale<T extends LayoutResult>(data: DiagramData, layout: (lines: {seen: number; drop: number; exchange: boolean; taller: boolean}) => T): T {
-  const first = {seen: 0, drop: 0, exchange: true, taller: false}, out = layout(first);
-  if (!data.canvas || out.contentHeight === undefined || out.contentHeight <= data.canvas.height) return out;
-  // ADR 0073 D1 (g): when a band took a taller order (they cross less), the figure that overflows is laid out again without that, with the scaled lines, before any line scale is dropped
-  // (so a taller order never costs a band its scale), then the bands are dropped one at a time (with no taller orders either). With no taller order the first layout is that layout: no retry (2).
-  // If nothing fits, the figure is the first one laid without taller orders (the one main keeps), not the taller one.
-  let fallback: T | undefined;
-  for (let drop = first.taller ? 0 : 1; drop <= first.seen; drop++) {
-    let again: T;
-    try { again = layout({seen: 0, drop, exchange: false, taller: false}); } catch { return fallback ?? out; } // a retry that cannot be laid out keeps the figure that was (the retry never turns a drawn figure into an error)
-    if (again.contentHeight !== undefined && again.contentHeight <= data.canvas.height) return again;
-    if (drop === 0) fallback = again;
-  }
-  return fallback ?? out;
 }
 
 /** The scale of the gaps of the layered figures (`WrapEnv.space`): 'compact' closes them by a quarter. */

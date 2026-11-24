@@ -1,3 +1,4 @@
+import {fitLineScale} from './layout-cause-fit.ts';
 import {decorateDiagram} from './layout-decoration.ts';
 import {prepareConnectorGaps} from './layout-connect-gaps.ts';
 import {areasPrelayout} from './layout-areas-gaps.ts';
@@ -8,10 +9,11 @@ import {resolveConnect} from './layout-connect.ts';
 import {createLayoutWith} from './layout-core.ts';
 import {layoutHandlerFor} from './layout-handlers.ts';
 
-export {fitLineScale} from './layout-core.ts';
+export {fitLineScale};
 
 /** The full entry supplies layout handlers for existing band data. */
 export const layoutWith = createLayoutWith({
+  fitLineScale,
   decorate: decorateDiagram,
   resolve: layoutHandlerFor, resolveConnect, childrenOf, stackWidthOf, scopesOf, buildInventory,
   connectorGaps: prepareConnectorGaps,

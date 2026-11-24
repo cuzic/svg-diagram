@@ -7,6 +7,7 @@ import {splitAtoms} from './atoms.ts';
 import {band, defOf, DEF, EXTERNAL, walkDefinedBands} from './band-def.ts';
 import {cloneData} from './clone-data.ts';
 import {emitSvgWith} from './emit-svg-core.ts';
+import type {fitLineScale} from './layout-cause-fit.ts';
 import {createLayoutWith} from './layout-core.ts';
 import {figureLayoutMetrics} from './figure-metrics.ts';
 import {addScoped, emptyScopes} from './scope-table.ts';
@@ -127,6 +128,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       .map(link => band(connector, link))];
   });
   source = expandLoopBacks(source);
+  let fitLayout: typeof fitLineScale | undefined;
   function collect(data: Band, inheritedStart = 0, inheritedEnd = Infinity): void {
     const def = defOf(data);
     if (!def || def.type !== data.type || def[EXTERNAL] || data.type.includes(':')) {
@@ -137,7 +139,10 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       throw new Error(`renderBands: mixed definitions for "${data.type}"`);
     }
     definitions.set(key, def);
-    if (def.internal) for (const type of def.outputTypes ?? []) syntheticOutputs.set(type, def);
+    if (def.internal) {
+      fitLayout ??= def.fitLineScale;
+      for (const type of def.outputTypes ?? []) syntheticOutputs.set(type, def);
+    }
     const reveal = data as RevealOpts & {id?: string};
     const start = Math.max(checked(reveal.reveal, data.type) ?? 0, inheritedStart);
     const stop = Math.min(checked(reveal.until, `${data.type} (until)`) ?? Infinity, inheritedEnd);
@@ -185,6 +190,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const placedDefinition = (band: LaidOutBand) => definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
   const connection = definitions.get('connect');
   const layout = createLayoutWith({
+    fitLineScale: fitLayout,
     connectorGaps: connection?.internal ? connection.connectorGaps : undefined,
     resolveConnect: (...args) => {
       const def = defOf(args[0]);
