@@ -60,5 +60,6 @@ export function documentFindings(diagram: LaidOutDiagram, stage?: number): Findi
 }
 
 export function documentAcceptHint(rule: string): string | undefined {
-  return rule === 'doc-width' || rule === 'glyph-missing' || rule === 'density' || rule === 'a11y-no-title' ? findingAcceptanceHint(rule) : undefined;
+  const documented = ['doc-width', 'glyph-missing', 'density', 'a11y-no-title', 'slide-min-text', 'slide-canvas-overflow'];
+  return documented.includes(rule) ? findingAcceptanceHint(rule) : undefined;
 }

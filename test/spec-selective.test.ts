@@ -413,3 +413,35 @@ test('selected tables preserve sum and share diagnostics and their spec paths', 
   assert.deepEqual(notes(selected), notes(legacy));
   assert.deepEqual(selected.verdict.warnings, legacy.verdict.warnings);
 });
+
+test('every catalog part keeps legacy output or reports the same layout failure at smaller sizes', async () => {
+  const {prepareSpecLayout} = await import('../lib/spec-selective.ts');
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const sizes = [
+    {width: 720}, {width: 480},
+    {canvas: {width: 1280, height: 720, minText: 16}},
+    {canvas: {width: 1440, height: 810, minText: 24}},
+  ];
+  for (const part of [flowchartPart, pyramidPart, funnelPart, ...moreParts]) {
+    for (const settings of sizes) {
+      const spec = {version: 1, title: '計画', legend: false, ...settings, parts: [part.example]};
+      const label = `${part.type} ${JSON.stringify(settings)}`;
+      const [selected, legacy] = await Promise.allSettled([
+        prepareSpecLayout(spec, {parts: [part]})(measure),
+        renderInBrowser(specToDiagram(spec), {measure}),
+      ]);
+      assert.equal(selected.status, legacy.status, label);
+      if (selected.status === 'rejected' && legacy.status === 'rejected') {
+        assert.equal(String(selected.reason), String(legacy.reason), label);
+      } else if (selected.status === 'fulfilled' && legacy.status === 'fulfilled') {
+        const {placed, emit, verdict} = selected.value;
+        assert.equal(placed.width, legacy.value.width, label);
+        assert.equal(placed.canvasHeight, legacy.value.height, label);
+        assert.equal(emit(placed), legacy.value.svg, label);
+        assert.deepEqual(verdict.problems, legacy.value.verdict.problems, label);
+        assert.deepEqual(verdict.warnings, legacy.value.verdict.warnings, label);
+        assert.deepEqual(verdict.issues, legacy.value.verdict.issues, label);
+      }
+    }
+  }
+});
