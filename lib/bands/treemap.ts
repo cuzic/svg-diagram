@@ -23,3 +23,6 @@ export function treemap<const T extends TreemapNode | readonly TreemapNode[], co
   const data = build<T, Id>(tree, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const treemapDefinition: BandDef<ChartBand, LaidOutChart> = definition;

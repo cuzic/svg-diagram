@@ -39,3 +39,6 @@ export function status(value: DiagramStatus, label?: string): WithBandDef<Status
   }
   return band<StatusBand, LaidOutStatus>(definition, {type: 'status', status: value, text: statusText({statusLabel: label})});
 }
+
+/** @internal Definition used by the full renderer. */
+export const statusDefinition: BandDef<StatusBand, LaidOutStatus> = definition;

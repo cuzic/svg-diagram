@@ -67,3 +67,6 @@ export function barplot<const D extends CatData, const Id extends string = never
   const chart = buildBarplot<D, Id>(data, opts);
   return band<typeof chart, LaidOutChart>(definition, chart);
 }
+
+/** @internal Definition used by the full renderer. */
+export const catplotDefinition: BandDef<ChartBand, LaidOutChart> = definition;

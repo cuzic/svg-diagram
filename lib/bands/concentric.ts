@@ -26,3 +26,6 @@ export function concentric(rings: readonly ConcentricRing[] | number, opts?: Con
     : build(rings, opts);
   return band<ConcentricBand, LaidOutFlowShape>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const concentricDefinition: BandDef<ConcentricBand, LaidOutFlowShape> = definition;

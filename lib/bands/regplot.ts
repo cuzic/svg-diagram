@@ -30,3 +30,6 @@ export function residplot<const Id extends string = never>(
   const chart = buildResidplot<Id>(data, opts);
   return band<typeof chart, LaidOutChart>(definition, chart);
 }
+
+/** @internal Definition used by the full renderer. */
+export const regplotDefinition: BandDef<ChartBand, LaidOutChart> = definition;

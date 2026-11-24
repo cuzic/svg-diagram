@@ -23,3 +23,6 @@ export function bubble<const P extends readonly BubblePoint[], const Id extends 
   const data = build<P, Id>(points, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const bubbleDefinition: BandDef<ChartBand, LaidOutChart> = definition;

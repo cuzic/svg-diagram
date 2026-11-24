@@ -25,3 +25,6 @@ export function pert<const T extends readonly PertTask[], const Id extends strin
   const data = build<T, Id>(tasks, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const pertDefinition: BandDef<ChartBand, LaidOutChart> = definition;

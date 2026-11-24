@@ -41,3 +41,6 @@ export function classDiagram<const C extends readonly ClassItem[], const Id exte
   const data = build<C, Id>(classes, relations, opts);
   return band<typeof data, LaidOutClasses>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const classesDefinition: BandDef<ClassesBand, LaidOutClasses> = definition;

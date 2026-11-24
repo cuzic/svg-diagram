@@ -30,3 +30,6 @@ export function bowtie<const Id extends string = never>(input: BowtieInput, opts
   const data = build<Id>(input, opts);
   return band<typeof data, LaidOutBowtie>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const bowtieDefinition: BandDef<BowtieBand, LaidOutBowtie> = definition;

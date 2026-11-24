@@ -23,3 +23,6 @@ export function sankey<const N extends readonly (SankeyNode | string)[], const I
   const data = build<N, Id>(nodes, links, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const sankeyDefinition: BandDef<ChartBand, LaidOutChart> = definition;

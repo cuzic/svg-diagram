@@ -30,3 +30,6 @@ export function autoLegend(bands: readonly {type: string}[], labels?: Partial<Re
   const items = missingLegendItems(bands as Band[], labels);
   return items.length ? legend(items) : undefined;
 }
+
+/** @internal Definition used by the full renderer. */
+export const legendDefinition: BandDef<LegendBand, LaidOutLegend> = definition;

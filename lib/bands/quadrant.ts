@@ -49,3 +49,6 @@ function preset<const Id extends string = never, const I extends readonly Quadra
 }
 
 export const quadrant = /* @__PURE__ */ Object.assign(build, {preset});
+
+/** @internal Definition used by the full renderer. */
+export const quadrantDefinition: BandDef<QuadrantBand, LaidOutQuadrant> = definition;

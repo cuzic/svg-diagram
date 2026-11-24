@@ -22,3 +22,6 @@ export function emblem(items: string | readonly EmblemItem[], opts?: (Omit<Emble
   const data = typeof items === 'string' ? build(items, opts) : build(items, opts);
   return band<EmblemBand, LaidOutFlowShape>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const emblemDefinition: BandDef<EmblemBand, LaidOutFlowShape> = definition;

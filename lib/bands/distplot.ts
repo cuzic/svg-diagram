@@ -53,3 +53,6 @@ export function rugplot<const D extends DistData, const Id extends string = neve
   const chart = buildRugplot<D, Id>(data, opts);
   return band<typeof chart, LaidOutChart>(definition, chart);
 }
+
+/** @internal Definition used by the full renderer. */
+export const distplotDefinition: BandDef<ChartBand, LaidOutChart> = definition;

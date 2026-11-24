@@ -26,3 +26,6 @@ export function sequence<const A extends string, const Id extends string = never
   const data = build<A, Id>(actors, steps, opts);
   return band<typeof data, LaidOutSequence>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const sequenceDefinition: BandDef<SequenceBand, LaidOutSequence> = definition;

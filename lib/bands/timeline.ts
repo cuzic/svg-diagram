@@ -30,3 +30,6 @@ export function timeline<const Id extends string = never>(opts: TimelineOpts & {
 export function timeline(opts: TimelineOpts | NumericTimelineOpts): WithBandDef<TimelineBand | NumericTimelineBand, LaidOutTimeline> {
   return band<TimelineBand | NumericTimelineBand, LaidOutTimeline>(definition, buildTimeline(opts));
 }
+
+/** @internal Definition used by the full renderer. */
+export const timelineDefinition: BandDef<TimelineBand | NumericTimelineBand, LaidOutTimeline> = definition;

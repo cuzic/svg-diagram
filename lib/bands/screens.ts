@@ -10,3 +10,7 @@ const screenDefinition = /* @__PURE__ */ screensDefinition(collectScreenGridText
 const matrixDefinition = /* @__PURE__ */ screensDefinition(collectStateMatrixTextRequests, placeStateMatrix, stateMatrixFindings);
 export const screens = /* @__PURE__ */ screensBuilder(screenDefinition);
 export const stateMatrix = /* @__PURE__ */ stateMatrixBuilder(matrixDefinition);
+
+/** @internal Definitions used by the full renderer. */
+export const screenGridDefinition: ReturnType<typeof screensDefinition> = screenDefinition;
+export const stateMatrixDefinition: ReturnType<typeof screensDefinition> = matrixDefinition;

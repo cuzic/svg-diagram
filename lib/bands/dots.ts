@@ -22,3 +22,6 @@ export function dots<const Id extends string = never>(values: readonly DotDatum[
   const data = build<Id>(values, opts);
   return band<typeof data, LaidOutDots>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const dotsDefinition: BandDef<DotsBand, LaidOutDots> = definition;

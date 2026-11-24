@@ -23,3 +23,6 @@ export function funnel<const Id extends string = never, const I extends readonly
   const data = build<Id, I>(stages, opts);
   return band<typeof data, LaidOutFlowShape>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const funnelDefinition: BandDef<FunnelBand, LaidOutFlowShape> = definition;

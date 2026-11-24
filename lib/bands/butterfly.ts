@@ -23,3 +23,6 @@ export function butterfly<const R extends readonly ButterflyRow[], const Id exte
   const data = build<R, Id>(rows, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const butterflyDefinition: BandDef<ChartBand, LaidOutChart> = definition;

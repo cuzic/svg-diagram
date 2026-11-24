@@ -38,3 +38,6 @@ export function cloud<const A extends CloudBox, const B extends CloudBox, const 
   const data = build<A, B, C, D, D2, Id>(boxes, opts);
   return band<typeof data, LaidOutCloud>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const cloudDefinition: BandDef<CloudBand, LaidOutCloud> = definition;

@@ -23,3 +23,6 @@ export function combo<const S extends readonly ComboSeries[], const Id extends s
   const data = build<S, Id>(categories, series, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const comboDefinition: BandDef<ChartBand, LaidOutChart> = definition;

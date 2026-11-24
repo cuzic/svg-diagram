@@ -41,3 +41,6 @@ export function bpmn<const N extends readonly BpmnNode[], const Id extends strin
   const data = build<N, Id>(lanes, nodes, flows, opts);
   return band<typeof data, LaidOutBpmn>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const bpmnDefinition: BandDef<BpmnBand, LaidOutBpmn> = definition;

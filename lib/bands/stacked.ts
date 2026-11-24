@@ -32,3 +32,6 @@ export function mekko<const C extends readonly StackColumn[], const Id extends s
   const data = buildMekko<C, Id>(columns, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const stackedDefinition: BandDef<ChartBand, LaidOutChart> = definition;

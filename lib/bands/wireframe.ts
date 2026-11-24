@@ -27,3 +27,6 @@ export function wireframe<const Id extends string = never>(root: WfRoot, opts?: 
   const data = build<Id>(root, opts);
   return band<typeof data, LaidOutWireframe>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const wireframeDefinition: BandDef<WireframeBand, LaidOutWireframe> = definition;

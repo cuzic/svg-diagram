@@ -74,3 +74,6 @@ export function swimlane<
   });
   return withAnchors(bands, [opts?.id, ...steps.map(step => step.id)]) as typeof bands & AnchorsOf<StepIds<S> | Id>;
 }
+
+/** @internal Definition used by the full renderer. */
+export const swimlaneDefinition: BandDef<SwimlaneBand, LaidOutSwimlane | LaidOutBox> = definition;

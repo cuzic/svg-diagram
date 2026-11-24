@@ -36,3 +36,6 @@ export function gantt<const R extends readonly GanttRow[], const Id extends stri
   const data = buildGantt<R, Id>(rows, opts);
   return band<typeof data, LaidOutGantt>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const ganttDefinition: BandDef<GanttBand, LaidOutGantt> = definition;

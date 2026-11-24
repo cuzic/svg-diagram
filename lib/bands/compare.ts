@@ -23,3 +23,6 @@ export function compare<const Id extends string = never>(
   const data = build<Id>(rows, cols, cells, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const compareDefinition: BandDef<ChartBand, LaidOutChart> = definition;

@@ -32,3 +32,6 @@ export function wordart<const Id extends string = never>(text: string, opts?: Wo
   const data = build<Id>(text, opts);
   return band<typeof data, LaidOutWordArt>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const wordartDefinition: BandDef<WordArtBand, LaidOutWordArt> = definition;

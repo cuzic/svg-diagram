@@ -24,3 +24,6 @@ export function dependencyNetwork<const N extends readonly DependencyNode[], con
   const data = build<N, Id>(nodes, edges, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const dependencyDefinition: BandDef<ChartBand, LaidOutChart> = definition;

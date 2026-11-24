@@ -44,3 +44,6 @@ export function pairplot<const Id extends string = never>(
   const chart = buildPairplot<Id>(data, opts);
   return band<typeof chart, LaidOutChart>(definition, chart);
 }
+
+/** @internal Definition used by the full renderer. */
+export const multiplotDefinition: BandDef<ChartBand, LaidOutChart> = definition;

@@ -15,3 +15,6 @@ const definition = {
 export function raw(opts: RawOpts): WithBandDef<RawBand, LaidOutRaw> {
   return band<RawBand, LaidOutRaw>(definition, buildRaw(opts));
 }
+
+/** @internal Definition used by the full renderer. */
+export const rawDefinition: BandDef<RawBand, LaidOutRaw> = definition;

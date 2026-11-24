@@ -21,3 +21,6 @@ export function radar<const S extends readonly RadarSeries[], const Id extends s
   const data = build<S, Id>(axes, series, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const radarDefinition: BandDef<ChartBand, LaidOutChart> = definition;

@@ -19,3 +19,6 @@ const definition = {
 export function pyramid(layers: PyramidLayers, opts?: PyramidOpts): WithBandDef<PyramidBand, LaidOutPyramid> {
   return band<PyramidBand, LaidOutPyramid>(definition, build(layers, opts));
 }
+
+/** @internal Definition used by the full renderer. */
+export const pyramidDefinition: BandDef<PyramidBand, LaidOutPyramid> = definition;

@@ -33,3 +33,6 @@ export function mindmap<const R extends TreeItem, const Id extends string = neve
   const data = buildMindmap<R, Id>(root, opts);
   return band<typeof data, LaidOutTree>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const treeDefinition: BandDef<TreeBand, LaidOutTree> = definition;

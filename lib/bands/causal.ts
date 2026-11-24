@@ -25,3 +25,6 @@ export function causalLoop<const N extends readonly CausalNode[], const I extend
   const data = build<N, I, Id>(nodes, links, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const causalDefinition: BandDef<ChartBand, LaidOutChart> = definition;

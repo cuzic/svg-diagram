@@ -34,3 +34,6 @@ export function faultTree<const T extends FtaEvent, const Id extends string = ne
   const data = build<T, Id>(top, opts);
   return band<typeof data, LaidOutFta>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const ftaDefinition: BandDef<FtaBand, LaidOutFta> = definition;

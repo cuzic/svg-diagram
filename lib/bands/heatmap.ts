@@ -23,3 +23,6 @@ export function heatmap<const Id extends string = never>(
   const data = build<Id>(rows, cols, values, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const heatmapDefinition: BandDef<ChartBand, LaidOutChart> = definition;

@@ -19,3 +19,6 @@ const definition = {
 export function curve(points: CurvePoints, opts?: CurveOpts): WithBandDef<CurveBand, LaidOutCurve> {
   return band<CurveBand, LaidOutCurve>(definition, build(points, opts));
 }
+
+/** @internal Definition used by the full renderer. */
+export const curveDefinition: BandDef<CurveBand, LaidOutCurve> = definition;

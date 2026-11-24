@@ -34,3 +34,6 @@ export function areas<const C extends Record<string, AreaContent & {readonly [DE
     child.type === 'group' && !defOf(child) ? band(groupDefinition, child) : child);
   return band<typeof data, LaidOutRow>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const areasDefinition: BandDef<AreasBand, LaidOutRow> = definition;

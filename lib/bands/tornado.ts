@@ -25,3 +25,6 @@ export function tornado<const I extends readonly TornadoItem[], const Id extends
   const data = build<I, Id>(items, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const tornadoDefinition: BandDef<ChartBand, LaidOutChart> = definition;

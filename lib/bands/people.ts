@@ -22,3 +22,6 @@ export function people<const Id extends string = never>(total: number, count: nu
   const data = build<Id>(total, count, opts);
   return band<typeof data, LaidOutPeople>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const peopleDefinition: BandDef<PeopleBand, LaidOutPeople> = definition;

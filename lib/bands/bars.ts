@@ -70,3 +70,6 @@ export function pareto<const Id extends string = never>(items: Parameters<typeof
 export function histogram<const Id extends string = never>(values: readonly number[], opts?: HistogramOpts & {id?: Id}) {
   return define(buildHistogram<Id>(values, opts));
 }
+
+/** @internal Definition used by the full renderer. */
+export const barsDefinition: BandDef<BarsBand, LaidOutBars> = definition;

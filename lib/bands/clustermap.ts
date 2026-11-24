@@ -23,3 +23,6 @@ export function clustermap<const Id extends string = never>(
   const chart = buildClustermap<Id>(rows, cols, values, opts);
   return band<typeof chart, LaidOutChart>(definition, chart);
 }
+
+/** @internal Definition used by the full renderer. */
+export const clustermapDefinition: BandDef<ChartBand, LaidOutChart> = definition;

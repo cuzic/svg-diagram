@@ -23,3 +23,6 @@ export function cycle<const Id extends string = never, const I extends readonly 
   const data = build<Id, I>(steps, opts);
   return band<typeof data, LaidOutFlowShape>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const cycleDefinition: BandDef<CycleBand, LaidOutFlowShape> = definition;

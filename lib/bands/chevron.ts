@@ -24,3 +24,6 @@ export function chevron<const Id extends string = never, const I extends readonl
   const data = build<Id, I>(steps, opts);
   return band<typeof data, LaidOutFlowShape>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const chevronDefinition: BandDef<ChevronBand, LaidOutFlowShape> = definition;

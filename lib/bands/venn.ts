@@ -22,3 +22,6 @@ export function venn<const Id extends string = never, const I extends readonly V
   const data = build<Id, I>(sets, opts);
   return band<typeof data, LaidOutFlowShape>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const vennDefinition: BandDef<VennBand, LaidOutFlowShape> = definition;

@@ -58,6 +58,8 @@ type DrawOptions = {
   showTitle?: boolean;
   sourceLine?: string;
   captions?: BandDef<CaptionBand, LaidOutCaption>;
+  /** @internal Layout-generated children supplied by the full renderer. */
+  generatedBands?: (data: Band) => readonly Band[];
   canvas?: Partial<SlideCanvas>;
   today?: string;
   stage?: number;
@@ -193,6 +195,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     if (findings) inputChecks.push(ctx => findings(data, ctx));
     def.measure?.(data, measureEnv);
     for (const generated of def.generated?.(data) ?? []) collect(generated, start, stop);
+    for (const generated of opts.generatedBands?.(data) ?? []) collect(generated, start, stop);
     for (const child of def.children?.(data) ?? []) collect(child, start, stop);
   }
   for (const data of source) collect(data);

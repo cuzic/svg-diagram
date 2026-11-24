@@ -23,3 +23,6 @@ export function harvey<const R extends readonly HarveyRow[], const Id extends st
   const data = build<R, Id>(rows, cols, values, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const harveyDefinition: BandDef<ChartBand, LaidOutChart> = definition;

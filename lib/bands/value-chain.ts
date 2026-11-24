@@ -22,3 +22,6 @@ export function valueChain<const Id extends string = never, const S extends read
   const data = build<Id, S, P>(parts, opts);
   return band<typeof data, LaidOutFlowShape>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const valueChainDefinition: BandDef<ValueChainBand, LaidOutFlowShape> = definition;

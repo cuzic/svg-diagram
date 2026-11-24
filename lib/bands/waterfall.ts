@@ -23,3 +23,6 @@ export function waterfall<const S extends readonly WaterfallStep[], const Id ext
   const data = build<S, Id>(steps, opts);
   return band<typeof data, LaidOutChart>(definition, data);
 }
+
+/** @internal Definition used by the full renderer. */
+export const waterfallDefinition: BandDef<ChartBand, LaidOutChart> = definition;
