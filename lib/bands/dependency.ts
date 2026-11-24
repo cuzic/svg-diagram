@@ -1,3 +1,4 @@
+import {edgeBendFindings} from '../verify-edge-bends.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutDependency, dependencyTexts} from '../semnet-dependency.ts';
@@ -13,7 +14,7 @@ const definition = {
   measure: (data, env) => measureChart(data, env, dependencyTexts(data.spec as DependencySpec)),
   layout: (data, env) => layoutSelectiveChart(data, env, geom => layoutDependency(data.spec as DependencySpec, geom)),
   emit: emitChart,
-  verify: verifyChart,
+  verify: {...verifyChart, diagramFindings: edgeBendFindings},
 } satisfies BandDef<ChartBand, LaidOutChart>;
 
 export function dependencyNetwork<const N extends readonly DependencyNode[], const Id extends string = never>(

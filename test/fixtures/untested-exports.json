@@ -608,6 +608,7 @@
   "verify-concentric:concentricFindings",
   "verify-density:causeBandsOf",
   "verify-density:densityRestorationFindings",
+  "verify-edge-bends:edgeBendFindings",
   "verify-flow:flowProblems",
   "verify-flowchart:flowchartFindings",
   "verify-fta-rects:ftaRects",

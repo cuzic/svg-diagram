@@ -1,3 +1,4 @@
+import {edgeBendFindings} from '../verify-edge-bends.ts';
 import {textsAndLabels} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -25,6 +26,7 @@ const definition = {
   },
   emit: (laid, {theme, tones}) => renderClasses(laid, theme, tones),
   verify: {
+    diagramFindings: edgeBendFindings,
     rects: laid => anchorRects(laid),
     check: laid => classesProblems(laid).map(message => ({rule: 'classes', severity: 'problem', message})),
   },

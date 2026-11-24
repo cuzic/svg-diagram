@@ -1,3 +1,4 @@
+import {edgeBendFindings} from '../verify-edge-bends.ts';
 import type {CausalLink} from '../semnet-analysis.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -14,7 +15,7 @@ const definition = {
   measure: (data, env) => measureChart(data, env, causalTexts(data.spec as CausalSpec)),
   layout: (data, env) => layoutSelectiveChart(data, env, geom => layoutCausal(data.spec as CausalSpec, geom)),
   emit: emitChart,
-  verify: verifyChart,
+  verify: {...verifyChart, diagramFindings: edgeBendFindings},
 } satisfies BandDef<ChartBand, LaidOutChart>;
 
 export function causalLoop<const N extends readonly CausalNode[], const I extends readonly CausalIntervention[] = readonly [], const Id extends string = never>(

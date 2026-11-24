@@ -99,7 +99,14 @@ test('on real cause / states figures the finding is exactly what the routes say'
   // a ladder of long arrows: every node points at every later one
   const ids = ['n0', 'n1', 'n2', 'n3', 'n4'];
   const links = ids.flatMap((a, i) => ids.slice(i + 1).map(b => ({from: a, to: b})));
-  for (const band of [causeTree(ids.map(id => ({id, label: id})), links, {dir: 'right'}), stateDiagram(ids.map(id => ({id, label: id})), links, {dir: 'right'})]) {
+  const {causeTree: selectedCause} = await import('../lib/bands/cause.ts');
+  const {stateDiagram: selectedStates} = await import('../lib/bands/states.ts');
+  const {renderBands} = await import('../lib/core.ts');
+  const {fontMeasurer} = await import('../lib/node-measure.ts');
+  const nodes = ids.map(id => ({id, label: id}));
+  const opts = {dir: 'right'} as const;
+  for (const [band, selected] of [[causeTree(nodes, links, opts), selectedCause(nodes, links, opts)],
+    [stateDiagram(nodes, links, opts), selectedStates(nodes, links, opts)]] as const) {
     const r = await checkDiagram(diagram({theme: 'blue', title: 't'}).add(band));
     const laid = r.laidOut.laidOut.find(b => b.type === 'cause' || b.type === 'states');
     assert.ok(laid && (laid.type === 'cause' || laid.type === 'states'));
@@ -107,5 +114,9 @@ test('on real cause / states figures the finding is exactly what the routes say'
     const total = counts.reduce((a, b) => a + b, 0), expected = counts.some(n => n >= 5) || total / counts.length > 3;
     assert.equal(r.verdict.findings.filter(f => f.rule === 'edge-bends').length, expected ? 1 : 0, `${laid.type}: ${counts.join(',')}`);
     assert.ok(r.verdict.findings.filter(f => f.rule === 'edge-bends').every(f => f.severity === 'info'));
+    const report = await renderBands([selected], {measure: fontMeasurer(), title: 't'});
+    const notes = (v: typeof r.verdict) => v.findings.filter(f => f.rule === 'edge-bends')
+      .map(({severity, message, data}) => ({severity, message, data}));
+    assert.deepEqual(notes(report.verdict), notes(r.verdict), laid.type);
   }
 });
