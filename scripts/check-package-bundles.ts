@@ -23,7 +23,8 @@ try {
     import {${name}} from 'svg-diagram/bands/${name}';
     export const draw = () => renderBands([${name === 'box'
       ? "box({title: 'Review', size: 18})"
-      : "gantt([{label: 'Review', start: '2026-11-23', days: 3}])"}], {
+      : "gantt([{section: '第一段階'}, {id: 'review', label: 'Review', start: '2026-11-23', days: 3, progress: 0.5}, {label: '公開', start: '2026-11-27', milestone: true, after: 'review'}], {today: 'auto', todayLabel: '基準日'})"}], {
+      ${name === 'gantt' ? "today: '2026-11-24'," : ''}
       measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
     });
   `;
@@ -551,7 +552,7 @@ try {
       include: 'dsl/stat.js', budget: {esbuild: 75000, Vite: 96000}, bands: ['box.js'],
       exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'layout-connect.js', 'layout-areas.js'], draw: true},
     {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',
-      exclude: [...legacy, 'emit-connect.js', 'verify-connect-geometry.js', 'layout-box-like.js', 'layout-cause-fit.js', 'box.js', 'emit-boxes.js', 'layout-connect.js', 'timeline.js'], budget: {esbuild: 48000, Vite: 63000}, draw: true},
+      exclude: [...legacy, 'emit-connect.js', 'verify-connect-geometry.js', 'layout-box-like.js', 'layout-cause-fit.js', 'box.js', 'emit-boxes.js', 'layout-connect.js', 'timeline.js', 'emit-timeline.js', 'emit-figures.js', 'charts.js'], budget: {esbuild: 48000, Vite: 63000}, draw: true},
     {name: 'Row', source: composedSource(['box', 'row'], "row([box({title: 'Review'}), box({title: 'Next'})], {arrows: 'between'})"),
       include: 'bands/row.js', budget: {esbuild: 83000, Vite: 104500}, bands: ['box.js', 'row.js'], exclude: [...legacy, 'dsl/row.js', 'dsl/group.js', 'dsl/container-children.js', 'loop-back.js', 'loop-back-connectors.js', 'dsl/containers.js', 'dsl/areas.js', 'dsl/grid.js', 'emit-boxes.js', 'emit-grid.js', 'steps.js', 'emit-connect.js', 'verify-connect-geometry.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'layout-grid.js', 'layout-connect.js', 'layout-group.js', 'layout-group-row.js', 'layout-areas.js', 'gantt.js'], draw: true},
     {name: 'Steps', source: composedSource([], "steps([{title: 'Review'}, {title: 'Approve'}], {numbered: true, focus: 2})",
@@ -618,7 +619,7 @@ try {
       include: `bands/${name}.js`, exclude: [...legacy, 'timeline.js', 'emit-boxes.js', 'dsl/people-dots.js', ...(name === 'dots' ? ['emit-people.js', 'lib/people.js', 'dsl/people.js'] : ['emit-dots.js', 'layout-dots.js', 'dsl/dots.js']), 'layout-connect.js', 'gantt.js'], draw: true,
     })),
     {name: 'Timeline', source: composedSource(['timeline'], "timeline({unit: 'ms', from: 0, to: 100, events: [{at: 25, label: 'Review'}]})"),
-      include: 'bands/timeline.js', budget: {esbuild: 72000, Vite: 96500}, exclude: [...legacy, 'emit-figures.js', 'people.js', 'gantt.js', 'layout-connect.js'], draw: true},
+      include: 'bands/timeline.js', budget: {esbuild: 72000, Vite: 96500}, exclude: [...legacy, 'emit-figures.js', 'people.js', 'gantt.js', 'emit-gantt.js', 'layout-connect.js'], draw: true},
     {name: 'Status', source: composedSource(['status'], "status('draft', 'Review')"),
       include: 'bands/status.js', budget: {esbuild: 56500, Vite: 76000}, exclude: [...legacy, 'emit-boxes.js', 'emit-raw.js', 'wordart.js', 'flow-shapes.js', 'gantt.js', 'layout-connect.js'], draw: true},
     {name: 'Wordart', source: composedSource(['wordart'], "wordart('Review', {style: 'outline', size: 40})"),
@@ -930,6 +931,13 @@ try {
         if (name === 'Document findings') {
           assert.ok(result.verdict.warnings.some((warning: string) => warning.includes('check --explain doc-width')), label);
           assert.ok(result.verdict.warnings.some((warning: string) => warning.includes('check --explain glyph-missing')), label);
+        }
+        if (name === 'Gantt') {
+          assert.match(result.svg, />第一段階<\/text>/, label);
+          assert.match(result.svg, />基準日<\/text>/, label);
+          assert.match(result.svg, />公開<\/text>/, label);
+          assert.match(result.svg, /<path d="M[\d,]+ L[\d,]+ L[\d,]+ L[\d,]+ z"[^>]*stroke-width="2"/, label);
+          assert.match(result.svg, /<path d="M[\d,]+ L[\d,]+ L[\d,]+ L[\d,]+"[^>]*stroke-width="1.5"/, label);
         }
         if (name === 'Box') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'box-size-ignored'), label);
         if (name === 'Node and stat') assert.match(result.svg, /出典: Report/, label);
