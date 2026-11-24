@@ -538,3 +538,37 @@ test('a step badge is the svg\'s: an accent circle (stepBadgeAt) with its number
   const g = stepBadgeAt(box);
   assert.ok(g.cx > 0 && g.r > 0 && g.baseline > g.cy);
 });
+
+test('selective Edge PPTX renders a native table and rejects unregistered spec parts', async () => {
+  const {renderPptxEdge: renderSelected} = await import('../lib/pptx-selective-edge.ts');
+  const {tablePart} = await import('../lib/spec-parts/selective/table.ts');
+  const {tablePptx} = await import('../lib/pptx/table-band.ts');
+  const opts = {parts: [tablePart], bands: {table: tablePptx}, rasterize: () => { throw new Error('must not rasterize the table'); }};
+  const engine = realEngine();
+  const input = spec(example('table'));
+  const selected = await renderSelected(input, engine, opts);
+  const legacy = await renderPptxEdge(input, engine, opts);
+  assert.ok(selected.pptx && legacy.pptx);
+  assert.deepEqual(selected.issues, []);
+  assert.equal(selected.native, 1);
+  assert.equal(selected.pictures, 0);
+  assert.equal(entry(selected.pptx, 'ppt/slides/slide1.xml'), entry(legacy.pptx, 'ppt/slides/slide1.xml'));
+  const unsupported = await renderSelected(spec(example('sequence')), engine, opts);
+  assert.equal(unsupported.pptx, null);
+  assert.ok(unsupported.issues.some(issue => issue.path.startsWith('parts[0]')));
+});
+
+test('selective Edge PPTX outlines a picture before passing it to the rasterizer', async () => {
+  const {renderPptxEdge: renderSelected} = await import('../lib/pptx-selective-edge.ts');
+  const {sequencePart} = await import('../lib/spec-parts/selective/sequence.ts');
+  const seen: string[] = [];
+  const result = await renderSelected(spec(example('sequence')), realEngine(), {
+    parts: [sequencePart], rasterize: svg => { seen.push(svg); return PNG; },
+  });
+  assert.ok(result.pptx);
+  assert.equal(result.native, 0);
+  assert.equal(result.pictures, 1);
+  assert.equal(seen.length, 1);
+  assert.doesNotMatch(seen.join(''), /<text\b/);
+  assert.match(seen.join(''), /<path\b/);
+});

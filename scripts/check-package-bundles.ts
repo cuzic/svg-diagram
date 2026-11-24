@@ -191,7 +191,7 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
         bands: {box: boxPptx, group: groupPptx}, spans: {group: groupSpan}, strict: true,
       });
-    `, include: 'pptx/group-span.js', budget: {esbuild: 147500, Vite: 175000}, bands: ['box.js', 'caption.js', 'group.js'],
+    `, include: 'pptx/group-span.js', budget: {esbuild: 147500, Vite: 175500}, bands: ['box.js', 'caption.js', 'group.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/swimlane-span.js', 'pptx/svg-shapes.js'], draw: true},
     {name: 'Selective PPTX Flow', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
@@ -264,6 +264,23 @@ try {
       });
     `, include: 'legend-notation.js', budget: {esbuild: 116500, Vite: 150000}, bands: ['fta.js', 'legend.js'],
       exclude: [...legacy, 'bands/cause.js', 'bands/table.js', 'dsl-pure.js'], draw: true},
+    {name: 'Selected Edge PPTX table', source: `
+      import {renderPptxEdge} from 'svg-diagram/pptx/selective/edge';
+      import {tablePart} from 'svg-diagram/spec/parts/table';
+      import {tablePptx} from 'svg-diagram/pptx/bands/table';
+      const engine = {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        textBox: (text, _font, size) => ({w: [...text].length * size * 0.6, ascent: size, descent: 0}),
+        font: {covers: () => true, shape: () => ({upem: 1000, glyphs: []}), path: () => ''},
+      };
+      export const draw = () => renderPptxEdge({version: 1, title: 'Plan', parts: [
+        {type: 'table', columns: [{label: 'Review'}], rows: [['Done']]},
+      ]}, engine, {
+        parts: [tablePart], bands: {table: tablePptx},
+        rasterize() { throw new Error('a native table does not need rasterization'); },
+      });
+    `, include: 'pptx-selective-edge.js', budget: {esbuild: 170500, Vite: 206000}, bands: ['table.js'],
+      exclude: [...legacy, 'lib/spec.js', 'lib/pptx-edge.js', 'pptx/bands.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'bands/box.js'], draw: true},
     {name: 'Selected table spec on Edge', source: `
       import {renderSpecEdge} from 'svg-diagram/spec/selective/edge';
       import {tablePart} from 'svg-diagram/spec/parts/table';
@@ -587,6 +604,14 @@ try {
         }
         const {draw: render} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
         const result = await render();
+        if (name === 'Selected Edge PPTX table') {
+          assert.deepEqual(result.issues, [], label);
+          assert.equal(result.native, 1, label);
+          assert.equal(result.pictures, 0, label);
+          assert.deepEqual([...result.pptx.subarray(0, 4)], [0x50, 0x4b, 3, 4], label);
+          console.log(`${label}: ${bytes} bytes`);
+          continue;
+        }
         if (name.startsWith('Selective PPTX')) {
           assert.deepEqual(result.fallbacks, [], label);
           assert.equal(result.verdict.ok, true, label);

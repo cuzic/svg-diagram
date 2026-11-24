@@ -12,22 +12,23 @@ import {zipEntries} from './zip.ts';
 
 export type {PptxBands, PptxSpans} from './adapter.ts';
 
-type PptxOptions = Parameters<typeof prepareBands>[1] & {
-  bands?: PptxBands;
-  spans?: PptxSpans;
-  strict?: boolean;
-  svgShapes?: typeof svgShapesXml;
-  font?: string;
+type Prepared = Awaited<ReturnType<typeof prepareBands>>;
+type PptxOptions = Parameters<typeof prepareBands>[1] & SelectiveSlideOptions & {
   pngScale?: number;
   rasterize?: (svg: string, scale: number) => Uint8Array | Promise<Uint8Array>;
   outline?: (svg: string) => string;
 };
 
-/** Render selected bands as an editable slide, reporting the bands embedded as pictures. */
-export async function renderBandsPptx(bands: Parameters<typeof prepareBands>[0], opts: PptxOptions) {
-  const {placed, stage, verdict, emit} = await prepareBands(bands, opts);
-  const pngScale = opts.pngScale ?? 2;
-  if (!(Number.isFinite(pngScale) && pngScale > 0)) throw new Error('renderBandsPptx: pngScale must be a positive number');
+export interface SelectiveSlideOptions {
+  bands?: PptxBands;
+  spans?: PptxSpans;
+  strict?: boolean;
+  svgShapes?: typeof svgShapesXml;
+  font?: string;
+  title?: string;
+}
+
+export function planPreparedPptx({placed, stage, emit}: Prepared, opts: SelectiveSlideOptions) {
   const fallbacks: {type: string; id?: string}[] = [];
   const visible = placed.laidOut.map(item => visibleAt(item, stage));
   const laidOut = placed.laidOut.flatMap((item, index) => {
@@ -48,6 +49,15 @@ export async function renderBandsPptx(bands: Parameters<typeof prepareBands>[0],
       if (opts.strict) throw new Error(`renderBandsPptx: picture fallback for ${item.type}${id ? ` "${id}"` : ''}`);
     });
   }, {title: opts.title, stage, spans: opts.spans});
+  return {plan, fallbacks, width: ld.width, height: ld.canvasHeight, native: laidOut.length - plan.pictures.length};
+}
+
+/** Render selected bands as an editable slide, reporting the bands embedded as pictures. */
+export async function renderBandsPptx(bands: Parameters<typeof prepareBands>[0], opts: PptxOptions) {
+  const prepared = await prepareBands(bands, opts);
+  const pngScale = opts.pngScale ?? 2;
+  if (!(Number.isFinite(pngScale) && pngScale > 0)) throw new Error('renderBandsPptx: pngScale must be a positive number');
+  const {plan, width, height, fallbacks} = planPreparedPptx(prepared, opts);
   const pngs: Uint8Array[] = [];
   for (const picture of plan.pictures) {
     if (!opts.rasterize) throw new Error('renderBandsPptx: pass rasterize to embed picture fallbacks');
@@ -57,5 +67,5 @@ export async function renderBandsPptx(bands: Parameters<typeof prepareBands>[0],
     }
     pngs.push(await opts.rasterize(picture.pngSvg, pngScale));
   }
-  return {pptx: zipEntries(packageEntries(plan, pngs)), width: ld.width, height: ld.canvasHeight, fallbacks, verdict};
+  return {pptx: zipEntries(packageEntries(plan, pngs)), width, height, fallbacks, verdict: prepared.verdict};
 }
