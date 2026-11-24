@@ -3,7 +3,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutCompare, compareTexts} from '../charts-compare.ts';
 import type {CompareCell, CompareOpts, CompareSpec} from '../charts-compare.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {compare as build} from '../dsl/charts.ts';
+import {compare as build} from '../dsl/compare.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {

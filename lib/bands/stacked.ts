@@ -4,7 +4,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutStacked, stackedTexts, stackedValueAxis} from '../charts-stacked.ts';
 import type {StackColumn, StackedOpts, StackedSpec} from '../charts-stacked.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {stackedBars as buildStacked, mekko as buildMekko} from '../dsl/charts.ts';
+import {stackedBars as buildStacked, mekko as buildMekko} from '../dsl/stacked.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {

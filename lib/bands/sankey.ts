@@ -3,7 +3,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutSankey, sankeyTexts} from '../charts-sankey.ts';
 import type {SankeyOpts, SankeySpec, SankeyNode, SankeyLink} from '../charts-sankey.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {sankey as build} from '../dsl/charts.ts';
+import {sankey as build} from '../dsl/sankey.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {

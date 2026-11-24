@@ -4,7 +4,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutTornado, tornadoTexts, tornadoValueAxis} from '../charts-tornado.ts';
 import type {TornadoItem, TornadoOpts, TornadoSpec} from '../charts-tornado.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {tornado as build} from '../dsl/charts.ts';
+import {tornado as build} from '../dsl/tornado.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {

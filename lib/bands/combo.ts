@@ -3,7 +3,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutCombo, comboTexts} from '../charts-combo.ts';
 import type {ComboOpts, ComboSeries, ComboSpec} from '../charts-combo.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {combo as build} from '../dsl/charts.ts';
+import {combo as build} from '../dsl/combo.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {

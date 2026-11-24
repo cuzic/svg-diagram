@@ -3,7 +3,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutButterfly, butterflyTexts} from '../charts-butterfly.ts';
 import type {ButterflyRow, ButterflyOpts, ButterflySpec} from '../charts-butterfly.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {butterfly as build} from '../dsl/charts.ts';
+import {butterfly as build} from '../dsl/butterfly.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {

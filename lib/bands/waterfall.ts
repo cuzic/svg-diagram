@@ -4,7 +4,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutWaterfall, waterfallTexts, waterfallValueAxis} from '../charts-waterfall.ts';
 import type {WaterfallOpts, WaterfallSpec, WaterfallStep} from '../charts-waterfall.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {waterfall as build} from '../dsl/charts.ts';
+import {waterfall as build} from '../dsl/waterfall.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {

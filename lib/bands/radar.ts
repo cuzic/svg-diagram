@@ -3,7 +3,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutRadar, radarTexts} from '../charts-radar.ts';
 import type {RadarOpts, RadarSpec, RadarSeries} from '../charts-radar.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {radar as build} from '../dsl/charts.ts';
+import {radar as build} from '../dsl/radar.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {

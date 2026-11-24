@@ -3,7 +3,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutHeatmap, heatmapTexts} from '../charts-heatmap.ts';
 import type {HeatmapOpts, HeatmapSpec} from '../charts-heatmap.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {heatmap as build} from '../dsl/charts.ts';
+import {heatmap as build} from '../dsl/heatmap.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {

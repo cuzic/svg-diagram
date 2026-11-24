@@ -5,7 +5,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutCausal, causalTexts} from '../semnet-causal.ts';
 import type {CausalIntervention, CausalNode, CausalOpts, CausalSpec} from '../semnet-causal.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {causalLoop as build} from '../dsl/charts.ts';
+import {causalLoop as build} from '../dsl/causal.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {

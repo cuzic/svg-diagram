@@ -3,7 +3,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutTreemap, treemapTexts} from '../charts-treemap.ts';
 import type {TreemapNode, TreemapOpts, TreemapSpec} from '../charts-treemap.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {treemap as build} from '../dsl/charts.ts';
+import {treemap as build} from '../dsl/treemap.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
