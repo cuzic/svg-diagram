@@ -1311,3 +1311,23 @@ test('selected placement provides the same content inventory as the complete lay
   assert.deepEqual(placed.inventory, expected);
   assert.ok(placed.inventory.items.some(item => item.kind === 'arrowhead'));
 });
+
+test('selected tree endpoints follow a plot that retains its fractional origin', async () => {
+  const {prepareBands} = await import('../lib/core.ts');
+  const input = (before: TreeItem['band'], child: TreeItem['band']): TreeItem => ({
+    label: '親', children: [{label: '前の枝', band: before, w: 160}, {label: '子', band: child, w: 290}],
+  });
+  const opts = {x: {max: 20, step: 10}, y: {max: 10, step: 5}, points: [{at: [10, 5], label: '確認'}]} satisfies Parameters<typeof plane>[0];
+  const shape = {h: 33, draw: () => ''};
+  const selected = await prepareBands([tree(input(raw(shape), plane(opts)), {dir: 'right'})], {measure});
+  const expected = await renderInBrowser(diagram({theme: 'blue', legend: false})
+    .add(legacyTree(input(legacyRaw(shape), legacyPlane(opts)), {dir: 'right'})), {measure});
+  const selectedTree = selected.placed.laidOut.find(band => band.type === 'tree');
+  const expectedTree = expected.laidOut.laidOut.find(band => band.type === 'tree');
+  assert.ok(selectedTree && expectedTree);
+  const plot = selected.placed.laidOut.find(band => band.type === 'plane');
+  assert.ok(plot);
+  assert.notEqual(plot.y % 4, 0);
+  assert.equal(selectedTree.nodes[2]?.y, plot.y);
+  assert.deepEqual(selectedTree.edges, expectedTree.edges);
+});

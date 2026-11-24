@@ -13,6 +13,7 @@ import type {TextRequest} from './types/core.ts';
 export function screensFor(collect: (data: ScreensBand) => TextRequest[], place: BandLayoutHandler<ScreensBand>) {
   const definition = {
     type: 'screens',
+    offGrid: true,
     internal: true,
     layout: place,
     ids: data => data.items.flatMap(item => item.id ? [item.id] : []),

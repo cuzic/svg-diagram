@@ -1,5 +1,5 @@
 import {resolveAnchor} from './anchor-scope.ts';
-import {appendPlacedBand, originOf} from './layout-placed.ts';
+import {appendPlacedBand} from './layout-placed.ts';
 import {restoreCtx, snapshotCtx} from './layout-ctx.ts';
 import type {LayoutCtx} from './layout-ctx.ts';
 import {must} from './must.ts';
@@ -19,11 +19,11 @@ function measureBandHeight(ctx: LayoutCtx, band: Band, w: number): number {
   } finally { restoreCtx(ctx, before); }
 }
 /** A band node is laid out on the grid like any band: its rectangle (and the ends of the lines that reach it) move to where the band will really sit. */
-function snapBandNodes(placed: LaidOutTree, band: TreeBand): void {
+function snapBandNodes(placed: LaidOutTree, band: TreeBand, ctx: LayoutCtx): void {
   treeItems(band.root).forEach((n, i) => {
     const node = placed.nodes[i];
     if (!n.band || !node) return;
-    const dy = originOf(n.band.type, node.y) - node.y;
+    const dy = ctx.originOf(n.band, node.y) - node.y;
     if (dy === 0) return;
     const touches = (p: {x: number; y: number}, o: {x: number; y: number; w: number; h: number}): boolean => p.y >= o.y - 0.5 && p.y <= o.y + o.h + 0.5 && p.x >= o.x - 0.5 && p.x <= o.x + o.w + 0.5;
     const on = (p: {x: number; y: number}): boolean => p.y >= node.y - 0.5 && p.y <= node.y + node.h + 0.5 && (Math.abs(p.x - node.x) < 0.5 || Math.abs(p.x - node.x - node.w) < 0.5 || (p.x >= node.x - 0.5 && p.x <= node.x + node.w + 0.5 && (Math.abs(p.y - node.y) < 0.5 || Math.abs(p.y - node.y - node.h) < 0.5)));
@@ -48,9 +48,9 @@ function snapBandNodes(placed: LaidOutTree, band: TreeBand): void {
   });
 }
 export function layoutTree(band: TreeBand, ctx: LayoutCtx, padX: number, cw: number): void {
-  const placed = layoutTreeBand(band, padX, originOf(band.type, ctx.y), cw, ctx.widthOf, ctx.roles, ctx,
+  const placed = layoutTreeBand(band, padX, ctx.originOf(band, ctx.y), cw, ctx.widthOf, ctx.roles, ctx,
     ctx.d.canvas?.height ?? ctx.d.maxDisplayHeight, (b, bw) => measureBandHeight(ctx, b, bw));
-  snapBandNodes(placed, band);
+  snapBandNodes(placed, band, ctx);
   appendPlacedBand(band, placed, ctx, 'a tree takes an id that another anchor already has', 'a tree node takes an id that another anchor already has');
   const items = treeItems(band.root);
   if (!items.some(n => n.band)) return;

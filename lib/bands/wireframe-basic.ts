@@ -12,6 +12,7 @@ import {basicWireframeRuntime, collectTextRequestsWith, layoutWireframeWith} fro
 export function wireframeFor(runtime: WireframeRuntime) {
   const definition = {
     type: 'wireframe',
+    offGrid: true,
     internal: true,
     layout(data, ctx, x, width) {
       appendScreen(layoutWireframeWith(runtime, data, x, ctx.y, width, ctx.widthOf, ctx.tones, ctx.wrap), ctx);

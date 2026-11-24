@@ -12,6 +12,7 @@ export {wf} from '../wireframe.ts';
 
 const definition = {
   type: 'wireframe',
+  offGrid: true,
   internal: true,
   layout: placeWireframe,
   measure(data, {atoms}) {

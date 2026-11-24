@@ -13,6 +13,7 @@ import {quadrantFindings, quadrantLayoutFindings, quadrantProblems} from '../ver
 
 const definition = {
   type: 'quadrant',
+  offGrid: true,
   textSizes: texts,
   ids: data => data.items.flatMap(item => item.id ? [item.id] : []),
   measure(data, {atoms, roles}) {

@@ -193,6 +193,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const placedDefinition = (band: LaidOutBand) => definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
   const connection = definitions.get('connect');
   const layout = createLayoutWith({
+    offGrid: data => defOf(data)?.offGrid === true,
     layoutBoxLike: placeBox,
     fitLineScale: fitLayout,
     connectorGaps: connection?.internal ? connection.connectorGaps : undefined,

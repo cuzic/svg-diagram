@@ -1,5 +1,4 @@
 import {scopeOf} from './scope-name.ts';
-import {snapGrid} from './layout-util.ts';
 import type {BandLayoutHandler, LayoutCtx} from './layout-ctx.ts';
 import type {Rect} from './types/core.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
@@ -7,14 +6,6 @@ import type {Band, LaidOutBand} from './types/index.ts';
 export const rectOf = (p: Rect): Rect => ({x: p.x, y: p.y, w: p.w, h: p.h});
 /** Writes `scope` onto a laid-out band/step whose static type has no such field (ADR 0012: scope is bolted on after layout, not part of each band's own shape). */
 export const setScope = (placed: object, scope: string | undefined): void => { if (scope) (placed as unknown as {scope: string}).scope = scope; };
-
-/**
- * Band types whose insides are not on the 4px grid yet (a plot's fractional scale, the wireframe parts' own sizes): placed from the
- * cursor as it is, because a grid origin would move some of their shapes by a whole step (4px) when the emitter snaps them.
- */
-const OFF_GRID_BANDS: ReadonlySet<string> = new Set(['plane', 'quadrant', 'timeline', 'wireframe', 'screens', 'wordart']);
-/** Where a band of `type` is placed when the cursor is at `y` (U1b: on the 4px grid, so its frames and its text start from the same line). */
-export const originOf = (type: string, y: number): number => OFF_GRID_BANDS.has(type) ? y : snapGrid(y);
 
 /**
  * A band laid out by one call (`layout`) that returns its own placement: its id (and its marks' ids, when `anchorWhat` is given)
@@ -28,7 +19,7 @@ export function placedBand<B extends Band & {id?: string}, P extends LaidOutBand
   anchorWhat?: Describe<B>,
 ): BandLayoutHandler<B> {
   return (band, ctx, padX, cw) => {
-    const placed = layout(band, padX, originOf(band.type, ctx.y), cw, ctx); // placed on the grid; the cursor stays where it was (no drift)
+    const placed = layout(band, padX, ctx.originOf(band, ctx.y), cw, ctx); // placed on the grid; the cursor stays where it was (no drift)
     appendPlacedBand(band, placed, ctx, say(what, band), anchorWhat === undefined ? undefined : say(anchorWhat, band));
   };
 }

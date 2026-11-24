@@ -10,6 +10,7 @@ import {timelineProblems} from '../verify-timeline.ts';
 
 const definition = {
   type: 'timeline',
+  offGrid: true,
   textSizes: texts,
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of timelineTexts(data, roles)) atoms(text, size, weight, font);

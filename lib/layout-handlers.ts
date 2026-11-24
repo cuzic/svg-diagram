@@ -18,7 +18,7 @@ import {layoutPyramid} from './layout-pyramid.ts';
 import {layoutLegend} from './layout-legend.ts';
 import {layoutRaw} from './layout-raw.ts';
 import {layoutSwimlane} from './layout-swimlane.ts';
-import {originOf, placedBand, rectOf, setScope} from './layout-placed.ts';
+import {placedBand, rectOf, setScope} from './layout-placed.ts';
 import {layoutTree} from './layout-tree.ts';
 import {layoutStatesBand} from './states.ts';
 import {statesWords} from './states-words.ts';
@@ -79,7 +79,7 @@ function layoutFlowShapeBand(band: Band & {type: 'chevron' | 'funnel' | 'cycle' 
 }
 
 function layoutWordArtBand(band: Band & {type: 'wordart'}, ctx: LayoutCtx, padX: number, cw: number): void {
-  const placed = layoutWordArt(band, padX, originOf(band.type, ctx.y), cw, ctx.widthOf, ctx.roles, ctx.wrap);
+  const placed = layoutWordArt(band, padX, ctx.originOf(band, ctx.y), cw, ctx.widthOf, ctx.roles, ctx.wrap);
   if (band.id) { if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'a wordart takes an id that another anchor already has'); ctx.anchors.set(band.id, placed); }
   ctx.laidOut.push(placed); ctx.y += placed.h + ctx.d.gap;
 }

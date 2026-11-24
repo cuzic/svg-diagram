@@ -27,7 +27,7 @@ import type {ScopeTable} from './scope-table.ts';
 import {qualify} from './scope-name.ts';
 import type {ContentInventory} from './types/inventory.ts';
 import {
-  anchorRect, topIcon,
+  anchorRect, snapGrid, topIcon,
 } from './layout-util.ts';
 import type {AreasBand, LaidOutConnect, ConnectBand} from './types/containers.ts';
 import type {areasPrelayout} from './layout-areas-gaps.ts';
@@ -43,6 +43,7 @@ type LayoutResult = Omit<LaidOutDiagram, 'inventory'>;
 export interface LayoutServices {
   layoutBoxLike?: typeof layoutBoxLike;
   fitLineScale?: typeof fitLineScale;
+  offGrid?: (band: Band) => boolean;
   decorate?: (data: DiagramData) => DiagramData;
   resolveConnect: typeof resolveConnect;
   resolve: (band: Band) => BandLayoutHandler<never>;
@@ -138,6 +139,7 @@ function layoutBands(services: LayoutServices, data: DiagramData, roles: Roles, 
   const ctx: LayoutCtx = {
     d, roles, widthOf, tones, wrap, keepWords, space, lines, y: d.pad, laidOut, anchors, nodeBottoms, areaIds, connects, deferred, scopes,
     setBox, claimed, register, placeBoxLike,
+    originOf: (band, y) => services.offGrid?.(band) ? y : snapGrid(y),
     gapForLabels: (band, width) => gaps?.gapForLabels(band, width) ?? band.gap,
     areasGapFor: (band, width) => gaps?.areasGapFor(band, width) ?? {gap: band.gap, rowGap: band.rowGap},
     stack: (bands, padX, cw) => {

@@ -12,10 +12,14 @@ import {layoutHandlerFor} from './layout-handlers.ts';
 
 export {fitLineScale};
 
+// These legacy bands position their own shapes at a fractional origin.
+const OFF_GRID: readonly string[] = ['plane', 'quadrant', 'timeline', 'wireframe', 'screens', 'wordart'];
+
 /** The full entry supplies layout handlers for existing band data. */
 export const layoutWith = createLayoutWith({
   fitLineScale,
   layoutBoxLike,
+  offGrid: band => OFF_GRID.includes(band.type),
   decorate: decorateDiagram,
   resolve: layoutHandlerFor, resolveConnect, childrenOf, stackWidthOf, scopesOf, buildInventory,
   connectorGaps: prepareConnectorGaps,

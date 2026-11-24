@@ -1,4 +1,5 @@
 import {withSource} from './source-ref.ts';
+import {must} from './must.ts';
 import type {SourceRef} from './source-ref.ts';
 // The mutable state a band handler works on while layoutBands() walks the stack top-to-bottom, and the handler type itself.
 // Handlers (lib/layout-handlers.ts) take the band, this context and the x / width they are placed at; they push what they lay
@@ -50,6 +51,7 @@ export interface LayoutCtx extends WrapEnv {
   register(id: string, rect: Rect, what: string, scope?: string): void;
   placeBoxLike<B extends CaptionBand | BoxBand | BannerBand>(band: B, x: number, y: number, w: number, isBoxLike: boolean, scope?: string): Placed<B>;
   /** Lays `bands` out one after the other at x / width, from the cursor on. */
+  originOf(band: Band, y: number): number;
   stack(bands: Band[], x: number, w: number): void;
   /** The gap a row's children are laid out with (grown to fit labelled connectors between them). */
   gapForLabels(band: RowLike, cw: number): number;
@@ -79,7 +81,7 @@ export function restoreCtx(ctx: LayoutCtx, s: ReturnType<typeof snapshotCtx>): v
 export function markPlacedSource(laidOut: LaidOutBand[], start: number, source: SourceRef | undefined): void {
   if (!source) return;
   for (let i = start; i < laidOut.length; i++) {
-    const placed = laidOut[i]!;
+    const placed = must(laidOut[i]);
     withSource(placed, source);
     if ('children' in placed) for (const child of placed.children) withSource(child, source);
   }
