@@ -8,7 +8,7 @@ import {addScoped, emptyScopes} from './scope-table.ts';
 import {qualify, scopeOf} from './scope-name.ts';
 import {scopedRect} from './verify-rects.ts';
 import {verifyWithServices} from './verify-core.ts';
-import type {BandDef} from './band-def.ts';
+import type {BandDef, VerifyCtx} from './band-def.ts';
 import type {CaptionBand, LaidOutCaption} from './types/text-bands.ts';
 import type {ConnectBand, LaidOutConnect} from './types/containers.ts';
 import {must} from './must.ts';
@@ -84,7 +84,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
   const scopeTable = emptyScopes();
   let last = 0;
   const revealWarnings: string[] = [];
-  const bandFindings: Finding[] = [];
+  const inputChecks: ((ctx: VerifyCtx) => Finding[])[] = [];
   let source = cloneData(bands) as unknown as Band[];
   const data: DiagramData = {
     day: theme, medium: 'doc', width, pad: canvas ? Math.round(pad) : pad, gap: canvas ? Math.round(gap) : gap,
@@ -150,7 +150,8 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
         ids.set(qualify(scope, item.id), {start: item.reveal ?? start, end: item.until ?? end});
       }
     }
-    if (def.verify?.findings) bandFindings.push(...def.verify.findings(data));
+    const findings = def.verify?.findings;
+    if (findings) inputChecks.push(ctx => findings(data, ctx));
     def.measure?.(data, measureEnv);
     for (const generated of def.generated?.(data) ?? []) collect(generated, start, stop);
     for (const child of def.children?.(data) ?? []) collect(child, start, stop);
@@ -200,8 +201,12 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
   });
   const stage = opts.stage ?? last;
   const ink = toneEnv(tones);
-  const ctx = {theme, tones: ink, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
+  const ctx = {theme, tones: ink, appearance: placed.appearance, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
   const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => band.type === 'row' || band.type === 'grid' ? band.children : band.type === 'group' ? [] : [band]);
+  const bandFindings = inputChecks.flatMap(check => check(ctx));
+  for (const laid of placed.laidOut) {
+    bandFindings.push(...(definitions.get(definitionKey(laid))?.verify?.layoutFindings?.(laid as never, ctx) ?? []));
+  }
   const verdict = verifyWithServices({
     collectRects: figure => leaves(figure).flatMap(band => {
       const def = definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
@@ -221,7 +226,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
     checkFigures: figure => {
       const issues: Issue[] = [], warnings: string[] = [];
       for (const band of leaves(figure)) {
-        for (const finding of (definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type))?.verify?.check?.(band, {...ctx, appearance: figure.appearance}) ?? []) {
+        for (const finding of (definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type))?.verify?.check?.(band, ctx) ?? []) {
           if (finding.severity === 'problem') issues.push({message: finding.message});
           else warnings.push(finding.message);
         }

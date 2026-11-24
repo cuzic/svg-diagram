@@ -55,7 +55,8 @@ import {bowtieFindings} from './rca-rules.ts';
 import {statusText} from './status.ts';
 
 import {must} from './must.ts';
-import {MAX_LANES_TO_ORDER, bestLaneOrder, laneDistance} from './lane-order.ts';
+import {swimlaneFindings} from './swimlane-rules.ts';
+import {rowHeaderFindings, semanticTableFindings} from './table-rules.ts';
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
   'a11y-color-only-emphasis': '色だけで強調した語がある（太字も併用する。色が見えない読者にも伝わるように）',
@@ -499,16 +500,9 @@ function loopUnderHints(connects: LaidOutConnect[]): string[] {
   return out;
 }
 
-// rowHeader: true paints the row-heading cell `soft`; a row whose own tone also fills `soft` (accent / new) loses the difference.
 function rowHeaderRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
-  for (const b of walkBands(d.bands)) if (b.type === 'table') for (const message of b.semanticWarnings ?? []) out.push({...at(b), rule: 'semantic-table-warning', severity: 'warn', message});
-  for (const b of d.laidOut ?? []) {
-    if (b.type !== 'table' || !b.rowHeader) continue;
-    const rows = b.rows.filter(r => !r.header && toneStyle(tones, r.tone).fill === 'soft');
-    if (!rows.length) continue;
-    const names = rows.slice(0, 4).map(r => `「${(r.cells[0]?.lines[0] ?? '').slice(0, 12)}」`).join('');
-    out.push({...at(b), rule: 'rowheader-tone-collides', severity: 'warn', message: `表の行ラベルは soft で塗るが、${names}${rows.length > 4 ? ` ほか ${rows.length - 4} 行` : ''}は行のトーン（${[...new Set(rows.map(r => r.tone))].join('・')}）も soft なので、行ラベルと本文の塗りが同じになる。muted / changed / 太字の文字などに変えるか、行のトーンを外す`});
-  }
+  for (const b of walkBands(d.bands)) if (b.type === 'table') out.push(...semanticTableFindings(b));
+  for (const b of d.laidOut ?? []) if (b.type === 'table') out.push(...rowHeaderFindings(b, tones));
 }
 
 // In grayscale (a mono print, a colour-blind reader) only lightness is left. The fill of every tone a diagram uses (boxes, table rows),
@@ -557,24 +551,7 @@ function shrinkRules(d: LintTarget, out: Finding[]): void {
 function swimlaneRules(d: LintTarget, out: Finding[]): void {
   const lanesBands = d.bands.filter((b): b is SwimlaneBand => b.type === 'swimlane');
   if (lanesBands.length > 1) out.push({rule: 'one-story', severity: 'warn', message: `スイムレーンが ${lanesBands.length} つある。1 図 1 話にして、図を分けることを検討する`});
-  for (const sl of lanesBands) {
-    const n = sl.lanes.length;
-    if (n > 6) out.push({...at(sl), rule: 'swimlane-lanes', severity: 'warn', message: `レーンが ${n} 本ある（6 本までが目安）`});
-    const ids = new Map<string, number>(sl.steps.filter(s => s.id).map((s): [string, number] => [qualify(scopeOf(sl), s.id as string), sl.lanes.findIndex(l => l.id === s.lane)]));
-    const flows = (d.connects ?? []).filter(c => ids.has(c.fromId) && ids.has(c.toId));
-    if (!flows.length) continue;
-    const pairs = flows.map((c): [number, number] => [ids.get(c.fromId) as number, ids.get(c.toId) as number]);
-    const cur = [...Array(n).keys()];
-    const curD = laneDistance(cur, pairs);
-    const handOffs = flows.filter(c => ids.get(c.fromId) !== ids.get(c.toId)).length;
-    out.push({...at(sl), rule: 'swimlane-hand-offs', severity: 'info', message: `引き継ぎ ${handOffs} 件 / 矢印 ${flows.length} 本。レーン間の距離の合計 ${curD}`});
-    if (n >= 2 && n <= MAX_LANES_TO_ORDER) {
-      // lanes marked {fixed: true} keep their place (e.g. a collecting 'PM' lane at the bottom)
-      const best = bestLaneOrder(n, new Set(cur.filter(i => must(sl.lanes[i]).fixed)), pairs);
-      const bestD = laneDistance(best, pairs);
-      if (bestD < curD) out.push({...at(sl), rule: 'swimlane-lane-order', severity: 'warn', message: `レーンを「${best.map(i => must(sl.lanes[i]).label.replace(/\n/g, '')).join(' → ')}」の順にすると、レーン間の距離が ${curD} → ${bestD} に減る`});
-    }
-  }
+  for (const sl of lanesBands) out.push(...swimlaneFindings(sl, d.connects ?? []));
 }
 
 // ---- wireframes: callout numbers vs notes, and the state matrix --------------------------------

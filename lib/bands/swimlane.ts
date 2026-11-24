@@ -4,6 +4,7 @@ import {withAnchors} from '../dsl/shared.ts';
 import {swimlane as build} from '../dsl/sequence-table-swimlane.ts';
 import {renderSwimlane} from '../emit-boxes.ts';
 import {layoutSwimlane} from '../layout-swimlane.ts';
+import {swimlaneFindings} from '../swimlane-rules.ts';
 import {checked} from '../reveal-visibility.ts';
 import type {AnchorsOf, FlowCheck, FlowIn, LaneCheck, StepCheck, StepIds, SwimlaneStepIn} from '../strict.ts';
 import type {ConnectBand, LaidOutConnect} from '../types/containers.ts';
@@ -41,6 +42,7 @@ const definition = {
     ? boxDefinition.emit(laid, env)
     : renderSwimlane(laid, env.theme, env.roles),
   verify: {
+    findings: (data, {connects}) => swimlaneFindings(data, connects),
     rects: laid => laid.type === 'box' ? ownRect(laid) : [],
     check: (laid, env) => laid.type === 'box' ? boxDefinition.verify?.check?.(laid, env) ?? [] : [],
   },

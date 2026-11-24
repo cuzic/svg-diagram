@@ -210,3 +210,16 @@ test('selected cause analysis reports the same band findings as the legacy spec'
     assert.deepEqual(notes(actual), notes(legacy), part.type);
   }
 });
+
+test('selected tables and swimlanes report the same band findings as the legacy spec', async () => {
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  for (const [part, rule] of [[tablePart, 'rowheader-tone-collides'], [swimlanePart, 'swimlane-hand-offs']] as const) {
+    const spec = {version: 1, title: 'Plan', legend: false, parts: [part.example]};
+    const actual = await renderSpec(spec, {parts: [part], measure});
+    const legacy = await renderInBrowser(specToDiagram(spec), {measure});
+    const notes = (result: typeof actual) => result.verdict.findings.filter(note => note.rule === rule)
+      .map(({rule, severity, message}) => ({rule, severity, message}));
+    assert.ok(notes(legacy).length, rule);
+    assert.deepEqual(notes(actual), notes(legacy), rule);
+  }
+});

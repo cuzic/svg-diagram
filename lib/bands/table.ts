@@ -4,6 +4,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {table as build} from '../dsl/sequence-table-swimlane.ts';
 import {renderTable} from '../emit-tables.ts';
 import {snapGrid} from '../layout-util.ts';
+import {rowHeaderFindings, semanticTableFindings} from '../table-rules.ts';
 import {layoutTable, tableTexts} from '../seq-table.ts';
 import type {LaidOutTable, TableBand, TableColumn, TableOpts, TableRow} from '../types/sequence-table-swimlane.ts';
 
@@ -19,7 +20,10 @@ export const tableDefinition: BandDef<TableBand, LaidOutTable> = {
     return {laid, h: laid.h};
   },
   emit: (laid, {theme, tones, roles}) => renderTable(laid, theme, tones, roles),
-  verify: {findings: data => analysisFindings(data, data.rca?.findings ?? [])},
+  verify: {
+    findings: data => [...analysisFindings(data, data.rca?.findings ?? []), ...semanticTableFindings(data)],
+    layoutFindings: (laid, {tones}) => rowHeaderFindings(laid, tones),
+  },
   svgDefs: laid => ({mono: laid.rows.some(row => row.cells.some(cell => cell.mono && cell.lines.length))}),
 };
 

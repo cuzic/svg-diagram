@@ -107,7 +107,9 @@ try {
       exclude: [...legacy, 'lib/spec.js', 'dsl-pure.js', 'legend-notation.js',
         ...Array.from({length: 7}, (_, n) => 'spec-parts/r' + (n + 1) + '.js'),
         ...(!bands.includes('cause.js') ? ['toc-rules.js'] : []),
-        ...(!bands.includes('fta.js') ? ['fta-rules.js'] : [])],
+        ...(!bands.includes('fta.js') ? ['fta-rules.js'] : []),
+        ...(!bands.includes('table.js') ? ['table-rules.js'] : []),
+        ...(!bands.includes('swimlane.js') ? ['swimlane-rules.js'] : [])],
       bands, draw: true, catalog: true,
     };
   });

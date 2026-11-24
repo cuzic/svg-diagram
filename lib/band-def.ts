@@ -56,7 +56,7 @@ interface EmitEnv {
   color(key: ColorKey): string;
 }
 
-interface VerifyCtx {
+export interface VerifyCtx {
   readonly theme: Theme;
   readonly tones: ToneEnv;
   readonly appearance?: Appearance;
@@ -82,7 +82,8 @@ interface BandHooks<D, L extends object> {
   measure?(data: D, env: MeasureEnv): void;
   verify?: {
     rects?(laid: L): CheckRect[];
-    findings?(data: D): Finding[];
+    findings?(data: D, ctx: VerifyCtx): Finding[];
+    layoutFindings?(laid: L, ctx: VerifyCtx): Finding[];
     check?(laid: L, ctx: VerifyCtx): BandFinding[];
     contrast?: VerifyHandler<L>['contrast'];
   };
