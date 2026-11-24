@@ -1,3 +1,4 @@
+import {layoutFitRules, layoutFitVerification} from '../verify-layout-fit.ts';
 import {edgeBendFindings} from '../verify-edge-bends.ts';
 import {textsAndLabels} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
@@ -25,7 +26,9 @@ const definition = {
     return {laid, h: laid.h, anchors: laid.anchors};
   },
   emit: (laid, {theme, tones}) => renderClasses(laid, theme, tones),
+  rules: layoutFitRules,
   verify: {
+    ...layoutFitVerification,
     diagramFindings: edgeBendFindings,
     rects: laid => anchorRects(laid),
     check: laid => classesProblems(laid).map(message => ({rule: 'classes', severity: 'problem', message})),

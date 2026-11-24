@@ -8,6 +8,7 @@ import type {Band} from './types/index.ts';
 import type {BoxBand} from './types/text-bands.ts';
 import type {Finding, LintTarget} from './types/verdicts.ts';
 
+// Three or more connectors establish a graph. Unlinked boxes and separate components may need connecting.
 export function graphFindings(
   d: Pick<LintTarget, 'bands' | 'laidOut' | 'connects'>,
   walk: (bands: Band[]) => readonly Band[],

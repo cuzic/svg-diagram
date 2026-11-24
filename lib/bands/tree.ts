@@ -1,3 +1,4 @@
+import {layoutFitRules, layoutFitVerification} from '../verify-layout-fit.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -19,7 +20,8 @@ const definition = {
     for (const [text, size, weight, font] of treeTexts(data, roles)) atoms(text, size, weight, font);
   },
   emit: (laid, {theme, tones, stage}) => renderTree(laid, theme, tones, stage),
-  verify: {rects: treeRects},
+  rules: layoutFitRules,
+  verify: {...layoutFitVerification, rects: treeRects},
 } satisfies BandDef<TreeBand, LaidOutTree>;
 
 export function tree<const R extends TreeItem, const Id extends string = never>(root: R, opts?: TreeOpts & {id?: Id}): WithBandDef<ReturnType<typeof buildTree<R, Id>>, LaidOutTree> {

@@ -1,3 +1,4 @@
+import {layoutFitRules, layoutFitVerification} from '../verify-layout-fit.ts';
 import {edgeBendFindings} from '../verify-edge-bends.ts';
 import {parallelEdgeFindings} from '../verify-cause-spacing.ts';
 import {densityRestorationFindings} from '../verify-density.ts';
@@ -31,7 +32,9 @@ export const causeDefinition: BandDef<CauseBand, LaidOutCause> = {
   internal: true,
   layout: placeCause,
   emit: (laid, {theme, tones}) => renderCause(laid, theme, tones),
+  rules: layoutFitRules,
   verify: {
+    ...layoutFitVerification,
     diagramFindings: [densityRestorationFindings, parallelEdgeFindings, edgeBendFindings, legendFindings],
     findings: data => analysisFindings(data, [...(data.rca?.findings ?? []), ...tocFindings(data)]),
     rects: laid => anchorRects(laid),

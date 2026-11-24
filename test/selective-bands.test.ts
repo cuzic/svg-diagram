@@ -1147,3 +1147,34 @@ test('selected connectors detect orphan boxes and disconnected components like l
   const warnings = ({verdict}: Pick<typeof selected, 'verdict'>) => verdict.warnings.filter(w => w.startsWith('[graph-'));
   assert.deepEqual(warnings(selected), warnings(legacy));
 });
+
+test('selected state diagrams report implicit and requested automatic fit changes', async () => {
+  const nodes = Array.from({length: 9}, (_, i) => ({id: `s${i}`, label: `状態の名前が長い${i}`}));
+  const links = nodes.slice(1).map((node, i) => ({from: nodes[i]!.id, to: node.id}));
+  for (const dir of [undefined, 'auto'] as const) {
+    const opts = {width: 700};
+    const selected = await renderBands([stateDiagram(nodes, links, {dir})], {measure, ...opts});
+    const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false, ...opts}).add(legacyStateDiagram(nodes, links, {dir})), {measure});
+    const notes = ({verdict}: Pick<typeof selected, 'verdict'>) => verdict.findings.filter(f => f.rule === 'auto-fit-applied');
+    assert.deepEqual(notes(legacy).map(f => f.severity), [dir ? 'info' : 'warn']);
+    assert.deepEqual(notes(selected), notes(legacy));
+    const warnings = ({verdict}: Pick<typeof selected, 'verdict'>) => verdict.warnings.filter(w => w.startsWith('[auto-fit-applied]'));
+    assert.deepEqual(warnings(selected), warnings(legacy));
+  }
+});
+
+test('selected fault trees report a node width adjustment without suggesting a direction option', async () => {
+  const {layoutFitFindings} = await import('../lib/verify-layout-fit.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const children = ['電源設備の故障による停止', '空調設備の故障による停止', '回線の事業者側の障害',
+    '保守作業の手順の誤り', '設定変更の検証漏れ', '容量の見積りの誤り'].map(label => ({label, kind: 'basic'} as const));
+  const top = {label: '停止', gate: 'or', children} as const;
+  const {placed, verdict} = await prepareBands([faultTree(top)], {measure, width: 800});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', width: 800, legend: false}).add(legacyFaultTree(top)), {measure});
+  const selected = layoutFitFindings(placed.laidOut[0]!);
+  assert.equal(selected.length, 1);
+  assert.match(selected[0]!.message, /maxNodeW: 'auto'/);
+  assert.doesNotMatch(selected[0]!.message, /dir/);
+  assert.deepEqual(verdict.findings.filter(f => f.rule === 'auto-fit-applied'), selected);
+  assert.deepEqual(selected, legacy.verdict.findings.filter(f => f.rule === 'auto-fit-applied'));
+});

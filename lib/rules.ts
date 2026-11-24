@@ -62,7 +62,7 @@ import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
 import type {Finding} from './types/verdicts.ts';
 import type {WfCallout} from './types/wireframe-nodes.ts';
 import type {LintTarget} from './types/verdicts.ts';
-import {describeApplied} from './fit-width.ts';
+import {layoutFitFindings, layoutFitRules} from './verify-layout-fit.ts';
 import {tocFindings, tocLegendFinding} from './toc-rules.ts';
 import {ftaFindings} from './fta-rules.ts';
 import {bowtieFindings} from './rca-rules.ts';
@@ -161,7 +161,7 @@ export const RULE_DOCS = {
   'aspect-tall': '文書の図が縦に長い（高さが幅の 1.5 倍超。本の版面は縦横比が 1.5〜1.6 ほど）。部品に応じて、段組み（causeTree の fold、row の cols）か分割を検討する',
   'doc-width': '図の幅が本文の表示幅（約 930px）を超え、文字が縮む（diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）',
   'flowchart-decision-edges': '判断（flowchart のひし形）から出る矢印が 2 本未満、または 3 本以上、またはラベル（Yes / No など）がない',
-  'auto-fit-applied': '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・flowchart・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する',
+  'auto-fit-applied': layoutFitRules['auto-fit-applied'].doc,
   'cause-line-scale-dropped': "canvas の causeTree で、線の間隔を文字の倍率で広げた図が canvas の高さ・幅に収まらず、広げない間隔で描いた（情報）。canvas を高くする・minText を下げる・図を分けると広げられる",
   'density-compact-restored': "diagram({density: 'compact'}) の因果ツリー・状態遷移で、詰めた図のほうが検査の問題(箱を通る矢印・ラベルの重なり)が多いので、通常の間隔で描いた（情報）",
   'density': '文字量・箱の数が多い',
@@ -286,7 +286,7 @@ export const RULE_LOCATION = {
   'aspect-tall': 'diagram',
   'doc-width': 'diagram',
   'flowchart-decision-edges': 'band',
-  'auto-fit-applied': 'band',
+  'auto-fit-applied': layoutFitRules['auto-fit-applied'].scope,
   'cause-line-scale-dropped': 'band-grouped',
   'density-compact-restored': 'band-grouped',
   'density': 'diagram',
@@ -673,22 +673,6 @@ function headlineLength(d: LintTarget, out: Finding[]): void {
   }
 }
 
-// a connected diagram (3+ arrows) should read as one graph: a box with an id that no arrow touches is a forgotten link,
-// and arrows that split into separate clumps are probably two stories in one picture
-// `density: 'compact'` that was not applied to a band (ADR 0036 D6): the compact figure had an arrow through a box or a label on another one
-const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()', fta: 'faultTree()', bowtie: 'bowtie()'} as const;
-// what the layout changed on its own to make a figure fit its width (ADR 0010 D3): left out is a warning, `dir: 'auto'` is the author's own choice
-function fitRules(d: LintTarget, out: Finding[]): void {
-  for (const b of d.laidOut ?? []) {
-    if ((b.type !== 'cause' && b.type !== 'states' && b.type !== 'classes' && b.type !== 'tree' && b.type !== 'fta' && b.type !== 'bowtie') || !b.fitApplied?.length) continue;
-    const what = b.fitApplied.map(describeApplied).join('、'), auto = b.fitApplied.every(a => a.mode === 'auto');
-    const noDir = b.type === 'fta' || b.type === 'bowtie'; // a fault tree and a bow-tie have no `dir`
-    const knobs = noDir ? 'maxNodeW' : 'dir / maxNodeW', say = noDir ? "maxNodeW: 'auto'" : "dir: 'auto'";
-    out.push({...at(b), rule: 'auto-fit-applied', severity: auto ? 'info' : 'warn', message: auto
-      ? `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart()' : FIT_WHO[b.type]}: ${knobs} を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`
-      : `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart()' : FIT_WHO[b.type]}: ${knobs} を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら ${say} と書く（info になる）。固定したいなら ${knobs} を明示する（収まらなければ試した案つきで止まる）`});
-  }
-}
 function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   const out: Finding[] = [];
   out.push(...wrapFallbackFindings(d));
@@ -702,7 +686,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   tocRules(d, out);
   rcaRules(d, out);
   comicRules(d, out);
-  fitRules(d, out);
+  for (const band of d.laidOut ?? []) out.push(...layoutFitFindings(band));
   out.push(...densityRestorationFindings(d));
   for (const b of d.laidOut ?? []) if (b.type === 'concentric') out.push(...concentricFindings(b));
   for (const b of d.laidOut ?? []) if (b.type === 'states') out.push(...flowchartFindings(b));

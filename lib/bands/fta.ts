@@ -1,3 +1,4 @@
+import {layoutFitRules, layoutFitVerification} from '../verify-layout-fit.ts';
 import {texts} from '../band-text-sizes.ts';
 import {analysisFindings} from '../finding-rules.ts';
 import {ftaFindings} from '../fta-rules.ts';
@@ -25,7 +26,8 @@ const definition = {
     return {laid, h: laid.h, anchors: laid.anchors};
   },
   emit: (laid, {theme, tones}) => renderFta(laid, theme, tones),
-  verify: {rects: ftaRects, findings: data => analysisFindings(data, ftaFindings(data))},
+  rules: layoutFitRules,
+  verify: {...layoutFitVerification, rects: ftaRects, findings: data => analysisFindings(data, ftaFindings(data))},
 } satisfies BandDef<FtaBand, LaidOutFta>;
 
 export function faultTree<const T extends FtaEvent, const Id extends string = never>(top: T, opts?: FtaOpts & {id?: Id}): WithBandDef<ReturnType<typeof build<T, Id>>, LaidOutFta> {

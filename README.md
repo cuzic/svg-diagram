@@ -149,6 +149,8 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 
 選択描画では、箱・キャプション・バナー・棒グラフ・画像が持つ文字のコントラスト検査も実行します。`appearance: 'auto'` のときは両方の配色を検査し、暗い配色でだけ起きる問題にはその旨を付記します。
 
+因果図、状態遷移図、クラス図、木、故障の木、ボウタイでは、幅に収めるために配置が自動で変わった場合の所見も、対応する帯の入口から返します。
+
 画像の個別入口は PNG・JPEG・GIF・WebP の data URI を受け取り、SVG 内に埋め込みます。Node.js では `svg-diagram/bands/image/node` の `imageFile(path, {alt, baseDir})` で画像ファイルを読み込み、同じ `renderBands` に渡せます。相対パスは `baseDir`（省略時はカレントディレクトリ）から解決します。`new URL('./picture.png', import.meta.url)` を渡すとモジュールからの相対指定になります。
 
 複数の帯を組み合わせる `canvas`、`hero`、`iconRow`、`versus` は `svg-diagram/compose/canvas`、`compose/hero`、`compose/icon-row`、`compose/versus` から個別に読み込めます。結果は `renderBands` に渡せます。`hero` と `versus` は複数の帯を返すので、配列に展開します。

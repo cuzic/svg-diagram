@@ -108,6 +108,7 @@ try {
         ...Array.from({length: 7}, (_, n) => 'spec-parts/r' + (n + 1) + '.js'),
         ...(!bands.includes('cause.js') ? ['toc-rules.js'] : []),
         ...(!bands.includes('connect.js') ? ['verify-connection-graph.js'] : []),
+        ...(!bands.some(band => /^(?:cause|states|classes|tree|fta|bowtie)\.js$/.test(band)) ? ['verify-layout-fit.js'] : []),
         ...(!bands.includes('fta.js') ? ['fta-rules.js'] : []),
         ...(!bands.includes('table.js') ? ['table-rules.js', 'table-number-rules.js'] : []),
         ...(!bands.includes('swimlane.js') ? ['swimlane-rules.js'] : []),
@@ -230,11 +231,11 @@ try {
       exclude: [...legacy, 'bands/cause.js', 'bands/screens.js', 'bands/sequence.js', 'bands/gantt.js'], draw: true},
     {name: 'Composer Why-why tree', source: composedSource([], "...whyWhyTree('Review', [{why: 'Missing tests', trueCause: true}])",
       "import {whyWhyTree} from 'svg-diagram/compose/why-why-tree';"),
-      include: 'compose/selective/why-why-tree.js', budget: {esbuild: 182500, Vite: 244500}, bands: ['caption.js', 'cause.js'],
+      include: 'compose/selective/why-why-tree.js', budget: {esbuild: 185000, Vite: 246500}, bands: ['caption.js', 'cause.js'],
       exclude: [...legacy, 'bands/states.js', 'bands/table.js', 'bands/box.js', 'bands/gantt.js', 'qc.js'], draw: true},
     {name: 'Composer Arrow diagram', source: composedSource([], "...arrowDiagram([{from: 1, to: 2, name: 'Review', days: 3}])",
       "import {arrowDiagram} from 'svg-diagram/compose/arrow-diagram';"),
-      include: 'compose/selective/arrow-diagram.js', budget: {esbuild: 164500, Vite: 223500}, bands: ['caption.js', 'states.js'],
+      include: 'compose/selective/arrow-diagram.js', budget: {esbuild: 167000, Vite: 226000}, bands: ['caption.js', 'states.js'],
       exclude: [...legacy, 'bands/cause.js', 'bands/group.js', 'bands/row.js', 'layout-connect.js', 'rca-rules.js'], draw: true},
     {name: 'State matrix', source: composedSource([], "stateMatrix(['Review'], [{label: 'Page', cells: [wf.text('Ready')]}])",
       "import {stateMatrix, wf} from 'svg-diagram/bands/screens';"),
@@ -263,7 +264,7 @@ try {
         parts: [{type: 'faultTree', top: {label: 'Review', gate: 'or', children: [{label: 'Power', kind: 'basic'}, {label: 'Network', kind: 'basic'}]}}]}, {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [faultTreePart], autoLegend,
       });
-    `, include: 'legend-notation.js', budget: {esbuild: 116500, Vite: 150000}, bands: ['fta.js', 'legend.js'],
+    `, include: 'legend-notation.js', budget: {esbuild: 119500, Vite: 152500}, bands: ['fta.js', 'legend.js'],
       exclude: [...legacy, 'bands/cause.js', 'bands/table.js', 'dsl-pure.js'], draw: true},
     {name: 'Selected Edge PPTX table', source: `
       import {renderPptxEdge} from 'svg-diagram/pptx/selective/edge';
@@ -354,7 +355,7 @@ try {
       export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [{type: 'faultTree', top: {label: 'Review', gate: 'or', children: [{label: 'Power', kind: 'basic'}, {label: 'Network', kind: 'basic'}]}}]}, {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [faultTreePart],
       });
-    `, include: 'spec-parts/selective/fault-tree.js', budget: {esbuild: 103500, Vite: 134000}, bands: ['fta.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r4.js', 'spec-parts/matrix.js', 'spec-parts/bowtie.js', 'semnet-causal.js', 'dsl-pure.js'], draw: true},
+    `, include: 'spec-parts/selective/fault-tree.js', budget: {esbuild: 106000, Vite: 136000}, bands: ['fta.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r4.js', 'spec-parts/matrix.js', 'spec-parts/bowtie.js', 'semnet-causal.js', 'dsl-pure.js'], draw: true},
     {name: 'Selected steps spec', source: `
       import {renderSpec} from 'svg-diagram/spec/selective';
       import {stepsPart} from 'svg-diagram/spec/parts/steps';
@@ -401,7 +402,7 @@ try {
       exclude: [...legacy, 'pptx/selective.js', 'pptx/zip-node.js', 'lib/core.js', 'lib/png.js'], budget: {esbuild: 2500, Vite: 2500}},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
-      exclude: [...legacy, 'document-findings.js', 'term-rules.js', 'toc-rules.js', 'verify-bars.js', 'axis-comparison.js', 'axis-selected.js', 'verify-image.js', 'verify-box-like.js', 'verify-shrink.js', 'verify-density.js', 'verify-cause-spacing.js', 'verify-edge-bends.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-caption.js', 'verify-grid.js', 'table-number-rules.js', 'verify-flowchart.js', 'verify-concentric.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 53500, Vite: 71500}},
+      exclude: [...legacy, 'document-findings.js', 'term-rules.js', 'toc-rules.js', 'verify-bars.js', 'axis-comparison.js', 'axis-selected.js', 'verify-image.js', 'verify-box-like.js', 'verify-shrink.js', 'verify-density.js', 'verify-cause-spacing.js', 'verify-edge-bends.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-caption.js', 'verify-grid.js', 'table-number-rules.js', 'verify-flowchart.js', 'verify-concentric.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 53500, Vite: 71500}},
     {name: 'Document findings', source: `
       import {renderBands} from 'svg-diagram/core';
       import {box} from 'svg-diagram/bands/box';
@@ -413,7 +414,7 @@ try {
     `, include: 'document-findings.js', bands: ['box.js'], exclude: [...legacy, 'term-rules.js', 'layout-connect.js'],
       budget: {esbuild: 87000, Vite: 110000}, draw: true},
     {name: 'Box', source: bandSource('box'), include: 'bands/box.js',
-      exclude: [...legacy, 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 82000, Vite: 105000}, draw: true},
+      exclude: [...legacy, 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 82000, Vite: 105000}, draw: true},
     {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',
       exclude: [...legacy, 'box.js', 'emit-boxes.js', 'layout-connect.js', 'timeline.js'], budget: {esbuild: 68000, Vite: 89500}, draw: true},
     {name: 'Row', source: composedSource(['box', 'row'], "row([box({title: 'Review'}), box({title: 'Next'})], {arrows: 'between'})"),
@@ -484,9 +485,9 @@ try {
       exclude: [...legacy, 'layout-connect.js', 'gantt.js', 'seq-table.js', 'flow-shapes.js'], draw: true,
     })),
     {name: 'Fault tree', source: composedSource([], "faultTree({label: 'Review', gate: 'or', children: [{label: 'Power', kind: 'basic'}, {label: 'Network', kind: 'basic'}]})", "import {faultTree} from 'svg-diagram/bands/fta';"),
-      include: 'bands/fta.js', budget: {esbuild: 85000, Vite: 113000}, exclude: [...legacy, 'bowtie.js', 'emit-bowtie.js', 'layout-connect.js', 'dsl/diagrams.js'], draw: true},
+      include: 'bands/fta.js', budget: {esbuild: 87500, Vite: 114000}, exclude: [...legacy, 'bowtie.js', 'emit-bowtie.js', 'layout-connect.js', 'dsl/diagrams.js'], draw: true},
     {name: 'Bowtie', source: composedSource(['bowtie'], "bowtie({top: 'Review', threats: [{label: 'Failure'}], consequences: [{label: 'Delay'}]})"),
-      include: 'bands/bowtie.js', budget: {esbuild: 73000, Vite: 97000}, exclude: [...legacy, 'fta.js', 'emit-fta.js', 'layout-connect.js', 'dsl/diagrams.js'], draw: true},
+      include: 'bands/bowtie.js', budget: {esbuild: 75000, Vite: 98000}, exclude: [...legacy, 'fta.js', 'emit-fta.js', 'layout-connect.js', 'dsl/diagrams.js'], draw: true},
     {name: 'Cloud', source: composedSource(['cloud'], "cloud({a: 'Goal', b: 'Quality', c: 'Time', d: 'Test', d2: 'Ship'}, {assumptions: [{on: 'bd', text: 'Review'}]})"),
       include: 'bands/cloud.js', budget: {esbuild: 67000, Vite: 89000}, exclude: [...legacy, 'toc.js', 'layered-route.js', 'cause-hop.js', 'layout-connect.js', 'dsl/diagrams.js'], draw: true},
     {name: 'Classes', source: composedSource([], "classDiagram([{id: 'a', name: 'Review'}, {id: 'b'}], [{from: 'b', to: 'a', kind: 'inherit'}])", "import {classDiagram} from 'svg-diagram/bands/classes';"),
@@ -498,7 +499,7 @@ try {
     {name: 'Tree', source: composedSource(['tree'], "tree({label: 'Review', children: [{label: 'Plan'}, {label: 'Decide'}]})"),
       include: 'bands/tree.js', budget: {esbuild: 89000, Vite: 120000}, exclude: [...legacy, 'states.js', 'toc.js', 'layout-connect.js', 'dsl/diagrams.js', 'layout-row.js', 'layout-grid.js'], draw: true},
     {name: 'Cause', source: composedSource([], "causeTree([{id: 'a', label: 'Review'}, {id: 'b', label: 'Done'}], [{from: 'a', to: 'b'}], {tree: 'crt'})", "import {causeTree} from 'svg-diagram/bands/cause';"),
-      include: 'bands/cause.js', budget: {esbuild: 173500, Vite: 234000}, exclude: [...legacy, 'cloud.js', 'states.js', 'classes.js', 'dsl/diagrams.js', 'layout-connect.js', 'rca-rules.js'], draw: true},
+      include: 'bands/cause.js', budget: {esbuild: 176000, Vite: 236500}, exclude: [...legacy, 'cloud.js', 'states.js', 'classes.js', 'dsl/diagrams.js', 'layout-connect.js', 'rca-rules.js'], draw: true},
     {name: 'Swimlane', source: composedSource(['swimlane'], "...swimlane([{id: 'work', label: 'Work'}], [{id: 'a', lane: 'work', title: 'Review'}])"),
       include: 'bands/swimlane.js', budget: {esbuild: 99500, Vite: 126500}, exclude: [...legacy, 'layout-connect.js', 'bands/connect.js', 'seq-table.js', 'wireframe.js', 'layout-row.js'], draw: true,
       bands: ['box.js', 'swimlane.js']},
