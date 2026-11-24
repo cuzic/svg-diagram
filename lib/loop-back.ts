@@ -4,7 +4,8 @@
 import {connectBand} from './dsl/defaults.ts';
 import {must} from './must.ts';
 import {sourceOf, withSource} from './source-ref.ts';
-import type {LoopBack} from './types/containers.ts';
+import type {ConnectBand, LoopBack, RowBand} from './types/containers.ts';
+import type {ChevronBand} from './flow-shapes.ts';
 import type {Band} from './types/index.ts';
 
 const LINES = ['solid', 'dashed', 'dotted'];
@@ -42,26 +43,47 @@ export function resolveLoopBacks(who: string, raw: LoopBack | readonly LoopBack[
   return out;
 }
 
-/** The loops of every band that has `loopBack`, as connect() bands placed right after it (in a group too). A band without an id gets an internal one to anchor on. */
+export interface LoopBackSource {
+  loops: LoopBack | readonly LoopBack[];
+  anchor(id: string, index: number): string;
+}
+
+export function rowLoopBack(row: RowBand): LoopBackSource | undefined {
+  if (row.loopBack) return {loops: row.loopBack, anchor: (id, index) => `${id}#${index}`};
+  return undefined;
+}
+
+export function chevronLoopBack(chevron: ChevronBand): LoopBackSource | undefined {
+  if (!chevron.loopBack) return undefined;
+  return {loops: chevron.loopBack, anchor(id, index) {
+    const step = must(chevron.steps[index - 1]);
+    return step.id ?? (step.id = `${id}__${index}`);
+  }};
+}
+
+/** Turn validated loops into connectors, with shorter spans placed nearer their steps. */
+export function loopBackConnectors(
+  band: {id?: string}, {loops, anchor}: LoopBackSource, nextId: () => string,
+): ConnectBand[] {
+  const id = band.id ?? (band.id = nextId());
+  const byLane = (Array.isArray(loops) ? loops as readonly LoopBack[] : [loops as LoopBack])
+    .toSorted((x, y) => ((x.from as number) - (x.to as number)) - ((y.from as number) - (y.to as number)));
+  const ref = sourceOf(band);
+  return byLane.map((l, lane) => withSource(Object.assign(connectBand(`${anchor(id, l.from as number)}:bottom`, `${anchor(id, l.to as number)}:bottom`, {
+    route: 'loop-under', dip: DIP + lane * LANE, ...(l.label === undefined ? {} : {label: l.label}), ...(l.chip === undefined ? {} : {chip: l.chip}), ...(l.tone === undefined ? {} : {tone: l.tone}), ...(l.line === undefined ? {} : {line: l.line}),
+  }, false), {loopBack: true as const}), ref));
+}
+
+/** Insert generated connectors immediately after their source in the complete renderer. */
 export function expandLoopBacks(bands: Band[]): Band[] {
   let internal = 0;
-  const visit = (list: Band[]): Band[] => list.flatMap(b => {
-    if (b.type === 'group') b.children = visit(b.children);
-    if ((b.type !== 'row' && b.type !== 'chevron') || !b.loopBack) return [b];
-    const loops = (Array.isArray(b.loopBack) ? b.loopBack : [b.loopBack]) as LoopBack[];
-    const id = b.id ?? (b.id = `__loopback${internal++}`);
-    const anchor = (i: number): string => {
-      if (b.type === 'row') return `${id}#${i}`;
-      const step = must(b.steps[i - 1]); // resolveLoopBacks checked 1..n
-      return step.id ?? (step.id = `${id}__${i}`);
-    };
-    // the shorter the span, the nearer the boxes: loops inside another one sit above it, so no vertical leg crosses another loop's run
-    const byLane = loops.toSorted((x, y) => ((x.from as number) - (x.to as number)) - ((y.from as number) - (y.to as number)));
-    const ref = sourceOf(b);
-    const connects = byLane.map((l, lane) => withSource(Object.assign(connectBand(`${anchor(l.from as number)}:bottom`, `${anchor(l.to as number)}:bottom`, {
-      route: 'loop-under', dip: DIP + lane * LANE, ...(l.label === undefined ? {} : {label: l.label}), ...(l.chip === undefined ? {} : {chip: l.chip}), ...(l.tone === undefined ? {} : {tone: l.tone}), ...(l.line === undefined ? {} : {line: l.line}),
-    }, false), {loopBack: true as const}), ref));
-    return [b, ...connects];
+  const visit = (list: Band[]): Band[] => list.flatMap(band => {
+    if (band.type === 'group') band.children = visit(band.children);
+    if (band.type === 'row' || band.type === 'chevron') {
+      const source = band.type === 'row' ? rowLoopBack(band) : chevronLoopBack(band);
+      if (source) return [band, ...loopBackConnectors(band, source, () => `__loopback${internal++}`)];
+    }
+    return [band];
   });
   return visit(bands);
 }

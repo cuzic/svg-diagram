@@ -1,3 +1,4 @@
+import type {LoopBackSource, loopBackConnectors} from './loop-back.ts';
 import type {connectorInventory} from './inventory-lines.ts';
 import type {InventoryContext} from './inventory-core.ts';
 import type {BandDescription} from './diagram-description.ts';
@@ -84,6 +85,7 @@ interface BandHooks<D, L extends object> {
   readonly [EXTERNAL]?: true;
   emit(laid: L, env: EmitEnv): string;
   svgDefs?(laid: L): SvgBandDefs;
+  loopBackSource?(data: D): LoopBackSource | undefined;
   measure?(data: D, env: MeasureEnv): void;
   textSizes?(laid: L): Iterable<number>;
   valueAxis?(data: D): ValueAxis | undefined;
@@ -123,7 +125,8 @@ interface InternalLayout<D> {
   outputTypes?: readonly string[];
   resolveConnect?: typeof resolveConnect;
   connectorInventory?: typeof connectorInventory;
-  expandLoopBacks?: (bands: Band[]) => Band[];
+  loopBackConnectors?: typeof loopBackConnectors;
+  mapLoopBackChildren?(data: D, expand: (children: Band[]) => Band[]): void;
   layout(...args: Parameters<BandLayoutHandler<D>>): void;
 }
 

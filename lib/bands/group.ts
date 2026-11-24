@@ -14,6 +14,7 @@ type SelectedBand = Band & {readonly [DEF]: object};
 
 export const groupDefinition: BandDef<GroupBand, LaidOutGroup> = {
   type: 'group',
+  mapLoopBackChildren(data, expand) { data.children = expand(data.children); },
   inventory: groupItems,
   title: data => data.title ? [1, data.title] : undefined,
   internal: true,

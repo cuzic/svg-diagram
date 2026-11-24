@@ -1,3 +1,4 @@
+import {rowLoopBack} from '../loop-back.ts';
 import {rowItems} from '../inventory-boxes.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
 import {childRuns} from '../band-text-sizes.ts';
@@ -12,6 +13,7 @@ import type {BoxBand} from '../types/text-bands.ts';
 
 export const rowDefinition: BandDef<RowBand, LaidOutRow> = {
   type: 'row',
+  loopBackSource: rowLoopBack,
   inventory: rowItems,
   svgDefs: rowSvgDefs,
   textSizes: childRuns,

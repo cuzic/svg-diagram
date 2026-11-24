@@ -115,20 +115,20 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     source = bands.map(item => item.type === 'caption' && !defOf(item) && (item.titleLine || item.sourceLine)
       ? band(captions, item) : item);
   }
-  const hasLoopBack = (data: Band): boolean =>
-    (data.type === 'row' || data.type === 'chevron') && !!data.loopBack || (defOf(data)?.children?.(data) ?? []).some(hasLoopBack);
-  if (source.some(hasLoopBack)) {
+  let nextLoopId = 0;
+  const expandLoopBacks = (bands: Band[]): Band[] => bands.flatMap(data => {
+    const def = defOf(data);
+    if (def?.internal) def.mapLoopBackChildren?.(data, expandLoopBacks);
+    const loop = def?.loopBackSource?.(data);
+    if (!loop) return [data];
     const connector = opts.connectors;
-    if (!connector?.internal || !connector.expandLoopBacks) {
+    if (!connector?.internal || !connector.loopBackConnectors) {
       throw new Error('renderBands: loopBack には bands/connect の connectDefinition を connectors に指定してください');
     }
-    const attach = (data: Band): Band => {
-      if (data.type === 'connect' && data.loopBack && !defOf(data)) return band(connector, data);
-      if (data.type === 'group') data.children = data.children.map(attach);
-      return data;
-    };
-    source = connector.expandLoopBacks(source).map(attach);
-  }
+    return [data, ...connector.loopBackConnectors(data as Band & {id?: string}, loop, () => `__loopback${nextLoopId++}`)
+      .map(link => band(connector, link))];
+  });
+  source = expandLoopBacks(source);
   function collect(data: Band, inheritedStart = 0, inheritedEnd = Infinity): void {
     const def = defOf(data);
     if (!def || def.type !== data.type || def[EXTERNAL] || data.type.includes(':')) {

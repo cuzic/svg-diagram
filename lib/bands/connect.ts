@@ -9,7 +9,7 @@ import {connect as buildConnect} from '../dsl/connect.ts';
 import {renderConnect} from '../emit-boxes.ts';
 import {layoutConnect, resolveConnect} from '../layout-connect.ts';
 import type {ConnectInput, Ok} from '../strict.ts';
-import {expandLoopBacks} from '../loop-back.ts';
+import {loopBackConnectors} from '../loop-back.ts';
 import {CONNECT_LABEL_SIZE} from '../tokens.ts';
 import type {ConnectBand, LaidOutConnect} from '../types/containers.ts';
 
@@ -27,7 +27,7 @@ export const connectDefinition: BandDef<ConnectBand, LaidOutConnect> = {
     diagramFindings: [labelCoverFindings, connectorFindings, selectedGraphFindings],
     acceptHint: rule => Object.hasOwn(connectorRules, rule) ? findingAcceptanceHint(rule) : undefined,
   },
-  expandLoopBacks,
+  loopBackConnectors,
   measure(data, {atoms, roles}) {
     if (data.label) atoms(data.label, roles.connectLabel ?? CONNECT_LABEL_SIZE, 400);
   },

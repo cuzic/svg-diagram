@@ -1,3 +1,4 @@
+import {chevronLoopBack} from '../loop-back.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -8,6 +9,7 @@ import type {ChevronBand, ChevronOpts, FlowStep, LaidOutFlowShape} from '../flow
 
 const definition = {
   type: 'chevron',
+  loopBackSource: chevronLoopBack,
   title: data => [2, data.steps[0]?.label],
   textSizes: texts,
   ids: data => flowItemIds(data.steps),
