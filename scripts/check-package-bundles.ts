@@ -268,6 +268,8 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [stepsPart],
       });
     `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 118000, Vite: 150000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
+    {name: 'ZIP', source: "export {zipEntries} from 'svg-diagram/zip';", include: 'pptx/zip.js',
+      exclude: [...legacy, 'pptx/selective.js', 'pptx/zip-node.js', 'lib/core.js', 'lib/png.js'], budget: {esbuild: 2500, Vite: 2500}},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
       exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 52000, Vite: 68000}},
@@ -499,13 +501,13 @@ try {
       console.log(`${label}: ${bytes} bytes`);
     }
   }
-  async function buildNode(source: string) {
+  async function buildNode(source: string, external: string[] = []) {
     writeFileSync(entry, source);
     const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true,
-      platform: 'node', format: 'esm', write: false, metafile: true});
+      platform: 'node', format: 'esm', write: false, metafile: true, external});
     const ssr = await viteBuild({root: consumer, configFile: false, logLevel: 'silent',
-      resolve: {preserveSymlinks: true}, ssr: {noExternal: ['svg-diagram']},
-      build: {ssr: entry, write: false, minify: 'esbuild'}});
+      resolve: {preserveSymlinks: true}, ssr: {noExternal: ['svg-diagram'], external},
+      build: {ssr: entry, target: 'node22', write: false, minify: 'esbuild'}});
     const [nodeBundle] = es.outputFiles;
     const [ssrChunk] = ssr.output;
     assert.ok(nodeBundle);
@@ -514,6 +516,34 @@ try {
       ['esbuild', Object.keys(es.metafile.inputs), nodeBundle.text],
       ['Vite', Object.keys(ssrChunk.modules), ssrChunk.code],
     ] as const;
+  }
+
+  const nodeSpecCases = await buildNode(`
+    import {renderSpec} from 'svg-diagram/spec/selective/node';
+    import {tablePart} from 'svg-diagram/spec/parts/table';
+    export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [
+      {type: 'table', columns: [{label: 'Review'}], rows: [['Done']]},
+    ]}, {parts: [tablePart]});
+  `, ['harfbuzzjs']);
+  symlinkSync(path.dirname(path.dirname(require.resolve('harfbuzzjs'))), path.join(consumer, 'node_modules/harfbuzzjs'), 'junction');
+  for (const [bundler, files, code] of nodeSpecCases) {
+    const label = `${bundler} (Node): Selected table spec`;
+    const has = (name: string) => files.some(file => file.replaceAll('\\', '/').endsWith('/' + name));
+    for (const file of ['spec-selective-node.js', 'node-measure.js', 'font-metrics.js', 'bands/table.js']) assert.ok(has(file), `${label}: missing ${file}`);
+    for (const file of [...legacy, 'lib/spec.js', 'spec-render.js', 'measure.js', 'png.js', 'raster.js', 'bands/gantt.js', 'bands/box.js']) {
+      assert.ok(!has(file), `${label}: unexpected ${file}`);
+    }
+    assert.ok(!files.some(file => /[/\\](?:playwright[^/\\]*|@resvg)[/\\]/.test(file)), label);
+    assert.ok(!/(?:from\s*|import\(\s*)["'](?:playwright|@resvg\/)/.test(code), label);
+    const output = path.join(consumer, `table-${bundler}.mjs`);
+    writeFileSync(output, code);
+    const {draw} = await import(pathToFileURL(output).href);
+    const result = await draw();
+    assert.equal(result.ok, true, label);
+    assert.match(result.svg, /<text[^>]*>Review<\/text>/, label);
+    const bytes = Buffer.byteLength(code);
+    assert.ok(bytes <= 114000, `${label}: ${bytes} bytes exceeds 114000`);
+    console.log(`${label}: ${bytes} bytes`);
   }
 
   const pictureFile = path.join(consumer, 'picture.gif');

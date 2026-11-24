@@ -495,6 +495,10 @@
       "types": "./dist/lib/web-measure.d.ts",
       "default": "./dist/lib/web-measure.js"
     },
+    "./measure/node": {
+      "types": "./dist/lib/node-measure.d.ts",
+      "default": "./dist/lib/node-measure.js"
+    },
     "./compose/canvas": {
       "types": "./dist/lib/compose/selective/canvas.d.ts",
       "default": "./dist/lib/compose/selective/canvas.js"
@@ -814,6 +818,18 @@
     "./spec/selective/edge": {
       "types": "./dist/lib/spec-selective-edge.d.ts",
       "default": "./dist/lib/spec-selective-edge.js"
+    },
+    "./zip": {
+      "types": "./dist/lib/pptx/zip.d.ts",
+      "default": "./dist/lib/pptx/zip.js"
+    },
+    "./png": {
+      "types": "./dist/lib/png.d.ts",
+      "default": "./dist/lib/png.js"
+    },
+    "./spec/selective/node": {
+      "types": "./dist/lib/spec-selective-node.d.ts",
+      "default": "./dist/lib/spec-selective-node.js"
     },
     "./spec": {
       "types": "./dist/lib/spec.d.ts",

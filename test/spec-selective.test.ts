@@ -251,3 +251,16 @@ test('selected layouts keep the legacy frame findings at canvas size', async () 
     assert.deepEqual(findings(actual), findings(legacy), part.type);
   }
 });
+
+test('selected Node rendering measures from font files and matches the legacy SVG and verdict', async () => {
+  const {renderSpec: renderSelected} = await import('../lib/spec-selective-node.ts');
+  const {renderSpec: renderLegacy} = await import('../lib/spec-render.ts');
+  const {JA_FONTS} = await import('./helpers/text-engine.ts');
+  const input = {version: 1, title: '比較', desc: '比較表', legend: false, parts: [tablePart.example]};
+  const actual = await renderSelected(input, {parts: [tablePart], fonts: JA_FONTS});
+  assert.deepEqual(actual, await renderLegacy(input, {config: {measure: 'font', fonts: JA_FONTS}}));
+  assert.ok(actual.svg);
+  const invalid = await renderSelected(input, {parts: [ganttPart], fonts: JA_FONTS});
+  assert.equal(invalid.svg, null);
+  assert.ok(invalid.issues.length);
+});
