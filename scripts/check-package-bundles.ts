@@ -284,6 +284,10 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [stepsPart],
       });
     `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 118000, Vite: 150000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
+    {name: 'Basic wireframe', source: composedSource([], "wireframe(col([text('Review'), btn('Next')]))",
+      "import {wireframe} from 'svg-diagram/bands/wireframe/basic'; import {col, text, btn} from 'svg-diagram/wireframe/parts';"),
+      include: 'bands/wireframe-basic.js', bands: ['wireframe-basic.js'], budget: {esbuild: 82000, Vite: 110000},
+      exclude: [...legacy, 'lib/wireframe.js', 'lib/wireframe-parts.js', 'bands/wireframe.js', 'bands/screens.js'], draw: true},
     {name: 'Wireframe button builder', source: "export {btn} from 'svg-diagram/wireframe/parts';",
       include: 'wireframe-builders.js', exclude: [...legacy, 'wireframe-insight.js', 'wireframe.js', 'wireframe-parts.js', 'lib/core.js'],
       budget: {esbuild: 500, Vite: 500}},

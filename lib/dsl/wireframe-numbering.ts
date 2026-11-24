@@ -1,4 +1,4 @@
-import {wf} from '../wireframe.ts';
+import {appbar} from '../wireframe-builders.ts';
 import type {Band} from '../types/index.ts';
 import type {WfNode, WfOverlay, WfPartKey} from '../types/wireframe-nodes.ts';
 import type {ScreensBand, WfRoot, WfScreen, WfShellProps, WireframeBand, WireframeDefaults} from '../types/wireframe.ts';
@@ -74,7 +74,7 @@ export function applyWireframeDefaults(bands: Band[], defaults: WireframeDefault
         active = (nav ?? []).indexOf(props.active);
         if (active < 0) throw new Error(`wireframeDefaults.appbar: "${props.active}" is not one of the nav items (${(nav ?? []).join(', ')})`);
       } else active = props.active;
-      content = [wf.appbar(props.title ?? title, {nav, right, active}), ...content];
+      content = [appbar(props.title ?? title, {nav, right, active}), ...content];
     }
     if (defaults.shell) content = [defaults.shell(content, props)].flat() as WfNode[];
     const [only] = content;

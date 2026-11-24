@@ -324,6 +324,10 @@
       "types": "./dist/lib/bands/status.d.ts",
       "default": "./dist/lib/bands/status.js"
     },
+    "./bands/wireframe/basic": {
+      "types": "./dist/lib/bands/wireframe-basic.d.ts",
+      "default": "./dist/lib/bands/wireframe-basic.js"
+    },
     "./bands/wordart": {
       "types": "./dist/lib/bands/wordart.d.ts",
       "default": "./dist/lib/bands/wordart.js"

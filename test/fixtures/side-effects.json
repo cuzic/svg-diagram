@@ -122,7 +122,7 @@
   "lib/svg-outline.ts": {"count": 1, "reason": "Builds the unsupported CSS property pattern from the property list."},
   "lib/tokens.ts": {"count": 6, "reason": "Builds sets and lists of palette tokens and theme names."},
   "lib/web.ts": {"count": 2, "reason": "Creates the browser stubs for Node-only builders."},
-  "lib/wireframe.ts": {"count": 1, "reason": "Builds the wireframe parts with installParts."},
+  "lib/wireframe.ts": {"count": 2, "reason": "Builds a private runtime and installs the complete wireframe parts."},
   "lib/wordart-vertical.ts": {"count": 6, "reason": "Builds the character sets for vertical text layout."},
   "lib/wordart.ts": {"count": 1, "reason": "Derives role names from the role table."},
   "lib/wrap.ts": {"count": 3, "reason": "Builds character sets for line breaking."},

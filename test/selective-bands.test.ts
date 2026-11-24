@@ -819,3 +819,13 @@ test('wireframe constructors can be imported and composed independently', async 
   const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
   assert.equal(body(actual.svg), body(old.svg));
 });
+
+test('basic wireframes draw shared widgets and reject widgets outside the selected renderer', async () => {
+  const {wireframe: basic} = await import('../lib/bands/wireframe-basic.ts');
+  const root = wf.col([wf.text('Overview'), wf.btn('Next')]);
+  const actual = await renderBands([basic(root)], {measure, title: 'Review'});
+  const expected = await renderBands([wireframe(root)], {measure, title: 'Review'});
+  assert.equal(actual.svg, expected.svg);
+  await assert.rejects(renderBands([basic(wf.fusion())], {measure}), /fusion/);
+  await assert.rejects(renderBands([basic(wf.text('Overview', {state: 'loading'}))], {measure}), /loading/);
+});
