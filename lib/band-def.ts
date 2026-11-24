@@ -80,6 +80,7 @@ interface BandHooks<D, L extends object> {
   emit(laid: L, env: EmitEnv): string;
   svgDefs?(laid: L): SvgBandDefs;
   measure?(data: D, env: MeasureEnv): void;
+  textSizes?(laid: L): Iterable<number>;
   verify?: {
     rects?(laid: L): CheckRect[];
     findings?(data: D, ctx: VerifyCtx): Finding[];

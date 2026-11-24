@@ -8,6 +8,7 @@ import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} fr
 
 const definition = {
   type: 'chart',
+  textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, clusterTexts(data.spec as ClusterSpec)),
   layout: (data, env) => layoutSelectiveChart(data, env, geom => layoutCluster(data.spec as ClusterSpec, geom)),

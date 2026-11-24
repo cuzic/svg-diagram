@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {cycle as build} from '../dsl/flow.ts';
@@ -7,6 +8,7 @@ import type {CycleBand, CycleOpts, FlowStep, LaidOutFlowShape} from '../flow-sha
 
 const definition = {
   type: 'cycle',
+  textSizes: texts,
   ids: data => flowItemIds(data.steps),
   measure: (data, env) => measureFlow(data, env, cycleTexts),
   layout: (data, env) => placeFlow(data, env, layoutCycleShape),

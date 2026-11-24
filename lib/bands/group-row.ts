@@ -1,3 +1,4 @@
+import {childRuns} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {row as buildRow} from '../dsl/containers.ts';
@@ -9,6 +10,7 @@ import type {BoxBand} from '../types/text-bands.ts';
 
 export const groupRowDefinition: BandDef<GroupRowBand, LaidOutRow> = {
   type: 'grouprow',
+  textSizes: childRuns,
   internal: true,
   layout: layoutGroupRow,
   children: data => data.children,

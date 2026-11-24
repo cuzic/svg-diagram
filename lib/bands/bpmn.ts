@@ -1,3 +1,4 @@
+import {textsAndLabels} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {bpmnTexts, layoutBpmn} from '../bpmn.ts';
@@ -12,6 +13,7 @@ import {anchorRects} from '../verify-rects.ts';
 
 const definition = {
   type: 'bpmn',
+  textSizes: textsAndLabels,
   ids: data => data.nodes.map(item => item.id),
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of bpmnTexts(data, roles)) atoms(text, size, weight, font);

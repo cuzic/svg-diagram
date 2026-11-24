@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {mindmap as buildMindmap, tree as buildTree} from '../dsl/tree.ts';
@@ -9,6 +10,7 @@ import {treeRects} from '../verify-tree.ts';
 
 const definition = {
   type: 'tree',
+  textSizes: texts,
   internal: true,
   layout: layoutTree,
   ids: data => treeItems(data.root).flatMap(node => node.id ? [node.id] : []),

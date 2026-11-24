@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {buildTimeline} from '../dsl/timeline.ts';
@@ -9,6 +10,7 @@ import {timelineProblems} from '../verify-timeline.ts';
 
 const definition = {
   type: 'timeline',
+  textSizes: texts,
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of timelineTexts(data, roles)) atoms(text, size, weight, font);
   },

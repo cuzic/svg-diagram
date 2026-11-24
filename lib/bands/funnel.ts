@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {funnel as build} from '../dsl/flow.ts';
@@ -7,6 +8,7 @@ import type {FunnelBand, FunnelOpts, FunnelStage, LaidOutFlowShape} from '../flo
 
 const definition = {
   type: 'funnel',
+  textSizes: texts,
   ids: data => flowItemIds(data.stages),
   measure: (data, env) => measureFlow(data, env, funnelTexts),
   layout: (data, env) => placeFlow(data, env, layoutFunnel),

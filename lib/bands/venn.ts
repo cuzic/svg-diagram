@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {venn as build} from '../dsl/flow.ts';
@@ -7,6 +8,7 @@ import type {VennBand, VennOpts, VennSet, LaidOutFlowShape} from '../flow-shapes
 
 const definition = {
   type: 'venn',
+  textSizes: texts,
   ids: data => flowItemIds(data.sets),
   measure: (data, env) => measureFlow(data, env, vennTexts),
   layout: (data, env) => placeFlow(data, env, layoutVenn),

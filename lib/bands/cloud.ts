@@ -1,3 +1,4 @@
+import {sizesOf} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {cloudTexts, layoutCloudBand} from '../cloud.ts';
@@ -10,6 +11,7 @@ import {cloudProblems, cloudRects} from '../verify-cloud.ts';
 
 const definition = {
   type: 'cloud',
+  textSizes: band => [...sizesOf(band.texts), ...sizesOf(band.chips)],
   ids: data => (['a', 'b', 'c', 'd', 'd2'] as const).flatMap(key => {
     const item = data[key];
     return typeof item !== 'string' && item.id ? [item.id] : [];

@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {analysisFindings} from '../finding-rules.ts';
 import {bowtieFindings} from '../rca-rules.ts';
 import {band} from '../band-def.ts';
@@ -11,6 +12,7 @@ import {bowtieRects} from '../verify-bowtie-rects.ts';
 
 const definition = {
   type: 'bowtie',
+  textSizes: texts,
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of bowtieMeasure(data, roles)) atoms(text, size, weight, font);
   },

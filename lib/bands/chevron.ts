@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {chevron as build} from '../dsl/flow.ts';
@@ -7,6 +8,7 @@ import type {ChevronBand, ChevronOpts, FlowStep, LaidOutFlowShape} from '../flow
 
 const definition = {
   type: 'chevron',
+  textSizes: texts,
   ids: data => flowItemIds(data.steps),
   measure: (data, env) => measureFlow(data, env, chevronTexts),
   layout: (data, env) => placeFlow(data, env, layoutChevron),

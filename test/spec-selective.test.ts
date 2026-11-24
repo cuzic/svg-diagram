@@ -223,3 +223,16 @@ test('selected tables and swimlanes report the same band findings as the legacy 
     assert.deepEqual(notes(actual), notes(legacy), rule);
   }
 });
+
+test('every catalog part matches the legacy canvas font and overflow findings', async () => {
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  for (const canvas of [{width: 1920, height: 1080, minText: 20}, {width: 1920, height: 360, minText: 14}]) {
+    for (const part of [flowchartPart, pyramidPart, funnelPart, ...moreParts]) {
+      const spec = {version: 1, title: 'Plan', legend: false, canvas, parts: [part.example]};
+      const actual = await renderSpec(spec, {parts: [part], measure});
+      const legacy = await renderInBrowser(specToDiagram(spec), {measure});
+      const notes = ({verdict}: typeof actual) => verdict.findings.filter(f => f.rule.startsWith('slide-') || f.rule === 'font-floor-lowered');
+      assert.deepEqual(notes(actual), notes(legacy), `${part.type} (${canvas.minText}px)`);
+    }
+  }
+});

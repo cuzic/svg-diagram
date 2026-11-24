@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {analysisFindings} from '../finding-rules.ts';
 import {tocFindings} from '../toc-rules.ts';
 import {band} from '../band-def.ts';
@@ -15,6 +16,7 @@ export {transitionUnits} from '../dsl/cause.ts';
 
 export const causeDefinition: BandDef<CauseBand, LaidOutCause> = {
   type: 'cause',
+  textSizes: texts,
   ids: data => data.nodes.filter(node => !data.unanchored?.includes(node.id)).map(node => node.id),
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of causeTexts(data, roles)) atoms(text, size, weight, font);

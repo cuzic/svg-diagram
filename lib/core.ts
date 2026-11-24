@@ -1,3 +1,5 @@
+import {ownRunSizes} from './band-text-sizes.ts';
+import {canvasFindings} from './canvas-findings.ts';
 import {splitAtoms} from './atoms.ts';
 import {band, defOf, DEF, EXTERNAL} from './band-def.ts';
 import {withSourceLine, withTitleLine} from './layout-util.ts';
@@ -204,8 +206,19 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
   const ctx = {theme, tones: ink, appearance: placed.appearance, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
   const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => band.type === 'row' || band.type === 'grid' ? band.children : band.type === 'group' ? [] : [band]);
   const bandFindings = inputChecks.flatMap(check => check(ctx));
+  let minText = Infinity;
   for (const laid of placed.laidOut) {
-    bandFindings.push(...(definitions.get(definitionKey(laid))?.verify?.layoutFindings?.(laid as never, ctx) ?? []));
+    const def = definitions.get(definitionKey(laid)) ?? syntheticOutputs.get(laid.type);
+    bandFindings.push(...(def?.verify?.layoutFindings?.(laid as never, ctx) ?? []));
+    if (canvas) {
+      for (const size of ownRunSizes(laid)) minText = Math.min(minText, size);
+      for (const size of def?.textSizes?.(laid as never) ?? []) minText = Math.min(minText, size);
+    }
+  }
+  if (canvas) {
+    if (!Number.isFinite(minText)) minText = 14;
+    if (placed.connects.some(connector => connector.label)) minText = Math.min(minText, roles.connectLabel ?? 14);
+    bandFindings.push(...canvasFindings(canvas, minText, placed.contentHeight));
   }
   const verdict = verifyWithServices({
     collectRects: figure => leaves(figure).flatMap(band => {
@@ -216,10 +229,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
       return scope && !def?.rectsQualified ? rects.map(rect => scopedRect(band, scope, rect)) : rects;
     }),
     contrastProblems: () => [],
-    lintDiagram: figure => figure.canvas && figure.contentHeight !== undefined && figure.contentHeight > figure.canvas.height
-      ? [...bandFindings, {rule: 'slide-canvas-overflow', severity: 'warn',
-        message: `内容の高さ ${figure.contentHeight}px が、キャンバスの高さ ${figure.canvas.height}px を超える。行・文字を減らすか、図を分ける`}]
-      : bandFindings,
+    lintDiagram: () => bandFindings,
     acceptHint: () => undefined,
     mergeFindingSides: () => [],
     hasMutedBox: () => false,

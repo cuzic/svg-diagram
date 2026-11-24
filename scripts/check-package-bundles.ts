@@ -35,7 +35,7 @@ try {
       measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
     });
   `;
-  const legacy = ['web.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'rules.js', 'math-tex.js'];
+  const legacy = ['web.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'fit-handlers.js', 'rules.js', 'math-tex.js'];
   const flowSamples = [
     ['chevron', 'layoutChevron', "chevron([{label: 'Review'}, {label: 'Release'}])"],
     ['funnel', 'layoutFunnel', "funnel([{label: 'Review'}, {label: 'Release'}])"],
@@ -252,7 +252,7 @@ try {
     `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 114000, Vite: 147000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
-      exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 52000, Vite: 67000}},
+      exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 52000, Vite: 68000}},
     {name: 'Box', source: bandSource('box'), include: 'bands/box.js',
       exclude: [...legacy, 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 75500, Vite: 95000}, draw: true},
     {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',

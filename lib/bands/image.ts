@@ -1,3 +1,4 @@
+import {sizesOf} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {image as build} from '../dsl/image.ts';
@@ -13,6 +14,7 @@ export type SelectedBand = Band & {readonly [DEF]: object};
 
 export const imageDefinition: BandDef<ImageBand, LaidOutImage> = {
   type: 'image',
+  textSizes: band => sizesOf(band.plates),
   internal: true,
   layout: layoutImageBand,
   children: data => data.children ?? [],

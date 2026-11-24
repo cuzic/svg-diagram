@@ -1,3 +1,4 @@
+import {childRuns} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {grid as buildGrid} from '../dsl/containers.ts';
@@ -8,6 +9,7 @@ import type {BoxBand} from '../types/text-bands.ts';
 
 export const gridDefinition: BandDef<GridBand, LaidOutGrid> = {
   type: 'grid',
+  textSizes: childRuns,
   internal: true,
   layout: layoutGridBand,
   children: data => data.children,

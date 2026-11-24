@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import type {quadrant as legacy} from '../dsl/figures.ts';
@@ -11,6 +12,7 @@ import {quadrantProblems} from '../verify-quadrant.ts';
 
 const definition = {
   type: 'quadrant',
+  textSizes: texts,
   ids: data => data.items.flatMap(item => item.id ? [item.id] : []),
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of quadrantTexts(data, roles)) atoms(text, size, weight, font);

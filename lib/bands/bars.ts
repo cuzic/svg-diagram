@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {barsTexts, layoutBars} from '../bars.ts';
@@ -13,6 +14,7 @@ import {barsContrastProblems, barsProblems, barsRects} from '../verify-bars.ts';
 
 const definition = {
   type: 'bars',
+  textSizes: texts,
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of barsTexts(data, roles)) atoms(text, size, weight, font);
   },

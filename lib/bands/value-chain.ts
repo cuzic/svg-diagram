@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {valueChain as build} from '../dsl/flow.ts';
@@ -7,6 +8,7 @@ import type {ValueChainBand, ValueChainOpts, FlowStep, LaidOutFlowShape} from '.
 
 const definition = {
   type: 'valueChain',
+  textSizes: texts,
   ids: data => flowItemIds([...data.support, ...data.primary]),
   measure: (data, env) => measureFlow(data, env, valueChainTexts),
   layout: (data, env) => placeFlow(data, env, layoutValueChain),

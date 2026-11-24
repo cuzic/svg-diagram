@@ -20,9 +20,10 @@ import {legendKeys, legendLabelsFor, missingLegendItems, usedNotation, walkBands
 export {DEFAULT_LEGEND_LABELS, legendKeys, legendLabelsFor, usedNotation, walkBands} from './legend-notation.ts';
 import {itemIdsOf} from './band-ids.ts';
 import {sourceOf, withSource} from './source-ref.ts';
+import {canvasFindings} from './canvas-findings.ts';
 import {minTextSize} from './fit.ts';
 import {largeImageWarning} from './image.ts';
-import {PALETTE, MIN_FONT_SIZE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv, canvasFontScale} from './tokens.ts';
+import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv, canvasFontScale} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 
 // contrast is judged on the colours as drawn: in a dark diagram the light tokens are looked up in the dark set first
@@ -993,9 +994,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   boxSizeRules(d, out);
   if (d.canvas && d.laidOut) {
     const min = minTextSize(d);
-    if (d.canvas.minText < MIN_FONT_SIZE) out.push({rule: 'font-floor-lowered', severity: 'info', message: `文字の下限を ${MIN_FONT_SIZE}px から ${d.canvas.minText}px に下げている(最小の文字 ${min}px)。キャンバスは 1:1 で読まれる前提。投影には向かない`});
-    if (min < d.canvas.minText) out.push({rule: 'slide-min-text', severity: 'warn', message: `最小の文字が ${min}px。スライド用キャンバスは ${d.canvas.minText}px 以上(その文字を大きくするか、減らす)`});
-    if (d.contentHeight !== undefined && d.contentHeight > d.canvas.height) out.push({rule: 'slide-canvas-overflow', severity: 'warn', message: `内容の高さ ${d.contentHeight}px が、キャンバスの高さ ${d.canvas.height}px を超える。行・文字を減らすか、図を分ける`});
+    out.push(...canvasFindings(d.canvas, min, d.contentHeight));
   }
   if (d.medium === 'doc' && !d.canvas && d.canvasHeight !== undefined && d.canvasHeight > ASPECT_TALL * d.width) {
     const kinds = new Set(walkBands(d.bands).map(b => b.type));

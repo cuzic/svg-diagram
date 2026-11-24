@@ -9,6 +9,7 @@ import {planeProblems} from '../verify-plane.ts';
 
 export const planeDefinition: BandDef<PlaneBand, LaidOutPlane> = {
   type: 'plane',
+  textSizes: band => [band.labelSize],
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of planeTexts(data, roles)) atoms(text, size, weight, font);
   },

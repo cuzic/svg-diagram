@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {concentric as build} from '../dsl/flow.ts';
@@ -7,6 +8,7 @@ import type {ConcentricBand, ConcentricOpts, ConcentricRing, LaidOutFlowShape} f
 
 const definition = {
   type: 'concentric',
+  textSizes: texts,
   ids: data => flowItemIds([...data.rings, ...data.sectors ?? [], ...data.marks ?? []]),
   measure: (data, env) => measureFlow(data, env, concentricTexts),
   layout: (data, env) => placeFlow(data, env, layoutConcentricShape),

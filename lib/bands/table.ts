@@ -12,6 +12,7 @@ export {cell} from '../dsl/sequence-table-swimlane.ts';
 
 export const tableDefinition: BandDef<TableBand, LaidOutTable> = {
   type: 'table',
+  textSizes: band => [band.bodySize],
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of tableTexts(data, roles)) atoms(text, size, weight, font);
   },

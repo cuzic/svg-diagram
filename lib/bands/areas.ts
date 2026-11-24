@@ -1,3 +1,4 @@
+import {childRuns} from '../band-text-sizes.ts';
 import {band, defOf, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {areas as buildAreas} from '../dsl/containers.ts';
@@ -9,6 +10,7 @@ import {groupDefinition} from './group.ts';
 
 const definition = {
   type: 'areas',
+  textSizes: childRuns,
   internal: true,
   layout: layoutAreas,
   children: data => data.children,

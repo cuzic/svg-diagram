@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {emblem as build} from '../dsl/flow.ts';
@@ -7,6 +8,7 @@ import type {EmblemBand, EmblemOpts, EmblemItem, LaidOutFlowShape} from '../flow
 
 const definition = {
   type: 'emblem',
+  textSizes: texts,
   ids: data => flowItemIds(data.items),
   measure: (data, env) => measureFlow(data, env, emblemTexts),
   layout: (data, env) => placeFlow(data, env, layoutEmblem),

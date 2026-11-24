@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {gantt as buildGantt} from '../dsl/gantt.ts';
@@ -12,6 +13,7 @@ const withToday = (data: GanttBand, today: string | undefined): GanttBand =>
 
 const definition = {
   type: 'gantt',
+  textSizes: texts,
   ids: data => data.rows.flatMap(row => 'id' in row && row.id ? [row.id] : []),
   measure(data, {atoms, roles, today}) {
     for (const [text, size, weight, font] of ganttTexts(withToday(data, today), roles)) atoms(text, size, weight, font);

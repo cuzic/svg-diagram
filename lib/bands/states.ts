@@ -1,3 +1,4 @@
+import {textsAndLabels} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {flowchart as buildFlowchart, stateDiagram as buildStateDiagram} from '../dsl/states.ts';
@@ -11,6 +12,7 @@ import {anchorRects} from '../verify-rects.ts';
 
 const definition = {
   type: 'states',
+  textSizes: textsAndLabels,
   ids: data => data.states.map(item => item.id),
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of statesTexts(data, roles)) atoms(text, size, weight, font);

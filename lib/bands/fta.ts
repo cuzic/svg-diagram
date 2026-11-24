@@ -1,3 +1,4 @@
+import {texts} from '../band-text-sizes.ts';
 import {analysisFindings} from '../finding-rules.ts';
 import {ftaFindings} from '../fta-rules.ts';
 import {band} from '../band-def.ts';
@@ -12,6 +13,7 @@ import {ftaRects} from '../verify-fta-rects.ts';
 
 const definition = {
   type: 'fta',
+  textSizes: texts,
   ids: data => ftaIds(data.root),
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of ftaTexts(data, roles)) atoms(text, size, weight, font);
