@@ -937,3 +937,27 @@ test('selective funnels and quadrants preserve their band-specific warnings', as
   ]);
   assert.deepEqual(notes(actual), notes(legacy));
 });
+
+test('selective bars report the first thin bar warning once per diagram', async () => {
+  const data = [{label: '細', value: 0.5}, {label: '太', value: 100}, {label: 'ゼロ', value: 0}];
+  const options = {dir: 'v', labels: 'none', axis: false, height: 60} as const;
+  const actual = await renderBands([bars(data, options), bars(data, options)], {measure, title: '比較'});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', title: '比較', legend: false})
+    .add(legacyBars(data, options)).add(legacyBars(data, options)), {measure});
+  const notes = ({verdict}: typeof actual) => verdict.findings.filter(f => f.rule === 'bars-thin-bar')
+    .map(({rule, severity, message}) => ({rule, severity, message}));
+  assert.equal(notes(legacy).length, 1);
+  assert.deepEqual(notes(actual), notes(legacy));
+});
+
+test('large image warnings appear in the selective verdict findings', async () => {
+  const options = {alt: '会議室'};
+  const bytes = 350 * 1024;
+  const actual = await renderBands([Object.assign(image(embeddedPixel, options), {bytes})], {measure, title: '写真'});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', title: '写真', legend: false})
+    .add(Object.assign(legacyImage(embeddedPixel, options), {bytes})), {measure});
+  const notes = ({verdict}: typeof actual) => verdict.findings.filter(f => f.rule === 'image-large')
+    .map(({rule, severity, message}) => ({rule, severity, message}));
+  assert.equal(notes(legacy).length, 1);
+  assert.deepEqual(notes(actual), notes(legacy));
+});

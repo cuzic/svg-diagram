@@ -3,12 +3,12 @@ import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {image as build} from '../dsl/image.ts';
 import {renderImage} from '../emit-image.ts';
-import {IMAGE_PAD, imageSize, imageTexts, largeImageWarning} from '../image.ts';
+import {IMAGE_PAD, imageSize, imageTexts} from '../image.ts';
 import {layoutImageBand} from '../layout-image.ts';
 import type {ImageBand, ImageMark, ImageOpts, LaidOutImage} from '../types/image.ts';
 import {checked} from '../reveal-visibility.ts';
 import type {Band} from '../types/index.ts';
-import {imageContrast, imageProblems, imageRects} from '../verify-image.ts';
+import {imageContrast, imageProblems, imageRects, imageSizeFindings} from '../verify-image.ts';
 
 export type SelectedBand = Band & {readonly [DEF]: object};
 
@@ -37,11 +37,10 @@ export const imageDefinition: BandDef<ImageBand, LaidOutImage> = {
   emit: (laid, {theme, tones, stage}) => renderImage(laid, theme, tones, stage),
   verify: {
     rects: imageRects,
+    findings: imageSizeFindings,
     check(laid, {theme, tones, appearance}) {
-      const problems = [...imageProblems(laid), ...imageContrast(laid, theme, appearance, tones)]
+      return [...imageProblems(laid), ...imageContrast(laid, theme, appearance, tones)]
         .map(message => ({rule: 'image', severity: 'problem' as const, message}));
-      const warning = largeImageWarning(laid.bytes);
-      return warning ? [...problems, {rule: 'image-large', severity: 'warn', message: warning}] : problems;
     },
   },
 };

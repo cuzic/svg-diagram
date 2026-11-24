@@ -1,9 +1,11 @@
+import {at} from './finding-rules.ts';
+import type {LaidOutDiagram} from './types/index.ts';
 import {segHitsRect} from './bars.ts';
 import {must} from './must.ts';
 import {PALETTE, colorOf} from './tokens.ts';
 import type {Theme} from './types/core.ts';
 import type {LaidOutBars} from './types/bars.ts';
-import type {CheckRect} from './types/verdicts.ts';
+import type {CheckRect, Finding} from './types/verdicts.ts';
 import {CONTRAST_THRESHOLD, dxdy, neverTogether, outsideBox, rectOverlap} from './verify-base.ts';
 
 export function barsProblems(band: LaidOutBars): string[] {
@@ -40,4 +42,12 @@ export function barsContrastProblems(band: LaidOutBars, theme: Theme, luminance:
     if (delta < CONTRAST_THRESHOLD) problems.push(`bars: value label "${b.label}" (${fg} on ${bg}) has low contrast (delta=${delta.toFixed(0)}, want >= ${CONTRAST_THRESHOLD})`);
   }
   return problems;
+}
+
+
+/** Warn once, at the first band with a positive bar drawn at a pixel or less. */
+export function thinBarFindings({laidOut}: Partial<Pick<LaidOutDiagram, 'laidOut'>>): Finding[] {
+  const band = laidOut?.find(b => b.type === 'bars' && b.bars.some(r =>
+    (r.w > 0 && r.w <= 1 && r.h > 0) || (r.h > 0 && r.h <= 1 && r.w > 0)));
+  return band ? [{...at(band), rule: 'bars-thin-bar', severity: 'warn', message: '棒が 1px 以下になっている。図の高さ・幅を上げるか max を見直す'}] : [];
 }

@@ -1,10 +1,11 @@
-import {plateStyle} from './image.ts';
+import {at} from './finding-rules.ts';
+import {largeImageWarning, plateStyle} from './image.ts';
 import {colorOf, luminance as lightLuminance, paintOf} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
-import type {LaidOutImage} from './types/image.ts';
+import type {ImageBand, LaidOutImage} from './types/image.ts';
 import type {Appearance, Theme} from './types/core.ts';
 import {CONTRAST_THRESHOLD, dxdy, eachOverlap, outsideBox} from './verify-base.ts';
-import type {CheckRect} from './types/verdicts.ts';
+import type {CheckRect, Finding} from './types/verdicts.ts';
 
 // image(): a label plate must stay inside the picture and clear of the other plates (it sits on the picture, so a plate over a plate hides words).
 export function imageProblems(band: LaidOutImage): string[] {
@@ -28,3 +29,8 @@ export function imageContrast(band: LaidOutImage, day: Theme, appearance: Appear
 }
 
 export const imageRects = (band: LaidOutImage): CheckRect[] => [{id: band.id ?? null, label: band.id ?? 'image', x: band.x, y: band.y, w: band.w, h: band.h, holds: band.anchors.map(a => a.id), ...(band.backdrop ? {backdrop: true} : {})}];
+
+export function imageSizeFindings(band: ImageBand): Finding[] {
+  const message = largeImageWarning(band.bytes);
+  return message ? [{...at(band), rule: 'image-large', severity: 'warn', message}] : [];
+}

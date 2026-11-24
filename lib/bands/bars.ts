@@ -10,7 +10,7 @@ import {revealBarElements} from '../reveal-bars.ts';
 import {scopeOf} from '../scope-name.ts';
 import {luminance, paintOf} from '../tokens.ts';
 import type {BarDatum, BarsBand, BarsOpts, LaidOutBars} from '../types/bars.ts';
-import {barsContrastProblems, barsProblems, barsRects} from '../verify-bars.ts';
+import {barsContrastProblems, barsProblems, barsRects, thinBarFindings} from '../verify-bars.ts';
 
 const definition = {
   type: 'bars',
@@ -29,6 +29,7 @@ const definition = {
   emit: (laid, {theme, stage}) => renderBars(laid, theme, stage),
   verify: {
     rects: barsRects,
+    diagramFindings: thinBarFindings,
     check(laid, {theme, tones, appearance}) {
       const paint = paintOf(tones, appearance);
       return [...barsProblems(laid), ...barsContrastProblems(laid, theme, hex => luminance(paint(hex)))]
