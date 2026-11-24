@@ -367,10 +367,14 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [stepsPart],
       });
     `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 134000, Vite: 168500}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
-    {name: 'Selected screen widgets', source: composedSource([], "screens([{id: 'review', title: 'Review', root: text('Details')}], {cols: 1})",
-      "import {createScreens, textRenderer} from 'svg-diagram/wireframe/renderers'; import {text} from 'svg-diagram/wireframe/parts'; const {screens} = createScreens([textRenderer]);"),
-      include: 'screens-definition.js', bands: [], budget: {esbuild: 80000, Vite: 108000},
-      exclude: [...legacy, 'lib/wireframe.js', 'lib/wireframe-parts.js', 'bands/screens.js', 'bands/wireframe-basic.js', 'layout-wireframes.js'], draw: true},
+    {name: 'Selected screen widgets', layout: 'layoutScreenGridWith', source: composedSource([], "screens([{id: 'review', title: 'Review', root: text('Details')}], {cols: 1})",
+      "import {createScreenGrid, textRenderer} from 'svg-diagram/wireframe/renderers'; import {text} from 'svg-diagram/wireframe/parts'; const screens = createScreenGrid([textRenderer]);"),
+      include: 'screens-definition.js', bands: [], budget: {esbuild: 52000, Vite: 69500},
+      exclude: [...legacy, 'dsl/state-matrix.js', 'state-matrix-rules.js', 'lib/wireframe.js', 'lib/wireframe-parts.js', 'bands/screens.js', 'bands/wireframe-basic.js', 'layout-wireframes.js'], draw: true},
+    {name: 'Selected matrix widgets', layout: 'layoutStateMatrixWith', source: composedSource([], "stateMatrix(['Review'], [{label: 'Page', cells: [text('Ready')]}])",
+      "import {createStateMatrix, textRenderer} from 'svg-diagram/wireframe/renderers'; import {text} from 'svg-diagram/wireframe/parts'; const stateMatrix = createStateMatrix([textRenderer]);"),
+      include: 'state-matrix-rules.js', bands: [], budget: {esbuild: 53500, Vite: 71500},
+      exclude: [...legacy, 'dsl/wireframe.js', 'lib/wireframe.js', 'lib/wireframe-parts.js', 'bands/screens.js', 'layout-wireframes.js'], draw: true},
     {name: 'Selected wireframe dialog', source: composedSource([], "wireframe(text('Overview'), {overlays: [dialog('Review', {buttons: [btn('Send')]})]})",
       "import {createWireframe, textRenderer, btnRenderer, dialogRenderer} from 'svg-diagram/wireframe/renderers'; import {text, btn, dialog} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([textRenderer, btnRenderer], {dialog: dialogRenderer});"),
       include: 'wireframe-renderers.js', bands: ['wireframe-basic.js'], budget: {esbuild: 77000, Vite: 104000},
@@ -597,6 +601,10 @@ try {
       if (name === 'screens') {
         assert.ok(!has('dsl/state-matrix.js') && !has('state-matrix-rules.js'), label);
         assert.ok(!code?.includes('"layoutStateMatrixWith"'), label);
+      }
+      if (name === 'Selected screen widgets' || name === 'Selected matrix widgets') {
+        assert.equal(code?.includes('"layoutScreenGridWith"'), name === 'Selected screen widgets', label);
+        assert.equal(code?.includes('"layoutStateMatrixWith"'), name === 'Selected matrix widgets', label);
       }
       if (name === 'State matrix') {
         assert.ok(has('dsl/state-matrix.js'), label);

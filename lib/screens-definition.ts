@@ -1,7 +1,6 @@
 import {band} from './band-def.ts';
 import type {BandDef, WithBandDef} from './band-def.ts';
 import {stateMatrix as buildMatrix} from './dsl/state-matrix.ts';
-import {stateMatrixFindings} from './state-matrix-rules.ts';
 import {screens as build} from './dsl/wireframe.ts';
 import {renderPrims} from './emit-tables.ts';
 import type {ScreensItemInput, StateRowLoose, ValidateStateRows} from './strict.ts';
@@ -41,9 +40,4 @@ export function stateMatrixBuilder(definition: Definition) {
   ): WithBandDef<ScreensBand, LaidOutScreens> {
     return band<ScreensBand, LaidOutScreens>(definition, buildMatrix<C, R>(cols, rows, opts));
   };
-}
-
-export function screensFor(collect: Parameters<typeof screensDefinition>[0], place: BandLayoutHandler<ScreensBand>) {
-  const definition = screensDefinition(collect, place, stateMatrixFindings);
-  return {screens: screensBuilder(definition), stateMatrix: stateMatrixBuilder(definition)};
 }
