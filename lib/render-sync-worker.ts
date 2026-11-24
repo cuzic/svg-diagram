@@ -2,7 +2,7 @@
 // to file descriptor 3. The diagram source may print to stdout (console.log, a dependency's warning): that goes to stderr, so
 // it can never get mixed into the result.
 import fs from 'node:fs';
-import {renderSource, close} from './render-source.ts';
+import {renderSource, close} from './render-source-file.ts';
 import {must} from './must.ts';
 console.log = console.error;
 const send = (o: unknown) => fs.writeSync(3, JSON.stringify(o));

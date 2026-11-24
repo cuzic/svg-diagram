@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 const {expandMarkdown} = await import('./lib/markdown.ts');
-const {close} = await import('./lib/render-source.ts');
+const {close} = await import('./lib/render-source-file.ts');
 
 const args = process.argv.slice(2);
 const opt = (name: string): string | undefined => { const i = args.indexOf(name); if (i < 0) return undefined; const [, v] = args.splice(i, 2); if (v === undefined || v.startsWith('--')) { console.error(`✗ ${name} needs a value`); process.exit(2); } return v; };

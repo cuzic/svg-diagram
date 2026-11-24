@@ -189,4 +189,5 @@
   - [ ] Excel の対応と出力全体の互換性。このブランチには Excel 出力の実装がないため、Excel の追加時に帯別アダプターへ接続する。
 - [x] Node とブラウザの文字測定、Node の PNG 変換、ポータブル ZIP を個別入口に分離。
 - [x] 選択 spec CLI で因果図・題名・出典・自動凡例を描画し、既定の Node.js 測定で従来版の SVG と照合。未指定の spec 部品と従来の全体入口をロードしないことを実行時に検査。
+- [x] Markdown の TypeScript 図は JSON spec カタログと独立して描画できる。CLI の実行時に spec カタログをロードせず、esbuild と Vite の Node 向けバンドルにも含まれないことを検証。
 - [ ] 既存のパッケージ入口、CLI、デッキ、Markdown、MCP の描画互換性を確認する。

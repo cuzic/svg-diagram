@@ -8,7 +8,7 @@
 // does not stop. `deck` does not run lint-svg: it views what `build` / `check` have passed, it does not replace them.
 import fs from 'node:fs';
 import path from 'node:path';
-import {renderSource} from './lib/render-source.ts';
+import {renderSource} from './lib/render-source-file.ts';
 import {closeMeasurer} from './lib/measure.ts';
 import {xmlProblems} from './lib/xml-check.ts';
 import {formatBuildError} from './lib/error-format.ts';

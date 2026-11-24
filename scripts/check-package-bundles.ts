@@ -1057,6 +1057,16 @@ try {
     ] as const;
   }
 
+  const markdownCases = await buildNode(`
+    export {expandMarkdown} from 'svg-diagram/markdown';
+  `, ['harfbuzzjs', 'playwright', 'playwright-chromium', '@resvg/resvg-js']);
+  for (const [bundler, files, code] of markdownCases) {
+    const label = `${bundler} (Node): Markdown source rendering`;
+    assert.ok(files.some(file => file.replaceAll('\\', '/').endsWith('/render-source-file.js')), label);
+    assert.ok(!files.some(file => /\/lib\/(?:spec(?:-render)?\.js$|spec-parts\/)/.test(file.replaceAll('\\', '/'))), label);
+    console.log(`${label}: ${Buffer.byteLength(code)} bytes`);
+  }
+
   const nodeSpecCases = await buildNode(`
     import {renderSpec} from 'svg-diagram/spec/selective/node';
     import {tablePart} from 'svg-diagram/spec/parts/table';

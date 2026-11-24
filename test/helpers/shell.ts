@@ -43,7 +43,8 @@ export const SHELL: Record<string, Shell> = {
   'pptx/zip-node': {reason: 'node:zlib'},
   'raster': {reason: 'rasterises with resvg / a browser (fs, os)'},
   'remark': {reason: 'the remark plugin: fs'},
-  'render-source': {reason: 'loads a source file through node:module'},
+  'render-source': {reason: 'public Node facade for source and spec rendering'},
+  'render-source-file': {reason: 'loads a source file through node:module'},
   'render-sync-worker': {reason: 'the synchronous render worker: fs, process'},
   'slide-budget': {reason: 'asks a Slidev dev server (fs, net, child_process)'},
   'slide-index': {reason: 'reads slide files (fs)'},
@@ -62,7 +63,7 @@ export const SHELL: Record<string, Shell> = {
   'spec-node-result': {reason: 'checks SVG geometry using Node font files'},
   'spec-selective-node': {reason: 'renders selected spec parts with Node font measurement and checks'},
   'load-source': {reason: 'imports the source file and the project config (config, measure)'},
-  'markdown': {reason: 'imports render-source (ADR 0031 stage 5 splits the scanner out)'},
+  'markdown': {reason: 'imports render-source-file (ADR 0031 stage 5 splits the scanner out)'},
   'vitepress': {reason: 'imports markdown-it'},
   // kept for the context it runs in
   'resolve-hook': {reason: 'a Node module-loader hook: installed in-thread by the CLI entries (module.registerHooks)', declared: true},
