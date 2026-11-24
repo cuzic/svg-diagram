@@ -1406,3 +1406,17 @@ test('selected node and stat boxes preserve top icons and source labels', async 
   assert.match(selected.svg, /月次集計/);
   assert.equal(selected.svg, legacy.svg);
 });
+
+test('selected state diagrams preserve long words when the layout enables keepWords', async () => {
+  const word = 'シャドウトラフィックコンフィギュレーション';
+  const states = [{id: 'a', label: word}, {id: 'b', label: '完了'}];
+  const transitions = [{from: 'a', to: 'b'}];
+  const shape = {dir: 'down', maxNodeW: 88} as const;
+  const options = {theme: 'blue', title: '状態', legend: false} as const;
+  for (const keepWords of [false, true]) {
+    const selected = await renderBands([stateDiagram(states, transitions, shape)], {...options, measure, keepWords});
+    const legacy = await renderInBrowser(diagram({...options, keepWords}).add(legacyStateDiagram(states, transitions, shape)), {measure});
+    assert.equal(selected.svg, legacy.svg);
+    assert.equal(selected.svg.includes('>' + word + '</text>'), keepWords);
+  }
+});
