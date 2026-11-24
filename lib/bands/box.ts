@@ -8,7 +8,7 @@ import {styledAtoms, textRuns} from '../layout-text.ts';
 import type {BoxInput} from '../strict.ts';
 import {TAG_SIZE} from '../tokens.ts';
 import type {BoxBand, LaidOutBox} from '../types/text-bands.ts';
-import {boxLikeContrastProblems, boxSizeFindings, nowrapProblems} from '../verify-box-like.ts';
+import {boxLikeContrastProblems, boxSizeFindings, nowrapProblems, statFitFindings} from '../verify-box-like.ts';
 import {ownRect} from '../verify-rects.ts';
 
 const selectedBoxSizeFindings: DiagramFindings = ({bands}) => boxSizeFindings(walkDefinedBands(bands));
@@ -31,7 +31,7 @@ export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
     return renderBox(laid, theme, tones, roles);
   },
   verify: {
-    diagramFindings: [frameLayoutFindings, selectedBoxSizeFindings],
+    diagramFindings: [frameLayoutFindings, selectedBoxSizeFindings, statFitFindings],
     rects: ownRect,
     check(laid, {theme, tones, appearance}) {
       return [

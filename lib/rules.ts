@@ -1,7 +1,7 @@
 import {parallelEdgeFindings} from './verify-cause-spacing.ts';
 import {densityRestorationFindings} from './verify-density.ts';
 import {narrowTextFindings} from './verify-shrink.ts';
-import {boxSizeFindings} from './verify-box-like.ts';
+import {boxSizeFindings, statFitFindings} from './verify-box-like.ts';
 import {fullWidthUnits, sourceLineFindings} from './verify-caption.ts';
 export {fullWidthUnits} from './verify-caption.ts';
 import {canvasRegionFindings} from './verify-grid.ts';
@@ -693,15 +693,6 @@ function edgeBendsRules(d: LintTarget, out: Finding[]): void {
   }
 }
 
-/** stat-fit-shrunk (ADR 0024 D5): a stat() value drawn smaller than its role's size to fit its box. Info: shrinking is the specified behaviour. */
-function statFitFindings(d: LintTarget, out: Finding[]): void {
-  const boxes: LaidOutBand[] = [];
-  for (const b of d.laidOut ?? []) { if (b.type === 'row' || b.type === 'grid') boxes.push(...b.children); else boxes.push(b); }
-  for (const b of boxes) if (b.type === 'box') for (const s of b.statShrunk ?? []) {
-    out.push({...at(b), rule: 'stat-fit-shrunk', severity: 'info', message: `stat の値 "${s.value}" を ${s.from}px から ${s.to}px に縮めた(箱の幅 ${Math.round(b.w)}px に収めるため)。同じ列の stat と大きさがそろわない。箱を広げるか、値を短くすると、そろう`});
-  }
-}
-
 /** The exact snippet that accepts a finding of `rule` (for the warning output); '' for a rule that cannot be accepted. */
 export function acceptHint(rule: string): string {
   return Object.hasOwn(RULE_DOCS, rule) ? `許容するなら diagram({accept: {'${rule}': '理由'}}) か .svg-diagram.json の {"accept": {"${rule}": "理由"}}（詳しくは check --explain ${rule}）` : '';
@@ -909,7 +900,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
     // no label at all is a convention (the arrows only mean "depends on" / "next"); some labelled and most not is the inconsistency to flag
     if (connects.length >= 4 && unlabeled < connects.length && unlabeled / connects.length > 0.6) out.push({rule: 'arrow-labels', severity: 'info', message: `矢印 ${connects.length} 本のうち ${unlabeled} 本にラベルがない。何が流れるか（成果物・プロトコル）を短く添える`});
   }
-  statFitFindings(d, out);
+  out.push(...statFitFindings(d));
   evidenceRules(d, out);
   out.push(...boxSizeFindings(walkBands(d.bands)));
   if (d.canvas && d.laidOut) {

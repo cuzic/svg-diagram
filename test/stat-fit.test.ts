@@ -135,6 +135,14 @@ test('a shrunk stat raises the info rule stat-fit-shrunk; accept keeps it an inf
   assert.equal(f.length, 1);
   assert.equal(f[0]!.severity, 'info');
   assert.ok(f[0]!.message.includes(`${ROLES.stat}px から ${b.wrappedRuns[0]!.size}px`));
+  const {band} = await import('../lib/band-def.ts');
+  const {boxDefinition} = await import('../lib/bands/box.ts');
+  const {renderBands} = await import('../lib/core.ts');
+  const {fontMeasurer} = await import('../lib/node-measure.ts');
+  const selected = await renderBands([band(boxDefinition, stat(value, 'ラベル'))], {measure: fontMeasurer()});
+  const notes = (findings: typeof f) => findings.filter(x => x.rule === 'stat-fit-shrunk')
+    .map(({severity, message}) => ({severity, message}));
+  assert.deepEqual(notes(selected.verdict.findings), notes(f));
   const accepted = (await checkDiagram(diagram({theme: 'blue', accept: {'stat-fit-shrunk': '細い列に置く'}}).add(stat(value, 'ラベル')))).verdict.findings.filter(x => x.rule === 'stat-fit-shrunk');
   assert.equal(accepted[0]!.severity, 'info');
   assert.match(accepted[0]!.message, /許容: 細い列に置く/);
@@ -160,4 +168,29 @@ test('other text is untouched: a long box title still wraps', async () => {
   const {b} = await laidBox(mk().add(box({title: '長い題'.repeat(30)})));
   assert.ok(b.wrappedRuns[0]!.lines.length > 1);
   assert.equal(b.wrappedRuns[0]!.shrunkFrom, undefined);
+});
+
+test('selected rows and grids retain stat shrink findings for their boxes', async () => {
+  const {row, grid} = await import('../lib/dsl.ts');
+  const {band} = await import('../lib/band-def.ts');
+  const {box: selectedBox, boxDefinition} = await import('../lib/bands/box.ts');
+  const {row: selectedRow} = await import('../lib/bands/row.ts');
+  const {grid: selectedGrid} = await import('../lib/bands/grid.ts');
+  const {renderBands} = await import('../lib/core.ts');
+  const {fontMeasurer} = await import('../lib/node-measure.ts');
+  const measure = fontMeasurer();
+  for (const type of ['row', 'grid'] as const) {
+    const wrap = (value: string) => type === 'row' ? row([stat(value, '値'), box({title: '比較'})])
+      : grid([stat(value, '値'), box({title: '比較'})], {cols: 2});
+    const probe = await checkDiagram(mk().add(wrap('1')));
+    const container = probe.laidOut.laidOut.find(b => b.type === type);
+    assert.ok(container && (container.type === 'row' || container.type === 'grid'));
+    const value = await valueBetween(container.children[0]!.w - 2 * PAD_X, ROLES.stat, statFitMin(ROLES, ROLES.stat));
+    const legacy = await checkDiagram(mk().add(wrap(value)));
+    const children = [band(boxDefinition, stat(value, '値')), selectedBox({title: '比較'})];
+    const selected = await renderBands([type === 'row' ? selectedRow(children) : selectedGrid(children, {cols: 2})], {measure});
+    const notes = (findings: typeof legacy.verdict.findings) => findings.filter(f => f.rule === 'stat-fit-shrunk').map(f => f.message);
+    assert.equal(notes(legacy.verdict.findings).length, 1, type);
+    assert.deepEqual(notes(selected.verdict.findings), notes(legacy.verdict.findings), type);
+  }
 });

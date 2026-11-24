@@ -1,5 +1,5 @@
 import {at} from './finding-rules.ts';
-import type {Band} from './types/index.ts';
+import type {Band, LaidOutBand, LaidOutDiagram} from './types/index.ts';
 import type {Finding} from './types/verdicts.ts';
 import {resolveBoxStyle, resolveTextColor} from './emit-common.ts';
 import {luminance as lightLuminance, paintOf, PALETTE, runColorOf} from './tokens.ts';
@@ -37,4 +37,15 @@ export function boxLikeContrastProblems(band: LaidOutBox | LaidOutBanner | LaidO
 export function boxSizeFindings(bands: readonly Band[]): Finding[] {
   const hit = bands.filter(b => b.type === 'box' && b.size !== undefined);
   return hit.length ? [{...at(hit[0], ...hit.slice(1)), rule: 'box-size-ignored', severity: 'warn', message: `box({size}) は効果がない(${hit.length} 個の箱)。大きい文字は役割を使う: stat() / stat({size: 'display'})・caption({role: 'display'})・banner({headlineRole})・bars / plane({labelRole})。次の版で throw する`}] : [];
+}
+
+/** stat-fit-shrunk (ADR 0024 D5): a stat() value drawn smaller than its role's size to fit its box. Info: shrinking is the specified behaviour. */
+export function statFitFindings(d: Partial<Pick<LaidOutDiagram, 'laidOut'>>): Finding[] {
+  const out: Finding[] = [];
+  const boxes: LaidOutBand[] = [];
+  for (const b of d.laidOut ?? []) { if (b.type === 'row' || b.type === 'grid') boxes.push(...b.children); else boxes.push(b); }
+  for (const b of boxes) if (b.type === 'box') for (const s of b.statShrunk ?? []) {
+    out.push({...at(b), rule: 'stat-fit-shrunk', severity: 'info', message: `stat の値 "${s.value}" を ${s.from}px から ${s.to}px に縮めた(箱の幅 ${Math.round(b.w)}px に収めるため)。同じ列の stat と大きさがそろわない。箱を広げるか、値を短くすると、そろう`});
+  }
+  return out;
 }

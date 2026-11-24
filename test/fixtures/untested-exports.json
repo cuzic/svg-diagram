@@ -597,6 +597,7 @@
   "verify-box-like:boxLikeContrastProblems",
   "verify-box-like:boxSizeFindings",
   "verify-box-like:nowrapProblems",
+  "verify-box-like:statFitFindings",
   "verify-bpmn:bpmnProblems",
   "verify-caption:sourceLineFindings",
   "verify-cause-spacing:parallelEdgeFindings",
