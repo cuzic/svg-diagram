@@ -1,3 +1,4 @@
+import type {ValueAxis} from './axis-comparison.ts';
 import {insetOrNeed} from './charts-base.ts';
 import {axisPart, partStep, PLANE_AXES} from './parts.ts';
 import {textWidth} from './atoms.ts';
@@ -368,4 +369,9 @@ function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: nu
     }
   }
   if (ink.lines.length || ink.polylines.length || ink.dots.length) out.ink = ink;
+}
+
+export function barsValueAxis(s: BarsBand): ValueAxis | undefined {
+  if (!s.unit) return undefined;
+  return {label: `bars「${s.data[0]?.label ?? ''}」`, unit: s.unit, vertical: s.dir === 'v', min: 0, max: s.max, own: false};
 }

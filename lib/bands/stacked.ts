@@ -1,6 +1,7 @@
+import {selectedAxisFindings} from '../axis-selected.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {layoutStacked, stackedTexts} from '../charts-stacked.ts';
+import {layoutStacked, stackedTexts, stackedValueAxis} from '../charts-stacked.ts';
 import type {StackColumn, StackedOpts, StackedSpec} from '../charts-stacked.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {stackedBars as buildStacked, mekko as buildMekko} from '../dsl/charts.ts';
@@ -8,12 +9,13 @@ import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} fr
 
 const definition = {
   type: 'chart',
+  valueAxis: data => stackedValueAxis(data.spec as StackedSpec),
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, stackedTexts(data.spec as StackedSpec)),
   layout: (data, env) => layoutSelectiveChart(data, env, geom => layoutStacked(data.spec as StackedSpec, geom)),
   emit: emitChart,
-  verify: verifyChart,
+  verify: {...verifyChart, diagramFindings: selectedAxisFindings},
 } satisfies BandDef<ChartBand, LaidOutChart>;
 
 export function stackedBars<const C extends readonly StackColumn[], const Id extends string = never>(

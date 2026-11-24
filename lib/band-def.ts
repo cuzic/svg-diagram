@@ -1,3 +1,4 @@
+import type {ValueAxis} from './axis-comparison.ts';
 import type {SvgBandDefs} from './emit-svg-core.ts';
 import {BandError} from './band-error.ts';
 import type {resolveConnect} from './layout-connect.ts';
@@ -83,6 +84,7 @@ interface BandHooks<D, L extends object> {
   svgDefs?(laid: L): SvgBandDefs;
   measure?(data: D, env: MeasureEnv): void;
   textSizes?(laid: L): Iterable<number>;
+  valueAxis?(data: D): ValueAxis | undefined;
   verify?: {
     rects?(laid: L): CheckRect[];
     findings?(data: D, ctx: VerifyCtx): Finding[];
@@ -157,12 +159,15 @@ export function defOf(b: object): BandDef | undefined {
   return (b as {[DEF]?: BandDef})[DEF];
 }
 
+export function definedNestedBandsOf(band: Band): readonly Band[] {
+  return band.type === 'swimlane' ? band.steps : defOf(band)?.children?.(band) ?? [];
+}
+
 /** Visit selected bands and their nested content in input order. */
 export function walkDefinedBands(bands: readonly Band[], out: Band[] = []): Band[] {
   for (const band of bands) {
     out.push(band);
-    const children = band.type === 'swimlane' ? band.steps : defOf(band)?.children?.(band) ?? [];
-    walkDefinedBands(children, out);
+    walkDefinedBands(definedNestedBandsOf(band), out);
   }
   return out;
 }

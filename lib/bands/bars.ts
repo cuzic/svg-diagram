@@ -1,7 +1,8 @@
+import {selectedAxisFindings} from '../axis-selected.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {barsTexts, layoutBars} from '../bars.ts';
+import {barsTexts, layoutBars, barsValueAxis} from '../bars.ts';
 import {bars as build, histogram as buildHistogram, pareto as buildPareto, rangeBars as buildRangeBars} from '../dsl/bars.ts';
 import type {HistogramOpts, ParetoOpts} from '../dsl/bars.ts';
 import {renderBars} from '../emit-figures.ts';
@@ -14,6 +15,7 @@ import {barsContrastProblems, barsProblems, barsRects, thinBarFindings} from '..
 
 const definition = {
   type: 'bars',
+  valueAxis: barsValueAxis,
   textSizes: texts,
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of barsTexts(data, roles)) atoms(text, size, weight, font);
@@ -29,7 +31,7 @@ const definition = {
   emit: (laid, {theme, stage}) => renderBars(laid, theme, stage),
   verify: {
     rects: barsRects,
-    diagramFindings: thinBarFindings,
+    diagramFindings: [thinBarFindings, selectedAxisFindings],
     check(laid, {theme, tones, appearance}) {
       const paint = paintOf(tones, appearance);
       return [...barsProblems(laid), ...barsContrastProblems(laid, theme, hex => luminance(paint(hex)))]

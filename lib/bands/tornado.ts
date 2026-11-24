@@ -1,6 +1,7 @@
+import {selectedAxisFindings} from '../axis-selected.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {layoutTornado, tornadoTexts} from '../charts-tornado.ts';
+import {layoutTornado, tornadoTexts, tornadoValueAxis} from '../charts-tornado.ts';
 import type {TornadoItem, TornadoOpts, TornadoSpec} from '../charts-tornado.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {tornado as build} from '../dsl/charts.ts';
@@ -8,12 +9,13 @@ import {chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} fr
 
 const definition = {
   type: 'chart',
+  valueAxis: data => tornadoValueAxis(data.spec as TornadoSpec),
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, tornadoTexts(data.spec as TornadoSpec)),
   layout: (data, env) => layoutSelectiveChart(data, env, geom => layoutTornado(data.spec as TornadoSpec, geom)),
   emit: emitChart,
-  verify: verifyChart,
+  verify: {...verifyChart, diagramFindings: selectedAxisFindings},
 } satisfies BandDef<ChartBand, LaidOutChart>;
 
 export function tornado<const I extends readonly TornadoItem[], const Id extends string = never>(

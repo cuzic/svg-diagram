@@ -24,6 +24,7 @@ import {stateMatrixFindings} from './state-matrix-rules.ts';
 import {midWordBreaksIn, missingGlyphs, sourceText} from './text-rules.ts';
 import {ceil4, connectRoom, labelCover, hidesArrow} from './connect-rules.ts';
 import {axisMismatches} from './axis-rules.ts';
+import {axisMismatchFindings} from './axis-comparison.ts';
 import {qualify, scopeOf} from './anchor-scope.ts';
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {analysisFindings, at, fromSources} from './finding-rules.ts';
@@ -822,15 +823,10 @@ function labelCoverRules(d: LintTarget, out: Finding[]): void {
   const widen = needs.length === 1 && hidden.length === 1 ? `箱の間隔を ${ceil4(must(needs[0]))}px 以上に広げる` : needs.length ? '箱の間隔を、それぞれの要る間隔以上に広げる' : '箱の間隔を広げる';
   if (hits.length) out.push({...at(hidden[0], ...hidden.slice(1)), rule: 'connect-label-covers-arrow', severity: 'warn', message: `矢印のラベルが矢印のほとんどを覆っていて、向きが読めない: ${hits.slice(0, 4).join('、')}${hits.length > 4 ? ` ほか ${hits.length - 4} 件` : ''}。直し方: ${widen}、ラベルを短くする、ラベルを箱の中に書く`});
 }
-function axisRules(d: LintTarget, out: Finding[]): void {
-  const pairs = axisMismatches(d.bands), found = [...pairs.keys()];
-  const refs = [...pairs.values()].flatMap(parts => [...parts].map(b => sourceOf(b)));
-  if (found.length) out.push({...fromSources(refs), rule: 'chart-axis-mismatch', severity: 'warn', message: `比べて読む 2 つのチャートの値の軸が違う: ${found.slice(0, 3).join('。')}${found.length > 3 ? ` ほか ${found.length - 3} 組` : ''}。同じ長さが別の値に見える。直し方: 両方に同じ domain を書く（bars は max）。横向きのチャートは、ラベルの列の幅が違うと同じ値が別の長さに見えるので、plotInset もそろえる。意図して別の軸なら axisGroup: false か accept`});
-}
 function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   const out: Finding[] = [];
   if (d.wrapFellBack) out.push({rule: 'wrap-fell-back', severity: 'info', message: "wrap: 'bunsetsu-soft': 文節で折ると図が幅に収まらなかったので、従来の折り方（phrase）で配置した。漢字・ひらがなの途中で折れる行が残る。図を 2 枚に分ける、文言を短くする、図の幅を広げると、文節で折れる"});
-  axisRules(d, out);
+  out.push(...axisMismatchFindings(axisMismatches(d.bands)));
   labelCoverRules(d, out);
   midWordRules(d, out);
   glyphRules(d, out);

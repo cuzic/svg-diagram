@@ -85,3 +85,51 @@ test('plotInset: less than the labels need names the minimum; a vertical chart o
   assert.throws(() => wfH({plotInset: [-1, 5]}), /plotInset must be \[left, right\]/);
   assert.throws(() => barsH({plotInset: [10]}), /plotInset must be \[left, right\]/);
 });
+
+test('selected axis checks compare mixed chart types across captions and groups', async () => {
+  const {bars: selectedBars} = await import('../lib/bands/bars.ts');
+  const {waterfall: selectedWaterfall} = await import('../lib/bands/waterfall.ts');
+  const {caption: selectedCaption} = await import('../lib/bands/caption.ts');
+  const {group: selectedGroup} = await import('../lib/bands/group.ts');
+  const {groupRow} = await import('../lib/bands/group-row.ts');
+  const {renderBands} = await import('../lib/core.ts');
+  const {fontMeasurer} = await import('../lib/node-measure.ts');
+  const opts = {measure: fontMeasurer(), title: '比較'};
+  const values = [{label: '件数', value: 4}];
+  const wfSteps = [{label: '開始', value: 0}, {label: '増分', value: 4}];
+  const horizontal = {unit: '件', dir: 'h'} as const;
+  const chart = selectedWaterfall(wfSteps, {...horizontal, domain: [0, 10]});
+  const mixed = await renderBands([selectedBars(values, {...horizontal, max: 6}), selectedCaption('比較'), chart], opts);
+  const expected = await found(bars(values, {...horizontal, max: 6}), caption('比較'), waterfall(wfSteps, {...horizontal, domain: [0, 10]}));
+  const notes = ({verdict}: typeof mixed) => verdict.findings.filter(f => f.rule === 'chart-axis-mismatch').map(f => f.message);
+  assert.equal(expected.length, 1);
+  assert.deepEqual(notes(mixed), expected.map(f => f.message));
+  const own = selectedWaterfall(wfSteps, {...horizontal, domain: [0, 10], axisGroup: false});
+  assert.deepEqual(notes(await renderBands([selectedBars(values, {...horizontal, max: 6}), own], opts)), []);
+  const vertical = {unit: '件', dir: 'v'} as const;
+  const selectedSide = groupRow([
+    selectedGroup(selectedBars(values, {...vertical, max: 6})),
+    selectedGroup(selectedWaterfall(wfSteps, {...vertical, domain: [0, 10]})),
+  ]);
+  const legacySide = row([group(bars(values, {...vertical, max: 6})), group(waterfall(wfSteps, {...vertical, domain: [0, 10]}))]);
+  const expectedSide = await found(legacySide);
+  assert.equal(expectedSide.length, 1);
+  assert.deepEqual(notes(await renderBands([selectedSide], opts)), expectedSide.map(f => f.message));
+  const {tornado: selectedTornado} = await import('../lib/bands/tornado.ts');
+  const {stackedBars: selectedStacked} = await import('../lib/bands/stacked.ts');
+  const swings = [{label: '費用', low: 2, high: 8}];
+  const tornadoOptions = {base: 4, unit: '件', domain: [0, 12] as [number, number]};
+  const paired = await renderBands([chart, selectedTornado(swings, tornadoOptions)], opts);
+  assert.deepEqual(notes(paired), (await found(waterfall(wfSteps, {...horizontal, domain: [0, 10]}),
+    tornado(swings, tornadoOptions))).map(f => f.message));
+  assert.equal(notes(paired).length, 1);
+
+  const columns = [{label: '件数', parts: [{label: 'A', value: 4}]}];
+  const stackedOptions = {unit: '件', domain: [0, 10] as [number, number]};
+  const stackedSide = groupRow([selectedGroup(selectedBars(values, {...vertical, max: 6})),
+    selectedGroup(selectedStacked(columns, stackedOptions))]);
+  const legacyStackedSide = row([group(bars(values, {...vertical, max: 6})), group(stackedBars(columns, stackedOptions))]);
+  const stackedNotes = notes(await renderBands([stackedSide], opts));
+  assert.equal(stackedNotes.length, 1);
+  assert.deepEqual(stackedNotes, (await found(legacyStackedSide)).map(f => f.message));
+});

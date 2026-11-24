@@ -1,3 +1,4 @@
+import type {ValueAxis} from './axis-comparison.ts';
 // tornado(): a sensitivity chart. Each row is one input; its two bars run from the base result to the result in the low case and in the
 // high case, so the longest row is the input the result is most sensitive to and the rows fall in order of that length.
 import {axisPart, partStep} from './parts.ts';
@@ -138,4 +139,10 @@ export function layoutTornado(s: TornadoSpec, g: ChartGeom): LaidOutChartPart {
   c.withPart(base, () => c.text(baseText, Math.min(Math.max(xb, g.x + half), g.x + g.w - half), y0 - 12, 'middle', 'text', {bold: true}));
   void Canvas;
   return c.done();
+}
+
+export function tornadoValueAxis(s: TornadoSpec): ValueAxis | undefined {
+  if (!s.unit) return undefined;
+  const sc = tornadoScale(s);
+  return {label: `tornado「${s.items[0]?.label ?? ''}」`, unit: s.unit, vertical: false, min: sc.min, max: sc.max, own: s.axisGroup === false};
 }
