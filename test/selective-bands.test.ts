@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {caption} from '../lib/bands/caption.ts';
+import {banner} from '../lib/bands/banner.ts';
+import {raw} from '../lib/bands/raw.ts';
+import {areas} from '../lib/bands/areas.ts';
 import {groupRow} from '../lib/bands/group-row.ts';
 import {group} from '../lib/bands/group.ts';
 import {spacer} from '../lib/bands/spacer.ts';
@@ -10,7 +13,8 @@ import {row} from '../lib/bands/row.ts';
 import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
-import {box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {em} from '../lib/rich.ts';
+import {areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -159,4 +163,31 @@ test('loop-back expansion also binds the generated connector inside a group', as
     {loopBack: {from: 2, to: 1, label: 'Retry'}}))], {measure, connectors: connectDefinition});
   assert.match(result.svg, /Retry/);
   assert.ok(result.verdict.ok, JSON.stringify(result.verdict.problems));
+});
+
+test('selected areas preserve spans, generated group wrappers and labelled connections', async () => {
+  const template = ['head head', 'left right'];
+  const options = {cols: [1, 2], gap: 80};
+  const link = {label: 'go', route: 'straight'} as const;
+  const selected = await renderBands([
+    areas(template, {head: caption('Plan'), left: box({title: 'Review'}), right: group(box({title: 'Next'}), {title: 'Work'})}, options),
+    connect('left:right', 'right:left', link),
+  ], {measure, title: 'Example'});
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Example', legend: false})
+    .add(legacyAreas(template, {head: legacyCaption('Plan'), left: legacyBox({title: 'Review'}), right: legacyGroup(legacyBox({title: 'Next'}), {title: 'Work'})}, options))
+    .add(legacyConnect('left:right', 'right:left', link)), {measure});
+  assert.deepEqual(selected.xml, []);
+  assert.equal(selected.height, expected.height);
+  assert.equal(selected.svg.slice(selected.svg.indexOf('  <defs>')), expected.svg.slice(expected.svg.indexOf('  <defs>')));
+});
+
+test('selective banners and raw bands preserve rich text, stamps and custom geometry', async () => {
+  const options = {headline: ['Review ', em.accent('plan')], sub: 'Next step', stamp: 'Draft'} as const;
+  const shape = {h: 32, draw: ({x, y, w}: {x: number; y: number; w: number}) => `<rect x="${x}" y="${y}" width="${w}" height="24" fill="#ffffff"/>`};
+  const selected = await renderBands([banner(options), raw(shape)], {measure, title: 'Plan'});
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false})
+    .add(legacyBanner(options), legacyRaw(shape)), {measure});
+  assert.deepEqual(selected.xml, []);
+  assert.equal(selected.height, expected.height);
+  assert.equal(selected.svg.slice(selected.svg.indexOf('  <style>')), expected.svg.slice(expected.svg.indexOf('  <style>')));
 });

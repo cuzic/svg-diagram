@@ -10,7 +10,7 @@ import {captionDefinition} from './caption.ts';
 
 type SelectedBand = Band & {readonly [DEF]: object};
 
-const definition = {
+export const groupDefinition: BandDef<GroupBand, LaidOutGroup> = {
   type: 'group',
   internal: true,
   layout: layoutGroup,
@@ -21,11 +21,11 @@ const definition = {
     if (data.stamp) atoms(data.stamp, roles.note, 400);
   },
   emit: (laid, env) => renderGroup(laid, env.theme, env.tones, env.roles),
-} satisfies BandDef<GroupBand, LaidOutGroup>;
+};
 
 export function group<C extends SelectedBand | SelectedBand[], const Id extends string = never>(
   children: C, opts?: GroupOpts & {id?: Id},
 ): WithBandDef<ReturnType<typeof buildGroup<C, Id>>, LaidOutGroup> {
   const data = buildGroup<C, Id>(children, opts);
-  return band<typeof data, LaidOutGroup>(definition, data);
+  return band<typeof data, LaidOutGroup>(groupDefinition, data);
 }

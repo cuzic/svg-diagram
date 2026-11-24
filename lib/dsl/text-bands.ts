@@ -1,13 +1,13 @@
 import {walkBands} from '../rules.ts';
 import {CAUSE_ROLES} from '../toc.ts';
-import {assertSolidText, richField} from '../rich.ts';
-import {ROLES, HEADLINE_ROLES, OPT_IN_TEXT_MAX, isSolidTone} from '../tokens.ts';
+import {richField} from '../rich.ts';
+import {ROLES, OPT_IN_TEXT_MAX} from '../tokens.ts';
 import type {LegendBand, LegendItem, LegendOpts, RawBand, RawOpts} from '../types/containers.ts';
 import type {TextTone} from '../types/core.ts';
 import type {Band} from '../types/index.ts';
-import type {BannerBand, BannerOpts, BoxBand, RichText, StatConfidence, StatOpts} from '../types/text-bands.ts';
+import type {BoxBand, RichText, StatConfidence, StatOpts} from '../types/text-bands.ts';
 import type {Declares, HandleOf} from '../strict.ts';
-import {assertNoReveal, assertOneOf, assertTextRole, EMPHASIS_TONES, revealOf, withHandle} from './shared.ts';
+import {assertNoReveal, revealOf, withHandle} from './shared.ts';
 
 export {caption} from './caption.ts';
 export {box} from './box.ts';
@@ -50,19 +50,7 @@ export function stat(value: string | number, label: RichText, opts: StatOpts = {
     ], statValue: text, ...(opts.source !== undefined ? {evidence: {source: opts.source, ...(opts.confidence ? {confidence: opts.confidence} : {})}} : {}),
   }, opts.id);
 }
-export function banner<const Id extends string = never>(opts: BannerOpts & {id?: Id}): BannerBand & Declares<Id> & HandleOf<Id>;
-export function banner(opts: BannerOpts): BannerBand {
-  if (opts.headline === undefined) throw new Error('banner() needs a headline (the text key is headline, not text / title)');
-  assertOneOf(opts.tone, EMPHASIS_TONES, 'banner() tone');
-  assertTextRole(opts.headlineRole, HEADLINE_ROLES, 'banner() headlineRole');
-  const headline = richField(opts.headline, {field: 'banner() headline', bold: true, tone: opts.headlineTone});
-  const sub = richField(opts.sub, {field: 'banner() sub', bold: false, tone: opts.subTone ?? (isSolidTone(opts.tone) ? undefined : 'muted')});
-  const text = {...(typeof opts.headline === 'string' ? {} : {headline: headline.text ?? ''}), ...(typeof opts.sub === 'string' || opts.sub === undefined ? {} : {sub: sub.text})};
-  const spans = headline.spans || sub.spans ? {spans: {...(headline.spans ? {headline: headline.spans} : {}), ...(sub.spans ? {sub: sub.spans} : {})}} : {};
-  const band = {type: 'banner', tone: opts.tone ?? 'accent', ...opts, ...text, ...spans} as BannerBand;
-  assertSolidText(band, 'banner()');
-  return withHandle(band, opts.id);
-}
+export {banner} from './banner.ts';
 // A labelled frame around other bands (a network zone, a service boundary, a
 // release phase). children: any bands (row, grid, box, nested group...).
 // tone: 'muted' (default, grey fill) | 'accent' | 'plain' (white) | 'danger';

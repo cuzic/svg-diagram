@@ -183,6 +183,18 @@
       "types": "./dist/lib/bands/row.d.ts",
       "default": "./dist/lib/bands/row.js"
     },
+    "./bands/areas": {
+      "types": "./dist/lib/bands/areas.d.ts",
+      "default": "./dist/lib/bands/areas.js"
+    },
+    "./bands/banner": {
+      "types": "./dist/lib/bands/banner.d.ts",
+      "default": "./dist/lib/bands/banner.js"
+    },
+    "./bands/raw": {
+      "types": "./dist/lib/bands/raw.d.ts",
+      "default": "./dist/lib/bands/raw.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"
