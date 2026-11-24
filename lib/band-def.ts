@@ -1,3 +1,4 @@
+import type {prepareConnectorGaps} from './layout-connect-gaps.ts';
 import type {areasPrelayout} from './layout-areas-gaps.ts';
 import type {LoopBackSource, loopBackConnectors} from './loop-back.ts';
 import type {connectorInventory} from './inventory-lines.ts';
@@ -127,6 +128,7 @@ interface InternalLayout<D> {
   areasPrelayout?: typeof areasPrelayout;
   outputTypes?: readonly string[];
   resolveConnect?: typeof resolveConnect;
+  connectorGaps?: typeof prepareConnectorGaps;
   connectorInventory?: typeof connectorInventory;
   loopBackConnectors?: typeof loopBackConnectors;
   mapLoopBackChildren?(data: D, expand: (children: Band[]) => Band[]): void;

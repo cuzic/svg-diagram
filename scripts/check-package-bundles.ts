@@ -333,8 +333,8 @@ try {
         );
         return {svg: emit(placed), verdict};
       };
-    `, include: 'diagram-description.js', budget: {esbuild: 99500, Vite: 124500}, bands: ['table.js'],
-      exclude: [...legacy, 'layout-areas-gaps.js', 'lib/spec.js', 'lib/bars.js', 'band-children.js', 'inventory-boxes.js', 'inventory-lines.js', 'layout-connect.js'], draw: true},
+    `, include: 'diagram-description.js', budget: {esbuild: 93500, Vite: 115000}, bands: ['table.js'],
+      exclude: [...legacy, 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'lib/spec.js', 'lib/bars.js', 'band-children.js', 'inventory-boxes.js', 'inventory-lines.js', 'layout-connect.js'], draw: true},
     {name: 'Selected heatmap spec', source: `
       import {renderSpec} from 'svg-diagram/spec/selective';
       import {heatmapPart} from 'svg-diagram/spec/parts/heatmap';
@@ -402,7 +402,7 @@ try {
       exclude: [...legacy, 'pptx/selective.js', 'pptx/zip-node.js', 'lib/core.js', 'lib/png.js'], budget: {esbuild: 2500, Vite: 2500}},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
-      exclude: [...legacy, 'layout-areas-gaps.js', 'document-findings.js', 'term-rules.js', 'toc-rules.js', 'verify-bars.js', 'axis-comparison.js', 'axis-selected.js', 'verify-image.js', 'verify-box-like.js', 'verify-shrink.js', 'verify-density.js', 'verify-cause-spacing.js', 'verify-edge-bends.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'verify-caption.js', 'verify-grid.js', 'table-number-rules.js', 'verify-flowchart.js', 'verify-concentric.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 52000, Vite: 70000}},
+      exclude: [...legacy, 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'document-findings.js', 'term-rules.js', 'toc-rules.js', 'verify-bars.js', 'axis-comparison.js', 'axis-selected.js', 'verify-image.js', 'verify-box-like.js', 'verify-shrink.js', 'verify-density.js', 'verify-cause-spacing.js', 'verify-edge-bends.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'verify-caption.js', 'verify-grid.js', 'table-number-rules.js', 'verify-flowchart.js', 'verify-concentric.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 46000, Vite: 60500}},
     {name: 'Document findings', source: `
       import {renderBands} from 'svg-diagram/core';
       import {box} from 'svg-diagram/bands/box';
@@ -418,11 +418,11 @@ try {
     {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',
       exclude: [...legacy, 'box.js', 'emit-boxes.js', 'layout-connect.js', 'timeline.js'], budget: {esbuild: 68000, Vite: 91500}, draw: true},
     {name: 'Row', source: composedSource(['box', 'row'], "row([box({title: 'Review'}), box({title: 'Next'})], {arrows: 'between'})"),
-      include: 'bands/row.js', budget: {esbuild: 91500, Vite: 116000}, bands: ['box.js', 'row.js'], exclude: [...legacy, 'layout-areas-gaps.js', 'layout-grid.js', 'layout-connect.js', 'layout-group.js', 'layout-group-row.js', 'layout-areas.js', 'gantt.js'], draw: true},
+      include: 'bands/row.js', budget: {esbuild: 87500, Vite: 110000}, bands: ['box.js', 'row.js'], exclude: [...legacy, 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'layout-grid.js', 'layout-connect.js', 'layout-group.js', 'layout-group-row.js', 'layout-areas.js', 'gantt.js'], draw: true},
     {name: 'Grid', source: composedSource(['box', 'grid'], "grid([box({title: 'Review'}), box({title: 'Next'})], {cols: 2})"),
-      include: 'bands/grid.js', budget: {esbuild: 86500, Vite: 111000}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'layout-areas-gaps.js', 'layout-row.js', 'layout-connect.js', 'gantt.js'], draw: true},
+      include: 'bands/grid.js', budget: {esbuild: 81500, Vite: 102500}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Connect', source: composedSource(['box', 'connect'], "connect('a:bottom', 'b:top'), connect('b:bottom', 'c:top'), connect('d:bottom', 'e:top'), box({id: 'a', title: 'Review'}), ...['b', 'c', 'd', 'e', 'f'].map(id => box({id, title: id}))"),
-      include: 'bands/connect.js', budget: {esbuild: 106000, Vite: 133500}, bands: ['box.js', 'connect.js'], exclude: [...legacy, 'layout-areas-gaps.js', 'layout-row.js', 'layout-grid.js', 'gantt.js'], draw: true},
+      include: 'layout-connect-gaps.js', budget: {esbuild: 106000, Vite: 133500}, bands: ['box.js', 'connect.js'], exclude: [...legacy, 'layout-areas-gaps.js', 'layout-row.js', 'layout-grid.js', 'gantt.js'], draw: true},
     {name: 'Row loop-back', source: `
       import {renderBands} from 'svg-diagram/core';
       import {box} from 'svg-diagram/bands/box';
@@ -441,7 +441,7 @@ try {
     {name: 'Group row', source: composedSource(['box', 'group', 'groupRow'], "groupRow([group(box({title: 'Review'})), box({title: 'Next'})])"),
       include: 'bands/group-row.js', budget: {esbuild: 99500, Vite: 126500}, bands: ['box.js', 'caption.js', 'group-row.js', 'group.js'], exclude: [...legacy, 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Areas', source: composedSource(['areas', 'box'], "areas(['wide wide', 'left right'], {wide: box({title: 'Review'}), left: box({title: 'Left'}), right: box({title: 'Right'})})"),
-      include: 'layout-areas-gaps.js', budget: {esbuild: 101000, Vite: 128500}, bands: ['areas.js', 'box.js', 'caption.js', 'group.js'], exclude: [...legacy, 'layout-group-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
+      include: 'layout-areas-gaps.js', budget: {esbuild: 95500, Vite: 120000}, bands: ['areas.js', 'box.js', 'caption.js', 'group.js'], exclude: [...legacy, 'layout-connect-gaps.js', 'layout-group-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Banner and raw', source: composedSource(['banner', 'raw'], `banner({headline: 'Review'}), raw({h: 32, draw: ({x, y}) => '<rect x="' + x + '" y="' + y + '" width="24" height="24"/>'})`),
       include: 'bands/banner.js', budget: {esbuild: 63500, Vite: 85500}, bands: ['banner.js', 'raw.js'], exclude: [...legacy, 'layout-areas.js', 'layout-group.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Curve', source: composedSource(['curve'], "curve([{y: 0.3, dropLine: true}, {y: 0.8}], {xLabel: 'Review'})"),

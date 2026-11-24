@@ -1,3 +1,4 @@
+import {prepareConnectorGaps} from '../layout-connect-gaps.ts';
 import {connectorInventory} from '../inventory-lines.ts';
 import {findingAcceptanceHint} from '../finding-rules.ts';
 import {connectorFindings, connectorRules} from '../verify-connect-crossings.ts';
@@ -20,6 +21,7 @@ export const connectDefinition: BandDef<ConnectBand, LaidOutConnect> = {
   type: 'connect',
   internal: true,
   layout: layoutConnect,
+  connectorGaps: prepareConnectorGaps,
   resolveConnect,
   connectorInventory,
   rules: connectorRules,

@@ -184,7 +184,9 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     return must(measured.get(keyOf(text, size, weight, font))?.w, `renderBands: width was not measured for "${text}"`);
   };
   const placedDefinition = (band: LaidOutBand) => definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
+  const connection = definitions.get('connect');
   const layout = createLayoutWith({
+    connectorGaps: connection?.internal ? connection.connectorGaps : undefined,
     resolveConnect: (...args) => {
       const def = defOf(args[0]);
       return must(def?.internal ? def.resolveConnect : undefined)(...args);

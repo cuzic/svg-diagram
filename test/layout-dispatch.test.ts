@@ -5,6 +5,8 @@ import {build} from 'esbuild';
 import {scopesOf} from '../lib/anchor-scope.ts';
 import {childrenOf, stackWidthOf} from '../lib/band-children.ts';
 import {resolveConnect} from '../lib/layout-connect.ts';
+import {prepareConnectorGaps} from '../lib/layout-connect-gaps.ts';
+import {areasPrelayout} from '../lib/layout-areas-gaps.ts';
 import {buildInventory} from '../lib/inventory.ts';
 import {diagram} from '../lib/dsl/diagram.ts';
 import {box} from '../lib/dsl/box.ts';
@@ -25,11 +27,11 @@ test('layout and measurement bundle independently of the legacy band tables', as
     outdir: 'out',
     bundle: true, platform: 'browser', write: false, metafile: true,
   });
-  const excluded = ['/layout-handlers.ts', '/layout-measure.ts', '/quadrant.ts', '/band-children.ts', '/band-ids.ts', '/inventory.ts', '/layout-connect.ts'];
+  const excluded = ['/layout-handlers.ts', '/layout-measure.ts', '/quadrant.ts', '/band-children.ts', '/band-ids.ts', '/inventory.ts', '/layout-connect.ts', '/layout-connect-gaps.ts'];
   assert.ok(Object.keys(metafile.inputs).every(file => excluded.every(suffix => !file.endsWith(suffix))));
 });
 
-const layoutServices = {resolveConnect, childrenOf, stackWidthOf, scopesOf, buildInventory, hasChildrenHandler: () => true};
+const layoutServices = {resolveConnect, connectorGaps: prepareConnectorGaps, areasPrelayoutFor: () => areasPrelayout, childrenOf, stackWidthOf, scopesOf, buildInventory, hasChildrenHandler: () => true};
 
 test('layout resolution is local to one layout function', () => {
   const data = diagram({theme: 'blue'}).add(box({title: 'Review'}));
