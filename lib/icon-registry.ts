@@ -19,7 +19,8 @@ let explicit: IconManifest | undefined;
 const found = new Map<string, IconManifest>();
 
 /** Path of the manifest that applies from `from`, or undefined. */
-export function findManifest(from: string | undefined = globalThis.process?.cwd?.()): string | undefined {
+export function findManifest(from?: string): string | undefined {
+  from ??= globalThis.process?.cwd?.();
   const fs = nodeFs(), path = nodePath();
   if (!fs || !path || from === undefined) return undefined;
   let dir = path.resolve(from);

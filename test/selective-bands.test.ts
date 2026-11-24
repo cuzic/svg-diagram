@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {TreeItem} from '../lib/types/diagrams.ts';
 import {caption} from '../lib/bands/caption.ts';
+import {canvas} from '../lib/compose/selective/canvas.ts';
+import {hero} from '../lib/compose/selective/hero.ts';
+import {iconRow} from '../lib/compose/selective/icon-row.ts';
+import {versus} from '../lib/compose/selective/versus.ts';
+import {canvas as legacyCanvas, hero as legacyHero, iconRow as legacyIconRow, versus as legacyVersus} from '../lib/web.ts';
 import {image} from '../lib/bands/image.ts';
 import {image as legacyImage} from '../lib/dsl.ts';
 import {combo} from '../lib/bands/combo.ts';
@@ -723,4 +728,27 @@ test('selective images preserve annotations, overlaid bands and mark connections
   assert.match(selected.svg, /入口/);
   assert.match(selected.svg, /marker-end=/);
   assert.throws(() => image('local.png', {alt: 'Picture'}), /data URI/);
+});
+
+test('selective composers preserve the SVG of canvas, hero, icon row and versus', async () => {
+  const content = {strengths: ['技術'], weaknesses: ['知名度'], opportunities: ['需要'], threats: ['競合']};
+  const heroOpts = {banner: {headline: '実績'}, stat: {value: 12, label: '件'}, caption: '見出し', note: '注記'};
+  const icons = [{icon: 'check' as const, label: '確認'}];
+  const sides = {left: {id: 'left', title: '案A'}, right: {id: 'right', title: '案B'}, shared: {id: 'shared', title: '共通'}};
+  const actual = await renderBands([
+    canvas('swot', content, {id: 'swot'}),
+    ...hero({...heroOpts, flow: [box({title: '申請'})]}), iconRow(icons),
+    ...versus({...sides.left, children: box({title: '費用'})}, {...sides.right, children: box({title: '納期'})},
+      {shared: {...sides.shared, children: box({title: '品質'})}}),
+  ], {measure, title: 'Plan'});
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false}).add(
+    legacyCanvas('swot', content, {id: 'swot'}),
+    ...legacyHero({...heroOpts, flow: [legacyBox({title: '申請'})]}), legacyIconRow(icons),
+    ...legacyVersus({...sides.left, children: legacyBox({title: '費用'})}, {...sides.right, children: legacyBox({title: '納期'})},
+      {shared: {...sides.shared, children: legacyBox({title: '品質'})}}),
+  ), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.deepEqual(actual.xml, []);
+  assert.deepEqual(actual.verdict.problems, expected.verdict.problems);
+  assert.equal(body(actual.svg), body(expected.svg));
 });

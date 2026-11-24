@@ -424,6 +424,22 @@
       "types": "./dist/lib/web-measure.d.ts",
       "default": "./dist/lib/web-measure.js"
     },
+    "./compose/canvas": {
+      "types": "./dist/lib/compose/selective/canvas.d.ts",
+      "default": "./dist/lib/compose/selective/canvas.js"
+    },
+    "./compose/hero": {
+      "types": "./dist/lib/compose/selective/hero.d.ts",
+      "default": "./dist/lib/compose/selective/hero.js"
+    },
+    "./compose/icon-row": {
+      "types": "./dist/lib/compose/selective/icon-row.d.ts",
+      "default": "./dist/lib/compose/selective/icon-row.js"
+    },
+    "./compose/versus": {
+      "types": "./dist/lib/compose/selective/versus.d.ts",
+      "default": "./dist/lib/compose/selective/versus.js"
+    },
     "./html/selective": {
       "types": "./dist/lib/html-selective.d.ts",
       "default": "./dist/lib/html-selective.js"

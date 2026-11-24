@@ -7,18 +7,18 @@ import type {Declares, IdsOf, RowHandleOf} from '../strict.ts';
 import type {LaidOutRow, RowBand, RowOpts} from '../types/containers.ts';
 import type {BoxBand} from '../types/text-bands.ts';
 
-const definition = {
+export const rowDefinition: BandDef<RowBand, LaidOutRow> = {
   type: 'row',
   internal: true,
   layout: layoutRow,
   children: data => data.children,
   emit: (laid, env) => renderRow(laid, env.theme, env.tones, env.roles, env.stage),
-} satisfies BandDef<RowBand, LaidOutRow>;
+};
 
 export function row<C extends BoxBand & {readonly [DEF]: object}, const Id extends string = never>(
   children: C[], opts?: RowOpts & {id?: Id},
 ): WithBandDef<RowBand & Declares<IdsOf<C> | Id> & RowHandleOf<Id>, LaidOutRow> {
   const data = buildRow<C, Id>(children, opts);
   if (data.type !== 'row') throw new Error('bands/row: box() の子を指定してください');
-  return band<typeof data, LaidOutRow>(definition, data);
+  return band<typeof data, LaidOutRow>(rowDefinition, data);
 }

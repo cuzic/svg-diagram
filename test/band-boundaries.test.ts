@@ -29,7 +29,7 @@ function composerViolations(root: string, sources: string[]): string[] {
     if (COMPOSER_IMPORTERS.includes(file) || isSpecPart(file)) return [];
     return importsOf(path.join(root, file + '.ts')).local
       .map(spec => resolveLocal(file, spec))
-      .filter(dep => dep.startsWith('compose/'))
+      .filter(dep => dep.startsWith('compose/') && file !== `compose/selective/${dep.slice('compose/'.length)}`)
       .map(dep => `${file} → ${dep}`);
   });
 }

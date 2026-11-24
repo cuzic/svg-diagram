@@ -7,7 +7,7 @@ import {styledAtoms, textRuns} from '../layout-text.ts';
 import type {BannerBand, BannerOpts, LaidOutBanner} from '../types/text-bands.ts';
 import {boxLikeContrastProblems} from '../verify-box-like.ts';
 
-const definition = {
+export const bannerDefinition: BandDef<BannerBand, LaidOutBanner> = {
   type: 'banner',
   internal: true,
   layout: layoutBoxLikeBand,
@@ -20,9 +20,9 @@ const definition = {
   emit: (laid, env) => renderBanner(laid, env.theme, env.tones, env.roles),
   verify: {check: (laid, {theme, tones}) => boxLikeContrastProblems(laid, laid.tone ?? 'accent', theme, tones)
     .map(message => ({rule: 'contrast', severity: 'problem', message}))},
-} satisfies BandDef<BannerBand, LaidOutBanner>;
+};
 
 export function banner<const Id extends string = never>(opts: BannerOpts & {id?: Id}): WithBandDef<ReturnType<typeof buildBanner<Id>>, LaidOutBanner> {
   const data = buildBanner<Id>(opts);
-  return band<typeof data, LaidOutBanner>(definition, data);
+  return band<typeof data, LaidOutBanner>(bannerDefinition, data);
 }

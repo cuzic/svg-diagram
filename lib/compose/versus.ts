@@ -38,7 +38,7 @@ export interface VersusSharedOpts<C extends BandInput = BandInput, Id extends st
 }
 
 type VersusBands = (GroupRowBand | GroupBand | ConnectBand | SpacerBand)[];
-type VersusResult<LC, RC, LI extends string, RI extends string, SC = never, SI extends string = never> =
+export type VersusResult<LC, RC, LI extends string, RI extends string, SC = never, SI extends string = never> =
   ((GroupRowBand | GroupBand | ConnectBand | SpacerBand)
     & Declares<IdsOf<LC> | IdsOf<RC> | IdsOf<SC> | LI | RI | SI>
     & Refers<RefsOf<LC> | RefsOf<RC> | RefsOf<SC>>)[];

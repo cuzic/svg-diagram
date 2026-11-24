@@ -6,15 +6,15 @@ import {layoutGridBand} from '../layout-grid.ts';
 import type {GridBand, LaidOutGrid, GridOpts} from '../types/containers.ts';
 import type {BoxBand} from '../types/text-bands.ts';
 
-const definition = {
+export const gridDefinition: BandDef<GridBand, LaidOutGrid> = {
   type: 'grid',
   internal: true,
   layout: layoutGridBand,
   children: data => data.children,
   emit: (laid, env) => renderGrid(laid, env.theme, env.tones, env.roles, env.stage),
-} satisfies BandDef<GridBand, LaidOutGrid>;
+};
 
 export function grid<C extends BoxBand & {readonly [DEF]: object}>(children: C[], opts: GridOpts): WithBandDef<ReturnType<typeof buildGrid<C>>, LaidOutGrid> {
   const data = buildGrid(children, opts);
-  return band<typeof data, LaidOutGrid>(definition, data);
+  return band<typeof data, LaidOutGrid>(gridDefinition, data);
 }

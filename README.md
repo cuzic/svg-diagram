@@ -145,6 +145,8 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 
 画像の個別入口は PNG・JPEG・GIF・WebP の data URI を受け取り、SVG 内に埋め込みます。Node.js では `svg-diagram/bands/image/node` の `imageFile(path, {alt, baseDir})` で画像ファイルを読み込み、同じ `renderBands` に渡せます。相対パスは `baseDir`（省略時はカレントディレクトリ）から解決します。`new URL('./picture.png', import.meta.url)` を渡すとモジュールからの相対指定になります。
 
+複数の帯を組み合わせる `canvas`、`hero`、`iconRow`、`versus` は `svg-diagram/compose/canvas`、`compose/hero`、`compose/icon-row`、`compose/versus` から個別に読み込めます。結果は `renderBands` に渡せます。`hero` と `versus` は複数の帯を返すので、配列に展開します。
+
 同じ帯を HTML に描くには `svg-diagram/html/selective` の `renderBandsHtml` を使います。
 `svg-diagram/html/bands` から必要なアダプター（例 `boxHtml`）を import し、`adapters: {box: boxHtml}` で渡します。文字の位置合わせには `fontBox(size, weight, mono)` で ascent と descent を返します。アダプターが描けない帯と接続線はインライン SVG になり、`fallbacks` に載ります。`strict: true` では SVG への切り替えをエラーにできます。
 
