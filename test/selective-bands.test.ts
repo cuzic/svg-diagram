@@ -978,3 +978,18 @@ test('selected flowchart and concentric checks preserve branch and label finding
   assert.ok(notes(legacy).some(f => f.rule === 'concentric-label-crossing'));
   assert.deepEqual(notes(selected), notes(legacy));
 });
+
+test('selected canvases report required empty regions and wrapped source lines', async () => {
+  const {captionDefinition} = await import('../lib/bands/caption.ts');
+  const content = {strengths: ['技術'], weaknesses: ['知名度']};
+  const sourceLine = '出典 ' + '公開統計をもとに集計した結果'.repeat(7);
+  const opts = {width: 720, title: '比較', sourceLine};
+  const actual = await renderBands([canvas('swot', content, {requireAll: true})], {...opts, measure, captions: captionDefinition});
+  const legacy = await renderInBrowser(diagram({...opts, theme: 'blue', legend: false})
+    .add(legacyCanvas('swot', content, {requireAll: true})), {measure});
+  const notes = ({verdict}: typeof actual) => verdict.findings
+    .filter(f => f.rule === 'source-wraps' || f.rule === 'canvas-region-empty')
+    .map(({rule, severity, message}) => ({rule, severity, message})).sort((a, b) => a.rule.localeCompare(b.rule));
+  assert.deepEqual(notes(legacy).map(f => f.rule), ['canvas-region-empty', 'source-wraps']);
+  assert.deepEqual(notes(actual), notes(legacy));
+});

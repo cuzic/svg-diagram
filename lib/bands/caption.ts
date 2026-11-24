@@ -1,3 +1,4 @@
+import {sourceLineFindings} from '../verify-caption.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {caption as buildCaption} from '../dsl/caption.ts';
@@ -17,8 +18,11 @@ export const captionDefinition: BandDef<CaptionBand, LaidOutCaption> = {
     }
   },
   emit: (laid, env) => renderCaption(laid, env.theme, env.tones),
-  verify: {check: (laid, {theme, tones, appearance}) => boxLikeContrastProblems(laid, null, theme, tones, appearance)
-    .map(message => ({rule: 'contrast', severity: 'problem', message}))},
+  verify: {
+    layoutFindings: sourceLineFindings,
+    check: (laid, {theme, tones, appearance}) => boxLikeContrastProblems(laid, null, theme, tones, appearance)
+      .map(message => ({rule: 'contrast', severity: 'problem', message})),
+  },
 };
 
 export function caption(text: RichText, opts?: CaptionOpts): WithBandDef<CaptionBand, LaidOutCaption> {

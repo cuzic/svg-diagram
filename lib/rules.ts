@@ -1,3 +1,6 @@
+import {fullWidthUnits, sourceLineFindings} from './verify-caption.ts';
+export {fullWidthUnits} from './verify-caption.ts';
+import {canvasRegionFindings} from './verify-grid.ts';
 import {concentricFindings} from './verify-concentric.ts';
 import {flowchartFindings} from './verify-flowchart.ts';
 import {stateMatrixFindings} from './state-matrix-rules.ts';
@@ -774,14 +777,6 @@ export function lintDiagram(d: LintTarget): Finding[] {
   });
 }
 
-// the width of a line in full-width characters (CJK, kana, hangul, fullwidth forms and pictographs count 1, everything else
-// - Latin, digits, halfwidth katakana - 0.5)
-const WIDE: [number, number][] = [[0x1100, 0x115f], [0x2e80, 0xa4cf], [0xa960, 0xa97f], [0xac00, 0xd7af], [0xf900, 0xfaff], [0xfe30, 0xfe4f], [0xff01, 0xff60], [0xffe0, 0xffe6], [0x1f300, 0x1faff], [0x20000, 0x3fffd]];
-export function fullWidthUnits(line: string): number {
-  let n = 0;
-  for (const ch of line) { const c = must(ch.codePointAt(0)); n += WIDE.some(([a, b]) => c >= a && c <= b) ? 1 : 0.5; }
-  return n;
-}
 export const HEADLINE_BUDGET_PX = 600;
 // the role sizes (tokens ROLES; test/diagram-api.test.ts keeps them equal), kept here because the rendering core must not import that global table
 export const HEADLINE_PX: Readonly<Record<'title' | 'banner' | 'stat' | 'display', number>> = {title: 15, banner: 16, stat: 34, display: 56};
@@ -988,17 +983,11 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   out.push(...thinBarFindings(d));
   headlineLength(d, out);
   if (d.status !== undefined) out.push({rule: 'draft-status', severity: 'info', message: `この図は下書き(status: '${d.status}')。公開前に外す`});
-  for (const b of d.laidOut ?? []) if (b.type === 'caption' && b.sourceLine) {
-    const lines = b.wrappedRuns.flatMap(r => r.lines), n = lines.length;
-    if (n <= 1) continue;
-    // what fits is measured, not guessed: the longest of the lines that were filled (every one but the last), in full-width characters
-    const filled = b.wrappedRuns.flatMap(r => r.lines.slice(0, -1)), fits = Math.floor(Math.max(0, ...filled.map(fullWidthUnits))), total = Math.ceil(lines.reduce((s, l) => s + fullWidthUnits(l), 0));
-    out.push({rule: 'source-wraps', severity: 'warn', message: `出典行が ${n} 行に折り返している（全角で約 ${total} 字分${fits > 0 ? `。1 行に入るのは約 ${fits} 字分なので、約 ${Math.max(1, fits - 1)} 字分以内に縮める` : ''}。半角の英数字は 0.5 字分）。出典の細部は本文へ`});
-  }
+  for (const b of d.laidOut ?? []) if (b.type === 'caption') out.push(...sourceLineFindings(b));
   for (const b of d.laidOut ?? []) if (b.type === 'quadrant') out.push(...quadrantLayoutFindings(b));
   for (const b of walkBands(d.bands)) if (b.type === 'quadrant') out.push(...quadrantFindings(b));
   for (const b of walkBands(d.bands)) if (b.type === 'funnel') out.push(...funnelFindings(b));
-  for (const b of walkBands(d.bands)) if (b.type === 'grid' && b.canvas?.requireAll && b.canvas.empty.length) out.push({...at(b), rule: 'canvas-region-empty', severity: 'warn', message: `canvas("${b.canvas.template}") の領域 ${b.canvas.empty.join('、')} に内容がない。書くか、requireAll を外す`});
+  for (const b of walkBands(d.bands)) if (b.type === 'grid') out.push(...canvasRegionFindings(b));
   if (d.medium === 'doc' && d.title && !d.showTitle) {
     const first = walkBands(d.bands).find((b): b is CaptionBand => b.type === 'caption' && !b.sourceLine);
     if (first && first.text.trim() === d.title.trim()) out.push({...at(first), rule: 'title-duplicated', severity: 'info', message: `題名と先頭の caption が同じ文字列「${first.text.trim().slice(0, 20)}」。diagram({title, showTitle: true}) に寄せて、caption を消せる`});
