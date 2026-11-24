@@ -8,6 +8,7 @@ import type {DiagramStatus} from '../types/core.ts';
 
 const definition = {
   type: 'status',
+  verify: {figureExtent: () => null},
   textSizes: band => [band.size],
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of statusTexts(data, roles)) atoms(text, size, weight, font);

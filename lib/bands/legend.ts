@@ -9,6 +9,7 @@ import type {LaidOutLegend, LegendBand, LegendItem, LegendOpts} from '../types/c
 
 const definition = {
   type: 'legend',
+  verify: {figureExtent: () => null},
   measure(data, {atoms, roles}) {
     for (const item of data.items) atoms(item.label, roles.note, 400);
   },

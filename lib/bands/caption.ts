@@ -32,6 +32,7 @@ export const captionDefinition: BandDef<CaptionBand, LaidOutCaption> = {
   },
   emit: (laid, env) => renderCaption(laid, env.theme, env.tones),
   verify: {
+    figureExtent: () => null,
     diagramFindings: diagram => duplicateTitleFindings(diagram, walkDefinedBands),
     layoutFindings: sourceLineFindings,
     contrast: (laid, {theme, tones, appearance}) => boxLikeContrastProblems(laid, null, theme, tones, appearance),

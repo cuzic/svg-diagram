@@ -914,10 +914,12 @@ test('selective figure findings use the content extent and skip fixed canvases',
     verdict.findings.filter(f => f.rule === 'layout-figure-offset' || f.rule === 'layout-figure-narrow');
   const opts = {theme: 'blue', legend: false, width: 940} as const;
   const layerOptions = {width: 260};
-  const selected = [caption('図全体の幅を取る説明'), pyramid(['計画', '実行'], layerOptions)];
-  const legacy = await renderInBrowser(diagram(opts)
-    .add(legacyCaption('図全体の幅を取る説明'))
-    .add(legacyPyramid(['計画', '実行'], layerOptions)), {measure});
+  const legendItems = [{label: '強調項目', tone: 'accent'}] as const;
+  const selected = [status('draft'), caption('図全体の幅を取る説明'),
+    pyramid(['計画', '実行'], layerOptions), legend([...legendItems])];
+  const legacy = await renderInBrowser(diagram({...opts, status: 'draft'})
+    .add(legacyCaption('図全体の幅を取る説明'),
+      legacyPyramid(['計画', '実行'], layerOptions), legacyLegend([...legendItems])), {measure});
   assert.ok(findings(legacy).some(f => f.rule === 'layout-figure-narrow'));
   assert.deepEqual(findings(await renderBands(selected, {measure, width: opts.width})), findings(legacy));
   assert.deepEqual(findings(await renderBands(selected, {measure, canvas: {width: opts.width}})), []);

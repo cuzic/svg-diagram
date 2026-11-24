@@ -97,6 +97,7 @@ interface BandHooks<D, L extends object> {
   textSizes?(laid: L): Iterable<number>;
   valueAxis?(data: D): ValueAxis | undefined;
   verify?: {
+    figureExtent?(laid: L): Rect | null;
     targets?(laid: L): readonly Extract<LaidOutBand, Rect>[];
     rects?(laid: L): CheckRect[];
     findings?(data: D, ctx: VerifyCtx): Finding[];

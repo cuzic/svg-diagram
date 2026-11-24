@@ -12,8 +12,11 @@ const bottom = (r: Rect): number => r.y + r.h;
 
 /** The rect a band covers, when it has one (a grid has no h of its own: its children carry it). */
 export function extentOf(b: LaidOutBand): Rect | null {
+  return b.type === 'grid' ? unionOf(b.children) : basicExtentOf(b);
+}
+
+export function basicExtentOf(b: LaidOutBand): Rect | null {
   const x = b as unknown as Partial<Rect> & {labelBoxes?: Rect[]};
-  if (b.type === 'grid') return unionOf(b.children);
   if (typeof x.x !== 'number' || typeof x.y !== 'number' || typeof x.w !== 'number' || typeof x.h !== 'number') return null;
   const r: Rect = {x: x.x, y: x.y, w: x.w, h: x.h};
   return x.labelBoxes?.length ? unionOf([r, ...x.labelBoxes]) : r;
@@ -32,7 +35,10 @@ export function contentExtent(laidOut: LaidOutBand[], extent: (band: LaidOutBand
 
 /** Measure whole-figure spacing for layouts without a fixed slide canvas. */
 export function figureLayoutMetrics(laidOut: LaidOutBand[], width: number): LayoutMetric[] {
-  const box = contentExtent(laidOut);
+  return figureMetricsForExtent(contentExtent(laidOut), width);
+}
+
+export function figureMetricsForExtent(box: Rect | null, width: number): LayoutMetric[] {
   const out: LayoutMetric[] = [];
   if (!box) return out;
   const left = box.x, rightMargin = width - right(box), off = Math.abs(left - rightMargin);
