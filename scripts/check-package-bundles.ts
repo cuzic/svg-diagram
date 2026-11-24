@@ -80,7 +80,7 @@ try {
         bands: {row: rowPptx}, strict: true,
       });
     `, include: 'pptx/selective.js', budget: {esbuild: 155000, Vite: 182000}, bands: ['box.js', 'row.js'],
-      exclude: [...legacy, 'pptx/bands.js', 'pptx/slide.js', 'pptx/image-band.js', 'pptx/table.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'svg-outline.js', 'lib/emit.js'], draw: true},
+      exclude: [...legacy, 'pptx/bands.js', 'pptx/slide.js', 'pptx/image-band.js', 'pptx/table.js', 'pptx/group-span.js', 'pptx/swimlane-span.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'svg-outline.js', 'lib/emit.js'], draw: true},
     {name: 'Selective PPTX Table', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
       import {tablePptx} from 'svg-diagram/pptx/bands/table';
@@ -91,6 +91,18 @@ try {
       });
     `, include: 'pptx/table-band.js', budget: {esbuild: 140000, Vite: 166000}, bands: ['table.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/slide.js', 'pptx/box-bands.js', 'pptx/tree-band.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'lib/emit.js'], draw: true},
+    {name: 'Selective PPTX Group', source: `
+      import {renderBandsPptx} from 'svg-diagram/pptx';
+      import {boxPptx, groupPptx} from 'svg-diagram/pptx/bands/box';
+      import {groupSpan} from 'svg-diagram/pptx/bands/group';
+      import {box} from 'svg-diagram/bands/box';
+      import {group} from 'svg-diagram/bands/group';
+      export const draw = () => renderBandsPptx([group(box({title: 'Review'}))], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        bands: {box: boxPptx, group: groupPptx}, spans: {group: groupSpan}, strict: true,
+      });
+    `, include: 'pptx/group-span.js', budget: {esbuild: 147000, Vite: 175000}, bands: ['box.js', 'caption.js', 'group.js'],
+      exclude: [...legacy, 'pptx/bands.js', 'pptx/swimlane-span.js', 'pptx/svg-shapes.js'], draw: true},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
       exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 52000, Vite: 65000}},
@@ -271,7 +283,7 @@ try {
         }
         const {draw: render} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
         const result = await render();
-        if (name === 'Selective PPTX' || name === 'Selective PPTX Table') {
+        if (name.startsWith('Selective PPTX')) {
           assert.deepEqual(result.fallbacks, [], label);
           assert.equal(result.verdict.ok, true, label);
           const expected = name === 'Selective PPTX Table' ? /<a:tbl>[\s\S]*>Done<\/a:t>/ : /<p:grpSp>[\s\S]*>Review<\/a:t>/;

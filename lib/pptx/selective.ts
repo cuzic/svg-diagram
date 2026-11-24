@@ -3,17 +3,18 @@ import {visibleAt} from '../reveal-visibility.ts';
 import {recolor} from '../tokens.ts';
 import type {LaidOutBand} from '../types/index.ts';
 import {register} from './adapter.ts';
-import type {PptxAdapter, PptxBands} from './adapter.ts';
+import type {PptxAdapter, PptxBands, PptxSpans} from './adapter.ts';
 import {bandPicture} from './image-band-core.ts';
 import {imageRids, packageEntries} from './package.ts';
 import {anchorXml, picXml} from './shapes.ts';
 import {fontsOf, planSlideWith} from './slide-core.ts';
 import {zipEntries} from './zip.ts';
 
-export type {PptxBands} from './adapter.ts';
+export type {PptxBands, PptxSpans} from './adapter.ts';
 
 type PptxOptions = Parameters<typeof prepareBands>[1] & {
   bands?: PptxBands;
+  spans?: PptxSpans;
   strict?: boolean;
   font?: string;
   pngScale?: number;
@@ -52,7 +53,7 @@ export async function renderBandsPptx(bands: Parameters<typeof prepareBands>[0],
     const anchor = {x: item.x, y: item.y, w: item.w, h: item.h}, anchorId = ctx.next();
     register(ctx, id, anchorId, anchor);
     return drawn + anchorXml(anchorId, `anchor-${id}`, anchor);
-  }, {title: opts.title, stage});
+  }, {title: opts.title, stage, spans: opts.spans});
   const pngs: Uint8Array[] = [];
   for (const picture of plan.pictures) {
     if (!opts.rasterize) throw new Error('renderBandsPptx: pass rasterize to embed picture fallbacks');

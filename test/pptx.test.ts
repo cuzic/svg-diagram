@@ -5,6 +5,9 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {register} from 'node:module';
 import test from 'node:test';
+import {groupSpan} from '../lib/pptx/group-span.ts';
+import {groupPptx} from '../lib/pptx/box-bands.ts';
+import {group as selectedGroup} from '../lib/bands/group.ts';
 import {tablePptx} from '../lib/pptx/table-band.ts';
 import {table as selectedTable} from '../lib/bands/table.ts';
 import {renderBandsPptx} from '../lib/pptx/selective.ts';
@@ -172,4 +175,19 @@ test('selective PPTX can embed a native editable table independently', async () 
   const xml = unzipEntry(Buffer.from(pptx), 'ppt/slides/slide1.xml').toString();
   assert.match(xml, /<a:tbl>[\s\S]*>Done<\/a:t>/);
   assert.deepEqual(fallbacks, []);
+});
+
+test('selective PPTX groups nested bands only when a span adapter is supplied', async () => {
+  const input = [selectedGroup(selectedGroup(selectedBox({title: 'Nested'}))), selectedBox({title: 'Outside'})];
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    bands: {group: groupPptx, box: boxPptx},
+  };
+  const plain = await renderBandsPptx(input, opts);
+  const grouped = await renderBandsPptx(input, {...opts, spans: {group: groupSpan}});
+  const slide = (bytes: Uint8Array) => unzipEntry(Buffer.from(bytes), 'ppt/slides/slide1.xml').toString();
+  await assert.rejects(renderBandsPptx(input, {...opts, spans: {group: () => ({xml: '', count: -1})}}), /span must cover/);
+  assert.doesNotMatch(slide(plain.pptx), /<p:grpSp>/);
+  assert.equal([...slide(grouped.pptx).matchAll(/<p:grpSp>/g)].length, 2);
+  assert.match(slide(grouped.pptx), />Nested<\/a:t>[\s\S]*<\/p:grpSp><\/p:grpSp>[\s\S]*>Outside<\/a:t>/);
 });
