@@ -198,9 +198,9 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
   const svg = emitSvgWith({
     defsNeeded: band => ({
       arrow: band.type === 'row' && band.arrows.length > 0,
-      ...definitions.get(band.type)?.svgDefs?.(band as never),
       mono: (band.type === 'row' || band.type === 'grid' ? band.children.flatMap(b => b.wrappedRuns)
         : 'wrappedRuns' in band ? band.wrappedRuns : []).some(run => run.mono),
+      ...definitions.get(band.type)?.svgDefs?.(band as never),
     }),
     renderBand: band => must(definitions.get(band.type) ?? syntheticOutputs.get(band.type)).emit(band as never, emitEnv),
     renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),

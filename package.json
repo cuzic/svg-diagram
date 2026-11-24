@@ -272,6 +272,14 @@
       "types": "./dist/lib/bands/bars.d.ts",
       "default": "./dist/lib/bands/bars.js"
     },
+    "./bands/sequence": {
+      "types": "./dist/lib/bands/sequence.d.ts",
+      "default": "./dist/lib/bands/sequence.js"
+    },
+    "./bands/table": {
+      "types": "./dist/lib/bands/table.d.ts",
+      "default": "./dist/lib/bands/table.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"

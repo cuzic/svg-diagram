@@ -48,6 +48,10 @@ try {
     ['people', 'layoutPeople', "people(10, 7, {side: {value: 'Review'}})"],
     ['dots', 'layoutDots', "dots([0.2, 0.2, 0.8], {lowLabel: 'Review'})"],
   ] as const;
+  const tableSamples = [
+    ['sequence', 'layoutSequence', "sequence([{id: 'a', label: 'Review'}, {id: 'b', label: 'API'}], [{from: 'a', to: 'b', label: 'Send'}])"],
+    ['table', 'layoutTable', "table([{label: 'Review'}, {label: 'Value', mono: true}], [['Name', 'ABC']])"],
+  ] as const;
   const cases = [
     {name: 'SVG', source: "export {renderInBrowser} from 'svg-diagram/browser';", include: 'web.js', exclude: ['emit-html.js', 'math-tex.js']},
     {name: 'HTML', source: "export {emitHtml} from 'svg-diagram/html';", include: 'emit-html.js', exclude: ['web.js', 'web-measure.js']},
@@ -112,6 +116,11 @@ try {
       include: 'bands/plane.js', budget: {esbuild: 78000, Vite: 104000}, exclude: [...legacy, 'quadrant.js', 'flow-shapes.js', 'gantt.js', 'reveal-handlers.js', 'layout-connect.js'], draw: true},
     {name: 'Bars', source: composedSource(['bars'], "bars([{id: 'old', label: 'Draft', value: 4}, {label: 'Review', value: 6, reveal: 2, replaces: 'old'}])"),
       include: 'bands/bars.js', budget: {esbuild: 83000, Vite: 111000}, exclude: [...legacy, 'plane.js', 'qc-plane.js', 'qc.js', 'gantt.js', 'reveal-handlers.js'], draw: true},
+    ...tableSamples.map(([name, layout, sample]) => ({
+      name, layout, source: composedSource([name], sample), include: `bands/${name}.js`,
+      budget: {esbuild: 77000, Vite: 102000},
+      exclude: [...legacy, 'layout-connect.js', 'gantt.js', 'wireframe.js', 'lane-order.js'], draw: true,
+    })),
   ];
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;
@@ -146,9 +155,13 @@ try {
         assert.ok(code);
         if (selectedLayout) {
           // These functions share a source module. Keep their names so the test can detect unused implementations inside it.
-          for (const [shape, layout] of [...flowSamples, ...quantitySamples]) {
+          for (const [shape, layout] of [...flowSamples, ...quantitySamples, ...tableSamples]) {
             assert.equal(code.includes(JSON.stringify(layout)), layout === selectedLayout, `${label}: ${layout}`);
             assert.equal(code.includes(JSON.stringify(shape + 'Texts')), layout === selectedLayout, `${label}: ${shape}Texts`);
+          }
+          if (tableSamples.some(([, layout]) => layout === selectedLayout)) {
+            assert.equal(code.includes('"renderSequence"'), name === 'sequence', label);
+            assert.equal(code.includes('"renderTable"'), name === 'table', label);
           }
         }
         const {draw: render} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);

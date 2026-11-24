@@ -33,23 +33,29 @@ export function prepareSequence(band: SequenceBand): PreparedSequence {
   return {...band, steps};
 }
 
-export function collectTextRequests(band: SequenceBand | TableBand, roles: Roles): TextRequest[] {
+export function sequenceTexts(band: SequenceBand, roles: Roles): TextRequest[] {
   const out: TextRequest[] = [];
-  if (band.type === 'sequence') {
-    const p = prepareSequence(band);
-    for (const a of p.actors) out.push([a.label, roles.title, 700, 'sans']);
-    for (const s of p.steps) out.push([s.text, roles.note, s.kind === 'divider' ? 700 : 400, 'sans']);
-  } else if (band.type === 'table') {
-    if (band.title) out.push([band.title, roles.title, 700, 'sans']);
-    band.columns.forEach((c) => {
-      if (c.label) out.push([c.label, roles.body, 700, 'sans']);
-    });
-    for (const row of band.rows) ('cells' in row ? row.cells : row).forEach((cell, i) => {
-      const c = cellOf(cell, band.columns[i]);
-      out.push([c.text, roles.body, c.bold || (band.rowHeader && i === 0) ? 700 : 400, c.mono ? 'mono' : 'sans']);
-    });
-  }
+  const p = prepareSequence(band);
+  for (const a of p.actors) out.push([a.label, roles.title, 700, 'sans']);
+  for (const s of p.steps) out.push([s.text, roles.note, s.kind === 'divider' ? 700 : 400, 'sans']);
   return out;
+}
+
+export function tableTexts(band: TableBand, roles: Roles): TextRequest[] {
+  const out: TextRequest[] = [];
+  if (band.title) out.push([band.title, roles.title, 700, 'sans']);
+  band.columns.forEach((c) => {
+    if (c.label) out.push([c.label, roles.body, 700, 'sans']);
+  });
+  for (const row of band.rows) ('cells' in row ? row.cells : row).forEach((cell, i) => {
+    const c = cellOf(cell, band.columns[i]);
+    out.push([c.text, roles.body, c.bold || (band.rowHeader && i === 0) ? 700 : 400, c.mono ? 'mono' : 'sans']);
+  });
+  return out;
+}
+
+export function collectTextRequests(band: SequenceBand | TableBand, roles: Roles): TextRequest[] {
+  return band.type === 'sequence' ? sequenceTexts(band, roles) : tableTexts(band, roles);
 }
 
 const wrap = (text: string, size: number, weight: number, font: FontFamily, maxW: number, widthOf: WidthOf, mode: WrapMode) =>

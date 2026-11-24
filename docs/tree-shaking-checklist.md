@@ -64,8 +64,8 @@
 
 ## 表・画面・会話
 
-- [ ] `sequence`
-- [ ] `table`（RACI、FMEA、比較表、行見出しなど）
+- [ ] `sequence`（個別入口からの SVG と依存除外は検証済み）
+- [ ] `table`（行見出しを含む個別入口の SVG と依存除外は検証済み。RACI、FMEA、比較表などの派生ビルダーは移行対象）
 - [ ] `swimlane`
 - [ ] `wireframe`（画面内の部品）
 - [ ] `screens`（画面遷移）

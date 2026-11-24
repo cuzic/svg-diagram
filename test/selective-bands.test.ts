@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {caption} from '../lib/bands/caption.ts';
+import {sequence} from '../lib/bands/sequence.ts';
+import {table, cell} from '../lib/bands/table.ts';
 import {bars, histogram, pareto, rangeBars} from '../lib/bands/bars.ts';
 import {plane} from '../lib/bands/plane.ts';
 import {emitSvg} from '../lib/emit.ts';
@@ -33,7 +35,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -392,4 +394,20 @@ test('a connection to a replaced bar follows its scoped endpoint lifetime', asyn
   const after = await renderBands(input, {measure, stage: 2});
   assert.match(before.svg, />Previous<\/text>/);
   assert.doesNotMatch(after.svg, />Previous<\/text>/);
+});
+
+test('selective sequence and table preserve message markers and monospace cells', async () => {
+  const actors = [{id: 'ui', label: '画面'}, {id: 'api', label: 'API'}] as const;
+  const steps = [{from: 'ui', to: 'api', label: '送信'}, {self: 'api', label: '検証'}] as const;
+  const cols = [{label: '項目'}, {label: '値', mono: true}];
+  const rows = [['識別子', cell('ABC-123')]];
+  const options = {rowHeader: true, title: '結果'};
+  const result = await renderBands([sequence([...actors], [...steps]), table(cols, rows, options)], {measure, title: 'Plan'});
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false})
+    .add(legacySequence([...actors], [...steps]), legacyTable(cols, rows, options)), {measure});
+  const content = (svg: string) => svg.slice(svg.indexOf('  <defs>'));
+  assert.deepEqual(result.xml, []);
+  assert.equal(content(result.svg), content(expected.svg));
+  assert.match(result.svg, /id="dsl-arrow"/);
+  assert.match(result.svg, /monospace/);
 });

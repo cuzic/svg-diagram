@@ -368,6 +368,8 @@
   "semnet:semnetTexts",
   "seq-table:layoutSequence",
   "seq-table:layoutTable",
+  "seq-table:sequenceTexts",
+  "seq-table:tableTexts",
   "spec-kit:axis",
   "spec-kit:checkFlowEnd",
   "spec-kit:count",
