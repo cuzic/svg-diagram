@@ -63,7 +63,7 @@ import type {Finding} from './types/verdicts.ts';
 import type {WfCallout} from './types/wireframe-nodes.ts';
 import type {LintTarget} from './types/verdicts.ts';
 import {describeApplied} from './fit-width.ts';
-import {tocFindings} from './toc-rules.ts';
+import {tocFindings, tocLegendFinding} from './toc-rules.ts';
 import {ftaFindings} from './fta-rules.ts';
 import {bowtieFindings} from './rca-rules.ts';
 import {statusText} from './status.ts';
@@ -651,7 +651,7 @@ function evidenceRules(d: LintTarget, out: Finding[]): void {
 function tocRules(d: LintTarget, out: Finding[]): void {
   const severity = tocSeverity(d);
   // a TOC tree on a diagram that says nothing about its legend: the roles are told apart only by a legend (ADR 0029 D1)
-  if (d.legend === undefined && walkBands(d.bands).some(b => b.type === 'cause' && b.tree !== undefined)) out.push({rule: 'toc-legend-suggested', severity: 'info', message: "TOC の図に凡例が無い。役割（根本原因・施策・障害など）は色と枠でしか区別されない。diagram({legend: 'auto'}) を付けるか、causeTree({roleTags: true}) で役割を文字にする"});
+  if (d.legend === undefined && walkBands(d.bands).some(b => b.type === 'cause' && b.tree !== undefined)) out.push(tocLegendFinding());
   for (const b of walkBands(d.bands)) if (b.type === 'cause') out.push(...analysisFindings(b, tocFindings(b), severity));
 }
 

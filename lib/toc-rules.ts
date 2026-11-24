@@ -1,3 +1,4 @@
+import type {Finding} from './types/verdicts.ts';
 // The checks of a TOC tree (ADR 0015 D2): pure functions of a cause band's nodes, links and `tree`; no layout, no fonts.
 // They run only for a band that says which tree it is (`causeTree(..., {tree: 'crt'})`): relationDiagram() / pdpc() are not TOC trees.
 import {breakCycles} from './graph-layout.ts';
@@ -131,4 +132,8 @@ function mirrorFindings(band: TocBand, crt: NonNullable<TocBand['mirrorOf']>, at
   const missing = crt.udes.filter(u => !count.has(u));
   if (missing.length) msgs.push(`対応する望む結果が無い現状ツリーの UDE: ${missing.join('、')}（部分図なら accept で理由を書く）`);
   for (const m of msgs) out.push({rule: 'toc-mirror', message: at(m)});
+}
+
+export function tocLegendFinding(): Finding {
+  return {rule: 'toc-legend-suggested', severity: 'info', message: "TOC の図に凡例が無い。役割（根本原因・施策・障害など）は色と枠でしか区別されない。diagram({legend: 'auto'}) を付けるか、causeTree({roleTags: true}) で役割を文字にする"};
 }

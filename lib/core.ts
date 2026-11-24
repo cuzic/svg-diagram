@@ -34,6 +34,7 @@ type Options = {measure: Measure} & DrawOptions;
 type DrawOptions = {
   width?: number;
   maxWidth?: number;
+  legend?: DiagramData['legend'];
   accept?: DiagramData['accept'];
   diagramFindings?: DiagramFindings;
   pad?: number;
@@ -100,7 +101,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const inputChecks: ((ctx: VerifyCtx) => Finding[])[] = [];
   let source = cloneData(bands) as unknown as Band[];
   const data: DiagramData = {
-    day: theme, medium: 'doc', width, maxWidth: opts.maxWidth, accept: opts.accept, pad: canvas ? Math.round(pad) : pad, gap: canvas ? Math.round(gap) : gap,
+    day: theme, medium: 'doc', width, maxWidth: opts.maxWidth, accept: opts.accept, legend: opts.legend, pad: canvas ? Math.round(pad) : pad, gap: canvas ? Math.round(gap) : gap,
     fill: false, bands: source, title: opts.title, desc: opts.desc, wrap: opts.wrap, keepWords: opts.keepWords, tones, canvas,
     appearance: opts.appearance, density: opts.density,
   };

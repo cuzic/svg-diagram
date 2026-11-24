@@ -197,7 +197,7 @@ try {
       exclude: [...legacy, 'bands/cause.js', 'bands/screens.js', 'bands/sequence.js', 'bands/gantt.js'], draw: true},
     {name: 'Composer Why-why tree', source: composedSource([], "...whyWhyTree('Review', [{why: 'Missing tests', trueCause: true}])",
       "import {whyWhyTree} from 'svg-diagram/compose/why-why-tree';"),
-      include: 'compose/selective/why-why-tree.js', budget: {esbuild: 182000, Vite: 243000}, bands: ['caption.js', 'cause.js'],
+      include: 'compose/selective/why-why-tree.js', budget: {esbuild: 182500, Vite: 243500}, bands: ['caption.js', 'cause.js'],
       exclude: [...legacy, 'bands/states.js', 'bands/table.js', 'bands/box.js', 'bands/gantt.js', 'qc.js'], draw: true},
     {name: 'Composer Arrow diagram', source: composedSource([], "...arrowDiagram([{from: 1, to: 2, name: 'Review', days: 3}])",
       "import {arrowDiagram} from 'svg-diagram/compose/arrow-diagram';"),
@@ -266,7 +266,7 @@ try {
         );
         return {svg: emit(placed), verdict};
       };
-    `, include: 'diagram-description.js', budget: {esbuild: 86500, Vite: 110000}, bands: ['table.js'],
+    `, include: 'diagram-description.js', budget: {esbuild: 86500, Vite: 110500}, bands: ['table.js'],
       exclude: [...legacy, 'lib/spec.js', 'lib/bars.js', 'band-children.js', 'layout-connect.js'], draw: true},
     {name: 'Selected heatmap spec', source: `
       import {renderSpec} from 'svg-diagram/spec/selective';
@@ -335,7 +335,7 @@ try {
       exclude: [...legacy, 'pptx/selective.js', 'pptx/zip-node.js', 'lib/core.js', 'lib/png.js'], budget: {esbuild: 2500, Vite: 2500}},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
-      exclude: [...legacy, 'document-findings.js', 'verify-bars.js', 'axis-comparison.js', 'axis-selected.js', 'verify-image.js', 'verify-box-like.js', 'verify-shrink.js', 'verify-density.js', 'verify-cause-spacing.js', 'verify-edge-bends.js', 'verify-connect-label.js', 'verify-caption.js', 'verify-grid.js', 'verify-flowchart.js', 'verify-concentric.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 53000, Vite: 70500}},
+      exclude: [...legacy, 'document-findings.js', 'toc-rules.js', 'verify-bars.js', 'axis-comparison.js', 'axis-selected.js', 'verify-image.js', 'verify-box-like.js', 'verify-shrink.js', 'verify-density.js', 'verify-cause-spacing.js', 'verify-edge-bends.js', 'verify-connect-label.js', 'verify-caption.js', 'verify-grid.js', 'verify-flowchart.js', 'verify-concentric.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 53000, Vite: 70500}},
     {name: 'Document findings', source: `
       import {renderBands} from 'svg-diagram/core';
       import {box} from 'svg-diagram/bands/box';
@@ -376,7 +376,7 @@ try {
     {name: 'Areas', source: composedSource(['areas', 'box'], "areas(['wide wide', 'left right'], {wide: box({title: 'Review'}), left: box({title: 'Left'}), right: box({title: 'Right'})})"),
       include: 'bands/areas.js', budget: {esbuild: 96500, Vite: 122500}, bands: ['areas.js', 'box.js', 'caption.js', 'group.js'], exclude: [...legacy, 'layout-group-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Banner and raw', source: composedSource(['banner', 'raw'], `banner({headline: 'Review'}), raw({h: 32, draw: ({x, y}) => '<rect x="' + x + '" y="' + y + '" width="24" height="24"/>'})`),
-      include: 'bands/banner.js', budget: {esbuild: 61000, Vite: 82000}, bands: ['banner.js', 'raw.js'], exclude: [...legacy, 'layout-areas.js', 'layout-group.js', 'layout-connect.js', 'gantt.js'], draw: true},
+      include: 'bands/banner.js', budget: {esbuild: 61500, Vite: 82000}, bands: ['banner.js', 'raw.js'], exclude: [...legacy, 'layout-areas.js', 'layout-group.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Curve', source: composedSource(['curve'], "curve([{y: 0.3, dropLine: true}, {y: 0.8}], {xLabel: 'Review'})"),
       include: 'bands/curve.js', budget: {esbuild: 56000, Vite: 74500}, exclude: [...legacy, 'layout-pyramid.js', 'layout-connect.js', 'flow-shapes.js', 'gantt.js'], draw: true},
     {name: 'Pyramid', source: composedSource(['pyramid'], "pyramid(['Review', 'Plan'])"),
@@ -431,8 +431,8 @@ try {
       include: 'bands/states.js', budget: {esbuild: 160000, Vite: 222000}, exclude: [...legacy, 'classes.js', 'bpmn.js', 'verify-cause-spacing.js', 'verify-shrink.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
     {name: 'Tree', source: composedSource(['tree'], "tree({label: 'Review', children: [{label: 'Plan'}, {label: 'Decide'}]})"),
       include: 'bands/tree.js', budget: {esbuild: 89000, Vite: 120000}, exclude: [...legacy, 'states.js', 'toc.js', 'layout-connect.js', 'dsl/diagrams.js', 'layout-row.js', 'layout-grid.js'], draw: true},
-    {name: 'Cause', source: composedSource([], "causeTree([{id: 'a', label: 'Review'}, {id: 'b', label: 'Done'}], [{from: 'a', to: 'b'}])", "import {causeTree} from 'svg-diagram/bands/cause';"),
-      include: 'bands/cause.js', budget: {esbuild: 172500, Vite: 233000}, exclude: [...legacy, 'cloud.js', 'states.js', 'classes.js', 'dsl/diagrams.js', 'layout-connect.js', 'rca-rules.js'], draw: true},
+    {name: 'Cause', source: composedSource([], "causeTree([{id: 'a', label: 'Review'}, {id: 'b', label: 'Done'}], [{from: 'a', to: 'b'}], {tree: 'crt'})", "import {causeTree} from 'svg-diagram/bands/cause';"),
+      include: 'bands/cause.js', budget: {esbuild: 173500, Vite: 233500}, exclude: [...legacy, 'cloud.js', 'states.js', 'classes.js', 'dsl/diagrams.js', 'layout-connect.js', 'rca-rules.js'], draw: true},
     {name: 'Swimlane', source: composedSource(['swimlane'], "...swimlane([{id: 'work', label: 'Work'}], [{id: 'a', lane: 'work', title: 'Review'}])"),
       include: 'bands/swimlane.js', budget: {esbuild: 99500, Vite: 126000}, exclude: [...legacy, 'layout-connect.js', 'bands/connect.js', 'seq-table.js', 'wireframe.js', 'layout-row.js'], draw: true,
       bands: ['box.js', 'swimlane.js']},
@@ -594,6 +594,7 @@ try {
         if (name === 'Selected robot markers') assert.match(result.svg, /ロボット A/, label);
         if (name === 'RACI table') assert.ok(!/fmea\(\)|qfd\(\)|whyWhyTree\(/.test(code), label);
         if (name === 'Selected fault tree spec with legend') assert.match(result.svg, /OR gate/, label);
+        if (name === 'Cause') assert.equal(result.verdict.findings.filter((finding: {rule: string}) => finding.rule === 'toc-legend-suggested').length, 1, label);
         if (name === 'Document findings') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'doc-width'), label);
         if (name === 'Box') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'box-size-ignored'), label);
         if (name === 'Composer Canvas') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'canvas-region-empty'), label);

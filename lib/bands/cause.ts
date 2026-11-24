@@ -3,9 +3,9 @@ import {parallelEdgeFindings} from '../verify-cause-spacing.ts';
 import {densityRestorationFindings} from '../verify-density.ts';
 import {texts} from '../band-text-sizes.ts';
 import {analysisFindings} from '../finding-rules.ts';
-import {tocFindings} from '../toc-rules.ts';
-import {band} from '../band-def.ts';
-import type {BandDef, WithBandDef} from '../band-def.ts';
+import {tocFindings, tocLegendFinding} from '../toc-rules.ts';
+import {band, walkDefinedBands} from '../band-def.ts';
+import type {BandDef, DiagramFindings, WithBandDef} from '../band-def.ts';
 import {causeTree as buildTree, pdpc as buildPdpc, relationDiagram as buildRelation} from '../dsl/cause.ts';
 import type {PdpcLink, PdpcNode, RelationNode, RelationOpts} from '../dsl/cause.ts';
 import {renderCause} from '../emit-figures.ts';
@@ -16,6 +16,10 @@ import {causeFindings} from '../verify-cause.ts';
 import {anchorRects} from '../verify-rects.ts';
 
 export {transitionUnits} from '../dsl/cause.ts';
+
+const legendFindings: DiagramFindings = d =>
+  d.legend === undefined && walkDefinedBands(d.bands).some(b => b.type === 'cause' && b.tree !== undefined)
+    ? [tocLegendFinding()] : [];
 
 export const causeDefinition: BandDef<CauseBand, LaidOutCause> = {
   type: 'cause',
@@ -28,7 +32,7 @@ export const causeDefinition: BandDef<CauseBand, LaidOutCause> = {
   layout: placeCause,
   emit: (laid, {theme, tones}) => renderCause(laid, theme, tones),
   verify: {
-    diagramFindings: [densityRestorationFindings, parallelEdgeFindings, edgeBendFindings],
+    diagramFindings: [densityRestorationFindings, parallelEdgeFindings, edgeBendFindings, legendFindings],
     findings: data => analysisFindings(data, [...(data.rca?.findings ?? []), ...tocFindings(data)]),
     rects: laid => anchorRects(laid),
     check(laid) {

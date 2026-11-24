@@ -1,3 +1,4 @@
+import {tocLegendFinding} from '../lib/toc-rules.ts';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {renderSpec, partCatalog, specSchemaFor, validateSpec} from '../lib/spec-selective.ts';
@@ -350,5 +351,19 @@ test('prepared specs preserve project tones, wrapping and legend defaults', asyn
     assert.match(svg, /#ffdd99/);
     assert.equal(svg.includes('確認対象'), !('legend' in spec));
     assert.equal(svg, legacy.svg);
+  }
+});
+
+test('selected TOC trees suggest a legend once when the spec leaves it unspecified', async () => {
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const {autoLegend} = await import('../lib/bands/legend.ts');
+  for (const legend of [undefined, false, 'auto'] as const) {
+    const input = {version: 1, title: '計画', parts: [causeTreePart.example, {type: 'causeTree', tree: 'crt', nodes: [{id: 'other', label: 'その他', role: 'ude'}], links: []}],
+      ...(legend === undefined ? {} : {legend})};
+    const selected = await renderSpec(input, {parts: [causeTreePart], measure, autoLegend});
+    const legacy = await renderInBrowser(specToDiagram(input), {measure});
+    const notes = ({verdict}: typeof selected) => verdict.findings.filter(f => f.rule === 'toc-legend-suggested');
+    assert.deepEqual(notes(legacy), legend === undefined ? [tocLegendFinding()] : []);
+    assert.deepEqual(notes(selected), notes(legacy));
   }
 });

@@ -125,7 +125,7 @@ function prepareSpec(input: unknown, options: PrepareOptions) {
   const connectors = options.parts.find(part => part.connectors)?.connectors;
   const {title, theme, width, appearance, density, showTitle, sourceLine, canvas, lang, desc} = doc;
   return {doc, bands, drawOptions: {captions: options.captions, title, theme, width, appearance, density, showTitle,
-    sourceLine, canvas, desc: desc ?? (lang === 'en' ? title : undefined), connectors}};
+    sourceLine, canvas, legend: doc.legend, desc: desc ?? (lang === 'en' ? title : undefined), connectors}};
 }
 
 /** @internal Validate before drawing so Edge can distinguish validation from layout errors. */
@@ -141,7 +141,7 @@ export function prepareSpecLayout(input: unknown, options: PrepareOptions & {pro
   const {wrap, keepWords, tones, maxWidth, accept} = options.project ?? {};
   addLegend(bands, doc, options, options.project);
   return async (measurement: RenderOptions['measure'] | BatchMeasurement) => {
-    const prepared = await prepareBands(bands, {...drawOptions, wrap, keepWords, tones, maxWidth, accept, diagramFindings: documentFindings, ...(typeof measurement === 'function' ? {measure: measurement} : measurement)});
+    const prepared = await prepareBands(bands, {...drawOptions, wrap, keepWords, tones, maxWidth, accept, legend: doc.legend ?? options.project?.legend, diagramFindings: documentFindings, ...(typeof measurement === 'function' ? {measure: measurement} : measurement)});
     const {stage, emit} = prepared;
     return {...prepared, emit(figure: typeof prepared.placed, noRecolor?: boolean) {
       const titled = {...figure, title: oneLine(figure.title)};
