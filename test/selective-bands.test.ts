@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {TreeItem} from '../lib/types/diagrams.ts';
 import {caption} from '../lib/bands/caption.ts';
+import {swimlane} from '../lib/bands/swimlane.ts';
 import {causeTree, relationDiagram, pdpc} from '../lib/bands/cause.ts';
 import {tree, mindmap} from '../lib/bands/tree.ts';
 import {stateDiagram, flowchart} from '../lib/bands/states.ts';
@@ -46,7 +47,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {causeTree as legacyCauseTree, relationDiagram as legacyRelationDiagram, pdpc as legacyPdpc, tree as legacyTree, mindmap as legacyMindmap, stateDiagram as legacyStateDiagram, flowchart as legacyFlowchart, classDiagram as legacyClassDiagram, bpmn as legacyBpmn, cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {swimlane as legacySwimlane, causeTree as legacyCauseTree, relationDiagram as legacyRelationDiagram, pdpc as legacyPdpc, tree as legacyTree, mindmap as legacyMindmap, stateDiagram as legacyStateDiagram, flowchart as legacyFlowchart, classDiagram as legacyClassDiagram, bpmn as legacyBpmn, cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -536,4 +537,19 @@ test('selective cause diagrams preserve AND arcs, relation counts and PDPC branc
   assert.deepEqual(result.verdict.problems, expected.verdict.problems);
   assert.match(result.svg, /出 2・入 0/);
   assert.equal(body(result.svg), body(expected.svg));
+});
+
+test('selective swimlanes preserve lane frames, step reveal and labelled hand-offs', async () => {
+  const lanes = [{id: 'a', label: '画面'}, {id: 'b', label: '処理'}];
+  const steps = [{id: 'start', lane: 'a', title: '開始', body: 'ABC', bodyMono: true}, {id: 'done', lane: 'b', title: '完了', reveal: 2}];
+  const options = {flows: [{from: 'start', to: 'done', label: 'Review'}], boundaries: [{after: 'a', label: '境界'}]};
+  const selected = swimlane(lanes, steps, options, connectDefinition);
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false})
+    .add(legacySwimlane(lanes, steps, options)), {measure});
+  for (const stage of [0, 2]) {
+    const result = await renderBands(selected, {measure, title: 'Plan', stage});
+    assert.deepEqual(result.xml, []);
+    const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+    assert.equal(body(result.svg), body(emitSvg(expected.laidOut, {reveal: stage})));
+  }
 });

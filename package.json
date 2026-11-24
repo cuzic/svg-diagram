@@ -320,6 +320,10 @@
       "types": "./dist/lib/bands/cause.d.ts",
       "default": "./dist/lib/bands/cause.js"
     },
+    "./bands/swimlane": {
+      "types": "./dist/lib/bands/swimlane.d.ts",
+      "default": "./dist/lib/bands/swimlane.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"

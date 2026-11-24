@@ -8,8 +8,9 @@ import type {BoxInput} from '../strict.ts';
 import {TAG_SIZE} from '../tokens.ts';
 import type {BoxBand, LaidOutBox} from '../types/text-bands.ts';
 import {boxLikeContrastProblems, nowrapProblems} from '../verify-box-like.ts';
+import {ownRect} from '../verify-rects.ts';
 
-const definition = {
+export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
   type: 'box',
   measure(data, {atoms, roles}) {
     if (data.tag) atoms(data.tag, roles.tag ?? TAG_SIZE, 700);
@@ -27,6 +28,7 @@ const definition = {
     return renderBox(laid, theme, tones, roles);
   },
   verify: {
+    rects: ownRect,
     check(laid, {theme, tones}) {
       return [
         ...nowrapProblems(laid).map(message => ({rule: 'nowrap', severity: 'problem' as const, message})),
@@ -34,11 +36,11 @@ const definition = {
       ];
     },
   },
-} satisfies BandDef<BoxBand, LaidOutBox>;
+};
 
 export function box<const Id extends string = never>(opts: BoxInput<Id>): WithBandDef<ReturnType<typeof buildBox<Id>>, LaidOutBox> {
   const data = buildBox<Id>(opts);
-  return band<typeof data, LaidOutBox>(definition, data);
+  return band<typeof data, LaidOutBox>(boxDefinition, data);
 }
 
 export {icon} from '../icon-registry.ts';

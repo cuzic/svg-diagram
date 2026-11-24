@@ -252,6 +252,7 @@
   "layout-placed:placedBand",
   "layout-placed:rectOf",
   "layout-placed:setScope",
+  "layout-swimlane:layoutSwimlane",
   "layout-text:layoutBoxContent",
   "layout-text:lineWidth",
   "layout-text:textRuns",

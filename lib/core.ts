@@ -172,7 +172,7 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
   const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => band.type === 'row' || band.type === 'grid' ? band.children : band.type === 'group' ? [] : [band]);
   const verdict = verifyWithServices({
     collectRects: figure => leaves(figure).flatMap(band => {
-      const def = definitions.get(band.type);
+      const def = definitions.get(band.type) ?? syntheticOutputs.get(band.type);
       const rects = def?.verify?.rects?.(band);
       if (!rects) return [{...band, label: band.type, id: 'id' in band ? band.id ?? null : null}];
       const scope = scopeOf(band);
@@ -186,7 +186,7 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
     checkFigures: figure => {
       const issues: Issue[] = [], warnings: string[] = [];
       for (const band of leaves(figure)) {
-        for (const finding of definitions.get(band.type)?.verify?.check?.(band, ctx) ?? []) {
+        for (const finding of (definitions.get(band.type) ?? syntheticOutputs.get(band.type))?.verify?.check?.(band, ctx) ?? []) {
           if (finding.severity === 'problem') issues.push({message: finding.message});
           else warnings.push(finding.message);
         }
