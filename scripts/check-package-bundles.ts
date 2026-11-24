@@ -60,6 +60,16 @@ try {
   const cases = [
     {name: 'SVG', source: "export {renderInBrowser} from 'svg-diagram/browser';", include: 'web.js', exclude: ['emit-html.js', 'math-tex.js']},
     {name: 'HTML', source: "export {emitHtml} from 'svg-diagram/html';", include: 'emit-html.js', exclude: ['web.js', 'web-measure.js']},
+    {name: 'Selective HTML', source: `
+      import {renderBandsHtml} from 'svg-diagram/html/selective';
+      import {boxHtml} from 'svg-diagram/html/bands';
+      import {box} from 'svg-diagram/bands/box';
+      export const draw = () => renderBandsHtml([box({title: 'Review'})], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        fontBox: size => ({ascent: size, descent: 0}),
+        adapters: {box: boxHtml}, strict: true,
+      });
+    `, include: 'html-selective.js', budget: {esbuild: 80000, Vite: 103000}, bands: ['box.js'], exclude: [...legacy, 'emit-html.js', 'lib/emit.js', 'svg-to-css.js', 'emit-tables.js', 'image-file.js'], draw: true},
     {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';", include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js']},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
       exclude: [...legacy, 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js'], budget: {esbuild: 52000, Vite: 65000}},
@@ -240,6 +250,15 @@ try {
         }
         const {draw: render} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
         const result = await render();
+        if (name === 'Selective HTML') {
+          assert.match(result.html, /class="sd-b"[\s\S]*>Review<\/div>/, label);
+          assert.doesNotMatch(result.html, /<svg|<table/, label);
+          assert.doesNotMatch(code, /<table style=/, label);
+          assert.deepEqual(result.fallbacks, [], label);
+          assert.equal(result.verdict.ok, true, label);
+          console.log(`${label}: ${bytes} bytes`);
+          continue;
+        }
         assert.match(result.svg, name === 'Sankey' ? /<text[^>]*>Review 5<\/text>/ : /<text[^>]*>Review<\/text>/, label);
         if (name === 'Image') {
           assert.match(result.svg, /<image [^>]*href="data:image\/gif;base64,/);

@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {renderBandsHtml} from '../lib/html-selective.ts';
+import {boxHtml, rowHtml} from '../lib/html-native.ts';
+import {box as selectedBox} from '../lib/bands/box.ts';
+import {row as selectedRow} from '../lib/bands/row.ts';
+import {image as selectedImage} from '../lib/bands/image.ts';
 import {box, caption, diagram, closeMeasurer, renderDiagram, row, table, raw} from '../lib/dsl.ts';
 import {configureMeasure} from '../lib/measure.ts';
 import {textBox} from '../lib/font-metrics.ts';
@@ -183,4 +188,29 @@ test('a frame in HTML has the width of the SVG rect (the right edge snaps, not t
   const htmlW = [...html!.matchAll(/class="sd-b" style="left:[\d.-]+px;top:[\d.-]+px;width:([\d.]+)px/g)].map(m => Number(m[1]));
   assert.ok(svgW.length >= 3);
   assert.deepEqual(htmlW, svgW);
+});
+
+test('selective HTML draws enabled adapters and reports SVG fallbacks', async () => {
+  const data = [
+    selectedBox({title: '最初'}),
+    selectedImage('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', {alt: '画像', width: 120}),
+    selectedRow([selectedBox({title: '次へ'}), selectedBox({title: '完了'})]),
+  ];
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    fontBox: (size: number) => ({ascent: size, descent: 0}),
+    adapters: {box: boxHtml, row: rowHtml}, id: 'test-html',
+  };
+  const result = await renderBandsHtml(data, opts);
+  assert.deepEqual(result.fallbacks, [{type: 'image'}]);
+  assert.equal(result.verdict.ok, true);
+  assert.match(result.html, /id="test-html"[^>]*>[\s\S]*class="sd-b"[\s\S]*>最初<[\s\S]*<svg[^>]*class="sd-ov sd-raw"[\s\S]*<image [\s\S]*>次へ<[\s\S]*>完了</);
+  assert.equal((result.html.match(/<svg /g) ?? []).length, 1);
+  const native = await renderBandsHtml([data[0]!, data[2]!], {...opts, strict: true});
+  assert.deepEqual(native.fallbacks, []);
+  assert.doesNotMatch(native.html, /<svg/);
+  const defaultOutput = await renderBandsHtml([data[0]!], {...opts, adapters: undefined});
+  assert.deepEqual(defaultOutput.fallbacks, [{type: 'box'}]);
+  assert.match(defaultOutput.html, /<svg[\s\S]*>最初<\/text>/);
+  await assert.rejects(renderBandsHtml(data, {...opts, strict: true}), /image/);
 });

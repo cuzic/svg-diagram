@@ -42,10 +42,10 @@ function size(name: string, value: number, min: number): number {
 
 const keyOf = (text: string, size: number, weight: number, font: string): string => JSON.stringify([text, size, weight, font]);
 
-/** Render a vertical stack of bands whose definitions are carried by their values. */
 const definitionKey = (band: Band | LaidOutBand): string => band.type === 'chart' ? `chart:${band.kind}` : band.type;
 
-export async function renderBands(bands: readonly DefinedBand[], opts: Options) {
+/** @internal Shared layout and SVG emission for selective output formats. */
+export async function prepareBands(bands: readonly DefinedBand[], opts: Options) {
   const width = size('width', opts.width ?? 940, 1);
   const pad = size('pad', opts.pad ?? 20, 0);
   const gap = size('gap', opts.gap ?? 16, 0);
@@ -198,7 +198,7 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
     },
   }, placed);
   const emitEnv = {theme, roles, tones: ink, color: (key: Parameters<typeof colorOf>[0]) => colorOf(key, theme), stage};
-  const svg = emitSvgWith({
+  const emit = (figure: LaidOutDiagram, noRecolor = false) => emitSvgWith({
     defsNeeded: band => ({
       arrow: band.type === 'row' && band.arrows.length > 0,
       mono: (band.type === 'row' || band.type === 'grid' ? band.children.flatMap(b => b.wrappedRuns)
@@ -210,6 +210,13 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
     diagramTitle: () => opts.title ?? '',
     diagramDesc: () => '',
     spotlightDim: () => 'outline',
-  }, placed, {reveal: stage});
-  return {svg, width, height: placed.canvasHeight, xml: xmlProblems(svg), verdict};
+  }, figure, {reveal: stage, noRecolor});
+  return {placed, stage, verdict, emit};
+}
+
+/** Render a vertical stack of bands whose definitions are carried by their values. */
+export async function renderBands(bands: readonly DefinedBand[], opts: Options) {
+  const {placed, verdict, emit} = await prepareBands(bands, opts);
+  const svg = emit(placed);
+  return {svg, width: placed.width, height: placed.canvasHeight, xml: xmlProblems(svg), verdict};
 }
