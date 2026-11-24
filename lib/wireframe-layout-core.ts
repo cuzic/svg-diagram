@@ -42,7 +42,11 @@ export function collectTextRequestsWith(band: WireframeBand | ScreensBand, runti
     if (typeof v === 'string') strings.add(v);
     else if (typeof v === 'number') strings.add(String(v));
     else if (Array.isArray(v)) v.forEach(walk);
-    else if (v && typeof v === 'object') { if ((v as {t?: unknown}).t) runtime.parts?.strings(v as WfNode).forEach(x => strings.add(x)); Object.values(v).forEach(walk); }
+    else if (v && typeof v === 'object') { if ((v as {t?: unknown}).t) {
+      const node = v as WfNode;
+      runtime.parts?.strings(node).forEach(x => strings.add(x));
+      runtime.strings?.(node).forEach(x => strings.add(x));
+    } Object.values(v).forEach(walk); }
   };
   runtime.parts?.always.forEach(x => strings.add(x));
   walk(band.type === 'screens' ? [band.items, band.matrix] : [band.root, band.overlays, band.title, band.tag, band.notes, band.marks]);
@@ -58,6 +62,7 @@ export interface WireframeRuntime {
   nat?: WfNatTable;
   autoWidth?: WfAutoWTable;
   parts?: WfPartsApi;
+  strings?(node: WfNode): readonly string[];
 }
 
 type RuntimeCtx = WfCtx & {runtime: WireframeRuntime};
@@ -224,10 +229,11 @@ function placeCol(children: WfNode[], x: number, y: number, w: number, h: number
   });
 }
 
-interface WidgetRenderer<K extends WfType> {
+export interface WidgetRenderer<K extends WfType> {
   type: K;
   draw: WfDrawFn<WfNodeOf<K>>;
   height?: WfNatFn<WfNodeOf<K>>;
+  strings?(node: WfNodeOf<K>): readonly string[];
   width?: WfAutoWFn<WfNodeOf<K>>;
 }
 
@@ -908,6 +914,7 @@ export function layoutScreensWith(runtime: WireframeRuntime, band: ScreensBand, 
 /** Build a private renderer table from explicit widget definitions. */
 export function makeWireframeRuntime(renderers: readonly WireframeWidgetRenderer[]): WireframeRuntime {
   const draw: WfDrawTable = {}, nat: WfNatTable = {}, autoWidth: WfAutoWTable = {};
+  const stringsByType = new Map<WfType, (node: never) => readonly string[]>();
   for (const renderer of renderers) {
     const type = renderer.type;
     if (Object.hasOwn(draw, type)) throw new Error(`wireframe(): renderer "${type}" is already registered`);
@@ -915,8 +922,9 @@ export function makeWireframeRuntime(renderers: readonly WireframeWidgetRenderer
     draw[type] = renderer.draw as never;
     if (renderer.height) nat[type] = renderer.height as never;
     if (renderer.width) autoWidth[type] = renderer.width as never;
+    if (renderer.strings) stringsByType.set(type, renderer.strings);
   }
-  return {draw, nat, autoWidth};
+  return {draw, nat, autoWidth, strings: node => stringsByType.get(node.t)?.(node as never) ?? []};
 }
 
 /** Native widgets and frame layout, without monitoring widgets or state decoration. */
@@ -929,7 +937,8 @@ export const basicWireframeRuntime = /* @__PURE__ */ makeWireframeRuntime([
   pointcloudRenderer, chartRenderer, mapRenderer,
 ]);
 
-export function wireframeHelpers(): Omit<WfHelpers, 'wf'> {
-  return {DRAW: {...basicWireframeRuntime.draw}, NAT: {...basicWireframeRuntime.nat}, AUTO_W: {...basicWireframeRuntime.autoWidth},
-    S, T, lh, rect, circle, badge, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder};
+export function wireframeHelpers(): Pick<WfHelpers, 'DRAW' | 'NAT' | 'AUTO_W'> {
+  return {DRAW: {...basicWireframeRuntime.draw}, NAT: {...basicWireframeRuntime.nat}, AUTO_W: {...basicWireframeRuntime.autoWidth}};
 }
+
+export {S, T, lh, rect, circle, badge, text, path, line, pts, mid, tw, wrapT, drawChip, chipW, hideUnder};

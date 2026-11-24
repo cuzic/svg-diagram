@@ -284,6 +284,10 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [stepsPart],
       });
     `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 118000, Vite: 150000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
+    {name: 'Selected monitoring widget', source: composedSource([], "wireframe(col([text('Review'), battery(0.15)]))",
+      "import {createWireframe, colRenderer, textRenderer, batteryRenderer} from 'svg-diagram/wireframe/renderers'; import {col, text, battery} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([colRenderer, textRenderer, batteryRenderer]);"),
+      include: 'wireframe-parts.js', bands: ['wireframe-basic.js'], budget: {esbuild: 73000, Vite: 99000},
+      exclude: [...legacy, 'lib/wireframe.js', 'wireframe-insight.js', 'bands/screens.js'], draw: true},
     {name: 'Selected wireframe widgets', source: composedSource([], "wireframe(col([text('Review'), btn('Next')]))",
       "import {createWireframe, colRenderer, textRenderer, btnRenderer} from 'svg-diagram/wireframe/renderers'; import {col, text, btn} from 'svg-diagram/wireframe/parts'; const wireframe = createWireframe([colRenderer, textRenderer, btnRenderer]);"),
       include: 'wireframe-renderers.js', bands: ['wireframe-basic.js'], budget: {esbuild: 72000, Vite: 98000},
@@ -434,7 +438,7 @@ try {
     const {name, source, include, exclude, budget, draw, bands} = testCase;
     const catalog = 'catalog' in testCase && testCase.catalog;
     const selectedLayout = 'layout' in testCase ? testCase.layout : undefined;
-    const widgetSelection = name === 'Selected wireframe widgets';
+    const widgetSelection = name === 'Selected wireframe widgets' || name === 'Selected monitoring widget';
     writeFileSync(entry, source);
     const es = await esbuild({absWorkingDir: consumer, entryPoints: [entry], bundle: true, minify: true, keepNames: !!selectedLayout || widgetSelection,
       platform: 'browser', format: 'esm', write: false, metafile: true});
@@ -473,7 +477,8 @@ try {
         assert.ok(code);
         if (widgetSelection) {
           assert.ok(code.includes('"textLines"'), label);
-          for (const widget of ['drawMapLegend', 'listRows', 'tableData', 'rng']) {
+          assert.equal(code.includes('"batteryText"'), name === 'Selected monitoring widget', label);
+          for (const widget of ['drawMapLegend', 'listRows', 'tableData', 'rng', 'drawThermal', 'insightData', 'compactRobot', 'drawState', 'signalText']) {
             assert.ok(!code.includes(JSON.stringify(widget)), `${label}: ${widget}`);
           }
         }

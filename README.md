@@ -168,6 +168,8 @@ CLI では `svg-diagram spec 比較.json --part table > 比較.svg` で描画で
 
 基本ウィジェットの描画も絞る場合は、`svg-diagram/wireframe/renderers` の `createWireframe([colRenderer, textRenderer, btnRenderer])` でビルダーを作ります。ノード配列を渡すと暗黙に縦並びになるため、その場合も `colRenderer` が必要です。同じ図に複数のワイヤーフレームを置く場合は、生成したビルダーを共有します。
 
+監視用ウィジェットも同じ入口から選べます。たとえばバッテリー表示には `batteryRenderer` を登録します。ロボットカード用の `robotRenderer` は、カード内に必要なバッテリーと信号の描画を含みます。
+
 RACI、FMEA、QFD、チェックシート、マトリクス、ジャーニーマップ、IS/IS NOT、なぜなぜ分析表は `svg-diagram/bands/table` から個別に import できます。木でなぜなぜ分析を描く場合は `svg-diagram/compose/why-why-tree` の `whyWhyTree` を使います。
 
 ```ts

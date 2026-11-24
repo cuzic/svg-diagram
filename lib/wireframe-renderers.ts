@@ -12,6 +12,12 @@ export {
   pointcloudRenderer, chartRenderer, mapRenderer,
 } from './wireframe-layout-core.ts';
 
+export {
+  toggleRenderer, checkboxRenderer, sliderRenderer, batteryRenderer,
+  signalRenderer, radioRenderer, robotRenderer, insightRenderer,
+  regionRenderer, breadcrumbRenderer, fusionRenderer, compareRenderer,
+} from './wireframe-parts.ts';
+
 /** Create a wireframe builder with only the supplied drawing and measurement callbacks. */
 export function createWireframe(renderers: readonly WireframeWidgetRenderer[]) {
   return wireframeFor(makeWireframeRuntime(renderers));

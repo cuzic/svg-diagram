@@ -840,3 +840,15 @@ test('wireframes can register only the widget renderers they use', async () => {
   assert.equal(a.svg, b.svg);
   await assert.rejects(renderBands([selected(wf.map())], {measure}), /map/);
 });
+
+test('selected monitoring widgets preserve formatted labels without the other renderers', async () => {
+  const {createWireframe, batteryRenderer, colRenderer, signalRenderer} = await import('../lib/wireframe-renderers.ts');
+  const selected = createWireframe([colRenderer, batteryRenderer, signalRenderer]);
+  const root = wf.col([wf.battery(0.15), wf.signal(0)]);
+  const a = await renderBands([selected(root)], {measure, title: '監視'});
+  const b = await renderBands([wireframe(root)], {measure, title: '監視'});
+  assert.equal(a.svg, b.svg);
+  assert.match(a.svg, /15% 低下/);
+  assert.match(a.svg, /途絶/);
+  await assert.rejects(renderBands([selected(wf.fusion())], {measure}), /fusion/);
+});
