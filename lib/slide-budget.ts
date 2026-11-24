@@ -23,7 +23,6 @@ import path from 'node:path';
 import net from 'node:net';
 import crypto from 'node:crypto';
 import {spawn} from 'node:child_process';
-import {launchChromium} from './browser.ts';
 import {computeSlideIndex} from './slide-index.ts';
 import type {SlideBudget} from './types/verdicts.ts';
 
@@ -85,6 +84,7 @@ export function imgSelector(scope: string, svg: string): string {
 }
 
 async function measure(base: string, index: number, svg: string) {
+  const {launchChromium} = await import('./browser.ts');
   const browser = await launchChromium();
   try {
     const p = await browser.newPage({viewport: {width: SLIDE_W, height: SLIDE_H}});

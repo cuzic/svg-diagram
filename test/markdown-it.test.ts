@@ -129,7 +129,7 @@ test('a source that ignores SIGTERM is still stopped by the timeout; the HTML fo
   fs.rmSync(dir, {recursive: true});
 });
 
-test('the markdown-it SVG worker leaves HTML and raster emitters unloaded', () => {
+test('the markdown-it SVG worker leaves optional output and Chromium modules unloaded', () => {
   const dir = tmp();
   try {
     const source = path.join(dir, 'flow.diagram.ts');
@@ -138,14 +138,14 @@ test('the markdown-it SVG worker leaves HTML and raster emitters unloaded', () =
       registerHooks({resolve(specifier, context, next) {
         const result = next(specifier, context);
         const file = new URL(result.url).pathname;
-        if (['/lib/emit-html.ts', '/lib/font-box.ts', '/lib/raster.ts'].some(suffix => file.endsWith(suffix))) {
-          throw new Error("Unexpected output dependency: " + file);
+        if (['/lib/emit-html.ts', '/lib/font-box.ts', '/lib/raster.ts', '/lib/browser.ts', '/lib/cdp-browser.ts'].some(suffix => file.endsWith(suffix))) {
+          throw new Error("Unexpected optional dependency: " + file);
         }
         return result;
       }});`;
     const worker = path.join(ROOT, 'lib/render-sync-worker.ts');
     const rendered = spawnSync(process.execPath, ['--import', 'data:text/javascript,' + encodeURIComponent(hook), worker, source, '0'],
-      {cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe', 'pipe']});
+      {cwd: dir, env: {...process.env, SVG_DIAGRAM_MEASURE: 'font'}, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe', 'pipe']});
     assert.equal(rendered.status, 0, rendered.stderr);
     const figure = JSON.parse(rendered.output[3] ?? '');
     assert.equal(figure.ok, true);
