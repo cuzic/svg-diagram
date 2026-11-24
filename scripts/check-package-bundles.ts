@@ -233,6 +233,9 @@ try {
       });
     `, include: 'pptx/selective.js', budget: {esbuild: 155000, Vite: 184000}, bands: ['box.js', 'row.js'],
       exclude: [...legacy, 'pptx/bands.js', 'pptx/box-bands.js', 'pptx/grid-band.js', 'pptx/group-band.js', 'pptx/slide.js', 'pptx/image-band.js', 'pptx/table.js', 'pptx/group-span.js', 'pptx/swimlane-span.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'svg-outline.js', 'lib/emit.js'], draw: true},
+    {name: 'PPTX box adapter', source: "export {boxPptx} from 'svg-diagram/pptx/bands/box';",
+      include: 'box-step-geometry.js', budget: {esbuild: 18000, Vite: 23500},
+      exclude: [...legacy, 'pptx/banner-band.js', 'pptx/grid-band.js', 'pptx/row-band.js', 'pptx/svg-shapes.js', 'emit-box.js', 'emit-boxes.js', 'icon-svg.js']},
     {name: 'Selective PPTX image', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
       import {image} from 'svg-diagram/bands/image';

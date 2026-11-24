@@ -1,7 +1,8 @@
 export {captionTextPlacement, renderCaption} from './emit-caption.ts';
 export {renderBanner} from './emit-banner.ts';
 export {renderGroup} from './emit-group.ts';
-export {ringed, stepBadgeAt, renderStepBadge, renderBoxIcon, renderTag, renderBox} from './emit-box.ts';
+export {ringed, stepBadgeAt} from './box-step-geometry.ts';
+export {renderStepBadge, renderBoxIcon, renderTag, renderBox} from './emit-box.ts';
 export {frameGeometry, renderBoxRect, stampGeometry, renderStamp, tagGeometry} from './emit-box-frame.ts';
 export type {BoxLike} from './emit-box-frame.ts';
 export {boxTextPlacement} from './emit-box-text.ts';
