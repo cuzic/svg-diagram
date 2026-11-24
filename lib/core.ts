@@ -269,7 +269,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       const issues: Issue[] = [], warnings: string[] = [];
       for (const band of leaves(figure)) {
         for (const finding of placedDefinition(band)?.verify?.check?.(band, ctx) ?? []) {
-          if (finding.severity === 'problem') issues.push({message: finding.message});
+          if (finding.severity === 'problem') issues.push({...at(band), message: finding.message});
           else warnings.push(finding.message);
         }
       }

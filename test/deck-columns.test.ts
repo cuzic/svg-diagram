@@ -372,8 +372,7 @@ test('selected deck rendering preserves the catalog SVG, fit and CLI diagnostics
     assert.ok(selected, type);
     const legacy = await renderDiagram(applyConfig(specToDiagram(input), cfg), {name: 'slide1.svg', budget: 'cacheOnly'});
     for (const key of ['svg', 'width', 'height', 'xml', 'fit'] as const) assert.deepEqual(selected[key], legacy[key], `${type}: ${key}`);
-    assert.deepEqual(selected.verdict.warnings, legacy.verdict.warnings, type);
-    assert.deepEqual(selected.verdict.problems, legacy.verdict.problems, type);
+    assert.deepEqual(selected.verdict, legacy.verdict, type);
   }
 });
 
