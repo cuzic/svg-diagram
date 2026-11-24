@@ -247,7 +247,13 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     }),
     contrastProblems: () => [],
     lintDiagram: () => opts.accept ? bandFindings.map(finding => applyFindingAcceptance(finding, opts.accept)) : bandFindings,
-    acceptHint: () => undefined,
+    acceptHint(rule) {
+      for (const def of definitions.values()) {
+        const hint = def.verify?.acceptHint?.(rule);
+        if (hint) return hint;
+      }
+      return undefined;
+    },
     mergeFindingSides: () => [],
     hasMutedBox: () => false,
     checkFigures: figure => {

@@ -28,7 +28,7 @@ import {axisMismatches} from './axis-rules.ts';
 import {axisMismatchFindings} from './axis-comparison.ts';
 import {qualify, scopeOf} from './anchor-scope.ts';
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
-import {applyFindingAcceptance, analysisFindings, at, fromSources} from './finding-rules.ts';
+import {applyFindingAcceptance, analysisFindings, at, findingAcceptanceHint, fromSources} from './finding-rules.ts';
 import type {SourceRef} from './source-ref.ts';
 import {legendKeys, legendLabelsFor, missingLegendItems, usedNotation, walkBands, wordedCanvasBands} from './legend-notation.ts';
 export {DEFAULT_LEGEND_LABELS, legendKeys, legendLabelsFor, usedNotation, walkBands} from './legend-notation.ts';
@@ -70,7 +70,7 @@ import {statusText} from './status.ts';
 
 import {must} from './must.ts';
 import {swimlaneFindings} from './swimlane-rules.ts';
-import {rowHeaderFindings, semanticTableFindings} from './table-rules.ts';
+import {rowHeaderFindings, semanticTableFindings, tableRules} from './table-rules.ts';
 export const RULE_DOCS = {
   'a11y-text-contrast': 'テキストと背景のコントラスト比が WCAG の 4.5:1 未満',
   'a11y-color-only-emphasis': '色だけで強調した語がある（太字も併用する。色が見えない読者にも伝わるように）',
@@ -93,8 +93,8 @@ export const RULE_DOCS = {
   'wrap-fell-back': "wrap: 'bunsetsu-soft' で、文節で折ると図が幅に収まらなかったので、従来の折り方(phrase)で配置した(情報。漢字・ひらがなの途中で折れる行が残る)。図を 2 枚に分ける・文言を短くする・図の幅を広げると、文節で折れる。",
   'shrink-narrow-text': "fit: 'shrink' で bpmn / swimlane を詰めた結果、task / step の幅が狭すぎて本文が 2〜3 字ずつ折れる。縦向き・図の分割・文言の短縮を検討する",
   'gray-tone-collision': '使っている 2 つのトーンの塗りが、白黒（グレースケール）にすると見分けにくい（明度差 L* が 10 未満。破線などの形の手がかりがあれば除く）',
-  'rowheader-tone-collides': '表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある',
-  'semantic-table-warning': '意味付き表の入力に注意点がある（例: RACI の空の役割列）',
+  'rowheader-tone-collides': tableRules['rowheader-tone-collides'].doc,
+  'semantic-table-warning': tableRules['semantic-table-warning'].doc,
   'swimlane-lanes': 'レーンが多い（6 本まで）',
   'swimlane-hand-offs': 'レーンをまたぐ引き継ぎの数（情報）',
   'edge-crossings': '線どうしの交差・重なりがある',
@@ -218,8 +218,8 @@ export const RULE_LOCATION = {
   'wrap-fell-back': 'diagram',
   'shrink-narrow-text': 'band',
   'gray-tone-collision': 'band-grouped',
-  'rowheader-tone-collides': 'band',
-  'semantic-table-warning': 'band',
+  'rowheader-tone-collides': tableRules['rowheader-tone-collides'].scope,
+  'semantic-table-warning': tableRules['semantic-table-warning'].scope,
   'swimlane-lanes': 'band',
   'swimlane-hand-offs': 'band',
   'edge-crossings': 'band-grouped',
@@ -666,7 +666,7 @@ function layoutQualityRules(d: LintTarget, out: Finding[]): void {
 
 /** The exact snippet that accepts a finding of `rule` (for the warning output); '' for a rule that cannot be accepted. */
 export function acceptHint(rule: string): string {
-  return Object.hasOwn(RULE_DOCS, rule) ? `許容するなら diagram({accept: {'${rule}': '理由'}}) か .svg-diagram.json の {"accept": {"${rule}": "理由"}}（詳しくは check --explain ${rule}）` : '';
+  return Object.hasOwn(RULE_DOCS, rule) ? findingAcceptanceHint(rule) : '';
 }
 
 /** Layout copies share SourceRefs across appearances, including refs from the same helper's different calls. */

@@ -92,6 +92,7 @@ interface BandHooks<D, L extends object> {
     diagramFindings?: DiagramFindings | readonly DiagramFindings[];
     check?(laid: L, ctx: VerifyCtx): BandFinding[];
     contrast?: VerifyHandler<L>['contrast'];
+    acceptHint?(rule: string): string | undefined;
   };
   ids?(data: D): string[];
   reveal?: RevealHandler<D>;

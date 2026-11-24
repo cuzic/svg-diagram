@@ -4,11 +4,18 @@ import {fileURLToPath} from 'node:url';
 import {areas, box, caption, checkDiagram, closeMeasurer, connect, diagram, grid, legend, row, stat} from '../lib/dsl.ts';
 import {loadDiagram} from '../lib/load-source.ts';
 import {installResolveHook} from '../lib/resolve-hook.ts';
-import {at, fromSources} from '../lib/finding-rules.ts';
+import {at, findingAcceptanceHint, fromSources} from '../lib/finding-rules.ts';
 import {captureSourceLocations, markSpecPart, sourceOf, SourceRef, withSource} from '../lib/source-ref.ts';
 import type {Diagram, LintTarget, RuleId} from '../lib/types/index.ts';
 import {ruleLocationFixtures} from './fixtures/rule-locations.ts';
 import {lintDiagram, mergeFindingSides, RULE_DOCS, RULE_LOCATION} from '../lib/rules.ts';
+
+test('findingAcceptanceHint uses the same rule in both configuration forms', () => {
+  const hint = findingAcceptanceHint('rowheader-tone-collides');
+  assert.ok(hint.includes("diagram({accept: {'rowheader-tone-collides': '理由'}})"));
+  assert.ok(hint.includes('{"accept": {"rowheader-tone-collides": "理由"}}'));
+  assert.ok(hint.includes('check --explain rowheader-tone-collides'));
+});
 
 test('markSpecPart shares a path while keeping distinct builder call sites', () => {
   const stack = {stack: 'builder'};

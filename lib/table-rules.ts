@@ -4,6 +4,11 @@ import type {ToneEnv} from './tokens.ts';
 import type {LaidOutTable, TableBand} from './types/sequence-table-swimlane.ts';
 import type {Finding} from './types/verdicts.ts';
 
+export const tableRules = /* @__PURE__ */ Object.freeze({
+  'rowheader-tone-collides': {doc: '表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある', scope: 'band'},
+  'semantic-table-warning': {doc: '意味付き表の入力に注意点がある（例: RACI の空の役割列）', scope: 'band'},
+} as const);
+
 export function semanticTableFindings(b: TableBand): Finding[] {
   return (b.semanticWarnings ?? []).map(message => ({...at(b), rule: 'semantic-table-warning', severity: 'warn', message}));
 }

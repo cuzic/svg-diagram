@@ -34,3 +34,8 @@ export function applyFindingAcceptance(finding: Finding, accept: DiagramData['ac
     ?? (finding.rule === 'toc-no-desired-result' ? accept?.['toc-parts'] : undefined);
   return why ? {...finding, severity: 'info', message: `${finding.message}（許容: ${why}）`} : finding;
 }
+
+/** Format the guidance for a documented rule. */
+export function findingAcceptanceHint(rule: string): string {
+  return `許容するなら diagram({accept: {'${rule}': '理由'}}) か .svg-diagram.json の {"accept": {"${rule}": "理由"}}（詳しくは check --explain ${rule}）`;
+}

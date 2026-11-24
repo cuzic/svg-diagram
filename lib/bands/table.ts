@@ -1,11 +1,11 @@
 import * as semantic from '../dsl/qc-semantic.ts';
-import {analysisFindings} from '../finding-rules.ts';
+import {analysisFindings, findingAcceptanceHint} from '../finding-rules.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {table as build} from '../dsl/sequence-table-swimlane.ts';
 import {renderTable} from '../emit-tables.ts';
 import {snapGrid} from '../layout-util.ts';
-import {rowHeaderFindings, semanticTableFindings} from '../table-rules.ts';
+import {rowHeaderFindings, semanticTableFindings, tableRules} from '../table-rules.ts';
 import {layoutTable, tableTexts} from '../seq-table.ts';
 import type {LaidOutTable, TableBand, TableColumn, TableOpts, TableRow} from '../types/sequence-table-swimlane.ts';
 
@@ -13,6 +13,7 @@ export {cell} from '../dsl/sequence-table-swimlane.ts';
 
 export const tableDefinition: BandDef<TableBand, LaidOutTable> = {
   type: 'table',
+  rules: tableRules,
   textSizes: band => [band.bodySize],
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of tableTexts(data, roles)) atoms(text, size, weight, font);
@@ -23,6 +24,7 @@ export const tableDefinition: BandDef<TableBand, LaidOutTable> = {
   },
   emit: (laid, {theme, tones, roles}) => renderTable(laid, theme, tones, roles),
   verify: {
+    acceptHint: rule => Object.hasOwn(tableRules, rule) ? findingAcceptanceHint(rule) : undefined,
     findings: data => [...analysisFindings(data, data.rca?.findings ?? []), ...semanticTableFindings(data)],
     layoutFindings: (laid, {tones}) => rowHeaderFindings(laid, tones),
   },

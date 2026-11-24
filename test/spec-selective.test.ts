@@ -223,6 +223,7 @@ test('selected tables and swimlanes report the same band findings as the legacy 
     assert.ok(notes(legacy).length, rule);
     assert.deepEqual(notes(actual), notes(legacy), rule);
     assert.equal(actual.verdict.findings.find(note => note.rule === rule)?.loc?.specPath, 'parts[0]', rule);
+    assert.deepEqual(actual.verdict.warnings, legacy.verdict.warnings, rule);
   }
 });
 
@@ -365,5 +366,20 @@ test('selected TOC trees suggest a legend once when the spec leaves it unspecifi
     const notes = ({verdict}: typeof selected) => verdict.findings.filter(f => f.rule === 'toc-legend-suggested');
     assert.deepEqual(notes(legacy), legend === undefined ? [tocLegendFinding()] : []);
     assert.deepEqual(notes(selected), notes(legacy));
+  }
+});
+
+test('prepared specs preserve the legacy verdict diagnostics across the catalog', async () => {
+  const {prepareSpecLayout} = await import('../lib/spec-selective.ts');
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const findings = ({verdict}: Pick<Awaited<ReturnType<typeof renderSpec>>, 'verdict'>) =>
+    verdict.findings.toSorted((a, b) => a.rule.localeCompare(b.rule) || a.message.localeCompare(b.message));
+  for (const part of [flowchartPart, pyramidPart, funnelPart, ...moreParts]) {
+    const input = {version: 1, title: '計画', width: 940, parts: [part.example]};
+    const selected = await prepareSpecLayout(input, {parts: [part]})(measure);
+    const legacy = await renderInBrowser(specToDiagram(input), {measure});
+    assert.deepEqual(findings(selected), findings(legacy), part.type);
+    assert.deepEqual(selected.verdict.warnings, legacy.verdict.warnings, part.type);
+    assert.deepEqual(selected.verdict.problems, legacy.verdict.problems, part.type);
   }
 });

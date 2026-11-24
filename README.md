@@ -156,7 +156,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 
 JSON spec の部品を限定するには、`svg-diagram/spec/selective` の `renderSpec(spec, {parts, measure})` を使います。`svg-diagram/spec/parts/<名前>` から、表（`table`）、ガント図（`gantt`）、フローチャート（`flowchart`）など必要な部品を選び、`parts` に渡します。既存カタログの全65部品に個別入口があります。同じ一覧から `specSchemaFor({parts})` と `partCatalog({parts})` も生成できます。図全体の項目には `lang`、`appearance`、`density`、`desc`、`canvas` も指定できます。`showTitle` または `sourceLine` を使う場合は `svg-diagram/bands/caption` から `captionDefinition` を読み込み、`captions` に渡します。`legend: "auto"` を指定する場合は、`svg-diagram/bands/legend` から `autoLegend` を読み込み、`renderSpec`、`validateSpec`、`specSchemaFor` のオプションに渡します。
 
-TOC の因果図では、凡例の指定を省略すると凡例を勧める所見が図全体で一度だけ出ます。部品に紐づく所見の `loc.specPath` には、`parts[0]` のように入力内の位置が入ります。
+TOC の因果図では、凡例の指定を省略すると凡例を勧める所見が図全体で一度だけ出ます。部品に紐づく所見の `loc.specPath` には、`parts[0]` のように入力内の位置が入ります。表の行見出しや意味付き表の警告では、ルールを許容する設定例も返します。
 
 Edge で選択した部品を描画して文字を輪郭化するには、`svg-diagram/spec/selective/edge` の `renderSpecEdge(spec, engine, {parts})` を使います。`engine` は `spec/edge` と同じ `TextEngine` です。必要に応じて `captions`、`autoLegend`、`maxHeight` も渡せます。日本語の説明文を付ける場合は spec の `desc` に記述します。
 
