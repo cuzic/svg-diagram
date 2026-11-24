@@ -139,7 +139,8 @@ export function prepareSpecLayout(input: unknown, options: PrepareOptions & {pro
     const prepared = await prepareBands(bands, {...drawOptions, wrap, keepWords, tones, ...(typeof measurement === 'function' ? {measure: measurement} : measurement)});
     const {stage, emit} = prepared;
     return {...prepared, emit(figure: typeof prepared.placed, noRecolor?: boolean) {
-      if (figure.desc) return emit(figure, noRecolor, oneLine(figure.desc));
+      const titled = {...figure, title: oneLine(figure.title)};
+      if (figure.desc) return emit(titled, noRecolor, oneLine(figure.desc));
       const all: Band[] = [];
       const walk = (band: Band): void => {
         all.push(band);
@@ -147,7 +148,7 @@ export function prepareSpecLayout(input: unknown, options: PrepareOptions & {pro
         children.forEach(walk);
       };
       figure.bands.forEach(walk);
-      return emit(figure, noRecolor, describeBands(all, stage));
+      return emit(titled, noRecolor, describeBands(all, stage));
     }};
   };
 }

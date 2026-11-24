@@ -337,3 +337,42 @@ test('selective deck loading checks JSON paths and columns with the same locatio
     fs.rmSync(dir, {recursive: true, force: true});
   }
 });
+
+test('JSON deck rendering draws the selected part without loading the full catalog', () => {
+  const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
+    import {registerHooks} from 'node:module';
+    const urls = new Set();
+    registerHooks({load(url, context, next) { urls.add(url); return next(url, context); }});
+    const {renderDeckFigure} = await import('./lib/deck-render-figure.ts');
+    const spec = {version: 1, title: '相談', width: 440,
+      parts: [{type: 'table', columns: [{label: '案'}], rows: [['先行テスト']]}]};
+    const result = await renderDeckFigure(0, spec, undefined, {measure: 'font'});
+    if (!result.ok) throw new Error(JSON.stringify(result.errors));
+    console.log(JSON.stringify({svg: result.result.svg, width: result.result.width, urls: [...urls]}));
+  `], {cwd: path.join(import.meta.dirname, '..'), encoding: 'utf8'});
+  assert.equal(child.status, 0, child.stderr);
+  const {svg, width, urls} = JSON.parse(child.stdout) as {svg: string; width: number; urls: string[]};
+  assert.equal(width, 440);
+  assert.match(svg, /先行テスト/);
+  assert.match(svg, /<desc id="svg-desc">表: 列 案<\/desc>/);
+  assert.ok(urls.some(url => url.endsWith('/spec-parts/selective/table.ts')));
+  assert.ok(!urls.some(url => /\/(?:spec|dsl\/render|spec-parts\/r[1-7])\.ts$/.test(url)));
+});
+
+test('selected deck rendering preserves the catalog SVG, fit and CLI diagnostics', async () => {
+  const {renderDeckSpec} = await import('../lib/deck-render-spec.ts');
+  const {specToDiagram} = await import('../lib/spec.ts');
+  const {renderDiagram} = await import('../lib/dsl/render.ts');
+  const {applyConfig} = await import('../lib/config.ts');
+  const cfg = {measure: 'font' as const, fonts: JA_FONTS, legend: 'auto' as const, maxWidth: 720,
+    legendLabels: {'tone:accent': '注目'}, terms: {変更: ['テスト']}};
+  for (const {type, example} of partCatalog()) {
+    const input = {version: 1, lang: 'en', title: ' 計画 ', showTitle: true, sourceLine: '出典を確認', parts: [example]};
+    const selected = await renderDeckSpec(input, cfg);
+    assert.ok(selected, type);
+    const legacy = await renderDiagram(applyConfig(specToDiagram(input), cfg), {name: 'slide1.svg', budget: 'cacheOnly'});
+    for (const key of ['svg', 'width', 'height', 'xml', 'fit'] as const) assert.deepEqual(selected[key], legacy[key], `${type}: ${key}`);
+    assert.deepEqual(selected.verdict.warnings, legacy.verdict.warnings, type);
+    assert.deepEqual(selected.verdict.problems, legacy.verdict.problems, type);
+  }
+});

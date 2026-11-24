@@ -1,6 +1,5 @@
 import {applyConfig} from './config.ts';
-import {loadDiagram} from './load-source.ts';
-import {renderDiagram} from './dsl/render.ts';
+import {renderDeckSpec} from './deck-render-spec.ts';
 import {SpecError} from './spec-kit.ts';
 import {columnFallbackWarning, columnFigurePath, columnSpec, figurePath} from './deck-spec-core.ts';
 import {fillSearch, ruleIds, type DrawnFigure} from './deck-layout.ts';
@@ -18,7 +17,13 @@ export async function renderDeckFigure(i: number, spec: unknown, source: string 
   const j = opts.column, at = (p: string | null) => j === undefined ? figurePath(i, p) : columnFigurePath(i, j, p);
   const draw = async (s: unknown): Promise<{ok: true; result: RenderResult} | {ok: false; errors: string[]; why: string}> => {
     try {
-      const d: Diagram = source ? await loadDiagram(source, cfg, opts) : applyConfig((await import('./spec.ts')).specToDiagram(s), cfg);
+      if (!source) {
+        const selected = await renderDeckSpec(s, cfg);
+        if (selected) return {ok: true, result: selected};
+      }
+      const {renderDiagram} = await import('./dsl/render.ts');
+      const d: Diagram = source ? await (await import('./load-source.ts')).loadDiagram(source, cfg, opts)
+        : applyConfig((await import('./spec.ts')).specToDiagram(s), cfg);
       return {ok: true, result: await renderDiagram(d, {name: `slide${i + 1}${j === undefined ? '' : `-${j + 1}`}.svg`, budget: 'cacheOnly'})};
     } catch (e) {
       if (e instanceof SpecError) return {ok: false, errors: e.issues.map(x => `${at(x.path)}: ${x.message}`), why: e.issues[0]?.message ?? ''};

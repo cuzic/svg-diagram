@@ -263,7 +263,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     }),
     renderBand: band => must(definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type)).emit(band as never, emitEnv),
     renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
-    diagramTitle: () => opts.title ?? '',
+    diagramTitle: diagram => diagram.title ?? '',
     diagramDesc: () => description,
     spotlightDim: () => 'outline',
   }, figure, {reveal: stage, noRecolor});
