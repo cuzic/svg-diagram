@@ -1372,3 +1372,19 @@ test('selected steps preserve numbered boxes, focus and loop-back connectors', a
   assert.match(selected.svg, /差し戻し/);
   assert.equal(selected.svg, legacy.svg);
 });
+
+test('selected affinity diagrams preserve nested groups and card columns', async () => {
+  const {affinity} = await import('../lib/compose/selective/affinity.ts');
+  const {affinity: legacyAffinity} = await import('../lib/web.ts');
+  const groups = [
+    {title: '準備', groups: [{title: '資料', cards: ['更新日を確認する', '配布用の版を作る']}]},
+    {title: '連絡', cards: ['共有先を確認する', '締切を知らせる']},
+  ];
+  const opts = {cols: 2, cardCols: 2};
+  const title = '改善の分類';
+  const selected = await renderBands(affinity(groups, opts), {measure, title});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false, title})
+    .add(legacyAffinity(groups, opts)), {measure});
+  assert.match(selected.svg, /配布用の版を作る/);
+  assert.equal(selected.svg, legacy.svg);
+});

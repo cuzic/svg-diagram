@@ -59,7 +59,7 @@ try {
   ] as const;
   // Every public spec part must draw its example with only the band adapters it can build.
   const specBands = {
-    'box caption grid group group-row row': ['affinity'],
+    'box caption grid group group-row': ['affinity'],
     'areas box caption connect group': ['board'],
     'box connect row': ['steps'],
     'box caption connect group group-row row spacer': ['versus'],
@@ -241,6 +241,10 @@ try {
       "import {stateMatrix, wf} from 'svg-diagram/bands/screens';"),
       include: 'state-matrix-rules.js', budget: {esbuild: 102500, Vite: 139000}, bands: ['screens.js'],
       exclude: [...legacy, 'bands/wireframe.js', 'bands/table.js', 'layout-connect.js'], draw: true},
+    {name: 'Composer Affinity', source: composedSource([], "...affinity([{title: 'Review', cards: ['First', 'Second']}, {title: 'Plan', groups: [{title: 'Prepare', cards: ['Third']}]}], {cardCols: 2})",
+      "import {affinity} from 'svg-diagram/compose/affinity';"),
+      include: 'compose/selective/affinity.js', budget: {esbuild: 94000, Vite: 119000}, bands: ['box.js', 'caption.js', 'grid.js', 'group-row.js', 'group.js'],
+      exclude: [...legacy, 'bands/row.js', 'dsl/diagrams.js', 'layout-connect.js', 'bands/areas.js', 'bands/cause.js', 'spec-selective.js'], draw: true},
     {name: 'Composer Canvas', source: composedSource([], "canvas('swot', {strengths: 'Plan'}, {requireAll: true, titles: {strengths: 'Review'}})", "import {canvas} from 'svg-diagram/compose/canvas'; "),
       include: 'compose/selective/canvas.js', budget: {esbuild: 89000, Vite: 113500}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'layout-connect.js', 'bands/banner.js', 'bands/row.js'], draw: true},
     {name: 'Composer Hero', source: composedSource([], "...hero({banner: {headline: 'Review'}, flow: [box({title: 'Step'})], stat: {value: 3, label: 'Done'}})", "import {hero} from 'svg-diagram/compose/hero'; import {box} from 'svg-diagram/bands/box';"),

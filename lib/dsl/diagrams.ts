@@ -1,16 +1,13 @@
 import {whyWhyTreeFindings} from '../rca-rules.ts';
 import {criticalPath, exact} from '../qc.ts';
 import type {ArrowActivity} from '../qc.ts';
-import type {GroupBand, RowBand, GroupRowBand} from '../types/containers.ts';
 import type {WhyNode, StatesBand, StatesOpts, StateItem, Transition, CauseBand, CauseLink, CauseNode, CauseOpts} from '../types/diagrams.ts';
-import type {Band} from '../types/index.ts';
 import type {CaptionBand} from '../types/text-bands.ts';
 import type {Declares, HandleOf} from '../strict.ts';
 import {causeBand} from './cause.ts';
-import {grid, row} from './containers.ts';
 import {revealOf, scopeOpt} from './shared.ts';
 import {stateDiagram} from './states.ts';
-import {box, caption, group} from './text-bands.ts';
+import {caption} from './text-bands.ts';
 
 export {tree, mindmap} from './tree.ts';
 export {bpmn} from './bpmn.ts';
@@ -102,56 +99,7 @@ export function arrowDiagram(activities: readonly ArrowActivity[], opts: ArrowDi
   const band = stateDiagram(states, transitions, {...rest, ...(opts.dir === undefined ? {} : {dir: opts.dir})}) as StatesBand;
   return summary === false ? [band] : [band, caption(`全体で ${exact(r.length)}${unit}　クリティカルパス: ${r.path.join(' → ')}${r.activities.filter(a => a.critical && !a.dummy).length > r.path.length ? '（ほかにも同じ長さの経路がある）' : ''}`, {align: 'left'})];
 }
-export interface AffinityGroup {
-  /** The group's name (表札): what the cards in it have in common, in a short sentence. */
-  title: string;
-  /** The cards: one idea or fact each. */
-  cards?: readonly string[];
-  /** Groups inside this one (a larger group is made of smaller ones). */
-  groups?: readonly AffinityGroup[];
-}
-export interface AffinityOpts {
-  /** How many groups side by side (default 3). */
-  cols?: number;
-  /** How many cards side by side in a group (default 1). */
-  cardCols?: number;
-}
-/**
- * An affinity diagram (親和図): cards of ideas or facts gathered into groups, each group named by a short sentence (its 表札), and
- * larger groups made of smaller ones. Groups sit side by side (`cols`), cards stack inside a group (`cardCols` to put them in columns).
- *   affinity([{title: '準備が足りない', cards: ['段取りが決まっていない', '資料が古い']}, {title: '連絡が遅い', groups: [{title: '社内', cards: ['報告が遅れる']}]}])
- */
-export function affinity(groups: readonly AffinityGroup[], opts: AffinityOpts = {}): (RowBand | GroupRowBand)[] {
-  if (!Array.isArray(groups) || groups.length === 0) throw new Error('affinity(groups) needs at least one group');
-  const cols = opts.cols ?? 3, cardCols = opts.cardCols ?? 1;
-  for (const [k, v] of [['cols', cols], ['cardCols', cardCols]] as const) if (!(Number.isInteger(v) && v >= 1 && v <= 6)) throw new Error(`affinity(): ${k} must be a whole number from 1 to 6 (got ${v})`);
-  const spanOf = (g: AffinityGroup, unit: number): number => Math.min(unit, Math.max(1, g.groups?.length ?? 1));
-  // a group made of smaller groups is as many columns wide as it has of them, so the small ones are not squeezed
-  const build = (g: AffinityGroup, depth: number, span: number, unit: number): GroupBand => {
-    if (typeof g?.title !== 'string' || !g.title.trim()) throw new Error('affinity(): every group needs a title (its 表札)');
-    const cards = (g.cards ?? []).map(t => {
-      if (typeof t !== 'string' || !t.trim()) throw new Error(`affinity(): group "${g.title}" has an empty card`);
-      return box({body: t, tone: 'plain'});
-    });
-    if (!cards.length && !g.groups?.length) throw new Error(`affinity(): group "${g.title}" has no cards and no groups`);
-    const inner: Band[] = [...rows(g.groups ?? [], depth + 1, span), ...(cardCols > 1 && cards.length ? [grid(cards, {cols: cardCols})] : cards)];
-    return group(inner, {title: g.title, tone: depth === 0 ? 'accent' : 'muted', dashed: false, ...(unit > 1 ? {span} : {})});
-  };
-  // rows of `unit` columns, groups packed in order
-  const rows = (list: readonly AffinityGroup[], depth: number, unit: number): (RowBand | GroupRowBand)[] => {
-    const out: (RowBand | GroupRowBand)[] = [];
-    let cur: GroupBand[] = [], used = 0;
-    const flush = (): void => { if (cur.length) out.push(row(cur, {cols: unit})); cur = []; used = 0; };
-    for (const g of list) {
-      const span = spanOf(g, unit);
-      if (used + span > unit) flush();
-      cur.push(build(g, depth, span, unit));
-      used += span;
-    }
-    flush();
-    return out;
-  };
-  return rows(groups, 0, cols);
-}
+export {affinity} from './affinity.ts';
+export type {AffinityGroup, AffinityOpts} from './affinity.ts';
 export {cloud} from './cloud.ts';
 export {faultTree} from './fta.ts';
