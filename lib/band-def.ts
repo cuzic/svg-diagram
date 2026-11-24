@@ -1,3 +1,4 @@
+import type {areasPrelayout} from './layout-areas-gaps.ts';
 import type {LoopBackSource, loopBackConnectors} from './loop-back.ts';
 import type {connectorInventory} from './inventory-lines.ts';
 import type {InventoryContext} from './inventory-core.ts';
@@ -123,6 +124,7 @@ interface PublicLayout<D, L extends object> {
 
 interface InternalLayout<D> {
   internal: true;
+  areasPrelayout?: typeof areasPrelayout;
   outputTypes?: readonly string[];
   resolveConnect?: typeof resolveConnect;
   connectorInventory?: typeof connectorInventory;

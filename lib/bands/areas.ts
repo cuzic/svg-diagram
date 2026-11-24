@@ -1,3 +1,4 @@
+import {areasPrelayout} from '../layout-areas-gaps.ts';
 import {rowItems} from '../inventory-boxes.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
 import {childRuns} from '../band-text-sizes.ts';
@@ -17,6 +18,7 @@ const definition = {
   textSizes: childRuns,
   internal: true,
   layout: layoutAreas,
+  areasPrelayout,
   children: data => data.children,
   outputTypes: ['row'],
   verify: {targets: laid => laid.children, diagramFindings: frameLayoutFindings},

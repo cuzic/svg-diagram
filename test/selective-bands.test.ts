@@ -232,8 +232,8 @@ test('loop-back expansion also binds the generated connector inside a group', as
 
 test('selected areas preserve spans, generated group wrappers and labelled connections', async () => {
   const template = ['head head', 'left right'];
-  const options = {cols: [1, 2], gap: 80};
-  const link = {label: 'go', route: 'straight'} as const;
+  const options = {cols: [1, 2], gap: 8};
+  const link = {label: 'Review again', route: 'straight'} as const;
   const selected = await renderBands([
     areas(template, {head: caption('Plan'), left: box({title: 'Review'}), right: group(box({title: 'Next'}), {title: 'Work'})}, options),
     connect('left:right', 'right:left', link),

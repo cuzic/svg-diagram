@@ -206,6 +206,10 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     hasChildrenHandler: input => definitions.has(definitionKey(input)),
     childrenOf: input => defOf(input)?.children?.(input) ?? [],
     stackWidthOf: (input, width) => defOf(input)?.stackWidth?.(input, width) ?? null,
+    areasPrelayoutFor: data => {
+      const def = defOf(data);
+      return def?.internal ? def.areasPrelayout : undefined;
+    },
     scopesOf: () => scopeTable,
     buildInventory: (laidOut, connects, widthOf, labelSize) => {
       const items = buildInventoryWith((band, ctx) =>
