@@ -6,7 +6,7 @@ import {frameLayoutFindings} from '../layout-metrics.ts';
 import {childRuns} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {grid as buildGrid} from '../dsl/containers.ts';
+import {grid as buildGrid} from '../dsl/grid.ts';
 import {childTextSvgDefs} from '../emit-box-defs.ts';
 import {renderGrid} from '../emit-grid.ts';
 import {layoutGridBand} from '../layout-grid.ts';

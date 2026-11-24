@@ -3,7 +3,7 @@ import {frameLayoutFindings} from '../layout-metrics.ts';
 import {childRuns} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {row as buildRow} from '../dsl/containers.ts';
+import {row as buildRow} from '../dsl/row.ts';
 import {renderRow, rowSvgDefs} from '../emit-row.ts';
 import {layoutGroupRow} from '../layout-group-row.ts';
 import type {Declares, IdsOf, Refers, RefsOf, RowHandleOf} from '../strict.ts';

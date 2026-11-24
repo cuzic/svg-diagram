@@ -1,6 +1,7 @@
 import {located} from '../located.ts';
 import {group} from '../dsl/text-bands.ts';
-import {row, spacer} from '../dsl/containers.ts';
+import {row} from '../dsl/row.ts';
+import {spacer} from '../dsl/spacer.ts';
 import {connect} from '../dsl/connect.ts';
 import type {ConnectBand, GroupBand, GroupRowBand, SpacerBand} from '../types/containers.ts';
 import type {Arrow, BandInput, Route} from '../types/core.ts';

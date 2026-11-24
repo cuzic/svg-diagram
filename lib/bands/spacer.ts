@@ -1,6 +1,6 @@
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {spacer as buildSpacer} from '../dsl/containers.ts';
+import {spacer as buildSpacer} from '../dsl/spacer.ts';
 import type {SpacerBand} from '../types/containers.ts';
 import type {Rect} from '../types/core.ts';
 
