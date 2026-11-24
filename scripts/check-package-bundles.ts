@@ -724,9 +724,11 @@ try {
       build: {write: false, minify: 'esbuild', lib: {entry, formats: ['es']}}});
     const [chunk] = viteOutput.output;
     assert.equal(chunk.type, 'chunk');
+    const esModules = Object.entries(esOutput.inputs).filter(([, info]) => info.bytesInOutput > 0).map(([file]) => file);
+    const viteModules = Object.entries(chunk.modules).filter(([, info]) => info.renderedLength > 0).map(([file]) => file);
     for (const [bundler, bytes, files, code] of [
-      ['esbuild', esOutput.bytes, Object.keys(esOutput.inputs), es.outputFiles[0]?.text],
-      ['Vite', Buffer.byteLength(chunk.code), Object.keys(chunk.modules), chunk.code],
+      ['esbuild', esOutput.bytes, esModules, es.outputFiles[0]?.text],
+      ['Vite', Buffer.byteLength(chunk.code), viteModules, chunk.code],
     ] as const) {
       const label = `${bundler}: ${name}`;
       const has = (filename: string) => files.some(file => ('/' + file.replaceAll('\\', '/')).endsWith('/' + filename));
