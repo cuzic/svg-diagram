@@ -9,7 +9,7 @@ import {layoutQuadrant, quadrantBand, quadrantTexts} from '../quadrant.ts';
 import type {LaidOutQuadrant, QuadrantBand, QuadrantItem, QuadrantOpts, QuadrantPreset} from '../quadrant.ts';
 import {scopeOf} from '../scope-name.ts';
 import {anchorRects} from '../verify-rects.ts';
-import {quadrantProblems} from '../verify-quadrant.ts';
+import {quadrantFindings, quadrantLayoutFindings, quadrantProblems} from '../verify-quadrant.ts';
 
 const definition = {
   type: 'quadrant',
@@ -27,6 +27,8 @@ const definition = {
   emit: (laid, {theme, tones}) => renderQuadrant(laid, theme, tones),
   verify: {
     diagramFindings: frameLayoutFindings,
+    findings: quadrantFindings,
+    layoutFindings: quadrantLayoutFindings,
     rects: laid => anchorRects(laid),
     check: laid => quadrantProblems(laid).map(message => ({rule: 'quadrant', severity: 'problem', message})),
   },

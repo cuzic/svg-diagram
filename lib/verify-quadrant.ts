@@ -1,5 +1,7 @@
+import {at} from './finding-rules.ts';
+import type {Finding} from './types/verdicts.ts';
 import {must} from './must.ts';
-import type {LaidOutQuadrant} from './quadrant.ts';
+import type {LaidOutQuadrant, QuadrantBand} from './quadrant.ts';
 import type {Rect} from './types/core.ts';
 import {dxdy, eachOverlap, outsideBox} from './verify-base.ts';
 
@@ -29,4 +31,17 @@ export function quadrantProblems(band: LaidOutQuadrant): string[] {
     for (const q of bs) if (Array.from({length: n + 1}, (_v, s) => ({x: a.x1 + (a.x2 - a.x1) * s / n, y: a.y1 + (a.y2 - a.y1) * s / n})).some(p => Math.hypot(p.x - q.x, p.y - q.y) < q.cr - 1)) problems.push(`quadrant: arrow ${k + 1} runs through the item "${q.label}"`);
   });
   return problems;
+}
+
+export function quadrantFindings(b: QuadrantBand): Finding[] {
+  return !b.groups.length && new Set(b.items.flatMap(i => i.tone ? [i.tone] : [])).size >= 2 ? [{...at(b), rule: 'quadrant-tone-only', severity: 'warn', message: 'quadrant() の項目を tone（色）だけで分けている。色だけでは意味が伝わらない。group を指定する（形と凡例が付く）'}] : [];
+}
+
+export function quadrantLayoutFindings(b: LaidOutQuadrant): Finding[] {
+  const out: Finding[] = [];
+  const far = b.moved.filter(m => m.px >= 16);
+  if (far.length) out.push({...at(b), rule: 'quadrant-item-moved', severity: 'warn', message: `quadrant() の項目 ${far.map(m => `「${m.label}」(${Math.round(m.px)}px)`).join('、')} が、他の項目やラベルを避けて座標から離れた。座標を離すか、図を大きくする`});
+  if (b.emptyCells.length) out.push({...at(b), rule: 'quadrant-empty-cell', severity: 'warn', message: `quadrant() のマス ${b.emptyCells.map(l => `「${l}」`).join('、')} に項目がない（空の枠が残っている）。項目を入れるか、マスを減らす。意図した空きなら quadrant({allowEmpty: [[col, row]]}) （全部なら true）`});
+  if (b.floored.length) out.push({...at(b), rule: 'quadrant-size-floor', severity: 'warn', message: `quadrant() の項目 ${b.floored.map(l => `「${l}」`).join('、')} の size が最大の値に比べて小さすぎ、最小の円で描いた（面積が値より大きく見える）。値の差が大きすぎるなら、大きさではなく文字で示す`});
+  return out;
 }

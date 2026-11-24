@@ -32,6 +32,8 @@ const wcagIn = (d: LintTarget, tones: ToneEnv) => { const p = paintOf(tones, d.a
 import {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 import {budgetWarnings} from './budget.ts';
 import {termFindings, tableFindings} from './consistency.ts';
+import {quadrantFindings, quadrantLayoutFindings} from './verify-quadrant.ts';
+import {funnelFindings} from './verify-funnel.ts';
 import {barsValuesHidden, describeBands, oneLine} from './diagram-description.ts';
 import {layoutMetrics} from './layout-metrics.ts';
 import {dimmedBands} from './spotlight.ts';
@@ -1013,14 +1015,9 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
     const filled = b.wrappedRuns.flatMap(r => r.lines.slice(0, -1)), fits = Math.floor(Math.max(0, ...filled.map(fullWidthUnits))), total = Math.ceil(lines.reduce((s, l) => s + fullWidthUnits(l), 0));
     out.push({rule: 'source-wraps', severity: 'warn', message: `出典行が ${n} 行に折り返している（全角で約 ${total} 字分${fits > 0 ? `。1 行に入るのは約 ${fits} 字分なので、約 ${Math.max(1, fits - 1)} 字分以内に縮める` : ''}。半角の英数字は 0.5 字分）。出典の細部は本文へ`});
   }
-  for (const b of d.laidOut ?? []) if (b.type === 'quadrant') {
-    const far = b.moved.filter(m => m.px >= 16);
-    if (far.length) out.push({...at(b), rule: 'quadrant-item-moved', severity: 'warn', message: `quadrant() の項目 ${far.map(m => `「${m.label}」(${Math.round(m.px)}px)`).join('、')} が、他の項目やラベルを避けて座標から離れた。座標を離すか、図を大きくする`});
-    if (b.emptyCells.length) out.push({...at(b), rule: 'quadrant-empty-cell', severity: 'warn', message: `quadrant() のマス ${b.emptyCells.map(l => `「${l}」`).join('、')} に項目がない（空の枠が残っている）。項目を入れるか、マスを減らす。意図した空きなら quadrant({allowEmpty: [[col, row]]}) （全部なら true）`});
-    if (b.floored.length) out.push({...at(b), rule: 'quadrant-size-floor', severity: 'warn', message: `quadrant() の項目 ${b.floored.map(l => `「${l}」`).join('、')} の size が最大の値に比べて小さすぎ、最小の円で描いた（面積が値より大きく見える）。値の差が大きすぎるなら、大きさではなく文字で示す`});
-  }
-  for (const b of walkBands(d.bands)) if (b.type === 'quadrant' && !b.groups.length && new Set(b.items.flatMap(i => i.tone ? [i.tone] : [])).size >= 2) out.push({...at(b), rule: 'quadrant-tone-only', severity: 'warn', message: 'quadrant() の項目を tone（色）だけで分けている。色だけでは意味が伝わらない。group を指定する（形と凡例が付く）'});
-  for (const b of walkBands(d.bands)) if (b.type === 'funnel' && b.scale === 'value' && b.stages.some((s, i) => i > 0 && (s.value ?? 0) > (must(b.stages[i - 1]).value ?? 0))) out.push({...at(b), rule: 'funnel-values-rise', severity: 'warn', message: 'funnel() の value が下の段で増えている。漏斗の減少として読ませるなら、値または段の順を見直す'});
+  for (const b of d.laidOut ?? []) if (b.type === 'quadrant') out.push(...quadrantLayoutFindings(b));
+  for (const b of walkBands(d.bands)) if (b.type === 'quadrant') out.push(...quadrantFindings(b));
+  for (const b of walkBands(d.bands)) if (b.type === 'funnel') out.push(...funnelFindings(b));
   for (const b of walkBands(d.bands)) if (b.type === 'grid' && b.canvas?.requireAll && b.canvas.empty.length) out.push({...at(b), rule: 'canvas-region-empty', severity: 'warn', message: `canvas("${b.canvas.template}") の領域 ${b.canvas.empty.join('、')} に内容がない。書くか、requireAll を外す`});
   if (d.medium === 'doc' && d.title && !d.showTitle) {
     const first = walkBands(d.bands).find((b): b is CaptionBand => b.type === 'caption' && !b.sourceLine);

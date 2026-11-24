@@ -38,7 +38,7 @@ try {
   const legacy = ['web.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'fit-handlers.js', 'rules.js', 'math-tex.js'];
   const flowSamples = [
     ['chevron', 'layoutChevron', "chevron([{label: 'Review'}, {label: 'Release'}])"],
-    ['funnel', 'layoutFunnel', "funnel([{label: 'Review'}, {label: 'Release'}])"],
+    ['funnel', 'layoutFunnel', "funnel([{label: 'Review', value: 1}, {label: 'Release', value: 2}], {scale: 'value'})"],
     ['cycle', 'layoutCycleShape', "cycle([{label: 'Review'}, {label: 'Revise'}, {label: 'Release'}])"],
     ['venn', 'layoutVenn', "venn([{name: 'Review'}, {name: 'Release'}])"],
     ['concentric', 'layoutConcentricShape', "concentric([{label: 'Review'}, {label: 'Release'}])"],
@@ -375,7 +375,7 @@ try {
       name, layout, source: composedSource([name], sample),
       budget: {esbuild: 83000, Vite: 114000},
       include: `bands/${name === 'valueChain' ? 'value-chain' : name}.js`,
-      exclude: [...legacy, 'layout-connect.js', 'layout-pyramid.js', 'gantt.js', 'quadrant.js', 'wordart.js'], draw: true,
+      exclude: [...legacy, 'layout-connect.js', 'layout-pyramid.js', 'gantt.js', 'quadrant.js', 'verify-quadrant.js', 'wordart.js', ...(name === 'funnel' ? [] : ['verify-funnel.js'])], draw: true,
     })),
     ...quantitySamples.map(([name, layout, sample]) => ({
       name, layout, source: composedSource([name], sample),
@@ -391,7 +391,7 @@ try {
     {name: 'Legend', source: composedSource(['legend'], "legend([{label: 'Review', role: 'root'}, {label: 'Gate', ftaGate: 'and'}, {label: 'Link', weight: 'strong'}])"),
       include: 'bands/legend.js', budget: {esbuild: 62000, Vite: 83000}, exclude: [...legacy, 'toc.js', 'fta.js', 'emit-fta.js', 'gantt.js', 'layout-connect.js'], draw: true},
     {name: 'Quadrant', source: composedSource(['quadrant'], "quadrant.preset('bcg', {items: [{label: 'Review', cell: [0, 0]}]})"),
-      include: 'bands/quadrant.js', budget: {esbuild: 98000, Vite: 125000}, exclude: [...legacy, 'flow-shapes.js', 'plane.js', 'gantt.js', 'layout-connect.js', 'dsl/figures.js'], draw: true},
+      include: 'bands/quadrant.js', budget: {esbuild: 100000, Vite: 127000}, exclude: [...legacy, 'flow-shapes.js', 'plane.js', 'gantt.js', 'layout-connect.js', 'dsl/figures.js'], draw: true},
     {name: 'Plane', source: composedSource(['plane'], "plane({x: {max: 20, step: 10}, y: {max: 10, step: 5}, points: [{at: [10, 5], label: 'Review', reveal: 2}]})"),
       include: 'bands/plane.js', budget: {esbuild: 78000, Vite: 104000}, exclude: [...legacy, 'quadrant.js', 'flow-shapes.js', 'gantt.js', 'reveal-handlers.js', 'layout-connect.js'], draw: true},
     {name: 'Bars', source: composedSource(['bars'], "bars([{id: 'old', label: 'Draft', value: 4}, {label: 'Review', value: 6, reveal: 2, replaces: 'old'}])"),
@@ -574,7 +574,7 @@ try {
           console.log(`${label}: ${bytes} bytes`);
           continue;
         }
-        assert.match(result.svg, name === 'Sankey' ? /<text[^>]*>Review 5<\/text>/ : name === 'Composer Arrow diagram' ? /<text[^>]*>Review 3<\/text>/ : /<text[^>]*>Review<\/text>/, label);
+        assert.match(result.svg, name === 'Sankey' ? /<text[^>]*>Review 5<\/text>/ : name === 'funnel' ? /<text[^>]*>Review +1<\/text>/ : name === 'Composer Arrow diagram' ? /<text[^>]*>Review 3<\/text>/ : /<text[^>]*>Review<\/text>/, label);
         if (name === 'Image') {
           assert.match(result.svg, /<image [^>]*href="data:image\/gif;base64,/);
           assert.doesNotMatch(code, /\bBuffer\b/, label);
@@ -583,6 +583,7 @@ try {
         if (name === 'Selected robot markers') assert.match(result.svg, /ロボット A/, label);
         if (name === 'RACI table') assert.ok(!/fmea\(\)|qfd\(\)|whyWhyTree\(/.test(code), label);
         if (name === 'Selected fault tree spec with legend') assert.match(result.svg, /OR gate/, label);
+        if (name === 'funnel') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'funnel-values-rise'), label);
         if (name === 'Row loop-back' || name === 'Selected steps spec') assert.match(result.svg, /Retry/, label);
         if (name === 'Prepared table spec with description') assert.match(result.svg, /<desc id="svg-desc">表: 列 Review<\/desc>/, label);
         else assert.deepEqual(result.xml, [], label);

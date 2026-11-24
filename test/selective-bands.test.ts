@@ -919,3 +919,21 @@ test('selective figure findings use the content extent and skip fixed canvases',
   assert.ok(findings(legacyGridResult).some(f => f.rule === 'layout-figure-offset'));
   assert.deepEqual(findings(selectedGridResult), findings(legacyGridResult));
 });
+
+test('selective funnels and quadrants preserve their band-specific warnings', async () => {
+  const stages = [{label: '入口', value: 1}, {label: '出口', value: 2}];
+  const items = {x: {title: '比較'}, y: {title: '効果'}, items: [
+    ...Array.from({length: 6}, (_, i) => ({label: `長い名前の項目${i}`, at: [0.35, 0.35] as [number, number], size: 1000, tone: 'danger' as const})),
+    {label: '小規模', at: [0.8, 0.8] as [number, number], size: 1, tone: 'muted' as const},
+  ]};
+  const actual = await renderBands([funnel(stages, {scale: 'value'}), quadrant(items)], {measure});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false})
+    .add(legacyFunnel(stages, {scale: 'value'})).add(legacyQuadrant(items)), {measure});
+  const notes = ({verdict}: typeof actual) => verdict.findings
+    .filter(f => f.rule === 'funnel-values-rise' || f.rule.startsWith('quadrant-'))
+    .map(({rule, severity, message}) => ({rule, severity, message})).sort((a, b) => a.rule.localeCompare(b.rule));
+  assert.deepEqual(notes(legacy).map(f => f.rule), [
+    'funnel-values-rise', 'quadrant-empty-cell', 'quadrant-item-moved', 'quadrant-size-floor', 'quadrant-tone-only',
+  ]);
+  assert.deepEqual(notes(actual), notes(legacy));
+});
