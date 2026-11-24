@@ -26,7 +26,7 @@ import type {ToneEnv} from './tokens.ts';
 
 // contrast is judged on the colours as drawn: in a dark diagram the light tokens are looked up in the dark set first
 const wcagIn = (d: LintTarget, tones: ToneEnv) => { const p = paintOf(tones, d.appearance); return (a: string, b: string): number => lightWcag(p(a), p(b)); };
-import {resolveTextColor, resolveBoxStyle} from './emit.ts';
+import {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 import {budgetWarnings} from './budget.ts';
 import {termFindings, tableFindings} from './consistency.ts';
 import {barsValuesHidden} from './bars.ts';

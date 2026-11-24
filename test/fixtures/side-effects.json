@@ -24,7 +24,7 @@
   "lib/layout.ts": {"count": 1, "reason": "Binds the full layout resolver."},
   "lib/markdown-it.ts": {"count": 3, "reason": "Resolves the render worker's URL at module initialization."},
   "lib/parts.ts": {"count": 4, "reason": "Builds shared part descriptors with partStep."},
-  "lib/pipeline.ts": {"count": 2, "reason": "Derives the stage order from the pre-layout and post-layout stages."},
+  "lib/pipeline.ts": {"count": 3, "reason": "Derives the stage order from the pre-layout and post-layout stages."},
   "lib/pptx/zip.ts": {"count": 1, "reason": "Fills the CRC lookup table in an immediately invoked function."},
   "lib/present/qr.ts": {"count": 1, "reason": "Calculates the maximum QR payload."},
   "lib/present/render-thread.ts": {"count": 7, "reason": "Installs a resolver and attaches a worker message handler."},
