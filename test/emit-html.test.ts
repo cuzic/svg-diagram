@@ -236,3 +236,30 @@ test('the standalone HTML table adapter preserves native header cells and escapi
   assert.ok(selected.html.includes(escapeHtmlText('<ok> & more')));
   assert.equal(selected.html, emitHtml(placed, {...opts, reveal: stage}));
 });
+
+test('the optional HTML overlay matches legacy output and keeps raw SVG text intact', async () => {
+  const {curve} = await import('../lib/bands/curve.ts');
+  const {connect} = await import('../lib/bands/connect.ts');
+  const {raw: makeRaw} = await import('../lib/bands/raw.ts');
+  const {renderHtmlOverlay} = await import('../lib/html-overlay.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {emitHtml} = await import('../lib/emit-html.ts');
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    fontBox: (size: number) => ({ascent: size, descent: 0}), id: 'overlay-test', adapters: {box: boxHtml},
+  };
+  const bands = [
+    selectedBox({id: 'a', title: '入口'}),
+    curve([{y: 0.3}, {y: 0.8}], {xLabel: '時間'}),
+    makeRaw({h: 36, draw: ({x, y}) => `<text x="${x}" y="${y + 20}">作者の SVG</text>`}),
+    selectedBox({id: 'b', title: '出口'}),
+    connect('a:bottom', 'b:top', {label: '次へ'}),
+  ];
+  const {placed, stage} = await prepareBands(bands, opts);
+  const result = await renderBandsHtml(bands, {...opts, overlay: renderHtmlOverlay});
+  assert.equal(result.html, emitHtml(placed, {...opts, reveal: stage}));
+  assert.deepEqual(result.fallbacks, [{type: 'curve'}, {type: 'raw'}, {type: 'connect'}]);
+  assert.match(result.html, /<text[^>]*>作者の SVG<\/text>/);
+  assert.doesNotMatch(result.html, /<text[^>]*>(?:時間|次へ)<\/text>/);
+  await assert.rejects(renderBandsHtml(bands, {...opts, overlay: renderHtmlOverlay, strict: true}), /SVG fallback/);
+});

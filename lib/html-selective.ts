@@ -11,6 +11,7 @@ export type {FontBox, HtmlBandAdapter} from './html-adapter.ts';
 type HtmlOptions = Parameters<typeof prepareBands>[1] & {
   fontBox: FontBox;
   adapters?: HtmlAdapters;
+  overlay?: (svg: string, fontBox: FontBox) => string;
   id?: string;
   strict?: boolean;
 };
@@ -25,21 +26,29 @@ export async function renderBandsHtml(bands: Parameters<typeof prepareBands>[0],
   const visible = placed.laidOut.filter(band => visibleAt(band, stage));
   const parts: string[] = [];
   let svgRun: LaidOutBand[] = [];
-  const addSvg = (bands: LaidOutBand[], connects: typeof placed.connects = []) => {
-    parts.push(stripSvg(emit({...placed, laidOut: bands, connects}, true), 'sd-ov sd-raw'));
+  let rawRun = false;
+  const addSvg = (bands: LaidOutBand[], connects: typeof placed.connects = [], raw = false) => {
+    const svg = emit({...placed, laidOut: bands, connects}, true);
+    parts.push(opts.overlay && !raw ? opts.overlay(svg, opts.fontBox) : stripSvg(svg, 'sd-ov sd-raw'));
+  };
+  const flush = () => {
+    if (svgRun.length) addSvg(svgRun, [], rawRun);
+    svgRun = [];
   };
   for (const band of visible) {
     const adapter = htmlAdapterFor(adapters, band);
     if (adapter?.accepts(band)) {
-      if (svgRun.length) addSvg(svgRun);
-      svgRun = [];
+      flush();
       parts.push(adapter.render(band, placed.day, tones, opts.fontBox, placed.roles, stage));
     } else {
       fallbacks.push({type: band.type, ...('id' in band && band.id ? {id: band.id} : {})});
+      const raw = band.type === 'raw' || band.type === 'wordart';
+      if (opts.overlay && raw !== rawRun) flush();
+      rawRun = raw;
       svgRun.push(band);
     }
   }
-  if (svgRun.length) addSvg(svgRun);
+  flush();
   const connects = placed.connects.filter(connect => visibleAt(connect, stage));
   if (connects.length) {
     fallbacks.push(...connects.map(() => ({type: 'connect' as const})));

@@ -127,7 +127,7 @@ try {
         fontBox: size => ({ascent: size, descent: 0}),
         adapters: {box: boxHtml}, strict: true,
       });
-    `, include: 'html-selective.js', budget: {esbuild: 85000, Vite: 108000}, bands: ['box.js'], exclude: [...legacy, 'emit-html.js', 'lib/emit.js', 'svg-to-css.js', 'html-native.js', 'html-table.js', 'emit-tables.js', 'image-file.js'], draw: true},
+    `, include: 'html-selective.js', budget: {esbuild: 85000, Vite: 108500}, bands: ['box.js'], exclude: [...legacy, 'emit-html.js', 'lib/emit.js', 'svg-to-css.js', 'html-overlay.js', 'html-native.js', 'html-table.js', 'emit-tables.js', 'image-file.js'], draw: true},
     {name: 'Selective HTML table', source: `
       import {renderBandsHtml} from 'svg-diagram/html/selective';
       import {tableHtml} from 'svg-diagram/html/bands/table';
@@ -139,6 +139,17 @@ try {
       });
     `, include: 'html-table.js', budget: {esbuild: 80500, Vite: 102500}, bands: ['table.js'],
       exclude: [...legacy, 'html-box.js', 'html-native.js', 'emit-html.js', 'layout-connect.js'], draw: true},
+    {name: 'Selective HTML overlay', source: `
+      import {renderBandsHtml} from 'svg-diagram/html/selective';
+      import {renderHtmlOverlay} from 'svg-diagram/html/overlay';
+      import {curve} from 'svg-diagram/bands/curve';
+      export const draw = () => renderBandsHtml([curve([{y: 0.3}, {y: 0.8}], {xLabel: 'Review'})], {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        fontBox: size => ({ascent: size, descent: 0}),
+        overlay: renderHtmlOverlay,
+      });
+    `, include: 'html-overlay.js', budget: {esbuild: 70000, Vite: 94000}, bands: ['curve.js'],
+      exclude: [...legacy, 'html-native.js', 'html-box.js', 'html-table.js', 'emit-html.js', 'layout-connect.js'], draw: true},
     {name: 'Selective PPTX', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
       import {rowPptx} from 'svg-diagram/pptx/bands/box';
@@ -588,6 +599,14 @@ try {
           assert.match(result.html, /<table style=[\s\S]*<th scope="col"[\s\S]*>Review<\/div>/, label);
           assert.doesNotMatch(result.html, /<svg/, label);
           assert.deepEqual(result.fallbacks, [], label);
+          assert.equal(result.verdict.ok, true, label);
+          console.log(`${label}: ${bytes} bytes`);
+          continue;
+        }
+        if (name === 'Selective HTML overlay') {
+          assert.match(result.html, /class="sd-t[^"]*"[^>]*>Review<\/div>/, label);
+          assert.doesNotMatch(result.html, /<text\b/, label);
+          assert.deepEqual(result.fallbacks, [{type: 'curve'}], label);
           assert.equal(result.verdict.ok, true, label);
           console.log(`${label}: ${bytes} bytes`);
           continue;

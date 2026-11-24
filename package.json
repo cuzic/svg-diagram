@@ -548,6 +548,10 @@
       "types": "./dist/lib/html-table.d.ts",
       "default": "./dist/lib/html-table.js"
     },
+    "./html/overlay": {
+      "types": "./dist/lib/html-overlay.d.ts",
+      "default": "./dist/lib/html-overlay.js"
+    },
     "./html": {
       "types": "./dist/lib/emit-html.d.ts",
       "default": "./dist/lib/emit-html.js"
