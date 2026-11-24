@@ -7,6 +7,8 @@ import type {Finding} from './types/verdicts.ts';
 export const tableRules = /* @__PURE__ */ Object.freeze({
   'rowheader-tone-collides': {doc: '表の行ラベル（rowHeader）と同じ塗り（soft）の行トーンがある', scope: 'band'},
   'semantic-table-warning': {doc: '意味付き表の入力に注意点がある（例: RACI の空の役割列）', scope: 'band'},
+  'table-sum-mismatch': {doc: '表の「合計」行・列の値が、並ぶ値の和と合わない（丸めで説明できる差は除く）', scope: 'band'},
+  'table-share-not-100': {doc: '表の「構成比」「割合」の列が、合計 100% にならない', scope: 'band'},
 } as const);
 
 export function semanticTableFindings(b: TableBand): Finding[] {

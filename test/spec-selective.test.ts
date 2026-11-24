@@ -398,3 +398,18 @@ test('selected contrast problems in steps retain the spec part path', async () =
   assert.equal(contrast(legacy)?.[0]?.loc?.specPath, 'parts[0]');
   assert.deepEqual(contrast(selected), contrast(legacy));
 });
+
+test('selected tables preserve sum and share diagnostics and their spec paths', async () => {
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const input = {version: 1, title: '内訳', parts: [
+    {type: 'table', columns: [{label: '項目'}, {label: '件数'}], rows: [['先行', '10'], ['後続', '20'], ['合計', '40']]},
+    {type: 'table', columns: [{label: '項目'}, {label: '構成比'}], rows: [['先行', '20%'], ['後続', '30%']]},
+  ]};
+  const selected = await renderSpec(input, {parts: [tablePart], measure});
+  const legacy = await renderInBrowser(specToDiagram(input), {measure});
+  const rules = ['table-sum-mismatch', 'table-share-not-100'];
+  const notes = ({verdict}: Pick<typeof selected, 'verdict'>) => verdict.findings.filter(f => rules.includes(f.rule));
+  assert.deepEqual(notes(legacy).map(f => [f.rule, f.loc?.specPath]), rules.map((rule, i) => [rule, `parts[${i}]`]));
+  assert.deepEqual(notes(selected), notes(legacy));
+  assert.deepEqual(selected.verdict.warnings, legacy.verdict.warnings);
+});

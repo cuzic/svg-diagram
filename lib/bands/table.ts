@@ -1,3 +1,4 @@
+import {tableNumberFindings} from '../table-number-rules.ts';
 import * as semantic from '../dsl/qc-semantic.ts';
 import {analysisFindings, findingAcceptanceHint} from '../finding-rules.ts';
 import {band} from '../band-def.ts';
@@ -25,7 +26,7 @@ export const tableDefinition: BandDef<TableBand, LaidOutTable> = {
   emit: (laid, {theme, tones, roles}) => renderTable(laid, theme, tones, roles),
   verify: {
     acceptHint: rule => Object.hasOwn(tableRules, rule) ? findingAcceptanceHint(rule) : undefined,
-    findings: data => [...analysisFindings(data, data.rca?.findings ?? []), ...semanticTableFindings(data)],
+    findings: data => [...analysisFindings(data, data.rca?.findings ?? []), ...semanticTableFindings(data), ...tableNumberFindings(data)],
     layoutFindings: (laid, {tones}) => rowHeaderFindings(laid, tones),
   },
   svgDefs: laid => ({mono: laid.rows.some(row => row.cells.some(cell => cell.mono && cell.lines.length))}),
