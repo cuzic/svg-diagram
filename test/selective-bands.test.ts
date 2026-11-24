@@ -1420,3 +1420,19 @@ test('selected state diagrams preserve long words when the layout enables keepWo
     assert.equal(selected.svg.includes('>' + word + '</text>'), keepWords);
   }
 });
+
+test('selected cause trees retry without the word-width floor if it cannot fit', async () => {
+  const word = 'シャドウトラフィックコンフィギュレーション';
+  const causes = Array.from({length: 8}, (_, index) => ({id: `cause-${index}`, label: `${word}${'ス'.repeat(index)}の${index}`}));
+  const nodes = [...causes, {id: 'effect', label: '結果'}];
+  const links = causes.map(({id}) => ({from: id, to: 'effect'}));
+  const shape = {dir: 'up', maxNodeW: 80, tree: 'crt'} as const;
+  const options = {theme: 'blue', title: '要因', legend: false} as const;
+  const plain = await renderBands([causeTree(nodes, links, shape)], {...options, measure});
+  const selected = await renderBands([causeTree(nodes, links, shape)], {...options, measure, keepWords: true});
+  const legacy = await renderInBrowser(diagram({...options, keepWords: true})
+    .add(legacyCauseTree(nodes, links, shape)), {measure});
+  assert.equal(selected.svg, legacy.svg);
+  assert.equal(selected.svg, plain.svg);
+  assert.doesNotMatch(selected.svg, new RegExp('>' + word + '</text>'));
+});
