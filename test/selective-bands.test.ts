@@ -1034,3 +1034,16 @@ test('selected BPMN and swimlanes report excessively narrow wrapped text', async
   assert.equal(messages(legacy).length, 2);
   assert.deepEqual(messages(actual), messages(legacy));
 });
+
+test('selected connectors report labels that obscure arrows', async () => {
+  const a = {id: 'a', title: '前'} as const, b = {id: 'b', title: '後'} as const;
+  const arrow = {label: '長い確認事項を渡す', chip: true, route: 'straight'} as const;
+  const columns = {justify: 'start', gap: 8} as const;
+  const selected = await renderBands([row([box(a), box(b)], columns), connect('a:right', 'b:left', arrow)], {measure});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false})
+    .add(legacyRow([legacyBox(a), legacyBox(b)], columns), legacyConnect('a:right', 'b:left', arrow)), {measure});
+  const notes = ({verdict}: typeof selected) => verdict.findings.filter(f => f.rule === 'connect-label-covers-arrow')
+    .map(({severity, message}) => ({severity, message}));
+  assert.equal(notes(legacy).length, 1);
+  assert.deepEqual(notes(selected), notes(legacy));
+});

@@ -22,7 +22,7 @@ import {stateMatrixFindings} from './state-matrix-rules.ts';
 // a longer description (Google developer style guide).
 
 import {midWordBreaksIn, missingGlyphs, sourceText} from './text-rules.ts';
-import {ceil4, connectRoom, labelCover, hidesArrow} from './connect-rules.ts';
+import {labelCoverFindings} from './verify-connect-label.ts';
 import {axisMismatches} from './axis-rules.ts';
 import {axisMismatchFindings} from './axis-comparison.ts';
 import {qualify, scopeOf} from './anchor-scope.ts';
@@ -815,19 +815,11 @@ function glyphRules(d: LintTarget, out: Finding[]): void {
   const glyphs = missingGlyphs(d.laidOut, ref => refs.add(ref));
   if (glyphs.length) out.push({...fromSources(refs), rule: 'glyph-missing', severity: 'warn', message: `絵文字として扱われない絵記号がある（${glyphs.map(g => `「${g}」`).join('')}）。通常の文字のフォントで描かれ、字形が無いと空白になる。直し方: icon.emoji() か SVG アイコン（box({icon})）を使う、または ✓ ✗ などの字に置き換える`});
 }
-function labelCoverRules(d: LintTarget, out: Finding[]): void {
-  // the room each hidden label needs (labelRoom(), the basis the layout widens gaps by: ADR 0069 D1), on straight connects
-  const hidden = (d.connects ?? []).filter(c => { const cover = c.label ? labelCover(c) : undefined; return !!cover && hidesArrow(cover); });
-  const hits = hidden.map(c => { const cover = must(labelCover(c)), need = connectRoom(c); return `「${c.label}」(${c.fromId}→${c.toId}、見える部分 ${Math.round(cover.visible)}px${need !== undefined && Number.isFinite(need) ? `、要る間隔 ${ceil4(need)}px` : ''})`; });
-  const needs = hidden.map(c => connectRoom(c)).filter((n): n is number => n !== undefined && Number.isFinite(n));
-  const widen = needs.length === 1 && hidden.length === 1 ? `箱の間隔を ${ceil4(must(needs[0]))}px 以上に広げる` : needs.length ? '箱の間隔を、それぞれの要る間隔以上に広げる' : '箱の間隔を広げる';
-  if (hits.length) out.push({...at(hidden[0], ...hidden.slice(1)), rule: 'connect-label-covers-arrow', severity: 'warn', message: `矢印のラベルが矢印のほとんどを覆っていて、向きが読めない: ${hits.slice(0, 4).join('、')}${hits.length > 4 ? ` ほか ${hits.length - 4} 件` : ''}。直し方: ${widen}、ラベルを短くする、ラベルを箱の中に書く`});
-}
 function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   const out: Finding[] = [];
   if (d.wrapFellBack) out.push({rule: 'wrap-fell-back', severity: 'info', message: "wrap: 'bunsetsu-soft': 文節で折ると図が幅に収まらなかったので、従来の折り方（phrase）で配置した。漢字・ひらがなの途中で折れる行が残る。図を 2 枚に分ける、文言を短くする、図の幅を広げると、文節で折れる"});
   out.push(...axisMismatchFindings(axisMismatches(d.bands)));
-  labelCoverRules(d, out);
+  out.push(...labelCoverFindings(d));
   midWordRules(d, out);
   glyphRules(d, out);
   layoutQualityRules(d, out);

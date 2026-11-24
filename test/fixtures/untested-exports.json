@@ -612,6 +612,7 @@
   "verify-cloud:cloudProblems",
   "verify-cloud:cloudRects",
   "verify-concentric:concentricFindings",
+  "verify-connect-label:labelCoverFindings",
   "verify-density:causeBandsOf",
   "verify-density:densityRestorationFindings",
   "verify-edge-bends:edgeBendFindings",

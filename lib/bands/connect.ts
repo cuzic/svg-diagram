@@ -1,3 +1,4 @@
+import {labelCoverFindings} from '../verify-connect-label.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {connect as buildConnect} from '../dsl/connect.ts';
@@ -13,6 +14,7 @@ export const connectDefinition: BandDef<ConnectBand, LaidOutConnect> = {
   internal: true,
   layout: layoutConnect,
   resolveConnect,
+  verify: {diagramFindings: labelCoverFindings},
   expandLoopBacks,
   measure(data, {atoms, roles}) {
     if (data.label) atoms(data.label, roles.connectLabel ?? CONNECT_LABEL_SIZE, 400);
