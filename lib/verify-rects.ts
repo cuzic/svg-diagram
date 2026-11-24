@@ -1,6 +1,7 @@
 import {qualify} from './scope-name.ts';
 import type {Rect} from './types/core.ts';
 import type {CheckRect} from './types/verdicts.ts';
+import {labelOf} from './verify-base.ts';
 
 type Anchored = Rect & {id?: string; anchors: (Rect & {id: string})[]};
 /** Each anchor is its own rect; `holds`: a connector that ends on the whole figure (its id) may run among them. */
@@ -13,3 +14,7 @@ export function scopedRect(band: {type: string; id?: string}, scope: string, r: 
   const name = (id: string): string => id === own || id.startsWith('@') ? id : qualify(scope, id);
   return {...r, id: r.id === null ? null : name(r.id), ...(r.holds ? {holds: r.holds.map(name)} : {})};
 }
+
+export const frameRects = (band: {anchors: (Rect & {id: string})[]}): CheckRect[] => band.anchors.map(a => ({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h}));
+
+export const ownRect = (band: Rect & {id?: string}): CheckRect[] => [{id: band.id ?? null, label: labelOf(band), x: band.x, y: band.y, w: band.w, h: band.h}];

@@ -280,6 +280,14 @@
       "types": "./dist/lib/bands/table.d.ts",
       "default": "./dist/lib/bands/table.js"
     },
+    "./bands/wireframe": {
+      "types": "./dist/lib/bands/wireframe.d.ts",
+      "default": "./dist/lib/bands/wireframe.js"
+    },
+    "./bands/screens": {
+      "types": "./dist/lib/bands/screens.d.ts",
+      "default": "./dist/lib/bands/screens.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"

@@ -14,7 +14,7 @@ import {legibilityProblem} from './wordart.ts';
 import {andClashes} from './cause-clash.ts';
 import {sourceOf} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
-import {anchorRects, scopedRect} from './verify-rects.ts';
+import {anchorRects, frameRects, ownRect, scopedRect} from './verify-rects.ts';
 import {planeProblems} from './verify-plane.ts';
 import {quadrantProblems} from './verify-quadrant.ts';
 import {timelineProblems} from './verify-timeline.ts';
@@ -23,7 +23,7 @@ import {ganttProblems} from './verify-gantt.ts';
 import {CONTRAST_THRESHOLD, dxdy, eachOverlap, issueAt, labelOf, outsideBox, outsideX, rectOverlap, routeHits, routesThroughNodes, statesProblems} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import type {ComicLaidBubble, LaidOutComic} from './types/comic.ts';
-import type {EmphasisTone, Rect} from './types/core.ts';
+import type {EmphasisTone} from './types/core.ts';
 import type {LaidOutDiagram} from './types/index.ts';
 import type {LaidOutBanner, LaidOutBox, LaidOutCaption} from './types/text-bands.ts';
 import type {CheckRect, Issue} from './types/verdicts.ts';
@@ -65,9 +65,7 @@ const figureRects = (band: Anchored): CheckRect[] => anchorRects(band);
 /** An emblem's obstacle is the bounding box of each shape, not its anchor: a triangle's anchor leaves out its lower corners. */
 const emblemRects = (band: Anchored & {bounds?: Anchored['anchors']}): CheckRect[] => anchorRects({...band, anchors: band.bounds ?? band.anchors});
 const overlappingFigureRects = (band: Anchored): CheckRect[] => anchorRects(band, `@intentional-overlap:${band.x},${band.y}`);
-const ownRect = (band: Rect & {id?: string}): CheckRect[] => [{id: band.id ?? null, label: labelOf(band), x: band.x, y: band.y, w: band.w, h: band.h}];
 const holdsFigure = (band: {id?: string}) => band.id ? {holds: [band.id]} : {};
-const frameRects = (band: {anchors: (Rect & {id: string})[]}): CheckRect[] => band.anchors.map(a => ({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h}));
 const childRects = (band: {children: LaidOutBox[]}): CheckRect[] => band.children.map(c => {
   const loc = sourceOf(c);
   return {id: c.id ?? null, label: labelOf(c), x: c.x, y: c.y, w: c.w, h: c.h, ...(loc ? {loc} : {})};

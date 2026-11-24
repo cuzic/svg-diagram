@@ -27,9 +27,10 @@ try {
       measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
     });
   `;
-  const composedSource = (components: string[], bands: string) => `
+  const composedSource = (components: string[], bands: string, extraImports = '') => `
     import {renderBands} from 'svg-diagram/core';
     ${components.map(name => `import {${name}} from 'svg-diagram/bands/${name.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase())}';`).join('\n')}
+    ${extraImports}
     export const draw = () => renderBands([${bands}], {
       measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
     });
@@ -51,6 +52,10 @@ try {
   const tableSamples = [
     ['sequence', 'layoutSequence', "sequence([{id: 'a', label: 'Review'}, {id: 'b', label: 'API'}], [{from: 'a', to: 'b', label: 'Send'}])"],
     ['table', 'layoutTable', "table([{label: 'Review'}, {label: 'Value', mono: true}], [['Name', 'ABC']])"],
+  ] as const;
+  const screenSamples = [
+    ['wireframe', 'layoutWireframe', "wireframe(wf.col([wf.region('Review')]))"],
+    ['screens', 'layoutScreens', "screens([{id: 'review', title: 'Review', root: wf.col([wf.region('Details')])}], {cols: 1})"],
   ] as const;
   const cases = [
     {name: 'SVG', source: "export {renderInBrowser} from 'svg-diagram/browser';", include: 'web.js', exclude: ['emit-html.js', 'math-tex.js']},
@@ -121,6 +126,11 @@ try {
       budget: {esbuild: 77000, Vite: 102000},
       exclude: [...legacy, 'layout-connect.js', 'gantt.js', 'wireframe.js', 'lane-order.js'], draw: true,
     })),
+    ...screenSamples.map(([name, layout, sample]) => ({
+      name, layout, source: composedSource([name], sample, `import {wf} from 'svg-diagram/bands/${name}';`), include: `bands/${name}.js`,
+      budget: {esbuild: 110000, Vite: 151000},
+      exclude: [...legacy, 'layout-connect.js', 'gantt.js', 'seq-table.js', 'flow-shapes.js'], draw: true,
+    })),
   ];
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;
@@ -158,6 +168,9 @@ try {
           for (const [shape, layout] of [...flowSamples, ...quantitySamples, ...tableSamples]) {
             assert.equal(code.includes(JSON.stringify(layout)), layout === selectedLayout, `${label}: ${layout}`);
             assert.equal(code.includes(JSON.stringify(shape + 'Texts')), layout === selectedLayout, `${label}: ${shape}Texts`);
+          }
+          if (screenSamples.some(([, layout]) => layout === selectedLayout)) {
+            for (const [, layout] of screenSamples) assert.equal(code.includes(JSON.stringify(layout)), layout === selectedLayout, label);
           }
           if (tableSamples.some(([, layout]) => layout === selectedLayout)) {
             assert.equal(code.includes('"renderSequence"'), name === 'sequence', label);

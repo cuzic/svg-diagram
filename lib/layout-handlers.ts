@@ -33,7 +33,7 @@ import {layoutFta} from './fta.ts';
 import {layoutBowtie} from './bowtie.ts';
 import {layoutComic} from './comic/layout.ts';
 import {layoutChart} from './charts.ts';
-import {layoutWireframe, layoutScreens} from './wireframe.ts';
+import {placeScreens, placeWireframe} from './layout-wireframes.ts';
 import type {LegendBand, SpacerBand, StatusBand} from './types/containers.ts';
 import type {LabelRole, Rect} from './types/core.ts';
 import type {LaidOutTree, TreeItem} from './types/diagrams.ts';
@@ -66,7 +66,7 @@ const setScope = (placed: object, scope: string | undefined): void => { if (scop
  * Band types whose insides are not on the 4px grid yet (a plot's fractional scale, the wireframe parts' own sizes): placed from the
  * cursor as it is, because a grid origin would move some of their shapes by a whole step (4px) when the emitter snaps them.
  */
-const OFF_GRID_BANDS: ReadonlySet<string> = new Set(['plane', 'quadrant', 'timeline', 'wireframe', 'screens', 'wordart']);
+const OFF_GRID_BANDS: ReadonlySet<string> = new Set(['plane', 'quadrant', 'timeline', 'wordart']);
 /** Where a band of `type` is placed when the cursor is at `y` (U1b: on the 4px grid, so its frames and its text start from the same line). */
 const originOf = (type: string, y: number): number => OFF_GRID_BANDS.has(type) ? y : snapGrid(y);
 
@@ -105,14 +105,6 @@ function layoutSeqTable(band: Band & {type: 'sequence' | 'table'}, ctx: LayoutCt
   const {d, roles, widthOf} = ctx;
   const placed = band.type === 'sequence' ? layoutSequence(band, padX, snapGrid(ctx.y), cw, widthOf, roles, ctx.wrap) : layoutTable(band, padX, snapGrid(ctx.y), cw, widthOf, roles, ctx.wrap);
   if (band.id) ctx.register(band.id, rectOf(placed), `a ${band.type} takes an id that another anchor already has`);
-  ctx.laidOut.push(placed);
-  ctx.y += placed.h + d.gap;
-}
-
-function layoutWireframeBand(band: Band & {type: 'wireframe' | 'screens'}, ctx: LayoutCtx, padX: number, cw: number): void {
-  const {d, widthOf} = ctx;
-  const placed = band.type === 'wireframe' ? layoutWireframe(band, padX, originOf(band.type, ctx.y), cw, widthOf, ctx.tones, ctx.wrap) : layoutScreens(band, padX, originOf(band.type, ctx.y), cw, widthOf, ctx.tones, ctx.wrap);
-  for (const a of placed.anchors) if (a.id) ctx.register(a.id, rectOf(a), `a ${band.type} takes an id that another anchor already has`);
   ctx.laidOut.push(placed);
   ctx.y += placed.h + d.gap;
 }
@@ -409,8 +401,8 @@ export const LAYOUT_HANDLERS = {
   people: layoutPeopleOrDots,
   dots: layoutPeopleOrDots,
   math: layoutMathBand,
-  wireframe: layoutWireframeBand,
-  screens: layoutWireframeBand,
+  wireframe: placeWireframe,
+  screens: placeScreens,
   swimlane: layoutSwimlane,
   legend: (band: LegendBand, ctx, x, w) => {
     const laid = layoutLegend(band, x, ctx.y, w, ctx.widthOf, ctx.roles);
