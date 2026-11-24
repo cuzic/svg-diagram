@@ -1331,3 +1331,13 @@ test('selected tree endpoints follow a plot that retains its fractional origin',
   assert.equal(selectedTree.nodes[2]?.y, plot.y);
   assert.deepEqual(selectedTree.edges, expectedTree.edges);
 });
+
+test('selected loop-side connectors diagnose canvas overflow like the full renderer', async () => {
+  const boxes = ['a', 'b', 'c'].map(id => ({id, title: id}));
+  const options = {route: 'loop-side'} as const;
+  const selected = await renderBands([...boxes.map(item => box(item)), connect('c:left', 'a:left', options)], {measure});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false})
+    .add(...boxes.map(item => legacyBox(item)), legacyConnect('c:left', 'a:left', options)), {measure});
+  assert.match(legacy.verdict.problems.join('\n'), /runs outside the .* canvas/);
+  assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
+});

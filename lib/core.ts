@@ -263,6 +263,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   }
   if (opts.diagramFindings && !diagramChecks.has(opts.diagramFindings)) bandFindings.push(...opts.diagramFindings(placed, stage));
   const verdict = verifyWithServices({
+    checkConnectionGeometry: connection?.internal ? connection.checkConnectionGeometry : undefined,
     collectRects: figure => leaves(figure).flatMap(band => {
       const def = placedDefinition(band);
       const rects = def?.verify?.rects?.(band);
