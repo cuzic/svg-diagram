@@ -147,7 +147,17 @@ try {
       export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [{type: 'pyramid', layers: ['Review', 'Next']}]}, {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [pyramidPart],
       });
-    `, include: 'spec-selective.js', budget: {esbuild: 66000, Vite: 88000}, bands: ['pyramid.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/flowchart.js', 'spec-parts/funnel.js', 'spec-parts/r1.js', 'dsl-pure.js', 'layout-connect.js'], draw: true},
+    `, include: 'spec-selective.js', budget: {esbuild: 66000, Vite: 88000}, bands: ['pyramid.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/flowchart.js', 'spec-parts/funnel.js', 'spec-parts/r1.js', 'dsl-pure.js', 'layout-connect.js', 'legend-notation.js', 'bands/legend.js'], draw: true},
+    {name: 'Selected fault tree spec with legend', source: `
+      import {renderSpec} from 'svg-diagram/spec/selective';
+      import {faultTreePart} from 'svg-diagram/spec/parts/fault-tree';
+      import {autoLegend} from 'svg-diagram/bands/legend';
+      export const draw = () => renderSpec({version: 1, title: 'Plan', lang: 'en', legend: 'auto',
+        parts: [{type: 'faultTree', top: {label: 'Review', gate: 'or', children: [{label: 'Power', kind: 'basic'}, {label: 'Network', kind: 'basic'}]}}]}, {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [faultTreePart], autoLegend,
+      });
+    `, include: 'legend-notation.js', budget: {esbuild: 114000, Vite: 147000}, bands: ['fta.js', 'legend.js'],
+      exclude: [...legacy, 'bands/cause.js', 'bands/table.js', 'dsl-pure.js'], draw: true},
     {name: 'Selected table spec', source: `
       import {renderSpec} from 'svg-diagram/spec/selective';
       import {tablePart} from 'svg-diagram/spec/parts/table';
@@ -386,6 +396,7 @@ try {
           assert.match(result.svg, /<image [^>]*href="data:image\/gif;base64,/);
           assert.doesNotMatch(code, /\bBuffer\b/, label);
         }
+        if (name === 'Selected fault tree spec with legend') assert.match(result.svg, /OR gate/, label);
         if (name === 'Row loop-back' || name === 'Selected steps spec') assert.match(result.svg, /Retry/, label);
         assert.deepEqual(result.xml, [], label);
         assert.equal(result.verdict.ok, true, label);

@@ -1,6 +1,6 @@
 import {must} from './must.ts';
 import {renderBands} from './core.ts';
-import {MAX_EMOJI, MAX_TOTAL_TEXT, PART_EN, SpecError, withoutSchemaField} from './spec-kit.ts';
+import {LEGEND_EN, MAX_EMOJI, MAX_TOTAL_TEXT, PART_EN, SpecError, withoutSchemaField} from './spec-kit.ts';
 import type {Json, JsonSchema, PartDef, SpecIssue} from './spec-kit.ts';
 import {capped, checkAnchors, countEmoji, totalText, validateAgainst} from './spec-validation.ts';
 import {schemaForParts} from './spec-schema.ts';
@@ -11,7 +11,10 @@ export type SelectedPart = PartDef<SelectedBand | readonly SelectedBand[]> & {co
 export type {Json, JsonSchema, SpecIssue} from './spec-kit.ts';
 export {SpecError} from './spec-kit.ts';
 
-type PartOptions = {parts: readonly SelectedPart[]};
+type PartOptions = {
+  parts: readonly SelectedPart[];
+  autoLegend?: (bands: readonly SelectedBand[], labels?: Partial<Record<string, string>>) => SelectedBand | undefined;
+};
 
 const SCHEMA_KEYS = {
   type: true, description: true, const: true, enum: true, properties: true, required: true,
@@ -43,8 +46,8 @@ function registry(parts: readonly SelectedPart[]): Map<string, SelectedPart> {
 }
 
 /** Schema of the parts supplied by the caller and the document options supported by renderBands. */
-export function specSchemaFor({parts}: PartOptions): JsonSchema {
-  return schemaForParts([...registry(parts).values()], false);
+export function specSchemaFor({parts, autoLegend}: PartOptions): JsonSchema {
+  return schemaForParts([...registry(parts).values()], autoLegend !== undefined);
 }
 
 export function partCatalog({parts}: PartOptions) {
@@ -53,12 +56,12 @@ export function partCatalog({parts}: PartOptions) {
 
 type RenderOptions = Parameters<typeof renderBands>[1];
 type SpecDocument = Pick<RenderOptions, 'theme' | 'width' | 'appearance' | 'density' | 'desc' | 'showTitle' | 'sourceLine' | 'canvas'>
-  & {title: string; lang?: 'en' | 'ja'; parts: Json[]};
+  & {title: string; lang?: 'en' | 'ja'; legend?: 'auto' | false; parts: Json[]};
 
 function assemble(written: unknown, options: PartOptions) {
   const parts = registry(options.parts);
   const input = withoutSchemaField(written);
-  const issues = validateAgainst(schemaForParts([...parts.values()], false), input);
+  const issues = validateAgainst(schemaForParts([...parts.values()], options.autoLegend !== undefined), input);
   const bands: SelectedBand[] = [];
   const doc = input as SpecDocument;
   if (issues.length) return {doc, bands, issues: capped(issues)};
@@ -97,6 +100,11 @@ export function validateSpec(input: unknown, options: PartOptions): SpecIssue[] 
 export async function renderSpec(input: unknown, options: PartOptions & Pick<RenderOptions, 'measure' | 'captions'>) {
   const {doc, bands, issues} = assemble(input, options);
   if (issues.length) throw new SpecError(issues);
+  if (doc.legend === 'auto') {
+    const labels = doc.lang === 'en' ? {...Object.assign({}, ...options.parts.map(part => part.legendEn ?? {})), ...LEGEND_EN} : undefined;
+    const legend = must(options.autoLegend)(bands, labels);
+    if (legend) bands.push(legend);
+  }
   const connectors = options.parts.find(part => part.connectors)?.connectors;
   const {title, theme, width, appearance, density, showTitle, sourceLine, canvas, lang, desc} = doc;
   return renderBands(bands, {measure: options.measure, captions: options.captions, title, theme, width, appearance, density, showTitle,

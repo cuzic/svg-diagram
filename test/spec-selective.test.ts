@@ -161,3 +161,18 @@ test('selected canvas scales text and chart geometry and honors content fit', as
   const overflow = await renderSpec({...input, canvas: {...input.canvas, height: 360}}, {measure, parts});
   assert.ok(overflow.verdict.warnings.some(warning => warning.includes('slide-canvas-overflow')));
 });
+
+test('automatic legends are opt-in and match the legacy SVG in Japanese and English', async () => {
+  const {autoLegend} = await import('../lib/bands/legend.ts');
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const parts = [faultTreePart];
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  for (const lang of ['ja', 'en']) {
+    const input = {version: 1, title: 'Example', legend: 'auto', lang, parts: [faultTreePart.example]};
+    assert.ok(validateSpec(input, {parts}).some(issue => issue.path === 'legend'));
+    assert.deepEqual(validateSpec(input, {parts, autoLegend}), []);
+    const actual = await renderSpec(input, {parts, measure, autoLegend});
+    const old = await renderInBrowser(specToDiagram(input), {measure});
+    assert.equal(body(actual.svg), body(old.svg));
+  }
+});
