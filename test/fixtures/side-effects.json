@@ -20,7 +20,7 @@
   "lib/font-metrics.ts": {"count": 3, "reason": "Loads HarfBuzz through a top-level await."},
   "lib/icons.ts": {"count": 1, "reason": "Builds the emoji icon metadata."},
   "lib/layout-connect.ts": {"count": 2, "reason": "Samples and sorts connector label positions."},
-  "lib/layout-handlers.ts": {"count": 17, "reason": "Builds layout handlers with placed-band factories."},
+  "lib/layout-handlers.ts": {"count": 16, "reason": "Builds layout handlers with placed-band factories."},
   "lib/layout-measure.ts": {"count": 30, "reason": "Builds the measurement handler table and binds the full measure collector."},
   "lib/layout.ts": {"count": 1, "reason": "Binds the full layout resolver."},
   "lib/markdown-it.ts": {"count": 3, "reason": "Resolves the render worker's URL at module initialization."},

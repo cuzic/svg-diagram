@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+import type {TreeItem} from '../lib/types/diagrams.ts';
 import {caption} from '../lib/bands/caption.ts';
+import {tree, mindmap} from '../lib/bands/tree.ts';
 import {stateDiagram, flowchart} from '../lib/bands/states.ts';
 import {classDiagram} from '../lib/bands/classes.ts';
 import {bpmn} from '../lib/bands/bpmn.ts';
@@ -43,7 +45,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {stateDiagram as legacyStateDiagram, flowchart as legacyFlowchart, classDiagram as legacyClassDiagram, bpmn as legacyBpmn, cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {tree as legacyTree, mindmap as legacyMindmap, stateDiagram as legacyStateDiagram, flowchart as legacyFlowchart, classDiagram as legacyClassDiagram, bpmn as legacyBpmn, cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -495,4 +497,25 @@ test('selective states and flowcharts preserve loops, decisions and scoped ancho
   assert.deepEqual(result.verdict.problems, legacy.verdict.problems);
   const body = (svg: string) => svg.slice(svg.indexOf('  <defs>'));
   assert.equal(body(result.svg), body(legacy.svg));
+});
+
+test('selective trees and mindmaps preserve nested bands, funnel edges and stages', async () => {
+  const input = (root: TreeItem['band'], child: TreeItem['band']): TreeItem => ({
+    label: '親', band: root, w: 400, children: [{label: '子', band: child, from: 'target', w: 210}],
+  });
+  const map = {label: '議題', children: [{label: '選択肢'}, {label: '条件'}]};
+  const draw = (stage: number) => renderBands([
+    tree(input(row([box({id: 'target', title: '起点'})]), box({title: '詳細', reveal: 2})), {dir: 'down'}),
+    mindmap(map, {edges: 'curve'}),
+  ], {measure, title: 'Plan', stage});
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false})
+    .add(legacyTree(input(legacyRow([legacyBox({id: 'target', title: '起点'})]),
+      legacyBox({title: '詳細', reveal: 2})), {dir: 'down'}), legacyMindmap(map, {edges: 'curve'})), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  for (const stage of [0, 2]) {
+    const selected = await draw(stage);
+    assert.deepEqual(selected.xml, []);
+    assert.equal(body(selected.svg), body(emitSvg(expected.laidOut, {reveal: stage})));
+    assert.equal(selected.svg.includes('>詳細</text>'), stage === 2);
+  }
 });

@@ -19,6 +19,7 @@ import {ftaRects} from './verify-fta-rects.ts';
 import {anchorRects, frameRects, ownRect, scopedRect} from './verify-rects.ts';
 import {classesProblems} from './verify-classes.ts';
 import {bpmnProblems} from './verify-bpmn.ts';
+import {treeRects} from './verify-tree.ts';
 import {cloudProblems, cloudRects} from './verify-cloud.ts';
 import {planeProblems} from './verify-plane.ts';
 import {quadrantProblems} from './verify-quadrant.ts';
@@ -246,7 +247,7 @@ export const VERIFY_HANDLERS = {
   comic: {rects: comicRects, check: {phase: 'comic', run: checkComic}},
   fta: {rects: ftaRects},
   // a band node has no label box and is checked as the band it is (its own rects), so the label boxes count only the text nodes
-  tree: {rects: band => { let li = 0; return band.nodes.flatMap(n => n.band ? [] : [{id: n.id ?? null, label: band.labelBoxes[li++]?.label ?? 'node', x: n.x, y: n.y, w: n.w, h: n.h, ...holdsFigure(band)}]); }},
+  tree: {rects: treeRects},
   states: {rects: figureRects, check: {phase: 'states', run: checkStates}},
   cause: {rects: figureRects, check: {phase: 'cause', run: checkCause}},
   cloud: {rects: cloudRects, check: {phase: 'cloud', run: (band, _d, out) => { out.problems.push(...cloudProblems(band)); }}},

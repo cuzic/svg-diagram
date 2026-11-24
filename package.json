@@ -312,6 +312,10 @@
       "types": "./dist/lib/bands/states.d.ts",
       "default": "./dist/lib/bands/states.js"
     },
+    "./bands/tree": {
+      "types": "./dist/lib/bands/tree.d.ts",
+      "default": "./dist/lib/bands/tree.js"
+    },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",
       "default": "./dist/lib/bands/box.js"
