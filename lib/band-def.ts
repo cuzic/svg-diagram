@@ -36,6 +36,8 @@ export interface PublicEnv extends Pick<Rect, 'x' | 'y' | 'w'> {
   theme: Theme;
   tones: ToneEnv;
   wrap: WrapMode;
+  keepWords?: boolean;
+  space?: number;
   today?: string;
   canvas?: SlideCanvas;
   geometryScale?: number;

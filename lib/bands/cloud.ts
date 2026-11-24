@@ -19,9 +19,9 @@ const definition = {
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of cloudTexts(data, roles)) atoms(text, size, weight, font);
   },
-  layout(data, {x, y, w, widthOf, roles, wrap}) {
+  layout(data, {x, y, w, widthOf, roles, wrap, keepWords = false, space}) {
     const scope = scopeOf(data);
-    const placed = layoutCloudBand(data, x, snapGrid(y), w, widthOf, roles, {wrap, keepWords: false});
+    const placed = layoutCloudBand(data, x, snapGrid(y), w, widthOf, roles, {wrap, keepWords, space});
     const laid = scope ? {...placed, scope} : placed;
     return {laid, h: laid.h, anchors: laid.anchors};
   },

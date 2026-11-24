@@ -20,9 +20,9 @@ const definition = {
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of bpmnTexts(data, roles)) atoms(text, size, weight, font);
   },
-  layout(data, {x, y, w, widthOf, roles, wrap}) {
+  layout(data, {x, y, w, widthOf, roles, wrap, keepWords = false, space}) {
     const scope = scopeOf(data);
-    const placed = (data.dir === 'v' ? layoutBpmnVertical : layoutBpmn)(data, x, snapGrid(y), w, widthOf, roles, {wrap, keepWords: false});
+    const placed = (data.dir === 'v' ? layoutBpmnVertical : layoutBpmn)(data, x, snapGrid(y), w, widthOf, roles, {wrap, keepWords, space});
     const laid = scope ? {...placed, scope} : placed;
     return {laid, h: laid.h, anchors: laid.anchors};
   },

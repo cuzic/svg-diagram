@@ -19,8 +19,8 @@ const definition = {
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of ftaTexts(data, roles)) atoms(text, size, weight, font);
   },
-  layout(data, {x, y, w, widthOf, roles, wrap}) {
-    const placed = layoutFta(data, x, snapGrid(y), w, widthOf, roles, {wrap, keepWords: false});
+  layout(data, {x, y, w, widthOf, roles, wrap, keepWords = false, space}) {
+    const placed = layoutFta(data, x, snapGrid(y), w, widthOf, roles, {wrap, keepWords, space});
     const scope = scopeOf(data);
     const laid = scope ? {...placed, scope} : placed;
     return {laid, h: laid.h, anchors: laid.anchors};

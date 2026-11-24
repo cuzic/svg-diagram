@@ -210,7 +210,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       if (def.internal) return def.layout;
       const place = def.layout;
       return (_band, ctx, x, w) => {
-        const {laid, h, anchors} = place(input, {x, y: ctx.y, w, widthOf: ctx.widthOf, roles, theme, tones: ctx.tones, wrap: ctx.wrap, today, canvas, geometryScale: scale});
+        const {laid, h, anchors} = place(input, {x, y: ctx.y, w, widthOf: ctx.widthOf, roles, theme, tones: ctx.tones, wrap: ctx.wrap, keepWords: ctx.keepWords, space: ctx.space, today, canvas, geometryScale: scale});
         if ('id' in input && input.id) ctx.register(input.id, laid, 'each band needs a unique id');
         for (const anchor of anchors ?? []) {
           if (anchor.id) ctx.register(anchor.id, anchor, 'each anchor needs a unique id', scopeOf(input));

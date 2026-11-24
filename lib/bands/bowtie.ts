@@ -17,8 +17,8 @@ const definition = {
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of bowtieMeasure(data, roles)) atoms(text, size, weight, font);
   },
-  layout(data, {x, y, w, widthOf, roles, wrap}) {
-    const laid = layoutBowtie(data, x, snapGrid(y), w, widthOf, roles, {wrap, keepWords: false});
+  layout(data, {x, y, w, widthOf, roles, wrap, keepWords = false, space}) {
+    const laid = layoutBowtie(data, x, snapGrid(y), w, widthOf, roles, {wrap, keepWords, space});
     return {laid, h: laid.h};
   },
   emit: (laid, {theme, tones}) => renderBowtie(laid, theme, tones),

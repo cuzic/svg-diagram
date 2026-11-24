@@ -21,9 +21,9 @@ export const statesDefinition: BandDef<StatesBand, LaidOutStates> = {
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of statesTexts(data, roles)) atoms(text, size, weight, font);
   },
-  layout(data, {x, y, w, widthOf, roles, wrap, canvas}) {
+  layout(data, {x, y, w, widthOf, roles, wrap, keepWords = false, space, canvas}) {
     const scope = scopeOf(data);
-    const placed = layoutStatesBand(data, x, snapGrid(y), w, widthOf, roles, {wrap, keepWords: false}, canvas?.height);
+    const placed = layoutStatesBand(data, x, snapGrid(y), w, widthOf, roles, {wrap, keepWords, space}, canvas?.height);
     const laid = scope ? {...placed, scope} : placed;
     return {laid, h: laid.h, anchors: laid.anchors};
   },

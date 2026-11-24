@@ -414,16 +414,18 @@ test('selected tables preserve sum and share diagnostics and their spec paths', 
   assert.deepEqual(selected.verdict.warnings, legacy.verdict.warnings);
 });
 
-test('every catalog part keeps legacy output or reports the same layout failure at smaller sizes', async () => {
+test('every catalog part keeps legacy output or reports the same layout failure under alternate document settings', async () => {
   const {prepareSpecLayout} = await import('../lib/spec-selective.ts');
   const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
-  const sizes = [
+  const variants = [
     {width: 720}, {width: 480},
+    {width: 720, appearance: 'dark', theme: 'teal', density: 'compact'},
+    {width: 720, appearance: 'light', theme: 'blue', lang: 'en'},
     {canvas: {width: 1280, height: 720, minText: 16}},
     {canvas: {width: 1440, height: 810, minText: 24}},
   ];
   for (const part of [flowchartPart, pyramidPart, funnelPart, ...moreParts]) {
-    for (const settings of sizes) {
+    for (const settings of variants) {
       const spec = {version: 1, title: '計画', legend: false, ...settings, parts: [part.example]};
       const label = `${part.type} ${JSON.stringify(settings)}`;
       const [selected, legacy] = await Promise.allSettled([
@@ -441,6 +443,7 @@ test('every catalog part keeps legacy output or reports the same layout failure 
         assert.deepEqual(verdict.problems, legacy.value.verdict.problems, label);
         assert.deepEqual(verdict.warnings, legacy.value.verdict.warnings, label);
         assert.deepEqual(verdict.issues, legacy.value.verdict.issues, label);
+        assert.deepEqual(verdict.findings, legacy.value.verdict.findings, label);
       }
     }
   }
