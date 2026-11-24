@@ -1,6 +1,7 @@
 import {defOf} from './band-def.ts';
 import {describeBands, oneLine} from './diagram-description.ts';
 import type {Band} from './types/index.ts';
+import type {Config} from './types/project.ts';
 import {must} from './must.ts';
 import {prepareBands, renderBands, type BatchMeasurement} from './core.ts';
 import {LEGEND_EN, MAX_EMOJI, MAX_TOTAL_TEXT, PART_EN, SpecError, withoutSchemaField} from './spec-kit.ts';
@@ -102,18 +103,23 @@ export function validateSpec(input: unknown, options: PartOptions): SpecIssue[] 
 
 type PrepareOptions = PartOptions & Pick<RenderOptions, 'captions'>;
 
-function prepareSpec(input: unknown, options: PrepareOptions) {
+type SpecProject = Pick<Config, 'wrap' | 'keepWords' | 'tones' | 'legend' | 'legendLabels'>;
+
+function prepareSpec(input: unknown, options: PrepareOptions, project?: SpecProject) {
   const {doc, bands, issues} = assemble(input, options);
   if (issues.length) throw new SpecError(issues);
-  if (doc.legend === 'auto') {
-    const labels = doc.lang === 'en' ? {...Object.assign({}, ...options.parts.map(part => part.legendEn ?? {})), ...LEGEND_EN} : undefined;
+  if ((doc.legend ?? project?.legend) === 'auto') {
+    const labels = doc.lang === 'en'
+      ? {...project?.legendLabels, ...Object.assign({}, ...options.parts.map(part => part.legendEn ?? {})), ...LEGEND_EN}
+      : project?.legendLabels;
     const legend = must(options.autoLegend)(bands, labels);
     if (legend) bands.push(legend);
   }
   const connectors = options.parts.find(part => part.connectors)?.connectors;
   const {title, theme, width, appearance, density, showTitle, sourceLine, canvas, lang, desc} = doc;
   return {bands, drawOptions: {captions: options.captions, title, theme, width, appearance, density, showTitle,
-    sourceLine, canvas, desc: desc ?? (lang === 'en' ? title : undefined), connectors}};
+    sourceLine, canvas, desc: desc ?? (lang === 'en' ? title : undefined), connectors,
+    wrap: project?.wrap, keepWords: project?.keepWords, tones: project?.tones}};
 }
 
 /** @internal Validate before drawing so Edge can distinguish validation from layout errors. */
@@ -123,8 +129,8 @@ export function prepareSpecRender(input: unknown, options: PrepareOptions) {
 }
 
 /** @internal Provide the prepared geometry and SVG emitter to consumers such as the deck renderer. */
-export function prepareSpecLayout(input: unknown, options: PrepareOptions) {
-  const {bands, drawOptions} = prepareSpec(input, options);
+export function prepareSpecLayout(input: unknown, options: PrepareOptions & {project?: SpecProject}) {
+  const {bands, drawOptions} = prepareSpec(input, options, options.project);
   return async (measurement: RenderOptions['measure'] | BatchMeasurement) => {
     const prepared = await prepareBands(bands, {...drawOptions, ...(typeof measurement === 'function' ? {measure: measurement} : measurement)});
     const {stage, emit} = prepared;

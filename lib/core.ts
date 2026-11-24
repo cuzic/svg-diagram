@@ -18,7 +18,7 @@ import {must} from './must.ts';
 import {checked} from './reveal-visibility.ts';
 import {checkToday} from './today-auto.ts';
 import {canvasFontScale, checkMinText, checkTones, colorOf, rolesAt, SLIDE_CANVAS, THEMES, toneEnv} from './tokens.ts';
-import type {Appearance, FontFamily, Measured, MeasureRequest, DiagramData, RevealOpts, SlideCanvas, Theme, WidthOf, WrapMode} from './types/core.ts';
+import type {Appearance, FontFamily, Measured, MeasureRequest, DiagramData, RevealOpts, SlideCanvas, Theme, WidthOf} from './types/core.ts';
 import type {Band, LaidOutBand, LaidOutDiagram} from './types/index.ts';
 import type {Finding, Issue} from './types/verdicts.ts';
 import {xmlProblems} from './xml-check.ts';
@@ -36,7 +36,8 @@ type DrawOptions = {
   gap?: number;
   theme?: Theme;
   tones?: Parameters<typeof toneEnv>[0];
-  wrap?: Exclude<WrapMode, 'bunsetsu-soft'>;
+  wrap?: DiagramData['wrap'];
+  keepWords?: boolean;
   title?: string;
   desc?: string;
   appearance?: Appearance;
@@ -95,7 +96,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   let source = cloneData(bands) as unknown as Band[];
   const data: DiagramData = {
     day: theme, medium: 'doc', width, pad: canvas ? Math.round(pad) : pad, gap: canvas ? Math.round(gap) : gap,
-    fill: false, bands: source, title: opts.title, desc: opts.desc, wrap: opts.wrap, tones, canvas,
+    fill: false, bands: source, title: opts.title, desc: opts.desc, wrap: opts.wrap, keepWords: opts.keepWords, tones, canvas,
     appearance: opts.appearance, density: opts.density,
   };
   if (opts.showTitle && opts.title || opts.sourceLine !== undefined) {

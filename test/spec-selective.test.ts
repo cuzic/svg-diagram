@@ -329,3 +329,25 @@ test('prepared specs batch all text atoms through the project measurement backen
   assert.equal(layout.emit(layout.placed), legacy.svg);
   await assert.rejects(draw({measureBatch: async () => new Map()}), /width was not measured/);
 });
+
+test('prepared specs preserve project tones, wrapping and legend defaults', async () => {
+  const {prepareSpecLayout} = await import('../lib/spec-selective.ts');
+  const {autoLegend} = await import('../lib/bands/legend.ts');
+  const {applyConfig} = await import('../lib/config.ts');
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const project = {wrap: 'char', keepWords: true, tones: {accent: {fill: '#ffdd99'}},
+    legend: 'auto', legendLabels: {'tone:accent': '確認対象'}} as const;
+  const base = {version: 1, title: '計画', width: 400, parts: [{
+    type: 'steps', items: [{title: '検討', body: 'プロジェクトのテスト仕様を確認する', tone: 'accent'}, {title: '実行'}],
+  }]};
+  for (const spec of [base, {...base, legend: false}]) {
+    const actual = await prepareSpecLayout(spec, {parts: [stepsPart], autoLegend, project})(measure);
+    const legacy = await renderInBrowser(applyConfig(specToDiagram(spec), project), {measure});
+    assert.equal(actual.placed.wrap, 'char');
+    assert.equal(actual.placed.keepWords, true);
+    const svg = actual.emit(actual.placed);
+    assert.match(svg, /#ffdd99/);
+    assert.equal(svg.includes('確認対象'), !('legend' in spec));
+    assert.equal(svg, legacy.svg);
+  }
+});
