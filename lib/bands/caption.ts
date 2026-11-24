@@ -1,5 +1,5 @@
-import {sourceLineFindings} from '../verify-caption.ts';
-import {band} from '../band-def.ts';
+import {duplicateTitleFindings, sourceLineFindings} from '../verify-caption.ts';
+import {band, walkDefinedBands} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {caption as buildCaption} from '../dsl/caption.ts';
 import {renderCaption} from '../emit-boxes.ts';
@@ -20,6 +20,7 @@ export const captionDefinition: BandDef<CaptionBand, LaidOutCaption> = {
   },
   emit: (laid, env) => renderCaption(laid, env.theme, env.tones),
   verify: {
+    diagramFindings: diagram => duplicateTitleFindings(diagram, walkDefinedBands),
     layoutFindings: sourceLineFindings,
     contrast: (laid, {theme, tones, appearance}) => boxLikeContrastProblems(laid, null, theme, tones, appearance),
   },

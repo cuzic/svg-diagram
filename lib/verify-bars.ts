@@ -1,9 +1,11 @@
+import {barsValuesHidden} from './diagram-description.ts';
+import {visibleAt} from './reveal-visibility.ts';
 import {at} from './finding-rules.ts';
-import type {LaidOutDiagram} from './types/index.ts';
+import type {Band, LaidOutDiagram} from './types/index.ts';
 import {segHitsRect} from './bars.ts';
 import {must} from './must.ts';
 import {PALETTE, colorOf} from './tokens.ts';
-import type {Theme} from './types/core.ts';
+import type {DiagramData, Theme} from './types/core.ts';
 import type {LaidOutBars} from './types/bars.ts';
 import type {CheckRect, Finding} from './types/verdicts.ts';
 import {CONTRAST_THRESHOLD, dxdy, neverTogether, outsideBox, rectOverlap} from './verify-base.ts';
@@ -50,4 +52,13 @@ export function thinBarFindings({laidOut}: Partial<Pick<LaidOutDiagram, 'laidOut
   const band = laidOut?.find(b => b.type === 'bars' && b.bars.some(r =>
     (r.w > 0 && r.w <= 1 && r.h > 0) || (r.h > 0 && r.h <= 1 && r.w > 0)));
   return band ? [{...at(band), rule: 'bars-thin-bar', severity: 'warn', message: '棒が 1px 以下になっている。図の高さ・幅を上げるか max を見直す'}] : [];
+}
+
+export function hiddenBarsTitleFindings(
+  d: Pick<DiagramData, 'medium' | 'bands'>, title: () => string, walk: (bands: Band[]) => readonly Band[], stage?: number,
+): Finding[] {
+  if (d.medium !== 'doc' || title()) return [];
+  return walk(d.bands).some(band => band.type === 'bars' && visibleAt(band, stage) && barsValuesHidden(band))
+    ? [{rule: 'bars-values-hidden', severity: 'warn', message: '値を隠した bars があるが、図に題名がなく <desc> も出ない。diagram({title}) を指定する（値の列は自動で <desc> に入る）'}]
+    : [];
 }

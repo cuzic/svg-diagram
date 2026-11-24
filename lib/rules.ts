@@ -5,7 +5,7 @@ import {parallelEdgeFindings} from './verify-cause-spacing.ts';
 import {densityRestorationFindings} from './verify-density.ts';
 import {narrowTextFindings} from './verify-shrink.ts';
 import {boxSizeFindings, statFitFindings} from './verify-box-like.ts';
-import {fullWidthUnits, sourceLineFindings} from './verify-caption.ts';
+import {duplicateTitleFindings, fullWidthUnits, sourceLineFindings} from './verify-caption.ts';
 export {fullWidthUnits} from './verify-caption.ts';
 import {canvasRegionFindings} from './verify-grid.ts';
 import {concentricFindings} from './verify-concentric.ts';
@@ -37,7 +37,7 @@ import {sourceOf, withSource} from './source-ref.ts';
 import {canvasFindings} from './canvas-findings.ts';
 import {minTextSize} from './fit.ts';
 import {imageSizeFindings} from './verify-image.ts';
-import {thinBarFindings} from './verify-bars.ts';
+import {hiddenBarsTitleFindings, thinBarFindings} from './verify-bars.ts';
 import {PALETTE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 
@@ -47,11 +47,9 @@ import {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
 import {termFindings, tableFindings} from './consistency.ts';
 import {quadrantFindings, quadrantLayoutFindings} from './verify-quadrant.ts';
 import {funnelFindings} from './verify-funnel.ts';
-import {barsValuesHidden, describeBands, oneLine} from './diagram-description.ts';
+import {describeBands, oneLine} from './diagram-description.ts';
 import {layoutMetrics} from './layout-metrics.ts';
 import {dimmedBands} from './spotlight.ts';
-import type {BarsBand} from './types/bars.ts';
-import type {CaptionBand} from './types/text-bands.ts';
 import type {LegendBand} from './types/containers.ts';
 import type {EmphasisTone, DiagramData, RuleId} from './types/core.ts';
 import {connectorFindings, connectorRules} from './verify-connect-crossings.ts';
@@ -665,8 +663,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   out.push(...documentWidthFindings(d));
   // doc diagrams are read at length on a page, so their budget is larger than the slide decks' (see budget.ts)
   out.push(...textBudgetFindings(d));
-  const allBars = walkBands(d.bands).filter((b): b is BarsBand => b.type === 'bars');
-  if (d.medium === 'doc' && !diagramTitle(d) && allBars.some(barsValuesHidden)) out.push({rule: 'bars-values-hidden', severity: 'warn', message: '値を隠した bars があるが、図に題名がなく <desc> も出ない。diagram({title}) を指定する（値の列は自動で <desc> に入る）'});
+  out.push(...hiddenBarsTitleFindings(d, () => diagramTitle(d), walkBands));
   for (const b of walkBands(d.bands)) if (b.type === 'image') out.push(...imageSizeFindings(b));
   out.push(...thinBarFindings(d));
   headlineLength(d, out);
@@ -676,10 +673,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   for (const b of walkBands(d.bands)) if (b.type === 'quadrant') out.push(...quadrantFindings(b));
   for (const b of walkBands(d.bands)) if (b.type === 'funnel') out.push(...funnelFindings(b));
   for (const b of walkBands(d.bands)) if (b.type === 'grid') out.push(...canvasRegionFindings(b));
-  if (d.medium === 'doc' && d.title && !d.showTitle) {
-    const first = walkBands(d.bands).find((b): b is CaptionBand => b.type === 'caption' && !b.sourceLine);
-    if (first && first.text.trim() === d.title.trim()) out.push({...at(first), rule: 'title-duplicated', severity: 'info', message: `題名と先頭の caption が同じ文字列「${first.text.trim().slice(0, 20)}」。diagram({title, showTitle: true}) に寄せて、caption を消せる`});
-  }
+  out.push(...duplicateTitleFindings(d, walkBands));
   if (d.medium === 'doc') out.push(...missingTitleFindings(d, diagramTitle(d)));
   return out;
 }

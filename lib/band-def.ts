@@ -95,6 +95,7 @@ interface BandHooks<D, L extends object> {
   };
   /** An inferred SVG title, with headlines before group headings and figure labels. */
   title?(data: D): readonly [priority: 0 | 1 | 2, text: string | undefined] | undefined;
+  describe?(data: D, stage?: number): string;
   ids?(data: D): string[];
   reveal?: RevealHandler<D>;
   revealElements?(data: D, start: number, end?: number): {last: number; warnings: string[]; items?: readonly {id?: string; reveal?: number; until?: number}[]};

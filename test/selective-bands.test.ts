@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {TreeItem} from '../lib/types/diagrams.ts';
-import {caption} from '../lib/bands/caption.ts';
+import {caption, captionDefinition} from '../lib/bands/caption.ts';
 import {canvas} from '../lib/compose/selective/canvas.ts';
 import {hero} from '../lib/compose/selective/hero.ts';
 import {iconRow} from '../lib/compose/selective/icon-row.ts';
@@ -1225,4 +1225,37 @@ test('selected document checks warn when no accessible title can be inferred', a
   assert.equal(warnings(legacy).length, 1);
   assert.deepEqual(warnings(result), warnings(legacy));
   assert.doesNotMatch(result.svg, /<title id="svg-title"/);
+});
+
+test('selected hidden bar values are described when titled and warned about when unnamed', async () => {
+  const {hiddenBarsDescription} = await import('../lib/diagram-description.ts');
+  const {hiddenBarsTitleFindings} = await import('../lib/verify-bars.ts');
+  const data = [{label: '前', value: 20}, {label: '後', value: 40, reveal: 2}];
+  const opts = {labels: 'none', axis: false} as const;
+  const band = bars(data, opts);
+  assert.equal(hiddenBarsDescription(band, 1), '値: 前 20');
+  assert.equal(hiddenBarsDescription(bars(data)), '');
+  assert.deepEqual(hiddenBarsTitleFindings({medium: 'doc', bands: [band]}, () => '比較', items => items), []);
+  const named = await renderBands([band], {measure, title: '比較', stage: 1});
+  assert.match(named.svg, /<desc id="svg-desc">値: 前 20<\/desc>/);
+  assert.doesNotMatch(named.svg, /後 40/);
+  const unnamed = await renderBands([bars(data, opts)], {measure});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false}).add(legacyBars(data, opts)), {measure});
+  const warnings = ({verdict}: Pick<typeof unnamed, 'verdict'>) => verdict.warnings.filter(w => w.startsWith('[bars-values-hidden]'));
+  assert.equal(warnings(legacy).length, 1);
+  assert.deepEqual(warnings(unnamed), warnings(legacy));
+  assert.deepEqual(warnings(named), []);
+});
+
+test('selected captions flag a duplicated title except when showTitle is enabled', async () => {
+  const {duplicateTitleFindings} = await import('../lib/verify-caption.ts');
+  assert.deepEqual(duplicateTitleFindings({medium: 'doc', title: '先頭', bands: [caption('別'), caption('先頭')]}, items => items), []);
+  for (const showTitle of [false, true]) {
+    const input = {title: '比較', showTitle};
+    const selected = await renderBands([caption('比較')], {measure, captions: captionDefinition, ...input});
+    const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false, ...input}).add(legacyCaption('比較')), {measure});
+    const findings = ({verdict}: Pick<typeof selected, 'verdict'>) => verdict.findings.filter(f => f.rule === 'title-duplicated');
+    assert.equal(findings(legacy).length, showTitle ? 0 : 1);
+    assert.deepEqual(findings(selected), findings(legacy));
+  }
 });

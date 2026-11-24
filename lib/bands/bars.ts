@@ -1,7 +1,10 @@
+import {hiddenBarsDescription} from '../diagram-description.ts';
+import {definedDiagramTitle} from '../diagram-title.ts';
+import {findingAcceptanceHint} from '../finding-rules.ts';
 import {selectedAxisFindings} from '../axis-selected.ts';
 import {texts} from '../band-text-sizes.ts';
-import {band} from '../band-def.ts';
-import type {BandDef, WithBandDef} from '../band-def.ts';
+import {band, walkDefinedBands} from '../band-def.ts';
+import type {BandDef, DiagramFindings, WithBandDef} from '../band-def.ts';
 import {barsTexts, layoutBars, barsValueAxis} from '../bars.ts';
 import {bars as build, histogram as buildHistogram, pareto as buildPareto, rangeBars as buildRangeBars} from '../dsl/bars.ts';
 import type {HistogramOpts, ParetoOpts} from '../dsl/bars.ts';
@@ -11,10 +14,14 @@ import {revealBarElements} from '../reveal-bars.ts';
 import {scopeOf} from '../scope-name.ts';
 import {luminance, paintOf} from '../tokens.ts';
 import type {BarDatum, BarsBand, BarsOpts, LaidOutBars} from '../types/bars.ts';
-import {barsContrastProblems, barsProblems, barsRects, thinBarFindings} from '../verify-bars.ts';
+import {barsContrastProblems, barsProblems, barsRects, hiddenBarsTitleFindings, thinBarFindings} from '../verify-bars.ts';
+
+const hiddenValuesFindings: DiagramFindings = (diagram, stage) =>
+  hiddenBarsTitleFindings(diagram, () => definedDiagramTitle(diagram, stage), walkDefinedBands, stage);
 
 const definition = {
   type: 'bars',
+  describe: hiddenBarsDescription,
   valueAxis: barsValueAxis,
   textSizes: texts,
   measure(data, {atoms, roles}) {
@@ -31,7 +38,8 @@ const definition = {
   emit: (laid, {theme, stage}) => renderBars(laid, theme, stage),
   verify: {
     rects: barsRects,
-    diagramFindings: [thinBarFindings, selectedAxisFindings],
+    diagramFindings: [thinBarFindings, selectedAxisFindings, hiddenValuesFindings],
+    acceptHint: rule => rule === 'bars-values-hidden' ? findingAcceptanceHint(rule) : undefined,
     check: laid => barsProblems(laid).map(message => ({rule: 'bars', severity: 'problem', message})),
     contrast(laid, {theme, tones, appearance}) {
       const paint = paintOf(tones, appearance);

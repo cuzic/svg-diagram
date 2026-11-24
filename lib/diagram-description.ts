@@ -9,6 +9,11 @@ export const oneLine = (t: unknown): string => String(t ?? '').replace(/\s*\n\s*
 /** Values are on neither a label nor a scale: the figure alone cannot be read for them. */
 export const barsValuesHidden = (band: BarsBand): boolean => band.labels !== undefined && band.labels !== 'all' && band.axis === false;
 
+/** Screen-reader values for bars without either value labels or a scale. */
+export function hiddenBarsDescription(b: BarsBand, stage?: number): string {
+  return barsValuesHidden(b) ? `値: ${b.data.filter(x => visibleAt(x, stage)).map(x => `${oneLine(x.label)} ${x.range ? `${fmt(x.range[0])}〜${fmt(x.range[1])}` : fmt(x.value ?? 0)}${b.unit ?? ''}`).join('、')}` : '';
+}
+
 /** Describe the visible content in the supplied band order. */
 export function describeBands(all: Band[], stage?: number): string {
   const parts: string[] = [];
@@ -27,7 +32,10 @@ export function describeBands(all: Band[], stage?: number): string {
   for (const b of all) if (b.type === 'image' && b.alt) parts.push(`画像: ${oneLine(b.alt)}`);
   for (const b of all) if (b.type === 'math') parts.push(`数式: ${oneLine(b.alt)}`);
   // outside the fallback above, so boxes and hidden-value bars can share one description
-  for (const b of bands) if (b.type === 'bars' && barsValuesHidden(b)) parts.push(`値: ${b.data.filter(x => visibleAt(x, stage)).map(x => `${oneLine(x.label)} ${x.range ? `${fmt(x.range[0])}〜${fmt(x.range[1])}` : fmt(x.value ?? 0)}${b.unit ?? ''}`).join('、')}`);
+  for (const b of bands) if (b.type === 'bars') {
+    const description = hiddenBarsDescription(b, stage);
+    if (description) parts.push(description);
+  }
   for (const b of bands) if (b.type === 'chart') parts.push(oneLine(b.alt));
   return parts.join('。');
 }

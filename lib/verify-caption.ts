@@ -1,5 +1,8 @@
+import {at} from './finding-rules.ts';
+import type {DiagramData} from './types/core.ts';
+import type {Band} from './types/index.ts';
 import {must} from './must.ts';
-import type {LaidOutCaption} from './types/text-bands.ts';
+import type {CaptionBand, LaidOutCaption} from './types/text-bands.ts';
 import type {Finding} from './types/verdicts.ts';
 
 // the width of a line in full-width characters (CJK, kana, hangul, fullwidth forms and pictographs count 1, everything else
@@ -20,4 +23,14 @@ export function sourceLineFindings(b: LaidOutCaption): Finding[] {
   const fits = Math.floor(Math.max(0, ...filled.map(fullWidthUnits)));
   const total = Math.ceil(lines.reduce((s, l) => s + fullWidthUnits(l), 0));
   return [{rule: 'source-wraps', severity: 'warn', message: `出典行が ${n} 行に折り返している（全角で約 ${total} 字分${fits > 0 ? `。1 行に入るのは約 ${fits} 字分なので、約 ${Math.max(1, fits - 1)} 字分以内に縮める` : ''}。半角の英数字は 0.5 字分）。出典の細部は本文へ`}];
+}
+
+export function duplicateTitleFindings(
+  d: Pick<DiagramData, 'medium' | 'title' | 'showTitle' | 'bands'>, walk: (bands: Band[]) => readonly Band[],
+): Finding[] {
+  if (d.medium !== 'doc' || !d.title || d.showTitle) return [];
+  const first = walk(d.bands).find((band): band is CaptionBand => band.type === 'caption' && !band.sourceLine);
+  return first && !first.titleLine && first.text.trim() === d.title.trim()
+    ? [{...at(first), rule: 'title-duplicated', severity: 'info', message: `題名と先頭の caption が同じ文字列「${first.text.trim().slice(0, 20)}」。diagram({title, showTitle: true}) に寄せて、caption を消せる`}]
+    : [];
 }

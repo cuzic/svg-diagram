@@ -3,7 +3,7 @@ import {applyFindingAcceptance, at} from './finding-rules.ts';
 import {ownRunSizes} from './band-text-sizes.ts';
 import {canvasFindings} from './canvas-findings.ts';
 import {splitAtoms} from './atoms.ts';
-import {band, defOf, DEF, EXTERNAL} from './band-def.ts';
+import {band, defOf, DEF, EXTERNAL, walkDefinedBands} from './band-def.ts';
 import {withSourceLine, withTitleLine} from './layout-util.ts';
 import {cloneData} from './clone-data.ts';
 import {emitSvgWith} from './emit-svg-core.ts';
@@ -17,7 +17,7 @@ import type {BandDef, DiagramFindings, VerifyCtx} from './band-def.ts';
 import type {CaptionBand, LaidOutCaption} from './types/text-bands.ts';
 import type {ConnectBand, LaidOutConnect} from './types/containers.ts';
 import {must} from './must.ts';
-import {checked} from './reveal-visibility.ts';
+import {checked, visibleAt} from './reveal-visibility.ts';
 import {checkToday} from './today-auto.ts';
 import {canvasFontScale, checkMinText, checkTones, colorOf, rolesAt, SLIDE_CANVAS, THEMES, toneEnv} from './tokens.ts';
 import type {Appearance, FontFamily, Measured, MeasureRequest, DiagramData, RevealOpts, SlideCanvas, Theme, WidthOf} from './types/core.ts';
@@ -276,7 +276,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     },
   }, placed);
   const emitEnv = {theme, roles, tones: ink, color: (key: Parameters<typeof colorOf>[0]) => colorOf(key, theme), stage};
-  const emit = (figure: LaidOutDiagram, noRecolor = false, description = opts.desc ?? '') => emitSvgWith({
+  const emit = (figure: LaidOutDiagram, noRecolor = false, description = opts.desc) => emitSvgWith({
     defsNeeded: band => ({
       arrow: band.type === 'row' && band.arrows.length > 0,
       mono: (band.type === 'row' || band.type === 'grid' ? band.children.flatMap(b => b.wrappedRuns)
@@ -286,7 +286,8 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     renderBand: band => must(placedDefinition(band)).emit(band as never, emitEnv),
     renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
     diagramTitle: diagram => definedDiagramTitle(diagram, stage),
-    diagramDesc: () => description,
+    diagramDesc: diagram => description ?? walkDefinedBands(diagram.bands)
+      .flatMap(band => visibleAt(band, stage) ? defOf(band)?.describe?.(band, stage) || [] : []).join('。'),
     spotlightDim: () => 'outline',
   }, figure, {reveal: stage, noRecolor});
   return {placed, stage, verdict, emit};
