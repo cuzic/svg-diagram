@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {caption} from '../lib/bands/caption.ts';
+import {quadrant} from '../lib/bands/quadrant.ts';
 import {legend} from '../lib/bands/legend.ts';
 import {status} from '../lib/bands/status.ts';
 import {wordart} from '../lib/bands/wordart.ts';
@@ -29,7 +30,7 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
 import {em} from '../lib/rich.ts';
-import {legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -307,4 +308,23 @@ test('a selective concentric map supplies the marker for movement between rings'
   const result = await renderBands([radar], {measure});
   assert.match(result.svg, /<marker id="dsl-arrow"/);
   assert.match(result.svg, /marker-end="url\(#dsl-arrow\)"/);
+});
+
+test('selective quadrant preserves preset axes, bubble sizing, motion arrows and item anchors', async () => {
+  const opts = {
+    id: 'portfolio', scope: 'cases', sizeTitle: '売上', sizeUnit: '億円',
+    items: [
+      {id: 'alpha', label: '製品 A', at: [0.8, 0.8], size: 20},
+      {id: 'beta', label: '製品 B', cell: [0, 1], size: 10},
+    ],
+    arrows: [{from: 'alpha', to: [0.68, 0.72]}],
+  } satisfies NonNullable<Parameters<typeof quadrant.preset>[1]>;
+  const next = {id: 'next', title: 'Review'} as const;
+  const result = await renderBands([quadrant.preset('bcg', opts), box(next), connect('cases.beta', 'next')], {measure, title: 'Plan', gap: 17});
+  const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', gap: 17, legend: false})
+    .add(legacyQuadrant.preset('bcg', opts), legacyBox(next), legacyConnect('cases.beta', 'next')), {measure});
+  assert.deepEqual(result.xml, []);
+  assert.deepEqual(result.verdict.problems, expected.verdict.problems);
+  assert.equal(result.height, expected.height);
+  assert.equal(result.svg.slice(result.svg.indexOf('  <defs>')), expected.svg.slice(expected.svg.indexOf('  <defs>')));
 });

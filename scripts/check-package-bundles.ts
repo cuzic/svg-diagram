@@ -106,6 +106,8 @@ try {
       include: 'bands/wordart.js', budget: {esbuild: 75000, Vite: 100000}, exclude: [...legacy, 'flow-shapes.js', 'gantt.js', 'layout-connect.js'], draw: true},
     {name: 'Legend', source: composedSource(['legend'], "legend([{label: 'Review', role: 'root'}, {label: 'Gate', ftaGate: 'and'}, {label: 'Link', weight: 'strong'}])"),
       include: 'bands/legend.js', budget: {esbuild: 62000, Vite: 83000}, exclude: [...legacy, 'toc.js', 'fta.js', 'emit-fta.js', 'gantt.js', 'layout-connect.js'], draw: true},
+    {name: 'Quadrant', source: composedSource(['quadrant'], "quadrant.preset('bcg', {items: [{label: 'Review', cell: [0, 0]}]})"),
+      include: 'bands/quadrant.js', budget: {esbuild: 94000, Vite: 123000}, exclude: [...legacy, 'flow-shapes.js', 'plane.js', 'gantt.js', 'layout-connect.js', 'dsl/figures.js'], draw: true},
   ];
   for (const testCase of cases) {
     const {name, source, include, exclude, budget, draw, bands} = testCase;

@@ -5,6 +5,7 @@ import {emitSvgWith} from './emit-svg-core.ts';
 import {createLayoutWith} from './layout-core.ts';
 import {addScoped, emptyScopes} from './scope-table.ts';
 import {qualify, scopeOf} from './scope-name.ts';
+import {scopedRect} from './verify-rects.ts';
 import {verifyWithServices} from './verify-core.ts';
 import type {BandDef} from './band-def.ts';
 import type {ConnectBand, LaidOutConnect} from './types/containers.ts';
@@ -159,7 +160,13 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
   const ctx = {theme, tones: ink, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
   const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => band.type === 'row' || band.type === 'grid' ? band.children : band.type === 'group' ? [] : [band]);
   const verdict = verifyWithServices({
-    collectRects: figure => leaves(figure).map(band => ({...band, label: band.type, id: 'id' in band ? band.id ?? null : null})),
+    collectRects: figure => leaves(figure).flatMap(band => {
+      const def = definitions.get(band.type);
+      const rects = def?.verify?.rects?.(band);
+      if (!rects) return [{...band, label: band.type, id: 'id' in band ? band.id ?? null : null}];
+      const scope = scopeOf(band);
+      return scope && !def?.rectsQualified ? rects.map(rect => scopedRect(band, scope, rect)) : rects;
+    }),
     contrastProblems: () => [],
     lintDiagram: () => [],
     acceptHint: () => undefined,

@@ -80,6 +80,7 @@
     "./dist/deck-diagram.js",
     "./dist/diff-svg.js",
     "./dist/init-project.js",
+    "./dist/lib/bands/quadrant.js",
     "./dist/lib/bowtie.js",
     "./dist/lib/comic/constants.js",
     "./dist/lib/comic/slot-values.js",
@@ -258,6 +259,10 @@
     "./bands/legend": {
       "types": "./dist/lib/bands/legend.d.ts",
       "default": "./dist/lib/bands/legend.js"
+    },
+    "./bands/quadrant": {
+      "types": "./dist/lib/bands/quadrant.d.ts",
+      "default": "./dist/lib/bands/quadrant.js"
     },
     "./bands/box": {
       "types": "./dist/lib/bands/box.d.ts",

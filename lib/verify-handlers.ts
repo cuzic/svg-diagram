@@ -14,6 +14,8 @@ import {legibilityProblem} from './wordart.ts';
 import {andClashes} from './cause-clash.ts';
 import {sourceOf} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
+import {anchorRects, scopedRect} from './verify-rects.ts';
+import {quadrantProblems} from './verify-quadrant.ts';
 import {timelineProblems} from './verify-timeline.ts';
 import {flowProblems} from './verify-flow.ts';
 import {ganttProblems} from './verify-gantt.ts';
@@ -57,10 +59,7 @@ export interface VerifyHandler<B> {
 
 // ---- rects: every checkable rect (captions with no ink box are skipped: no background, and their width is already wrap-constrained) ----
 
-type Anchored = Rect & {id?: string; anchors: (Rect & {id: string})[]};
-/** Each anchor is its own rect; `holds`: a connector that ends on the whole figure (its id) may run among them. */
-const anchorRects = (band: Anchored, intentional?: string): CheckRect[] =>
-  band.anchors.map(a => ({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...((band.id || intentional) ? {holds: [band.id, intentional].filter((x): x is string => !!x)} : {})}));
+type Anchored = Parameters<typeof anchorRects>[0];
 const figureRects = (band: Anchored): CheckRect[] => anchorRects(band);
 /** An emblem's obstacle is the bounding box of each shape, not its anchor: a triangle's anchor leaves out its lower corners. */
 const emblemRects = (band: Anchored & {bounds?: Anchored['anchors']}): CheckRect[] => anchorRects({...band, anchors: band.bounds ?? band.anchors});
@@ -230,32 +229,6 @@ const checkImage = (band: LaidOutOf<'image'>, _d: LaidOutDiagram, {problems}: Ve
 
 const checkNoWrap = (band: LaidOutBox, out: VerifyOut): void => { out.problems.push(...nowrapProblems(band)); };
 
-// quadrant(): items keep clear of each other, of every label and of the arrows; every label stays inside the figure.
-const checkQuadrant = (band: LaidOutOf<'quadrant'>, _d: LaidOutDiagram, {problems}: VerifyOut): void => {
-  const nearRect = (cx: number, cy: number, r: number, b: Rect): boolean => Math.hypot(cx - Math.max(b.x, Math.min(cx, b.x + b.w)), cy - Math.max(b.y, Math.min(cy, b.y + b.h))) < r - 0.5;
-  const fig = {x: band.x, y: band.y, w: band.w, h: band.h}, boxes = band.labelBoxes, bs = band.bubbles;
-  for (const b of boxes) {
-    const lim = b.kind === 'item' ? band.plot : fig;
-    if (outsideBox(b, lim)) problems.push(`quadrant: label "${b.label}" runs outside the ${b.kind === 'item' ? 'plot' : 'figure'} (shorten it or widen the figure)`);
-  }
-  eachOverlap(boxes, (a, b, o) => problems.push(`quadrant: label "${a.label}" overlaps label "${b.label}" by ${dxdy(o)}`));
-  // an item (its mark and its label) stays inside its own cell: one on a border reads as the other cell's
-  const within = (r: Rect, c: Rect) => r.x >= c.x - 0.5 && r.y >= c.y - 0.5 && r.x + r.w <= c.x + c.w + 0.5 && r.y + r.h <= c.y + c.h + 0.5;
-  bs.forEach(q => { if (!within({x: q.x - q.cr, y: q.y - q.cr, w: 2 * q.cr, h: 2 * q.cr}, must(band.cells[q.cell]))) problems.push(`quadrant: item "${q.label}" crosses the border of its cell`); });
-  for (const b of boxes) if (b.kind === 'item' && b.item !== undefined && !within(b, must(band.cells[must(bs[b.item]).cell]))) problems.push(`quadrant: the label of "${b.label}" runs out of its cell`);
-  bs.forEach((q, i) => {
-    for (let j = i + 1; j < bs.length; j++) if (Math.hypot(q.x - must(bs[j]).x, q.y - must(bs[j]).y) < q.cr + must(bs[j]).cr - 1) problems.push(`quadrant: item "${q.label}" overlaps item "${must(bs[j]).label}" (move one, or give the cell more room)`);
-    for (const b of boxes) if (nearRect(q.x, q.y, q.cr, b)) problems.push(`quadrant: item "${q.label}" sits on the label "${b.label}"`);
-    if (q.x - q.cr < band.plot.x - 0.5 || q.x + q.cr > band.plot.x + band.plot.w + 0.5 || q.y - q.cr < band.plot.y - 0.5 || q.y + q.cr > band.plot.y + band.plot.h + 0.5) problems.push(`quadrant: item "${q.label}" runs outside the plot`);
-  });
-  band.arrows.forEach((a, k) => {
-    const n = Math.max(1, Math.ceil(Math.hypot(a.x2 - a.x1, a.y2 - a.y1) / 3));
-    const on = (r: Rect) => Array.from({length: n + 1}, (_v, s) => ({x: a.x1 + (a.x2 - a.x1) * s / n, y: a.y1 + (a.y2 - a.y1) * s / n})).some(p => p.x >= r.x - 1 && p.x <= r.x + r.w + 1 && p.y >= r.y - 1 && p.y <= r.y + r.h + 1);
-    for (const b of boxes) if (b.kind !== 'arrow' && !(b.kind === 'axis') && on(b)) problems.push(`quadrant: arrow ${k + 1} runs through the label "${b.label}" (move an item, or a label's cell)`);
-    for (const q of bs) if (Array.from({length: n + 1}, (_v, s) => ({x: a.x1 + (a.x2 - a.x1) * s / n, y: a.y1 + (a.y2 - a.y1) * s / n})).some(p => Math.hypot(p.x - q.x, p.y - q.y) < q.cr - 1)) problems.push(`quadrant: arrow ${k + 1} runs through the item "${q.label}"`);
-  });
-};
-
 // wordart(): the letters must read against what is behind them (see legibilityProblem). (The ink always stays inside the band: inkReach
 // widens the rect on every side, and a shadow or a mirror image cannot be placed outside it.)
 const checkWordArt = (band: LaidOutOf<'wordart'>, d: LaidOutDiagram, {problems}: VerifyOut, tones: ToneEnv): void => {
@@ -355,7 +328,7 @@ export const VERIFY_HANDLERS = {
   people: {rects: ownRect},
   dots: {rects: ownRect},
   math: {rects: ownRect},
-  quadrant: {rects: figureRects, check: {phase: 'quadrant', run: checkQuadrant}},
+  quadrant: {rects: figureRects, check: {phase: 'quadrant', run: (band, _d, out) => { out.problems.push(...quadrantProblems(band)); }}},
   chevron: {rects: figureRects, check: flowCheck},
   wordart: {rects: ownRect, check: {phase: 'wordart', run: checkWordArt}},
   funnel: {rects: figureRects, check: flowCheck},
@@ -397,13 +370,6 @@ export function collectRects(d: LaidOutDiagram): CheckRect[] {
     const rects = (handlerOf(band).rects?.(band) ?? []).map(r => loc && !r.loc ? {...r, loc} : r);
     return scope ? rects.map(r => scopedRect(band, scope, r)) : rects;
   });
-}
-
-/** A rect of a scoped band answers to the names a connect() holds (`plan.p0`), not the bare ids the band's own output keeps (ADR 0012). The band's own id is a name of the whole figure. */
-function scopedRect(band: {type: string; id?: string}, scope: string, r: CheckRect): CheckRect {
-  const own = band.type === 'box' ? undefined : band.id; // a swimlane step is a box: its id is the item's
-  const name = (id: string): string => id === own || id.startsWith('@') ? id : qualify(scope, id);
-  return {...r, id: r.id === null ? null : name(r.id), ...(r.holds ? {holds: r.holds.map(name)} : {})};
 }
 
 /** The figure checks of one phase, over every band in order. */
