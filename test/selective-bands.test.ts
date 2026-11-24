@@ -118,7 +118,7 @@ test('rejects duplicate ids and invalid reveal intervals', async () => {
 test('selected rows, grids and labelled deferred connectors match legacy SVG', async () => {
   const from = {id: 'one', title: 'One', body: 'Review'} as const;
   const to = {id: 'two', title: 'Two', body: 'Confirm', bodyMono: true} as const;
-  const link = {label: 'check', route: 'straight'} as const;
+  const link = {label: 'check', route: 'straight', tone: 'accent'} as const;
   const legacy = diagram({theme: 'blue', title: 'Plan', legend: false})
     .add(legacyRow([legacyBox(from), legacyBox({title: 'Side'})]))
     .add(legacyGrid([legacyBox(to), legacyBox({title: 'Notes'})], {cols: 2}))
@@ -130,6 +130,7 @@ test('selected rows, grids and labelled deferred connectors match legacy SVG', a
   ], {measure, title: 'Plan'});
   const rendered = await renderInBrowser(legacy, {measure});
   assert.deepEqual(selected.xml, []);
+  assert.match(selected.svg, /id="dsl-arrow-accent"/);
   assert.equal(selected.verdict.ok, true, JSON.stringify(selected.verdict.problems));
   assert.equal(selected.height, rendered.height);
   // The selective path uses an explicit accessible title. The frame, text and connector SVG are identical.
@@ -1333,11 +1334,11 @@ test('selected tree endpoints follow a plot that retains its fractional origin',
 });
 
 test('selected loop-side connectors diagnose canvas overflow like the full renderer', async () => {
-  const boxes = ['a', 'b', 'c'].map(id => ({id, title: id}));
+  const a = {id: 'a', title: 'a'} as const, b = {id: 'b', title: 'b'} as const, c = {id: 'c', title: 'c'} as const;
   const options = {route: 'loop-side'} as const;
-  const selected = await renderBands([...boxes.map(item => box(item)), connect('c:left', 'a:left', options)], {measure});
+  const selected = await renderBands([box(a), box(b), box(c), connect('c:left', 'a:left', options)], {measure});
   const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false})
-    .add(...boxes.map(item => legacyBox(item)), legacyConnect('c:left', 'a:left', options)), {measure});
+    .add(legacyBox(a), legacyBox(b), legacyBox(c), legacyConnect('c:left', 'a:left', options)), {measure});
   assert.match(legacy.verdict.problems.join('\n'), /runs outside the .* canvas/);
   assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
 });

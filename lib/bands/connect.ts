@@ -8,7 +8,7 @@ import {graphFindings} from '../verify-connection-graph.ts';
 import {band, defOf, walkDefinedBands} from '../band-def.ts';
 import type {BandDef, DiagramFindings, WithBandDef} from '../band-def.ts';
 import {connect as buildConnect} from '../dsl/connect.ts';
-import {renderConnect} from '../emit-boxes.ts';
+import {connectorSvgDefs, renderConnect} from '../emit-connect.ts';
 import {layoutConnect, resolveConnect} from '../layout-connect.ts';
 import type {ConnectInput, Ok} from '../strict.ts';
 import {loopBackConnectors} from '../loop-back.ts';
@@ -22,6 +22,7 @@ export const connectDefinition: BandDef<ConnectBand, LaidOutConnect> = {
   type: 'connect',
   internal: true,
   layout: layoutConnect,
+  connectorDefs: connectorSvgDefs,
   checkConnectionGeometry,
   connectorGaps: prepareConnectorGaps,
   resolveConnect,

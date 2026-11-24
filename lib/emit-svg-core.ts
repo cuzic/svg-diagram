@@ -6,7 +6,8 @@ import type {LaidOutConnect} from './types/containers.ts';
 import type {Roles, Theme} from './types/core.ts';
 import type {LaidOutDiagram, LaidOutBand} from './types/index.ts';
 import {visibleAt} from './reveal-visibility.ts';
-import {escapeXml, resolveLineColor, tonedHead} from './emit-common.ts';
+import type {connectorSvgDefs} from './emit-connect.ts';
+import {escapeXml} from './emit-common.ts';
 import {autoBlock} from './appearance-auto.ts';
 
 export interface SvgBandDefs {
@@ -20,6 +21,7 @@ export interface SvgBandDefs {
 export interface SvgServices {
   defsNeeded: (band: LaidOutBand) => SvgBandDefs;
   renderBand: (band: LaidOutBand, theme: Theme, tones: ToneEnv, roles: Roles, stage?: number, dimFill?: boolean) => string;
+  connectorDefs?: typeof connectorSvgDefs;
   renderConnect: (connect: LaidOutConnect, theme: Theme, tones: ToneEnv, roles: Roles) => string;
   diagramTitle: (diagram: LaidOutDiagram) => string;
   diagramDesc: (diagram: LaidOutDiagram, reveal?: number) => string;
@@ -32,14 +34,11 @@ export function emitSvgWith(services: SvgServices, laidOutDiagram: LaidOutDiagra
   const {width, canvasHeight, day, laidOut, connects, roles} = laidOutDiagram;
   const bandDefs = laidOut.map(services.defsNeeded);
   const usesMono = bandDefs.some(d => d.mono);
-  const needsArrow = connects.some(c => c.arrow !== 'none') || bandDefs.some(d => d.arrow);
-  const needsDimArrow = connects.some(c => c.dim && c.arrow !== 'none') || bandDefs.some(d => d.dimArrow);
-
-  // A connector in a line tone of its own has a head of that colour.
-  const tonedHeads = (['accent', 'muted', 'danger'] as const).filter(t => connects.some(c => tonedHead(c) === t));
-  const strongArrow = (c: LaidOutConnect) => c.weight === 'strong' && c.arrow !== 'none';
-  const needsStrongArrow = connects.some(strongArrow) || bandDefs.some(d => d.strongArrow);
-  const needsDimStrongArrow = connects.some(c => c.dim && strongArrow(c)) || bandDefs.some(d => d.dimStrongArrow);
+  const connectorDefs = services.connectorDefs?.(connects, day, tones);
+  const needsArrow = connectorDefs?.arrow || bandDefs.some(d => d.arrow);
+  const needsDimArrow = connectorDefs?.dimArrow || bandDefs.some(d => d.dimArrow);
+  const needsStrongArrow = connectorDefs?.strongArrow || bandDefs.some(d => d.strongArrow);
+  const needsDimStrongArrow = connectorDefs?.dimStrongArrow || bandDefs.some(d => d.dimStrongArrow);
   const strongMarker = (id: string, fill: string) => `
     <marker id="${id}" viewBox="0 0 10 10" refX="${STRONG_HEAD_REF_X}" refY="5" markerUnits="userSpaceOnUse" markerWidth="${STRONG_HEAD}" markerHeight="${STRONG_HEAD}" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="${fill}"/>
@@ -52,10 +51,7 @@ export function emitSvgWith(services: SvgServices, laidOutDiagram: LaidOutDiagra
     </marker>${needsDimArrow ? `
     <marker id="dsl-arrow-dim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="${PALETTE.muted}"/>
-    </marker>` : ''}${tonedHeads.map(t => `
-    <marker id="dsl-arrow-${t}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="${resolveLineColor(tones, t, day)}"/>
-    </marker>`).join('')}${needsStrongArrow ? strongMarker('dsl-arrow-strong', PALETTE.text) : ''}${needsDimStrongArrow ? strongMarker('dsl-arrow-strong-dim', PALETTE.muted) : ''}
+    </marker>` : ''}${connectorDefs?.markers ?? ''}${needsStrongArrow ? strongMarker('dsl-arrow-strong', PALETTE.text) : ''}${needsDimStrongArrow ? strongMarker('dsl-arrow-strong-dim', PALETTE.muted) : ''}
   </defs>` : '';
 
   const style = `

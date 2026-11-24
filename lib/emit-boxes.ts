@@ -1,9 +1,9 @@
 import type {SvgBandDefs} from './emit-svg-core.ts';
-import {PALETTE, CONNECT_LABEL_SIZE, STRONG_STROKE, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
+import {PALETTE, STRONG_STROKE, TAG_SIZE, colorOf, textColorOf, toneStyle, isSolidTone, runColorOf} from './tokens.ts';
 import {marked, partAttr, partStep, partsOn} from './parts.ts';
 import type {ToneEnv} from './tokens.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
-import type {LaidOutGroup, LaidOutLegend, LaidOutRow, LaidOutGrid, LaidOutRaw, LaidOutStatus, LaidOutConnect, RawColorTone} from './types/containers.ts';
+import type {LaidOutGroup, LaidOutLegend, LaidOutRow, LaidOutGrid, LaidOutRaw, LaidOutStatus, RawColorTone} from './types/containers.ts';
 import type {Theme, EmphasisTone, Align, Rect, Roles} from './types/core.ts';
 import type {LaidOutPyramid, LaidOutCurve} from './types/figures.ts';
 import type {LaidOutPeople, LaidOutDots} from './types/people-dots.ts';
@@ -13,7 +13,7 @@ import {iconSvg} from './icon-svg.ts';
 import {boundaryChipH, ICON_INDENT, STEP_INDENT, TOP_ICON_SIZE, BOX_PAD_X, BOX_PAD_Y, ICON_SIZE, STEP_BADGE_R, STEP_BADGE_BASELINE_OFFSET, LEGEND_SWATCH_W, stepBadgeGeom} from './layout-util.ts';
 import {visibleAt} from './reveal-visibility.ts';
 import {PERSON_BOX, PERSON_PATH} from './people.ts';
-import {tonedHead, arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, resolveLineColor, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, trimPoints, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
+import {arrowPath, snap4, escapeXml, escapeAttr, emojiSpan, renderTextRuns, lineAttrs, arrowMarkers, trimEnds, textLines, rrPath, resolveBoxStyle} from './emit-common.ts';
 import {ftaLegendSwatch} from './emit-fta-symbols.ts';
 
 import {must} from './must.ts';
@@ -211,38 +211,6 @@ export function renderRow(band: LaidOutRow, day: Theme, tones: ToneEnv, roles: R
 
 export function renderGrid(band: LaidOutGrid, day: Theme, tones: ToneEnv, roles: Roles, stage?: number): string {
   return band.children.filter(c => visibleAt(c, stage)).map(c => renderBox(c, day, tones, roles)).join('\n\n  ');
-}
-
-
-export function renderConnectPath(c: LaidOutConnect): string {
-  const points = c.weight === 'strong' ? trimPoints(c.points, c.arrow) : c.points;
-  return points.map((p, i) => `${i === 0 ? 'M' : 'L'}${Math.round(p.x)},${Math.round(p.y)}`).join(' ');
-}
-
-
-export function renderConnect(c: LaidOutConnect, day: Theme, tones: ToneEnv, roles: Roles): string {
-  const color = c.dim ? PALETTE.muted : resolveLineColor(tones, c.tone, day);
-  const d = renderConnectPath(c);
-  const strong = c.weight === 'strong';
-  const markers = arrowMarkers(c.arrow, c.dim, strong, tonedHead(c));
-  let path: string;
-  if (strong) {
-    path = `<path d="${d}" fill="none" stroke="${color}" stroke-width="${STRONG_STROKE}"${lineAttrs(c.line)}${markers}/>`;
-  } else if (c.line === 'double') {
-    // a thick line with a background-colored core: reads as "=" and keeps the arrowhead on the core
-    path = `<path d="${d}" fill="none" stroke="${color}" stroke-width="6"/>\n  <path d="${d}" fill="none" stroke="${PALETTE.bg}" stroke-width="2"${markers}/>`;
-  } else {
-    path = `<path d="${d}" fill="none" stroke="${color}" stroke-width="2"${lineAttrs(c.line)}${markers}/>`;
-  }
-  if (!c.label) return path;
-  // labelX/labelY (and chipBox) are computed once in layout.ts's resolveConnect()
-  // along with labelBox, which verify.ts checks for overlap — reusing them here
-  // keeps emit and verify looking at the same point.
-  if (c.chipBox) {
-    const b = c.chipBox;
-    return `${path}\n  ${pillSvg({x: snap4(b.x), y: snap4(b.y), w: snap4(b.w), h: b.h, fill: PALETTE.bg, stroke: color, cx: c.labelX as number, baseline: c.labelY as number, rawY: b.y, text: color, size: (roles.connectLabel ?? CONNECT_LABEL_SIZE), weight: 400, labelHtml: escapeXml(c.label)})}`;
-  }
-  return `${path}\n  <text x="${c.labelX}" y="${c.labelY}" text-anchor="middle" font-size="${(roles.connectLabel ?? CONNECT_LABEL_SIZE)}" fill="${color}">${escapeXml(c.label)}</text>`;
 }
 
 

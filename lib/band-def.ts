@@ -1,3 +1,4 @@
+import type {connectorSvgDefs} from './emit-connect.ts';
 import type {checkConnectionGeometry} from './verify-connect-geometry.ts';
 import type {layoutBoxLike} from './layout-box-like.ts';
 import type {fitLineScale} from './layout-cause-fit.ts';
@@ -135,6 +136,7 @@ interface InternalLayout<D> {
   outputTypes?: readonly string[];
   resolveConnect?: typeof resolveConnect;
   checkConnectionGeometry?: typeof checkConnectionGeometry;
+  connectorDefs?: typeof connectorSvgDefs;
   connectorGaps?: typeof prepareConnectorGaps;
   connectorInventory?: typeof connectorInventory;
   loopBackConnectors?: typeof loopBackConnectors;

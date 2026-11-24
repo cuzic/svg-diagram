@@ -1,4 +1,5 @@
-import {legendSvgDefs, renderConnect} from './emit-boxes.ts';
+import {connectorSvgDefs, renderConnect} from './emit-connect.ts';
+import {legendSvgDefs} from './emit-boxes.ts';
 import {renderBand} from './emit-handlers.ts';
 import {withNodeIds} from './emit-node-ids.ts';
 import {emitSvgWith} from './emit-svg-core.ts';
@@ -27,7 +28,7 @@ function defsNeeded(band: LaidOutBand): SvgBandDefs {
   return {mono, arrow, dimArrow: !!band.dim && arrow, strongArrow, dimStrongArrow: !!band.dim && strongArrow};
 }
 
-const services = {defsNeeded, renderBand, renderConnect, diagramTitle, diagramDesc, spotlightDim};
+const services = {connectorDefs: connectorSvgDefs, defsNeeded, renderBand, renderConnect, diagramTitle, diagramDesc, spotlightDim};
 
 /** `parts`: mark each part's elements with `data-part` (ADR 0054), for the PowerPoint export; nothing else changes. */
 export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noRecolor?: boolean; nodeIds?: boolean; parts?: boolean} = {}): string {
