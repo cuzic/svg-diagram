@@ -17,22 +17,37 @@
 // badge/breadcrumb/text. The five day2 prototypes needed 270-300px, so 300
 // is the default; override per diagram when the slide has less body text.
 
-import {bandTextSizes} from './fit-handlers.ts';
-import type {LaidOutDiagram} from './types/index.ts';
+import type {LaidOutBand, LaidOutDiagram} from './types/index.ts';
 import type {FitReport} from './types/verdicts.ts';
 
 export const SLIDE_USABLE_WIDTH = 860; // docs/diagram-tone-and-manner.md section 5
 
+type BandTextSizes = (band: LaidOutBand) => Iterable<number>;
+
 /** The smallest text size (px, in the SVG's own units) the diagram draws. */
-export function minTextSize(d: {laidOut?: LaidOutDiagram['laidOut']; connects?: LaidOutDiagram['connects']; roles?: LaidOutDiagram['roles']}): number {
+export function minTextSize(d: {laidOut?: LaidOutDiagram['laidOut']; connects?: LaidOutDiagram['connects']; roles?: LaidOutDiagram['roles']}, textSizes: BandTextSizes): number {
   let minSize = Infinity;
-  for (const band of d.laidOut ?? []) for (const size of bandTextSizes(band)) minSize = Math.min(minSize, size);
+  for (const band of d.laidOut ?? []) for (const size of textSizes(band)) minSize = Math.min(minSize, size);
   if (!Number.isFinite(minSize)) minSize = 14;
   if ((d.connects ?? []).some(c => c.label)) minSize = Math.min(minSize, d.roles?.connectLabel ?? 14);
   return minSize;
 }
 
-export function analyzeFit(d: LaidOutDiagram): FitReport {
+function fitTextMetrics(d: LaidOutDiagram, textSizes: BandTextSizes) {
+  const minSize = minTextSize(d, textSizes);
+  let bannerH = 0;
+  for (const band of d.laidOut) if (band.type === 'banner') bannerH += band.h + d.gap;
+  return {minSize, bannerH};
+}
+
+/** Documents and fixed canvases are displayed at their drawn size. */
+export function analyzeDocumentFit(d: LaidOutDiagram, textSizes: BandTextSizes): FitReport {
+  const {minSize, bannerH} = fitTextMetrics(d, textSizes);
+  return {scale: 1, effectiveFont: minSize, recommendedMaxHeight: d.canvasHeight, imgStyle: '', bannerHeight: bannerH, warnings: [], doc: true};
+}
+
+export function analyzeFit(d: LaidOutDiagram, textSizes: BandTextSizes): FitReport {
+  if (d.medium === 'doc' || d.canvas) return analyzeDocumentFit(d, textSizes);
   const maxH = d.maxDisplayHeight ?? 300;
   const minEff = d.minEffectiveFont ?? 12;
   const w = d.width, h = d.canvasHeight;
@@ -41,14 +56,11 @@ export function analyzeFit(d: LaidOutDiagram): FitReport {
   const scaleAt = (hh: number): number => Math.min(widthScale, maxH / hh);
   const scale = scaleAt(h);
 
-  const minSize = minTextSize(d);
-  let bannerH = 0;
-  for (const band of d.laidOut) if (band.type === 'banner') bannerH += band.h + d.gap;
+  const {minSize, bannerH} = fitTextMetrics(d, textSizes);
 
   const recommendedMaxHeight = Math.floor(Math.min(maxH, h * widthScale));
   const effectiveFont = Math.round(minSize * scale * 10) / 10;
   const warnings: string[] = [];
-  if (d.medium === 'doc' || d.canvas) return {scale: 1, effectiveFont: minSize, recommendedMaxHeight: h, imgStyle: '', bannerHeight: bannerH, warnings, doc: true};
   if (effectiveFont < minEff) {
     let msg = `on-slide text is ~${effectiveFont}px (< ${minEff}px): the ${w}x${h} canvas must shrink to ${recommendedMaxHeight}px high`;
     if (bannerH > 0) {

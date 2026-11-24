@@ -37,6 +37,7 @@ import {itemIdsOf} from './band-ids.ts';
 import {sourceOf, withSource} from './source-ref.ts';
 import {canvasFindings} from './canvas-findings.ts';
 import {minTextSize} from './fit.ts';
+import {bandTextSizes} from './fit-handlers.ts';
 import {imageSizeFindings} from './verify-image.ts';
 import {hiddenBarsTitleFindings, thinBarFindings} from './verify-bars.ts';
 import {PALETTE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv} from './tokens.ts';
@@ -657,7 +658,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   evidenceRules(d, out);
   out.push(...boxSizeFindings(walkBands(d.bands)));
   if (d.canvas && d.laidOut) {
-    const min = minTextSize(d);
+    const min = minTextSize(d, bandTextSizes);
     out.push(...canvasFindings(d.canvas, min, d.contentHeight));
   }
   out.push(...aspectTallFindings(d, () => walkBands(d.bands)));

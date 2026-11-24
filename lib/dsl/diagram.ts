@@ -1,12 +1,10 @@
-// diagram() and the pure passes the renderers share: copying a tree before the passes write into it, and the fit-to-content layout loop.
+// diagram() and the pure preparation the renderers share.
 // Split from render.ts (which reads files and the slide budget) so the browser entry (lib/web.ts) draws a figure without any of that.
 import {mapOf, checkTones, NO_TONES, THEMES, SLIDE_CANVAS, checkMinText} from '../tokens.ts';
 import type {ConnectOpts} from '../types/containers.ts';
 import type {BandInput, Diagram, DiagramData, DiagramOpts, Theme, Medium} from '../types/core.ts';
-import type {LaidOutDiagram} from '../types/index.ts';
 import type {DiagramInput} from '../strict.ts';
 import {applyConnectDefaults, connectBand} from './defaults.ts';
-import {contentBox} from '../layout-metrics.ts';
 import {applyWireframeDefaults} from './wireframe-numbering.ts';
 import {fillAutoToday} from '../today-auto.ts';
 import {walkBands} from '../rules.ts';
@@ -15,6 +13,8 @@ import {captureHere, sourceOf, withSource} from '../source-ref.ts';
 import type {SourceRef} from '../source-ref.ts';
 import {cloneData} from '../clone-data.ts';
 import {sourceCaptureEnabled} from '../source-capture.ts';
+
+export {layoutFitted} from '../layout-fit-width.ts';
 
 // Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
 // that is declared neither in the same add() call (before OR after the connect) nor earlier in a chained
@@ -115,28 +115,4 @@ export function detachData<D extends DiagramData>(d: D): D {
   // gantt({today: 'auto'}) takes the day the caller gave (never the clock); only then does the day go in the metadata
   if (fillAutoToday(walkBands(out.bands), out.today) && out.source) out.source = {...out.source, today: out.today};
   return out;
-}
-/**
- * The layout, and for diagram({width: 'fit'}) once more at the width the content needs (`d.width` is set to it). The content may re-flow as it
- * narrows, so up to 3 rounds; a round that does not fit is dropped. check and build both come through here, so they judge the same figure.
- */
-export async function layoutFitted(d: DiagramData, layout: () => Promise<LaidOutDiagram>): Promise<LaidOutDiagram> {
-  let laidOut = await layout();
-  for (let i = 0; d.fitWidth && i < 3; i++) {
-    const next = fitWidthOf(laidOut.laidOut, d.pad);
-    if (next === undefined || next >= d.width) break;
-    const before = d.width;
-    d.width = next;
-    const again = await layout();
-    const need = fitWidthOf(again.laidOut, d.pad);
-    if (need !== undefined && need > next) { d.width = before; break; }
-    laidOut = again;
-  }
-  return laidOut;
-}
-
-/** The width a figure needs: its content (titles and legends aside) plus the padding on both sides, on the 4px grid; undefined for no content. */
-function fitWidthOf(bands: LaidOutDiagram['laidOut'], pad: number): number | undefined {
-  const box = contentBox(bands, true);
-  return box ? Math.max(320, Math.ceil((box.w + 2 * pad) / 4) * 4) : undefined;
 }

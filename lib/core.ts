@@ -7,9 +7,11 @@ import {splitAtoms} from './atoms.ts';
 import {band, defOf, DEF, EXTERNAL, walkDefinedBands} from './band-def.ts';
 import {cloneData} from './clone-data.ts';
 import {emitSvgWith} from './emit-svg-core.ts';
+import {analyzeDocumentFit} from './fit.ts';
 import type {layoutBoxLike} from './layout-box-like.ts';
 import type {fitLineScale} from './layout-cause-fit.ts';
 import {createLayoutWith} from './layout-core.ts';
+import {layoutFitted} from './layout-fit-width.ts';
 import {basicExtentOf, figureMetricsForExtent, unionOf} from './figure-metrics.ts';
 import {addScoped, emptyScopes} from './scope-table.ts';
 import {qualify, scopeOf} from './scope-name.ts';
@@ -26,7 +28,7 @@ import {checkToday} from './today-auto.ts';
 import {canvasFontScale, checkMinText, checkTones, colorOf, rolesAt, SLIDE_CANVAS, THEMES, toneEnv} from './tokens.ts';
 import type {Appearance, FontFamily, Measured, MeasureRequest, DiagramData, RevealOpts, SlideCanvas, Theme, WidthOf} from './types/core.ts';
 import type {Band, LaidOutBand, LaidOutDiagram} from './types/index.ts';
-import type {Finding, Issue} from './types/verdicts.ts';
+import type {Finding, Issue, RenderResult} from './types/verdicts.ts';
 import {xmlProblems} from './xml-check.ts';
 
 export type {BandDef} from './band-def.ts';
@@ -37,7 +39,7 @@ type Measure = (request: Required<MeasureRequest>) => Measured | Promise<Measure
 export type BatchMeasurement = {measureBatch: (requests: Map<string, Required<MeasureRequest>>) => Promise<ReadonlyMap<string, Measured>>};
 type Options = {measure: Measure} & DrawOptions;
 type DrawOptions = {
-  width?: number;
+  width?: number | 'fit';
   maxWidth?: number;
   legend?: DiagramData['legend'];
   accept?: DiagramData['accept'];
@@ -84,7 +86,9 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     size('canvas height', canvas.height, 1);
   }
   const scale = canvas ? canvasFontScale(canvas.minText) : 1;
-  const width = size('width', opts.width ?? canvas?.width ?? 940, 1);
+  const requestedWidth = opts.width;
+  const fitWidth = requestedWidth === 'fit';
+  const width = size('width', fitWidth ? 940 : requestedWidth ?? canvas?.width ?? 940, 1);
   const pad = size('pad', opts.pad ?? 20, 0) * scale;
   const gap = size('gap', opts.gap ?? 16, 0) * scale;
   const contentWidth = width - 2 * pad;
@@ -113,7 +117,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const data: DiagramData = {
     day: theme, medium: 'doc', width, maxWidth: opts.maxWidth, accept: opts.accept, legend: opts.legend, pad: canvas ? Math.round(pad) : pad, gap: canvas ? Math.round(gap) : gap,
     fill: false, bands: source, title: opts.title, desc: opts.desc, wrap: opts.wrap, keepWords: opts.keepWords, tones, canvas,
-    appearance: opts.appearance, density: opts.density,
+    appearance: opts.appearance, density: opts.density, ...(fitWidth ? {fitWidth: true} : {}),
   };
   if (opts.showTitle && opts.title || opts.sourceLine !== undefined) {
     const captions = opts.captions;
@@ -240,7 +244,8 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       return {items: links ? items.concat(links) : items};
     },
   });
-  const placed = layout({...data, bands: source}, roles, widthOf);
+  data.bands = source;
+  const placed = await layoutFitted(data, () => layout(data, roles, widthOf));
   placed.canvasHeight = Math.max(1, placed.canvasHeight);
   const revealConnector = connection?.internal ? connection.revealConnector : undefined;
   if (revealConnector) placed.connects = placed.connects.map(connector => revealConnector(connector, ids));
@@ -259,18 +264,13 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     for (const metric of figureMetricsForExtent(unionOf(extents), placed.width)) bandFindings.push({...metric, severity: 'info'});
   }
   for (const check of diagramChecks) bandFindings.push(...check(placed, stage));
-  let minText = Infinity;
   for (const laid of placed.laidOut) {
     const def = placedDefinition(laid);
     bandFindings.push(...(def?.verify?.layoutFindings?.(laid as never, ctx) ?? []));
-    if (canvas) {
-      for (const size of def?.textSizes?.(laid as never) ?? []) minText = Math.min(minText, size);
-    }
   }
+  const fit = analyzeDocumentFit(placed, laid => placedDefinition(laid)?.textSizes?.(laid as never) ?? []);
   if (canvas) {
-    if (!Number.isFinite(minText)) minText = 14;
-    if (placed.connects.some(connector => connector.label)) minText = Math.min(minText, roles.connectLabel ?? 14);
-    bandFindings.push(...canvasFindings(canvas, minText, placed.contentHeight));
+    bandFindings.push(...canvasFindings(canvas, fit.effectiveFont, placed.contentHeight));
   }
   if (opts.diagramFindings && !diagramChecks.has(opts.diagramFindings)) bandFindings.push(...opts.diagramFindings(placed, stage));
   const verdict = verifyWithServices({
@@ -325,12 +325,13 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       })),
     spotlightDim: () => 'outline',
   }, figure, {reveal: stage, noRecolor});
-  return {placed, stage, verdict, emit};
+  const fitResult: Pick<RenderResult, 'fit' | 'fontScale'> = {fit, fontScale: scale};
+  return {placed, stage, verdict, emit, ...fitResult};
 }
 
 /** Render a vertical stack of bands whose definitions are carried by their values. */
 export async function renderBands(bands: readonly DefinedBand[], opts: Options) {
-  const {placed, verdict, emit} = await prepareBands(bands, opts);
+  const {placed, verdict, emit, fit, fontScale} = await prepareBands(bands, opts);
   const svg = emit(placed);
-  return {svg, width: placed.width, height: placed.canvasHeight, xml: xmlProblems(svg), verdict};
+  return {svg, width: placed.width, height: placed.canvasHeight, xml: xmlProblems(svg), verdict, fit, fontScale, laidOut: placed};
 }

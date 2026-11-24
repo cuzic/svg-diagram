@@ -1,5 +1,6 @@
 import {layoutDiagram} from '../layout-measured.ts';
 import {analyzeFit} from '../fit.ts';
+import {bandTextSizes} from '../fit-handlers.ts';
 import {emitOutputs, runChecked} from '../pipeline.ts';
 import {resolveImages} from '../image-file.ts';
 import {canvasFontScale, canvasRoles, rolesAt} from '../tokens.ts';
@@ -96,7 +97,7 @@ async function render(input: Diagram, opts: RenderOptions): Promise<RenderResult
     const [{emitHtml}, {fontBoxOf}] = await Promise.all([import('../emit-html.ts'), import('../font-box.ts')]);
     html = emitHtml(laidOut, {...(d.maxReveal ? {reveal: d.maxReveal} : {}), fontBox: fontBoxOf(laidOut.measure)});
   }
-  return {svg: emitted.svg, ...(html !== undefined ? {html} : {}), laidOut, verdict, xml: emitted.xml, notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget: budget as SlideBudget | null, budgetSource: budgetSource as RenderResult['budgetSource'], fontScale: laidOut.fontScale};
+  return {svg: emitted.svg, ...(html !== undefined ? {html} : {}), laidOut, verdict, xml: emitted.xml, notes, width: laidOut.width, height: laidOut.canvasHeight, fit: analyzeFit(laidOut, bandTextSizes), budget: budget as SlideBudget | null, budgetSource: budgetSource as RenderResult['budgetSource'], fontScale: laidOut.fontScale};
 }
 // Layout + verification + rules, without writing any file: the engine behind `svg-diagram check`.
 export async function checkDiagram(input: DiagramData): Promise<CheckResult> {

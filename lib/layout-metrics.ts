@@ -8,13 +8,14 @@
 
 import {at} from './finding-rules.ts';
 import {snap4} from './emit-common.ts';
-import {contentExtent, extentOf, figureLayoutMetrics, unionOf} from './figure-metrics.ts';
+import {extentOf, figureLayoutMetrics} from './figure-metrics.ts';
 import {must} from './must.ts';
 import type {Rect} from './types/core.ts';
 import type {LaidOutBand, LaidOutDiagram} from './types/index.ts';
 import type {Finding, FindingData, Issue} from './types/verdicts.ts';
 import type {LaidOutBox} from './types/text-bands.ts';
 
+export {contentBox} from './layout-fit-width.ts';
 export {FIGURE_NARROW_RATIO, FIGURE_OFFSET_PX} from './figure-metrics.ts';
 
 export type LayoutRule = 'layout-sibling-size' | 'layout-edge-misalign' | 'layout-gutter-uneven' | 'layout-unused-space' | 'layout-figure-offset' | 'layout-figure-narrow' | 'layout-align-mixed';
@@ -183,24 +184,6 @@ function unusedSpace(laidOut: LaidOutBand[], out: LayoutMetric[]): void {
       judge(b.id ? `group「${b.id}」` : 'group', b, Math.max(...within.map(bottom)), !!b.stamp);
     }
   });
-}
-
-/** Everything the figure shows, as one rect (labels of shapes included). Captions (titles and the source line), the status strip and legends are furniture, not the figure. */
-export function contentBox(laidOut: LaidOutBand[], tight = false): Rect | null {
-  return contentExtent(laidOut, tight ? b => drawnExtent(b) ?? extentOf(b) : extentOf);
-}
-
-/** What a flow shape (chevron, funnel, cycle, venn, concentric) actually draws: its circles, rects, polygons and texts, not the band's full-width rect. undefined for any other band. */
-function drawnExtent(b: LaidOutBand): Rect | null | undefined {
-  if (b.type !== 'chevron' && b.type !== 'funnel' && b.type !== 'cycle' && b.type !== 'venn' && b.type !== 'concentric' && b.type !== 'emblem' && b.type !== 'valueChain') return undefined;
-  const rs: Rect[] = [...b.texts];
-  for (const p of b.primitives) {
-    if (p.k === 'circle') rs.push({x: p.cx - p.r, y: p.cy - p.r, w: 2 * p.r, h: 2 * p.r});
-    else if (p.k === 'rect') rs.push({x: p.x, y: p.y, w: p.w, h: p.h});
-    else if (p.k === 'path' && p.box) rs.push(p.box); // a filled shape (an emblem's pill / cylinder ...); a line has no extent of its own
-    else if (p.k === 'polygon' && p.points.length) { const xs = p.points.map(q => q[0]), ys = p.points.map(q => q[1]); rs.push({x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)}); }
-  }
-  return unionOf(rs);
 }
 
 function alignMixed(runs: Frame[][], out: LayoutMetric[]): void {

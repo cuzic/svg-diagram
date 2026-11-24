@@ -78,10 +78,11 @@ import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {math} from '../lib/bands/math.ts';
 import {comicDefinition} from '../lib/bands/comic.ts';
-import {band, DEF} from '../lib/band-def.ts';
+import {band, DEF, plain} from '../lib/band-def.ts';
 import type {BandDef} from '../lib/band-def.ts';
 import type {LaidOutType} from '../lib/band-table.ts';
 import {prepareBands, renderBands} from '../lib/core.ts';
+import {contentBox} from '../lib/layout-fit-width.ts';
 import {rowSlotStages} from '../lib/reveal-row.ts';
 import {resolveRevealId, warnConnectorReveal, warnEarlyReveal} from '../lib/reveal-warnings.ts';
 import {emptyScopes} from '../lib/scope-table.ts';
@@ -99,6 +100,56 @@ import {sankey as legacySankey, heatmap as legacyHeatmap, radar as legacyRadar, 
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
+
+test('selective fit width and fit report match the browser renderer for a box row', async () => {
+  const first = {title: 'Review'}, second = {title: 'Next'};
+  const bands = [row([box(first), box(second)])];
+  const selected = await renderBands(bands, {width: 'fit', measure});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', width: 'fit'})
+    .add(legacyRow([legacyBox(first), legacyBox(second)])), {measure});
+  assert.equal(selected.width, legacy.width);
+  assert.deepEqual(selected.fit, legacy.fit);
+  assert.equal(selected.fontScale, 1);
+  const prepared = await prepareBands(bands, {width: 'fit', measure});
+  assert.deepEqual(prepared.fit, selected.fit);
+  assert.equal(prepared.fontScale, selected.fontScale);
+  assert.deepEqual(prepared.placed, selected.laidOut);
+});
+
+test('selective fit width stops at 320 and leaves fixed width at 940', async () => {
+  const bands = [pyramid(['Plan', 'Do'], {width: 260})];
+  const fitted = await renderBands(bands, {width: 'fit', measure});
+  const fixed = await renderBands(bands, {width: 940, measure});
+  assert.equal(fitted.width, 320);
+  assert.equal(fixed.width, 940);
+  assert.equal(fitted.laidOut.width, 320);
+  assert.equal(fitted.laidOut.laidOut[0]?.x, 30);
+  assert.match(fitted.svg, /viewBox="0 0 320 /);
+});
+
+test('selective fit width measures the drawn flow shape', async () => {
+  const rings = [{label: 'Team'}, {label: 'Clients'}, {label: 'Society'}];
+  const options = {order: 'inner-first', labels: 'side', centre: 'User'} as const;
+  const selected = await renderBands([concentric(rings, options)], {width: 'fit', measure});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', width: 'fit'})
+    .add(legacyConcentric(rings, options)), {measure});
+  assert.ok(legacy.width < 940);
+  assert.equal(selected.width, legacy.width);
+  const drawn = contentBox(selected.laidOut.laidOut, true);
+  const allocated = contentBox(selected.laidOut.laidOut);
+  assert.ok(drawn && allocated && drawn.w < allocated.w);
+});
+
+test('selective canvas reports its existing font scale and rejects fit width', async () => {
+  const bands = [box({title: 'Review', body: 'Details'})];
+  const canvas = {minText: 28};
+  const selected = await renderBands(bands, {canvas, measure});
+  const legacy = await renderInBrowser(diagram({theme: 'blue', canvas})
+    .add(legacyBox({title: 'Review', body: 'Details'})), {measure});
+  assert.equal(selected.fontScale, 2);
+  assert.deepEqual(selected.fit, legacy.fit);
+  await assert.rejects(prepareBands(bands, {canvas, width: 'fit', measure}), /use canvas.width/);
+});
 
 test('selective box and Gantt use the existing geometry and SVG emitters', async () => {
   const opts = {title: 'A & B', body: 'Body', step: 1, align: 'center', tag: 'Plan', stamp: '2026'} as const;
@@ -1255,7 +1306,7 @@ test('selected screens and state matrices use one widget registry', async () => 
   const matrix = createStateMatrix([textRenderer]);
   const separate = await renderBands([screenGrid(items), matrix(cols, rows)], {measure});
   assert.equal(modern.svg, original.svg);
-  assert.deepEqual(separate, modern);
+  assert.deepEqual(plain(separate), plain(modern));
   assert.ok(modern.verdict.findings.some(finding => finding.rule === 'wf-states-todo'));
   await assert.rejects(renderBands([screens([{id: 'first', title: '地図', root: wf.map()}])], {measure}), /map/);
 });

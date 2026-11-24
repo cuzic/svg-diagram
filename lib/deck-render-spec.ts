@@ -1,5 +1,6 @@
 import {applyConfig} from './config.ts';
 import {analyzeFit} from './fit.ts';
+import {bandTextSizes} from './fit-handlers.ts';
 import {measureAll} from './measure.ts';
 import {measureSettingsOf} from './measure-settings.ts';
 import {loadSpecPartsFor} from './spec-cli-parts.ts';
@@ -27,7 +28,7 @@ export async function renderDeckSpec(spec: unknown, cfg: Config): Promise<Render
       showTitle: doc.showTitle === true, sourceLine: typeof doc.sourceLine === 'string' ? doc.sourceLine : undefined}, cfg);
     const svg = emit(laidOut);
     return {svg, laidOut, verdict, xml: xmlProblems(svg), notes: [], width: laidOut.width,
-      height: laidOut.canvasHeight, fit: analyzeFit(laidOut), budget: null, budgetSource: null, fontScale: 1};
+      height: laidOut.canvasHeight, fit: analyzeFit(laidOut, bandTextSizes), budget: null, budgetSource: null, fontScale: 1};
   } catch {
     // The legacy renderer supplies the existing source-aware validation and layout errors.
     return undefined;

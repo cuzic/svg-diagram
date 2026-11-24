@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {banner, bars, box, caption, checkDiagram, closeMeasurer, diagram, fillScaleLimit, group, plane, table} from '../lib/dsl.ts';
 import {layoutBars, barsTexts} from '../lib/bars.ts';
 import {layoutPlane, planeTexts} from '../lib/plane.ts';
-import {analyzeFit} from '../lib/fit.ts';
+import {analyzeDocumentFit, analyzeFit} from '../lib/fit.ts';
+import {bandTextSizes} from '../lib/fit-handlers.ts';
 import {ROLES} from '../lib/tokens.ts';
 import type {LaidOutBanner, LaidOutPlane, Role} from '../lib/dsl.ts';
 
@@ -100,9 +101,12 @@ test('fit counts plane and table text in the smallest size', async () => {
   const {laidOut} = await checkDiagram(d);
   assert.equal(laidOut.laidOut.find(b => b.type === 'table')!.bodySize, ROLES.body);
   const big = {...laidOut, maxDisplayHeight: 200, laidOut: laidOut.laidOut.filter(b => b.type === 'plane')};
-  assert.equal(analyzeFit(big).effectiveFont, Math.round(ROLES.stat * analyzeFit(big).scale * 10) / 10, 'a plane-only figure is measured by its label size');
-  const withTable = analyzeFit({...laidOut, maxDisplayHeight: 200});
+  assert.equal(analyzeFit(big, bandTextSizes).effectiveFont, Math.round(ROLES.stat * analyzeFit(big, bandTextSizes).scale * 10) / 10, 'a plane-only figure is measured by its label size');
+  const withTable = analyzeFit({...laidOut, maxDisplayHeight: 200}, bandTextSizes);
   assert.equal(withTable.effectiveFont, Math.round(ROLES.body * withTable.scale * 10) / 10, 'the table text is the smallest');
+  const document = analyzeDocumentFit(laidOut, bandTextSizes);
+  assert.equal(document.effectiveFont, ROLES.body);
+  assert.equal(document.recommendedMaxHeight, laidOut.canvasHeight);
 });
 
 test('caption({role: "display"}) already works', async () => {
