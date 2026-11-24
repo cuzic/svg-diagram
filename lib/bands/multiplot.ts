@@ -3,7 +3,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutMulti, multiTexts} from '../charts-multi.ts';
 import type {MultiOpts, MultiSpec, XY} from '../charts-multi.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {hist2d as buildHist2d, jointplot as buildJointplot, kde2d as buildKde2d, pairplot as buildPairplot} from '../dsl/charts-stats.ts';
+import {hist2d as buildHist2d, jointplot as buildJointplot, kde2d as buildKde2d, pairplot as buildPairplot} from '../dsl/multiplot.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {

@@ -3,7 +3,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutCat, catTexts} from '../charts-cat.ts';
 import type {CatGroup, CatOpts, CatSpec} from '../charts-cat.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {catplot as buildCatplot, boxplot as buildBoxplot, violinplot as buildViolinplot, stripplot as buildStripplot, swarmplot as buildSwarmplot, pointplot as buildPointplot, barplot as buildBarplot} from '../dsl/charts-stats.ts';
+import {catplot as buildCatplot, boxplot as buildBoxplot, violinplot as buildViolinplot, stripplot as buildStripplot, swarmplot as buildSwarmplot, pointplot as buildPointplot, barplot as buildBarplot} from '../dsl/catplot.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {

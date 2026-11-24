@@ -3,7 +3,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutCluster, clusterTexts} from '../charts-cluster.ts';
 import type {ClusterOpts, ClusterSpec} from '../charts-cluster.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {clustermap as buildClustermap} from '../dsl/charts-stats.ts';
+import {clustermap as buildClustermap} from '../dsl/clustermap.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {

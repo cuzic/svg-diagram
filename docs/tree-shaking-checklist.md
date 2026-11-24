@@ -72,6 +72,7 @@
   - [x] `radar`
   - [x] `treemap`
   - [x] `sankey`
+  - [x] カテゴリ・分布・多変量・回帰・クラスタのビルダーを種類ごとに分離し、共通の統計ビルダーと facet が専用バンドルに入らないことを esbuild と Vite で検証。
   - [x] `catplot`
   - [x] `distplot`
   - [x] `multiplot`

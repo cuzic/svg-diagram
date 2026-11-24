@@ -3,7 +3,7 @@ import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutDist, distTexts} from '../charts-dist.ts';
 import type {DistGroup, DistOpts, DistSpec} from '../charts-dist.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
-import {displot as buildDisplot, histplot as buildHistplot, kdeplot as buildKdeplot, ecdfplot as buildEcdfplot, rugplot as buildRugplot} from '../dsl/charts-stats.ts';
+import {displot as buildDisplot, histplot as buildHistplot, kdeplot as buildKdeplot, ecdfplot as buildEcdfplot, rugplot as buildRugplot} from '../dsl/distplot.ts';
 import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
