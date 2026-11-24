@@ -6,6 +6,7 @@ import {withSourceLine, withTitleLine} from './layout-util.ts';
 import {cloneData} from './clone-data.ts';
 import {emitSvgWith} from './emit-svg-core.ts';
 import {createLayoutWith} from './layout-core.ts';
+import {figureLayoutMetrics} from './figure-metrics.ts';
 import {addScoped, emptyScopes} from './scope-table.ts';
 import {qualify, scopeOf} from './scope-name.ts';
 import {scopedRect} from './verify-rects.ts';
@@ -208,6 +209,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Options)
   const ctx = {theme, tones: ink, appearance: placed.appearance, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
   const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => band.type === 'row' || band.type === 'grid' ? band.children : band.type === 'group' ? [] : [band]);
   const bandFindings = inputChecks.flatMap(check => check(ctx));
+  if (!canvas) for (const metric of figureLayoutMetrics(placed.laidOut, placed.width)) bandFindings.push({...metric, severity: 'info'});
   for (const check of diagramChecks) bandFindings.push(...check(placed));
   let minText = Infinity;
   for (const laid of placed.laidOut) {

@@ -899,3 +899,23 @@ test('selected screens and state matrices use one widget registry', async () => 
   assert.ok(modern.verdict.findings.some(finding => finding.rule === 'wf-states-todo'));
   await assert.rejects(renderBands([screens([{id: 'first', title: '地図', root: wf.map()}])], {measure}), /map/);
 });
+
+test('selective figure findings use the content extent and skip fixed canvases', async () => {
+  const findings = ({verdict}: Awaited<ReturnType<typeof renderBands>>) =>
+    verdict.findings.filter(f => f.rule === 'layout-figure-offset' || f.rule === 'layout-figure-narrow');
+  const opts = {theme: 'blue', legend: false, width: 940} as const;
+  const layerOptions = {width: 260};
+  const selected = [caption('図全体の幅を取る説明'), pyramid(['計画', '実行'], layerOptions)];
+  const legacy = await renderInBrowser(diagram(opts)
+    .add(legacyCaption('図全体の幅を取る説明'))
+    .add(legacyPyramid(['計画', '実行'], layerOptions)), {measure});
+  assert.ok(findings(legacy).some(f => f.rule === 'layout-figure-narrow'));
+  assert.deepEqual(findings(await renderBands(selected, {measure, width: opts.width})), findings(legacy));
+  assert.deepEqual(findings(await renderBands(selected, {measure, canvas: {width: opts.width}})), []);
+
+  const narrowGrid = {cols: 4};
+  const legacyGridResult = await renderInBrowser(diagram(opts).add(legacyGrid([legacyBox({title: '左端'})], narrowGrid)), {measure});
+  const selectedGridResult = await renderBands([grid([box({title: '左端'})], narrowGrid)], {measure, width: opts.width});
+  assert.ok(findings(legacyGridResult).some(f => f.rule === 'layout-figure-offset'));
+  assert.deepEqual(findings(selectedGridResult), findings(legacyGridResult));
+});

@@ -8,11 +8,14 @@
 
 import {at} from './finding-rules.ts';
 import {snap4} from './emit-common.ts';
+import {contentExtent, extentOf, figureLayoutMetrics, unionOf} from './figure-metrics.ts';
 import {must} from './must.ts';
 import type {Rect} from './types/core.ts';
 import type {LaidOutBand, LaidOutDiagram} from './types/index.ts';
 import type {Finding, FindingData, Issue} from './types/verdicts.ts';
 import type {LaidOutBox} from './types/text-bands.ts';
+
+export {FIGURE_NARROW_RATIO, FIGURE_OFFSET_PX} from './figure-metrics.ts';
 
 export type LayoutRule = 'layout-sibling-size' | 'layout-edge-misalign' | 'layout-gutter-uneven' | 'layout-unused-space' | 'layout-figure-offset' | 'layout-figure-narrow' | 'layout-align-mixed';
 
@@ -30,10 +33,6 @@ export const GUTTER_UNEVEN_PX = 2;
 /** Free room under a frame's content: two text lines (2 x 24px) and 40% of the frame. */
 export const UNUSED_MIN_PX = 48;
 export const UNUSED_MIN_RATIO = 0.4;
-/** Left and right margins of the whole figure that differ by this much or more (the figure sits to one side). */
-export const FIGURE_OFFSET_PX = 48;
-/** The content is narrower than this share of the figure width. */
-export const FIGURE_NARROW_RATIO = 0.5;
 /** Neighbours further apart than this (four grid steps: a bit over two default gaps) are not read as one row, nor as stacked neighbours. */
 const NEIGHBOUR_MAX_GAP = 64;
 /** The strip a stamp chip reserves under a frame's content: its 24px height + 6px gap (layout-util STAMP_H + STAMP_GAP). */
@@ -162,20 +161,6 @@ function textBottom(b: LaidOutBox): number {
   return b.y + (b.padY ?? 16) + low;
 }
 
-/** The rect a band covers, when it has one (a grid has no h of its own: its children carry it). */
-function extentOf(b: LaidOutBand): Rect | null {
-  const x = b as unknown as Partial<Rect> & {children?: Rect[]; labelBoxes?: Rect[]};
-  if (b.type === 'grid') return unionOf(b.children);
-  if (typeof x.x !== 'number' || typeof x.y !== 'number' || typeof x.w !== 'number' || typeof x.h !== 'number') return null;
-  const r: Rect = {x: x.x, y: x.y, w: x.w, h: x.h};
-  return x.labelBoxes?.length ? unionOf([r, ...x.labelBoxes]) : r;
-}
-function unionOf(rs: Rect[]): Rect | null {
-  if (!rs.length) return null;
-  const x0 = Math.min(...rs.map(r => r.x)), y0 = Math.min(...rs.map(r => r.y)), x1 = Math.max(...rs.map(right)), y1 = Math.max(...rs.map(bottom));
-  return {x: x0, y: y0, w: x1 - x0, h: y1 - y0};
-}
-
 function unusedSpace(laidOut: LaidOutBand[], out: LayoutMetric[]): void {
   const pics = backdrops(laidOut);
   const judge = (name: string, raw: Rect, contentBottom: number, stamped: boolean): void => {
@@ -202,7 +187,7 @@ function unusedSpace(laidOut: LaidOutBand[], out: LayoutMetric[]): void {
 
 /** Everything the figure shows, as one rect (labels of shapes included). Captions (titles and the source line), the status strip and legends are furniture, not the figure. */
 export function contentBox(laidOut: LaidOutBand[], tight = false): Rect | null {
-  return unionOf(laidOut.filter(b => b.type !== 'caption' && b.type !== 'legend' && b.type !== 'status').map(b => (tight ? drawnExtent(b) : undefined) ?? extentOf(b)).filter((r): r is Rect => r !== null));
+  return contentExtent(laidOut, tight ? b => drawnExtent(b) ?? extentOf(b) : extentOf);
 }
 
 /** What a flow shape (chevron, funnel, cycle, venn, concentric) actually draws: its circles, rects, polygons and texts, not the band's full-width rect. undefined for any other band. */
@@ -216,14 +201,6 @@ function drawnExtent(b: LaidOutBand): Rect | null | undefined {
     else if (p.k === 'polygon' && p.points.length) { const xs = p.points.map(q => q[0]), ys = p.points.map(q => q[1]); rs.push({x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)}); }
   }
   return unionOf(rs);
-}
-
-function figureRules(laidOut: LaidOutBand[], width: number, out: LayoutMetric[]): void {
-  const box = contentBox(laidOut);
-  if (!box) return;
-  const left = box.x, rightMargin = width - right(box), off = Math.abs(left - rightMargin);
-  if (off >= FIGURE_OFFSET_PX) out.push({rule: 'layout-figure-offset', message: `内容の左の余白が ${Math.round(left)}px、右が ${Math.round(rightMargin)}px で、${Math.round(off)}px の差がある。図が左右どちらかに寄っている`, data: {measured: Math.round(off), threshold: FIGURE_OFFSET_PX, fix: '図の部品全体を中央に置く（row の justify: center、図形とラベルの外接で寄せる）'}});
-  if (box.w < FIGURE_NARROW_RATIO * width) out.push({rule: 'layout-figure-narrow', message: `内容の幅が ${Math.round(box.w)}px で、図の幅 ${width}px の ${Math.round(100 * box.w / width)}% しかない。diagram({width}) で内容に合わせて狭めると余白が減る`, data: {measured: Math.round(box.w), threshold: Math.round(FIGURE_NARROW_RATIO * width), fix: 'diagram({width}) を内容に合わせて小さくする'}});
 }
 
 function alignMixed(runs: Frame[][], out: LayoutMetric[]): void {
@@ -249,7 +226,7 @@ function frameMetrics(laidOut: LaidOutBand[], beforeAlign?: (out: LayoutMetric[]
 
 /** Every layout metric finding of a laid-out diagram. */
 export function layoutMetrics(laidOut: LaidOutBand[], opts: {width: number; slideCanvas?: boolean}): LayoutMetric[] {
-  return frameMetrics(laidOut, opts.slideCanvas ? undefined : out => figureRules(laidOut, opts.width, out));
+  return frameMetrics(laidOut, opts.slideCanvas ? undefined : out => out.push(...figureLayoutMetrics(laidOut, opts.width)));
 }
 
 /** Frame measurements span bands and should run once even when several bands register them. */

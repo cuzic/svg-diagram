@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {figureLayoutMetrics} from '../lib/figure-metrics.ts';
 import {layoutMetrics} from '../lib/layout-metrics.ts';
 import {layoutSeverity, lintDiagram} from '../lib/rules.ts';
 import {box, caption, checkDiagram, diagram, renderDiagram, row} from '../lib/dsl.ts';
@@ -63,7 +64,7 @@ test('layout-unused-space: a group is judged by what sits inside it', () => {
 });
 
 test('layout-figure-offset and layout-figure-narrow read the content box, not the title', () => {
-  const m = (bands: LaidOutBand[]) => all(bands);
+  const m = (bands: LaidOutBand[]) => figureLayoutMetrics(bands, 940).map(metric => metric.rule);
   assert.ok(m([textBox(20, 20, 300, 60)]).includes('layout-figure-offset'));
   assert.ok(!m([textBox(320, 20, 300, 60)]).includes('layout-figure-offset'));
   assert.ok(m([textBox(320, 20, 300, 60)]).includes('layout-figure-narrow'));
