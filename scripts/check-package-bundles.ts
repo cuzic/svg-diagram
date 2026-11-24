@@ -605,6 +605,8 @@ try {
       if (name === 'Selected screen widgets' || name === 'Selected matrix widgets') {
         assert.equal(code?.includes('"layoutScreenGridWith"'), name === 'Selected screen widgets', label);
         assert.equal(code?.includes('"layoutStateMatrixWith"'), name === 'Selected matrix widgets', label);
+        assert.equal(code?.includes('"collectScreenGridTextRequestsWith"'), name === 'Selected screen widgets', label);
+        assert.equal(code?.includes('"collectStateMatrixTextRequestsWith"'), name === 'Selected matrix widgets', label);
       }
       if (name === 'State matrix') {
         assert.ok(has('dsl/state-matrix.js'), label);

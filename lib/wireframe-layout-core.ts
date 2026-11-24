@@ -35,9 +35,10 @@ const VISUAL: ReadonlySet<string> = new Set(['map', 'video', 'heat', 'pointcloud
 const CONTAINER: ReadonlySet<string> = new Set(['col', 'row', 'card']);
 
 // ---- text requests (everything the layout may measure) ---------------------------------------
-const DEFAULT_STRINGS = ['LIVE', '!', '新規', '改修', '対象外', '未設計'];
-export function collectTextRequestsWith(band: WireframeBand | ScreensBand, runtime: WireframeRuntime): TextRequest[] {
-  const strings = new Set(DEFAULT_STRINGS);
+const DEFAULT_STRINGS = ['LIVE', '!', '新規', '改修'];
+const MATRIX_STRINGS = ['対象外', '未設計'];
+function collectTextRequestsFrom(values: readonly unknown[], runtime: WireframeRuntime, labels: readonly string[] = []): TextRequest[] {
+  const strings = new Set([...DEFAULT_STRINGS, ...labels]);
   const walk = (v: unknown): void => {
     if (typeof v === 'string') strings.add(v);
     else if (typeof v === 'number') strings.add(String(v));
@@ -49,11 +50,25 @@ export function collectTextRequestsWith(band: WireframeBand | ScreensBand, runti
   };
   runtime.always?.forEach(x => strings.add(x));
   runtime.states?.labels().forEach(x => strings.add(x));
-  walk(band.type === 'screens' ? [band.items, band.matrix] : [band.root, band.overlays, band.title, band.tag, band.notes, band.marks]);
-  if (band.marks) walk(band.marks);
+  walk(values);
   const out: TextRequest[] = [];
   for (const s of strings) out.push([s, S, 400, 'sans'], [s, S, 700, 'sans'], [s, T, 700, 'sans']);
   return out;
+}
+
+export function collectScreenGridTextRequestsWith(band: ScreensBand, runtime: WireframeRuntime): TextRequest[] {
+  return collectTextRequestsFrom([band.items, band.marks], runtime);
+}
+
+export function collectStateMatrixTextRequestsWith(band: ScreensBand, runtime: WireframeRuntime): TextRequest[] {
+  return collectTextRequestsFrom([band.matrix, band.marks], runtime, MATRIX_STRINGS);
+}
+
+export function collectTextRequestsWith(band: WireframeBand | ScreensBand, runtime: WireframeRuntime): TextRequest[] {
+  const values = band.type === 'screens'
+    ? [band.items, band.matrix, band.marks]
+    : [band.root, band.overlays, band.title, band.tag, band.notes, band.marks];
+  return collectTextRequestsFrom(values, runtime, MATRIX_STRINGS);
 }
 
 // ---- drawing context ---------------------------------------------------------------------

@@ -1,5 +1,5 @@
 import * as builders from './wireframe-builders.ts';
-import {dialogRenderer, toastRenderer, collectTextRequestsWith, layoutScreensWith, layoutScreenGridWith, layoutStateMatrixWith, layoutWireframeWith, wireframeHelpers} from './wireframe-layout-core.ts';
+import {dialogRenderer, toastRenderer, collectTextRequestsWith, collectScreenGridTextRequestsWith, collectStateMatrixTextRequestsWith, layoutScreensWith, layoutScreenGridWith, layoutStateMatrixWith, layoutWireframeWith, wireframeHelpers} from './wireframe-layout-core.ts';
 import type {WireframeRuntime} from './wireframe-layout-core.ts';
 import {installParts, robotMarkers, widgetStates} from './wireframe-parts.ts';
 import type {Wf} from './types/wireframe-nodes.ts';
@@ -26,6 +26,14 @@ const runtime: WireframeRuntime = {
 
 export function collectTextRequests(band: Parameters<typeof collectTextRequestsWith>[0]) {
   return collectTextRequestsWith(band, runtime);
+}
+
+export function collectScreenGridTextRequests(band: Parameters<typeof collectScreenGridTextRequestsWith>[0]) {
+  return collectScreenGridTextRequestsWith(band, runtime);
+}
+
+export function collectStateMatrixTextRequests(band: Parameters<typeof collectStateMatrixTextRequestsWith>[0]) {
+  return collectStateMatrixTextRequestsWith(band, runtime);
 }
 
 export function layoutWireframe(...args: Tail<Parameters<typeof layoutWireframeWith>>) {

@@ -2,7 +2,7 @@ import {wireframeFor} from './bands/wireframe-basic.ts';
 import {screensBuilder, screensDefinition, stateMatrixBuilder} from './screens-definition.ts';
 import {stateMatrixFindings} from './state-matrix-rules.ts';
 import {appendScreen} from './wireframe-placement.ts';
-import {collectTextRequestsWith, layoutScreenGridWith, layoutStateMatrixWith, makeWireframeRuntime} from './wireframe-layout-core.ts';
+import {collectScreenGridTextRequestsWith, collectStateMatrixTextRequestsWith, layoutScreenGridWith, layoutStateMatrixWith, makeWireframeRuntime} from './wireframe-layout-core.ts';
 import type {WireframeDecorations, WireframeRuntime, WireframeWidgetRenderer} from './wireframe-layout-core.ts';
 
 export type {WireframeDecorations, WireframeWidgetRenderer};
@@ -30,10 +30,11 @@ export function createWireframe(renderers: readonly WireframeWidgetRenderer[], d
 function screenDefinitionFor(
   runtime: WireframeRuntime,
   layout: typeof layoutScreenGridWith,
+  collect: typeof collectScreenGridTextRequestsWith,
   findings?: Parameters<typeof screensDefinition>[2],
 ): ReturnType<typeof screensDefinition> {
   return screensDefinition(
-    data => collectTextRequestsWith(data, runtime),
+    data => collect(data, runtime),
     (data, ctx, x, width) => appendScreen(layout(runtime, data, x, ctx.y, width, ctx.widthOf, ctx.tones, ctx.wrap), ctx),
     findings,
   );
@@ -41,19 +42,19 @@ function screenDefinitionFor(
 
 /** Create a screen grid builder with only the supplied widgets and decorations. */
 export function createScreenGrid(renderers: readonly WireframeWidgetRenderer[], decorations: WireframeDecorations = {}) {
-  return screensBuilder(screenDefinitionFor(makeWireframeRuntime(renderers, decorations), layoutScreenGridWith));
+  return screensBuilder(screenDefinitionFor(makeWireframeRuntime(renderers, decorations), layoutScreenGridWith, collectScreenGridTextRequestsWith));
 }
 
 /** Create a state matrix builder with only the supplied widgets and decorations. */
 export function createStateMatrix(renderers: readonly WireframeWidgetRenderer[], decorations: WireframeDecorations = {}) {
-  return stateMatrixBuilder(screenDefinitionFor(makeWireframeRuntime(renderers, decorations), layoutStateMatrixWith, stateMatrixFindings));
+  return stateMatrixBuilder(screenDefinitionFor(makeWireframeRuntime(renderers, decorations), layoutStateMatrixWith, collectStateMatrixTextRequestsWith, stateMatrixFindings));
 }
 
 /** Create screen and state matrix builders that share the supplied widget registry. */
 export function createScreens(renderers: readonly WireframeWidgetRenderer[], decorations: WireframeDecorations = {}) {
   const runtime = makeWireframeRuntime(renderers, decorations);
   return {
-    screens: screensBuilder(screenDefinitionFor(runtime, layoutScreenGridWith)),
-    stateMatrix: stateMatrixBuilder(screenDefinitionFor(runtime, layoutStateMatrixWith, stateMatrixFindings)),
+    screens: screensBuilder(screenDefinitionFor(runtime, layoutScreenGridWith, collectScreenGridTextRequestsWith)),
+    stateMatrix: stateMatrixBuilder(screenDefinitionFor(runtime, layoutStateMatrixWith, collectStateMatrixTextRequestsWith, stateMatrixFindings)),
   };
 }

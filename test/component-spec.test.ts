@@ -1,8 +1,8 @@
 // Tools for specifying a component and its states: state matrix, frames, states on any widget, anatomy numbers, regions.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {wf, layoutWireframe, layoutScreens, collectTextRequests} from '../lib/wireframe.ts';
-import {wireframe, stateMatrix, diagram} from '../lib/dsl.ts';
+import {wf, layoutWireframe, layoutScreens, collectTextRequests, collectScreenGridTextRequests, collectStateMatrixTextRequests} from '../lib/wireframe.ts';
+import {wireframe, stateMatrix, screens, diagram} from '../lib/dsl.ts';
 import {NO_TONES} from '../lib/tokens.ts';
 import {lintDiagram} from '../lib/rules.ts';
 import type {PrimRect, PrimText, WfCol, WfInsight, WfRobotOpts, WfRow} from '../lib/types/wireframe-nodes.ts';
@@ -86,6 +86,14 @@ test('stateMatrix: cells are designs, "対象外" (with a reason) or "未設計"
   assert.equal(b.anchors.length, 2, 'the two designed cells');
   const asked = new Set(collectTextRequests(band).map(r => r[0]));
   assert.ok(asked.has('未設計') && asked.has('通常'), 'matrix strings are measured');
+  assert.deepEqual(collectStateMatrixTextRequests(band), collectTextRequests(band));
+});
+
+test('screen-grid measurement includes its content and reserves matrix labels for matrices', () => {
+  const band = screens([{title: '画面一覧', root: wf.text('内容')}], {marks: {new: '追加'}});
+  const asked = new Set(collectScreenGridTextRequests(band).map(([text]) => text));
+  assert.ok(asked.has('画面一覧') && asked.has('内容') && asked.has('追加'));
+  assert.ok(!asked.has('未設計') && !asked.has('対象外'));
 });
 
 test('check: unfinished state matrices and missing required states are reported', () => {
