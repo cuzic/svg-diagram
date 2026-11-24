@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+import {caption} from '../lib/bands/caption.ts';
+import {spacer} from '../lib/bands/spacer.ts';
 import {box} from '../lib/bands/box.ts';
-import {connect} from '../lib/bands/connect.ts';
+import {connect, connectDefinition} from '../lib/bands/connect.ts';
 import {row} from '../lib/bands/row.ts';
 import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {renderBands} from '../lib/core.ts';
-import {box as legacyBox, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
+import {box as legacyBox, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
 const rows = [{id: 'draft', label: 'Draft', start: '2026-11-23', days: 3}] as const;
@@ -88,4 +90,31 @@ test('connect can target a row column with no explicit box id', async () => {
   const result = await renderBands([plan, box({id: 'next', title: 'Next'}), connect(plan.col(1).bottom, 'next:top')], {measure});
   assert.ok(result.verdict.ok, JSON.stringify(result.verdict.problems));
   assert.match(result.svg, /marker-end=/);
+});
+
+test('selected rows can opt into implicit loop-back connectors', async () => {
+  const options = {loopBack: {from: 2, to: 1, label: 'retry'}, arrows: 'between'} as const;
+  const selected = await renderBands([
+    row([box({title: 'Review'}), box({title: 'Next'})], options),
+    box({title: 'Finish'}),
+  ], {measure, connectors: connectDefinition});
+  const rendered = await renderInBrowser(diagram({theme: 'blue', legend: false})
+    .add(legacyRow([legacyBox({title: 'Review'}), legacyBox({title: 'Next'})], options))
+    .add(legacyBox({title: 'Finish'})), {measure});
+  assert.equal(selected.svg, rendered.svg);
+  assert.ok(selected.verdict.ok, JSON.stringify(selected.verdict.problems));
+});
+
+test('a row with a loop explains how to opt into connector code', async () => {
+  const input = [row([box({title: 'First'}), box({title: 'Next'})], {loopBack: {from: 2, to: 1}})];
+  await assert.rejects(renderBands(input, {measure}), /connectDefinition/);
+});
+
+test('selective captions and spacers match shared browser placement and output', async () => {
+  const opts = {align: 'left', mono: true} as const;
+  const input = diagram({theme: 'blue', legend: false, title: 'Review'})
+    .add(legacyCaption('Review', opts), legacySpacer(24), legacyCaption('Next'));
+  const result = await renderBands([caption('Review', opts), spacer(24), caption('Next')], {measure, title: 'Review'});
+  assert.equal(result.svg, (await renderInBrowser(input, {measure})).svg);
+  assert.ok(result.verdict.ok);
 });

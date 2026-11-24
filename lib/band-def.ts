@@ -99,6 +99,7 @@ interface PublicLayout<D, L extends object> {
 interface InternalLayout<D> {
   internal: true;
   resolveConnect?: typeof resolveConnect;
+  expandLoopBacks?: (bands: Band[]) => Band[];
   layout(...args: Parameters<BandLayoutHandler<D>>): void;
 }
 

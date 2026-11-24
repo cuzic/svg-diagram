@@ -51,6 +51,17 @@ try {
       include: 'bands/grid.js', budget: {esbuild: 79000, Vite: 102000}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'layout-row.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Connect', source: composedSource(['box', 'connect'], "connect('a:bottom', 'b:top'), box({id: 'a', title: 'Review'}), box({id: 'b', title: 'Next'})"),
       include: 'bands/connect.js', budget: {esbuild: 89000, Vite: 115000}, bands: ['box.js', 'connect.js'], exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'gantt.js'], draw: true},
+    {name: 'Row loop-back', source: `
+      import {renderBands} from 'svg-diagram/core';
+      import {box} from 'svg-diagram/bands/box';
+      import {row} from 'svg-diagram/bands/row';
+      import {connectDefinition} from 'svg-diagram/bands/connect';
+      export const draw = () => renderBands([
+        row([box({title: 'Review'}), box({title: 'Next'})], {loopBack: {from: 2, to: 1, label: 'Retry'}})
+      ], {connectors: connectDefinition, measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size})});
+    `, include: 'bands/row.js', budget: {esbuild: 100000, Vite: 129000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'layout-grid.js', 'gantt.js'], draw: true},
+    {name: 'Caption and spacer', source: composedSource(['caption', 'spacer'], "caption('Review', {mono: true}), spacer(24), caption('Next')"),
+      include: 'bands/caption.js', budget: {esbuild: 58000, Vite: 77000}, bands: ['caption.js', 'spacer.js'], exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
   ];
   for (const {name, source, include, exclude, budget, draw, bands} of cases) {
     writeFileSync(entry, source);
@@ -83,6 +94,7 @@ try {
         const {draw: render} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
         const result = await render();
         assert.match(result.svg, /<text[^>]*>Review<\/text>/, label);
+        if (name === 'Row loop-back') assert.match(result.svg, /Retry/, label);
         assert.deepEqual(result.xml, [], label);
         assert.equal(result.verdict.ok, true, label);
       }

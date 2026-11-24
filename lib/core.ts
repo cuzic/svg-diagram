@@ -1,5 +1,5 @@
 import {splitAtoms} from './atoms.ts';
-import {defOf, DEF, EXTERNAL} from './band-def.ts';
+import {band, defOf, DEF, EXTERNAL} from './band-def.ts';
 import {cloneData} from './clone-data.ts';
 import {emitSvgWith} from './emit-svg-core.ts';
 import {createLayoutWith} from './layout-core.ts';
@@ -7,6 +7,7 @@ import {addScoped, emptyScopes} from './scope-table.ts';
 import {qualify, scopeOf} from './scope-name.ts';
 import {verifyWithServices} from './verify-core.ts';
 import type {BandDef} from './band-def.ts';
+import type {ConnectBand, LaidOutConnect} from './types/containers.ts';
 import {must} from './must.ts';
 import {checked} from './reveal-visibility.ts';
 import {checkToday} from './today-auto.ts';
@@ -30,6 +31,7 @@ type Options = {
   title?: string;
   today?: string;
   stage?: number;
+  connectors?: BandDef<ConnectBand, LaidOutConnect>;
 };
 
 function size(name: string, value: number, min: number): number {
@@ -61,7 +63,15 @@ export async function renderBands(bands: readonly DefinedBand[], opts: Options) 
   const definitions = new Map<string, BandDef>();
   const scopeTable = emptyScopes();
   let last = 0;
-  const source = cloneData(bands) as unknown as Band[];
+  let source = cloneData(bands) as unknown as Band[];
+  if (source.some(data => data.type === 'row' && data.loopBack)) {
+    const connector = opts.connectors;
+    if (!connector?.internal || !connector.expandLoopBacks) {
+      throw new Error('renderBands: loopBack には bands/connect の connectDefinition を connectors に指定してください');
+    }
+    source = connector.expandLoopBacks(source).map(data =>
+      data.type === 'connect' && data.loopBack && !defOf(data) ? band(connector, data) : data);
+  }
   function collect(data: Band): void {
     const def = defOf(data);
     if (!def || def.type !== data.type || def[EXTERNAL] || data.type.includes(':')) {

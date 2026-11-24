@@ -155,6 +155,14 @@
       "types": "./dist/lib/core.d.ts",
       "default": "./dist/lib/core.js"
     },
+    "./bands/spacer": {
+      "types": "./dist/lib/bands/spacer.d.ts",
+      "default": "./dist/lib/bands/spacer.js"
+    },
+    "./bands/caption": {
+      "types": "./dist/lib/bands/caption.d.ts",
+      "default": "./dist/lib/bands/caption.js"
+    },
     "./bands/connect": {
       "types": "./dist/lib/bands/connect.d.ts",
       "default": "./dist/lib/bands/connect.js"

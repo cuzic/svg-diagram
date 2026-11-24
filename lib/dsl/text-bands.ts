@@ -5,19 +5,11 @@ import {ROLES, HEADLINE_ROLES, OPT_IN_TEXT_MAX, isSolidTone} from '../tokens.ts'
 import type {GroupBand, GroupOpts, LegendBand, LegendItem, LegendOpts, RawBand, RawOpts} from '../types/containers.ts';
 import type {BandInput, TextTone} from '../types/core.ts';
 import type {Band} from '../types/index.ts';
-import type {BannerBand, BannerOpts, BoxBand, CaptionBand, CaptionOpts, RichText, StatConfidence, StatOpts} from '../types/text-bands.ts';
+import type {BannerBand, BannerOpts, BoxBand, RichText, StatConfidence, StatOpts} from '../types/text-bands.ts';
 import type {Declares, IdsOf, HandleOf, Refers, RefsOf} from '../strict.ts';
-import {ALIGNS, assertBoxTone, assertNoReveal, assertOneOf, assertTextRole, EMPHASIS_TONES, revealOf, TEXT_TONES, withHandle} from './shared.ts';
+import {assertBoxTone, assertNoReveal, assertOneOf, assertTextRole, EMPHASIS_TONES, revealOf, withHandle} from './shared.ts';
 
-// text: a string (exactly its characters) or an array with em.* parts: caption(['Claude in ', em.b('Chrome')]).
-export function caption(text: RichText, opts: CaptionOpts = {}): CaptionBand {
-  assertOneOf(opts.align, ALIGNS, 'caption() align');
-  assertOneOf(opts.role, Object.keys(ROLES), 'caption() role');
-  assertOneOf(opts.tone, TEXT_TONES, 'caption() tone');
-  const tone = opts.tone ?? 'muted';
-  const rich = richField(text, {field: 'caption()', bold: !!opts.bold, tone});
-  return {type: 'caption', text: rich.text ?? '', ...(rich.spans ? {spans: {text: rich.spans}} : {}), align: opts.align ?? 'center', role: opts.role ?? 'label', tone, bold: !!opts.bold, mono: !!opts.mono, ...revealOf(opts)};
-}
+export {caption} from './caption.ts';
 export {box} from './box.ts';
 /**
  * The largest scale fill: true may try. 1.8 as ever, but an opted-in size (banner headlineRole, bars / plane labelRole)

@@ -20,6 +20,5 @@ export function row<C extends BoxBand & {readonly [DEF]: object}, const Id exten
 ): WithBandDef<RowBand & Declares<IdsOf<C> | Id> & RowHandleOf<Id>, LaidOutRow> {
   const data = buildRow<C, Id>(children, opts);
   if (data.type !== 'row') throw new Error('bands/row: box() の子を指定してください');
-  if (data.loopBack) throw new Error('bands/row: 戻り線は bands/connect の connect() で指定してください');
   return band<typeof data, LaidOutRow>(definition, data);
 }
