@@ -279,8 +279,24 @@ try {
         parts: [tablePart], bands: {table: tablePptx},
         rasterize() { throw new Error('a native table does not need rasterization'); },
       });
-    `, include: 'pptx-selective-edge.js', budget: {esbuild: 170500, Vite: 206000}, bands: ['table.js'],
+    `, include: 'pptx-selective-edge.js', budget: {esbuild: 176000, Vite: 211500}, bands: ['table.js'],
       exclude: [...legacy, 'lib/spec.js', 'lib/pptx-edge.js', 'pptx/bands.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'bands/box.js'], draw: true},
+    {name: 'Selected Edge PPTX deck', source: `
+      import {renderDeckPptxEdge} from 'svg-diagram/pptx/deck/selective/edge';
+      import {tablePart} from 'svg-diagram/spec/parts/table';
+      import {tablePptx} from 'svg-diagram/pptx/bands/table';
+      const engine = {
+        measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+        textBox: (text, _font, size) => ({w: [...text].length * size * 0.6, ascent: size, descent: 0}),
+        font: {covers: () => true, shape: () => ({upem: 1000, glyphs: []}), path: () => ''},
+      };
+      const figure = {version: 1, title: 'Plan', parts: [
+        {type: 'table', columns: [{label: 'Review'}], rows: [['Done']]},
+      ]};
+      export const draw = () => renderDeckPptxEdge({slides: [{title: 'Part', figure}, {title: 'Compare', columns: [{text: 'Context'}, {figure}]}]},
+        engine, {parts: [tablePart], bands: {table: tablePptx}, rasterize() { throw new Error('a native table does not need rasterization'); }});
+    `, include: 'pptx-deck-selective-edge.js', budget: {esbuild: 203500, Vite: 247000}, bands: ['table.js'],
+      exclude: [...legacy, 'lib/spec.js', 'lib/deck-spec.js', 'lib/pptx-deck-edge.js', 'lib/pptx-edge.js', 'pptx/bands.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js'], draw: true},
     {name: 'Selected table spec on Edge', source: `
       import {renderSpecEdge} from 'svg-diagram/spec/selective/edge';
       import {tablePart} from 'svg-diagram/spec/parts/table';
@@ -315,7 +331,7 @@ try {
         );
         return {svg: emit(placed), verdict};
       };
-    `, include: 'diagram-description.js', budget: {esbuild: 93500, Vite: 118500}, bands: ['table.js'],
+    `, include: 'diagram-description.js', budget: {esbuild: 98500, Vite: 124000}, bands: ['table.js'],
       exclude: [...legacy, 'lib/spec.js', 'lib/bars.js', 'band-children.js', 'layout-connect.js'], draw: true},
     {name: 'Selected heatmap spec', source: `
       import {renderSpec} from 'svg-diagram/spec/selective';
@@ -604,6 +620,14 @@ try {
         }
         const {draw: render} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
         const result = await render();
+        if (name === 'Selected Edge PPTX deck') {
+          assert.deepEqual(result.issues, [], label);
+          assert.deepEqual(result.slides.map((slide: {native: number; pictures: number}) => [slide.native, slide.pictures]), [[1, 0], [1, 0]], label);
+          assert.equal(result.slides[1].columns.length, 2, label);
+          assert.deepEqual([...result.pptx.subarray(0, 4)], [0x50, 0x4b, 3, 4], label);
+          console.log(`${label}: ${bytes} bytes`);
+          continue;
+        }
         if (name === 'Selected Edge PPTX table') {
           assert.deepEqual(result.issues, [], label);
           assert.equal(result.native, 1, label);

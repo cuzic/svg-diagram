@@ -7,17 +7,14 @@ import {renderInBrowser, type WebRender} from './web.ts';
 import {SpecError, layoutIssue, specToDiagram, type SpecIssue} from './spec.ts';
 import {MAX_EDGE_HEIGHT, TextEngineError, guardedEngine, type TextEngine} from './spec-edge.ts';
 import {planSlide, fontsOf} from './pptx/slide.ts';
-import {packageEntries, type SlidePlan} from './pptx/package.ts';
-import {noPptx, outlinePptxPictures, zipPackage, type PptxEdgeOptions, type PptxEdgeResult} from './pptx-edge-core.ts';
+import {packageEntries} from './pptx/package.ts';
+import {noPptx, outlinePptxPictures, zipPackage, type PptxEdgeOptions, type PptxEdgeResult, type FigurePlan} from './pptx-edge-core.ts';
 import type {Diagram} from './types/core.ts';
 
-export {zipPackage, type PptxEdgeOptions, type PptxEdgeResult} from './pptx-edge-core.ts';
+export {zipPackage, type PptxEdgeOptions, type PptxEdgeResult, type FigurePlan} from './pptx-edge-core.ts';
 
 export type {TextEngine} from './spec-edge.ts';
 export {TextEngineError} from './spec-edge.ts';
-
-/** A spec laid out and planned as one slide, its pictures' text outlined: what renderPptxEdge packs, and what a deck places (./pptx-deck-edge.ts). */
-export interface FigurePlan {plan: SlidePlan; width: number; height: number; native: number; /** The checks the figure raised: `[rule-id] …` (what a deck's 'fill' compares, ADR 0060). */ findings: string[]}
 
 /** The spec as a slide plan, or the issues that stop it (with their places in the spec). Throws TextEngineError as renderPptxEdge does. */
 export async function planFigureEdge(spec: unknown, engine: TextEngine, opts: {font?: string; maxHeight?: number} = {}): Promise<FigurePlan | {issues: SpecIssue[]}> {

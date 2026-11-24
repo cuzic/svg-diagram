@@ -4,6 +4,8 @@ import type {SpecIssue} from './spec-kit.ts';
 import type {SlidePlan} from './pptx/package.ts';
 import {zipEntries, type ZipEntry} from './pptx/zip.ts';
 
+export interface FigurePlan {plan: SlidePlan; width: number; height: number; native: number; /** The checks the figure raised: `[rule-id] …` (what a deck's 'fill' compares, ADR 0060). */ findings: string[]}
+
 export interface PptxEdgeOptions {
   /** Draws a picture's SVG (text already outlined) as a PNG `scale` times its size. Required by the format as the fallback of every picture. */
   rasterize: (svg: string, scale: number) => Uint8Array | Promise<Uint8Array>;

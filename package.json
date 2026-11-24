@@ -940,6 +940,10 @@
       "types": "./dist/lib/pptx-deck-edge.d.ts",
       "default": "./dist/lib/pptx-deck-edge.js"
     },
+    "./pptx/deck/selective/edge": {
+      "types": "./dist/lib/pptx-deck-selective-edge.d.ts",
+      "default": "./dist/lib/pptx-deck-selective-edge.js"
+    },
     "./pptx/selective/edge": {
       "types": "./dist/lib/pptx-selective-edge.d.ts",
       "default": "./dist/lib/pptx-selective-edge.js"

@@ -376,3 +376,33 @@ test('selected deck rendering preserves the catalog SVG, fit and CLI diagnostics
     assert.deepEqual(selected.verdict.problems, legacy.verdict.problems, type);
   }
 });
+
+test('selective Edge PPTX decks keep the legacy layout and diagnostics for table figures', async () => {
+  const {renderDeckPptxEdge: renderSelected} = await import('../lib/pptx-deck-selective-edge.ts');
+  const {tablePart} = await import('../lib/spec-parts/selective/table.ts');
+  const {tablePptx} = await import('../lib/pptx/table-band.ts');
+  const engine = realEngine();
+  const opts = {
+    parts: [tablePart], bands: {table: tablePptx},
+    rasterize: () => { throw new Error('the table should stay native'); },
+  };
+  const input = {slides: [
+    {title: '表', figure: spec('table')},
+    {title: '比較', columns: [{text: '説明'}, {figure: spec('table')}]},
+  ]};
+  const selected = await renderSelected(input, engine, opts);
+  const legacy = await renderDeckPptxEdge(input, engine, opts);
+  assert.ok(selected.pptx && legacy.pptx);
+  assert.deepEqual(selected.slides, legacy.slides);
+  assert.deepEqual(selected.warnings, legacy.warnings);
+  assert.deepEqual(selected.issues, []);
+  for (const i of [1, 2]) {
+    const name = `ppt/slides/slide${i}.xml`;
+    const xml = unzipEntry(Buffer.from(selected.pptx), name).toString();
+    assert.match(xml, /<a:tbl>/);
+    assert.equal(xml, unzipEntry(Buffer.from(legacy.pptx), name).toString());
+  }
+  const bad = await renderSelected({slides: [{columns: [{text: '説明'}, {figure: spec('sequence')}]}]}, engine, opts);
+  assert.equal(bad.pptx, null);
+  assert.ok(bad.issues.length && bad.issues.every(issue => issue.path.startsWith('slides[0].columns[1].figure')));
+});

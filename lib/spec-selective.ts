@@ -1,3 +1,4 @@
+import {midWordFindings} from './mid-word-findings.ts';
 import {findingAcceptanceHint} from './finding-rules.ts';
 import {termFindings} from './term-rules.ts';
 import {cloneData} from './clone-data.ts';
@@ -145,8 +146,8 @@ export function prepareSpecLayout(input: unknown, options: PrepareOptions & {pro
   return async (measurement: RenderOptions['measure'] | BatchMeasurement) => {
     const prepared = await prepareBands(bands, {
       ...drawOptions, wrap, keepWords, tones, maxWidth, accept, legend: doc.legend ?? options.project?.legend,
-      diagramFindings: diagram => [...termFindings(diagram.bands, terms), ...documentFindings(diagram)],
-      diagramAcceptHint: rule => rule === 'term-variant' || rule === 'term-avoid' ? findingAcceptanceHint(rule) : documentAcceptHint(rule),
+      diagramFindings: diagram => [...midWordFindings(diagram), ...termFindings(diagram.bands, terms), ...documentFindings(diagram)],
+      diagramAcceptHint: rule => rule === 'term-variant' || rule === 'term-avoid' || rule === 'text-mid-word-break' ? findingAcceptanceHint(rule) : documentAcceptHint(rule),
       ...(typeof measurement === 'function' ? {measure: measurement} : measurement),
     });
     const {stage, emit} = prepared;
