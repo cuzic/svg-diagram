@@ -1,5 +1,5 @@
 import {badgeSvg, pillSvg} from './badge.ts';
-import {renderBoxRect, renderStamp} from './emit-box-frame.ts';
+import {renderBoxRect, renderStamp, tagGeometry} from './emit-box-frame.ts';
 import {renderBoxText} from './emit-box-text.ts';
 import {emojiSpan, escapeXml, snap4} from './emit-common.ts';
 import {iconSvg} from './icon-svg.ts';
@@ -45,11 +45,6 @@ export function renderBoxIcon(band: LaidOutBox, day: Theme, tones: ToneEnv): str
   const color = band.dim ? PALETTE.muted : runColorOf(tones, band.iconTone, band.tone, day);
   return '\n  ' + iconSvg({glyph: must(band.iconGlyph), name: must(band.icon), x, y, size, color, dim: band.dim, labelled: !!band.title});
 }
-
-export function tagGeometry({x, y, w, h}: Rect): Rect {
-  return {x: snap4(x), y: snap4(y), w: snap4(w), h};
-}
-
 
 export function renderTag(band: LaidOutBox, day: Theme, tones: ToneEnv, roles: Roles): string {
   const t = band.tagBox as Rect; // caller checked tagBox

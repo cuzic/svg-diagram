@@ -1,5 +1,4 @@
-import {tagGeometry} from './emit-box.ts';
-import {frameGeometry, stampGeometry} from './emit-box-frame.ts';
+import {frameGeometry, stampGeometry, tagGeometry} from './emit-box-frame.ts';
 import {boxTextPlacement} from './emit-box-text.ts';
 import {captionTextPlacement} from './emit-caption.ts';
 import {runLineOrigin} from './emit-common.ts';

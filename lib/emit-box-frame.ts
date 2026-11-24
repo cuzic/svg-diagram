@@ -30,3 +30,7 @@ export function renderStamp(band: Rect & {stamp?: string; stampW?: number}, role
   const {x, y, w, h} = stampGeometry(band, band.stampW);
   return `\n  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${PALETTE.bg}" stroke="${PALETTE.border}" stroke-width="1"/>\n  <text x="${snap4(band.x + band.w - 8 - band.stampW / 2)}" y="${y + 17}" font-size="${roles.note}" text-anchor="middle" fill="${PALETTE.muted}">${emojiSpan(band.stamp)}</text>`;
 }
+
+export function tagGeometry({x, y, w, h}: Rect): Rect {
+  return {x: snap4(x), y: snap4(y), w: snap4(w), h};
+}
