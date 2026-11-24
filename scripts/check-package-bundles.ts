@@ -279,7 +279,7 @@ try {
         parts: [tablePart], bands: {table: tablePptx},
         rasterize() { throw new Error('a native table does not need rasterization'); },
       });
-    `, include: 'pptx-selective-edge.js', budget: {esbuild: 176000, Vite: 211500}, bands: ['table.js'],
+    `, include: 'pptx-selective-edge.js', budget: {esbuild: 179000, Vite: 215500}, bands: ['table.js'],
       exclude: [...legacy, 'lib/spec.js', 'lib/pptx-edge.js', 'pptx/bands.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js', 'bands/box.js'], draw: true},
     {name: 'Selected Edge PPTX deck', source: `
       import {renderDeckPptxEdge} from 'svg-diagram/pptx/deck/selective/edge';
@@ -295,7 +295,7 @@ try {
       ]};
       export const draw = () => renderDeckPptxEdge({slides: [{title: 'Part', figure}, {title: 'Compare', columns: [{text: 'Context'}, {figure}]}]},
         engine, {parts: [tablePart], bands: {table: tablePptx}, rasterize() { throw new Error('a native table does not need rasterization'); }});
-    `, include: 'pptx-deck-selective-edge.js', budget: {esbuild: 203500, Vite: 247000}, bands: ['table.js'],
+    `, include: 'pptx-deck-selective-edge.js', budget: {esbuild: 207000, Vite: 251000}, bands: ['table.js'],
       exclude: [...legacy, 'lib/spec.js', 'lib/deck-spec.js', 'lib/pptx-deck-edge.js', 'lib/pptx-edge.js', 'pptx/bands.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js'], draw: true},
     {name: 'Selected table spec on Edge', source: `
       import {renderSpecEdge} from 'svg-diagram/spec/selective/edge';
@@ -331,7 +331,7 @@ try {
         );
         return {svg: emit(placed), verdict};
       };
-    `, include: 'diagram-description.js', budget: {esbuild: 98500, Vite: 124000}, bands: ['table.js'],
+    `, include: 'diagram-description.js', budget: {esbuild: 102000, Vite: 127500}, bands: ['table.js'],
       exclude: [...legacy, 'lib/spec.js', 'lib/bars.js', 'band-children.js', 'layout-connect.js'], draw: true},
     {name: 'Selected heatmap spec', source: `
       import {renderSpec} from 'svg-diagram/spec/selective';
@@ -405,12 +405,12 @@ try {
       import {renderBands} from 'svg-diagram/core';
       import {box} from 'svg-diagram/bands/box';
       import {documentAcceptHint, documentFindings} from 'svg-diagram/verify/document';
-      export const draw = () => renderBands([box({title: 'Review'})], {
+      export const draw = () => renderBands([box({title: 'Review', body: '確認 ✅'})], {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
         width: 720, maxWidth: 500, diagramFindings: documentFindings, diagramAcceptHint: documentAcceptHint,
       });
     `, include: 'document-findings.js', bands: ['box.js'], exclude: [...legacy, 'term-rules.js', 'layout-connect.js'],
-      budget: {esbuild: 84000, Vite: 107000}, draw: true},
+      budget: {esbuild: 87000, Vite: 110000}, draw: true},
     {name: 'Box', source: bandSource('box'), include: 'bands/box.js',
       exclude: [...legacy, 'verify-connect-label.js', 'verify-connect-crossings.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 82000, Vite: 105000}, draw: true},
     {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',
@@ -697,7 +697,10 @@ try {
         if (name === 'RACI table') assert.ok(!/fmea\(\)|qfd\(\)|whyWhyTree\(/.test(code), label);
         if (name === 'Selected fault tree spec with legend') assert.match(result.svg, /OR gate/, label);
         if (name === 'Cause') assert.equal(result.verdict.findings.filter((finding: {rule: string}) => finding.rule === 'toc-legend-suggested').length, 1, label);
-        if (name === 'Document findings') assert.ok(result.verdict.warnings.some((warning: string) => warning.includes('check --explain doc-width')), label);
+        if (name === 'Document findings') {
+          assert.ok(result.verdict.warnings.some((warning: string) => warning.includes('check --explain doc-width')), label);
+          assert.ok(result.verdict.warnings.some((warning: string) => warning.includes('check --explain glyph-missing')), label);
+        }
         if (name === 'Box') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'box-size-ignored'), label);
         if (name === 'Composer Canvas') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'canvas-region-empty'), label);
         if (name === 'funnel') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'funnel-values-rise'), label);

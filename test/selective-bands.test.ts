@@ -1098,3 +1098,26 @@ test('selected rows and grids report dark-only text contrast problems like legac
     assert.deepEqual(selected.verdict.problems, legacy.verdict.problems);
   }
 });
+
+test('selected document checks preserve pictograph, aspect and text budget diagnostics', async () => {
+  const {aspectTallFindings, documentAcceptHint, documentFindings, pictographFindings, textBudgetFindings} = await import('../lib/document-findings.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const items = Array.from({length: 31}, (_, index) => ({title: index ? `項目 ${index}` : '確認 ✅'}));
+  const document = {diagramFindings: documentFindings, diagramAcceptHint: documentAcceptHint};
+  const bands = items.map(item => box(item));
+  const selected = await renderBands(bands, {measure, ...document});
+  const {placed} = await prepareBands(bands, {measure});
+  assert.deepEqual(pictographFindings(placed).map(f => f.rule), ['glyph-missing']);
+  assert.equal(textBudgetFindings({...placed, laidOut: placed.laidOut.slice(0, 30)}).length, 0);
+  assert.equal(textBudgetFindings(placed).length, 1);
+  assert.deepEqual(aspectTallFindings(placed, () => placed.bands).map(f => f.rule), ['aspect-tall']);
+  const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false}).add(items.map(legacyBox)), {measure});
+  const notes = ({verdict}: Pick<typeof selected, 'verdict'>) => verdict.findings.filter(f => ['glyph-missing', 'aspect-tall', 'density'].includes(f.rule));
+  assert.deepEqual(notes(legacy).map(f => f.rule), ['glyph-missing', 'aspect-tall', 'density']);
+  assert.deepEqual(notes(selected), notes(legacy));
+  const warnings = ({verdict}: Pick<typeof selected, 'verdict'>) => verdict.warnings.filter(w => /^\[(?:glyph-missing|density)\]/.test(w));
+  assert.deepEqual(warnings(selected), warnings(legacy));
+  const accepted = await renderBands(bands, {measure, ...document, accept: {'glyph-missing': '確認済み', density: '比較のため'}});
+  assert.deepEqual(notes(accepted).map(f => f.severity), ['info', 'info', 'info']);
+  assert.deepEqual(warnings(accepted), []);
+});

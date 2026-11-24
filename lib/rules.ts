@@ -1,4 +1,4 @@
-import {documentWidthFindings, wrapFallbackFindings} from './document-findings.ts';
+import {aspectTallFindings, documentWidthFindings, pictographFindings, textBudgetFindings, wrapFallbackFindings} from './document-findings.ts';
 import {edgeBendFindings} from './verify-edge-bends.ts';
 export {EDGE_BENDS_MAX, EDGE_BENDS_MEAN} from './verify-edge-bends.ts';
 import {parallelEdgeFindings} from './verify-cause-spacing.ts';
@@ -22,7 +22,6 @@ import {stateMatrixFindings} from './state-matrix-rules.ts';
 // objects 3:1, and never colour alone (WCAG 1.4.1 / 1.4.3 / 1.4.11); a short alt text plus
 // a longer description (Google developer style guide).
 
-import {missingGlyphs} from './text-rules.ts';
 import {midWordFindings} from './mid-word-findings.ts';
 import {labelCoverFindings} from './verify-connect-label.ts';
 import {axisMismatches} from './axis-rules.ts';
@@ -45,7 +44,6 @@ import type {ToneEnv} from './tokens.ts';
 // contrast is judged on the colours as drawn: in a dark diagram the light tokens are looked up in the dark set first
 const wcagIn = (d: LintTarget, tones: ToneEnv) => { const p = paintOf(tones, d.appearance); return (a: string, b: string): number => lightWcag(p(a), p(b)); };
 import {resolveTextColor, resolveBoxStyle} from './emit-common.ts';
-import {budgetWarnings} from './budget.ts';
 import {termFindings, tableFindings} from './consistency.ts';
 import {quadrantFindings, quadrantLayoutFindings} from './verify-quadrant.ts';
 import {funnelFindings} from './verify-funnel.ts';
@@ -332,7 +330,6 @@ export function applyAutoLegend(d: DiagramData): void {
 function ratioText(r: number): string { return r.toFixed(1); }
 
 /** Taller than this many widths: a book page is about 1.5 to 1.6 tall for its width, so a figure past it needs a page of its own. */
-const ASPECT_TALL = 1.5;
 
 function textContrast(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   const paint = paintOf(tones, d.appearance);
@@ -724,18 +721,13 @@ function fitRules(d: LintTarget, out: Finding[]): void {
       : `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart()' : FIT_WHO[b.type]}: ${knobs} を省略したため、幅に収まるようレイアウトが自動で変えた: ${what}。意図した変更なら ${say} と書く（info になる）。固定したいなら ${knobs} を明示する（収まらなければ試した案つきで止まる）`});
   }
 }
-function glyphRules(d: LintTarget, out: Finding[]): void {
-  const refs = new Set<SourceRef | undefined>();
-  const glyphs = missingGlyphs(d.laidOut, ref => refs.add(ref));
-  if (glyphs.length) out.push({...fromSources(refs), rule: 'glyph-missing', severity: 'warn', message: `絵文字として扱われない絵記号がある（${glyphs.map(g => `「${g}」`).join('')}）。通常の文字のフォントで描かれ、字形が無いと空白になる。直し方: icon.emoji() か SVG アイコン（box({icon})）を使う、または ✓ ✗ などの字に置き換える`});
-}
 function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   const out: Finding[] = [];
   out.push(...wrapFallbackFindings(d));
   out.push(...axisMismatchFindings(axisMismatches(d.bands)));
   out.push(...labelCoverFindings(d));
   out.push(...midWordFindings(d));
-  glyphRules(d, out);
+  out.push(...pictographFindings(d));
   layoutQualityRules(d, out);
   out.push(...edgeBendFindings(d));
   out.push(...parallelEdgeFindings(d));
@@ -766,18 +758,10 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
     const min = minTextSize(d);
     out.push(...canvasFindings(d.canvas, min, d.contentHeight));
   }
-  if (d.medium === 'doc' && !d.canvas && d.canvasHeight !== undefined && d.canvasHeight > ASPECT_TALL * d.width) {
-    const kinds = new Set(walkBands(d.bands).map(b => b.type));
-    const ways = [
-      ...(kinds.has('cause') ? ['causeTree({fold})（折って段にする）'] : []),
-      ...(kinds.has('row') || kinds.has('grid') || kinds.has('group') ? ['row({cols}) / grid で横に並べる'] : []),
-      '図を 2 つに分ける（章・段階ごと）',
-    ];
-    out.push({rule: 'aspect-tall', severity: 'info', message: `幅 ${d.width}px に対して高さ ${d.canvasHeight}px（縦横比 ${(d.canvasHeight / d.width).toFixed(2)}）。本の 1 ページに収まりにくい。${ways.join('、')}を検討する（${ASPECT_TALL} 倍までは出さない）`});
-  }
+  out.push(...aspectTallFindings(d, () => walkBands(d.bands)));
   out.push(...documentWidthFindings(d));
   // doc diagrams are read at length on a page, so their budget is larger than the slide decks' (see budget.ts)
-  for (const w of budgetWarnings({laidOut: d.laidOut ?? []}, d.medium === 'doc' ? {boxBody: 100, total: 700, boxes: 30} : undefined)) out.push({rule: 'density', severity: 'warn', message: w});
+  out.push(...textBudgetFindings(d));
   const allBars = walkBands(d.bands).filter((b): b is BarsBand => b.type === 'bars');
   if (d.medium === 'doc' && !diagramTitle(d) && allBars.some(barsValuesHidden)) out.push({rule: 'bars-values-hidden', severity: 'warn', message: '値を隠した bars があるが、図に題名がなく <desc> も出ない。diagram({title}) を指定する（値の列は自動で <desc> に入る）'});
   for (const b of walkBands(d.bands)) if (b.type === 'image') out.push(...imageSizeFindings(b));
