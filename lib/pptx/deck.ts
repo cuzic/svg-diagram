@@ -3,7 +3,7 @@
 // shapes stay native and editable and the text shrinks with them (PowerPoint does not scale text when a group is resized, so the figure
 // is not one scaled group). Around it go the heading, the lead, the callouts and the source line; the notes go to the notes page.
 // Measuring the text and drawing the PNGs are the shell's (../pptx-deck-edge.ts, ../../pptx-deck.ts).
-import {escapeXml} from '../emit-common.ts';
+import {escapeXml} from '../xml-escape.ts';
 import {must} from '../must.ts';
 import {planDeckLayout, roomMessage, SLIDE_H, SLIDE_W, smallTextWarning, type Block, type FigureFit, type Run, type TextWidth} from '../deck-layout.ts';
 import type {Picture} from './image-band.ts';

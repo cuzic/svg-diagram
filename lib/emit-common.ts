@@ -1,3 +1,4 @@
+import {escapeXml} from './xml-escape.ts';
 import {PALETTE, EMOJI_RE, FILLED_ARROW_LENGTH, STRONG_TRIM, textColorOf, runColorOf} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import type {Point, Theme, EmphasisTone, LineStyle, Arrow, Align} from './types/core.ts';
@@ -13,15 +14,7 @@ export function snap4(n: number): number {
 }
 
 
-export const XML_ESC: Record<string, string> = {'&': '&amp;', '<': '&lt;', '>': '&gt;'};
-
-export function escapeXml(s: string): string {
-  return s.replace(/[&<>]/g, (c: string) => XML_ESC[c] ?? c);
-}
-
-/** For a double-quoted attribute value: escapeXml, and the quote itself. */
-export const escapeAttr = (s: string): string => escapeXml(s).replace(/"/g, '&quot;');
-
+export {XML_ESC, escapeXml, escapeAttr} from './xml-escape.ts';
 
 // Wraps emoji codepoints in <tspan class="emoji">, using the SAME EMOJI_RE
 // lint-svg.ts checks against — generated text can never trip that check.

@@ -339,3 +339,9 @@ test('selective PPTX embeds a data URI image with the legacy slide geometry', as
   assert.deepEqual(fallbacks, [{type: 'image', id: 'picture'}]);
   assert.equal(native, 0);
 });
+
+test('shared XML escaping preserves text and protects quoted attributes', async () => {
+  const {escapeAttr, escapeXml} = await import('../lib/xml-escape.ts');
+  assert.equal(escapeXml('比較 <A> & "B"'), '比較 &lt;A&gt; &amp; "B"');
+  assert.equal(escapeAttr('比較 <A> & "B"'), '比較 &lt;A&gt; &amp; &quot;B&quot;');
+});

@@ -1,4 +1,4 @@
-import {escapeXml} from '../emit-common.ts';
+import {escapeXml} from '../xml-escape.ts';
 import {must} from '../must.ts';
 import {runColorOf, textColorOf} from '../tokens.ts';
 import type {ToneEnv} from '../tokens.ts';

@@ -203,8 +203,6 @@
   "emit-common:arrowMarkers",
   "emit-common:arrowPath",
   "emit-common:emojiSpan",
-  "emit-common:escapeAttr",
-  "emit-common:escapeXml",
   "emit-common:lineAttrs",
   "emit-common:renderTextRuns",
   "emit-common:resolveLineColor",
