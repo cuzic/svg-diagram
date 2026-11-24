@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {bendsOf, crossingsOf, crossingsOfRuns, crossingsWith, rescore, runsOfPath, scoreOf, simplify, totalLength} from '../lib/polyline-metrics.ts';
 import {layoutWithLanes, routeLayered} from '../lib/layered-route.ts';
-import {edgeStats} from '../lib/rules.ts';
+import {connectorFindings, edgePairs, edgeStats} from '../lib/verify-connect-crossings.ts';
 import type {LaidOutConnect} from '../lib/types/containers.ts';
 import type {Pt} from '../lib/graph-layout.ts';
 
@@ -141,4 +141,16 @@ test('crossingsOfRuns / runsOfPath: the crossings of two polylines from their ru
   assert.equal(crossingsWith(a, [b, c], {}, cache), crossingsWith(a, [b, c]), 'the second time, from the cache');
   const next = new Map([[0, a], [1, b], [2, c]]), moved = new Map([[0, a], [1, P(5, 0, 5, 10, 25, 10)], [2, c]]);
   assert.deepEqual(rescore(next, scoreOf([...next.values()]), moved, cache), scoreOf([...moved.values()]));
+});
+
+test('connectorFindings reports sparsely labeled arrows and the crossing pairs are located', () => {
+  const connects = [
+    {fromId: 'a', toId: 'b', points: P(0, 5, 10, 5), label: 'Review'},
+    {fromId: 'c', toId: 'd', points: P(5, 0, 5, 10)},
+    {fromId: 'e', toId: 'f', points: P(20, 0, 30, 0)},
+    {fromId: 'g', toId: 'h', points: P(40, 0, 50, 0)},
+  ] as LaidOutConnect[];
+  assert.deepEqual(edgePairs(connects), {crossings: [[0, 1]], overlaps: []});
+  assert.deepEqual(connectorFindings({connects}).map(({rule}) => rule), ['edge-crossings', 'arrow-labels']);
+  assert.deepEqual(connectorFindings({connects: connects.map(c => ({...c, label: undefined}))}).map(({rule}) => rule), ['edge-crossings']);
 });

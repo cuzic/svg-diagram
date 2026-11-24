@@ -1063,3 +1063,21 @@ test('selected document width warnings honor the project limit and acceptance', 
   assert.deepEqual(notes(await renderBands([box({title: '比較'})],
     {measure, maxWidth: 720, diagramFindings: documentFindings, canvas: {width: 800, height: 400}})), []);
 });
+
+test('selected connectors preserve crossing findings and loop-under advice', async () => {
+  const boxes = ['調べる', '直す', '確かめる', '出す'].map(title => ({title}));
+  for (const dip of [undefined, 60]) {
+    const first = {route: 'loop-under', label: 'a'} as const;
+    const second = {route: 'loop-under', label: 'b', dip} as const;
+    const selected = await renderBands([row(boxes.map(b => box(b)), {id: 's'}),
+      connect('s#4:bottom', 's#2:bottom', first), connect('s#3:bottom', 's#1:bottom', second)], {measure});
+    const legacy = await renderInBrowser(diagram({theme: 'blue', legend: false}).add(
+      legacyRow(boxes.map(b => legacyBox(b)), {id: 's'}),
+      legacyConnect('s#4:bottom', 's#2:bottom', first), legacyConnect('s#3:bottom', 's#1:bottom', second)), {measure});
+    const finding = ({verdict}: typeof selected) => verdict.findings.find(f => f.rule === 'edge-crossings');
+    assert.match(finding(legacy)?.message ?? '', dip ? /交差する/ : /範囲が半端に重なる/);
+    assert.deepEqual(finding(selected), finding(legacy));
+    const warnings = ({verdict}: typeof selected) => verdict.warnings.filter(warning => warning.startsWith('[edge-crossings]'));
+    assert.deepEqual(warnings(selected), warnings(legacy));
+  }
+});

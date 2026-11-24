@@ -1,3 +1,5 @@
+import {findingAcceptanceHint} from '../finding-rules.ts';
+import {connectorFindings, connectorRules} from '../verify-connect-crossings.ts';
 import {labelCoverFindings} from '../verify-connect-label.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -14,7 +16,11 @@ export const connectDefinition: BandDef<ConnectBand, LaidOutConnect> = {
   internal: true,
   layout: layoutConnect,
   resolveConnect,
-  verify: {diagramFindings: labelCoverFindings},
+  rules: connectorRules,
+  verify: {
+    diagramFindings: [labelCoverFindings, connectorFindings],
+    acceptHint: rule => Object.hasOwn(connectorRules, rule) ? findingAcceptanceHint(rule) : undefined,
+  },
   expandLoopBacks,
   measure(data, {atoms, roles}) {
     if (data.label) atoms(data.label, roles.connectLabel ?? CONNECT_LABEL_SIZE, 400);

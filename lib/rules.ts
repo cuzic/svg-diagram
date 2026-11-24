@@ -38,7 +38,7 @@ import {canvasFindings} from './canvas-findings.ts';
 import {minTextSize} from './fit.ts';
 import {imageSizeFindings} from './verify-image.ts';
 import {thinBarFindings} from './verify-bars.ts';
-import {PALETTE, STRONG_STROKE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv} from './tokens.ts';
+import {PALETTE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 
 // contrast is judged on the colours as drawn: in a dark diagram the light tokens are looked up in the dark set first
@@ -53,9 +53,10 @@ import {layoutMetrics} from './layout-metrics.ts';
 import {dimmedBands} from './spotlight.ts';
 import type {BarsBand} from './types/bars.ts';
 import type {CaptionBand} from './types/text-bands.ts';
-import type {LaidOutConnect, LegendBand} from './types/containers.ts';
-import type {EmphasisTone, DiagramData, Point, Rect, RuleId} from './types/core.ts';
-import {crossingsOf} from './polyline-metrics.ts';
+import type {LegendBand} from './types/containers.ts';
+import type {EmphasisTone, DiagramData, Rect, RuleId} from './types/core.ts';
+import {connectorFindings, connectorRules} from './verify-connect-crossings.ts';
+export {edgePairs, edgeStats} from './verify-connect-crossings.ts';
 import type {Band, LaidOutBand} from './types/index.ts';
 import type {SwimlaneBand} from './types/sequence-table-swimlane.ts';
 import type {BoxBand, LaidOutBox} from './types/text-bands.ts';
@@ -88,7 +89,7 @@ export const RULE_DOCS = {
   'swimlane-lane-order': 'レーンの並べ替えで、レーンをまたぐ距離を減らせる（swimlane の opts に laneOrder: \'auto\' を渡すと、この順に自動で並べる）',
   'text-mid-word-break': "レイアウトが、カタカナの語(「コンテキス/ト」)や英数字の語の途中で行を割っている。箱や列が最長の語より狭いときに起きる。diagram({keepWords: true}) で、箱を最長のカタカナの語より狭くしない(causeTree / tree / mindmap / faultTree / states / bpmn の task。cloud・chevron・cycle・swimlane には効かない)。ほかに、箱の幅を広げる・向き(dir)や maxNodeW を変える・文言を短くする・語の前後で改行を書く。漢字どうしの途中の改行は対象外。スペースの無い複合語の境目(「キャプチャ/ステージ」)は辞書なしでは見分けられず、誤検出になりうる(accept で許容する)",
   'glyph-missing': "図の文字に、絵文字として扱われない絵記号(✅ ❌ など。EMOJI_RE の外)がある。通常の文字のフォントで描かれ、字形が無いと空白になる(resvg のプレビューで確認できる)。icon.emoji() か SVG アイコン(box({icon}))を使うか、✓ ✗ などの字に置き換える",
-  'connect-label-covers-arrow': "矢印のラベル(の下地)が、矢印の経路の 6 割より多くを覆い、見える部分が 20px に満たない。箱の間が狭く、矢じりや向きが読めなくなる。箱の間隔を広げる・ラベルを短くする・ラベルを箱の中に書く",
+  'connect-label-covers-arrow': connectorRules['connect-label-covers-arrow'].doc,
   'chart-axis-mismatch': "同じ単位で、横に並べる(同じ grouprow の別の group)か縦に続ける(間に別のチャートを挟まない)2 つのチャートの値の軸が違う。それぞれが自分のデータに合わせて軸を決めるので、同じ長さが別の値に見える(5.76 と 9.5 がほぼ同じ長さ)。両方に同じ domain: [0, 10] を書く(bars は max)。横向きのチャートは、ラベルの列の幅が違うと同じ値が別の長さに見えるので plotInset もそろえる。意図して別の量を別の軸で描くなら、axisGroup: false か accept",
   'wrap-fell-back': "wrap: 'bunsetsu-soft' で、文節で折ると図が幅に収まらなかったので、従来の折り方(phrase)で配置した(情報。漢字・ひらがなの途中で折れる行が残る)。図を 2 枚に分ける・文言を短くする・図の幅を広げると、文節で折れる。",
   'shrink-narrow-text': "fit: 'shrink' で bpmn / swimlane を詰めた結果、task / step の幅が狭すぎて本文が 2〜3 字ずつ折れる。縦向き・図の分割・文言の短縮を検討する",
@@ -97,7 +98,7 @@ export const RULE_DOCS = {
   'semantic-table-warning': tableRules['semantic-table-warning'].doc,
   'swimlane-lanes': 'レーンが多い（6 本まで）',
   'swimlane-hand-offs': 'レーンをまたぐ引き継ぎの数（情報）',
-  'edge-crossings': '線どうしの交差・重なりがある',
+  'edge-crossings': connectorRules['edge-crossings'].doc,
   'edge-bends': '自動配置の図（cause / states / bpmn / classes / semnet）で、1 本の矢印が 5 回以上折れる、または折れの合計 ÷ 矢印の数が 3 を超える。既定は情報、diagram({layoutCheck: "strict"}) で warn',
   'edge-parallel': 'causeTree() の図で、別の矢印どうしの同じ向きの線が、レーンの間隔（14px、density: "compact" で 11px。canvas の図は文字の倍率 `max(1, minText の倍率)` を掛けた値、minText: 18 で 18px）より近くで 4px を超えて並び、その長さの合計がレーンの間隔の 2 倍を超える（端を共有する矢印どうしも数える。たどれない平行線の束になる）。pdpc・relationDiagram・whyWhyTree は対象外。既定は情報、diagram({layoutCheck: "strict"}) で warn',
   'quadrant-item-moved': 'quadrant() の項目が、重なりを避けるため指定した座標から 16px 以上動いた（座標は目安として読まれる）',
@@ -149,7 +150,7 @@ export const RULE_DOCS = {
   'term-avoid': '用語集（.svg-diagram.json の "terms"）で、別の語に統一すると決めた語が使われている',
   'table-sum-mismatch': '表の「合計」行・列の値が、並ぶ値の和と合わない（丸めで説明できる差は除く）',
   'table-share-not-100': '表の「構成比」「割合」の列が、合計 100% にならない',
-  'arrow-labels': '一部にだけラベルがあり、ラベルのない矢印が多い',
+  'arrow-labels': connectorRules['arrow-labels'].doc,
   'canvas-region-empty': 'canvas() の領域に内容がない（requireAll: 全領域を埋める指定）',
   'one-story': '1 つの図に、スイムレーンが複数ある（1 図 1 話）',
   'slide-min-text': 'スライド用キャンバスの最小文字サイズ(既定 24px)より小さい文字がある',
@@ -213,7 +214,7 @@ export const RULE_LOCATION = {
   'swimlane-lane-order': 'band',
   'text-mid-word-break': 'band-grouped',
   'glyph-missing': 'band-grouped',
-  'connect-label-covers-arrow': 'band-grouped',
+  'connect-label-covers-arrow': connectorRules['connect-label-covers-arrow'].scope,
   'chart-axis-mismatch': 'band-grouped',
   'wrap-fell-back': 'diagram',
   'shrink-narrow-text': 'band',
@@ -222,7 +223,7 @@ export const RULE_LOCATION = {
   'semantic-table-warning': tableRules['semantic-table-warning'].scope,
   'swimlane-lanes': 'band',
   'swimlane-hand-offs': 'band',
-  'edge-crossings': 'band-grouped',
+  'edge-crossings': connectorRules['edge-crossings'].scope,
   'edge-bends': 'band',
   'edge-parallel': 'band',
   'quadrant-item-moved': 'band',
@@ -274,7 +275,7 @@ export const RULE_LOCATION = {
   'term-avoid': 'band-grouped',
   'table-sum-mismatch': 'band',
   'table-share-not-100': 'band',
-  'arrow-labels': 'diagram',
+  'arrow-labels': connectorRules['arrow-labels'].scope,
   'canvas-region-empty': 'band',
   'one-story': 'diagram',
   'slide-min-text': 'diagram',
@@ -446,72 +447,6 @@ function legendRules(d: LintTarget, out: Finding[]): void {
   const names = missing.map(k => { const w = where(k); return `${k}（${w ? `${w}。` : ''}凡例の例: ${labels[k] ?? k}）`; }).join('、');
   const location = hasLegend ? fromSources(all.filter(b => parts.has(b)).map(b => sourceOf(b))) : {};
   out.push({...location, rule: hasLegend ? 'legend-incomplete' : 'legend-missing', severity: 'warn', message: `凡例にない記法: ${names}。凡例に項目を足す（legend: 'auto' なら自動）か、凡例が要らない図なら legend: false`});
-}
-
-// segments of every connector, for crossing / overlap counting
-interface Seg {i: number; c: LaidOutConnect; a: Point; b: Point}
-function segsOf(connects: LaidOutConnect[]): Seg[] {
-  const out: Seg[] = [];
-  connects.forEach((c, i) => { for (let k = 0; k < c.points.length - 1; k++) out.push({i, c, a: must(c.points[k]), b: must(c.points[k + 1])}); });
-  return out;
-}
-const horiz = (s: Seg) => Math.abs(s.a.y - s.b.y) < 0.5;
-const vert = (s: Seg) => Math.abs(s.a.x - s.b.x) < 0.5;
-const lo = (a: number, b: number) => Math.min(a, b), hi = (a: number, b: number) => Math.max(a, b);
-
-const strokeOf = (c: LaidOutConnect) => c.weight === 'strong' ? STRONG_STROKE : 2;
-
-export function edgeStats(connects: LaidOutConnect[]): {crossings: number; overlaps: number} {
-  // crossings: right-angle crossings inside the other line's span by 2px (polyline-metrics, shared with the layered layout's score)
-  const crossings = crossingsOf(connects.map(c => c.points), {margin: 2, tol: 0.5});
-  const segs = segsOf(connects);
-  let overlaps = 0;
-  for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
-    const s = must(segs[i]), t = must(segs[j]);
-    if (s.i === t.i) continue;
-    // two lines this close (centre to centre) look like one: the normal width gives the usual 3, a strong line widens it
-    const near = (strokeOf(s.c) + strokeOf(t.c)) / 2 + 1;
-    const share = s.c.fromId === t.c.fromId || s.c.toId === t.c.toId || s.c.fromId === t.c.toId || s.c.toId === t.c.fromId;
-    if (horiz(s) && vert(t) || vert(s) && horiz(t)) continue;
-    if (!share && horiz(s) && horiz(t) && Math.abs(s.a.y - t.a.y) < near) {
-      if (Math.min(hi(s.a.x, s.b.x), hi(t.a.x, t.b.x)) - Math.max(lo(s.a.x, s.b.x), lo(t.a.x, t.b.x)) > 12) overlaps++;
-    } else if (!share && vert(s) && vert(t) && Math.abs(s.a.x - t.a.x) < near) {
-      if (Math.min(hi(s.a.y, s.b.y), hi(t.a.y, t.b.y)) - Math.max(lo(s.a.y, s.b.y), lo(t.a.y, t.b.y)) > 12) overlaps++;
-    }
-  }
-  return {crossings, overlaps};
-}
-
-/** The connects (by index) that cross or overlap each other, for pointing at the pair rather than only counting. */
-export function edgePairs(connects: LaidOutConnect[]): {crossings: [number, number][]; overlaps: [number, number][]} {
-  const crossings: [number, number][] = [], overlaps: [number, number][] = [];
-  for (let i = 0; i < connects.length; i++) for (let j = i + 1; j < connects.length; j++) {
-    const ci = must(connects[i]), cj = must(connects[j]);
-    if (crossingsOf([ci.points, cj.points], {margin: 2, tol: 0.5}) > 0) crossings.push([i, j]);
-    const pair = edgeStats([ci, cj]);
-    if (pair.overlaps > 0) overlaps.push([i, j]);
-  }
-  return {crossings, overlaps};
-}
-
-/** What to do about two lines that run back under a row (route: 'loop-under') and cross or overlap: the fix depends on whether their spans nest. */
-function loopUnderHints(connects: LaidOutConnect[]): string[] {
-  const name = (c: LaidOutConnect): string => `${c.fromId}→${c.toId}`;
-  const span = (c: LaidOutConnect): [number, number] => [Math.min(...c.points.map(p => p.x)), Math.max(...c.points.map(p => p.x))];
-  const {crossings, overlaps} = edgePairs(connects);
-  const out: string[] = [];
-  for (const [i, j] of overlaps) {
-    const a = must(connects[i]), b = must(connects[j]);
-    if (a.route !== 'loop-under' && b.route !== 'loop-under') continue;
-    const [sa, sb] = [span(a), span(b)], nested = (sa[0] <= sb[0] && sb[1] <= sa[1]) || (sb[0] <= sa[0] && sa[1] <= sb[1]);
-    out.push(nested ? `戻り ${name(a)} と ${name(b)} が同じ高さで重なる。外側の戻りに dip を書く（例: dip: 56）`
-      : `戻り ${name(a)} と ${name(b)} が同じ高さで重なり、範囲が半端に重なる。dip を変えると交差になる。戻り先か戻り元を変えるか、1 本にまとめる`);
-  }
-  for (const [i, j] of crossings) {
-    const a = must(connects[i]), b = must(connects[j]);
-    if (a.route === 'loop-under' || b.route === 'loop-under') out.push(`戻り ${name(a)} と ${name(b)} が交差する（dip では消えない）。戻り先か戻り元を変えるか、1 本にまとめる`);
-  }
-  return out;
 }
 
 function rowHeaderRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
@@ -842,19 +777,7 @@ function lintAll(d: LintTarget, tones: ToneEnv): Finding[] {
   graphRules(d, out);
   out.push(...termFindings(d.bands, d.terms), ...tableFindings(walkBands(d.bands)));
 
-  const connects = d.connects ?? [];
-  if (connects.length) {
-    const {crossings, overlaps} = edgeStats(connects);
-    if (crossings || overlaps) {
-      const hints = loopUnderHints(connects);
-      const pairs = connects.some(c => sourceOf(c)) ? edgePairs(connects) : undefined;
-      const refs = pairs ? [...pairs.crossings, ...pairs.overlaps].flatMap(pair => pair.map(i => sourceOf(must(connects[i])))) : [];
-      out.push({...fromSources(refs), rule: 'edge-crossings', severity: 'warn', message: `線の交差 ${crossings} 箇所、重なり ${overlaps} 箇所。${hints.length ? hints.slice(0, 3).join('。') : '箱や線の配置・レーンの順を見直す'}`});
-    }
-    const unlabeled = connects.filter(c => !c.label).length;
-    // no label at all is a convention (the arrows only mean "depends on" / "next"); some labelled and most not is the inconsistency to flag
-    if (connects.length >= 4 && unlabeled < connects.length && unlabeled / connects.length > 0.6) out.push({rule: 'arrow-labels', severity: 'info', message: `矢印 ${connects.length} 本のうち ${unlabeled} 本にラベルがない。何が流れるか（成果物・プロトコル）を短く添える`});
-  }
+  out.push(...connectorFindings(d));
   out.push(...statFitFindings(d));
   evidenceRules(d, out);
   out.push(...boxSizeFindings(walkBands(d.bands)));
