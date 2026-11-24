@@ -4,14 +4,14 @@ import * as semantic from '../dsl/qc-semantic.ts';
 import {analysisFindings, findingAcceptanceHint} from '../finding-rules.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {table as build} from '../dsl/sequence-table-swimlane.ts';
+import {table as build} from '../dsl/table.ts';
 import {renderTable} from '../emit-table.ts';
 import {snapGrid} from '../layout-util.ts';
 import {rowHeaderFindings, semanticTableFindings, tableRules} from '../table-rules.ts';
 import {layoutTable, tableTexts} from '../layout-table.ts';
 import type {LaidOutTable, TableBand, TableColumn, TableOpts, TableRow} from '../types/sequence-table-swimlane.ts';
 
-export {cell} from '../dsl/sequence-table-swimlane.ts';
+export {cell} from '../dsl/table.ts';
 
 export const tableDefinition: BandDef<TableBand, LaidOutTable> = {
   type: 'table',

@@ -586,7 +586,7 @@ try {
     ...tableSamples.map(([name, layout, sample]) => ({
       name, layout, source: composedSource([name], sample), include: `bands/${name}.js`,
       budget: {esbuild: name === 'table' ? 82500 : 77000, Vite: name === 'table' ? 107500 : 102000},
-      exclude: [...legacy, 'layout-connect.js', 'gantt.js', 'wireframe.js', 'lane-order.js', 'emit-tables.js', 'emit-wireframe.js', 'seq-table.js', ...(name === 'table' ? ['emit-sequence.js', 'layout-sequence.js'] : ['emit-table.js', 'layout-table.js'])], draw: true,
+      exclude: [...legacy, 'layout-connect.js', 'gantt.js', 'wireframe.js', 'lane-order.js', 'emit-tables.js', 'emit-wireframe.js', 'seq-table.js', 'dsl/sequence-table-swimlane.js', 'dsl/swimlane.js', ...(name === 'table' ? ['dsl/sequence.js', 'emit-sequence.js', 'layout-sequence.js'] : ['dsl/table.js', 'emit-table.js', 'layout-table.js'])], draw: true,
     })),
     ...screenSamples.map(([name, layout, sample]) => ({
       name, layout, source: composedSource([name], sample, `import {wf} from 'svg-diagram/bands/${name}';`), include: `bands/${name}.js`,
@@ -610,7 +610,7 @@ try {
     {name: 'Cause', source: composedSource([], "causeTree([{id: 'a', label: 'Review'}, {id: 'b', label: 'Done'}], [{from: 'a', to: 'b'}], {tree: 'crt'})", "import {causeTree} from 'svg-diagram/bands/cause';"),
       include: 'layout-cause-fit.js', bands: ['cause.js'], budget: {esbuild: 177000, Vite: 238000}, exclude: [...legacy, 'emit-figures.js', 'cloud.js', 'states.js', 'classes.js', 'dsl/diagrams.js', 'layout-connect.js', 'rca-rules.js'], draw: true},
     {name: 'Swimlane', source: composedSource(['swimlane'], "...swimlane([{id: 'work', label: 'Work'}], [{id: 'a', lane: 'work', title: 'Review'}])"),
-      include: 'bands/swimlane.js', budget: {esbuild: 101500, Vite: 130000}, exclude: [...legacy, 'emit-boxes.js', 'emit-legend.js', 'layout-connect.js', 'bands/connect.js', 'seq-table.js', 'wireframe.js', 'layout-row.js'], draw: true,
+      include: 'bands/swimlane.js', budget: {esbuild: 101500, Vite: 130000}, exclude: [...legacy, 'dsl/sequence-table-swimlane.js', 'dsl/sequence.js', 'dsl/table.js', 'emit-boxes.js', 'emit-legend.js', 'layout-connect.js', 'bands/connect.js', 'seq-table.js', 'wireframe.js', 'layout-row.js'], draw: true,
       bands: ['box.js', 'swimlane.js']},
     {name: 'Radar', source: composedSource(['radar'], "radar(['A', 'B', 'C'], [{label: 'Review', values: [3, 4, 5]}], {max: 5})"),
       include: 'bands/radar.js', budget: {esbuild: 97000, Vite: 120000}, exclude: [...legacy, 'lib/charts.js', 'charts-waterfall.js', 'charts-sankey.js', 'semnet.js', 'layout-connect.js'], draw: true},
