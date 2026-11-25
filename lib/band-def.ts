@@ -182,8 +182,9 @@ interface InternalLayout<D> {
   fitLineScale?: typeof fitLineScale;
   decorateCaptions?(data: DiagramData): Band[];
   areasPrelayout?: typeof areasPrelayout;
-  outputTypes?: readonly string[];
-  spotlightOutputs?: Readonly<Record<string, Pick<BandDef<never, object>, 'selfDimming' | 'spotlight'>>>;
+  /** The bands this one lays out as placed bands of another type, by that type: a placed band of the type is handled by this definition (its own type's one). */
+  // biome-ignore lint/suspicious/noExplicitAny: a definition of another type, whatever its data and placed types
+  outputDefinitions?: Readonly<Record<string, BandDef<any, any>>>;
   revealConnector?(placed: LaidOutConnect, ids: ReadonlyMap<string, {start: number; end?: number}>): LaidOutConnect;
   resolveConnect?: typeof resolveConnect;
   checkConnectionGeometry?: typeof checkConnectionGeometry;

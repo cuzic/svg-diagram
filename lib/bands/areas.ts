@@ -11,6 +11,7 @@ import {rowSpotlight, renderRow, rowSvgDefs} from '../emit-row.ts';
 import {layoutAreas} from '../layout-areas.ts';
 import type {AreasBand, AreasOpts, LaidOutRow} from '../types/containers.ts';
 import {groupDefinition} from './group.ts';
+import {rowOutputDefinition} from '../row-output.ts';
 
 const definition = {
   type: 'areas',
@@ -23,7 +24,7 @@ const definition = {
   layout: layoutAreas,
   areasPrelayout,
   children: data => data.children,
-  outputTypes: ['row'],
+  outputDefinitions: {row: rowOutputDefinition},
   verify: {rects: childRects, targets: laid => laid.children, diagramFindings: frameLayoutFindings},
   emit: (laid, env) => renderRow(laid, env.theme, env.tones, env.roles, env.stage),
 } satisfies BandDef<AreasBand, LaidOutRow>;

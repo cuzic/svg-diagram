@@ -11,6 +11,7 @@ import {layoutGroupRow} from '../layout-group-row.ts';
 import type {Declares, IdsOf, Refers, RefsOf, RowHandleOf} from '../strict.ts';
 import type {GroupBand, GroupRowBand, LaidOutRow, RowOpts} from '../types/containers.ts';
 import type {BoxBand} from '../types/text-bands.ts';
+import {rowOutputDefinition} from '../row-output.ts';
 
 export const groupRowDefinition: BandDef<GroupRowBand, LaidOutRow> = {
   type: 'grouprow',
@@ -22,7 +23,7 @@ export const groupRowDefinition: BandDef<GroupRowBand, LaidOutRow> = {
   internal: true,
   layout: layoutGroupRow,
   children: data => data.children,
-  outputTypes: ['row'],
+  outputDefinitions: {row: rowOutputDefinition},
   verify: {rects: childRects, targets: laid => laid.children, diagramFindings: frameLayoutFindings},
   emit: (laid, env) => renderRow(laid, env.theme, env.tones, env.roles, env.stage),
 };

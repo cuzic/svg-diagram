@@ -25,7 +25,7 @@ export function definitionsOf(bands: readonly Band[], extra: readonly BandDef[] 
     const def = defOf(data);
     if (!def) return;
     definitions.set(definitionKey(data), def);
-    if (def.internal) for (const type of def.outputTypes ?? []) outputs.set(type, def);
+    if (def.internal) for (const [type, output] of Object.entries(def.outputDefinitions ?? {})) outputs.set(type, output);
     for (const generated of def.generated?.(data) ?? []) visit(generated);
     for (const child of def.children?.(data) ?? []) visit(child);
   };

@@ -193,7 +193,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Preparat
     if (def.internal) {
       placeBox ??= def.layoutBoxLike;
       fitLayout ??= def.fitLineScale;
-      for (const type of def.outputTypes ?? []) syntheticOutputs.set(type, def);
+      for (const [type, output] of Object.entries(def.outputDefinitions ?? {})) syntheticOutputs.set(type, output);
     }
     const reveal = data as RevealOpts & {id?: string};
     const connector = authored && data.type === 'connect';
