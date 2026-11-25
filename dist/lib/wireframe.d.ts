@@ -1,0 +1,12 @@
+import { collectTextRequestsWith, collectScreenGridTextRequestsWith, collectStateMatrixTextRequestsWith, layoutScreensWith, layoutScreenGridWith, layoutStateMatrixWith, layoutWireframeWith } from './wireframe-layout-core.ts';
+import type { Wf } from './types/wireframe-nodes.ts';
+export declare const wf: Wf;
+export declare function collectTextRequests(band: Parameters<typeof collectTextRequestsWith>[0]): import("./dsl-pure.ts").TextRequest[];
+export declare function collectScreenGridTextRequests(band: Parameters<typeof collectScreenGridTextRequestsWith>[0]): import("./dsl-pure.ts").TextRequest[];
+export declare function collectStateMatrixTextRequests(band: Parameters<typeof collectStateMatrixTextRequestsWith>[0]): import("./dsl-pure.ts").TextRequest[];
+export declare function layoutWireframe(...args: Tail<Parameters<typeof layoutWireframeWith>>): import("./dsl-pure.ts").LaidOutWireframe;
+export declare function layoutScreens(...args: Tail<Parameters<typeof layoutScreensWith>>): import("./dsl-pure.ts").LaidOutScreens;
+export declare function layoutScreenGrid(...args: Tail<Parameters<typeof layoutScreenGridWith>>): import("./dsl-pure.ts").LaidOutScreens;
+export declare function layoutStateMatrix(...args: Tail<Parameters<typeof layoutStateMatrixWith>>): import("./dsl-pure.ts").LaidOutScreens;
+type Tail<T extends readonly unknown[]> = T extends readonly [unknown, ...infer Rest] ? Rest : never;
+export {};

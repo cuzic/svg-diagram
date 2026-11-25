@@ -1,0 +1,1 @@
+export declare const concentricPart: import("../../spec-kit.ts").PartDef<import("../../band-def.ts").WithBandDef<import("../../flow-types.ts").ConcentricBand, import("../../flow-types.ts").LaidOutFlowShape>>;

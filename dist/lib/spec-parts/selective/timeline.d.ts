@@ -1,0 +1,1 @@
+export declare const timelinePart: import("../../spec-kit.ts").PartDef<import("../../band-def.ts").WithBandDef<import("../../dsl-pure.ts").TimelineBand & import("../../strict.ts").Declares<string> & import("../../strict.ts").Handle, import("../../dsl-pure.ts").LaidOutTimeline>>;

@@ -1,0 +1,17 @@
+import type { WfHelpers, WfPartsApi } from './types/wireframe-nodes.ts';
+import type { WidgetRenderer, WireframeDecorations } from './wireframe-layout-core.ts';
+export declare const radioRenderer: WidgetRenderer<'radio'>;
+export declare const robotRenderer: WidgetRenderer<'robot'>;
+export declare const insightRenderer: WidgetRenderer<'insight'>;
+export declare const regionRenderer: WidgetRenderer<'region'>;
+export declare const breadcrumbRenderer: WidgetRenderer<'breadcrumb'>;
+export declare const fusionRenderer: WidgetRenderer<'fusion'>;
+export declare const compareRenderer: WidgetRenderer<'compare'>;
+export declare const toggleRenderer: WidgetRenderer<'toggle'>;
+export declare const checkboxRenderer: WidgetRenderer<'checkbox'>;
+export declare const sliderRenderer: WidgetRenderer<'slider'>;
+export declare const batteryRenderer: WidgetRenderer<'battery'>;
+export declare const signalRenderer: WidgetRenderer<'signal'>;
+export declare const widgetStates: NonNullable<WireframeDecorations['states']>;
+export declare const robotMarkers: NonNullable<WireframeDecorations['robotMarkers']>;
+export declare function installParts({ DRAW, NAT, AUTO_W }: Pick<WfHelpers, 'DRAW' | 'NAT' | 'AUTO_W'>): WfPartsApi;

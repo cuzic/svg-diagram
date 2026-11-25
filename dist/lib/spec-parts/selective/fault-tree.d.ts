@@ -1,0 +1,1 @@
+export declare const faultTreePart: import("../../spec-kit.ts").PartDef<import("../../band-def.ts").WithBandDef<import("../../dsl-pure.ts").FtaBand & import("../../strict.ts").Declares<string> & import("../../strict.ts").Handle & import("../../strict.ts").AnchorsOf<never>, import("../../dsl-pure.ts").LaidOutFta>>;

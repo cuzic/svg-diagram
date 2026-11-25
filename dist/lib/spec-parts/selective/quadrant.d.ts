@@ -1,0 +1,1 @@
+export declare const quadrantPart: import("../../spec-kit.ts").PartDef<import("../../band-def.ts").WithBandDef<import("../../quadrant.ts").QuadrantBand & import("../../strict.ts").Declares<string> & import("../../strict.ts").Handle, import("../../quadrant.ts").LaidOutQuadrant>>;

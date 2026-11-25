@@ -1,0 +1,109 @@
+// A tree band (tree, mind map, org chart, KPI tree, roadmap, fishbone) as native shapes: each node a rounded rectangle holding its own
+// text, each line a connector glued to the parent and the child (a curved line is a curvedConnector3, an elbow a bentConnector), and a
+// brace a freeform. Moving a node in PowerPoint drags its lines along. A dimmed tree (spotlight) stays a picture.
+import { assembleParts } from './parts-group.js';
+import { partStep } from '../parts.js';
+import { linesText } from './prims.js';
+import { namedAs } from './prims.js';
+import { PALETTE } from '../tokens.js';
+import { compareEdgeOrder, edgeStrokes } from '../tree-edge-style.js';
+import { fitConnector, siteIndex } from './geom.js';
+import { boxXml, groupXml } from './shapes.js';
+import { prstGeomXml } from './prims.js';
+import { runXml } from './text.js';
+import { treeTagColors } from '../emit-tree.js';
+import { hex, sp, solidFill, xfrm } from './xml.js';
+import { connectorShapeXml, freeformPathXml } from './line-shapes.js';
+import { NODE_TEXT_PAD_Y, nodeRunsOf } from './node-runs.js';
+/** The tree's padding inside a node (lib/tree.ts PAD_X / PAD_Y). */
+const PAD_X = 14;
+/** The node whose frame the point lies on (within 2px), if any. */
+function nodeAt(nodes, p) {
+    const near = (r) => p.x >= r.x - 2 && p.x <= r.x + r.w + 2 && p.y >= r.y - 2 && p.y <= r.y + r.h + 2
+        && (Math.abs(p.x - r.x) <= 2 || Math.abs(p.x - r.x - r.w) <= 2 || Math.abs(p.y - r.y) <= 2 || Math.abs(p.y - r.y - r.h) <= 2);
+    return nodes.find(n => near(n.rect));
+}
+/** The orthogonal route whose curved twin is the svg's S: out along the axis the tree grows on, across at the middle, in along it. */
+function curveRoute(a, z, axis) {
+    if (axis === 'x') {
+        const m = (a.x + z.x) / 2;
+        return [a, { x: m, y: a.y }, { x: m, y: z.y }, z];
+    }
+    const m = (a.y + z.y) / 2;
+    return [a, { x: a.x, y: m }, { x: z.x, y: m }, z];
+}
+/**
+ * The branches of a tree (ADR 0054 D9.3): each node that has children is a branch, its path the branches above it; the root's branch is
+ * the band's own group, a leaf is no branch of its own, and a subtree that holds a band node (no box: it is drawn as a band of its own)
+ * is not a branch. Returns each node's path (outside in) and whether it has a branch of its own.
+ */
+export function treeBranches(b, label) {
+    // the parents the layout recorded (a fishbone's bones have no line from the head, so the lines do not tell)
+    const n = b.nodes.length, parent = b.nodes.map(x => x.parent), kids = Array.from({ length: n }, () => []);
+    parent.forEach((p, i) => { if (p !== undefined)
+        kids[p]?.push(i); });
+    const holdsBand = (i) => !!b.nodes[i]?.band || (kids[i] ?? []).some(holdsBand);
+    const out = new Array(n);
+    const visit = (i, above) => {
+        const own = parent[i] !== undefined && (kids[i]?.length ?? 0) > 0 && !holdsBand(i);
+        const path = own ? [...above, partStep('branch', b.nodes[i]?.id ?? i, label(i))] : above;
+        out[i] = { path, own };
+        for (const k of kids[i] ?? [])
+            visit(k, path);
+    };
+    for (let i = 0; i < n; i++)
+        if (parent[i] === undefined)
+            visit(i, []);
+    return out;
+}
+/** The tree's shapes, numbered from `next`. Lines, then braces, then nodes (as the svg draws them); each branch a group (treeBranches). */
+export function treeXml(b, ld, tones, fonts, next) {
+    const nodes = b.nodes.map((n, i) => ({ n, i, id: n.band ? 0 : next(), rect: { x: n.x, y: n.y, w: n.w, h: n.h } })).filter(x => !x.n.band);
+    const glue = nodes.flatMap(({ n, id, rect }) => n.id ? [{ dslId: n.id, id, rect }] : []);
+    const runsOf = new Map(nodes.map(x => [x.i, nodeRunsOf(x.n, b.texts, tones)]));
+    const branches = treeBranches(b, i => linesText((runsOf.get(i) ?? []).flatMap(r => r.lines)));
+    const pathOf = (i) => i === undefined ? [] : branches[i]?.path ?? [];
+    const pieces = [];
+    const add = (xml, geo, path, text = false) => pieces.push({ order: pieces.length, xml, geo, part: path, ...(text ? { text } : {}) });
+    for (const e of b.edges.toSorted(compareEdgeOrder)) {
+        const a = e.points[0], z = e.points[e.points.length - 1];
+        if (!a || !z)
+            continue;
+        // one connector in the item's own look (ADR 0081 D2); the segments shared with the siblings are not drawn apart in pptx
+        const { own: stroke } = edgeStrokes(e, b.dim, ld.day, tones), color = stroke.color, dashOpts = { ...(stroke.line === 'dashed' ? { dashed: true } : {}), ...(stroke.line === 'dotted' ? { dotted: true } : {}) };
+        const width = e.bold ? 4 : 2;
+        const from = nodeAt(nodes, a), to = nodeAt(nodes, z);
+        const start = from && { id: from.id, idx: siteIndex(from.rect, a, '') };
+        const end = to && { id: to.id, idx: siteIndex(to.rect, z, '') };
+        const route = e.curve ? curveRoute(a, z, e.curve) : e.points;
+        const fit = fitConnector(route);
+        const id = next();
+        // a line is in its parent's branch (a node's own line, in the node's)
+        const geo = { kind: 'poly', pts: route, w: width };
+        if (fit.ok) {
+            const x = e.curve ? { ...fit.x, prst: fit.x.prst.replace('bentConnector', 'curvedConnector') } : fit.x;
+            add(connectorShapeXml(id, 'line', x, color, width, start, end, dashOpts), geo, pathOf(e.from));
+        }
+        else
+            add(freeformPathXml(id, 'line', e.points.map((p, i) => ({ op: i ? 'L' : 'M', pts: [p] })), color, width, dashOpts), geo, pathOf(e.from));
+    }
+    for (const br of b.braces ?? []) {
+        const s = br.side === 'right' ? 1 : -1, r = 8, { x, tipX: xt, y1, y2, ymid: ym } = br;
+        const id = next();
+        add(freeformPathXml(id, 'brace', [
+            { op: 'M', pts: [{ x: x + s * r, y: y1 }] }, { op: 'Q', pts: [{ x, y: y1 }, { x, y: y1 + r }] }, { op: 'L', pts: [{ x, y: ym - r }] },
+            { op: 'Q', pts: [{ x, y: ym }, { x: xt, y: ym }] }, { op: 'Q', pts: [{ x, y: ym }, { x, y: ym + r }] }, { op: 'L', pts: [{ x, y: y2 - r }] },
+            { op: 'Q', pts: [{ x, y: y2 }, { x: x + s * r, y: y2 }] },
+        ], PALETTE.muted, 2), { kind: 'poly', pts: [{ x: x + s * r, y: y1 }, { x, y: y1 }, { x, y: y2 }, { x: x + s * r, y: y2 }, { x, y: ym }, { x: xt, y: ym }], w: 2 }, pathOf(br.of));
+    }
+    for (const { n, i, id, rect } of nodes) {
+        const runs = runsOf.get(i) ?? [], box = { ...rect, tone: n.tone, padX: PAD_X, padY: NODE_TEXT_PAD_Y, align: 'center', wrappedRuns: runs };
+        add(boxXml(id, namedAs('box', linesText(runs.flatMap(r => r.lines)), n.id), box, ld.day, tones, fonts), { kind: 'rect', r: rect }, pathOf(i), runs.length > 0);
+        // ADR 0081 D4: a tag is a pill after its node's box, in the same branch (anchor ctr, the colours of the svg)
+        for (const t of n.tags ?? []) {
+            const c = treeTagColors(n.tone, t.tone, b.dim, ld.day, tones), r = { x: t.x, y: t.y, w: t.w, h: t.h };
+            add(sp(next(), namedAs('tag', t.text), `${xfrm(r)}${prstGeomXml('roundRect', 50000)}${solidFill(c.fill)}<a:ln><a:noFill/></a:ln>`, `<a:bodyPr wrap="none" lIns="0" tIns="0" rIns="0" bIns="0" anchor="ctr"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr algn="ctr"/>${runXml(t.text, t.size, true, false, hex(c.text), fonts)}</a:p>`), { kind: 'rect', r }, pathOf(i));
+        }
+    }
+    return { xml: groupXml(next(), namedAs('tree', '', b.id), b, assembleParts(pieces, next)), glue };
+}

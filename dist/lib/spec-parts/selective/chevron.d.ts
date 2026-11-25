@@ -1,0 +1,1 @@
+export declare const chevronPart: import("../../spec-kit.ts").PartDef<import("../../band-def.ts").WithBandDef<import("../../dsl/flow-types.ts").ShapeExtra<import("../../flow-types.ts").ChevronBand, string, readonly import("../../flow-types.ts").FlowStep[]>, import("../../flow-types.ts").LaidOutFlowShape>>;

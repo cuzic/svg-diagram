@@ -1,0 +1,1 @@
+export declare const paretoPart: import("../../spec-kit.ts").PartDef<import("../../band-def.ts").WithBandDef<import("../../dsl-pure.ts").BarsBand & import("../../strict.ts").Declares<string> & import("../../strict.ts").Handle, import("../../dsl-pure.ts").LaidOutBars>>;

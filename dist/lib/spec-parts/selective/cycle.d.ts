@@ -1,0 +1,1 @@
+export declare const cyclePart: import("../../spec-kit.ts").PartDef<import("../../band-def.ts").WithBandDef<import("../../dsl/flow-types.ts").ShapeExtra<import("../../flow-types.ts").CycleBand, string, readonly import("../../flow-types.ts").FlowStep[]>, import("../../flow-types.ts").LaidOutFlowShape>>;

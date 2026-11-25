@@ -1,0 +1,12 @@
+export { catplot, boxplot, violinplot, stripplot, swarmplot, pointplot, barplot } from './catplot.ts';
+export { displot, histplot, kdeplot, ecdfplot, rugplot } from './distplot.ts';
+export { hist2d, jointplot, kde2d, pairplot } from './multiplot.ts';
+export { regplot, residplot } from './regplot.ts';
+export { clustermap } from './clustermap.ts';
+export { facet } from './facet.ts';
+export type { FacetAxes, FacetOpts } from './facet.ts';
+export type { CatGroup, CatKind, CatOpts } from '../charts-cat.ts';
+export type { DistGroup, DistKind, DistOpts, DistStat } from '../charts-dist.ts';
+export type { MultiOpts, XY } from '../charts-multi.ts';
+export type { RegData, RegOpts } from '../charts-reg.ts';
+export type { ClusterOpts } from '../charts-cluster.ts';

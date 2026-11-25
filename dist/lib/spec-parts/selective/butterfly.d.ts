@@ -1,0 +1,1 @@
+export declare const butterflyPart: import("../../spec-kit.ts").PartDef<import("../../band-def.ts").WithBandDef<import("../../charts.ts").ChartBand & import("../../strict.ts").Declares<string> & import("../../strict.ts").Handle & import("../../strict.ts").AnchorsOf<string>, import("../../charts.ts").LaidOutChart>>;

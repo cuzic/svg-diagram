@@ -1,0 +1,1 @@
+export declare const valueChainPart: import("../../spec-kit.ts").PartDef<import("../../band-def.ts").WithBandDef<import("../../flow-types.ts").ValueChainBand & import("../../strict.ts").Declares<string> & import("../../strict.ts").Handle, import("../../flow-types.ts").LaidOutFlowShape>>;

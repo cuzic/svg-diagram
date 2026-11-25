@@ -1,0 +1,15 @@
+import type { SlideBudget } from './types/verdicts.ts';
+export declare function cacheKey(pageFile: string, heading: string, svg: string): string;
+export declare function readSlideBudgetCache({ page, heading, svg, slidesMd }: {
+    page: string;
+    heading: string;
+    svg: string;
+    slidesMd?: string;
+}): SlideBudget | null;
+export declare function getSlideBudget({ page, heading, svg, slidesMd, refresh }: {
+    page: string;
+    heading: string;
+    svg: string;
+    slidesMd?: string;
+    refresh?: boolean;
+}): Promise<SlideBudget>;

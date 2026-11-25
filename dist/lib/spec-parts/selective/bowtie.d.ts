@@ -1,0 +1,1 @@
+export declare const bowtiePart: import("../../spec-kit.ts").PartDef<import("../../band-def.ts").WithBandDef<import("../../dsl-pure.ts").BowtieBand & import("../../strict.ts").Declares<string> & import("../../strict.ts").Handle, import("../../dsl-pure.ts").LaidOutBowtie>>;

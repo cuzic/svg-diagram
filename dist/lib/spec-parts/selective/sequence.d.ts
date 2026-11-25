@@ -1,0 +1,1 @@
+export declare const sequencePart: import("../../spec-kit.ts").PartDef<import("../../band-def.ts").WithBandDef<import("../../dsl-pure.ts").SequenceBand & import("../../strict.ts").Declares<string> & import("../../strict.ts").Handle, import("../../dsl-pure.ts").LaidOutSequence>>;

@@ -1,0 +1,1 @@
+export declare const barsPart: import("../../spec-kit.ts").PartDef<import("../../band-def.ts").WithBandDef<import("../../dsl-pure.ts").BarsBand & import("../../strict.ts").Declares<string> & import("../../strict.ts").Handle & import("../../strict.ts").AnchorsOf<string>, import("../../dsl-pure.ts").LaidOutBars>>;

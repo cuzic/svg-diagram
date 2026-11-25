@@ -1,0 +1,1 @@
+export declare const funnelPart: import("../../spec-kit.ts").PartDef<import("../../band-def.ts").WithBandDef<import("../../dsl/flow-types.ts").ShapeExtra<import("../../flow-types.ts").FunnelBand, never, never>, import("../../flow-types.ts").LaidOutFlowShape>>;

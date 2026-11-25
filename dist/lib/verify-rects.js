@@ -1,0 +1,34 @@
+import { qualify, scopeOf } from './scope-name.js';
+import { sourceOf } from './source-ref.js';
+import { labelOf } from './verify-base.js';
+/** Each anchor is its own rect; `holds`: a connector that ends on the whole figure (its id) may run among them. */
+export const anchorRects = (band, intentional) => band.anchors.map(a => ({ id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h, ...((band.id || intentional) ? { holds: [band.id, intentional].filter((x) => !!x) } : {}) }));
+export const figureRects = (band) => anchorRects(band);
+/** An emblem's obstacle is the bounding box of each shape, not its anchor: a triangle's anchor leaves out its lower corners. */
+export const emblemRects = (band) => anchorRects({ ...band, anchors: band.bounds ?? band.anchors });
+export const overlappingFigureRects = (band) => anchorRects(band, `@intentional-overlap:${band.x},${band.y}`);
+export const childRects = (band) => band.children.map(c => {
+    const loc = sourceOf(c);
+    return { id: c.id ?? null, label: labelOf(c), x: c.x, y: c.y, w: c.w, h: c.h, ...(loc ? { loc } : {}) };
+});
+export const statusRects = (band) => [{ id: null, label: 'status badge', ...band.pill }];
+/** A rect of a scoped band answers to the names a connect() holds (`plan.p0`), not the bare ids the band's own output keeps (ADR 0012). The band's own id is a name of the whole figure. */
+export function scopedRect(band, scope, r) {
+    const own = band.type === 'box' ? undefined : band.id; // a swimlane step is a box: its id is the item's
+    const name = (id) => id === own || id.startsWith('@') ? id : qualify(scope, id);
+    return { ...r, id: r.id === null ? null : name(r.id), ...(r.holds ? { holds: r.holds.map(name) } : {}) };
+}
+export const frameRects = (band) => band.anchors.map(a => ({ id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h }));
+export const ownRect = (band) => [{ id: band.id ?? null, label: labelOf(band), x: band.x, y: band.y, w: band.w, h: band.h }];
+/** Every checkable rect of a laid-out figure, in band order: what each band's definition lists, or the band as a whole when it lists none. */
+export function collectRectsWith(figure, definitionOf) {
+    return figure.laidOut.flatMap(band => {
+        const def = definitionOf(band);
+        const rects = def?.verify?.rects?.(band) ?? ('h' in band ? ownRect(band) : []);
+        const scope = def?.rectsQualified ? undefined : scopeOf(band), loc = sourceOf(band);
+        return rects.map(rect => {
+            const located = loc && !rect.loc ? { ...rect, loc } : rect;
+            return scope ? scopedRect(band, scope, located) : located;
+        });
+    });
+}

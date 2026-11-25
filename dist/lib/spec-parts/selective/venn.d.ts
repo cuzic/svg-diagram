@@ -1,0 +1,1 @@
+export declare const vennPart: import("../../spec-kit.ts").PartDef<import("../../band-def.ts").WithBandDef<import("../../dsl/flow-types.ts").ShapeExtra<import("../../flow-types.ts").VennBand, string, readonly import("../../flow-types.ts").VennSet[]>, import("../../flow-types.ts").LaidOutFlowShape>>;
