@@ -9,7 +9,8 @@ import {bpmn, box, causeTree, chevron, closeMeasurer, concentric, cycle, diagram
 import {loadConfig} from '../lib/config.ts';
 import {loadDiagram} from '../lib/load-source.ts';
 import {renderWithStages} from '../lib/dsl/render.ts';
-import {withNodeIds, withNodeIdsBand} from '../lib/emit-node-ids.ts';
+import {nameBoxChildren, nameBoxNode, nameBpmnNodes, nameCauseNodes, nameFlowShapeNodes, nameQuadrantNodes, nameTreeNodes, withNodeIds, withNodeIdsBand} from '../lib/emit-node-ids.ts';
+import type {LaidOutRow} from '../lib/types/containers.ts';
 import type {LaidOutBand} from '../lib/types/index.ts';
 
 register(new URL('../lib/resolve-hook.ts', import.meta.url)); // the examples import 'svg-diagram'
@@ -164,4 +165,17 @@ test('nodeIds: a quadrant item that is dimmed by a spotlight and a hollow marker
     items: [{id: 'p', label: '製品 A', at: [0.8, 0.8], group: 'a'}, {id: 'q', label: '製品 B', at: [0.2, 0.3], group: 'b'}],
   }));
   assert.deepEqual([...new Set(marks((await draw(d, true)).svg))].sort(), ['p', 'q']);
+});
+
+test('the naming helpers a band definition shares write dataNode on a named frame only', () => {
+  const at = <T>(value: unknown): T => value as T;
+  assert.equal(nameBoxNode(at({id: 'a'})).dataNode, 'a');
+  assert.equal(nameBoxNode(at({id: 'a', frame: false})).dataNode, undefined);
+  assert.deepEqual(nameBoxChildren(at<LaidOutRow>({children: [{id: 'a'}, {}]})).children.map(c => c.dataNode), ['a', undefined]);
+  assert.deepEqual(nameTreeNodes(at({nodes: [{id: 'a'}, {}]})).nodes.map((n: {dataNode?: string}) => n.dataNode), ['a', undefined]);
+  assert.deepEqual(nameCauseNodes(at({anchors: [{id: 'a'}, {id: 'b'}, {id: 'c'}], unanchored: ['b'], nodes: [{}, {}, {hex: true}]})).nodes.map((n: {dataNode?: string}) => n.dataNode), ['a', undefined, undefined]);
+  assert.deepEqual(nameBpmnNodes(at({anchors: [{id: 'a'}, {id: 'b'}], nodes: [{kind: 'task'}, {kind: 'event'}]})).nodes.map((n: {dataNode?: string}) => n.dataNode), ['a', undefined]);
+  assert.deepEqual(nameFlowShapeNodes(at({primitives: [{node: 'a'}, {}]})).primitives.map(p => (p as {dataNode?: string}).dataNode), ['a', undefined]);
+  const quadrant = nameQuadrantNodes(at({bubbles: [{id: 'a'}], texts: [{item: 0}, {}]}));
+  assert.deepEqual([quadrant.bubbles[0]?.dataNode, ...quadrant.texts.map((t: {dataNode?: string}) => t.dataNode)], ['a', 'a', undefined]);
 });
