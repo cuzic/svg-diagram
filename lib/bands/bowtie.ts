@@ -23,6 +23,7 @@ const definition = {
     return {laid, h: laid.h};
   },
   emit: (laid, {theme, tones}) => renderBowtie(laid, theme, tones),
+  locations: {drawsFrame: (_laid, item) => item !== undefined},
   rules: layoutFitRules,
   verify: {...layoutFitVerification, rects: bowtieRects, findings: (data, {rcaCheck}) => analysisFindings(data, bowtieFindings(data), rcaCheck === 'strict' ? 'warn' : 'info')},
 } satisfies BandDef<BowtieBand, LaidOutBowtie>;

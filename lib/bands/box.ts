@@ -1,4 +1,5 @@
 import {node as buildNode} from '../dsl/node.ts';
+import {nameBoxNode} from '../emit-node-ids.ts';
 import type {NodeOpts} from '../dsl/node.ts';
 import {stat as buildStat} from '../dsl/stat.ts';
 import type {RichText, StatOpts} from '../types/text-bands.ts';
@@ -44,6 +45,8 @@ export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
   internal: true,
   layoutBoxLike,
   layout: layoutBoxLikeBand,
+  nameNodes: nameBoxNode,
+  locations: {drawsFrame: laid => laid.frame !== false},
   emit(laid, {theme, tones, roles}) {
     return renderBox(laid, theme, tones, roles);
   },

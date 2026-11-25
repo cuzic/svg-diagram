@@ -1,4 +1,5 @@
 import {frameLayoutFindings} from '../layout-metrics.ts';
+import {nameQuadrantNodes} from '../emit-node-ids.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -28,6 +29,7 @@ const definition = {
     return {laid, h: laid.h, anchors: laid.anchors};
   },
   emit: (laid, {theme, tones}) => renderQuadrant(laid, theme, tones),
+  nameNodes: nameQuadrantNodes,
   verify: {
     diagramFindings: frameLayoutFindings,
     findings: quadrantFindings,

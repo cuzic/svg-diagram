@@ -1,4 +1,5 @@
 import {withNodeIds} from '../emit-node-ids.ts';
+import {placedDefinitionOf} from '../placed-definitions.ts';
 import {resolveImages} from '../image-file.ts';
 import {prepareLegacyDiagramWithCore, renderLegacyDiagramWithCore} from '../legacy-core.ts';
 import {defaultMeasureSettings, measureAll} from '../measure.ts';
@@ -62,7 +63,7 @@ async function render(input: Diagram, opts: RenderOptions) {
     html = emitHtml(laidOut, {reveal: result.stage, fontBox: fontBoxOf(laidOut.measure), emit: result.emit});
   }
   const rendered: RenderResult = {svg, ...(html !== undefined ? {html} : {}), laidOut, verdict, xml, notes: [...notes, ...result.notes], width, height, fit, budget, budgetSource, fontScale};
-  const emitRevealStage = (stage: number) => result.emit(opts.nodeIds ? withNodeIds(laidOut) : laidOut, false, undefined, stage);
+  const emitRevealStage = (stage: number) => result.emit(opts.nodeIds ? withNodeIds(laidOut, placedDefinitionOf) : laidOut, false, undefined, stage);
   return {result: rendered, emitRevealStage};
 }
 // Layout + verification + rules, without writing any file: the engine behind `svg-diagram check`.

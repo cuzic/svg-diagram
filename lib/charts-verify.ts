@@ -40,7 +40,3 @@ export function checkChart(band: LaidOutChart, d: Pick<LaidOutDiagram, 'day' | '
   for (const [i, s] of band.solids.entries()) for (let j = i + 1; j < band.solids.length; j++) if (overlaps(s, must(band.solids[j]))) problems.push(`${who}: ${s.label} overlaps ${must(band.solids[j]).label}`);
   return problems;
 }
-
-export function checkCharts(d: LaidOutDiagram, tones: ToneEnv): string[] {
-  return d.laidOut.flatMap(band => band.type === 'chart' ? checkChart(band, d, tones) : []);
-}

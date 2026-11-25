@@ -1,4 +1,5 @@
 import {steps as buildSteps} from '../steps.ts';
+import {nameBoxChildren} from '../emit-node-ids.ts';
 import type {StepItem, StepsOpts} from '../steps.ts';
 import {boxDefinition} from './box.ts';
 import {rowLoopBack} from '../loop-back-source.ts';
@@ -28,6 +29,7 @@ export const rowDefinition: BandDef<RowBand, LaidOutRow> = {
   children: data => data.children,
   verify: {rects: childRects, targets: laid => laid.children, diagramFindings: frameLayoutFindings},
   emit: (laid, env) => renderRow(laid, env.theme, env.tones, env.roles, env.stage),
+  nameNodes: nameBoxChildren,
 };
 
 export function row<C extends BoxBand & {readonly [DEF]: object}, const Id extends string = never>(

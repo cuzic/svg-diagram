@@ -1,7 +1,6 @@
 // Browser worksheet rendering (ADR 0074 D5): use the diagram pipeline for placement, then fill the slots of that SVG.
 import {comic} from '../dsl/comic.ts';
 import {diagram} from '../dsl/diagram.ts';
-import {withNodeIdsBand} from '../emit-node-ids.ts';
 import {FONT_STACKS} from '../tokens.ts';
 import {renderInBrowser} from '../web.ts';
 import type {WebMeasurer, WebRender} from '../web.ts';
@@ -55,7 +54,7 @@ export async function renderComic(sheet: ComicWorksheet, opts: {
     {measure, ...(nodeIds === undefined ? {} : {nodeIds})});
   const laid = base.laidOut.laidOut.find(b => b.type === 'comic');
   if (!laid) throw new Error('renderComic: 配置したマンガの帯が見つかりません。ワークシートのコマを確認してください');
-  const emitted = nodeIds ? withNodeIdsBand(laid) as LaidOutComic : laid;
+  const emitted: LaidOutComic = nodeIds ? {...laid, nodeIds: true} : laid;
 
   const memo = new Map<string, Promise<Measured>>();
   const key = (text: string, size: number, weight: number, font: string): string => JSON.stringify([text, size, weight, font]);

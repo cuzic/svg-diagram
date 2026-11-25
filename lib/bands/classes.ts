@@ -27,6 +27,7 @@ const definition = {
     return {laid, h: laid.h, anchors: laid.anchors};
   },
   emit: (laid, {theme, tones}) => renderClasses(laid, theme, tones),
+  locations: {drawsFrame: (_laid, item) => item !== undefined},
   rules: layoutFitRules,
   verify: {
     ...layoutFitVerification,

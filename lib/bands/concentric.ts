@@ -1,4 +1,5 @@
 import {flowSpotlight} from '../emit-flow-shape.ts';
+import {nameFlowShapeNodes} from '../emit-node-ids.ts';
 import {concentricFindings} from '../verify-concentric.ts';
 import {overlappingFigureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
@@ -19,6 +20,7 @@ const definition = {
   measure: (data, env) => measureFlow(data, env, concentricTexts),
   layout: (data, env) => placeFlow(data, env, layoutConcentricShape),
   emit: emitFlow,
+  nameNodes: nameFlowShapeNodes,
   svgDefs: laid => ({arrow: laid.primitives.some(p => p.k === 'path' && !!p.arrow)}),
   verify: {...verifyFlow, rects: overlappingFigureRects, layoutFindings: concentricFindings},
 } satisfies BandDef<ConcentricBand, LaidOutFlowShape>;

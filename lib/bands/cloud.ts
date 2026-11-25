@@ -27,6 +27,7 @@ const definition = {
     return {laid, h: laid.h, anchors: laid.anchors};
   },
   emit: (laid, {theme, tones}) => renderCloud(laid, theme, tones),
+  locations: {drawsFrame: (_laid, item) => item !== undefined},
   verify: {
     rects: cloudRects,
     check: laid => cloudProblems(laid).map(message => ({rule: 'cloud', severity: 'problem', message})),

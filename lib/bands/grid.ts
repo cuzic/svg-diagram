@@ -1,4 +1,5 @@
 import {unionOf} from '../figure-metrics.ts';
+import {nameBoxChildren} from '../emit-node-ids.ts';
 import {layoutBoxLike} from '../layout-box-like.ts';
 import {childBoxes} from '../inventory-boxes.ts';
 import {canvasRegionFindings} from '../verify-grid.ts';
@@ -31,6 +32,7 @@ export const gridDefinition: BandDef<GridBand, LaidOutGrid> = {
     wordedChildren: data => data.children.filter((_, i) => data.canvas?.worded[i]),
   },
   emit: (laid, env) => renderGrid(laid, env.theme, env.tones, env.roles, env.stage),
+  nameNodes: nameBoxChildren,
 };
 
 export function grid<C extends BoxBand & {readonly [DEF]: object}>(children: C[], opts: GridOpts): WithBandDef<ReturnType<typeof buildGrid<C>>, LaidOutGrid> {

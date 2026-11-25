@@ -30,6 +30,7 @@ export const groupDefinition: BandDef<GroupBand, LaidOutGroup> = {
   },
   verify: {rects: () => [], targets: () => [], diagramFindings: frameLayoutFindings},
   emit: (laid, env) => renderGroup(laid, env.theme, env.tones, env.roles),
+  locations: {drawsFrame: laid => laid.frame !== false},
 };
 
 export function group<C extends SelectedBand | SelectedBand[], const Id extends string = never>(

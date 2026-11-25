@@ -1,4 +1,5 @@
 import {flowSpotlight} from '../emit-flow-shape.ts';
+import {nameFlowShapeNodes} from '../emit-node-ids.ts';
 import {chevronLoopBack} from '../loop-back-source.ts';
 import {figureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
@@ -20,6 +21,7 @@ const definition = {
   measure: (data, env) => measureFlow(data, env, chevronTexts),
   layout: (data, env) => placeFlow(data, env, layoutChevron),
   emit: emitFlow,
+  nameNodes: nameFlowShapeNodes,
   verify: {...verifyFlow, rects: figureRects},
 } satisfies BandDef<ChevronBand, LaidOutFlowShape>;
 

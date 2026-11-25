@@ -14,6 +14,7 @@ import {documentAcceptHint, documentFindings} from './document-findings.ts';
 import {at, findingAcceptanceHint, fromSources} from './finding-rules.ts';
 import {resolveBoxStyle, resolveTextColor} from './emit-common.ts';
 import {withNodeIds} from './emit-node-ids.ts';
+import {placedDefinitionOf} from './placed-definitions.ts';
 import {applySpotlightWith} from './emit-spotlight.ts';
 import {definitionFor, UNDEFINED_BANDS} from './full-definitions.ts';
 import {withTitleLine} from './layout-caption-lines.ts';
@@ -322,7 +323,7 @@ export async function prepareLegacyDiagramWithCore(d: DiagramData, options: Lega
 export async function renderLegacyDiagramWithCore(d: DiagramData, options: LegacyOptions, services?: LegacyServices) {
   const {placed: laidOut, stage, verdict, emit, fit, fontScale} = await prepareLegacyDiagramWithCore(d, options, services);
   if (options.html && d.appearance === 'auto') throw new Error("diagram({appearance: 'auto'}) is SVG only: the HTML form paints with style attributes, which a media rule cannot override (drop html / --html, or use 'dark')");
-  const svg = emit(options.nodeIds ? withNodeIds(laidOut) : laidOut);
+  const svg = emit(options.nodeIds ? withNodeIds(laidOut, placedDefinitionOf) : laidOut);
   const notes = d.fill && options.budget == null ? [UNMEASURED_FILL_NOTE] : [];
   return {svg, width: laidOut.width, height: laidOut.canvasHeight, xml: xmlProblems(svg), laidOut, verdict, fit, fontScale,
     stage, emit, unsupported: unsupportedCoreOptions(d), notes};

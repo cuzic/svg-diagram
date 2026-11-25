@@ -1,4 +1,7 @@
 import {fitLineScale} from '../layout-cause-fit.ts';
+import {must} from '../must.ts';
+import {qualify, scopeOf} from '../scope-name.ts';
+import {nameCauseNodes} from '../emit-node-ids.ts';
 import {layoutFitRules, layoutFitVerification} from '../verify-layout-fit.ts';
 import {edgeBendFindings} from '../verify-edge-bends.ts';
 import {parallelEdgeFindings} from '../verify-cause-spacing.ts';
@@ -39,6 +42,11 @@ export const causeDefinition: BandDef<CauseBand, LaidOutCause> = {
   fitLineScale,
   layout: placeCause,
   emit: (laid, {theme, tones}) => renderCause(laid, theme, tones),
+  locations: {
+    drawsFrame: (laid, item) => item !== undefined && !must(laid.nodes[item]).hex,
+    synthetic: (laid, id) => laid.unanchored?.some(name => qualify(scopeOf(laid), name) === id) === true,
+  },
+  nameNodes: nameCauseNodes,
   rules: layoutFitRules,
   verify: {
     ...layoutFitVerification,

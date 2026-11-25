@@ -1,4 +1,5 @@
 import {flowSpotlight} from '../emit-flow-shape.ts';
+import {nameFlowShapeNodes} from '../emit-node-ids.ts';
 import {figureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
@@ -18,6 +19,7 @@ const definition = {
   measure: (data, env) => measureFlow(data, env, valueChainTexts),
   layout: (data, env) => placeFlow(data, env, layoutValueChain),
   emit: emitFlow,
+  nameNodes: nameFlowShapeNodes,
   verify: {...verifyFlow, rects: figureRects},
 } satisfies BandDef<ValueChainBand, LaidOutFlowShape>;
 

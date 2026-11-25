@@ -2,7 +2,7 @@ import {band} from './band-def.ts';
 import type {BandDef, WithBandDef} from './band-def.ts';
 import {stateMatrix as buildMatrix} from './dsl/state-matrix.ts';
 import {screens as build} from './dsl/wireframe.ts';
-import {renderPrims} from './emit-wireframe.ts';
+import {primRectGeometry, renderPrims} from './emit-wireframe.ts';
 import type {ScreensItemInput, StateRowLoose, ValidateStateRows} from './strict.ts';
 import type {LaidOutScreens, PartRow, ScreensBand, ScreensOpts, StateMatrixOpts} from './types/wireframe.ts';
 import {frameRects} from './verify-rects.ts';
@@ -20,6 +20,15 @@ export function screensDefinition(collect: (data: ScreensBand) => TextRequest[],
       for (const [text, size, weight, font] of collect(data)) atoms(text, size, weight, font);
     },
     emit: (laid, {theme}) => renderPrims(laid, theme),
+    locations: {
+      // The anchor includes the title above the frame. The frame shares its left, right and bottom edges.
+      itemRect(laid, rect) {
+        const bottom = rect.y + rect.h;
+        const frame = laid.prims.find(p => p.k === 'rect' && p.x === rect.x && p.w === rect.w &&
+          p.y >= rect.y && Math.abs(p.y + p.h - bottom) < 1e-6);
+        return frame?.k === 'rect' ? primRectGeometry(frame) : undefined;
+      },
+    },
     verify: {rects: frameRects, findings},
   };
 }

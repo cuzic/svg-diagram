@@ -36,6 +36,7 @@ const definition = {
     for (const [text, size, weight, font] of comicMeasure(data)) atoms(text, size, weight, font);
   },
   emit: laid => renderComicBand(laid),
+  nameNodes: laid => ({...laid, nodeIds: true}),
   nodeIds: 'self',
   rectsQualified: true,
   rules: comicRuleDocs,

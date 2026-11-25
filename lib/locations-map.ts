@@ -1,7 +1,5 @@
 // ADR 0072 D6: a map of the placed parts in viewBox coordinates.
 import {frameGeometry} from './emit-box-frame.ts';
-import {ganttBarGeometry} from './emit-gantt.ts';
-import {primRectGeometry} from './emit-wireframe.ts';
 import {layoutFinding} from './layout-issues.ts';
 import type {ResolveSource} from './layout-issues.ts';
 import {must} from './must.ts';
@@ -16,7 +14,7 @@ import type {DiagramSource, Rect} from './types/core.ts';
 import type {LaidOutBand, LaidOutDiagram} from './types/index.ts';
 import type {Issue} from './types/verdicts.ts';
 import {labelOf} from './verify-base.ts';
-import {collectRects} from './placed-definitions.ts';
+import {collectRects, placedDefinitionOf} from './placed-definitions.ts';
 
 type At = {loc: SourceLoc; via?: Omit<SourceLoc, 'file'>[]};
 type Life = {reveal?: number; until?: number};
@@ -36,35 +34,12 @@ function rectOf({x, y, w, h}: Rect): Rect {
 }
 
 function drawsFrame(band: LaidOutBand, item?: number): boolean {
-  switch (band.type) {
-    case 'box':
-    case 'group': return band.frame !== false;
-    case 'banner': return true;
-    case 'bowtie':
-    case 'classes':
-    case 'cloud':
-    case 'fta':
-    case 'tree': return item !== undefined;
-    case 'cause': return item !== undefined && !must(band.nodes[item]).hex;
-    case 'states': return item !== undefined && !must(band.nodes[item]).circle;
-    case 'bpmn': return item !== undefined && must(band.nodes[item]).kind === 'task';
-    default: return false;
-  }
+  return placedDefinitionOf(band)?.locations?.drawsFrame?.(band as never, item) ?? false;
 }
 
 function itemRect(band: LaidOutBand, rect: Rect, index: number): Rect {
-  if (band.type === 'gantt') {
-    // Only tasks with IDs have anchors, so the anchor index need not be the bar index.
-    const bar = band.bars.find(b => b.x === rect.x && b.y === rect.y && b.w === rect.w && b.h === rect.h);
-    if (bar && !bar.milestone) return ganttBarGeometry(bar);
-  }
-  if (band.type === 'screens') {
-    // The anchor includes the title above the frame. The frame shares its left, right and bottom edges.
-    const bottom = rect.y + rect.h;
-    const frame = band.prims.find(p => p.k === 'rect' && p.x === rect.x && p.w === rect.w &&
-      p.y >= rect.y && Math.abs(p.y + p.h - bottom) < 1e-6);
-    if (frame?.k === 'rect') return primRectGeometry(frame);
-  }
+  const own = placedDefinitionOf(band)?.locations?.itemRect?.(band as never, rect, index);
+  if (own) return own;
   return drawsFrame(band, index) ? frameGeometry(rect) : rectOf(rect);
 }
 
@@ -118,7 +93,7 @@ function partMap(diagram: LaidOutDiagram, band: LaidOutBand, resolve: ResolveSou
     const at = partLocation(r.loc, resolve);
     if (!at) continue;
     const part = children ? must(children[index]) : band;
-    const synthetic = band.type === 'cause' && band.unanchored?.some(id => qualify(scopeOf(band), id) === r.id);
+    const synthetic = r.id != null && placedDefinitionOf(band)?.locations?.synthetic?.(band as never, r.id) === true;
     const node = children && 'id' in part && part.id ? qualify(scopeOf(part), part.id) : synthetic ? undefined : r.id;
     const life = {...lifeOf(part), ...lifeOf(r.life ?? {})};
     const rect = itemRect(part, r, index);

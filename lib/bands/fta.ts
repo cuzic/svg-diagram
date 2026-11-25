@@ -27,6 +27,7 @@ const definition = {
     return {laid, h: laid.h, anchors: laid.anchors};
   },
   emit: (laid, {theme, tones}) => renderFta(laid, theme, tones),
+  locations: {drawsFrame: (_laid, item) => item !== undefined},
   rules: layoutFitRules,
   verify: {...layoutFitVerification, rects: ftaRects, findings: (data, {rcaCheck}) => analysisFindings(data, ftaFindings(data), rcaCheck === 'strict' ? 'warn' : 'info')},
 } satisfies BandDef<FtaBand, LaidOutFta>;

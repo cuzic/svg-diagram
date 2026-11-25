@@ -156,6 +156,17 @@ interface BandHooks<D, L extends object> {
   generated?(data: D): Band[];
   stackWidth?(data: D, width: number): number;
   nodeIds?: 'host' | 'self';
+  /** Trusted only: the placed band with `dataNode` on each node it draws as a plain frame (emitSvg({nodeIds: true})); a band without the hook names none. */
+  nameNodes?(laid: L): object;
+  /** Trusted only: how the location map (ADR 0072 D6) reads a placed band. */
+  locations?: {
+    /** Whether the band (`item` undefined) or one of its items is drawn as a frame, which the map insets. Default: no. */
+    drawsFrame?(laid: L, item?: number): boolean;
+    /** The drawn geometry of the item whose anchor is `rect`; undefined keeps the anchor's own (framed or not). */
+    itemRect?(laid: L, rect: Rect, index: number): Rect | undefined;
+    /** An anchor the maker named itself: no source node belongs to it. */
+    synthetic?(laid: L, id: string): boolean;
+  };
   rectsQualified?: boolean;
   offGrid?: boolean;
 }
@@ -191,11 +202,13 @@ type ExternalBand<T> = T extends ExternalType ? {type: T; id?: string} & ScopeOp
 export type BandValue<T extends Band['type'] | ExternalType> =
   (Extract<Band, {type: T}> | ExternalBand<T>) & {readonly [DEF]: BandDef};
 
-export function assertTrustedBandFields(def: Pick<BandDef, 'type' | 'internal' | 'nodeIds' | 'rectsQualified' | typeof EXTERNAL>): void {
+export function assertTrustedBandFields(def: Pick<BandDef, 'type' | 'internal' | 'nodeIds' | 'rectsQualified' | typeof EXTERNAL> & {nameNodes?: unknown; locations?: unknown}): void {
   const separator = def.type.indexOf(':');
   if (!def[EXTERNAL] && separator < 0) return;
   const field = def.internal === true ? 'internal'
     : def.nodeIds === 'self' ? 'nodeIds'
+    : def.nameNodes !== undefined ? 'nameNodes'
+    : def.locations !== undefined ? 'locations'
     : def.rectsQualified === true ? 'rectsQualified' : undefined;
   if (field) {
     const plugin = separator < 0 ? def.type : def.type.slice(0, separator);

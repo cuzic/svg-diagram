@@ -1,4 +1,6 @@
 import {edgeBendFindings} from '../verify-edge-bends.ts';
+import {must} from '../must.ts';
+import {nameBpmnNodes} from '../emit-node-ids.ts';
 import {narrowTextFindings} from '../verify-shrink.ts';
 import {textsAndLabels} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
@@ -28,6 +30,8 @@ const definition = {
     return {laid, h: laid.h, anchors: laid.anchors};
   },
   emit: (laid, {theme, tones}) => renderBpmn(laid, theme, tones),
+  locations: {drawsFrame: (laid, item) => item !== undefined && must(laid.nodes[item]).kind === 'task'},
+  nameNodes: nameBpmnNodes,
   verify: {
     diagramFindings: edgeBendFindings,
     rects: laid => anchorRects(laid),

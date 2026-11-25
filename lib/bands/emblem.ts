@@ -1,4 +1,5 @@
 import {flowSpotlight} from '../emit-flow-shape.ts';
+import {nameFlowShapeNodes} from '../emit-node-ids.ts';
 import {emblemRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
@@ -18,6 +19,7 @@ const definition = {
   measure: (data, env) => measureFlow(data, env, emblemTexts),
   layout: (data, env) => placeFlow(data, env, layoutEmblem),
   emit: emitFlow,
+  nameNodes: nameFlowShapeNodes,
   verify: {...verifyFlow, rects: emblemRects, tones: data => data.items.map(item => item.tone ?? 'plain')},
 } satisfies BandDef<EmblemBand, LaidOutFlowShape>;
 

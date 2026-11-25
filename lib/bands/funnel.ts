@@ -1,4 +1,5 @@
 import {flowSpotlight} from '../emit-flow-shape.ts';
+import {nameFlowShapeNodes} from '../emit-node-ids.ts';
 import {figureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
@@ -19,6 +20,7 @@ const definition = {
   measure: (data, env) => measureFlow(data, env, funnelTexts),
   layout: (data, env) => placeFlow(data, env, layoutFunnel),
   emit: emitFlow,
+  nameNodes: nameFlowShapeNodes,
   verify: {...verifyFlow, rects: figureRects, findings: funnelFindings},
 } satisfies BandDef<FunnelBand, LaidOutFlowShape>;
 

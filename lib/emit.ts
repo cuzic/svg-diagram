@@ -35,7 +35,7 @@ export const renderBandWith = (definitionOf: DefinitionOf) => (band: LaidOutBand
  * `parts`: mark each part's elements with `data-part` (ADR 0054), for the PowerPoint export; nothing else changes.
  */
 export function emitSvg(laidOutDiagram: LaidOutDiagram, opts: {reveal?: number; noRecolor?: boolean; nodeIds?: boolean; parts?: boolean; definitions?: readonly BandDef[]} = {}, definitionOf: DefinitionOf = definitionsOf(laidOutDiagram.bands, opts.definitions)): string {
-  const named = opts.nodeIds ? withNodeIds(laidOutDiagram) : laidOutDiagram;
+  const named = opts.nodeIds ? withNodeIds(laidOutDiagram, definitionOf) : laidOutDiagram;
   const services = {
     connectorDefs: connectorSvgDefs, defsNeeded: (band: LaidOutBand): SvgBandDefs => definitionOf(band)?.svgDefs?.(band as never) ?? {},
     renderBand: renderBandWith(definitionOf), renderConnect, diagramTitle, diagramDesc, spotlightDim,

@@ -1,4 +1,5 @@
 import {layoutFitRules, layoutFitVerification, layoutFitFindings} from '../verify-layout-fit.ts';
+import {must} from '../must.ts';
 import {edgeBendFindings} from '../verify-edge-bends.ts';
 import {densityRestorationFindings} from '../verify-density.ts';
 import {flowchartFindings} from '../verify-flowchart.ts';
@@ -29,6 +30,7 @@ export const statesDefinition: BandDef<StatesBand, LaidOutStates> = {
     return {laid, h: laid.h, anchors: laid.anchors};
   },
   emit: (laid, {theme, tones}) => renderStates(laid, theme, tones),
+  locations: {drawsFrame: (laid, item) => item !== undefined && !must(laid.nodes[item]).circle},
   rules: layoutFitRules,
   verify: {
     ...layoutFitVerification,

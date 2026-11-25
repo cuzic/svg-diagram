@@ -5,6 +5,7 @@ import type {Values, WebMeasurer} from '../lib/web.ts';
 import {renderComicBand} from '../lib/comic/emit.ts';
 import {replaceComicFragment} from '../lib/comic/render.ts';
 import {withNodeIdsBand} from '../lib/emit-node-ids.ts';
+import {placedDefinitionOf} from '../lib/placed-definitions.ts';
 import type {LaidOutComic} from '../lib/types/comic.ts';
 import {ARTIST} from './helpers/comic-character.ts';
 import {SAMPLE} from './helpers/comic-sample.ts';
@@ -23,7 +24,7 @@ test('renderComic shares the browser pipeline and replaces only the comic fragme
     assert.equal(empty.width, 492);
     const laid = plain.laidOut.laidOut.find(b => b.type === 'comic')!;
     assert.equal(laid.w, plain.width - 40);
-    const emitted = (nodeIds ? withNodeIdsBand(laid) : laid) as LaidOutComic;
+    const emitted = (nodeIds ? withNodeIdsBand(laid, placedDefinitionOf) : laid) as LaidOutComic;
     const filled = await renderComic(SAMPLE, {measure, nodeIds, values: {day: '水曜'}});
     assert.equal(filled.svg, plain.svg.replace(renderComicBand(emitted), renderComicBand(emitted, {day: '水曜'})));
     assert.match(slotSvg(filled.svg, 'day'), />水曜<\/text>/);
