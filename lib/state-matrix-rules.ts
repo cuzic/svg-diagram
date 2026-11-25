@@ -16,3 +16,9 @@ export function stateMatrixFindings(b: ScreensBand): Finding[] {
   if (todo.length) out.push({...at(b), rule: 'wf-states-todo', severity: 'warn', message: `「未設計」の欄: ${todo.join('、')}`});
   return out;
 }
+
+export const stateMatrixRules = /* @__PURE__ */ Object.freeze({
+  'wf-states-todo': {doc: '状態の一覧に「未設計」の欄がある（設計するか、対象外と明示する）', scope: 'band'},
+  'wf-states-required': {doc: '状態の一覧に、必須の状態の列がない', scope: 'band'},
+  'wf-states-ragged': {doc: '状態の一覧の行に、列より多い欄がある', scope: 'band'},
+} as const);

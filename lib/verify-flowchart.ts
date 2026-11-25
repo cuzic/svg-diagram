@@ -17,3 +17,7 @@ export function flowchartFindings(b: LaidOutStates): Finding[] {
   });
   return out;
 }
+
+export const flowchartRules = /* @__PURE__ */ Object.freeze({
+  'flowchart-decision-edges': {doc: '判断（flowchart のひし形）から出る矢印が 2 本未満、または 3 本以上、またはラベル（Yes / No など）がない', scope: 'band'},
+} as const);

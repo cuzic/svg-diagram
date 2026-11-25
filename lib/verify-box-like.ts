@@ -49,3 +49,8 @@ export function statFitFindings(d: Partial<Pick<LaidOutDiagram, 'laidOut'>>): Fi
   }
   return out;
 }
+
+export const boxLikeRules = /* @__PURE__ */ Object.freeze({
+  'box-size-ignored': {doc: 'box({size}) は効果がない(レイアウトも描画も読まない)。大きい文字は役割で書く: stat() / stat({size: "display"})・caption({role: "display"})・banner({headlineRole})・bars / plane({labelRole})。次の版で throw する', scope: 'band-grouped'},
+  'stat-fit-shrunk': {doc: 'stat() の値が箱の幅に収まらないので、自動で小さい文字にした(隣の stat と大きさがそろわない。箱を広げるか、値を短くするとそろう)', scope: 'band'},
+} as const);

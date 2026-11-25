@@ -26,3 +26,10 @@ export function swimlaneFindings(sl: SwimlaneBand, connects: readonly Pick<LaidO
   }
   return out;
 }
+
+export const swimlaneRules = /* @__PURE__ */ Object.freeze({
+  'swimlane-lane-order': {doc: 'レーンの並べ替えで、レーンをまたぐ距離を減らせる（swimlane の opts に laneOrder: \'auto\' を渡すと、この順に自動で並べる）', scope: 'band'},
+  'swimlane-lanes': {doc: 'レーンが多い（6 本まで）', scope: 'band'},
+  'swimlane-hand-offs': {doc: 'レーンをまたぐ引き継ぎの数（情報）', scope: 'band'},
+  'one-story': {doc: '1 つの図に、スイムレーンが複数ある（1 図 1 話）', scope: 'diagram'},
+} as const);

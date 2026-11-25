@@ -9,7 +9,7 @@ import {withNodeIds} from './emit-node-ids.ts';
 import {emitSvgWith} from './emit-svg-core.ts';
 import type {SvgBandDefs} from './emit-svg-core.ts';
 import {withParts} from './parts.ts';
-import {diagramTitle, diagramDesc} from './rules.ts';
+import {diagramTitle, diagramDesc} from './diagram-summary.ts';
 import {spotlightDim} from './emit-spotlight.ts';
 import type {LaidOutBand, LaidOutDiagram} from './types/index.ts';
 

@@ -21,3 +21,8 @@ export function densityRestorationFindings(d: Partial<Pick<LaidOutDiagram, 'laid
   if (who.length) out.push({...at(restored[0], ...restored.slice(1)), rule: 'density-compact-restored', severity: 'info', message: `${[...new Set(who)].join('・')}: density: 'compact' にすると箱を通る矢印・重なるラベルが増えるので、この図は通常の間隔で描いた（高さは詰まっていない）`});
   return out;
 }
+
+export const densityRules = /* @__PURE__ */ Object.freeze({
+  'cause-line-scale-dropped': {doc: "canvas の causeTree で、線の間隔を文字の倍率で広げた図が canvas の高さ・幅に収まらず、広げない間隔で描いた（情報）。canvas を高くする・minText を下げる・図を分けると広げられる", scope: 'band-grouped'},
+  'density-compact-restored': {doc: "diagram({density: 'compact'}) の因果ツリー・状態遷移で、詰めた図のほうが検査の問題(箱を通る矢印・ラベルの重なり)が多いので、通常の間隔で描いた（情報）", scope: 'band-grouped'},
+} as const);

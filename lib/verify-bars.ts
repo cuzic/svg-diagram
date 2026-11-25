@@ -62,3 +62,8 @@ export function hiddenBarsTitleFindings(
     ? [{rule: 'bars-values-hidden', severity: 'warn', message: '値を隠した bars があるが、図に題名がなく <desc> も出ない。diagram({title}) を指定する（値の列は自動で <desc> に入る）'}]
     : [];
 }
+
+export const barsRules = /* @__PURE__ */ Object.freeze({
+  'bars-values-hidden': {doc: '値ラベルも目盛りも出さない bars があるのに、図の題名（SVG の <title>）がなく、値を読み上げる <desc> が届かない（doc 媒体）', scope: 'diagram'},
+  'bars-thin-bar': {doc: '棒が 1px 以下（値は 0 でない）。図の高さ・幅を上げるか max を見直す', scope: 'band'},
+} as const);

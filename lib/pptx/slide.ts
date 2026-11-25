@@ -1,5 +1,5 @@
 import type {LaidOutDiagram} from '../types/index.ts';
-import {diagramDesc, diagramTitle} from '../rules.ts';
+import {diagramDesc, diagramTitle} from '../diagram-summary.ts';
 import {groupSpan} from './group-span.ts';
 import {swimlaneSpan} from './swimlane-span.ts';
 import {bandXml} from './bands.ts';

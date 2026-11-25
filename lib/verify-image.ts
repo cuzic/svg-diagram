@@ -34,3 +34,7 @@ export function imageSizeFindings(band: ImageBand): Finding[] {
   const message = largeImageWarning(band.bytes);
   return message ? [{...at(band), rule: 'image-large', severity: 'warn', message}] : [];
 }
+
+export const imageRules = /* @__PURE__ */ Object.freeze({
+  'image-large': {doc: '埋め込んだ画像が大きい（300 KB 超）。ファイルがそのまま SVG に入り、段階表示の各ファイルにも入る。縮小・圧縮してから使う', scope: 'band'},
+} as const);

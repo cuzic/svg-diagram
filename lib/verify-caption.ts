@@ -38,3 +38,8 @@ export function duplicateTitleFindings(
     ? [{...at(first), rule: 'title-duplicated', severity: 'info', message: `題名と先頭の caption が同じ文字列「${first.text.trim().slice(0, 20)}」。diagram({title, showTitle: true}) に寄せて、caption を消せる`}]
     : [];
 }
+
+export const captionRules = /* @__PURE__ */ Object.freeze({
+  'title-duplicated': {doc: '題名（diagram({title})）と、先頭の caption が同じ文字列。diagram({title, showTitle: true}) に寄せて、caption を消せる', scope: 'band'},
+  'source-wraps': {doc: '出典行（diagram({sourceLine})）が 1 行に収まらず折り返している（短くする）', scope: 'diagram'},
+} as const);

@@ -79,3 +79,14 @@ export function bowtieFindings(band: Pick<BowtieBand, 'threats' | 'consequences'
   if (c.length) out.push({rule: 'bowtie-barrier-missing', message: `低減バリアが 1 つも無い結果がある: ${c.join('、')}。和らげる手を足すか、無いことを確かめる`});
   return out;
 }
+
+export const rcaRules = /* @__PURE__ */ Object.freeze({
+  'isisnot-no-isnot': {doc: 'IS/IS NOT 表(isIsNot)に、IS NOT が空の行がある(比較対象が無い)。diagram({rcaCheck: "strict"}) で warn', scope: 'band'},
+  'isisnot-no-distinct-at-all': {doc: 'IS/IS NOT 表に「違い」が 1 つも無い(IS と IS NOT で鋭く違う点を挙げる)。diagram({rcaCheck: "strict"}) で warn', scope: 'band'},
+  'isisnot-no-hypothesis-stands': {doc: '仮説の検定表(isIsNotTests)に、説明できない行が 0 の仮説が無い(原因はまだ分かっていない。常に info)', scope: 'band'},
+  'whywhy-no-root': {doc: 'なぜなぜ分析(whyWhyTable / whyWhyTree)に、真因(trueCause)の無い鎖(葉)がある。どこまで掘ったか分からない。diagram({rcaCheck: "strict"}) で warn', scope: 'band'},
+  'whywhy-measure-without-root': {doc: 'なぜなぜ分析で、真因でない所に対策(measure)がある(症状への対策になる)。diagram({rcaCheck: "strict"}) で warn', scope: 'band'},
+  'whywhy-single-chain': {doc: 'なぜなぜ分析が 1 本の鎖だけ(分岐が無い。原因が 1 つに決まっているか確かめる。常に info)', scope: 'band'},
+  'whywhy-dig-below-root': {doc: 'なぜなぜの木で、真因(trueCause)の節の下にまだ「なぜ」がある(真因より下を掘っている。常に info)', scope: 'band'},
+  'bowtie-barrier-missing': {doc: 'ボウタイ図(bowtie)で、脅威または結果にバリアが 1 つも無い(防ぐ・和らげる手が無い道)。diagram({rcaCheck: "strict"}) で warn', scope: 'band'},
+} as const);

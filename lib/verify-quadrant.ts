@@ -45,3 +45,10 @@ export function quadrantLayoutFindings(b: LaidOutQuadrant): Finding[] {
   if (b.floored.length) out.push({...at(b), rule: 'quadrant-size-floor', severity: 'warn', message: `quadrant() の項目 ${b.floored.map(l => `「${l}」`).join('、')} の size が最大の値に比べて小さすぎ、最小の円で描いた（面積が値より大きく見える）。値の差が大きすぎるなら、大きさではなく文字で示す`});
   return out;
 }
+
+export const quadrantRules = /* @__PURE__ */ Object.freeze({
+  'quadrant-item-moved': {doc: 'quadrant() の項目が、重なりを避けるため指定した座標から 16px 以上動いた（座標は目安として読まれる）', scope: 'band'},
+  'quadrant-size-floor': {doc: 'quadrant() の項目の size が小さすぎ、最小の円で描いた（面積が値より大きく見える）', scope: 'band'},
+  'quadrant-empty-cell': {doc: 'quadrant() のマスに項目が 1 つもない（「該当なし」の空の枠が残っている。意図した空きは allowEmpty で示す）', scope: 'band'},
+  'quadrant-tone-only': {doc: 'quadrant() の項目の色（tone）だけで種類を分けている（group を使うと形と凡例でも伝わる）', scope: 'band'},
+} as const);
