@@ -1,6 +1,14 @@
-import {MAX_NODE_WIDTH, MAX_TREE_DEPTH, MAX_TREE_NODES, object, oneOf, treeItem, treeSize, withoutType} from '../spec-kit.ts';
-import type {PartDef, Json, SpecIssue} from '../spec-kit.ts';
+import {LINE, MAX_NODE_WIDTH, MAX_TREE_DEPTH, MAX_TREE_NODES, list, object, oneOf, text, treeItem, treeSize, withoutType} from '../spec-kit.ts';
+import type {PartDef, Json, JsonSchema, SpecIssue} from '../spec-kit.ts';
 
+/** ADR 0081 D7: what only a mind map's items take. maxLength is in UTF-16 units (16); the 8 code points are checked by the part's check(). */
+const branchStyle = (): Record<string, JsonSchema> => {
+  const TAG_TONE = oneOf('accent', 'muted', 'danger');
+  return {
+    edge: object({tone: {...TAG_TONE, description: 'The colour of the line to the parent (default muted): accent for a pro, danger for a con.'}, line: {...LINE, description: 'The line to the parent (default solid).'}}, [], 'How the line from the parent to this node looks. Not on the root, and not with edges: false or layout brace, fishbone or timeline.'),
+    tags: list({oneOf: [text('A tag (8 characters at most).', 16), object({text: text('The tag (8 characters at most).', 16), tone: TAG_TONE}, ['text'])]}, 3),
+  };
+};
 const NO_EDGE_LAYOUTS = ['brace', 'fishbone', 'timeline'];
 /** ADR 0081 D3/D7: the errors of edge and tags that the schema cannot say, with the place in the spec. The messages are Japanese like the DSL's. */
 function checkBranchStyle(part: Json, at: string, issues: SpecIssue[]): void {
@@ -30,7 +38,7 @@ export function defineMindmapPart<Result>(builder: (root: never, opts: never) =>
     description: "A mind map: one root with branches, for organising a topic. `layout` also gives an org chart ('org'), an indented list ('list'), a brace map ('brace'), a fishbone cause-and-effect chart ('fishbone') and a timeline ('timeline').",
     schema: object({
       type: {const: 'mindmap'},
-      root: treeItem(MAX_TREE_DEPTH, true),
+      root: treeItem(MAX_TREE_DEPTH, branchStyle),
       layout: {...oneOf('radial', 'right', 'left', 'down', 'up', 'org', 'list', 'brace', 'fishbone', 'timeline'), description: 'How the branches are laid out (default radial).'},
       edges: {enum: ['elbow', 'curve', 'straight', false], description: 'How a branch line is drawn (default elbow); false for none.'},
       maxNodeW: MAX_NODE_WIDTH,

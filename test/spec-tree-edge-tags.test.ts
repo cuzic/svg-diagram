@@ -74,8 +74,7 @@ test('the schema of other parts does not change: only a mind map takes edge and 
   const tree = partCatalog().find(p => p.type === 'tree')!;
   assert.deepEqual(tree.schema.properties?.['root'], treeItem(MAX_TREE_DEPTH));
   assert.doesNotMatch(JSON.stringify(tree), /"edge"|"tags"/);
-  assert.deepEqual(treeItem(2), treeItem(2, false));
-  assert.match(JSON.stringify(partCatalog().find(p => p.type === 'mindmap')!.schema), /"edge".*"tags"/);
+    assert.match(JSON.stringify(partCatalog().find(p => p.type === 'mindmap')!.schema), /"edge".*"tags"/);
   assert.match(JSON.stringify(partCatalog().find(p => p.type === 'mindmap')!.schema), /"maxLength":16/);
   const bad = validateSpec({version: 1, title: '例', parts: [{type: 'tree', root: {label: 'r', children: [{label: 'c', edge: {}}]}}]})[0]!;
   assert.equal(bad.path, 'parts[0].root.children[0].edge');
