@@ -31,6 +31,20 @@ function focusTree(root: TreeItem, focus: string | readonly string[], who: strin
   };
   return walk(root, false)[0];
 }
+const TAG_TONES = ['accent', 'muted', 'danger'];
+/** ADR 0081 D4: at most 3 tags of 1 to 8 characters (code points), each a string or {text, tone}. Checked once here, not while the layout tries widths. */
+function checkTags(n: TreeItem): void {
+  const who = `tree(): "${n.label}"`;
+  if (!Array.isArray(n.tags)) throw new Error(`${who}: tags must be a list like ['決定', {text: '反対', tone: 'danger'}]`);
+  if (n.tags.length > 3) throw new Error(`${who}: ${n.tags.length} tags (the most is 3): drop some, or move the rest to sub`);
+  for (const t of n.tags) {
+    const text = typeof t === 'string' ? t : t && typeof t === 'object' ? t.text : undefined;
+    if (typeof text !== 'string' || !text.trim()) throw new Error(`${who}: a tag needs text (a string, or {text, tone?})`);
+    if ([...text].length > 8) throw new Error(`${who}: the tag "${text}" is ${[...text].length} characters (the most is 8): shorten it, or put the words in sub`);
+    if (typeof t === 'object' && t.tone !== undefined && !TAG_TONES.includes(t.tone)) throw new Error(`${who}: the tag "${text}" has tone ${String(t.tone)} (use ${TAG_TONES.join(', ')})`);
+  }
+}
+
 export function tree<const R extends TreeItem, const Id extends string = never>(root: R, opts?: TreeOpts & {id?: Id}): TreeBand & Declares<Id | TreeIds<R>> & HandleOf<Id> & AnchorsOf<TreeIds<R>>;
 export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
   if (!root || typeof root !== 'object' || typeof root.label !== 'string') throw new Error('tree(root) needs a root node: {label: "...", children: [...]}');
@@ -55,8 +69,10 @@ export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
       usedBands.add(n.band);
       if (n.band.type === 'connect' || n.band.type === 'spacer') throw new Error(`tree(): "${n.label}": a ${n.band.type} cannot be a node`);
       if (typeof n.w !== 'number' || !(n.w >= 40) || !Number.isFinite(n.w)) throw new Error(`tree(): "${n.label}": a band node needs its width, w: a number >= 40 (got ${String(n.w)})`);
+      if (n.tags !== undefined) throw new Error(`tree(): "${n.label}": a band node takes no tags (the band draws itself); put the tags on a node with a box, or draw them in the band`);
       if (n.sub !== undefined || n.tone !== undefined) throw new Error(`tree(): "${n.label}": a band node takes no sub or tone (the band draws itself)`);
     } else if (n.w !== undefined) throw new Error(`tree(): "${n.label}": w is only for a band node`);
+    if (n.tags !== undefined) checkTags(n);
     ids.push(n.id);
     for (const c of n.children ?? []) walk(c, n);
   };

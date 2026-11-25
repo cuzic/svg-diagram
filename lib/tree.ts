@@ -6,8 +6,8 @@ import type {TreeLayout, TreeNode} from './graph-layout.ts';
 import {layoutBrace, layoutFishbone, layoutHanging, layoutTimelineMap, mirror} from './map-layouts.ts';
 import {fitLayout} from './fit-width.ts';
 import {longestUnitWidth, wrapText} from './wrap.ts';
-import type {FontFamily, Roles, WidthOf, WrapEnv, WrapMode} from './types/core.ts';
-import type {LaidOutTree, TreeBand, TreeItem, TreeNodeText} from './types/diagrams.ts';
+import type {FontFamily, Roles, TagTone, WidthOf, WrapEnv, WrapMode} from './types/core.ts';
+import type {LaidOutTree, LaidOutTreeTag, TreeBand, TreeItem, TreeNodeText} from './types/diagrams.ts';
 import type {Band} from './types/index.ts';
 
 import {must} from './must.ts';
@@ -27,11 +27,23 @@ export function treeTexts(band: TreeBand, roles: Roles): [string, number, number
   for (const n of treeItems(band.root)) {
     for (const a of splitAtoms(n.label)) out.push([a, roles.body, 700, 'sans']);
     for (const a of splitAtoms(n.sub ?? '')) out.push([a, roles.note, 400, 'sans']);
+    for (const t of treeTags(n)) for (const a of splitAtoms(t.text)) out.push([a, tagMetrics(roles).f, 700, 'sans']);
   }
   return out;
 }
 
-export interface NodeLines {label: string[]; sub: string[]; w: number; h: number}
+/** A node's tags as written (ADR 0081 D4), each with its tone settled (a plain string is an accent tag). */
+export interface TreeTag {text: string; tone: TagTone}
+export function treeTags(n: TreeItem): TreeTag[] {
+  return (n.tags ?? []).map(t => typeof t === 'string' ? {text: t, tone: 'accent' as const} : {text: t.text, tone: t.tone ?? 'accent' as const});
+}
+/** The sizes of a tree tag at the diagram's tag text size `f` (roles.tag, default 14): everything scales with s = f / 14. */
+export function tagMetrics(roles: Roles): {f: number; h: number; base: number; padX: number; gap: number; below: number} {
+  const f = roles.tag ?? 14, s = f / 14;
+  return {f, h: Math.round(24 * s), base: Math.round(17 * s), padX: Math.round(8 * s), gap: Math.round(6 * s), below: Math.round(4 * s)};
+}
+/** `tagRowH`: the height the node's tag row takes at the top (0: no tags); `tagRow`: the tags with their widths. */
+export interface NodeLines {label: string[]; sub: string[]; w: number; h: number; tagRowH?: number; tagRow?: (TreeTag & {w: number})[]}
 const lineH = (s: number): number => Math.round(s * 1.4);
 
 /** The wrapped texts (each a list of lines) that broke into several lines of 2.5 characters or fewer on average: what `fit: 'shrink'` squeezing a column too far does (rule shrink-narrow-text). Returns the joined texts, each once. */
@@ -52,7 +64,7 @@ export function katakanaWidth(text: string, widthOf: WidthOf, size: number, weig
 /** The widest a keepWords floor may make a box (inner width) unless the component gives its own: a word past this breaks anyway. */
 const KEEP_WORDS_CAP = 240;
 /** `mode`: the diagram's wrap mode; `floor`: whether the keepWords floor applies to this measurement (the diagram's keepWords, or the fit attempt's: see fitLayout). */
-export function measureNode(label: string, sub: string | undefined, maxW: number, widthOf: WidthOf, roles: Roles, mode: WrapMode, floor: boolean, opts: {/** The widest inner width the keepWords floor may give this node (default 240): a task of a flow keeps to its own column width. */ keepWordsCap?: number; /** false: this node is not given the floor (a round node, a cloud's fixed column). */ keepWords?: boolean} = {}): NodeLines {
+export function measureNode(label: string, sub: string | undefined, maxW: number, widthOf: WidthOf, roles: Roles, mode: WrapMode, floor: boolean, opts: {/** The widest inner width the keepWords floor may give this node (default 240): a task of a flow keeps to its own column width. */ keepWordsCap?: number; /** false: this node is not given the floor (a round node, a cloud's fixed column). */ keepWords?: boolean; /** ADR 0081: the tags of this node (a row at the top; the box only widens for it). */ tags?: readonly TreeTag[]} = {}): NodeLines {
   const L = roles.body, S = roles.note;
   let inner = maxW - 2 * PAD_X;
   if (floor && opts.keepWords !== false) { // keepWords (ADR 0029 D3): not narrower than the longest katakana word
@@ -66,16 +78,27 @@ export function measureNode(label: string, sub: string | undefined, maxW: number
   const lab = wrapText(label, {maxWidth: inner, atomWidth: a => widthOf(a, L, 700, 'sans'), mode});
   const sb = sub ? wrapText(sub, {maxWidth: inner, atomWidth: a => widthOf(a, S, 400, 'sans'), mode}) : [];
   const tw = Math.max(...lab.map(l => textWidth(widthOf, l, L, 700)), ...sb.map(l => textWidth(widthOf, l, S, 400)));
-  return {label: lab, sub: sb, w: Math.max(MIN_W, Math.ceil(tw + 2 * PAD_X)), h: 2 * PAD_Y + lab.length * lineH(L) + sb.length * lineH(S)};
+  const base = {label: lab, sub: sb, w: Math.max(MIN_W, Math.ceil(tw + 2 * PAD_X)), h: 2 * PAD_Y + lab.length * lineH(L) + sb.length * lineH(S)};
+  if (!opts.tags?.length) return base;
+  const m = tagMetrics(roles), row = opts.tags.map(t => ({...t, w: Math.ceil(textWidth(widthOf, t.text, m.f, 700)) + 2 * m.padX}));
+  const rowW = row.reduce((sum, t) => sum + t.w, 0) + m.gap * (row.length - 1), tagRowH = m.h + m.below;
+  return {...base, w: Math.max(base.w, rowW + 2 * PAD_X), h: base.h + tagRowH, tagRowH, tagRow: row};
 }
 
 /** The centred text runs of a node laid in rectangle r. */
 export function nodeRuns(r: {x: number; y: number; w: number}, l: NodeLines, roles: Roles): TreeNodeText[] {
   const L = roles.body, S = roles.note, out: TreeNodeText[] = [];
-  let ty = r.y + PAD_Y;
+  let ty = r.y + PAD_Y + (l.tagRowH ?? 0);
   for (const line of l.label) { out.push({text: line, x: r.x + r.w / 2, y: ty + L, size: L, bold: true, muted: false}); ty += lineH(L); }
   for (const line of l.sub) { out.push({text: line, x: r.x + r.w / 2, y: ty + S, size: S, bold: false, muted: true}); ty += lineH(S); }
   return out;
+}
+
+/** The tags of a node laid in its rectangle: one centred row at the top, inside the padding. */
+function placeTags(r: {x: number; y: number; w: number}, row: (TreeTag & {w: number})[], roles: Roles): LaidOutTreeTag[] {
+  const m = tagMetrics(roles), total = row.reduce((sum, t) => sum + t.w, 0) + m.gap * (row.length - 1), y = r.y + PAD_Y;
+  let x = r.x + (r.w - total) / 2;
+  return row.map(t => { const out = {text: t.text, tone: t.tone, x, y, w: t.w, h: m.h, size: m.f, baseline: y + m.base}; x += t.w + m.gap; return out; });
 }
 
 export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, heightBudget?: number, /** The height a band node takes at a width (the layout shell measures it); without it a band node throws. */ bandHeight?: (band: Band, w: number) => number): LaidOutTree {
@@ -106,7 +129,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
         lines.set(n, m);
         return {id: must(key.get(n)), size: {w: m.w, h: m.h}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
       }
-      const m = measureNode(n.label, n.sub, maxW, widthOf, roles, env.wrap, floor);
+      const m = measureNode(n.label, n.sub, maxW, widthOf, roles, env.wrap, floor, n.tags ? {tags: treeTags(n)} : {});
       lines.set(n, m);
       return {id: must(key.get(n)), size: {w: m.w, h: m.h}, ...(n.children?.length ? {children: n.children.map(build)} : {})};
     };
@@ -152,7 +175,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
   for (const n of items) {
     const p = must(tree.nodes.get(must(key.get(n)))), l = must(lines.get(n)), up = parentOf.get(n);
     const r = {x: p.x + dx, y: p.y + dy, w: p.w, h: p.h};
-    out.nodes.push({...r, tone: n.tone ?? 'plain', ...(n.band ? {band: true as const} : {}), ...(n.id ? {id: n.id} : {}), ...(up === undefined ? {} : {parent: up})});
+    out.nodes.push({...r, tone: n.tone ?? 'plain', ...(n.band ? {band: true as const} : {}), ...(n.id ? {id: n.id} : {}), ...(up === undefined ? {} : {parent: up}), ...(l.tagRow ? {tags: placeTags(r, l.tagRow, roles)} : {})});
     if (n.id) out.anchors.push({id: n.id, ...r});
     if (n.band) continue; // the band draws its own text, and is checked as a band
     out.texts.push(...nodeRuns(r, l, roles));
