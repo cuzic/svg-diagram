@@ -479,7 +479,24 @@ tree({
 | `fishbone` | ルートが魚の頭（右）、背骨に斜めの骨。ルートの子がカテゴリ（大骨）、その子が原因（中骨）、孫以下は原因の下に字下げでぶら下がる（小骨。下半分の骨では上下が逆になり、小骨が原因の上に付く）。特性要因図（`examples/qc-fishbone.ts`） | 原因分析 |
 | `timeline` | ルートを左端に、横の軸に沿って子を上下交互に並べ、各子のリストが軸から遠ざかる向きに伸びる | 経緯、計画 |
 
-`edges: 'curve' | 'straight'` は、`radial` / `right` / `left` / `down` / `up` で枝の線を滑らかな S 字・直線にする（ほかの形で指定すると、そう書いて止まる）。`sides` は `radial` のときだけで、ルートの子だけを `id` で左右に固定できる（深い節や未知の id は止まる）。幅を超えるときは、`layout` を `list` / `right` / `left` に替えるか、`maxNodeW` を小さくする。マトリクス型・ツリーテーブル型は、マインドマップの配置ではなく表なので `table()` で描く。節の `id` は `connect()` の端点になる。子の項目の `edge: {tone?: 'accent' | 'muted' | 'danger', line?: 'solid' | 'dashed' | 'dotted'}` は、その子を親とつなぐ線の色と線種（賛成 = accent の実線、反対 = danger の破線など。ADR 0081）。書かない木は今と同じ出力で、書いた木は線の最後の 24px がその項目だけの区間になるよう間隔が広がる。根・`from` の子・`brace` / `fishbone` / `timeline`・`edges: false` では書けない。例は `examples/mindmap-branch-style.ts`、`examples/mindmap.ts`（radial）、`examples/mindmap-brace.ts`、`mindmap-fishbone.ts`、`mindmap-org.ts`、`mindmap-timeline.ts`、`mindmap-list.ts`。
+`edges: 'curve' | 'straight'` は、`radial` / `right` / `left` / `down` / `up` で枝の線を滑らかな S 字・直線にする（ほかの形で指定すると、そう書いて止まる）。`sides` は `radial` のときだけで、ルートの子だけを `id` で左右に固定できる（深い節や未知の id は止まる）。幅を超えるときは、`layout` を `list` / `right` / `left` に替えるか、`maxNodeW` を小さくする。マトリクス型・ツリーテーブル型は、マインドマップの配置ではなく表なので `table()` で描く。節の `id` は `connect()` の端点になる。子の項目の `edge: {tone?: 'accent' | 'muted' | 'danger', line?: 'solid' | 'dashed' | 'dotted'}` は、その子を親とつなぐ線の色と線種（賛成 = accent の実線、反対 = danger の破線など。ADR 0081）。書かない木は今と同じ出力で、書いた木は線の最後の 24px がその項目だけの区間になるよう間隔が広がる。根・`from` の子・`brace` / `fishbone` / `timeline`・`edges: false` では書けない。子の項目の `tags: ['決定', {text: '反対', tone: 'danger'}]` は、その項目の箱の最上段に色付きの札を横に並べる（ADR 0081）。文字列は accent の札、`{text, tone}` の `tone` は `accent` / `danger` / `muted`。札は 1 項目に 3 つまで、1 つ 8 コードポイントまで（空文字・超過・未知の `tone` は、そう書いて止まる）。`sub`（2 行目）は別の情報に使い続けられ、札はその上、`label` の前に入る。札の色は、ふつうは札の色の塗りに白い文字。`solid` の箱の accent の札や `solid-danger` の箱の danger の札のように箱の塗りと同じ色になるときは、白い塗りに札の色の文字へ反転する。項目の `tone` が `muted` の箱、`diagram({spotlight})` で薄くした木では、札は muted の塗りに白い文字。札が広い項目は箱を広げる。帯ノード（`band` を持つ項目）には書けない。例は `examples/mindmap-tags.ts`。`edge` と `tags` は JSON spec の `mindmap` 部品の項目にも同じ形で書ける（`edge` を書けない配置や `edges: false` の図などの誤りは、spec の位置つきで返る）。`legend: 'auto'` は `edge` の色・線種も `tags` も凡例に入れない（意味は図ごとに利用者が決めるため。ADR 0081 D5）ので、必要なら `legend()` を手で書く。
+
+```ts
+const pro = {tone: 'accent', line: 'solid'} as const;
+const con = {tone: 'danger', line: 'dashed'} as const;
+
+diagram({theme: 'blue'}).add(
+  mindmap({label: '導入するか', tone: 'accent', children: [
+    {label: '費用が下がる', edge: pro, tags: ['決定']},
+    {label: '移行に時間がかかる', edge: con, tags: [{text: '反対', tone: 'danger'}]},
+  ]}, {layout: 'right'}),
+  legend([{line: 'solid', tone: 'accent', label: '賛成の理由'}, {line: 'dashed', tone: 'danger', label: '反対の理由'}]),
+)
+```
+
+`edge` / `tags` を書いたときだけ出力 SVG に新しく現れる属性・値（許可リストで SVG を検査する場合の一覧）は、[ADR 0081 の D6](docs/adr/0081-tree-branch-style-and-tags.md) にある。書かない木の出力は変わらない。
+
+例は `examples/mindmap-branch-style.ts`、`examples/mindmap-tags.ts`、`examples/mindmap.ts`（radial）、`examples/mindmap-brace.ts`、`mindmap-fishbone.ts`、`mindmap-org.ts`、`mindmap-timeline.ts`、`mindmap-list.ts`。
 
 ### 状態遷移図（`stateDiagram`）
 
