@@ -4,6 +4,7 @@ import {plane as build} from '../dsl/plane.ts';
 import {renderPlane} from '../emit-plane.ts';
 import {layoutPlane, planeTexts} from '../plane.ts';
 import {revealPlane} from '../reveal-plane.ts';
+import {fillTextSize} from '../slide-fill.ts';
 import type {LaidOutPlane, PlaneBand, PlaneOpts} from '../types/figures.ts';
 import {planeProblems} from '../verify-plane.ts';
 
@@ -11,6 +12,7 @@ export const planeDefinition: BandDef<PlaneBand, LaidOutPlane> = {
   type: 'plane',
   offGrid: true,
   textSizes: band => [band.labelSize],
+  fillTextSize: (data, roles) => fillTextSize(roles, data.labelRole),
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of planeTexts(data, roles)) atoms(text, size, weight, font);
   },

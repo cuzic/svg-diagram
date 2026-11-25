@@ -7,12 +7,14 @@ import {banner as buildBanner} from '../dsl/banner.ts';
 import {renderBanner} from '../emit-banner.ts';
 import {layoutBoxLike, layoutBoxLikeBand} from '../layout-box-like.ts';
 import {styledAtoms, textRuns} from '../layout-text.ts';
+import {fillTextSize} from '../slide-fill.ts';
 import type {BannerBand, BannerOpts, LaidOutBanner} from '../types/text-bands.ts';
 import {boxLikeContrastProblems} from '../verify-box-like.ts';
 
 export const bannerDefinition: BandDef<BannerBand, LaidOutBanner> = {
   type: 'banner',
   textSizes: ownRunSizes,
+  fillTextSize: (data, roles) => fillTextSize(roles, data.headlineRole),
   inventory: boxItems,
   svgDefs: textSvgDefs,
   title: data => data.headline ? [0, data.headline] : undefined,

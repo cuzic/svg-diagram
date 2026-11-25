@@ -7,7 +7,7 @@ import {splitAtoms} from './atoms.ts';
 import {band, defOf, DEF, EXTERNAL, walkDefinedBands} from './band-def.ts';
 import {cloneData} from './clone-data.ts';
 import {emitSvgWith} from './emit-svg-core.ts';
-import {analyzeDocumentFit} from './fit.ts';
+import {analyzeFit} from './fit.ts';
 import type {layoutBoxLike} from './layout-box-like.ts';
 import type {fitLineScale} from './layout-cause-fit.ts';
 import {createLayoutWith} from './layout-core.ts';
@@ -15,6 +15,7 @@ import {layoutFitted} from './layout-fit-width.ts';
 import {basicExtentOf, figureMetricsForExtent, unionOf} from './figure-metrics.ts';
 import {addScoped, emptyScopes} from './scope-table.ts';
 import {qualify, scopeOf} from './scope-name.ts';
+import {fillScaleLimit, findFillScale} from './slide-fill.ts';
 import {sourceOf} from './source-ref.ts';
 import {ownRect, scopedRect} from './verify-rects.ts';
 import {verifyWithServices} from './verify-core.ts';
@@ -28,7 +29,7 @@ import {checkToday} from './today-auto.ts';
 import {canvasFontScale, checkMinText, checkTones, colorOf, rolesAt, SLIDE_CANVAS, THEMES, toneEnv} from './tokens.ts';
 import type {Appearance, FontFamily, Measured, MeasureRequest, DiagramData, RevealOpts, SlideCanvas, Theme, WidthOf} from './types/core.ts';
 import type {Band, LaidOutBand, LaidOutDiagram} from './types/index.ts';
-import type {Finding, Issue, RenderResult} from './types/verdicts.ts';
+import type {Finding, Issue} from './types/verdicts.ts';
 import {xmlProblems} from './xml-check.ts';
 
 export type {BandDef} from './band-def.ts';
@@ -40,6 +41,10 @@ export type BatchMeasurement = {measureBatch: (requests: Map<string, Required<Me
 type Options = {measure: Measure} & DrawOptions;
 type DrawOptions = {
   width?: number | 'fit';
+  slide?: {maxHeight: number; contentWidth: number};
+  fill?: boolean;
+  /** @internal Effective slide text floor from a legacy diagram. */
+  minEffectiveFont?: number;
   maxWidth?: number;
   legend?: DiagramData['legend'];
   accept?: DiagramData['accept'];
@@ -89,18 +94,25 @@ function definitionKey(band: Band | LaidOutBand): string {
 /** @internal Shared layout and SVG emission for selective output formats. */
 export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOptions & ({measure: Measure} | BatchMeasurement)) {
   const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...opts.canvas};
+  const {slide, fill} = opts;
+  if (fill && !slide) throw new Error('renderBands: fill には slide: {maxHeight, contentWidth} を指定してください');
+  if (slide) {
+    if (canvas || opts.width === 'fit') throw new Error("renderBands: slide を使う場合は canvas と width: 'fit' を外してください");
+    size('slide.maxHeight', slide.maxHeight, 0);
+    size('slide.contentWidth', slide.contentWidth, 1);
+  }
   if (canvas) {
     if (opts.width !== undefined) throw new Error('renderBands: use canvas.width when canvas is set');
     checkMinText(canvas.minText, 'renderBands({canvas})');
     size('canvas height', canvas.height, 1);
   }
-  const scale = canvas ? canvasFontScale(canvas.minText) : 1;
+  const geometryScale = canvas ? canvasFontScale(canvas.minText) : 1;
   const requestedWidth = opts.width;
   const fitWidth = requestedWidth === 'fit';
-  const width = size('width', fitWidth ? 940 : requestedWidth ?? canvas?.width ?? 940, 1);
-  const pad = size('pad', opts.pad ?? 20, 0) * scale;
-  const gap = size('gap', opts.gap ?? 16, 0) * scale;
-  const contentWidth = width - 2 * pad;
+  const width = size('width', fill && slide ? slide.contentWidth : fitWidth ? 940 : requestedWidth ?? canvas?.width ?? 940, 1);
+  const pad = size('pad', opts.pad ?? 20, 0);
+  const gap = size('gap', opts.gap ?? 16, 0);
+  const contentWidth = width - 2 * pad * geometryScale;
   size('content width', contentWidth, 1);
   const theme = opts.theme ?? 'blue';
   if (!THEMES.includes(String(theme))) throw new Error(`renderBands: unknown theme "${theme}"`);
@@ -108,11 +120,9 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const today = opts.today === undefined ? undefined : checkToday(opts.today, 'renderBands({today})');
   if (opts.stage !== undefined && (!Number.isInteger(opts.stage) || opts.stage < 0)) throw new Error('renderBands: stage must be a nonnegative integer');
 
-  const roles = rolesAt(!!canvas, scale);
-  const requests = new Map<string, Required<MeasureRequest>>();
-  const measureEnv = {roles, today, atoms(text: string, size: number, weight: number, font: FontFamily = 'sans') {
-    for (const atom of splitAtoms(text)) requests.set(keyOf(atom, size, weight, font), {text: atom, size, weight, font});
-  }};
+  const measureBands: Band[] = [];
+  const unscaledRoles = fill ? rolesAt(false, 1) : undefined;
+  let largestFillText = 0;
   const ids = new Map<string, RevealAnchor>();
   const endpointChecks: RevealWarningCheck[] = [];
   const definitions = new Map<string, BandDef>();
@@ -124,8 +134,9 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const inputChecks: ((ctx: VerifyCtx) => Finding[])[] = [];
   const source = cloneData(bands) as unknown as Band[];
   const data: DiagramData = {
-    day: theme, medium: 'doc', width, maxWidth: opts.maxWidth, accept: opts.accept, legend: opts.legend, pad: canvas ? Math.round(pad) : pad, gap: canvas ? Math.round(gap) : gap,
-    fill: false, bands: source, title: opts.title, desc: opts.desc, wrap: opts.wrap, keepWords: opts.keepWords, tones, canvas,
+    day: theme, medium: slide ? 'slide' : 'doc', width, maxWidth: opts.maxWidth, accept: opts.accept, legend: opts.legend, pad, gap,
+    maxDisplayHeight: slide?.maxHeight, usableWidth: slide?.contentWidth, minEffectiveFont: opts.minEffectiveFont,
+    fill: fill === true, bands: source, title: opts.title, desc: opts.desc, wrap: opts.wrap, keepWords: opts.keepWords, tones, canvas,
     appearance: opts.appearance, transparent: opts.transparent, density: opts.density, ...(fitWidth ? {fitWidth: true} : {}),
     tocCheck: opts.tocCheck, rcaCheck: opts.rcaCheck, layoutCheck: opts.layoutCheck, legendLabels: opts.legendLabels,
   };
@@ -202,19 +213,13 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     else if (diagramFindings) for (const check of diagramFindings) diagramChecks.add(check);
     const findings = def.verify?.findings;
     if (findings) inputChecks.push(ctx => findings(data, ctx));
-    def.measure?.(data, measureEnv);
+    if (def.measure) measureBands.push(data);
+    if (unscaledRoles && def.fillTextSize) largestFillText = Math.max(largestFillText, def.fillTextSize(data, unscaledRoles));
     for (const generated of def.generated?.(data) ?? []) collect(generated, start, stop);
     for (const generated of opts.generatedBands?.(data) ?? []) collect(generated, start, stop);
     for (const child of def.children?.(data) ?? []) collect(child, start, stop);
   }
   for (const input of data.bands) collect(input);
-  const measured = 'measureBatch' in opts ? await opts.measureBatch(requests) : new Map(
-    await Promise.all([...requests].map(async ([key, request]) => [key, await opts.measure(request)] as const)),
-  );
-  for (const {w} of measured.values()) size('measured width', w, 0);
-  const widthOf: WidthOf = (text, size, weight, font) => {
-    return must(measured.get(keyOf(text, size, weight, font))?.w, `renderBands: width was not measured for "${text}"`);
-  };
   const placedDefinition = (band: LaidOutBand) => definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
   const connection = definitions.get('connect');
   const layout = createLayoutWith({
@@ -231,7 +236,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       if (def.internal) return def.layout;
       const place = def.layout;
       return (_band, ctx, x, w) => {
-        const {laid, h, anchors} = place(input, {x, y: ctx.y, w, widthOf: ctx.widthOf, roles, theme, tones: ctx.tones, wrap: ctx.wrap, keepWords: ctx.keepWords, space: ctx.space, today, canvas, geometryScale: scale});
+        const {laid, h, anchors} = place(input, {x, y: ctx.y, w, widthOf: ctx.widthOf, roles: ctx.roles, theme, tones: ctx.tones, wrap: ctx.wrap, keepWords: ctx.keepWords, space: ctx.space, today, canvas, geometryScale});
         if ('id' in input && input.id) ctx.register(input.id, laid, 'each band needs a unique id');
         for (const anchor of anchors ?? []) {
           if (anchor.id) ctx.register(anchor.id, anchor, 'each anchor needs a unique id', scopeOf(input));
@@ -256,7 +261,31 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       return {items: links ? items.concat(links) : items};
     },
   });
-  const placed = await layoutFitted(data, () => layout(data, roles, widthOf));
+  async function prepareLayoutAt(scale: number): Promise<() => LaidOutDiagram> {
+    const roles = rolesAt(!!canvas, scale);
+    const requests = new Map<string, Required<MeasureRequest>>();
+    const measureEnv = {roles, today, atoms(text: string, size: number, weight: number, font: FontFamily = 'sans') {
+      for (const atom of splitAtoms(text)) requests.set(keyOf(atom, size, weight, font), {text: atom, size, weight, font});
+    }};
+    for (const band of measureBands) defOf(band)?.measure?.(band, measureEnv);
+    const measured = 'measureBatch' in opts ? await opts.measureBatch(requests) : new Map(
+      await Promise.all([...requests].map(async ([key, request]) => [key, await opts.measure(request)] as const)),
+    );
+    for (const {w} of measured.values()) size('measured width', w, 0);
+    const widthOf: WidthOf = (text, size, weight, font) =>
+      must(measured.get(keyOf(text, size, weight, font))?.w, `renderBands: width was not measured for "${text}"`);
+    const spacing = canvas || slide ? {pad: Math.round(pad * scale), gap: Math.round(gap * scale)} : {pad, gap};
+    return () => layout({...data, ...spacing}, roles, widthOf);
+  }
+  const fontScale = fill && slide
+    ? await findFillScale(slide.maxHeight, fillScaleLimit(largestFillText), async s => {
+      const place = await prepareLayoutAt(s);
+      return place().canvasHeight;
+    })
+    : geometryScale;
+  const placed = await layoutFitted(data, await prepareLayoutAt(fontScale));
+  const {roles} = placed;
+  placed.fontScale = fontScale;
   placed.canvasHeight = Math.max(1, placed.canvasHeight);
   const revealConnector = connection?.internal ? connection.revealConnector : undefined;
   if (revealConnector) placed.connects = placed.connects.map(connector => revealConnector(connector, ids));
@@ -281,7 +310,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     const def = placedDefinition(laid);
     bandFindings.push(...(def?.verify?.layoutFindings?.(laid as never, ctx) ?? []));
   }
-  const fit = analyzeDocumentFit(placed, laid => placedDefinition(laid)?.textSizes?.(laid as never) ?? []);
+  const fit = analyzeFit(placed, laid => placedDefinition(laid)?.textSizes?.(laid as never) ?? []);
   if (canvas) {
     bandFindings.push(...canvasFindings(canvas, fit.effectiveFont, placed.contentHeight));
   }
@@ -338,8 +367,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       })),
     spotlightDim: () => 'outline',
   }, figure, {reveal: stage, noRecolor});
-  const fitResult: Pick<RenderResult, 'fit' | 'fontScale'> = {fit, fontScale: scale};
-  return {placed, stage, verdict, emit, ...fitResult};
+  return {placed, stage, verdict, emit, fit, fontScale};
 }
 
 /** Render a vertical stack of bands whose definitions are carried by their values. */

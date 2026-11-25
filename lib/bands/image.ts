@@ -8,6 +8,7 @@ import {IMAGE_PAD, imageSize, imageTexts} from '../image.ts';
 import {layoutImageBand} from '../layout-image.ts';
 import type {ImageBand, ImageMark, ImageOpts, LaidOutImage} from '../types/image.ts';
 import {checked} from '../reveal-visibility.ts';
+import {imageFillTextSize} from '../slide-fill.ts';
 import type {Band} from '../types/index.ts';
 import {imageContrast, imageProblems, imageRects, imageSizeFindings} from '../verify-image.ts';
 
@@ -17,6 +18,7 @@ export const imageDefinition: BandDef<ImageBand, LaidOutImage> = {
   type: 'image',
   describe: data => data.alt ? ['image', `画像: ${oneLine(data.alt)}`] : undefined,
   textSizes: band => sizesOf(band.plates),
+  fillTextSize: imageFillTextSize,
   internal: true,
   layout: layoutImageBand,
   children: data => data.children ?? [],

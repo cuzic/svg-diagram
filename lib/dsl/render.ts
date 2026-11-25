@@ -8,7 +8,7 @@ import type {Diagram, DiagramData} from '../types/core.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {RenderResult, CheckResult, SlideBudget} from '../types/verdicts.ts';
 import {fillScaleLimit} from './text-bands.ts';
-import {MathTooWideError} from '../math.ts';
+import {findFillScale, UNMEASURED_FILL_NOTE} from '../slide-fill.ts';
 import {walkBands} from '../rules.ts';
 import {detachData, layoutFitted} from './diagram.ts';
 import {throwAtDiagram} from '../source-ref.ts';
@@ -67,24 +67,13 @@ async function render(input: Diagram, opts: RenderOptions): Promise<RenderResult
     };
     if (d.fill && budget) {
       d.width = budget.contentWidth;
-      // a formula is as wide as its size makes it: past some scale it no longer fits the column, which only means "too big" here (at 1x it still throws)
-      const maxHeight = budget.maxHeight;
-      const fits = async (s: number): Promise<boolean> => {
-        try { return (await layoutAt(s)).canvasHeight <= maxHeight; } catch (e) { if (e instanceof MathTooWideError) return false; throw e; }
-      };
-      let lo = 1, hi = fillScaleLimit(d.bands);
-      if ((await layoutAt(1)).canvasHeight > budget.maxHeight) hi = 1; // doesn't even fit at 1x: report via fit warnings
-      for (let i = 0; i < 7 && hi - lo > 0.01; i++) {
-        const mid = (lo + hi) / 2;
-        if (await fits(mid)) lo = mid; else hi = mid;
-      }
-      fontScale = Math.floor(lo * 100) / 100;
+      fontScale = await findFillScale(budget.maxHeight, fillScaleLimit(d.bands), async s => (await layoutAt(s)).canvasHeight);
     } else if (d.canvas) {
       // a whole-slide canvas is drawn 1:1, so everything is scaled until the smallest text is the canvas's minimum
       fontScale = canvasFontScale(d.canvas.minText);
     } else if (d.fill) {
       if (opts.budget === 'measure' || !d.slide) throw new Error('diagram({fill: true}) needs diagram({slide: {page, heading}}) to know the slot size');
-      notes.push('fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた');
+      notes.push(UNMEASURED_FILL_NOTE);
     }
     const laidOut = await layoutFitted(d, () => layoutAt(fontScale));
     laidOut.fontScale = fontScale;

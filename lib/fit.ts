@@ -21,6 +21,7 @@ import type {LaidOutBand, LaidOutDiagram} from './types/index.ts';
 import type {FitReport} from './types/verdicts.ts';
 
 export const SLIDE_USABLE_WIDTH = 860; // docs/diagram-tone-and-manner.md section 5
+export const SLIDE_MAX_DISPLAY_HEIGHT = 300;
 
 type BandTextSizes = (band: LaidOutBand) => Iterable<number>;
 
@@ -48,7 +49,7 @@ export function analyzeDocumentFit(d: LaidOutDiagram, textSizes: BandTextSizes):
 
 export function analyzeFit(d: LaidOutDiagram, textSizes: BandTextSizes): FitReport {
   if (d.medium === 'doc' || d.canvas) return analyzeDocumentFit(d, textSizes);
-  const maxH = d.maxDisplayHeight ?? 300;
+  const maxH = d.maxDisplayHeight ?? SLIDE_MAX_DISPLAY_HEIGHT;
   const minEff = d.minEffectiveFont ?? 12;
   const w = d.width, h = d.canvasHeight;
 

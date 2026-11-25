@@ -100,6 +100,8 @@ interface BandHooks<D, L extends object> {
   loopBackSource?(data: D): LoopBackSource | undefined;
   measure?(data: D, env: MeasureEnv): void;
   textSizes?(laid: L): Iterable<number>;
+  /** Largest unscaled text size opted into the extended role range. */
+  fillTextSize?(data: D, unscaledRoles: Roles): number;
   valueAxis?(data: D): ValueAxis | undefined;
   verify?: {
     /** @internal Authored samples for the diagram-wide grayscale comparison. */

@@ -758,7 +758,7 @@ try {
       export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [{type: 'steps', items: [{title: 'Review'}, {title: 'Next'}], loopBack: [{from: 2, to: 1, label: 'Retry'}]}]}, {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [stepsPart],
       });
-    `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 134000, Vite: 168500}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
+    `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 134000, Vite: 169500}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
     {name: 'Selected screen widgets', layout: 'layoutScreenGridWith', source: composedSource([], "screens([{id: 'review', title: 'Review', root: text('Details')}], {cols: 1})",
       "import {createScreenGrid, textRenderer} from 'svg-diagram/wireframe/renderers'; import {text} from 'svg-diagram/wireframe/parts'; const screens = createScreenGrid([textRenderer]);"),
       include: 'screens-definition.js', bands: [], budget: {esbuild: 58000, Vite: 78000},
@@ -815,15 +815,15 @@ try {
       exclude: [...legacy, 'document-findings.js', 'legend-notation.js', 'verify-gray-tones.js', 'emit-boxes.js', 'emit-grid.js', 'emit-row.js', 'dsl/node.js', 'dsl/stat.js', 'emit-connect.js', 'reveal-warnings.js', 'reveal-handlers.js', 'reveal-row.js', 'verify-connect-geometry.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 78000, Vite: 99000}, draw: true},
     {name: 'Node and stat', source: composedSource([], "node({icon: 'check', label: 'Review'}), stat(12, 'Count', {source: 'Report'})",
       "import {icon, node, stat} from 'svg-diagram/bands/box'; icon.use({version: 1, icons: {check: {d: 'M2 2h20v20H2z', vb: [0, 0, 24], from: 'file:check.svg', license: 'local'}}});"),
-      include: 'dsl/stat.js', budget: {esbuild: 75000, Vite: 106000}, bands: ['box.js'],
+      include: 'dsl/stat.js', budget: {esbuild: 76500, Vite: 106000}, bands: ['box.js'],
       exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'layout-connect.js', 'layout-areas.js'], draw: true},
     {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',
       exclude: [...legacy, 'emit-connect.js', 'verify-connect-geometry.js', 'layout-box-like.js', 'layout-cause-fit.js', 'box.js', 'emit-boxes.js', 'layout-connect.js', 'timeline.js', 'emit-timeline.js', 'emit-figures.js', 'charts.js'], budget: {esbuild: 53000, Vite: 70500}, draw: true},
     {name: 'Row', source: composedSource(['box', 'row'], "row([box({title: 'Review'}), box({title: 'Next'})], {arrows: 'between'})"),
-      include: 'bands/row.js', budget: {esbuild: 83000, Vite: 104500}, bands: ['box.js', 'row.js'], exclude: [...legacy, 'dsl/row.js', 'dsl/group.js', 'dsl/container-children.js', 'loop-back.js', 'loop-back-connectors.js', 'dsl/containers.js', 'dsl/areas.js', 'dsl/grid.js', 'emit-boxes.js', 'emit-grid.js', 'steps.js', 'emit-connect.js', 'verify-connect-geometry.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'layout-grid.js', 'layout-connect.js', 'layout-group.js', 'layout-group-row.js', 'layout-areas.js', 'gantt.js'], draw: true},
+      include: 'bands/row.js', budget: {esbuild: 83000, Vite: 105500}, bands: ['box.js', 'row.js'], exclude: [...legacy, 'dsl/row.js', 'dsl/group.js', 'dsl/container-children.js', 'loop-back.js', 'loop-back-connectors.js', 'dsl/containers.js', 'dsl/areas.js', 'dsl/grid.js', 'emit-boxes.js', 'emit-grid.js', 'steps.js', 'emit-connect.js', 'verify-connect-geometry.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'layout-grid.js', 'layout-connect.js', 'layout-group.js', 'layout-group-row.js', 'layout-areas.js', 'gantt.js'], draw: true},
     {name: 'Steps', source: composedSource([], "steps([{title: 'Review'}, {title: 'Approve'}], {numbered: true, focus: 2})",
       "import {steps} from 'svg-diagram/bands/row';"),
-      include: 'steps.js', budget: {esbuild: 85000, Vite: 107000}, bands: ['box.js', 'row.js'],
+      include: 'steps.js', budget: {esbuild: 86000, Vite: 109000}, bands: ['box.js', 'row.js'],
       exclude: [...legacy, 'dsl/row.js', 'dsl/group.js', 'dsl/container-children.js', 'loop-back.js', 'loop-back-connectors.js', 'layout-connect.js', 'bands/connect.js', 'layout-grid.js', 'layout-group-row.js', 'layout-areas.js'], draw: true},
     {name: 'Grid', source: composedSource(['box', 'grid'], "grid([box({title: 'Review'}), box({title: 'Next'})], {cols: 2})"),
       include: 'bands/grid.js', budget: {esbuild: 85500, Vite: 107500}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'dsl/containers.js', 'dsl/row.js', 'dsl/areas.js', 'dsl/group.js', 'dsl/container-children.js', 'emit-boxes.js', 'emit-row.js', 'emit-connect.js', 'verify-connect-geometry.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-connect.js', 'gantt.js'], draw: true},
@@ -848,11 +848,11 @@ try {
       export const draw = () => renderBands([
         row([box({title: 'Review'}), box({title: 'Next'})], {loopBack: {from: 2, to: 1, label: 'Retry'}})
       ], {connectors: connectDefinition, measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size})});
-    `, include: 'bands/row.js', budget: {esbuild: 117500, Vite: 148000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'dsl/row.js', 'dsl/group.js', 'dsl/container-children.js', 'loop-back.js', 'layout-grid.js', 'gantt.js'], draw: true},
+    `, include: 'bands/row.js', budget: {esbuild: 117500, Vite: 148500}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'dsl/row.js', 'dsl/group.js', 'dsl/container-children.js', 'loop-back.js', 'layout-grid.js', 'gantt.js'], draw: true},
     {name: 'Image', source: composedSource(['image'], "image('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', {alt: 'Picture', width: 240, labels: [{text: 'Review', at: [0.3, 0.5]}]})"),
       include: 'bands/image.js', budget: {esbuild: 68000, Vite: 91000}, exclude: [...legacy, 'verify-bars.js', 'dsl/io.js', 'image-file.js', 'charts.js', 'layout-connect.js'], draw: true},
     {name: 'Spacer', source: composedSource(['spacer'], 'spacer(24)'),
-      include: 'bands/spacer.js', budget: {esbuild: 37000, Vite: 49000}, bands: ['spacer.js'],
+      include: 'bands/spacer.js', budget: {esbuild: 37500, Vite: 49500}, bands: ['spacer.js'],
       exclude: [...legacy, 'dsl/containers.js', 'dsl/row.js', 'dsl/grid.js', 'dsl/areas.js', 'bands/caption.js', 'bands/box.js', 'layout-box-like.js', 'emit-boxes.js', 'layout-connect.js'], draw: true},
     {name: 'Caption and spacer', source: composedSource(['caption', 'spacer'], "caption('Review', {mono: true}), spacer(24), caption('Next')"),
       include: 'bands/caption.js', budget: {esbuild: 62000, Vite: 82000}, bands: ['caption.js', 'spacer.js'], exclude: [...legacy, 'emit-boxes.js', 'emit-grid.js', 'emit-row.js', 'layout-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
@@ -861,13 +861,13 @@ try {
     {name: 'Group row', source: composedSource(['box', 'group', 'groupRow'], "groupRow([group(box({title: 'Review'})), box({title: 'Next'})])"),
       include: 'bands/group-row.js', budget: {esbuild: 99500, Vite: 126500}, bands: ['box.js', 'caption.js', 'group-row.js', 'group.js'], exclude: [...legacy, 'dsl/row.js', 'dsl/box-row.js', 'loop-back-options.js', 'loop-back-connectors.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Areas', source: composedSource(['areas', 'box'], "areas(['wide wide', 'left right'], {wide: box({title: 'Review'}), left: box({title: 'Left'}), right: box({title: 'Right'})})"),
-      include: 'layout-areas-gaps.js', budget: {esbuild: 95500, Vite: 120000}, bands: ['areas.js', 'box.js', 'caption.js', 'group.js'], exclude: [...legacy, 'dsl/containers.js', 'dsl/row.js', 'dsl/grid.js', 'layout-connect-gaps.js', 'layout-group-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
+      include: 'layout-areas-gaps.js', budget: {esbuild: 95500, Vite: 120500}, bands: ['areas.js', 'box.js', 'caption.js', 'group.js'], exclude: [...legacy, 'dsl/containers.js', 'dsl/row.js', 'dsl/grid.js', 'layout-connect-gaps.js', 'layout-group-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Banner', source: composedSource(['banner'], "banner({headline: 'Review', stamp: 'Draft'})"),
       include: 'emit-banner.js', budget: {esbuild: 61000, Vite: 78000}, bands: ['banner.js'],
       exclude: [...legacy, 'emit-box.js', 'emit-boxes.js', 'emit-caption.js', 'emit-raw.js', 'layout-connect.js'], draw: true},
     {name: 'Raw', source: composedSource(['raw'], `raw({h: 40, draw: ({x, y, color}) =>
       '<text x="' + x + '" y="' + (y + 20) + '" fill="' + color('accent') + '">Review</text>'})`),
-      include: 'dsl/raw.js', budget: {esbuild: 36500, Vite: 48000}, bands: ['raw.js'],
+      include: 'dsl/raw.js', budget: {esbuild: 38000, Vite: 50500}, bands: ['raw.js'],
       exclude: [...legacy, 'dsl/text-bands.js', 'dsl/banner.js', 'emit-boxes.js', 'emit-banner.js', 'emit-box.js', 'layout-box-like.js'], draw: true},
     {name: 'Banner and raw', source: composedSource(['banner', 'raw'], `banner({headline: 'Review'}), raw({h: 32, draw: ({x, y}) => '<rect x="' + x + '" y="' + y + '" width="24" height="24"/>'})`),
       include: 'bands/banner.js', budget: {esbuild: 63500, Vite: 85500}, bands: ['banner.js', 'raw.js'], exclude: [...legacy, 'emit-boxes.js', 'emit-status.js', 'layout-areas.js', 'layout-group.js', 'layout-connect.js', 'gantt.js'], draw: true},
@@ -1122,6 +1122,13 @@ try {
       const label = `${bundler}: ${name}`;
       const has = (filename: string) => files.some(file => ('/' + file.replaceAll('\\', '/')).endsWith('/' + filename));
       assert.ok(has(include), `${label} に ${include} が必要です`);
+      if (name === 'Core' || name === 'Box') {
+        for (const file of ['slide-budget.js', 'slide-budget-live.js', 'layout-measured.js', 'measure.js', 'dsl/render.js']) {
+          assert.ok(!has(file), `${label}: unexpected ${file}`);
+        }
+        assert.ok(!files.some(file => file.includes('__vite-browser-external')), label);
+        assert.doesNotMatch(code ?? '', /(?:from\s*|import\s*\(\s*)['"]node:/, label);
+      }
       if (catalog) {
         const entries = specBandEntries.filter(({part}) => has('spec-parts/selective/' + part + '.js'));
         assert.deepEqual(entries.map(({part}) => 'spec-parts/selective/' + part + '.js'), [include], label);

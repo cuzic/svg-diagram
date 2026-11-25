@@ -1,5 +1,6 @@
 import {walkBands} from '../rules.ts';
-import {ROLES, OPT_IN_TEXT_MAX} from '../tokens.ts';
+import {fillScaleLimit as scaleLimit, fillTextSize, imageFillTextSize} from '../slide-fill.ts';
+import {ROLES} from '../tokens.ts';
 import type {Band} from '../types/index.ts';
 
 export {caption} from './caption.ts';
@@ -10,8 +11,13 @@ export {box} from './box.ts';
  * The usual roles (a stat({size: 'display'}) included) are not held back, so a diagram without these options scales as before.
  */
 export function fillScaleLimit(bands: Band[]): number {
-  const optIn = walkBands(bands).flatMap(b => b.type === 'banner' && b.headlineRole ? [ROLES[b.headlineRole]] : (b.type === 'bars' || b.type === 'plane') && b.labelRole ? [ROLES[b.labelRole]] : b.type === 'image' ? [b.labelRole, ...(b.marks ?? []).map(m => m.role), ...(b.labels ?? []).map(l => l.role)].flatMap(r => r ? [ROLES[r]] : []) : []);
-  return Math.min(1.8, optIn.length ? OPT_IN_TEXT_MAX / Math.max(...optIn) : 1.8);
+  let largest = 0;
+  for (const b of walkBands(bands)) {
+    if (b.type === 'banner') largest = Math.max(largest, fillTextSize(ROLES, b.headlineRole));
+    else if (b.type === 'bars' || b.type === 'plane') largest = Math.max(largest, fillTextSize(ROLES, b.labelRole));
+    else if (b.type === 'image') largest = Math.max(largest, imageFillTextSize(b, ROLES));
+  }
+  return scaleLimit(largest);
 }
 export {stat} from './stat.ts';
 export {banner} from './banner.ts';

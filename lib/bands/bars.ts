@@ -12,6 +12,7 @@ import {renderBars} from '../emit-bars.ts';
 import {snapGrid} from '../layout-util.ts';
 import {revealBarElements} from '../reveal-bars.ts';
 import {scopeOf} from '../scope-name.ts';
+import {fillTextSize} from '../slide-fill.ts';
 import {luminance, paintOf} from '../tokens.ts';
 import type {BarDatum, BarsBand, BarsOpts, LaidOutBars} from '../types/bars.ts';
 import {barsContrastProblems, barsProblems, barsRects, hiddenBarsTitleFindings, thinBarFindings} from '../verify-bars.ts';
@@ -27,6 +28,7 @@ const definition = {
   },
   valueAxis: barsValueAxis,
   textSizes: texts,
+  fillTextSize: (data, roles) => fillTextSize(roles, data.labelRole),
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of barsTexts(data, roles)) atoms(text, size, weight, font);
   },

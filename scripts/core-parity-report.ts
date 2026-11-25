@@ -3,14 +3,18 @@ import {globSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {parseArgs} from 'node:util';
 import {detachData} from '../lib/dsl/diagram.ts';
+import {renderDiagram} from '../lib/dsl/render.ts';
 import {resolveImages} from '../lib/image-file.ts';
 import {renderLegacyDiagramWithCore, unsupportedCoreOptions} from '../lib/legacy-core.ts';
 import {loadDiagram} from '../lib/load-source.ts';
+import {closeMeasurer, measureAll} from '../lib/measure.ts';
+import {must} from '../lib/must.ts';
 import {installResolveHook} from '../lib/resolve-hook.ts';
 import {walkBands} from '../lib/rules.ts';
-import type {DiagramData, MeasureRequest} from '../lib/types/core.ts';
+import {readSlideBudgetCache} from '../lib/slide-budget.ts';
+import type {Diagram, MeasureRequest} from '../lib/types/core.ts';
 import {renderInBrowser} from '../lib/web.ts';
-import type {WebRender} from '../lib/web.ts';
+import type {WebMeasurer, WebRender} from '../lib/web.ts';
 
 type Drawing = Pick<WebRender, 'svg' | 'width' | 'height' | 'verdict'>;
 type Attempt<T extends Drawing = Drawing> = {drawing: T} | {error: string};
@@ -63,7 +67,7 @@ function compare(legacy: Drawing, core: Drawing): Comparison {
 
 async function compareExample(file: string): Promise<Example> {
   const name = path.basename(file);
-  let diagram: DiagramData;
+  let diagram: Diagram;
   try {
     diagram = detachData(await loadDiagram(file));
   } catch (error) {
@@ -76,8 +80,14 @@ async function compareExample(file: string): Promise<Example> {
     const failure = {error: `画像読込失敗 — ${firstLine(error)}`};
     return {name, legacy: failure, core: failure, unsupported: unsupportedCoreOptions(diagram)};
   }
-  const legacy = await draw(() => renderInBrowser(diagram, {measure}));
-  const core = await draw(() => renderLegacyDiagramWithCore(diagram, {measure}));
+  const nameOfSvg = path.parse(file).name + '.svg';
+  const legacy = await draw(async () => diagram.slide
+    ? renderDiagram(diagram, {name: nameOfSvg, budget: 'cacheOnly'})
+    : renderInBrowser(diagram, {measure}));
+  const budget = diagram.slide && ('drawing' in legacy && 'budget' in legacy.drawing
+    ? legacy.drawing.budget : readSlideBudgetCache({...diagram.slide, svg: nameOfSvg}));
+  const measureSlide: WebMeasurer = async request => must((await measureAll(new Map([['text', request]]), diagram.measure)).get('text'));
+  const core = await draw(() => renderLegacyDiagramWithCore(diagram, {measure: diagram.slide ? measureSlide : measure, budget}));
   const unsupported = 'drawing' in core ? core.drawing.unsupported : unsupportedCoreOptions(diagram);
   const comparison = 'drawing' in legacy && 'drawing' in core ? compare(legacy.drawing, core.drawing) : undefined;
   return {name, legacy, core, unsupported, comparison};
@@ -134,7 +144,11 @@ const examples = positionals.length ? positionals.map(file => path.resolve(file)
 
 installResolveHook();
 const rows: Example[] = [];
-for (const file of examples) rows.push(await compareExample(file));
+try {
+  for (const file of examples) rows.push(await compareExample(file));
+} finally {
+  await closeMeasurer();
+}
 const report = markdown(rows);
 if (out === undefined) process.stdout.write(report);
 else writeFileSync(out, report);

@@ -224,6 +224,8 @@ try {
 
 `renderBands` に `width: 'fit'` を指定すると、`canvas` を使わない図の幅を内容に合わせて最小 320px まで縮めます。描画結果には `fit`（表示倍率と推奨の高さなど）、`fontScale`（描画時の文字倍率）、`laidOut`（配置結果）も含まれます。
 
+スライドの空き寸法をピクセル単位で `slide: {maxHeight, contentWidth}` に渡すと、`fit` がスライド上の縮尺と警告を返します。`fill: true` を併用すると、幅を `contentWidth` に合わせ、空きの高さに収まるように文字を拡大します。
+
 Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使えます。変換時にオプション依存の `mathjax-full` を読み込みます。この入口は Node.js 専用です。
 
 図を表示するページで「このノードをクリックした」を知りたいとき、`renderDiagram(d, {nodeIds: true})`（ブラウザ入口では `renderInBrowser(d, {measure, nodeIds: true})`）で、`id` を持つノードの図形に `data-node="名前"` が付く。既定は付けない（付けない SVG は 1 バイトも変わらない）。名前は `connect()` や spotlight が使うものと同じ（`scope` があれば `scope.id`）。HTML 出力（`--html`）には付かない。
