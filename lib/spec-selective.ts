@@ -118,7 +118,8 @@ function addLegend(bands: SelectedBand[], doc: SpecDocument, options: PrepareOpt
   const labels = doc.lang === 'en'
     ? {...project?.legendLabels, ...Object.assign({}, ...options.parts.map(part => part.legendEn ?? {})), ...LEGEND_EN}
     : project?.legendLabels;
-  const legend = must(options.autoLegend)(bands, labels);
+  if (!options.autoLegend) throw new Error("svg-diagram: legend: 'auto' needs autoLegend from svg-diagram/bands/legend (pass it as the autoLegend option)");
+  const legend = options.autoLegend(bands, labels);
   if (legend) bands.push(legend);
 }
 

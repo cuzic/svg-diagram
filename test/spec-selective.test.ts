@@ -466,3 +466,9 @@ test('prepareVerifiedSpecRender adds document diagnostics while the lightweight 
   assert.ok(verified.verdict.findings.some(finding => finding.rule === 'aspect-tall'));
   assert.ok(!light.verdict.findings.some(finding => finding.rule === 'aspect-tall'));
 });
+
+test("legend: 'auto' without autoLegend names what to pass", async () => {
+  const {prepareSpecLayout} = await import('../lib/spec-selective.ts');
+  const input = {version: 1, title: 'Plan', parts: [stepsPart.example]};
+  assert.throws(() => prepareSpecLayout(input, {parts: [stepsPart], project: {legend: 'auto'}}), /legend: 'auto' needs autoLegend from svg-diagram\/bands\/legend/);
+});
