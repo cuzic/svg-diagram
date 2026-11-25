@@ -1,6 +1,7 @@
 import {resolveFocus} from '../focus.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
 import {treeItems} from '../tree.ts';
+import type {TagTone} from '../types/core.ts';
 import type {TreeBand, TreeItem, TreeOpts, MindmapOpts} from '../types/diagrams.ts';
 import {revealOf, scopeOpt, TREE_TONES, withAnchors, withHandle} from './shared.ts';
 import type {TreeIds} from './shared.ts';
@@ -11,6 +12,7 @@ import type {TreeIds} from './shared.ts';
  * band (ADR 0049): a chevron(), a swimlane(), a table() ..., laid out at the width `w`, the tree's lines joining its edges (its own ids are anchors too).
  *   tree({label: '社長', sub: '代表取締役', children: [{label: '開発部', id: 'dev', children: [...]}, {label: '営業部'}]}, {dir: 'down'})
  */
+const EDGE_TONES: readonly string[] = ['accent', 'muted', 'danger'], EDGE_LINES: readonly string[] = ['solid', 'dashed', 'dotted'];
 /**
  * "You are here" (TreeOpts.focus): a copy of the tree with every node's tone decided by where it stands to the focused nodes.
  * focused: 'solid'; under a focused node, or on the path from one up to the root: 'accent'; anywhere else: 'muted'.
@@ -31,48 +33,60 @@ function focusTree(root: TreeItem, focus: string | readonly string[], who: strin
   };
   return walk(root, false)[0];
 }
-const TAG_TONES = ['accent', 'muted', 'danger'];
 /** ADR 0081 D4: at most 3 tags of 1 to 8 characters (code points), each a string or {text, tone}. Checked once here, not while the layout tries widths. */
-function checkTags(n: TreeItem): void {
-  const who = `tree(): "${n.label}"`;
+function checkTags(n: TreeItem, caller: string): void {
+  const who = `${caller}: "${n.label}"`;
   if (!Array.isArray(n.tags)) throw new Error(`${who}: tags must be a list like ['決定', {text: '反対', tone: 'danger'}]`);
   if (n.tags.length > 3) throw new Error(`${who}: ${n.tags.length} tags (the most is 3): drop some, or move the rest to sub`);
   for (const t of n.tags) {
     const text = typeof t === 'string' ? t : t && typeof t === 'object' ? t.text : undefined;
     if (typeof text !== 'string' || !text.trim()) throw new Error(`${who}: a tag needs text (a string, or {text, tone?})`);
     if ([...text].length > 8) throw new Error(`${who}: the tag "${text}" is ${[...text].length} characters (the most is 8): shorten it, or put the words in sub`);
-    if (typeof t === 'object' && t.tone !== undefined && !TAG_TONES.includes(t.tone)) throw new Error(`${who}: the tag "${text}" has tone ${String(t.tone)} (use ${TAG_TONES.join(', ')})`);
+    if (typeof t === 'object' && t.tone !== undefined && !EDGE_TONES.includes(t.tone)) throw new Error(`${who}: the tag "${text}" has tone ${String(t.tone)} (use ${EDGE_TONES.join(', ')})`);
   }
 }
 
 export function tree<const R extends TreeItem, const Id extends string = never>(root: R, opts?: TreeOpts & {id?: Id}): TreeBand & Declares<Id | TreeIds<R>> & HandleOf<Id> & AnchorsOf<TreeIds<R>>;
-export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
+export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand { return treeBand(root, opts, 'tree()'); }
+// `who` is the caller's name for messages (mindmap() builds its band through here)
+function treeBand(root: TreeItem, opts: TreeOpts, who: string): TreeBand {
   if (!root || typeof root !== 'object' || typeof root.label !== 'string') throw new Error('tree(root) needs a root node: {label: "...", children: [...]}');
-  if (opts.focus !== undefined) root = focusTree(root, opts.focus, 'tree()');
-  if (opts.dir !== undefined && opts.dir !== 'down' && opts.dir !== 'right' && opts.dir !== 'auto') throw new Error(`tree(): dir must be 'down', 'right' or 'auto' (got ${String(opts.dir)})`);
-  if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`tree(): maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
+  if (opts.focus !== undefined) root = focusTree(root, opts.focus, who);
+  if (opts.dir !== undefined && opts.dir !== 'down' && opts.dir !== 'right' && opts.dir !== 'auto') throw new Error(`${who}: dir must be 'down', 'right' or 'auto' (got ${String(opts.dir)})`);
+  if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`${who}: maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
   const ids: (string | undefined)[] = [];
-  if (opts.edges !== undefined && opts.edges !== false) throw new Error(`tree(): edges can only be false (no lines); got ${String(opts.edges)}`);
+  if (opts.edges !== undefined && opts.edges !== false) throw new Error(`${who}: edges can only be false (no lines); got ${String(opts.edges)}`);
   const usedBands = new Set<object>();
   const walk = (n: TreeItem, parent?: TreeItem): void => {
-    if (n.from !== undefined) {
-      if (typeof n.from !== 'string' || !n.from) throw new Error(`tree(): "${n.label}": from is the id of a part inside the parent's band`);
-      if (!parent) throw new Error(`tree(): the root has no parent, so "${n.label}" takes no from`);
-      if (!parent.band) throw new Error(`tree(): "${n.label}": from names a part inside the parent's band, but "${parent.label}" is not a band node`);
-      if (opts.edges === false) throw new Error(`tree(): "${n.label}": from draws a line, and edges: false draws none`);
+    if (n.edge !== undefined) {
+      const item = `"${n.label}"`, e = n.edge as {tone?: unknown; line?: unknown} | null;
+      if (!parent) throw new Error(`${who}: 根(${item})に edge は書けません(親がありません)。edge を消して、子の項目に書いてください`);
+      if (typeof e !== 'object' || e === null || Array.isArray(e)) throw new Error(`${who}: ${item} の edge は {tone?, line?} の形で書いてください`);
+      const unknown = Object.keys(e).find(k => k !== 'tone' && k !== 'line');
+      if (unknown !== undefined) throw new Error(`${who}: ${item} の edge に ${unknown} は書けません。使えるのは tone と line だけです(色は tone、実線・破線は line)`);
+      if (e.tone !== undefined && !EDGE_TONES.includes(e.tone as TagTone)) throw new Error(`${who}: ${item} の edge.tone が ${String(e.tone)} です。${EDGE_TONES.join(' / ')} のどれかにしてください`);
+      if (e.line !== undefined && !EDGE_LINES.includes(e.line as string)) throw new Error(`${who}: ${item} の edge.line が ${String(e.line)} です。${EDGE_LINES.join(' / ')} のどれかにしてください`);
+      if (opts.edges === false) throw new Error(`${who}: ${item} の edge は edges: false では描く線がないので使えません。edge を消すか、edges: false を外してください`);
+      if (n.from !== undefined) throw new Error(`${who}: ${item} は from を持つので edge は使えません(漏斗の線は元の線を作り直します)。edge か from のどちらかを消してください`);
     }
-    if (n.tone !== undefined && !TREE_TONES.includes(n.tone)) throw new Error(`tree(): "${n.label}" has tone ${String(n.tone)} (use ${TREE_TONES.join(', ')})`);
+    if (n.from !== undefined) {
+      if (typeof n.from !== 'string' || !n.from) throw new Error(`${who}: "${n.label}": from is the id of a part inside the parent's band`);
+      if (!parent) throw new Error(`${who}: the root has no parent, so "${n.label}" takes no from`);
+      if (!parent.band) throw new Error(`${who}: "${n.label}": from names a part inside the parent's band, but "${parent.label}" is not a band node`);
+      if (opts.edges === false) throw new Error(`${who}: "${n.label}": from draws a line, and edges: false draws none`);
+    }
+    if (n.tone !== undefined && !TREE_TONES.includes(n.tone)) throw new Error(`${who}: "${n.label}" has tone ${String(n.tone)} (use ${TREE_TONES.join(', ')})`);
     if (n.band !== undefined) {
-      if (Array.isArray(n.band)) throw new Error(`tree(): "${n.label}": band got a list: swimlane() returns the band and its flows, so write swimlane(...)[0]`);
-      if (typeof n.band !== 'object' || n.band === null || typeof (n.band as {type?: unknown}).type !== 'string') throw new Error(`tree(): "${n.label}": band must be a band (chevron(...), swimlane(...)[0], table(...) ...)`);
-      if (usedBands.has(n.band)) throw new Error(`tree(): "${n.label}": this band is already the band of another node — a band is laid out once; build a second one (its ids would collide too)`);
+      if (Array.isArray(n.band)) throw new Error(`${who}: "${n.label}": band got a list: swimlane() returns the band and its flows, so write swimlane(...)[0]`);
+      if (typeof n.band !== 'object' || n.band === null || typeof (n.band as {type?: unknown}).type !== 'string') throw new Error(`${who}: "${n.label}": band must be a band (chevron(...), swimlane(...)[0], table(...) ...)`);
+      if (usedBands.has(n.band)) throw new Error(`${who}: "${n.label}": this band is already the band of another node — a band is laid out once; build a second one (its ids would collide too)`);
       usedBands.add(n.band);
-      if (n.band.type === 'connect' || n.band.type === 'spacer') throw new Error(`tree(): "${n.label}": a ${n.band.type} cannot be a node`);
-      if (typeof n.w !== 'number' || !(n.w >= 40) || !Number.isFinite(n.w)) throw new Error(`tree(): "${n.label}": a band node needs its width, w: a number >= 40 (got ${String(n.w)})`);
-      if (n.tags !== undefined) throw new Error(`tree(): "${n.label}": a band node takes no tags (the band draws itself); put the tags on a node with a box, or draw them in the band`);
-      if (n.sub !== undefined || n.tone !== undefined) throw new Error(`tree(): "${n.label}": a band node takes no sub or tone (the band draws itself)`);
-    } else if (n.w !== undefined) throw new Error(`tree(): "${n.label}": w is only for a band node`);
-    if (n.tags !== undefined) checkTags(n);
+      if (n.band.type === 'connect' || n.band.type === 'spacer') throw new Error(`${who}: "${n.label}": a ${n.band.type} cannot be a node`);
+      if (typeof n.w !== 'number' || !(n.w >= 40) || !Number.isFinite(n.w)) throw new Error(`${who}: "${n.label}": a band node needs its width, w: a number >= 40 (got ${String(n.w)})`);
+      if (n.tags !== undefined) throw new Error(`${who}: "${n.label}": a band node takes no tags (the band draws itself); put the tags on a node with a box, or draw them in the band`);
+      if (n.sub !== undefined || n.tone !== undefined) throw new Error(`${who}: "${n.label}": a band node takes no sub or tone (the band draws itself)`);
+    } else if (n.w !== undefined) throw new Error(`${who}: "${n.label}": w is only for a band node`);
+    if (n.tags !== undefined) checkTags(n, who);
     ids.push(n.id);
     for (const c of n.children ?? []) walk(c, n);
   };
@@ -91,8 +105,12 @@ export function mindmap(root: TreeItem, opts: MindmapOpts = {}): TreeBand {
   const layouts = ['radial', 'right', 'left', 'down', 'up', 'org', 'list', 'brace', 'fishbone', 'timeline'];
   if (opts.layout !== undefined && !layouts.includes(opts.layout)) throw new Error(`mindmap(): layout must be ${layouts.join(' | ')} (got ${String(opts.layout)})`);
   if (opts.edges !== undefined && opts.edges !== false && !['elbow', 'curve', 'straight'].includes(opts.edges)) throw new Error(`mindmap(): edges must be elbow | curve | straight | false (got ${String(opts.edges)})`);
-  const band = tree(opts.focus === undefined ? root : focusTree(root, opts.focus, 'mindmap()'), {...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...revealOf(opts)});
+  const band = treeBand(opts.focus === undefined ? root : focusTree(root, opts.focus, 'mindmap()'), {...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...revealOf(opts)}, 'mindmap()');
   if (opts.edges === false) for (const n of treeItems(root)) if (n.from !== undefined) throw new Error(`mindmap(): "${n.label}": from draws a line, and edges: false draws none`);
+  const edged = treeItems(root).filter(n => n.edge !== undefined);
+  const noEdgeLayout = ['brace', 'fishbone', 'timeline'].find(l => l === opts.layout);
+  if (edged[0] && noEdgeLayout) throw new Error(`mindmap(): "${edged[0].label}" の edge は layout: '${noEdgeLayout}' では使えません。edge を消すか、layout: 'right' などにしてください`);
+  if (edged[0] && opts.edges === false) throw new Error(`mindmap(): "${edged[0].label}" の edge は edges: false では描く線がないので使えません。edge を消すか、edges: false を外してください`);
   Object.assign(band, {balanced: true, ...(opts.focus === undefined ? {} : {focused: true}), ...(opts.sides ? {sides: opts.sides} : {}), ...(opts.layout ? {layout: opts.layout} : {}), ...(opts.edges !== undefined ? {edges: opts.edges} : {})});
   return band as never;
 }

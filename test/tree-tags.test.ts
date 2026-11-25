@@ -203,3 +203,35 @@ test('fit error (m2): a figure too wide because of tags names the tags in the fi
   assert.match(withTags, /does not fit[\s\S]*fix: [^\n]*or shorten \/ drop the tags/);
   assert.doesNotMatch(await msg(), /tags/);
 });
+
+// ADR 0081 U1 + U2 together: one tree uses both `edge` (the line to the parent) and `tags` (the row in the node).
+const both = (): TreeItem => ({
+  label: '導入するか', id: 'root',
+  children: [
+    {label: '費用が下がる', id: 'a', tags: ['決定'], edge: {tone: 'accent'}},
+    {label: '移行に時間がかかる', id: 'b', tags: [{text: '反対', tone: 'danger'}], edge: {tone: 'danger', line: 'dashed'}},
+    {label: '様子を見る', id: 'c'},
+  ],
+});
+
+test('edge and tags together (svg): the dashed danger line, the tags, and the order box rect, tag, node text', async () => {
+  const {svg, laidOut} = await render(tree(both(), {dir: 'right'}));
+  const t = laidOut.laidOut.find(b => b.type === 'tree') as LaidOutTree;
+  assert.equal(t.nodes.find(n => n.id === 'a')?.tags?.length, 1);
+  assert.equal(t.nodes.find(n => n.id === 'b')?.tags?.length, 1);
+  assert.equal(t.edges.filter(e => e.style).length, 2, 'two styled lines');
+  assert.ok(svg.includes('stroke-dasharray'), 'the dashed line is drawn');
+  assert.ok(svg.includes(`stroke="${colorOf('danger', 'blue')}"`), 'in the danger colour');
+  assert.ok(svg.indexOf('rx="12"') < svg.indexOf('>決定<'), 'the tag pill comes before its text');
+  assert.ok(svg.indexOf('<path') < svg.indexOf('rx="12"'), 'lines are drawn before the nodes and tags');
+  const plain = await render(tree({...both(), children: both().children?.map(({label, id}) => ({label, id}))}, {dir: 'right'}));
+  assert.notEqual(plain.svg, svg);
+});
+
+test('edge and tags together (pptx): prstDash on the connector and a roundRect tag after its box', async () => {
+  const {laidOut} = await render(tree(both(), {dir: 'right'}));
+  const xml = planSlide(laidOut, fontsOf()).xml;
+  assert.equal((xml.match(/<a:prstDash val="dash"\/>/g) ?? []).length, 1);
+  assert.deepEqual([...xml.matchAll(/name="tag: ([^"]*)"/g)].map(m => m[1]), ['決定', '反対']);
+  assert.ok(xml.indexOf('name="tag: 決定') > xml.indexOf('name="box: 費用が下がる'));
+});
