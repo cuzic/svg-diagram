@@ -1,5 +1,7 @@
 // The full renderer may import every built-in definition. Selective entries must keep this table out of their dependency graph.
 import type {BandDef} from './band-def.ts';
+import {DEF} from './band-def.ts';
+import {walkBands} from './legend-notation.ts';
 import {areasDefinition} from './bands/areas.ts';
 import {bannerDefinition} from './bands/banner.ts';
 import {barsDefinition} from './bands/bars.ts';
@@ -134,7 +136,7 @@ export const FULL_DEFINITIONS: FullDefinitions = {
   quadrant: quadrantDefinition,
   raw: rawDefinition,
   row: rowDefinition,
-  screens: data => data.matrix ? stateMatrixDefinition : screenGridDefinition,
+  screens: data => data.matrix || ('layoutKind' in data && data.layoutKind === 'matrix') ? stateMatrixDefinition : screenGridDefinition, // a placed band keeps its layout kind
   sequence: sequenceDefinition,
   spacer: spacerDefinition,
   states: statesDefinition,
@@ -155,3 +157,9 @@ export function definitionFor(data: Band): BandDef<never, object> | undefined {
   const entry = table[data.type];
   return typeof entry === 'function' ? entry(data as never) : entry;
 }
+
+/** The definition a band carries, or else the built-in one of its type: plain data from the all-in-one builders has none until it is rendered. */
+export const definitionOfBand = (band: Band): BandDef | undefined => (band as {[DEF]?: BandDef})[DEF] ?? definitionFor(band);
+
+/** Every band, nested ones included, of plain data or of bands that carry their definitions. */
+export const walkAnyBands = (bands: Band[], out: Band[] = []): Band[] => walkBands(bands, out, definitionOfBand);

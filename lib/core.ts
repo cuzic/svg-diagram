@@ -16,9 +16,10 @@ import {basicExtentOf, figureMetricsForExtent, layoutFinding, unionOf} from './f
 import {addScoped, emptyScopes} from './scope-table.ts';
 import {qualify, scopeOf} from './scope-name.ts';
 import type {slideFitter} from './slide-fill.ts';
-import {atBand, sourceOf} from './source-ref.ts';
+import {atBand} from './source-ref.ts';
 import type {spotlighter} from './spotlight-core.ts';
-import {ownRect, scopedRect} from './verify-rects.ts';
+import {definitionKey} from './figure-definitions.ts';
+import {collectRectsWith} from './verify-rects.ts';
 import {verifyWithServices} from './verify-core.ts';
 import type {BandDef, VerifyCtx} from './band-def.ts';
 import type {CaptionBand, LaidOutCaption} from './types/text-bands.ts';
@@ -97,12 +98,6 @@ function size(name: string, value: number, min: number): number {
 }
 
 const keyOf = (text: string, size: number, weight: number, font: string): string => JSON.stringify([text, size, weight, font]);
-
-function definitionKey(band: Band | LaidOutBand): string {
-  if (band.type === 'chart') return `chart:${band.kind}`;
-  if (band.type === 'screens' && (('matrix' in band && band.matrix) || ('layoutKind' in band && band.layoutKind === 'matrix'))) return 'screens:matrix';
-  return band.type;
-}
 
 /** @internal Shared layout and SVG emission for selective output formats. */
 export async function prepareBands(bands: readonly DefinedBand[], opts: PreparationOptions) {
@@ -364,15 +359,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Preparat
   if (opts.diagramFindings && !diagramChecks.has(opts.diagramFindings)) bandFindings.push(...opts.diagramFindings(placed, stage, placedDefinition));
   const verdict = verifyWithServices({
     checkConnectionGeometry: connection?.internal ? connection.checkConnectionGeometry : undefined,
-    collectRects: figure => figure.laidOut.flatMap(band => {
-      const def = placedDefinition(band);
-      const rects = def?.verify?.rects?.(band as never) ?? ('h' in band ? ownRect(band) : []);
-      const scope = def?.rectsQualified ? undefined : scopeOf(band), loc = sourceOf(band);
-      return rects.map(rect => {
-        const located = loc && !rect.loc ? {...rect, loc} : rect;
-        return scope ? scopedRect(band, scope, located) : located;
-      });
-    }),
+    collectRects: figure => collectRectsWith(figure, placedDefinition),
     contrastProblems: (figure, tones) => leaves(figure).flatMap(band => {
       const def = placedDefinition(band);
       const messages = def?.verify?.contrast?.(band, {...ctx, tones, appearance: figure.appearance}) ?? [];

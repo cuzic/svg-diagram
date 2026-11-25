@@ -30,7 +30,7 @@ export const BAND_HANDLERS = {
 } satisfies {[T in LaidOutType]: PptxAdapter<LaidOutOf<T>> | 'image'};
 
 export function bandXml(band: LaidOutBand, ctx: Ctx, index: number): string {
-  // the one place the band type and its handler are correlated by hand (lib/emit.ts's EMIT_HANDLERS does the same)
+  // the one place the band type and its handler are correlated by hand (lib/emit.ts looks the band up by its definition instead)
   const handler = BAND_HANDLERS[band.type] as PptxAdapter<LaidOutBand> | 'image';
   return (handler === 'image' ? undefined : handler(band, ctx, index)) ?? drawBandFallback(band, ctx, index, () => bandPicture(ctx.ld, band, index), svgShapesXml);
 }

@@ -1,4 +1,5 @@
 import {nestedBandsOf} from './band-children.ts';
+import type {DefinitionOf} from './band-children.ts';
 import {ftaResolve} from './fta-resolve.ts';
 import {fromSources} from './finding-rules.ts';
 import {sourceOf} from './source-ref.ts';
@@ -26,10 +27,10 @@ export const DEFAULT_LEGEND_LABELS = {
 } satisfies Record<`line:${LineStyle}` | 'arrow:both' | `weight:${ArrowWeight}` | `tone:${Exclude<EmphasisTone, 'plain'>}` | `role:${Exclude<CauseRole, 'effect' | 'step'>}` | 'edge:and' | 'edge:back' | 'edge:blocks' | 'mark:core' | `fta-event:${Exclude<FtaKind, 'event'>}` | `fta-gate:${FtaGate}`, string>; // `satisfies`: a new line style / tone without a label (or a stale key) fails tsc; NotationKey derives from this table
 
 // every band, including those nested in groups, rows, grids and swimlanes
-export function walkBands(bands: Band[], out: Band[] = []): Band[] {
+export function walkBands(bands: Band[], out: Band[] = [], definitionOf?: DefinitionOf): Band[] {
   for (const b of bands) {
     out.push(b);
-    walkBands(nestedBandsOf(b), out);
+    walkBands(nestedBandsOf(b, definitionOf), out, definitionOf);
   }
   return out;
 }
@@ -52,8 +53,8 @@ export function wordedCanvasBands(all: Band[]): Set<Band> {
 }
 
 // notation keys a diagram uses: 'line:dashed', 'arrow:both', 'weight:strong', 'tone:new', ...
-export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause = false): Set<string> {
-  const all = walkBands(bands);
+export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause = false, definitionOf?: DefinitionOf): Set<string> {
+  const all = walkBands(bands, [], definitionOf);
   return usedBandNotation(all, dimmed, wordedCanvasBands(all), withCause);
 }
 
@@ -92,8 +93,8 @@ function usedBandNotation(all: readonly Band[], dimmed: ReadonlySet<Band>, worde
   return used;
 }
 
-export function legendKeys(bands: Band[]): Set<string> {
-  return listedNotation(walkBands(bands));
+export function legendKeys(bands: Band[], definitionOf?: DefinitionOf): Set<string> {
+  return listedNotation(walkBands(bands, [], definitionOf));
 }
 
 function listedNotation(bands: readonly Band[]): Set<string> {

@@ -4,7 +4,7 @@ import {banner, bars, box, caption, checkDiagram, closeMeasurer, diagram, fillSc
 import {layoutBars, barsTexts} from '../lib/bars.ts';
 import {layoutPlane, planeTexts} from '../lib/plane.ts';
 import {analyzeDocumentFit, analyzeFit} from '../lib/fit.ts';
-import {bandTextSizes} from '../lib/fit-handlers.ts';
+import {bandTextSizes} from '../lib/placed-definitions.ts';
 import {ROLES} from '../lib/tokens.ts';
 import type {LaidOutBanner, LaidOutPlane, Role} from '../lib/dsl.ts';
 

@@ -4,6 +4,7 @@ import path from 'node:path';
 import {test} from 'node:test';
 import {fileURLToPath} from 'node:url';
 import {nestedBandsOf} from '../lib/band-children.ts';
+import {definitionOfBand, walkAnyBands as walkBands} from '../lib/full-definitions.ts';
 import {areas, box, connect, diagram, gantt, grid, group, image, raw, row} from '../lib/dsl.ts';
 import {row as unlocatedRow} from '../lib/dsl/containers.ts';
 import {detachData} from '../lib/dsl/diagram.ts';
@@ -11,7 +12,6 @@ import {checkDiagram, renderDiagram} from '../lib/dsl/render.ts';
 import {box as unlocatedBox} from '../lib/dsl/text-bands.ts';
 import {importDefine} from '../lib/load-source.ts';
 import {installResolveHook} from '../lib/resolve-hook.ts';
-import {walkBands} from '../lib/rules.ts';
 import {DIAGRAM_SOURCE, SOURCE, SourceRef, atBand, captureHere, captureSourceLocations, sourceOf as refOf, throwAtDiagram, withSource} from '../lib/source-ref.ts';
 import type {Diagram} from '../lib/types/core.ts';
 import type {Band, LaidOutDiagram} from '../lib/types/index.ts';
@@ -60,7 +60,7 @@ function expectedBands(input: Diagram, laidOut: LaidOutDiagram): ExpectedBand[] 
     expected.push({type: band.type, owner: band});
     // Layout emits the group title after its frame and before its authored children.
     if (band.type === 'group' && band.title) expected.push({type: 'caption', owner: band});
-    for (const child of nestedBandsOf(band)) visit(child);
+    for (const child of nestedBandsOf(band, definitionOfBand)) visit(child);
   };
 
   if (input.status) expected.push({type: 'status', owner: input});

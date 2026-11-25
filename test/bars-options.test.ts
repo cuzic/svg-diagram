@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {bars, box, caption, checkDiagram, closeMeasurer, diagram, group, renderDiagram} from '../lib/dsl.ts';
+import {attachDefinitions} from '../lib/legacy-core.ts';
 import {diagramDesc} from '../lib/rules.ts';
 import type {LaidOutBars} from '../lib/dsl.ts';
 
@@ -115,7 +116,7 @@ test('hidden values go to <desc> without dropping box titles; a user desc wins',
   const shown = diagram({theme: 'blue'}).add(bars(DATA, {labels: 'none'}));
   assert.equal(diagramDesc(shown), '', 'a scale still shows the values');
   const grouped = diagram({theme: 'blue'}).add(group([hidden], {title: 'g'}));
-  assert.match(diagramDesc(grouped), /値: A 20%/);
+  assert.match(diagramDesc({...grouped, bands: attachDefinitions(grouped)}), /値: A 20%/); // nested bands are found through their definitions
   const svg = (await renderDiagram(d, {name: 't', budget: 'measure'})).svg;
   assert.match(svg, /<desc[^>]*>[^<]*値: A 20%/);
 });

@@ -6,7 +6,7 @@ import {layoutFinding} from './layout-issues.ts';
 import type {ResolveSource} from './layout-issues.ts';
 import {must} from './must.ts';
 import {visibleAt} from './reveal-visibility.ts';
-import {walkBands} from './rules.ts';
+import {walkAnyBands as walkBands} from './full-definitions.ts';
 import {qualify, scopeOf} from './scope-name.ts';
 import type {SourceLoc} from './source-location.ts';
 import {sourceOf} from './source-ref.ts';
@@ -16,7 +16,7 @@ import type {DiagramSource, Rect} from './types/core.ts';
 import type {LaidOutBand, LaidOutDiagram} from './types/index.ts';
 import type {Issue} from './types/verdicts.ts';
 import {labelOf} from './verify-base.ts';
-import {collectRects} from './verify-handlers.ts';
+import {collectRects} from './placed-definitions.ts';
 
 type At = {loc: SourceLoc; via?: Omit<SourceLoc, 'file'>[]};
 type Life = {reveal?: number; until?: number};

@@ -4,7 +4,7 @@ import {prepareLegacyDiagramWithCore, renderLegacyDiagramWithCore} from '../lega
 import {defaultMeasureSettings, measureAll} from '../measure.ts';
 import type {Diagram, DiagramData} from '../types/core.ts';
 import type {RenderResult, CheckResult, SlideBudget} from '../types/verdicts.ts';
-import {walkBands} from '../legend-notation.ts';
+import {walkAnyBands as walkBands} from '../full-definitions.ts';
 import {detachData} from './diagram.ts';
 import {throwAtDiagram} from '../source-ref.ts';
 

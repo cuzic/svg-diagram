@@ -11,7 +11,7 @@ test('bundling one container handler does not bring in the other handlers', asyn
   for (const name of modules) {
     const {metafile} = await build({entryPoints: [fileURLToPath(new URL(`../lib/${name}.ts`, import.meta.url))],
       bundle: true, platform: 'browser', metafile: true, write: false});
-    const forbidden = [...modules.filter(module => module !== name), 'band-children', 'rules', 'verify-handlers', 'emit-handlers'];
+    const forbidden = [...modules.filter(module => module !== name), 'band-children', 'rules', 'placed-definitions'];
     const present = Object.keys(metafile.inputs).filter(file => forbidden.some(module => file.endsWith(`/${module}.ts`)));
     assert.deepEqual(present, [], name);
   }

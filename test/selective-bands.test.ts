@@ -90,11 +90,10 @@ import {em} from '../lib/rich.ts';
 import {markSpecPart} from '../lib/source-ref.ts';
 import type {LaidOutBand} from '../lib/types/index.ts';
 import type {CheckRect} from '../lib/types/verdicts.ts';
-import {VERIFY_HANDLERS} from '../lib/verify-handlers.ts';
-import type {VerifyHandler} from '../lib/verify-handlers.ts';
+import {placedDefinitionOf} from '../lib/placed-definitions.ts';
 import {captionRects} from '../lib/verify-caption.ts';
 import {comicRects, comicSlotOwners} from '../lib/verify-comic-rects.ts';
-import {childRects, emblemRects, figureRects, overlappingFigureRects, statusRects} from '../lib/verify-rects.ts';
+import {childRects, emblemRects, figureRects, overlappingFigureRects, ownRect, statusRects} from '../lib/verify-rects.ts';
 import {comic as legacyComic} from '../lib/web.ts';
 import {sankey as legacySankey, heatmap as legacyHeatmap, radar as legacyRadar, waterfall as legacyWaterfall, swimlane as legacySwimlane, causeTree as legacyCauseTree, relationDiagram as legacyRelationDiagram, pdpc as legacyPdpc, tree as legacyTree, mindmap as legacyMindmap, stateDiagram as legacyStateDiagram, flowchart as legacyFlowchart, classDiagram as legacyClassDiagram, bpmn as legacyBpmn, cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
@@ -1093,15 +1092,14 @@ test('every selective band type returns the legacy rectangles for the same place
 
   const compare = async (type: LaidOutType, bands: SelectedBands) => {
     const {placed} = await prepareBands(bands, {measure, title: '計画'});
-    const handler: VerifyHandler<LaidOutBand> = VERIFY_HANDLERS[type] as VerifyHandler<LaidOutBand>;
     const def = bands[0]?.[DEF] as BandDef<unknown, LaidOutBand> | undefined;
     assert.ok(def);
     const matches = placed.laidOut.filter(band => band.type === type);
     assert.ok(matches.length, `missing placed ${type}`);
     for (const laid of matches) {
-      const expected = handler.rects?.(laid) ?? [];
-      // The legend handler is the legacy whole-band rectangle also used by the selective fallback.
-      const actual: CheckRect[] = def.verify?.rects?.(laid) ?? ('h' in laid ? VERIFY_HANDLERS.legend.rects(laid) : []);
+      // The built-in definition of the placed type is what the full renderer uses; a selective definition lists the same rects.
+      const expected: CheckRect[] = placedDefinitionOf(laid)?.verify?.rects?.(laid as never) ?? ('h' in laid ? ownRect(laid) : []);
+      const actual: CheckRect[] = def.verify?.rects?.(laid) ?? ('h' in laid ? ownRect(laid) : []);
       assert.deepEqual(actual, expected, `${def.type} → ${type}`);
     }
   };

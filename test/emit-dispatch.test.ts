@@ -3,9 +3,9 @@ import {test} from 'node:test';
 import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
 import {connectorSvgDefs, renderConnect} from '../lib/emit-connect.ts';
-import {renderBand} from '../lib/emit-handlers.ts';
 import {emitSvgWith} from '../lib/emit-svg-core.ts';
-import {emitSvg} from '../lib/emit.ts';
+import {emitSvg, renderBandWith} from '../lib/emit.ts';
+import {placedDefinitionOf} from '../lib/placed-definitions.ts';
 import {diagramTitle, diagramDesc} from '../lib/rules.ts';
 import {spotlightDim} from '../lib/emit-spotlight.ts';
 import {box, connect, diagram, renderInBrowser, row} from '../lib/web.ts';
@@ -13,7 +13,7 @@ import {box, connect, diagram, renderInBrowser, row} from '../lib/web.ts';
 test('the shared SVG emitter bundles without legacy band emitters or rules', async () => {
   const {metafile} = await build({entryPoints: [fileURLToPath(new URL('../lib/emit-svg-core.ts', import.meta.url))],
     bundle: true, platform: 'browser', write: false, metafile: true});
-  const forbidden = ['/emit-handlers.ts', '/emit-boxes.ts', '/emit-connect.ts', '/rules.ts', '/emit-node-ids.ts', '/emit-spotlight.ts'];
+  const forbidden = ['/placed-definitions.ts', '/emit-boxes.ts', '/emit-connect.ts', '/rules.ts', '/emit-node-ids.ts', '/emit-spotlight.ts'];
   const found = Object.keys(metafile.inputs).filter(file => forbidden.some(suffix => file.endsWith(suffix)));
   assert.deepEqual(found, []);
 });
@@ -26,7 +26,7 @@ test('the shared emitter preserves legacy SVG for rows, labelled connectors and 
   const seen: string[] = [];
   const actual = emitSvgWith({renderBand: (...args) => {
     seen.push(args[0].type);
-    return renderBand(...args);
+    return renderBandWith(placedDefinitionOf)(...args);
   }, defsNeeded: band => ({mono: band.type === 'row'}), renderConnect, connectorDefs: connectorSvgDefs, diagramTitle, diagramDesc, spotlightDim}, laidOut);
   assert.equal(actual, emitSvg(laidOut));
   assert.equal(actual, svg);

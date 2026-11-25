@@ -1,6 +1,7 @@
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {nestedBandsOf} from './band-children.ts';
 import {band, DEF, defOf, walkDefinedBands} from './band-def.ts';
+import {BandError} from './band-error.ts';
 import {captionDefinition} from './bands/caption.ts';
 import {connectDefinition} from './bands/connect.ts';
 import {autoLegend} from './bands/legend.ts';
@@ -50,6 +51,12 @@ export function attachDefinitions(d: DiagramData): DefinedBand[] {
         throw new Error(`帯「${data.type}」の定義がありません（${reason}）`);
       }
       Object.defineProperty(data, DEF, {value: definition, enumerable: true, writable: true, configurable: true});
+    }
+    if (data.type.includes(':')) {
+      const separator = data.type.indexOf(':');
+      const error = new BandError(data.type.slice(0, separator), data.type.slice(separator + 1), 'layout',
+        '外部の帯の配置・描画は後続の実装単位（U2〜U3）で対応します。現時点ではコアの帯を使ってください');
+      throw withSource(error, sourceOf(data));
     }
     for (const child of nestedBandsOf(data)) attach(child);
     return data as DefinedBand;

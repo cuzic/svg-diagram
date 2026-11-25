@@ -36,7 +36,7 @@ const internalExports = {
     canvasKeys: 'lists template regions for validation and tests',
     canvasTemplates: 'lists template names for validation and tests',
   },
-  './located.ts': {
+  './located-full.ts': {
     located: 'wraps the public builders',
   },
   './dsl/diagram.ts': {

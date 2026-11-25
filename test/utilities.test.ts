@@ -11,6 +11,7 @@ import {splitAtoms} from '../lib/measure.ts';
 import {explainChange} from '../lib/svg-diff.ts';
 import {scanMarkdown, parseItem, compareNotes, notesOf} from '../lib/docs-check.ts';
 import {loadConfig, applyConfig} from '../lib/config.ts';
+import {definitionOfBand} from '../lib/full-definitions.ts';
 import {edgeStats, usedNotation, legendKeys, diagramTitle, diagramDesc} from '../lib/rules.ts';
 import {diagram, box, banner, caption, group, row, grid, swimlane, table, sequence, wireframe, wf, legend} from '../lib/dsl.ts';
 import type {LaidOutConnect} from '../lib/types/containers.ts';
@@ -215,8 +216,8 @@ test('edgeStats: elbow paths, collinear overlaps (horizontal and vertical), touc
 test('walkBands / usedNotation / legendKeys / diagramTitle / diagramDesc over nested bands', () => {
   const sw = swimlane([{id: 'l', label: 'レーン'}], [{id: 's', lane: 'l', title: '手順', tone: 'new'}]);
   const bands: Band[] = [group([row([box({id: 'a', title: 'a', tone: 'danger'})]), grid([box({id: 'b', title: 'b'})], {cols: 1})], {title: '枠'}), ...sw];
-  assert.ok(usedNotation(bands).has('tone:danger'));
-  assert.ok(usedNotation(bands).has('tone:new'), 'swimlane steps count');
+  assert.ok(usedNotation(bands, undefined, false, definitionOfBand).has('tone:danger'));
+  assert.ok(usedNotation(bands, undefined, false, definitionOfBand).has('tone:new'), 'swimlane steps count');
   assert.equal(legendKeys([legend([{tone: 'new', label: 'N'}, {line: 'dashed', label: 'D'}])]).size, 2);
   const d = diagram({theme: 'blue'});
   d.add(...bands);

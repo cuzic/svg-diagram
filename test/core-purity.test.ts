@@ -57,7 +57,7 @@ test('the rendering core reaches no I/O and holds no module-level state (everyth
 // Builders run before the layout and read the unscaled table on purpose. charts-lines.ts:136 is one that should not: the label lift of a
 // target line is computed from the 1x size, so in a fill figure (fonts scaled up) the label sits a little close to its line — a finding of
 // this check, left for its own change.
-const ROLES_AT_BUILD = ['dsl/text-bands', 'charts-lines'];
+const ROLES_AT_BUILD = ['dsl/fill-scale-limit', 'charts-lines'];
 test('nothing the rendering core reaches imports the global ROLES table', () => {
   const importsRoles = (name: string): boolean => {
     const src = fs.readFileSync(fileOf(name), 'utf8');

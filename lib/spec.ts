@@ -7,7 +7,7 @@ export {capped, validateAgainst} from './spec-validation.ts';
 // Nothing here touches the disk or a process: this file imports only dsl-pure (and modules as pure as it, such as quadrant.ts). Left out on purpose: image() and math() (files, MathJax),
 // `slide` / `fill` (a measured slide), `today: 'auto'` (the build's date) and `icon` (a process-wide manifest).
 import {causeTree, chevron, cloud, cycle, diagram, flowchart, funnel, gantt, journeyMap, mindmap, pyramid, quadrant, raci, sequence, stateDiagram, swimlane, table, valueChain, venn, whyWhyTree} from './dsl-pure.ts';
-import {walkBands} from './rules.ts';
+import {walkAnyBands as walkBands} from './full-definitions.ts';
 import {markSpecPart} from './source-ref.ts';
 import {locateIn, messageOf} from './spec-result.ts';
 export {cappedMessages, fieldsHolding, layoutIssue, lintMessages, locateMessage, locateVerdict} from './spec-result.ts';

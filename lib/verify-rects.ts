@@ -1,4 +1,6 @@
-import {qualify} from './scope-name.ts';
+import type {BandDef} from './band-def.ts';
+import {qualify, scopeOf} from './scope-name.ts';
+import type {LaidOutBand} from './types/index.ts';
 import {sourceOf} from './source-ref.ts';
 import type {LaidOutStatus} from './types/containers.ts';
 import type {Rect} from './types/core.ts';
@@ -35,3 +37,16 @@ export function scopedRect(band: {type: string; id?: string}, scope: string, r: 
 export const frameRects = (band: {anchors: (Rect & {id: string})[]}): CheckRect[] => band.anchors.map(a => ({id: a.id, label: a.id, x: a.x, y: a.y, w: a.w, h: a.h}));
 
 export const ownRect = (band: Rect & {id?: string}): CheckRect[] => [{id: band.id ?? null, label: labelOf(band), x: band.x, y: band.y, w: band.w, h: band.h}];
+
+/** Every checkable rect of a laid-out figure, in band order: what each band's definition lists, or the band as a whole when it lists none. */
+export function collectRectsWith(figure: {laidOut: readonly LaidOutBand[]}, definitionOf: (band: LaidOutBand) => BandDef | undefined): CheckRect[] {
+  return figure.laidOut.flatMap(band => {
+    const def = definitionOf(band);
+    const rects = def?.verify?.rects?.(band as never) ?? ('h' in band ? ownRect(band) : []);
+    const scope = def?.rectsQualified ? undefined : scopeOf(band), loc = sourceOf(band);
+    return rects.map(rect => {
+      const located = loc && !rect.loc ? {...rect, loc} : rect;
+      return scope ? scopedRect(band, scope, located) : located;
+    });
+  });
+}

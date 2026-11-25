@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {box, checkDiagram, chevron, closeMeasurer, connect, diagram, gantt, bars, quadrant, swimlane, tree} from '../lib/dsl.ts';
 import {addScoped, bareNameIn, emptyScopes, qualify, resolveAnchor} from '../lib/anchor-scope.ts';
 import {emitSvg} from '../lib/emit.ts';
-import {collectRects} from '../lib/verify-handlers.ts';
+import {collectRects} from '../lib/placed-definitions.ts';
 
 test.after(() => closeMeasurer());
 

@@ -2,7 +2,7 @@
 // rendering shell): the builders, diagram() and the public types. lib/dsl.ts re-exports it, and the browser entry (lib/web.ts) builds on
 // it. A file reachable from here may not import node:* (test/web-entry.test.ts). ADR 0045.
 
-import {located} from './located.ts';
+import {located} from './located-full.ts';
 import * as textBands from './dsl/text-bands.ts';
 import * as sequenceTableSwimlane from './dsl/sequence-table-swimlane.ts';
 import * as wireframes from './dsl/wireframe.ts';
@@ -26,7 +26,7 @@ import {hero as heroPart} from './compose/hero.ts';
 export {diagram} from './dsl/diagram.ts';
 
 export type * from './dsl/text-bands.ts';
-export {fillScaleLimit} from './dsl/text-bands.ts';
+export {fillScaleLimit} from './dsl/fill-scale-limit.ts';
 export const caption = located(textBands.caption);
 export const box = located(textBands.box);
 export const stat = located(textBands.stat);

@@ -8,7 +8,7 @@ import {box, diagram, renderInBrowser} from '../lib/web.ts';
 test('the shared verification stage bundles without the full verifier and rule catalog', async () => {
   const {metafile} = await build({entryPoints: [fileURLToPath(new URL('../lib/verify-core.ts', import.meta.url))],
     bundle: true, platform: 'browser', write: false, metafile: true});
-  const forbidden = ['/verify-handlers.ts', '/rules.ts', '/band-children.ts', '/verify-connect-geometry.ts', '/connect-rules.ts'];
+  const forbidden = ['/placed-definitions.ts', '/rules.ts', '/band-children.ts', '/verify-connect-geometry.ts', '/connect-rules.ts'];
   const found = Object.keys(metafile.inputs).filter(file => forbidden.some(suffix => file.endsWith(suffix)));
   assert.deepEqual(found, []);
 });

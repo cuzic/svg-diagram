@@ -1,4 +1,4 @@
-import {located} from '../located.ts';
+import {holdsChildren, located} from '../located.ts';
 import {group} from '../dsl/text-bands.ts';
 import {row} from '../dsl/row.ts';
 import {spacer} from '../dsl/spacer.ts';
@@ -77,5 +77,5 @@ function versus(
   ];
 }
 
-const wrappedVersus = located(versus);
+const wrappedVersus = located(versus, holdsChildren);
 export {wrappedVersus as versus};

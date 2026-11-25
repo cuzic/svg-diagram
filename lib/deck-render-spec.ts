@@ -1,6 +1,6 @@
 import {applyConfig} from './config.ts';
 import {analyzeFit} from './fit.ts';
-import {bandTextSizes} from './fit-handlers.ts';
+import {bandTextSizes} from './placed-definitions.ts';
 import {measureAll} from './measure.ts';
 import {measureSettingsOf} from './measure-settings.ts';
 import {loadSpecPartsFor} from './spec-cli-parts.ts';
