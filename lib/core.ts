@@ -18,7 +18,7 @@ import {qualify, scopeOf} from './scope-name.ts';
 import {sourceOf} from './source-ref.ts';
 import {ownRect, scopedRect} from './verify-rects.ts';
 import {verifyWithServices} from './verify-core.ts';
-import type {BandDef, DiagramFindings, VerifyCtx} from './band-def.ts';
+import type {BandDef, VerifyCtx} from './band-def.ts';
 import type {CaptionBand, LaidOutCaption} from './types/text-bands.ts';
 import type {ConnectBand, LaidOutConnect} from './types/containers.ts';
 import {must} from './must.ts';
@@ -43,7 +43,7 @@ type DrawOptions = {
   maxWidth?: number;
   legend?: DiagramData['legend'];
   accept?: DiagramData['accept'];
-  diagramFindings?: DiagramFindings;
+  diagramFindings?: (diagram: LaidOutDiagram, stage: number, definitionOf: (band: LaidOutBand) => BandDef | undefined) => Finding[];
   diagramAcceptHint?: (rule: string) => string | undefined;
   pad?: number;
   gap?: number;
@@ -54,6 +54,13 @@ type DrawOptions = {
   title?: string;
   desc?: string;
   appearance?: Appearance;
+  transparent?: boolean;
+  tocCheck?: DiagramData['tocCheck'];
+  rcaCheck?: DiagramData['rcaCheck'];
+  layoutCheck?: DiagramData['layoutCheck'];
+  legendLabels?: DiagramData['legendLabels'];
+  /** @internal Append or extend a legend after generated connectors are present. */
+  addAutoLegend?: (bands: Band[], labels?: DiagramData['legendLabels']) => void;
   density?: DiagramData['density'];
   showTitle?: boolean;
   sourceLine?: string;
@@ -113,21 +120,15 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const scopeTable = emptyScopes();
   let last = 0;
   const revealWarnings: string[] = [];
-  const diagramChecks = new Set<DiagramFindings>();
+  const diagramChecks = new Set<NonNullable<DrawOptions['diagramFindings']>>();
   const inputChecks: ((ctx: VerifyCtx) => Finding[])[] = [];
-  let source = cloneData(bands) as unknown as Band[];
+  const source = cloneData(bands) as unknown as Band[];
   const data: DiagramData = {
     day: theme, medium: 'doc', width, maxWidth: opts.maxWidth, accept: opts.accept, legend: opts.legend, pad: canvas ? Math.round(pad) : pad, gap: canvas ? Math.round(gap) : gap,
     fill: false, bands: source, title: opts.title, desc: opts.desc, wrap: opts.wrap, keepWords: opts.keepWords, tones, canvas,
-    appearance: opts.appearance, density: opts.density, ...(fitWidth ? {fitWidth: true} : {}),
+    appearance: opts.appearance, transparent: opts.transparent, density: opts.density, ...(fitWidth ? {fitWidth: true} : {}),
+    tocCheck: opts.tocCheck, rcaCheck: opts.rcaCheck, layoutCheck: opts.layoutCheck, legendLabels: opts.legendLabels,
   };
-  if (opts.showTitle && opts.title || opts.sourceLine !== undefined) {
-    const captions = opts.captions;
-    if (!captions?.internal || !captions.decorateCaptions) {
-      throw new Error('renderBands: pass captionDefinition as captions for showTitle or sourceLine');
-    }
-    source = captions.decorateCaptions({...data, showTitle: opts.showTitle, sourceLine: opts.sourceLine});
-  }
   let nextLoopId = 0;
   const expandLoopBacks = (bands: Band[]): Band[] => bands.flatMap(data => {
     const def = defOf(data);
@@ -141,7 +142,15 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     return [data, ...connector.loopBackConnectors(data as Band & {id?: string}, loop, () => `__loopback${nextLoopId++}`)
       .map(link => band(connector, link))];
   });
-  source = expandLoopBacks(source);
+  data.bands = expandLoopBacks(source);
+  if (opts.legend === 'auto') opts.addAutoLegend?.(data.bands, opts.legendLabels);
+  if (opts.showTitle && opts.title || opts.sourceLine !== undefined) {
+    const captions = opts.captions;
+    if (!captions?.internal || !captions.decorateCaptions) {
+      throw new Error('renderBands: pass captionDefinition as captions for showTitle or sourceLine');
+    }
+    data.bands = captions.decorateCaptions({...data, showTitle: opts.showTitle, sourceLine: opts.sourceLine});
+  }
   let placeBox: typeof layoutBoxLike | undefined;
   let fitLayout: typeof fitLineScale | undefined;
   function collect(data: Band, inheritedStart = 0, inheritedEnd = Infinity): void {
@@ -198,7 +207,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     for (const generated of opts.generatedBands?.(data) ?? []) collect(generated, start, stop);
     for (const child of def.children?.(data) ?? []) collect(child, start, stop);
   }
-  for (const data of source) collect(data);
+  for (const input of data.bands) collect(input);
   const measured = 'measureBatch' in opts ? await opts.measureBatch(requests) : new Map(
     await Promise.all([...requests].map(async ([key, request]) => [key, await opts.measure(request)] as const)),
   );
@@ -247,7 +256,6 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       return {items: links ? items.concat(links) : items};
     },
   });
-  data.bands = source;
   const placed = await layoutFitted(data, () => layout(data, roles, widthOf));
   placed.canvasHeight = Math.max(1, placed.canvasHeight);
   const revealConnector = connection?.internal ? connection.revealConnector : undefined;
@@ -255,7 +263,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   for (const check of endpointChecks) check(ids, scopeTable, revealWarnings);
   const stage = opts.stage ?? last;
   const ink = toneEnv(tones);
-  const ctx = {theme, tones: ink, appearance: placed.appearance, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
+  const ctx = {theme, tones: ink, appearance: placed.appearance, rcaCheck: placed.rcaCheck, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
   const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => placedDefinition(band)?.verify?.targets?.(band as never) ?? ('h' in band ? [band] : []));
   const bandFindings = inputChecks.flatMap(check => check(ctx));
   if (!canvas) {
@@ -264,9 +272,11 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       const extent = extentOf ? extentOf(band as never) : basicExtentOf(band);
       return extent ? [extent] : [];
     });
-    for (const metric of figureMetricsForExtent(unionOf(extents), placed.width)) bandFindings.push({...metric, severity: 'info'});
+    for (const metric of figureMetricsForExtent(unionOf(extents), placed.width)) {
+      bandFindings.push({...metric, severity: placed.layoutCheck === 'strict' ? 'warn' : 'info'});
+    }
   }
-  for (const check of diagramChecks) bandFindings.push(...check(placed, stage));
+  for (const check of diagramChecks) bandFindings.push(...check(placed, stage, placedDefinition));
   for (const laid of placed.laidOut) {
     const def = placedDefinition(laid);
     bandFindings.push(...(def?.verify?.layoutFindings?.(laid as never, ctx) ?? []));
@@ -275,7 +285,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   if (canvas) {
     bandFindings.push(...canvasFindings(canvas, fit.effectiveFont, placed.contentHeight));
   }
-  if (opts.diagramFindings && !diagramChecks.has(opts.diagramFindings)) bandFindings.push(...opts.diagramFindings(placed, stage));
+  if (opts.diagramFindings && !diagramChecks.has(opts.diagramFindings)) bandFindings.push(...opts.diagramFindings(placed, stage, placedDefinition));
   const verdict = verifyWithServices({
     checkConnectionGeometry: connection?.internal ? connection.checkConnectionGeometry : undefined,
     collectRects: figure => figure.laidOut.flatMap(band => {

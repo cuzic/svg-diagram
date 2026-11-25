@@ -213,6 +213,6 @@ export function layoutMetrics(laidOut: LaidOutBand[], opts: {width: number; slid
 }
 
 /** Frame measurements span bands and should run once even when several bands register them. */
-export function frameLayoutFindings({laidOut}: LaidOutDiagram): Finding[] {
-  return frameMetrics(laidOut).map(metric => ({...metric, severity: 'info'}));
+export function frameLayoutFindings({laidOut, layoutCheck}: LaidOutDiagram): Finding[] {
+  return frameMetrics(laidOut).map(metric => ({...metric, severity: layoutCheck === 'strict' ? 'warn' : 'info'}));
 }

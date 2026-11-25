@@ -28,7 +28,8 @@ export const tableDefinition: BandDef<TableBand, LaidOutTable> = {
   emit: (laid, {theme, tones, roles}) => renderTable(laid, theme, tones, roles),
   verify: {
     acceptHint: rule => Object.hasOwn(tableRules, rule) ? findingAcceptanceHint(rule) : undefined,
-    findings: data => [...analysisFindings(data, data.rca?.findings ?? []), ...semanticTableFindings(data), ...tableNumberFindings(data)],
+    findings: (data, {rcaCheck}) => [...analysisFindings(data, data.rca?.findings ?? [], rcaCheck === 'strict' ? 'warn' : 'info'), ...semanticTableFindings(data), ...tableNumberFindings(data)],
+    layoutTones: laid => laid.rows.flatMap(row => !row.header && row.tone ? [row.tone] : []),
     layoutFindings: (laid, {tones}) => rowHeaderFindings(laid, tones),
   },
   svgDefs: laid => ({mono: laid.rows.some(row => row.cells.some(cell => cell.mono && cell.lines.length))}),

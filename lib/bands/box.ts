@@ -44,6 +44,8 @@ export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
     return renderBox(laid, theme, tones, roles);
   },
   verify: {
+    tones: data => [data.tone ?? 'plain'],
+    legendNotation: data => data,
     diagramFindings: [frameLayoutFindings, selectedBoxSizeFindings, statFitFindings],
     rects: ownRect,
     check: laid => nowrapProblems(laid).map(message => ({rule: 'nowrap', severity: 'problem', message})),

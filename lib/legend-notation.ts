@@ -1,11 +1,16 @@
 import {nestedBandsOf} from './band-children.ts';
 import {ftaResolve} from './fta-resolve.ts';
+import {fromSources} from './finding-rules.ts';
+import {sourceOf} from './source-ref.ts';
+import type {Finding} from './types/verdicts.ts';
 import {must} from './must.ts';
-import type {LegendItem} from './types/containers.ts';
+import type {ConnectBand, LegendBand, LegendItem} from './types/containers.ts';
 import type {ArrowWeight, EmphasisTone, LineStyle} from './types/core.ts';
 import type {CauseRole, FtaGate, FtaKind, TreeItem} from './types/diagrams.ts';
 import type {Band} from './types/index.ts';
 import type {BoxBand} from './types/text-bands.ts';
+
+export type LegendNotationBand = BoxBand | ConnectBand | LegendBand;
 
 export const DEFAULT_LEGEND_LABELS = {
   'line:solid': '実線', 'line:dashed': '破線', 'line:dotted': '点線', 'line:double': '二重線', 'arrow:both': '双方向', 'weight:strong': '強い流れ',
@@ -49,9 +54,11 @@ export function wordedCanvasBands(all: Band[]): Set<Band> {
 // notation keys a diagram uses: 'line:dashed', 'arrow:both', 'weight:strong', 'tone:new', ...
 export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause = false): Set<string> {
   const all = walkBands(bands);
+  return usedBandNotation(all, dimmed, wordedCanvasBands(all), withCause);
+}
+
+function usedBandNotation(all: readonly Band[], dimmed: ReadonlySet<Band>, worded: ReadonlySet<Band>, withCause = false): Set<string> {
   const used = new Set<string>(), lines = new Set<string>();
-  // a canvas() region with a pill (重点 / 中心 / ソフト) says its tone in words: that tone needs no legend entry
-  const worded = wordedCanvasBands(all);
   for (const b of all) {
     if (dimmed.has(b) || worded.has(b)) continue;
     if (b.type === 'connect') {
@@ -86,8 +93,12 @@ export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause 
 }
 
 export function legendKeys(bands: Band[]): Set<string> {
+  return listedNotation(walkBands(bands));
+}
+
+function listedNotation(bands: readonly Band[]): Set<string> {
   const keys = new Set<string>();
-  for (const b of walkBands(bands)) {
+  for (const b of bands) {
     if (b.type !== 'legend') continue;
     for (const it of b.items) {
       if (it.role) keys.add(`role:${it.role}`);
@@ -137,4 +148,34 @@ export function missingLegendItems(bands: Band[], custom?: Partial<Record<string
     if (kind === 'weight') return {line: 'solid', weight: v as ArrowWeight, label: labelOf(k)};
     return {line: v as LineStyle, label: labelOf(k)};
   });
+}
+
+/** Check notation gathered from the participating bands in source order. */
+export function legendFindings(all: readonly LegendNotationBand[], worded: ReadonlySet<Band>, custom?: Partial<Record<string, string>>, dim = new Set<Band>()): Finding[] {
+  const used = usedBandNotation(all, dim, worded), have = listedNotation(all);
+  if (!used.size) return [];
+  const missing = [...used].filter(k => !have.has(k));
+  if (!missing.length) return [];
+  const labels = legendLabelsFor(used, custom);
+  // say WHICH element uses each missing notation (a tone: the boxes drawn in it; a line / arrow: the connectors), not just the key
+  const quote = (t: string | undefined): string => { const s = (t ?? '').replace(/\s+/g, ' ').trim(); return s ? `「${[...s].length > 14 ? `${[...s].slice(0, 14).join('')}…` : s}」` : ''; };
+  const hasLegend = all.some(b => b.type === 'legend');
+  const parts = new Set<Band>();
+  const where = (k: string): string => {
+    if (k.startsWith('tone:')) {
+      const boxes = all.filter((b): b is BoxBand => b.type === 'box' && `tone:${b.tone}` === k && !dim.has(b));
+      for (const b of boxes) if (!worded.has(b)) parts.add(b);
+      const ex = boxes.slice(0, 3).map(b => quote(b.title ?? b.body)).filter(Boolean).join('');
+      return boxes.length ? `${k.slice(5)} の色の箱 ${boxes.length} 枚${ex ? `: ${ex}${boxes.length > 3 ? ' ほか' : ''}` : ''}` : '';
+    }
+    if (k.startsWith('line:') || k.startsWith('weight:') || k === 'arrow:both') {
+      const lines = all.filter(b => b.type === 'connect' && (k === 'arrow:both' ? b.arrow === 'both' : k.startsWith('weight:') ? `weight:${b.weight}` === k : `line:${b.line ?? 'solid'}` === k));
+      for (const b of lines) if (!dim.has(b)) parts.add(b);
+      return lines.length ? `該当する矢印・線 ${lines.length} 本` : '';
+    }
+    return '';
+  };
+  const names = missing.map(k => { const w = where(k); return `${k}（${w ? `${w}。` : ''}凡例の例: ${labels[k] ?? k}）`; }).join('、');
+  const location = hasLegend ? fromSources(all.filter(b => parts.has(b)).map(b => sourceOf(b))) : {};
+  return [{...location, rule: hasLegend ? 'legend-incomplete' : 'legend-missing', severity: 'warn', message: `凡例にない記法: ${names}。凡例に項目を足す（legend: 'auto' なら自動）か、凡例が要らない図なら legend: false`}];
 }

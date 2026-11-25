@@ -70,6 +70,7 @@ export const connectDefinition: BandDef<ConnectBand, LaidOutConnect> = {
   connectorInventory,
   rules: connectorRules,
   verify: {
+    legendNotation: data => data,
     diagramFindings: [labelCoverFindings, connectorFindings, selectedGraphFindings],
     acceptHint: rule => Object.hasOwn(connectorRules, rule) ? findingAcceptanceHint(rule) : undefined,
   },

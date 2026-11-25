@@ -23,7 +23,7 @@ const definition = {
   },
   emit: (laid, {theme, tones}) => renderBowtie(laid, theme, tones),
   rules: layoutFitRules,
-  verify: {...layoutFitVerification, rects: bowtieRects, findings: data => analysisFindings(data, bowtieFindings(data))},
+  verify: {...layoutFitVerification, rects: bowtieRects, findings: (data, {rcaCheck}) => analysisFindings(data, bowtieFindings(data), rcaCheck === 'strict' ? 'warn' : 'info')},
 } satisfies BandDef<BowtieBand, LaidOutBowtie>;
 
 export function bowtie<const Id extends string = never>(input: BowtieInput, opts?: BowtieOpts & {id?: Id}): WithBandDef<ReturnType<typeof build<Id>>, LaidOutBowtie> {

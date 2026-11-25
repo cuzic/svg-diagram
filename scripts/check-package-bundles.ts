@@ -470,7 +470,7 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
         bands: {caption: captionPptx}, strict: true,
       });
-    `, include: 'pptx/caption-band.js', budget: {esbuild: 104000, Vite: 133500}, bands: ['caption.js'],
+    `, include: 'pptx/caption-band.js', budget: {esbuild: 115000, Vite: 133500}, bands: ['caption.js'],
       exclude: [...legacy, 'pptx/box-bands.js', 'pptx/bands.js', 'pptx/table-band.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js'], draw: true},
     {name: 'Selective PPTX Legend', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
@@ -812,10 +812,10 @@ try {
     `, include: 'document-findings.js', bands: ['box.js'], exclude: [...legacy, 'term-rules.js', 'layout-connect.js'],
       budget: {esbuild: 89000, Vite: 113000}, draw: true},
     {name: 'Box', source: bandSource('box'), include: 'bands/box.js',
-      exclude: [...legacy, 'emit-boxes.js', 'emit-grid.js', 'emit-row.js', 'dsl/node.js', 'dsl/stat.js', 'emit-connect.js', 'reveal-warnings.js', 'reveal-handlers.js', 'reveal-row.js', 'verify-connect-geometry.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 78000, Vite: 99000}, draw: true},
+      exclude: [...legacy, 'document-findings.js', 'legend-notation.js', 'verify-gray-tones.js', 'emit-boxes.js', 'emit-grid.js', 'emit-row.js', 'dsl/node.js', 'dsl/stat.js', 'emit-connect.js', 'reveal-warnings.js', 'reveal-handlers.js', 'reveal-row.js', 'verify-connect-geometry.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 78000, Vite: 99000}, draw: true},
     {name: 'Node and stat', source: composedSource([], "node({icon: 'check', label: 'Review'}), stat(12, 'Count', {source: 'Report'})",
       "import {icon, node, stat} from 'svg-diagram/bands/box'; icon.use({version: 1, icons: {check: {d: 'M2 2h20v20H2z', vb: [0, 0, 24], from: 'file:check.svg', license: 'local'}}});"),
-      include: 'dsl/stat.js', budget: {esbuild: 75000, Vite: 96000}, bands: ['box.js'],
+      include: 'dsl/stat.js', budget: {esbuild: 75000, Vite: 106000}, bands: ['box.js'],
       exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'layout-connect.js', 'layout-areas.js'], draw: true},
     {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',
       exclude: [...legacy, 'emit-connect.js', 'verify-connect-geometry.js', 'layout-box-like.js', 'layout-cause-fit.js', 'box.js', 'emit-boxes.js', 'layout-connect.js', 'timeline.js', 'emit-timeline.js', 'emit-figures.js', 'charts.js'], budget: {esbuild: 53000, Vite: 70500}, draw: true},
@@ -826,7 +826,7 @@ try {
       include: 'steps.js', budget: {esbuild: 85000, Vite: 107000}, bands: ['box.js', 'row.js'],
       exclude: [...legacy, 'dsl/row.js', 'dsl/group.js', 'dsl/container-children.js', 'loop-back.js', 'loop-back-connectors.js', 'layout-connect.js', 'bands/connect.js', 'layout-grid.js', 'layout-group-row.js', 'layout-areas.js'], draw: true},
     {name: 'Grid', source: composedSource(['box', 'grid'], "grid([box({title: 'Review'}), box({title: 'Next'})], {cols: 2})"),
-      include: 'bands/grid.js', budget: {esbuild: 77000, Vite: 107500}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'dsl/containers.js', 'dsl/row.js', 'dsl/areas.js', 'dsl/group.js', 'dsl/container-children.js', 'emit-boxes.js', 'emit-row.js', 'emit-connect.js', 'verify-connect-geometry.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-connect.js', 'gantt.js'], draw: true},
+      include: 'bands/grid.js', budget: {esbuild: 85500, Vite: 107500}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'dsl/containers.js', 'dsl/row.js', 'dsl/areas.js', 'dsl/group.js', 'dsl/container-children.js', 'emit-boxes.js', 'emit-row.js', 'emit-connect.js', 'verify-connect-geometry.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Connect', source: composedSource(['box', 'connect'], "connect('a:bottom', 'b:top'), connect('b:bottom', 'c:top'), connect('d:bottom', 'e:top'), box({id: 'a', title: 'Review'}), ...['b', 'c', 'd', 'e', 'f'].map(id => box({id, title: id}))"),
       include: 'layout-connect-gaps.js', budget: {esbuild: 117000, Vite: 148500}, bands: ['box.js', 'connect.js'], exclude: [...legacy, 'dsl/bracket.js', 'dsl/callout.js', 'dsl/branch.js', 'loop-back.js', 'loop-back-options.js', 'loop-back-source.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-grid.js', 'gantt.js'], draw: true},
     ...([

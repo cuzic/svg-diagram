@@ -1,3 +1,5 @@
+import {grayToneFindings} from './verify-gray-tones.ts';
+export {GRAY_MIN_DL} from './verify-gray-tones.ts';
 import {aspectTallFindings, documentWidthFindings, missingTitleFindings, pictographFindings, textBudgetFindings, wrapFallbackFindings} from './document-findings.ts';
 import {edgeBendFindings} from './verify-edge-bends.ts';
 export {EDGE_BENDS_MAX, EDGE_BENDS_MEAN} from './verify-edge-bends.ts';
@@ -31,7 +33,7 @@ import {graphFindings} from './verify-connection-graph.ts';
 import {DARK_NOTE, mergeSides} from './appearance-auto.ts';
 import {applyFindingAcceptance, analysisFindings, at, findingAcceptanceHint, fromSources} from './finding-rules.ts';
 import type {SourceRef} from './source-ref.ts';
-import {legendKeys, legendLabelsFor, missingLegendItems, usedNotation, walkBands, wordedCanvasBands} from './legend-notation.ts';
+import {legendFindings, missingLegendItems, walkBands, wordedCanvasBands} from './legend-notation.ts';
 export {DEFAULT_LEGEND_LABELS, legendKeys, legendLabelsFor, usedNotation, walkBands} from './legend-notation.ts';
 import {itemIdsOf} from './band-ids.ts';
 import {sourceOf, withSource} from './source-ref.ts';
@@ -40,7 +42,7 @@ import {minTextSize} from './fit.ts';
 import {bandTextSizes} from './fit-handlers.ts';
 import {imageSizeFindings} from './verify-image.ts';
 import {hiddenBarsTitleFindings, thinBarFindings} from './verify-bars.ts';
-import {PALETTE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, relativeLuminance, toneEnv} from './tokens.ts';
+import {PALETTE, wcagRatio as lightWcag, runColorOf, toneStyle, colorOf, paintOf, toneEnv} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 
 // contrast is judged on the colours as drawn: in a dark diagram the light tokens are looked up in the dark set first
@@ -419,32 +421,9 @@ function nonTextContrast(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
 
 function legendRules(d: LintTarget, out: Finding[]): void {
   if (d.legend === false) return; // the author declared that this diagram needs no legend
-  const dim = dimmedBands(d), used = usedNotation(d.bands, dim), have = legendKeys(d.bands);
-  if (!used.size) return;
-  const missing = [...used].filter(k => !have.has(k));
-  if (!missing.length) return;
-  const labels = legendLabelsFor(used, d.legendLabels);
-  // say WHICH element uses each missing notation (a tone: the boxes drawn in it; a line / arrow: the connectors), not just the key
-  const all = walkBands(d.bands), quote = (t: string | undefined): string => { const s = (t ?? '').replace(/\s+/g, ' ').trim(); return s ? `「${[...s].length > 14 ? `${[...s].slice(0, 14).join('')}…` : s}」` : ''; };
-  const hasLegend = all.some(b => b.type === 'legend');
-  const worded = wordedCanvasBands(all), parts = new Set<Band>();
-  const where = (k: string): string => {
-    if (k.startsWith('tone:')) {
-      const boxes = all.filter((b): b is BoxBand => b.type === 'box' && `tone:${b.tone}` === k && !dim.has(b));
-      for (const b of boxes) if (!worded.has(b)) parts.add(b);
-      const ex = boxes.slice(0, 3).map(b => quote(b.title ?? b.body)).filter(Boolean).join('');
-      return boxes.length ? `${k.slice(5)} の色の箱 ${boxes.length} 枚${ex ? `: ${ex}${boxes.length > 3 ? ' ほか' : ''}` : ''}` : '';
-    }
-    if (k.startsWith('line:') || k.startsWith('weight:') || k === 'arrow:both') {
-      const lines = all.filter(b => b.type === 'connect' && (k === 'arrow:both' ? b.arrow === 'both' : k.startsWith('weight:') ? `weight:${b.weight}` === k : `line:${b.line ?? 'solid'}` === k));
-      for (const b of lines) if (!dim.has(b)) parts.add(b);
-      return lines.length ? `該当する矢印・線 ${lines.length} 本` : '';
-    }
-    return '';
-  };
-  const names = missing.map(k => { const w = where(k); return `${k}（${w ? `${w}。` : ''}凡例の例: ${labels[k] ?? k}）`; }).join('、');
-  const location = hasLegend ? fromSources(all.filter(b => parts.has(b)).map(b => sourceOf(b))) : {};
-  out.push({...location, rule: hasLegend ? 'legend-incomplete' : 'legend-missing', severity: 'warn', message: `凡例にない記法: ${names}。凡例に項目を足す（legend: 'auto' なら自動）か、凡例が要らない図なら legend: false`});
+  const all = walkBands(d.bands);
+  const notation = all.filter(b => b.type === 'box' || b.type === 'connect' || b.type === 'legend');
+  out.push(...legendFindings(notation, wordedCanvasBands(all), d.legendLabels, dimmedBands(d)));
 }
 
 function rowHeaderRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
@@ -452,39 +431,13 @@ function rowHeaderRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
   for (const b of d.laidOut ?? []) if (b.type === 'table') out.push(...rowHeaderFindings(b, tones));
 }
 
-// In grayscale (a mono print, a colour-blind reader) only lightness is left. The fill of every tone a diagram uses (boxes, table rows),
-// in the diagram's own theme and appearance, goes to CIE L* (0 black .. 100 white); two fills closer than GRAY_MIN_DL cannot be told apart.
-// 10 is about where two flat greys stop reading as "different" on paper: it flags soft (L* ~93) next to plain white (100), and passes accent-soft against solid (~50). The de-emphasis tones (muted / removed: the pale code fill, grey text) are meant to sit back and are left out. Tones that differ in their dashed outline are told apart by shape; tones
-// with the same fill (new / accent, changed / plain) are not told apart by their fill in colour either (the outline or nothing does it), so that is not this rule's matter.
-export const GRAY_MIN_DL = 10;
-const lightnessOf = (hex: string): number => { const y = relativeLuminance(hex); return y > 0.008856 ? 116 * Math.cbrt(y) - 16 : 903.3 * y; };
-
 function grayToneRules(d: LintTarget, tones: ToneEnv, out: Finding[]): void {
-  const used = new Map<string, Set<Band | LaidOutBand>>(), all = walkBands(d.bands);
-  const use = (name: string, band: Band | LaidOutBand): void => {
-    const parts = used.get(name) ?? new Set();
-    parts.add(band);
-    used.set(name, parts);
-  };
-  // a canvas() region with a pill (重点 / 中心 / 結論) says its tone in words, as for the legend (usedNotation): not a grayscale matter
-  const worded = wordedCanvasBands(all);
-  for (const b of all) if (b.type === 'box' && !worded.has(b)) use(b.tone ?? 'plain', b);
-  for (const b of all) if (b.type === 'emblem') for (const i of b.items) use(i.tone ?? 'plain', b);
-  for (const b of d.laidOut ?? []) if (b.type === 'table') for (const r of b.rows) if (!r.header && r.tone) use(r.tone, b);
-  const p = paintOf(tones, d.appearance);
-  const fills = [...used].map(([name, parts]) => {
-    const t = toneStyle(tones, name), box = resolveBoxStyle(tones, name as EmphasisTone, d.day);
-    return {name, parts, fill: p(box.fill).toLowerCase(), dashed: box.dashed, l: lightnessOf(p(box.fill)), quiet: t.fill === 'code'};
-  });
-  const hits = new Map<string, string>(), parts = new Set<Band | LaidOutBand>();
-  for (let i = 0; i < fills.length; i++) for (let j = i + 1; j < fills.length; j++) {
-    const a = must(fills[i]), b = must(fills[j]);
-    if (a.fill === b.fill || a.quiet || b.quiet || a.dashed !== b.dashed || Math.abs(a.l - b.l) >= GRAY_MIN_DL) continue;
-    const pair = `${a.name}・${b.name}`;
-    if (!hits.has(pair)) hits.set(pair, `${pair}（L* ${Math.round(a.l)} と ${Math.round(b.l)}）`);
-    for (const part of [...a.parts, ...b.parts]) parts.add(part);
-  }
-  if (hits.size) out.push({...fromSources([...parts].map(b => sourceOf(b))), rule: 'gray-tone-collision', severity: 'warn', message: `白黒にすると塗りの明度が近く、見分けにくいトーンの組: ${[...hits.values()].join('、')}。直し方は 2 つ: (1) トーンの塗りの明度差を L* 10 以上にする（diagram({tones: {accent: {fill: '#…'}}}) か .svg-diagram.json の "tones" で色を変える。または片方を solid / muted にする）、(2) 破線・太字・ラベルなど色以外の手がかりを足し、accept: {'gray-tone-collision': '理由'} で許容する（確認は preview --gray）`});
+  const all = walkBands(d.bands), worded = wordedCanvasBands(all);
+  const samples: [object, string[]][] = [];
+  for (const b of all) if (b.type === 'box' && !worded.has(b)) samples.push([b, [b.tone ?? 'plain']]);
+  for (const b of all) if (b.type === 'emblem') samples.push([b, b.items.map(i => i.tone ?? 'plain')]);
+  for (const b of d.laidOut ?? []) if (b.type === 'table') samples.push([b, b.rows.flatMap(r => !r.header && r.tone ? [r.tone] : [])]);
+  out.push(...grayToneFindings(d, tones, samples));
 }
 
 function swimlaneRules(d: LintTarget, out: Finding[]): void {

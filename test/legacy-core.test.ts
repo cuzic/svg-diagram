@@ -4,7 +4,7 @@ import {build} from 'esbuild';
 import {DEF, defOf} from '../lib/band-def.ts';
 import {boxDefinition} from '../lib/bands/box.ts';
 import {rowDefinition} from '../lib/bands/row.ts';
-import {box, bubble, canvas, connect, diagram, group, row, screens, stateMatrix, waterfall, wf} from '../lib/dsl-pure.ts';
+import {box, bubble, canvas, causeTree, chevron, connect, diagram, faultTree, group, legend, row, screens, stateMatrix, waterfall, wf} from '../lib/dsl-pure.ts';
 import {FULL_DEFINITIONS, UNDEFINED_BANDS, definitionFor} from '../lib/full-definitions.ts';
 import {LAYOUT_HANDLERS} from '../lib/layout-handlers.ts';
 import {attachDefinitions, renderLegacyDiagramWithCore, unsupportedCoreOptions} from '../lib/legacy-core.ts';
@@ -65,11 +65,86 @@ test('the core renders a legacy row of two boxes and their connector at the lega
 });
 
 test('the core reports unsupported diagram options and still draws at the supplied width', async () => {
-  const d = diagram({theme: 'blue', width: 'fit', spotlight: 'start', transparent: true}).add(box({title: '開始', id: 'start'}));
+  const d = diagram({theme: 'blue', width: 640, spotlight: 'start'}).add(box({title: '開始', id: 'start'}));
   const core = await renderLegacyDiagramWithCore(d, {measure});
-  assert.deepEqual(new Set(core.unsupported), new Set(["width: 'fit'", 'spotlight', 'transparent']));
+  assert.deepEqual(core.unsupported, ['spotlight']);
   assert.deepEqual(core.unsupported, unsupportedCoreOptions(d));
   assert.equal(core.width, d.width);
+});
+
+test('the core draws the automatic legend with the legacy height and custom labels', async () => {
+  const d = diagram({theme: 'blue', legend: 'auto', legendLabels: {'tone:accent': '要確認'}, sourceLine: '出典: 例'}).add(
+    box({title: '開始', tone: 'accent'}),
+  );
+  const legacy = await renderInBrowser(d, {measure});
+  const core = await renderLegacyDiagramWithCore(d, {measure});
+  assert.match(core.svg, />要確認<\/text>[\s\S]*>出典: 例<\/text>/);
+  assert.equal(core.height, legacy.height);
+  assert.deepEqual(core.unsupported, []);
+});
+
+test('the core appends automatic items to an existing legend', async () => {
+  const d = diagram({theme: 'blue', legend: 'auto'}).add(
+    box({title: '開始', tone: 'accent'}),
+    legend([{tone: 'muted', label: '任意'}]),
+  );
+  const legacy = await renderInBrowser(d, {measure});
+  const core = await renderLegacyDiagramWithCore(d, {measure});
+  assert.match(core.svg, />任意<\/text>[\s\S]*>強調<\/text>/);
+  assert.equal(core.height, legacy.height);
+});
+
+test('the core keeps the grayscale, missing legend and tall document findings', async () => {
+  const d = diagram({theme: 'blue', width: 320, gap: 480}).add(
+    box({title: '通常'}), box({title: '強調', tone: 'accent'}),
+  );
+  const legacy = await renderInBrowser(d, {measure});
+  const core = await renderLegacyDiagramWithCore(d, {measure});
+  for (const rule of ['gray-tone-collision', 'legend-missing', 'aspect-tall']) {
+    const expected = legacy.verdict.findings.find(finding => finding.rule === rule);
+    assert.ok(expected, rule);
+    const actual = core.verdict.findings.find(finding => finding.rule === rule);
+    assert.equal(actual?.message, expected.message, rule);
+    assert.equal(actual?.severity, expected.severity, rule);
+  }
+});
+
+test('the core fits a narrow figure at the legacy width', async () => {
+  const d = diagram({theme: 'blue', width: 'fit'}).add(chevron([{label: '開始'}], {direction: 'vertical', width: 420}));
+  const legacy = await renderInBrowser(d, {measure});
+  const core = await renderLegacyDiagramWithCore(d, {measure});
+  assert.ok(legacy.width < d.width);
+  assert.equal(core.width, legacy.width);
+  assert.deepEqual(core.unsupported, []);
+});
+
+test('the core draws transparent diagrams without a page rectangle', async () => {
+  const d = diagram({theme: 'blue', transparent: true, appearance: 'dark'}).add(box({title: '開始'}));
+  const legacy = await renderInBrowser(d, {measure});
+  const core = await renderLegacyDiagramWithCore(d, {measure});
+  assert.match(core.svg, /data-assumed-bg="#[a-f0-9]+"/i);
+  assert.doesNotMatch(core.svg, /<rect x="0" y="0"/);
+  assert.equal(core.svg.match(/data-assumed-bg="[^"]+"/)?.[0], legacy.svg.match(/data-assumed-bg="[^"]+"/)?.[0]);
+  assert.deepEqual(core.unsupported, []);
+});
+
+test('the core keeps strict TOC, cause analysis, and layout findings as warnings', async () => {
+  const d = diagram({theme: 'blue', tocCheck: 'strict', rcaCheck: 'strict', layoutCheck: 'strict', legend: false}).add(
+    causeTree([{id: 'ude', label: '望ましくない結果', role: 'ude'}], [], {tree: 'nbr'}),
+    chevron([{label: '開始'}], {direction: 'vertical', width: 420}),
+  );
+  const cases = [
+    [d, 'toc-nbr-parts'],
+    [diagram({theme: 'blue', rcaCheck: 'strict'}).add(faultTree({label: '故障', kind: 'basic'})), 'fta-top-is-leaf'],
+    [diagram({theme: 'blue', layoutCheck: 'strict'}).add(chevron([{label: '開始'}], {direction: 'vertical', width: 420})), 'layout-figure-narrow'],
+  ] as const;
+  for (const [data, rule] of cases) {
+    const legacy = await renderInBrowser(data, {measure});
+    const core = await renderLegacyDiagramWithCore(data, {measure});
+    assert.equal(legacy.verdict.findings.find(finding => finding.rule === rule)?.severity, 'warn', rule);
+    assert.equal(core.verdict.findings.find(finding => finding.rule === rule)?.severity, 'warn', rule);
+    assert.deepEqual(core.unsupported, []);
+  }
 });
 
 test('the core uses the effective legacy width of a whole-slide canvas', async () => {

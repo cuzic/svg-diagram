@@ -17,7 +17,7 @@ test('the parity report writes a Markdown comparison of three examples', () => {
     assert.match(stdout, /作例数 3/);
     assert.match(stdout, /\| canvas-swot\.ts \| 描画可 \| 描画可 \|/);
     assert.match(stdout, /\| image-spotlight\.ts \| 描画可 \| 描画可 \| spotlight \|/);
-    assert.match(stdout, /\| width-fit\.ts \| 描画可 \| 描画可 \|[^\n]*width: 'fit'/);
+    assert.match(stdout, /\| width-fit\.ts \| 描画可 \| 描画可 \| — \| (?:同一|差あり) \| 0 \| 0 \|/);
     assert.equal(run('--out', out), '');
     assert.equal(readFileSync(out, 'utf8'), stdout);
   } finally {

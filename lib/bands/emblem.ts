@@ -15,7 +15,7 @@ const definition = {
   measure: (data, env) => measureFlow(data, env, emblemTexts),
   layout: (data, env) => placeFlow(data, env, layoutEmblem),
   emit: emitFlow,
-  verify: {...verifyFlow, rects: emblemRects},
+  verify: {...verifyFlow, rects: emblemRects, tones: data => data.items.map(item => item.tone ?? 'plain')},
 } satisfies BandDef<EmblemBand, LaidOutFlowShape>;
 
 export function emblem(items: string | readonly EmblemItem[], opts?: (Omit<EmblemItem, 'label'> & EmblemOpts)): WithBandDef<EmblemBand, LaidOutFlowShape> {

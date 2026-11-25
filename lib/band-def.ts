@@ -10,6 +10,7 @@ import type {LoopBackSource} from './loop-back-source.ts';
 import type {connectorInventory} from './inventory-lines.ts';
 import type {InventoryContext} from './inventory-core.ts';
 import type {BandDescription} from './diagram-description.ts';
+import type {LegendNotationBand} from './legend-notation.ts';
 import type {ValueAxis} from './axis-comparison.ts';
 import type {SvgBandDefs} from './emit-svg-core.ts';
 import {BandError} from './band-error.ts';
@@ -76,6 +77,7 @@ export interface VerifyCtx {
   readonly theme: Theme;
   readonly tones: ToneEnv;
   readonly appearance?: Appearance;
+  readonly rcaCheck?: DiagramData['rcaCheck'];
   readonly connects: readonly {
     readonly fromId: string;
     readonly toId: string;
@@ -100,6 +102,14 @@ interface BandHooks<D, L extends object> {
   textSizes?(laid: L): Iterable<number>;
   valueAxis?(data: D): ValueAxis | undefined;
   verify?: {
+    /** @internal Authored samples for the diagram-wide grayscale comparison. */
+    tones?(data: D): readonly string[];
+    /** @internal Placed samples for the diagram-wide grayscale comparison. */
+    layoutTones?(laid: L): readonly string[];
+    /** @internal A participant in the diagram-wide legend completeness check. */
+    legendNotation?(data: D): LegendNotationBand;
+    /** @internal Children whose visible labels already explain their notation. */
+    wordedChildren?(data: D): readonly Band[];
     figureExtent?(laid: L): Rect | null;
     targets?(laid: L): readonly Extract<LaidOutBand, Rect>[];
     rects?(laid: L): CheckRect[];

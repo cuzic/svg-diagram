@@ -23,7 +23,11 @@ export const gridDefinition: BandDef<GridBand, LaidOutGrid> = {
   layoutBoxLike,
   layout: layoutGridBand,
   children: data => data.children,
-  verify: {rects: childRects, figureExtent: laid => unionOf(laid.children), targets: laid => laid.children, diagramFindings: frameLayoutFindings, findings: canvasRegionFindings},
+  verify: {
+    rects: childRects, figureExtent: laid => unionOf(laid.children), targets: laid => laid.children,
+    diagramFindings: frameLayoutFindings, findings: canvasRegionFindings,
+    wordedChildren: data => data.children.filter((_, i) => data.canvas?.worded[i]),
+  },
   emit: (laid, env) => renderGrid(laid, env.theme, env.tones, env.roles, env.stage),
 };
 

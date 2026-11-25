@@ -21,7 +21,7 @@ export {transitionUnits} from '../dsl/cause.ts';
 
 const tocDiagramFindings: DiagramFindings = d => {
   const causes = walkDefinedBands(d.bands).filter(b => b.type === 'cause');
-  const findings = causes.flatMap(b => analysisFindings(b, tocFindings(b)));
+  const findings = causes.flatMap(b => analysisFindings(b, tocFindings(b), d.tocCheck === 'strict' ? 'warn' : 'info'));
   // Match the legacy TOC pass: a single diagram-wide suggestion precedes the tree findings.
   if (d.legend === undefined && causes.some(b => b.tree !== undefined)) findings.unshift(tocLegendFinding());
   return findings;
@@ -42,7 +42,7 @@ export const causeDefinition: BandDef<CauseBand, LaidOutCause> = {
   verify: {
     ...layoutFitVerification,
     diagramFindings: [tocDiagramFindings, densityRestorationFindings, parallelEdgeFindings, edgeBendFindings],
-    findings: data => analysisFindings(data, data.rca?.findings ?? []),
+    findings: (data, {rcaCheck}) => analysisFindings(data, data.rca?.findings ?? [], rcaCheck === 'strict' ? 'warn' : 'info'),
     rects: laid => anchorRects(laid),
     check(laid) {
       const {problems, warnings} = causeFindings(laid);

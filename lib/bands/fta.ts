@@ -27,7 +27,7 @@ const definition = {
   },
   emit: (laid, {theme, tones}) => renderFta(laid, theme, tones),
   rules: layoutFitRules,
-  verify: {...layoutFitVerification, rects: ftaRects, findings: data => analysisFindings(data, ftaFindings(data))},
+  verify: {...layoutFitVerification, rects: ftaRects, findings: (data, {rcaCheck}) => analysisFindings(data, ftaFindings(data), rcaCheck === 'strict' ? 'warn' : 'info')},
 } satisfies BandDef<FtaBand, LaidOutFta>;
 
 export function faultTree<const T extends FtaEvent, const Id extends string = never>(top: T, opts?: FtaOpts & {id?: Id}): WithBandDef<ReturnType<typeof build<T, Id>>, LaidOutFta> {
