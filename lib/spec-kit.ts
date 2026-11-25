@@ -151,11 +151,21 @@ export const PART_EN: Record<string, Json> = {
   quadrant: {sizeLegend: 'Bubble area = size'},
 };
 
-export const treeItem = (levels: number): JsonSchema => object({
+/** ADR 0081 D7: what only a mind map's items take. maxLength is in UTF-16 units (16); the 8 code points are checked by the part's check(). */
+const branchStyle = (): Record<string, JsonSchema> => {
+  const TAG_TONE = oneOf('accent', 'muted', 'danger');
+  return {
+    edge: object({tone: {...TAG_TONE, description: 'The colour of the line to the parent (default muted): accent for a pro, danger for a con.'}, line: {...LINE, description: 'The line to the parent (default solid).'}}, [], 'How the line from the parent to this node looks. Not on the root, and not with edges: false or layout brace, fishbone or timeline.'),
+    tags: list({oneOf: [text('A tag (8 characters at most).', 16), object({text: text('The tag (8 characters at most).', 16), tone: TAG_TONE}, ['text'])]}, 3),
+  };
+};
+/** `rich` (ADR 0081 D7): the mind map's items, which also take `edge` and `tags`. Other parts' trees are the same as before. */
+export const treeItem = (levels: number, rich = false): JsonSchema => object({
   label: text('The text of the node.'),
   sub: text('A second, muted line.'),
   tone: EMPHASIS_TONE,
-  ...(levels > 0 ? {children: list(treeItem(levels - 1), 12)} : {}),
+  ...(rich ? branchStyle() : {}),
+  ...(levels > 0 ? {children: list(treeItem(levels - 1, rich), 12)} : {}),
 }, ['label']);
 export const flowSteps = (min: number, max: number): JsonSchema => list(object({label: text('The step.', 40), sub: text('A second, muted line.', 60), tone: EMPHASIS_TONE}, ['label']), max, min);
 export const pair = (items: JsonSchema, description: string): JsonSchema => ({type: 'array', items, minItems: 2, maxItems: 2, description});
