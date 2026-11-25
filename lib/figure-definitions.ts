@@ -11,9 +11,16 @@ export function definitionKey(band: Band | LaidOutBand): string {
   return band.type;
 }
 
-/** Finds the definition of a placed band among those the figure's bands (nested and generated ones included) carry. */
-export function definitionsOf(bands: readonly Band[]): (band: LaidOutBand) => BandDef | undefined {
-  const definitions = new Map<string, BandDef>(), outputs = new Map<string, BandDef>();
+/**
+ * Finds the definition of a placed band among those the figure's bands (nested and generated ones included) carry, then among `extra`
+ * (looked up by type; the definitions of one type that differ by kind, such as the chart ones, cannot be told apart in a list).
+ */
+export function definitionsOf(bands: readonly Band[], extra: readonly BandDef[] = []): (band: LaidOutBand) => BandDef | undefined {
+  const definitions = new Map<string, BandDef>(), outputs = new Map<string, BandDef>(), listed = new Map<string, BandDef>();
+  for (const def of extra) {
+    if (listed.has(def.type)) throw new Error(`svg-diagram: definitions has more than one definition for "${def.type}"; pass definitionOf to emitSvg to choose by kind`);
+    listed.set(def.type, def);
+  }
   const visit = (data: Band): void => {
     const def = defOf(data);
     if (!def) return;
@@ -23,5 +30,5 @@ export function definitionsOf(bands: readonly Band[]): (band: LaidOutBand) => Ba
     for (const child of def.children?.(data) ?? []) visit(child);
   };
   for (const data of bands) visit(data);
-  return band => definitions.get(definitionKey(band)) ?? outputs.get(band.type);
+  return band => definitions.get(definitionKey(band)) ?? outputs.get(band.type) ?? listed.get(band.type);
 }

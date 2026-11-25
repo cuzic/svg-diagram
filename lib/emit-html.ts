@@ -5,6 +5,7 @@
 // Same geometry as the SVG: layout.ts has already broken every text into lines and placed each baseline, so a line is one element
 // with white-space: pre — the browser never re-wraps it. A line's top is its baseline minus the font's ascent (its line-height is
 // ascent + descent), which is how the baseline lands where the <text> of the SVG puts it.
+import type {BandDef} from './band-def.ts';
 import {toneEnv} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import {emitSvg} from './emit.ts';
@@ -23,7 +24,7 @@ const adapters = {
   group: groupHtml, row: rowHtml, table: tableHtml,
 } satisfies HtmlAdapters;
 
-type HtmlOptions = {reveal?: number; id?: string; fontBox: FontBox; emit?: (diagram: LaidOutDiagram, noRecolor: boolean) => string};
+type HtmlOptions = {reveal?: number; id?: string; fontBox: FontBox; /** The definitions of the bands, when the figure was copied without them (JSON, structuredClone); by type. */ definitions?: readonly BandDef[]; emit?: (diagram: LaidOutDiagram, noRecolor: boolean) => string};
 
 /** A self-contained HTML fragment (a <div> and a <style>) for the diagram. `id` scopes the CSS (default: a hash of the content, so the same figure always gets the same id and two figures do not share one). */
 export function emitHtml(d: LaidOutDiagram, opts: HtmlOptions): string {
@@ -32,7 +33,7 @@ export function emitHtml(d: LaidOutDiagram, opts: HtmlOptions): string {
 // the inner emitSvg calls share d.tones, so they resolve the same env (toneEnv caches it by the overrides object)
 function emitHtmlWith(d: LaidOutDiagram, tones: ToneEnv, opts: HtmlOptions): string {
   const {day} = d, fb = opts.fontBox;
-  const emit = opts.emit ?? ((figure, noRecolor) => emitSvg(figure, {reveal: opts.reveal, noRecolor}));
+  const emit = opts.emit ?? ((figure, noRecolor) => emitSvg(figure, {reveal: opts.reveal, noRecolor, definitions: opts.definitions}));
   const visible = d.laidOut.filter(b => visibleAt(b, opts.reveal));
   // The SVG draws the bands in order and the connectors on top; so does this: consecutive bands of one kind (drawn as HTML, as the SVG
   // of the emitter, or as the author's own raw SVG) are one piece, and the pieces go out in the order of the layout.
