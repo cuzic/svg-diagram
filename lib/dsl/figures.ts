@@ -1,95 +1,12 @@
 import {quadrantBand} from '../quadrant.ts';
 import type {QuadrantBand, QuadrantItem, QuadrantOpts, QuadrantPreset} from '../quadrant.ts';
-import {chevronBand, concentricBand, cycleBand, emblemBand, funnelBand, valueChainBand, vennBand} from '../flow-shapes.ts';
-import type {ChevronBand, ChevronOpts, ConcentricBand, ConcentricMark, ConcentricOpts, ConcentricRing, ConcentricSector, CycleBand, CycleOpts, EmblemBand, EmblemItem, EmblemOpts, FlowStep, FunnelBand, FunnelOpts, FunnelStage, ValueChainBand, ValueChainOpts, VennBand, VennOpts, VennSet} from '../flow-shapes.ts';
-import {wordartBand} from '../wordart.ts';
-import type {WordArtBand, WordArtOpts} from '../wordart.ts';
-import {LABEL_ROLES} from '../tokens.ts';
-import type {PlaneBand, PlaneOpts, CurveBand, CurveOpts, PyramidBand, PyramidLayer, PyramidOpts} from '../types/figures.ts';
-import type {CurvePoints, Declares, HandleOf, PyramidLayers} from '../strict.ts';
-import {assertNoReveal, assertTextRole, withHandle} from './shared.ts';
+import type {Declares, HandleOf} from '../strict.ts';
+import {withHandle} from './shared.ts';
 
-// Stacked trapezoid layers, bottom (widest) to top (narrowest) — a test
-// pyramid, a maturity model, anything shaped like "few at the top, many at
-// the bottom". `layers`: strings or {text}, bottom-to-top. Opacity and each
-// layer's text color are derived (see tokens.ts's SHADES/bestTextColor),
-// not chosen per diagram, so contrast is provably fine for any 2-6 layers.
-// Types: a tuple of at least 2 layers.
-export function pyramid(layers: PyramidLayers, opts?: PyramidOpts): PyramidBand;
-export function pyramid(layers: (string | PyramidLayer)[], opts: PyramidOpts = {}): PyramidBand {
-  assertNoReveal(opts, 'pyramid()');
-  if (!Array.isArray(layers) || layers.length < 2) throw new Error('pyramid(layers) needs at least 2 layers, bottom to top');
-  return {
-    type: 'pyramid',
-    layers: layers.map(l => typeof l === 'string' ? {text: l} : l),
-    width: opts.width,
-    layerHeight: opts.layerHeight ?? 76,
-    apexRatio: opts.apexRatio ?? 0.3,
-  };
-}
-// An axis + a connected-dot trend line — a decay/growth curve, a shift-left
-// curve, anything shaped like "value over an ordered sequence". `points`:
-// {y: 0..1 (0 = axis bottom, 1 = axis top), emphasis?: 'accent'|'danger'|
-// 'muted', dropLine?: true} evenly spaced left-to-right along the x-axis.
-// Bespoke callouts (leader lines to side notes, etc.) are raw()'s job —
-// curve() only draws the reusable skeleton.
-// Types: a tuple of at least 2 points, each with a numeric y.
-export function curve(points: CurvePoints, opts?: CurveOpts): CurveBand;
-export function curve(points: CurveBand['points'], opts: CurveOpts = {}): CurveBand {
-  assertNoReveal(opts, 'curve()');
-  if (!Array.isArray(points) || points.length < 2) throw new Error('curve(points) needs at least 2 points');
-  for (const p of points) {
-    if (typeof p.y !== 'number') throw new Error('curve(): every point needs a numeric y (0 = axis bottom, 1 = axis top)');
-  }
-  return {
-    type: 'curve', points,
-    height: opts.height ?? 220,
-    width: opts.width,
-    yTopLabel: opts.yTopLabel, yBottomLabel: opts.yBottomLabel, xLabel: opts.xLabel,
-  };
-}
-// A coordinate plane: axes with ticks, points, guide lines, dimension lines and labels, all in the plane's own units.
-//   plane({x: {label: 'x', max: 100, step: 20}, y: {label: 'y', max: 60}, yDown?: true (image coordinates), grid?: true,
-//          points: [{id: 'a', at: [20, 10], label: 'A', labelAt?, tone?, shape?: 'dot' | 'ring' | 'cross'}],
-//          stages?: ['起源', 'カスタム', ...] or [{name, to: x}, ...] (named x columns with dividers; Wardley map), points[].evolves?: {to: x} (ring + dashed arrow),
-//          lines:  [{from: 'a', to: [20, 0], tone?, dashed? (default true), arrow?}],       // guides / projections
-//          dims:   [{from: 'a', to: 'b', label: '40 m', side?: 'above' | 'below' | 'left' | 'right', tone?}],
-//          labels: [{at: [50, 55], text: '原点', anchor?, tone?, bold?}], height?, width?})
-// A position is [x, y] or the id of a point. Layout places the ticks, labels and dimension lines; verify reports labels that
-// overlap each other or leave the figure.
-export function plane<const Id extends string = never>(opts: PlaneOpts & {id?: Id}): PlaneBand & Declares<Id> & HandleOf<Id>;
-export function plane(opts: PlaneOpts): PlaneBand {
-  assertTextRole(opts?.labelRole, LABEL_ROLES, 'plane() labelRole');
-  for (const k of ['x', 'y'] as const) {
-    const a = opts?.[k];
-    if (a && a.step !== undefined && !(a.step > 0 && Number.isFinite(a.step))) throw new Error(`plane(): axis ${k} step must be a number > 0 (got ${a.step})`);
-    if (!a || typeof a.max !== 'number') throw new Error(`plane(): "${k}" needs an axis, e.g. {max: 100}`);
-    if (a.max <= (a.min ?? 0)) throw new Error(`plane(): axis ${k} needs max > min`);
-    if (a.categories !== undefined) {
-      const c = a.categories;
-      if (!Array.isArray(c) || !c.length || c.some(s => typeof s !== 'string' || !s)) throw new Error(`plane(): axis ${k} categories must be a non-empty list of names, e.g. ['営業', '開発']`);
-      if (a.ticks !== undefined || a.step !== undefined) throw new Error(`plane(): axis ${k} takes categories or ticks / step, not both (the categories are its ticks)`);
-      if ((a.min ?? 0) >= 1 || a.max < c.length) throw new Error(`plane(): axis ${k} puts its ${c.length} categories at 1..${c.length}, so it needs min < 1 and max >= ${c.length} (use max: ${c.length + 1})`);
-    }
-  }
-  if (opts.stages !== undefined) {
-    const st = opts.stages, name = (q: string | {name: string}) => typeof q === 'string' ? q : q?.name;
-    if (!Array.isArray(st) || st.length < 2 || st.some(q => typeof name(q) !== 'string' || !name(q))) throw new Error("plane(): stages must be a list of at least 2 names (or {name, to?}), e.g. ['起源', 'カスタム', '製品', 'コモディティ']");
-    if (opts.x.ticks !== undefined || opts.x.step !== undefined || opts.x.categories !== undefined) throw new Error('plane(): stages are the x axis ticks, so x takes no ticks / step / categories with them');
-    const tos = st.map(q => typeof q === 'string' ? undefined : q.to);
-    if (tos.some(t => t !== undefined)) {
-      const min = opts.x.min ?? 0, inner = tos.slice(0, -1);
-      if (tos[tos.length - 1] !== undefined) throw new Error("plane(): the last stage runs to the end of the x axis, so it takes no `to`");
-      if (inner.some(t => typeof t !== 'number' || !Number.isFinite(t))) throw new Error('plane(): when a stage says where it ends (`to`), every stage but the last must');
-      if (inner.some((t, i) => (t as number) <= (i ? inner[i - 1] as number : min) || (t as number) >= opts.x.max)) throw new Error('plane(): stage `to` values must increase and stay inside the x axis');
-    }
-  }
-  for (const p of opts.points ?? []) if (p.evolves) {
-    const to = p.evolves.to, min = opts.x.min ?? 0;
-    if (typeof to !== 'number' || !(to > p.at[0]) || to > opts.x.max || to < min) throw new Error(`plane(): a point's evolves.to must be a number right of the point (x ${p.at[0]}) and inside the x axis (got ${to})`);
-  }
-  return withHandle({type: 'plane', ...opts, height: opts.height ?? 300}, opts.id);
-}
+export {pyramid} from './pyramid.ts';
+export {curve} from './curve.ts';
+
+export {plane} from './plane.ts';
 type QuadrantItemIds<I extends readonly {id?: string}[]> = I[number] extends infer E ? (E extends {readonly id: infer X extends string} ? X : never) : never;
 type QuadrantExtra<Id extends string, I extends readonly {id?: string}[]> = QuadrantBand & Declares<Id | QuadrantItemIds<I>> & HandleOf<Id>;
 interface QuadrantFn {
@@ -109,62 +26,5 @@ export const quadrant: QuadrantFn = Object.assign(
   (opts: QuadrantOpts): QuadrantBand => withHandle(quadrantBand(opts), opts?.id),
   {preset: (name: QuadrantPreset, opts: Omit<QuadrantOpts, 'preset'> = {}): QuadrantBand => withHandle(quadrantBand({...opts, preset: name}), opts.id)},
 ) as QuadrantFn;
-type ItemIds<I extends readonly {id?: string}[]> = I[number] extends infer E ? E extends {readonly id: infer X extends string} ? X : never : never;
-type ShapeExtra<B, Id extends string, I extends readonly {id?: string}[]> = B & Declares<Id | ItemIds<I>> & HandleOf<Id>;
-/** A row or column of arrow-shaped process steps. Step ids are anchors for connect() and spotlight. */
-export function chevron<const Id extends string = never, const I extends readonly FlowStep[] = readonly FlowStep[]>(steps: I, opts?: ChevronOpts & {id?: Id}): ShapeExtra<ChevronBand, Id, I> { return withHandle(chevronBand(steps, opts), opts?.id) as ShapeExtra<ChevronBand, Id, I>; }
-/** A narrowing stack of funnel stages. `scale: 'value'` uses each stage value; `showRate` prints conversion from the preceding stage. */
-export function funnel<const Id extends string = never, const I extends readonly FunnelStage[] = readonly FunnelStage[]>(stages: I, opts?: FunnelOpts & {id?: Id}): ShapeExtra<FunnelBand, Id, I> { return withHandle(funnelBand(stages, opts), opts?.id) as ShapeExtra<FunnelBand, Id, I>; }
-/**
- * Three to eight nodes joined as a closed circular process. Node ids are anchors for connect() and spotlight.
- * With `links` (ADR 0065) the nodes sit on a regular polygon (four on a square) joined pair by pair instead — 'all' (every pair, two-way) or
- * [{from, to, label, direction: 'forward'}] — and `frame` puts a named frame round it: the CBT five-part model.
- *   cycle([{label: '思考'}, {label: '感情'}, {label: '行動'}, {label: '身体'}], {links: 'all', frame: '状況・環境'})
- */
-export function cycle<const Id extends string = never, const I extends readonly FlowStep[] = readonly FlowStep[]>(steps: I, opts?: CycleOpts & {id?: Id}): ShapeExtra<CycleBand, Id, I> { return withHandle(cycleBand(steps, opts), opts?.id) as ShapeExtra<CycleBand, Id, I>; }
-/**
- * Porter's value chain (価値連鎖 / バリューチェーン): support activities (支援活動) as bars over the primary activities (主活動) as chevrons, with the
- * margin (マージン) as an arrow at the right end. Items are labels or `{label, sub, id, tone}`; ids are anchors for connect() and spotlight.
- *   valueChain({support: ['全般管理', '人事・労務管理', '技術開発', '調達活動'], primary: ['購買物流', '製造', '出荷物流', '販売・マーケティング', 'サービス']})
- * `margin: false` leaves the arrow out (a chain of activities only); `titles: false` leaves out the two captions.
- */
-export function valueChain<const Id extends string = never, const S extends readonly (string | FlowStep)[] = readonly (string | FlowStep)[], const P extends readonly (string | FlowStep)[] = readonly (string | FlowStep)[]>(parts: {support?: S; primary: P}, opts?: ValueChainOpts & {id?: Id}): ValueChainBand & Declares<Id | ItemIds<Extract<S[number] | P[number], {id?: string}>[]>> & HandleOf<Id> { return withHandle(valueChainBand(parts, opts), opts?.id) as never; }
-/** A two- or three-set Venn diagram. Dashed outlines supplement translucent colours, so sets are not distinguished by colour alone. */
-export function venn<const Id extends string = never, const I extends readonly VennSet[] = readonly VennSet[]>(sets: I, opts?: VennOpts & {id?: Id}): ShapeExtra<VennBand, Id, I> { return withHandle(vennBand(sets, opts), opts?.id) as ShapeExtra<VennBand, Id, I>; }
-/**
- * Nested rings, ordered from the outside or inside, with labels in the rings or in a side key.
- * With `sectors` (ADR 0065) the rings are cut into sectors from 12 o'clock clockwise and carry `marks` — the ACT Values Bullseye, a technology
- * radar. A mark sits in its sector at a ring (number as `rings` is written, or name) or at r (0 = centre, 1 = edge); `from` draws its move.
- *   concentric(4, {sectors: [{label: '仕事'}, {label: '家族'}], centre: '価値に沿った生き方', marks: [{label: '週1で運動', sector: 1, r: .3, from: {r: .7}}]})
- *   concentric([{label: 'Adopt'}, {label: 'Trial'}, {label: 'Assess'}, {label: 'Hold'}], {order: 'inner-first', sectors: [...], marks: [{label: 'Biome', sector: 2, ring: 'Adopt'}]})
- * `layout: 'stack'` draws the same data as a column of boxes per sector, a row per ring (the innermost at the top, the centre word over the columns).
- * `rings` may be a count of plain rings when there are sectors. Ring, sector and mark ids are anchors for connect() and spotlight.
- */
-export function concentric<const Id extends string = never, const S extends readonly ConcentricSector[] = readonly ConcentricSector[], const M extends readonly ConcentricMark[] = readonly ConcentricMark[]>(rings: number, opts: ConcentricOpts & {id?: Id; sectors: S; marks?: M}): ShapeExtra<ConcentricBand, Id, [...S, ...M]>;
-export function concentric<const Id extends string = never, const I extends readonly ConcentricRing[] = readonly ConcentricRing[], const S extends readonly ConcentricSector[] = readonly ConcentricSector[], const M extends readonly ConcentricMark[] = readonly ConcentricMark[]>(rings: I, opts?: ConcentricOpts & {id?: Id; sectors?: S; marks?: M}): ShapeExtra<ConcentricBand, Id, [...I, ...S, ...M]>;
-export function concentric(rings: readonly ConcentricRing[] | number, opts?: ConcentricOpts): ConcentricBand { return withHandle(concentricBand(rings, opts), opts?.id); }
-/**
- * A word or two inside a circle, square, triangle, diamond or hexagon (図形に文字を入れたもの). The shape grows to hold its text, and all the
- * shapes of one band share a size; they wrap to the next row when the width runs out. `sub` is a smaller line under the label.
- *   emblem('重要', {shape: 'triangle', tone: 'danger', id: 'warn'})                      // one shape; `id` is its anchor
- *   emblem([{label: '課題', shape: 'hexagon'}, {label: '原因', sub: '3 件'}], {shape: 'circle'})   // several; `shape` is the default
- * Other tools call this a "shape" (PowerPoint, Visio) or a "node" (Graphviz, Mermaid). Item ids are anchors for connect() and spotlight.
- */
-export function emblem<const Id extends string = never>(label: string, opts?: Omit<EmblemItem, 'label'> & Omit<EmblemOpts, 'shape' | 'id' | 'gap'> & {id?: Id}): EmblemBand & Declares<Id> & HandleOf<Id>;
-export function emblem<const Id extends string = never, const I extends readonly EmblemItem[] = readonly EmblemItem[]>(items: I, opts?: EmblemOpts & {id?: Id}): ShapeExtra<EmblemBand, Id, I>;
-export function emblem(first: string | readonly EmblemItem[], opts: (Omit<EmblemItem, 'label'> & EmblemOpts) | undefined = undefined): EmblemBand {
-  if (typeof first !== 'string') return withHandle(emblemBand(first, opts), opts?.id);
-  const {sub, shape, tone, id, ...band} = opts ?? {};
-  const built = emblemBand([{label: first, ...(sub !== undefined ? {sub} : {}), ...(shape ? {shape} : {}), ...(tone ? {tone} : {}), ...(id ? {id} : {})}], band);
-  return withHandle(built, id && built.scope ? `${built.scope}.${id}` : id); // a scoped item is registered as <scope>.<id> (ADR 0012)
-}
-/**
- * Decorated headline text (ワードアート): bold, outlined (縁取り), shadowed, glowing, bent, turned ..., set horizontally or vertically
- * (縦書き), as one band.
- *   wordart('新製品発表', {style: 'sticker', writing: 'vertical', size: 'display'})
- *   wordart('SALE', {style: 'outline', size: 72})
- * `style` picks a look ('plain' | 'bold' | 'outline' | 'shadow' | 'sticker' | 'glow' | 'emboss' | '3d' | 'gradient' | 'reflect'); `tone`,
- * `gradient`, `outline`, `shadow`, `glow`, `bevel`, `extrude`, `reflection`, `arc`, `rotate`, `flip`, `font`, `plate` adjust it.
- * Colours are tone keys. verifyDiagram() rejects letters that would not read (a white letter with no dark outline on a white page).
- */
-export function wordart<const Id extends string = never>(text: string, opts?: WordArtOpts & {id?: Id}): WordArtBand & Declares<Id> & HandleOf<Id> { return withHandle(wordartBand(text, opts), opts?.id) as WordArtBand & Declares<Id> & HandleOf<Id>; }
+export {chevron, concentric, cycle, emblem, funnel, valueChain, venn} from './flow.ts';
+export {wordart} from './wordart.ts';

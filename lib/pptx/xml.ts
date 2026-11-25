@@ -1,4 +1,4 @@
-import {escapeAttr} from '../emit-common.ts';
+import {escapeAttr} from '../xml-escape.ts';
 
 export interface Rect {x: number; y: number; w: number; h: number}
 export interface Fonts {sans: string; mono: string}

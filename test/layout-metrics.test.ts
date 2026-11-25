@@ -5,8 +5,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {layoutMetrics} from '../lib/layout-metrics.ts';
-import {layoutSeverity, lintDiagram} from '../lib/rules.ts';
+import {figureLayoutMetrics} from '../lib/figure-metrics.ts';
+import {frameLayoutFindings, layoutMetrics} from '../lib/layout-metrics.ts';
 import {box, caption, checkDiagram, diagram, renderDiagram, row} from '../lib/dsl.ts';
 import type {LaidOutBand} from '../lib/types/index.ts';
 
@@ -63,7 +63,7 @@ test('layout-unused-space: a group is judged by what sits inside it', () => {
 });
 
 test('layout-figure-offset and layout-figure-narrow read the content box, not the title', () => {
-  const m = (bands: LaidOutBand[]) => all(bands);
+  const m = (bands: LaidOutBand[]) => figureLayoutMetrics(bands, 940).map(metric => metric.rule);
   assert.ok(m([textBox(20, 20, 300, 60)]).includes('layout-figure-offset'));
   assert.ok(!m([textBox(320, 20, 300, 60)]).includes('layout-figure-offset'));
   assert.ok(m([textBox(320, 20, 300, 60)]).includes('layout-figure-narrow'));
@@ -101,7 +101,7 @@ test('layout-align-mixed: left and centre boxes in one row', () => {
 
 test('layout findings preserve their key order without capture', () => {
   const laidOut = [frame(20, 20, 444, 100), frame(480, 20, 440, 100)];
-  const hit = lintDiagram({...diagram({theme: 'blue'}), laidOut}).find(f => f.rule === 'layout-sibling-size');
+  const hit = frameLayoutFindings({laidOut} as Parameters<typeof frameLayoutFindings>[0]).find(f => f.rule === 'layout-sibling-size');
   assert.ok(hit);
   assert.deepEqual(Object.keys(hit), ['rule', 'severity', 'message', 'data']);
 });
@@ -127,11 +127,8 @@ test('layoutCheck: strict on a slide figure (day:) throws, because slide figures
   assert.doesNotThrow(() => diagram({day: 1, layoutCheck: 'info'}));
 });
 
-test('layoutCheck: any other value throws; layoutSeverity reads it', () => {
+test('layoutCheck rejects unknown values', () => {
   assert.throws(() => diagram({theme: 'blue', layoutCheck: 'warn' as never}), /layoutCheck/);
-  assert.equal(layoutSeverity({}), 'info');
-  assert.equal(layoutSeverity({layoutCheck: 'info'}), 'info');
-  assert.equal(layoutSeverity({layoutCheck: 'strict'}), 'warn');
 });
 
 test('finding data carries the measured number, threshold and fix; lint without laid-out bands stays quiet', async () => {
@@ -139,7 +136,6 @@ test('finding data carries the measured number, threshold and fix; lint without 
   assert.equal(typeof f?.data?.measured, 'number');
   assert.equal(typeof f?.data?.threshold, 'number');
   assert.ok(f?.data?.fix);
-  assert.deepEqual(lintDiagram({...sample(), laidOut: undefined}).filter(x => x.rule.startsWith('layout-')), []);
 });
 
 test('check CLI: layout-* never fails --strict by default; a layoutCheck: strict figure does; --format json has data', () => {

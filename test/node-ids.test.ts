@@ -5,11 +5,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {register} from 'node:module';
-import {bpmn, box, causeTree, checkDiagram, chevron, closeMeasurer, concentric, cycle, diagram, emblem, funnel, grid, mindmap, quadrant, relationDiagram, renderDiagram, row, tree, venn, whyWhyTree} from '../lib/dsl.ts';
+import {bpmn, box, causeTree, chevron, closeMeasurer, concentric, cycle, diagram, emblem, funnel, grid, mindmap, quadrant, relationDiagram, renderDiagram, row, tree, venn, whyWhyTree} from '../lib/dsl.ts';
 import {loadConfig} from '../lib/config.ts';
 import {loadDiagram} from '../lib/load-source.ts';
-import {emitRevealStage} from '../lib/pipeline.ts';
-import {withNodeIds, withNodeIdsBand} from '../lib/emit-node-ids.ts';
+import {renderWithStages} from '../lib/dsl/render.ts';
+import {nameBoxChildren, nameBoxNode, nameBpmnNodes, nameCauseNodes, nameFlowShapeNodes, nameQuadrantNodes, nameTreeNodes, withNodeIds, withNodeIdsBand} from '../lib/emit-node-ids.ts';
+import type {LaidOutRow} from '../lib/types/containers.ts';
 import type {LaidOutBand} from '../lib/types/index.ts';
 
 register(new URL('../lib/resolve-hook.ts', import.meta.url)); // the examples import 'svg-diagram'
@@ -102,9 +103,10 @@ test('nodeIds: why-why marks the names connect() can use: the author\'s ids, and
 
 test('nodeIds: the stages of a click-through draw carry the names too when asked', async () => {
   const d = diagram({theme: 'blue'}).add(tree({id: 'r', label: '目的', children: [{id: 'c', label: '手段'}]}, {reveal: 1} as never));
-  const {laidOut} = await checkDiagram(d);
-  assert.deepEqual(marks(emitRevealStage(laidOut, 1)), []);
-  assert.ok(marks(emitRevealStage(laidOut, 1, {nodeIds: true})).includes('r'));
+  const plain = await renderWithStages(d, {name: 't', budget: 'cacheOnly'});
+  const named = await renderWithStages(d, {name: 't', budget: 'cacheOnly', nodeIds: true});
+  assert.deepEqual(marks(plain.emitRevealStage(1)), []);
+  assert.ok(marks(named.emitRevealStage(1)).includes('r'));
 });
 
 test('withNodeIds: a band that has no named frame is returned as it is', () => {
@@ -163,4 +165,17 @@ test('nodeIds: a quadrant item that is dimmed by a spotlight and a hollow marker
     items: [{id: 'p', label: '製品 A', at: [0.8, 0.8], group: 'a'}, {id: 'q', label: '製品 B', at: [0.2, 0.3], group: 'b'}],
   }));
   assert.deepEqual([...new Set(marks((await draw(d, true)).svg))].sort(), ['p', 'q']);
+});
+
+test('the naming helpers a band definition shares write dataNode on a named frame only', () => {
+  const at = <T>(value: unknown): T => value as T;
+  assert.equal(nameBoxNode(at({id: 'a'})).dataNode, 'a');
+  assert.equal(nameBoxNode(at({id: 'a', frame: false})).dataNode, undefined);
+  assert.deepEqual(nameBoxChildren(at<LaidOutRow>({children: [{id: 'a'}, {}]})).children.map(c => c.dataNode), ['a', undefined]);
+  assert.deepEqual(nameTreeNodes(at({nodes: [{id: 'a'}, {}]})).nodes.map((n: {dataNode?: string}) => n.dataNode), ['a', undefined]);
+  assert.deepEqual(nameCauseNodes(at({anchors: [{id: 'a'}, {id: 'b'}, {id: 'c'}], unanchored: ['b'], nodes: [{}, {}, {hex: true}]})).nodes.map((n: {dataNode?: string}) => n.dataNode), ['a', undefined, undefined]);
+  assert.deepEqual(nameBpmnNodes(at({anchors: [{id: 'a'}, {id: 'b'}], nodes: [{kind: 'task'}, {kind: 'event'}]})).nodes.map((n: {dataNode?: string}) => n.dataNode), ['a', undefined]);
+  assert.deepEqual(nameFlowShapeNodes(at({primitives: [{node: 'a'}, {}]})).primitives.map(p => (p as {dataNode?: string}).dataNode), ['a', undefined]);
+  const quadrant = nameQuadrantNodes(at({bubbles: [{id: 'a'}], texts: [{item: 0}, {}]}));
+  assert.deepEqual([quadrant.bubbles[0]?.dataNode, ...quadrant.texts.map((t: {dataNode?: string}) => t.dataNode)], ['a', 'a', undefined]);
 });

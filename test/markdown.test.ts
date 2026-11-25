@@ -220,3 +220,30 @@ test('scanFigures: finds images outside code, comments and escapes, with their l
     [8, true, [['h', 's.diagram.ts', 'ttl', false]]],
   ]);
 });
+
+test('the Markdown CLI renders a DSL source without loading the JSON spec catalog', () => {
+  const dir = tmp();
+  try {
+    fs.writeFileSync(path.join(dir, 'flow.diagram.ts'), ok('Flow'));
+    const page = path.join(dir, 'page.md');
+    fs.writeFileSync(page, '![Flow](flow.diagram.ts)\n');
+    const hook = `import {registerHooks} from "node:module";
+      registerHooks({resolve(specifier, context, next) {
+        const result = next(specifier, context);
+        const path = new URL(result.url).pathname;
+        if (path.endsWith('/lib/spec.ts') || path.includes('/lib/spec-parts/')) {
+          throw new Error("Unexpected JSON spec dependency: " + path);
+        }
+        return result;
+      }});`;
+    const rendered = spawnSync(process.execPath, [
+      '--import', 'data:text/javascript,' + encodeURIComponent(hook),
+      path.join(ROOT, 'markdown-diagram.ts'), page, '--inline',
+    ], {cwd: dir, encoding: 'utf8'});
+    assert.equal(rendered.status, 0, rendered.stderr);
+    assert.match(rendered.stdout, /<svg\b/);
+    assert.match(rendered.stdout, />Flow<\/text>/);
+  } finally {
+    fs.rmSync(dir, {recursive: true, force: true});
+  }
+});

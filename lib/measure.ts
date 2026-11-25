@@ -19,8 +19,7 @@
 // something fits.
 
 import type {Browser} from 'playwright-chromium';
-import {launchChromium} from './browser.ts';
-import {svgSize} from './raster.ts';
+import {svgSize} from './svg-size.ts';
 import type {Raster} from './raster.ts';
 import {FONT_STACKS} from './tokens.ts';
 import {splitAtoms, textWidth} from './atoms.ts';
@@ -39,7 +38,9 @@ function escapeXml(s: string): string {
 
 let browserPromise: Promise<Browser> | null = null;
 function getBrowser(): Promise<Browser> {
-  browserPromise ??= launchChromium({args: ['--no-sandbox']}).catch(e => { browserPromise = null; throw e; });
+  browserPromise ??= import('./browser.ts')
+    .then(({launchChromium}) => launchChromium({args: ['--no-sandbox']}))
+    .catch(e => { browserPromise = null; throw e; });
   return browserPromise;
 }
 

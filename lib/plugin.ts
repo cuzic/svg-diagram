@@ -11,7 +11,7 @@ type PublicBandDef<D, L extends Rect> = Extract<BandDef<D, L>, {internal?: never
 
 /** The host assigns the type from the plugin id and the band key. */
 export type PluginBandDef<D extends object = object, L extends Rect = Rect, Input = unknown> =
-  Omit<PublicBandDef<D, L>, 'type' | 'nodeIds' | 'rectsQualified' | 'children'> & {
+  Omit<PublicBandDef<D, L>, 'type' | 'nodeIds' | 'nameNodes' | 'locations' | 'rectsQualified' | 'children'> & {
     type?: string;
     build(input: Input): D;
     nodeIds?: 'host';

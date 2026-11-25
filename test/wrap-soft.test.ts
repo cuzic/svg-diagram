@@ -31,6 +31,17 @@ test("wrap: 'bunsetsu-soft' lays a figure that does not fit that way out as 'phr
   assert.equal(await svg(fig(7, 'bunsetsu-soft')), await svg(fig(7, 'phrase')), 'the same drawing as phrase');
   const f = soft.verdict.findings.find(x => x.rule === 'wrap-fell-back');
   assert.equal(f?.severity, 'info');
+  const {band} = await import('../lib/band-def.ts');
+  const {causeDefinition} = await import('../lib/bands/cause.ts');
+  const {renderBands} = await import('../lib/core.ts');
+  const {fontMeasurer} = await import('../lib/node-measure.ts');
+  const {documentFindings} = await import('../lib/document-findings.ts');
+  const tree = fig(7, 'bunsetsu-soft').bands[0];
+  assert.ok(tree?.type === 'cause');
+  const selected = await renderBands([band(causeDefinition, tree)], {measure: fontMeasurer(), wrap: 'bunsetsu-soft', title: 't', diagramFindings: documentFindings});
+  const note = selected.verdict.findings.find(x => x.rule === 'wrap-fell-back');
+  assert.equal(note?.message, f?.message);
+  assert.equal(note?.severity, 'info');
 });
 
 test("a real mistake of the author still fails with its own message in 'bunsetsu-soft'", async () => {

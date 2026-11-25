@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {closeMeasurer, renderDiagram} from '../lib/dsl.ts';
 import {renderDeckPptxEdge} from '../lib/pptx-deck-edge.ts';
-import {walkBands} from '../lib/rules.ts';
+import {walkAnyBands as walkBands} from '../lib/full-definitions.ts';
 import {captureSourceLocations, sourceOf} from '../lib/source-ref.ts';
 import {renderSpecEdge} from '../lib/spec-edge.ts';
 import {renderSpec} from '../lib/spec-render.ts';

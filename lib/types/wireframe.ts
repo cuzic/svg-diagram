@@ -134,6 +134,8 @@ export interface LaidOutWireframe extends Rect {
 }
 export interface LaidOutScreens extends Rect {
   type: 'screens';
+  /** Internal layout discriminator, kept out of serialized geometry. */
+  readonly layoutKind?: 'matrix';
   id?: string;
   title?: string;
   prims: Prim[];

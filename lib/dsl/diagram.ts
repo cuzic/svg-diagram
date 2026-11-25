@@ -1,21 +1,20 @@
-// diagram() and the pure passes the renderers share: copying a tree before the passes write into it, and the fit-to-content layout loop.
+// diagram() and the pure preparation the renderers share.
 // Split from render.ts (which reads files and the slide budget) so the browser entry (lib/web.ts) draws a figure without any of that.
 import {mapOf, checkTones, NO_TONES, THEMES, SLIDE_CANVAS, checkMinText} from '../tokens.ts';
 import type {ConnectOpts} from '../types/containers.ts';
 import type {BandInput, Diagram, DiagramData, DiagramOpts, Theme, Medium} from '../types/core.ts';
-import type {LaidOutDiagram} from '../types/index.ts';
 import type {DiagramInput} from '../strict.ts';
 import {applyConnectDefaults, connectBand} from './defaults.ts';
-import {contentBox} from '../layout-metrics.ts';
 import {applyWireframeDefaults} from './wireframe-numbering.ts';
 import {fillAutoToday} from '../today-auto.ts';
-import {walkBands} from '../rules.ts';
+import {walkAnyBands as walkBands} from '../full-definitions.ts';
 import {rewrite} from './rewrite.ts';
-import {DIAGRAM_SOURCE, captureHere, sourceOf, withSource} from '../source-ref.ts';
+import {captureHere, sourceOf, withSource} from '../source-ref.ts';
 import type {SourceRef} from '../source-ref.ts';
-import {isDefKey} from '../band-def.ts';
-import {must} from '../must.ts';
+import {cloneData} from '../clone-data.ts';
 import {sourceCaptureEnabled} from '../source-capture.ts';
+
+export {layoutFitted} from '../layout-fit-width.ts';
 
 // Compile time (lib/strict.ts): the result remembers the anchor ids add() has seen, so a connect() ref to an id
 // that is declared neither in the same add() call (before OR after the connect) nor earlier in a chained
@@ -116,58 +115,4 @@ export function detachData<D extends DiagramData>(d: D): D {
   // gantt({today: 'auto'}) takes the day the caller gave (never the clock); only then does the day go in the metadata
   if (fillAutoToday(walkBands(out.bands), out.today) && out.source) out.source = {...out.source, today: out.today};
   return out;
-}
-/**
- * A deep copy of plain data: arrays and plain objects (Object.prototype or null prototype) are copied; everything else is
- * shared — a function (a raw() band's draw), a string, a Map / Set / Date / RegExp, a class instance. (structuredClone throws
- * on raw()'s function; copying a class instance by hand breaks private fields and internal slots.) The same object met twice
- * is copied once, so a band placed in two spots stays one band in the copy, and a cycle ends.
- * Known gap: a class instance handed in as plan data (a point of plane({points})) is shared, so a reveal written into it by
- * prepareReveal can still show in another figure. Not copied: non-enumerable properties (the .left / .right / .at handles,
- * withAnchors' anchors) and symbol keys such as NUMBERING, GIVEN and RICH that add() has used up. Source marks and band definitions are copied by reference.
- */
-function cloneData<T>(v: T, seen = new WeakMap<object, unknown>()): T {
-  if (!v || typeof v !== 'object') return v;
-  if (seen.has(v)) return seen.get(v) as T;
-  const array = Array.isArray(v);
-  const proto = Object.getPrototypeOf(v);
-  if (!array && proto !== Object.prototype && proto !== null) return v;
-  const out = array ? [] : Object.create(proto);
-  seen.set(v, out);
-  if (array) {
-    for (const x of v) out.push(cloneData(x, seen));
-  } else {
-    for (const [k, x] of Object.entries(v)) out[k] = cloneData(x, seen);
-    withSource(out, sourceOf(v));
-    withSource(out, sourceOf(v, DIAGRAM_SOURCE), DIAGRAM_SOURCE);
-  }
-  for (const key of Object.getOwnPropertySymbols(v)) {
-    if (isDefKey(key)) Object.defineProperty(out, key, must(Object.getOwnPropertyDescriptor(v, key)));
-  }
-  return out;
-}
-
-/**
- * The layout, and for diagram({width: 'fit'}) once more at the width the content needs (`d.width` is set to it). The content may re-flow as it
- * narrows, so up to 3 rounds; a round that does not fit is dropped. check and build both come through here, so they judge the same figure.
- */
-export async function layoutFitted(d: DiagramData, layout: () => Promise<LaidOutDiagram>): Promise<LaidOutDiagram> {
-  let laidOut = await layout();
-  for (let i = 0; d.fitWidth && i < 3; i++) {
-    const next = fitWidthOf(laidOut.laidOut, d.pad);
-    if (next === undefined || next >= d.width) break;
-    const before = d.width;
-    d.width = next;
-    const again = await layout();
-    const need = fitWidthOf(again.laidOut, d.pad);
-    if (need !== undefined && need > next) { d.width = before; break; }
-    laidOut = again;
-  }
-  return laidOut;
-}
-
-/** The width a figure needs: its content (titles and legends aside) plus the padding on both sides, on the 4px grid; undefined for no content. */
-function fitWidthOf(bands: LaidOutDiagram['laidOut'], pad: number): number | undefined {
-  const box = contentBox(bands, true);
-  return box ? Math.max(320, Math.ceil((box.w + 2 * pad) / 4) * 4) : undefined;
 }

@@ -3,7 +3,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import './helpers/strict-width.ts';
-import {lintDiagram} from '../lib/rules.ts';
+import {edgeBendFindings} from '../lib/verify-edge-bends.ts';
+import {applyFindingAcceptance} from '../lib/finding-rules.ts';
+import type {LintTarget} from '../lib/types/verdicts.ts';
 import {bendsOf} from '../lib/polyline-metrics.ts';
 import {causalLoop, causeTree, checkDiagram, closeMeasurer, dependencyNetwork, diagram, pert, stateDiagram} from '../lib/dsl.ts';
 import type {LaidOutConnect} from '../lib/types/containers.ts';
@@ -11,7 +13,7 @@ import type {LaidOutConnect} from '../lib/types/containers.ts';
 test.after(() => closeMeasurer());
 
 type Pts = {x: number; y: number}[];
-type Target = Parameters<typeof lintDiagram>[0];
+type Target = LintTarget;
 /** A staircase with exactly `n` bends. */
 function stairs(n: number): Pts {
   const out = [{x: 0, y: 0}];
@@ -20,7 +22,7 @@ function stairs(n: number): Pts {
 }
 const withBand = (band: object, extra: object = {}): Target => ({...diagram({theme: 'blue', title: 't', ...extra}), laidOut: [band]}) as unknown as Target;
 const withEdges = (type: 'cause' | 'states' | 'bpmn' | 'classes', edges: {from: string; to: string; points: Pts}[], extra: object = {}): Target => withBand({type, x: 0, y: 0, w: 400, h: 300, edges}, extra);
-const bends = (d: Target) => lintDiagram(d).filter(f => f.rule === 'edge-bends');
+const bends = (d: Target) => edgeBendFindings(d).map(f => applyFindingAcceptance(f, d.accept));
 
 test('edge-bends: the fixtures have the bends they claim', () => {
   for (const n of [0, 1, 4, 5, 6]) assert.equal(bendsOf(stairs(n)), n, `stairs(${n})`);
@@ -99,7 +101,14 @@ test('on real cause / states figures the finding is exactly what the routes say'
   // a ladder of long arrows: every node points at every later one
   const ids = ['n0', 'n1', 'n2', 'n3', 'n4'];
   const links = ids.flatMap((a, i) => ids.slice(i + 1).map(b => ({from: a, to: b})));
-  for (const band of [causeTree(ids.map(id => ({id, label: id})), links, {dir: 'right'}), stateDiagram(ids.map(id => ({id, label: id})), links, {dir: 'right'})]) {
+  const {causeTree: selectedCause} = await import('../lib/bands/cause.ts');
+  const {stateDiagram: selectedStates} = await import('../lib/bands/states.ts');
+  const {renderBands} = await import('../lib/core.ts');
+  const {fontMeasurer} = await import('../lib/node-measure.ts');
+  const nodes = ids.map(id => ({id, label: id}));
+  const opts = {dir: 'right'} as const;
+  for (const [band, selected] of [[causeTree(nodes, links, opts), selectedCause(nodes, links, opts)],
+    [stateDiagram(nodes, links, opts), selectedStates(nodes, links, opts)]] as const) {
     const r = await checkDiagram(diagram({theme: 'blue', title: 't'}).add(band));
     const laid = r.laidOut.laidOut.find(b => b.type === 'cause' || b.type === 'states');
     assert.ok(laid && (laid.type === 'cause' || laid.type === 'states'));
@@ -107,5 +116,9 @@ test('on real cause / states figures the finding is exactly what the routes say'
     const total = counts.reduce((a, b) => a + b, 0), expected = counts.some(n => n >= 5) || total / counts.length > 3;
     assert.equal(r.verdict.findings.filter(f => f.rule === 'edge-bends').length, expected ? 1 : 0, `${laid.type}: ${counts.join(',')}`);
     assert.ok(r.verdict.findings.filter(f => f.rule === 'edge-bends').every(f => f.severity === 'info'));
+    const report = await renderBands([selected], {measure: fontMeasurer(), title: 't'});
+    const notes = (v: typeof r.verdict) => v.findings.filter(f => f.rule === 'edge-bends')
+      .map(({severity, message, data}) => ({severity, message, data}));
+    assert.deepEqual(notes(report.verdict), notes(r.verdict), laid.type);
   }
 });

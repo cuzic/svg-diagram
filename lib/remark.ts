@@ -10,7 +10,7 @@
 // files are listed in file.data.svgDiagramDeps for a watcher.
 import fs from 'node:fs';
 import path from 'node:path';
-import {renderSource, type RenderSourceResult} from './render-source.ts';
+import {renderSource, type RenderSourceResult} from './render-source-file.ts';
 import {parseXml, parseXmlFragment, type El} from './svg-dom.ts';
 import {diagramTarget, decodeTarget, inlineSvg, type Render} from './markdown-target.ts';
 import {resolveSource} from './source-path.ts';

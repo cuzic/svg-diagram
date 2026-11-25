@@ -49,6 +49,7 @@ node check-diagram.ts --strict examples/*.ts
 - **`lib/` は純粋な core**(ADR 0031、FCIS)。`fs`・`child_process` などを使ってよいのは決まったモジュールだけで、
   `test/core-purity.test.ts`・`test/pure-entries.test.ts`・`test/pure-exports.test.ts` が見張る。
   ブラウザの入口(`lib/web.ts` から届く所)は `node:*` を使わない(`test/web-entry.test.ts`)。
+- 帯の種類で分岐する `.type === '<リテラル>'`(`!==`・`switch (….type)` の `case` も)を `lib/bands/` の外に増やさない。帯ごとの処理は帯の定義の hook に置く。`test/band-type-literals.test.ts` が、許可したファイルごとの上限(ラチェット。減らすだけ)を見張る(ADR 0080 D2b)。
 - CLI の入口はリポジトリの直下(`build-diagram.ts`、`check-diagram.ts` …)。`--help` の文と、ファイル先頭のコメントの使い方を合わせる。
 - 利用者に見せる文(CLI のメッセージ・エラー・README・ADR)は日本語。コードのコメントは英語。
   エラーは「何が悪いか」と「どう直すか」を 1 行で言う。

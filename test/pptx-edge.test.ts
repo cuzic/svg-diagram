@@ -176,7 +176,7 @@ test('a mind map with curved edges draws them as curved connectors, and a fishbo
 });
 
 test('nodeRunsOf: a node\'s lines become runs at the layout\'s baselines, coloured as the svg colours them', async () => {
-  const {nodeRunsOf} = await import('../lib/pptx/tree.ts');
+  const {nodeRunsOf} = await import('../lib/pptx/node-runs.ts');
   const {NO_TONES} = await import('../lib/tokens.ts');
   const node = {x: 0, y: 0, w: 100, h: 50, tone: 'plain' as const};
   const texts = [{text: '見出し', x: 50, y: 22, size: 14, bold: true, muted: false}, {text: '補足', x: 50, y: 40, size: 12, bold: false, muted: true}, {text: '外', x: 500, y: 40, size: 12, bold: false, muted: false}];
@@ -187,7 +187,7 @@ test('nodeRunsOf: a node\'s lines become runs at the layout\'s baselines, colour
 });
 
 test('the shape writers of the tree: a glued connector of a given colour and width, and an open freeform with curves', async () => {
-  const {connectorShapeXml, freeformPathXml} = await import('../lib/pptx/connectors.ts');
+  const {connectorShapeXml, freeformPathXml} = await import('../lib/pptx/line-shapes.ts');
   const c = connectorShapeXml(7, 'line', {prst: 'curvedConnector3', offX: 0, offY: 0, extX: 100, extY: 50, rot: 0, flipH: false, flipV: true, adj: [50000]}, '#123456', 4, {id: 2, idx: 3}, {id: 3, idx: 1});
   assert.match(c, /<a:stCxn id="2" idx="3"\/><a:endCxn id="3" idx="1"\/>/);
   assert.match(c, /flipV="1"[\s\S]*prst="curvedConnector3"[\s\S]*<a:ln w="38100"><a:solidFill><a:srgbClr val="123456"/);
@@ -330,7 +330,7 @@ test('roundGeomXml: the whole box is the text area, the sites are top, left, bot
 
 test('statesXml reports each node by its DSL id, and a node line takes its tone\'s text colour', async () => {
   const {statesXml} = await import('../lib/pptx/states.ts');
-  const {nodeRunsOf} = await import('../lib/pptx/tree.ts');
+  const {nodeRunsOf} = await import('../lib/pptx/node-runs.ts');
   const {NO_TONES} = await import('../lib/tokens.ts');
   const band = {type: 'states', x: 0, y: 0, w: 200, h: 60, nodes: [{x: 0, y: 0, w: 60, h: 30, tone: 'plain'}, {x: 100, y: 0, w: 60, h: 30, tone: 'accent', shape: 'diamond'}], edges: [{from: 's', to: 't', points: [{x: 60, y: 15}, {x: 100, y: 15}], line: 'solid'}], texts: [], icons: [], labels: [], anchors: [{id: 's', x: 0, y: 0, w: 60, h: 30}, {id: 't', x: 100, y: 0, w: 60, h: 30}], labelBoxes: []};
   let n = 0;
@@ -430,7 +430,7 @@ test('svgPathSteps: lines, curves and arcs become absolute steps; an arc ends wh
 
 test('pathShapeXml fills a closed outline, dashOfSvg tells dots from dashes, a tinted fill carries its alpha', async () => {
   const {pathShapeXml, dashOfSvg, presetXml} = await import('../lib/pptx/prims.ts');
-  const {pathXml} = await import('../lib/pptx/connectors.ts');
+  const {pathXml} = await import('../lib/pptx/line-shapes.ts');
   assert.match(pathShapeXml(2, 'p', [{op: 'M', pts: [{x: 0, y: 0}]}, {op: 'C', pts: [{x: 5, y: 0}, {x: 10, y: 5}, {x: 10, y: 10}]}, {op: 'Z', pts: []}], {fill: '#ff0000'}), /<a:cubicBezTo>(<a:pt [^>]+\/>){3}<\/a:cubicBezTo><a:close\/>[\s\S]*FF0000/);
   assert.equal(pathXml([{op: 'Z', pts: []}], () => ''), '<a:close/>');
   assert.deepEqual([dashOfSvg('2,4'), dashOfSvg('7,5'), dashOfSvg(undefined)], [{dotted: true}, {dashed: true}, {}]);
@@ -438,7 +438,9 @@ test('pathShapeXml fills a closed outline, dashOfSvg tells dots from dashes, a t
 });
 
 test('flowShapeXml, pyramidXml and timelineXml: every piece a shape, items glueable through their anchors', async () => {
-  const {flowShapeXml, pyramidXml, timelineXml} = await import('../lib/pptx/flow.ts');
+  const {flowShapeXml} = await import('../lib/pptx/flow.ts');
+  const {pyramidXml} = await import('../lib/pptx/pyramid.ts');
+  const {timelineXml} = await import('../lib/pptx/timeline.ts');
   const {NO_TONES} = await import('../lib/tokens.ts');
   const ld = {day: 'blue', roles: {title: 20, note: 12}} as never, fonts = {sans: 'S', mono: 'M'};
   let n = 0;
@@ -524,7 +526,7 @@ test('emojiParts, emojiMeasurer and emojiTextBox: an emoji the font lacks is one
 });
 
 test('a step badge is the svg\'s: an accent circle (stepBadgeAt) with its number in white on the title\'s baseline', async () => {
-  const {stepBadgeAt, ringed} = await import('../lib/emit-boxes.ts');
+  const {stepBadgeAt, ringed} = await import('../lib/box-step-geometry.ts');
   const {badgeTextKey} = await import('../lib/badge.ts');
   // the number is white on the accent; a solid box rings its badge in white
   assert.equal(badgeTextKey('#1d5fa8'), 'bg');
@@ -535,4 +537,38 @@ test('a step badge is the svg\'s: an accent circle (stepBadgeAt) with its number
   const box = {x: 0, y: 0, w: 200, h: 48, wrappedRuns: [{lineYs: [20]}]} as never;
   const g = stepBadgeAt(box);
   assert.ok(g.cx > 0 && g.r > 0 && g.baseline > g.cy);
+});
+
+test('selective Edge PPTX renders a native table and rejects unregistered spec parts', async () => {
+  const {renderPptxEdge: renderSelected} = await import('../lib/pptx-selective-edge.ts');
+  const {tablePart} = await import('../lib/spec-parts/selective/table.ts');
+  const {tablePptx} = await import('../lib/pptx/table-band.ts');
+  const opts = {parts: [tablePart], bands: {table: tablePptx}, rasterize: () => { throw new Error('must not rasterize the table'); }};
+  const engine = realEngine();
+  const input = spec(example('table'));
+  const selected = await renderSelected(input, engine, opts);
+  const legacy = await renderPptxEdge(input, engine, opts);
+  assert.ok(selected.pptx && legacy.pptx);
+  assert.deepEqual(selected.issues, []);
+  assert.equal(selected.native, 1);
+  assert.equal(selected.pictures, 0);
+  assert.equal(entry(selected.pptx, 'ppt/slides/slide1.xml'), entry(legacy.pptx, 'ppt/slides/slide1.xml'));
+  const unsupported = await renderSelected(spec(example('sequence')), engine, opts);
+  assert.equal(unsupported.pptx, null);
+  assert.ok(unsupported.issues.some(issue => issue.path.startsWith('parts[0]')));
+});
+
+test('selective Edge PPTX outlines a picture before passing it to the rasterizer', async () => {
+  const {renderPptxEdge: renderSelected} = await import('../lib/pptx-selective-edge.ts');
+  const {sequencePart} = await import('../lib/spec-parts/selective/sequence.ts');
+  const seen: string[] = [];
+  const result = await renderSelected(spec(example('sequence')), realEngine(), {
+    parts: [sequencePart], rasterize: svg => { seen.push(svg); return PNG; },
+  });
+  assert.ok(result.pptx);
+  assert.equal(result.native, 0);
+  assert.equal(result.pictures, 1);
+  assert.equal(seen.length, 1);
+  assert.doesNotMatch(seen.join(''), /<text\b/);
+  assert.match(seen.join(''), /<path\b/);
 });

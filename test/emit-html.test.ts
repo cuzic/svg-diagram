@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {renderBandsHtml} from '../lib/html-selective.ts';
+import {boxHtml, rowHtml} from '../lib/html-box.ts';
+import {box as selectedBox} from '../lib/bands/box.ts';
+import {row as selectedRow} from '../lib/bands/row.ts';
+import {image as selectedImage} from '../lib/bands/image.ts';
 import {box, caption, diagram, closeMeasurer, renderDiagram, row, table, raw} from '../lib/dsl.ts';
 import {configureMeasure} from '../lib/measure.ts';
 import {textBox} from '../lib/font-metrics.ts';
@@ -183,4 +188,129 @@ test('a frame in HTML has the width of the SVG rect (the right edge snaps, not t
   const htmlW = [...html!.matchAll(/class="sd-b" style="left:[\d.-]+px;top:[\d.-]+px;width:([\d.]+)px/g)].map(m => Number(m[1]));
   assert.ok(svgW.length >= 3);
   assert.deepEqual(htmlW, svgW);
+});
+
+test('selective HTML draws enabled adapters and reports SVG fallbacks', async () => {
+  const data = [
+    selectedBox({title: '最初'}),
+    selectedImage('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', {alt: '画像', width: 120}),
+    selectedRow([selectedBox({title: '次へ'}), selectedBox({title: '完了'})]),
+  ];
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    fontBox: (size: number) => ({ascent: size, descent: 0}),
+    adapters: {box: boxHtml, row: rowHtml}, id: 'test-html',
+  };
+  const result = await renderBandsHtml(data, opts);
+  assert.deepEqual(result.fallbacks, [{type: 'image'}]);
+  assert.equal(result.verdict.ok, true);
+  assert.match(result.html, /id="test-html"[^>]*>[\s\S]*class="sd-b"[\s\S]*>最初<[\s\S]*<svg[^>]*class="sd-ov sd-raw"[\s\S]*<image [\s\S]*>次へ<[\s\S]*>完了</);
+  assert.equal((result.html.match(/<svg /g) ?? []).length, 1);
+  const native = await renderBandsHtml([data[0]!, data[2]!], {...opts, strict: true});
+  assert.deepEqual(native.fallbacks, []);
+  assert.doesNotMatch(native.html, /<svg/);
+  const defaultOutput = await renderBandsHtml([data[0]!], {...opts, adapters: undefined});
+  assert.deepEqual(defaultOutput.fallbacks, [{type: 'box'}]);
+  assert.match(defaultOutput.html, /<svg[\s\S]*>最初<\/text>/);
+  await assert.rejects(renderBandsHtml(data, {...opts, strict: true}), /image/);
+});
+
+test('the standalone HTML table adapter preserves native header cells and escaping', async () => {
+  const {table: makeTable} = await import('../lib/bands/table.ts');
+  const {tableHtml} = await import('../lib/html-table.ts');
+  const {htmlAdapterFor, escapeHtmlText} = await import('../lib/html-adapter.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {emitHtml} = await import('../lib/emit-html.ts');
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    fontBox: (size: number) => ({ascent: size, descent: 0}), strict: true,
+  };
+  const bands = [makeTable([{label: '項目'}, {label: '値'}], [['理由', '<ok> & more']], {rowHeader: true})];
+  const {placed, stage} = await prepareBands(bands, opts);
+  const first = placed.laidOut[0]!;
+  assert.equal(htmlAdapterFor({table: tableHtml}, first), tableHtml);
+  assert.equal(htmlAdapterFor({}, first), undefined);
+  const selected = await renderBandsHtml(bands, {...opts, adapters: {table: tableHtml}});
+  assert.deepEqual(selected.fallbacks, []);
+  assert.match(selected.html, /<th scope="row"/);
+  assert.ok(selected.html.includes(escapeHtmlText('<ok> & more')));
+  assert.equal(selected.html, emitHtml(placed, {...opts, reveal: stage}));
+});
+
+test('the optional HTML overlay matches legacy output and keeps raw SVG text intact', async () => {
+  const {curve} = await import('../lib/bands/curve.ts');
+  const {connect} = await import('../lib/bands/connect.ts');
+  const {raw: makeRaw} = await import('../lib/bands/raw.ts');
+  const {renderHtmlOverlay} = await import('../lib/html-overlay.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {emitHtml} = await import('../lib/emit-html.ts');
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    fontBox: (size: number) => ({ascent: size, descent: 0}), id: 'overlay-test', adapters: {box: boxHtml},
+  };
+  const bands = [
+    selectedBox({id: 'a', title: '入口'}),
+    curve([{y: 0.3}, {y: 0.8}], {xLabel: '時間'}),
+    makeRaw({h: 36, draw: ({x, y}) => `<text x="${x}" y="${y + 20}">作者の SVG</text>`}),
+    selectedBox({id: 'b', title: '出口'}),
+    connect('a:bottom', 'b:top', {label: '次へ'}),
+  ];
+  const {placed, stage} = await prepareBands(bands, opts);
+  const result = await renderBandsHtml(bands, {...opts, overlay: renderHtmlOverlay});
+  assert.equal(result.html, emitHtml(placed, {...opts, reveal: stage}));
+  assert.deepEqual(result.fallbacks, [{type: 'curve'}, {type: 'raw'}, {type: 'connect'}]);
+  assert.match(result.html, /<text[^>]*>作者の SVG<\/text>/);
+  assert.doesNotMatch(result.html, /<text[^>]*>(?:時間|次へ)<\/text>/);
+  await assert.rejects(renderBandsHtml(bands, {...opts, overlay: renderHtmlOverlay, strict: true}), /SVG fallback/);
+});
+
+test('the caption adapter renders selectable HTML without box adapters', async () => {
+  const {caption} = await import('../lib/bands/caption.ts');
+  const {captionHtml} = await import('../lib/html-caption.ts');
+  const {emitHtml} = await import('../lib/emit-html.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    fontBox: (size: number) => ({ascent: size, descent: 0}),
+  };
+  const input = [caption('Review & approve', {align: 'left', mono: true})];
+  const {placed, stage} = await prepareBands(input, opts);
+  const rendered = await renderBandsHtml(input, {...opts, adapters: {caption: captionHtml}, strict: true});
+  assert.equal(rendered.html, emitHtml(placed, {...opts, reveal: stage}));
+  assert.deepEqual(rendered.fallbacks, []);
+  assert.match(rendered.html, /Review &amp; approve/);
+});
+
+test('the banner adapter renders selectable HTML without box adapters', async () => {
+  const {banner} = await import('../lib/bands/banner.ts');
+  const {bannerHtml} = await import('../lib/html-banner.ts');
+  const {emitHtml} = await import('../lib/emit-html.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    fontBox: (size: number) => ({ascent: size, descent: 0}),
+  };
+  const input = [banner({headline: 'Review & approve', sub: 'Details'})];
+  const {placed, stage} = await prepareBands(input, opts);
+  const rendered = await renderBandsHtml(input, {...opts, adapters: {banner: bannerHtml}, strict: true});
+  assert.equal(rendered.html, emitHtml(placed, {...opts, reveal: stage}));
+  assert.deepEqual(rendered.fallbacks, []);
+  assert.match(rendered.html, /Review &amp; approve/);
+});
+
+test('the standalone grid adapter preserves native HTML for spanned cells', async () => {
+  const {grid} = await import('../lib/bands/grid.ts');
+  const {gridHtml} = await import('../lib/html-grid.ts');
+  const {emitHtml} = await import('../lib/emit-html.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    fontBox: (size: number) => ({ascent: size, descent: 0}),
+  };
+  const input = [grid([selectedBox({title: '比較 & 検討', span: 2}), selectedBox({title: '次の案'})], {cols: 2})];
+  const {placed, stage} = await prepareBands(input, opts);
+  const rendered = await renderBandsHtml(input, {...opts, adapters: {grid: gridHtml}, strict: true});
+  assert.equal(rendered.html, emitHtml(placed, {...opts, reveal: stage}));
+  assert.deepEqual(rendered.fallbacks, []);
+  assert.match(rendered.html, /比較 &amp; 検討/);
 });

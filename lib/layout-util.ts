@@ -2,9 +2,8 @@
 // box padding, icon / step-badge sizes, the row() / grid() width distribution and the group title caption. No text metrics, no state.
 
 import {textWidth} from './atoms.ts';
-import {sourceOf, withSource} from './source-ref.ts';
 import type {GroupBand, RowBand, GridBand} from './types/containers.ts';
-import type {DiagramData, Roles, WidthOf, Rect} from './types/core.ts';
+import type {Roles, WidthOf, Rect} from './types/core.ts';
 import type {CaptionBand} from './types/text-bands.ts';
 
 /** The chip that names a swimlane boundary: one line of `note` text, 3px above and below. */
@@ -82,7 +81,7 @@ export function colSlots(children: SlotSizing[]): {col: number; span: number}[] 
 /** swimlane({fit: 'shrink'}) leaves the lane label / gap sizes alone while every column is at least this wide. */
 export const SWIMLANE_COMFY_COL = 112;
 
-/** The grid the emitter snaps box and group edges to (emit-boxes.ts snap4). */
+/** The grid the emitter snaps box and group edges to (snap4 in emit-common.ts). */
 export const GRID = 4;
 const ceilGrid = (n: number): number => Math.ceil(n / GRID - 1e-9) * GRID;
 const roundGrid = (n: number): number => Math.round(n / GRID) * GRID;
@@ -202,16 +201,4 @@ export function gridChildGeometry(band: GridBand, contentWidth: number) {
   const grid = gridColumns(contentWidth, cols, gap);
   const cellWidth = (contentWidth - (cols - 1) * gap) / cols; // (the plain split, when the width cannot give every column a grid step)
   return {xs: grid ? grid.x : Array.from({length: cols}, (_, j) => j * (cellWidth + gap)), ws: grid ? grid.w : new Array<number>(cols).fill(cellWidth)};
-}
-
-/**
- * diagram({sourceLine}) is always the last band: left-aligned, muted, note size, whatever was add()ed and in whatever order.
- * Returns a copy (the input is not changed); without a sourceLine, the input itself.
- */
-/** diagram({showTitle}) puts the title first, drawn like a group's title (bold, left, title size). A copy; without showTitle, the input itself. */
-export function withTitleLine(d: DiagramData): DiagramData {
-  return !d.showTitle || !d.title ? d : {...d, bands: [withSource<CaptionBand>({type: 'caption', text: d.title, align: 'left', role: 'title', tone: 'text', bold: true, mono: false, titleLine: true}, sourceOf(d)), ...d.bands]};
-}
-export function withSourceLine(d: DiagramData): DiagramData {
-  return d.sourceLine === undefined ? d : {...d, bands: [...d.bands, withSource<CaptionBand>({type: 'caption', text: d.sourceLine, align: 'left', role: 'note', tone: 'muted', bold: false, mono: false, sourceLine: true}, sourceOf(d))]};
 }

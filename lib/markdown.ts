@@ -13,7 +13,7 @@
 // is reported in `problems` and its image is left as written.
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {renderSource} from './render-source.ts';
+import {renderSource} from './render-source-file.ts';
 import {diagramTarget, decodeTarget, figureName, inlineSvg, htmlFigure, plainText, type Render} from './markdown-target.ts';
 import {resolveSource} from './source-path.ts';
 import {scanFigures} from './markdown-scan.ts';

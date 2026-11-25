@@ -11,6 +11,7 @@ export const CANVAS_LIMITS = {width: [1280, 3840], height: [360, 2160], minText:
 
 /** All the text of a spec together, in characters. The per-field limits alone would allow a figure that takes seconds to lay out. */
 export const MAX_TOTAL_TEXT = 6000;
+export const MAX_SPEC_PARTS = 4;
 /** Emoji in a whole spec. They cost far more to draw than other characters: a colour glyph is a picture, and a few hundred take many seconds. */
 export const MAX_EMOJI = 30;
 /** The columns a swimlane has room for at the figure's width. */
@@ -110,13 +111,13 @@ export function checkFlowEnd(ref: unknown, steps: ReadonlySet<string>, path: str
   mustExist(m[1], steps, path, 'step id', issues);
 }
 
-export interface PartDef {
+export interface PartDef<Result = unknown> {
   type: string;
   description: string;
   schema: JsonSchema;
   example: Json;
   check: Check;
-  build: (part: Json, at: string) => unknown;
+  build: (part: Json, at: string) => Result;
   /**
    * The ids that become anchors of the whole figure, so they must not repeat between parts: the list whose items' ids they are, or a
    * function that gathers them with their places (a part whose ids are nested, such as board's groups).

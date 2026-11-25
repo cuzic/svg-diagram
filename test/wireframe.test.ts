@@ -2,8 +2,7 @@
 // These lay out real text, so they need the headless Chromium that measure.ts uses.
 import test, {after} from 'node:test';
 import assert from 'node:assert/strict';
-import {diagram, wireframe, screens, wf, closeMeasurer} from '../lib/dsl.ts';
-import {layoutDiagram} from '../lib/layout-measured.ts';
+import {diagram, wireframe, screens, wf, checkDiagram, closeMeasurer} from '../lib/dsl.ts';
 import type {Rect} from '../lib/types/core.ts';
 import type {Band} from '../lib/types/index.ts';
 import type {PrimRect, PrimText, Prim} from '../lib/types/wireframe-nodes.ts';
@@ -15,7 +14,7 @@ type Screen = LaidOutWireframe | LaidOutScreens;
 const layout = async (...bands: Band[]) => {
   const d = diagram({theme: 'blue'});
   d.add(...bands);
-  return (await layoutDiagram(d)).laidOut as Screen[];
+  return (await checkDiagram(d)).laidOut.laidOut as Screen[];
 };
 const isText = (p: Prim): p is PrimText => p.k === 'text';
 const texts = (band: Screen) => band.prims.flatMap(p => p.k === 'badge' || p.k === 'pill' ? [p.label] : isText(p) ? [p.s] : []);

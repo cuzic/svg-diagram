@@ -93,7 +93,7 @@ export interface LegendBand {
   align: 'left' | 'center';
 }
 export interface SpacerBand {type: 'spacer'; h: number}
-/** Internal: the strip with the status badge (diagram({status})). Added by withStatus() as the first band, never by a constructor. */
+/** The strip with the status badge. Automatically prepended by diagram({status}). */
 export interface StatusBand {type: 'status'; status: DiagramStatus; text: string}
 /** What draw(ctx) of raw() receives. */
 export interface RawContext extends Rect {

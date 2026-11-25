@@ -16,7 +16,7 @@ const mix = (base: string, over: string, a: number): string => {
   return `#${b.map((v, i) => Math.round(v * (1 - a) + must(o[i]) * a).toString(16).padStart(2, '0')).join('')}`;
 };
 
-export function checkChart(band: LaidOutChart, d: LaidOutDiagram, tones: ToneEnv): string[] {
+export function checkChart(band: LaidOutChart, d: Pick<LaidOutDiagram, 'day' | 'appearance'>, tones: ToneEnv): string[] {
   const problems: string[] = [];
   const paint = paintOf(tones, d.appearance);
   const who = `${band.kind}${band.id ? ` "${band.id}"` : ''}`;
@@ -39,8 +39,4 @@ export function checkChart(band: LaidOutChart, d: LaidOutDiagram, tones: ToneEnv
   }
   for (const [i, s] of band.solids.entries()) for (let j = i + 1; j < band.solids.length; j++) if (overlaps(s, must(band.solids[j]))) problems.push(`${who}: ${s.label} overlaps ${must(band.solids[j]).label}`);
   return problems;
-}
-
-export function checkCharts(d: LaidOutDiagram, tones: ToneEnv): string[] {
-  return d.laidOut.flatMap(band => band.type === 'chart' ? checkChart(band, d, tones) : []);
 }

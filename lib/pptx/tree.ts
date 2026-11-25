@@ -1,3 +1,4 @@
+import type {Glue} from './connector-geometry-xml.ts';
 // A tree band (tree, mind map, org chart, KPI tree, roadmap, fishbone) as native shapes: each node a rounded rectangle holding its own
 // text, each line a connector glued to the parent and the child (a curved line is a curvedConnector3, an elbow a bentConnector), and a
 // brace a freeform. Moving a node in PowerPoint drags its lines along. A dimmed tree (spotlight) stays a picture.
@@ -5,42 +6,18 @@ import {assembleParts, type Geo, type Piece} from './parts-group.ts';
 import {partStep} from '../parts.ts';
 import {linesText} from './prims.ts';
 import {namedAs} from './prims.ts';
-import {PALETTE, colorOf, isSolidTone, toneStyle} from '../tokens.ts';
+import {PALETTE, colorOf} from '../tokens.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
-import type {LaidOutTree, TreeNodeText} from '../types/diagrams.ts';
-import type {WrappedRun} from '../types/text-bands.ts';
-import type {TextTone} from '../types/core.ts';
+import type {LaidOutTree} from '../types/diagrams.ts';
 import {fitConnector, siteIndex, type Pt} from './geom.ts';
 import {boxXml, groupXml, type TextBox} from './shapes.ts';
-import {connectorShapeXml, freeformPathXml, type Glue} from './connectors.ts';
+import {connectorShapeXml, freeformPathXml} from './line-shapes.ts';
 import type {Fonts, Rect} from './xml.ts';
+import {NODE_TEXT_PAD_Y, nodeRunsOf} from './node-runs.ts';
 import type {ToneEnv} from '../tokens.ts';
 
 /** The tree's padding inside a node (lib/tree.ts PAD_X / PAD_Y). */
-const PAD_X = 14, PAD_Y = 8;
-
-type Node = LaidOutTree['nodes'][number];
-const RUN_TONES: ReadonlySet<string> = new Set(['text', 'accent', 'muted', 'danger']);
-
-/** The texts drawn inside a node, by the same test the svg uses to colour them. */
-const inside = (r: Rect, t: TreeNodeText): boolean => t.x >= r.x && t.x <= r.x + r.w && t.y > r.y && t.y <= r.y + r.h;
-
-/** A node's lines as runs: consecutive lines of the same size, weight and colour are one run, at the baselines the layout gave. */
-export function nodeRunsOf(n: Rect & {tone: Node['tone']}, texts: readonly TreeNodeText[], tones: ToneEnv): WrappedRun[] {
-  const solid = isSolidTone(n.tone), soft = toneStyle(tones, n.tone).fill === 'soft';
-  const runs: WrappedRun[] = [];
-  for (const t of texts.filter(t => inside(n, t))) {
-    // as the svg: white on a solid fill (the second line too); the muted second line takes the plain colour on a soft fill; other
-    // lines take the tone's text colour (blue on an accent node), where that colour is one a run can name
-    const own = toneStyle(tones, n.tone).text;
-    const tone = solid ? undefined : t.muted ? (soft ? undefined : 'muted' as const) : RUN_TONES.has(own) && own !== 'text' ? own as TextTone : undefined;
-    const y = t.y - (n.y + PAD_Y);
-    const last = runs[runs.length - 1];
-    if (last && last.size === t.size && (last.weight === 700) === t.bold && last.tone === tone) { last.lines.push(t.text); last.lineYs.push(y); last.text += t.text; continue; }
-    runs.push({text: t.text, size: t.size, weight: t.bold ? 700 : 400, mono: false, ...(tone ? {tone} : {}), lines: [t.text], lineYs: [y]});
-  }
-  return runs;
-}
+const PAD_X = 14;
 
 /** The node whose frame the point lies on (within 2px), if any. */
 function nodeAt(nodes: readonly {rect: Rect; id: number}[], p: Pt): {rect: Rect; id: number} | undefined {
@@ -116,7 +93,7 @@ export function treeXml(b: LaidOutTree, ld: LaidOutDiagram, tones: ToneEnv, font
     ], PALETTE.muted, 2), {kind: 'poly', pts: [{x: x + s * r, y: y1}, {x, y: y1}, {x, y: y2}, {x: x + s * r, y: y2}, {x, y: ym}, {x: xt, y: ym}], w: 2}, pathOf(br.of));
   }
   for (const {n, i, id, rect} of nodes) {
-    const runs = runsOf.get(i) ?? [], box: TextBox = {...rect, tone: n.tone, padX: PAD_X, padY: PAD_Y, align: 'center', wrappedRuns: runs};
+    const runs = runsOf.get(i) ?? [], box: TextBox = {...rect, tone: n.tone, padX: PAD_X, padY: NODE_TEXT_PAD_Y, align: 'center', wrappedRuns: runs};
     add(boxXml(id, namedAs('box', linesText(runs.flatMap(r => r.lines)), n.id), box, ld.day, tones, fonts), {kind: 'rect', r: rect}, pathOf(i), runs.length > 0);
   }
   return {xml: groupXml(next(), namedAs('tree', '', b.id), b, assembleParts(pieces, next)), glue};

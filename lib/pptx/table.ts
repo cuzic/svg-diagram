@@ -1,5 +1,5 @@
 import {PALETTE, textColorOf, type ToneEnv} from '../tokens.ts';
-import {resolveBoxStyle} from '../emit-common.ts';
+import {resolveBoxStyle} from '../box-style.ts';
 import {LINE_HEIGHT_EM} from '../layout-util.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutTable} from '../types/sequence-table-swimlane.ts';

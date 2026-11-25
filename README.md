@@ -137,6 +137,101 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 
 ## ノードの名前を SVG に出す（`data-node`）
 
+文字測定だけ使う場合は `svg-diagram/measure/browser` から `svgMeasurer` または `canvasMeasurer` を import できます。配置済みの図を HTML に書き出す場合は `svg-diagram/html` の `emitHtml(laidOut, {fontBox})` を使います。`fontBox` はフォントのサイズ・太さ・等幅かどうかを受け取り、アセントとディセントを返す関数です。
+
+### 使う帯だけをバンドルする
+
+`svg-diagram/core` の `renderBands` は、配列に渡した帯を縦に並べて SVG に描きます。帯ごとの入口は現在 `svg-diagram/bands/box`、`bands/gantt`、`bands/row`、`bands/grid`、`bands/connect`、`bands/caption`、`bands/spacer`、`bands/group`、`bands/group-row`、`bands/areas`、`bands/banner`、`bands/raw`、`bands/curve`、`bands/pyramid`、`bands/chevron`、`bands/funnel`、`bands/cycle`、`bands/venn`、`bands/concentric`、`bands/emblem`、`bands/value-chain`、`bands/people`、`bands/dots`、`bands/timeline`、`bands/status`、`bands/wordart`、`bands/legend`、`bands/quadrant`、`bands/plane`、`bands/bars`、`bands/sequence`、`bands/table`、`bands/wireframe`、`bands/screens`、`bands/fta`、`bands/bowtie`、`bands/cloud`、`bands/classes`、`bands/bpmn`、`bands/states`、`bands/tree`、`bands/cause`、`bands/swimlane`、`bands/radar`、`bands/waterfall`、`bands/sankey`、`bands/heatmap`、`bands/stacked`（`stackedBars` と `mekko`）、`bands/treemap`、`bands/tornado`、`bands/butterfly`、`bands/bubble`、`bands/harvey`、`bands/catplot`、`bands/distplot`、`bands/multiplot`、`bands/regplot`、`bands/clustermap`、`bands/combo`、`bands/compare`、`bands/pert`、`bands/causal`、`bands/dependency`、`bands/image`、`bands/comic` にあります。使う帯だけを import すると、esbuild や Vite は使わない帯の実装をバンドルから除外できます。
+
+本文の表示幅、縦長の図、文節折り返し、表示できない可能性がある絵記号、文字量や箱の数を選択描画で検査するには、`svg-diagram/verify/document` の `documentFindings` と `documentAcceptHint` を `renderBands(bands, {measure, maxWidth, diagramFindings: documentFindings, diagramAcceptHint: documentAcceptHint})` に渡します。デッキ用の `prepareSpecLayout` では自動で検査し、プロジェクトの `terms` に基づく用語の検査も行います。
+
+`svg-diagram/bands/connect` を使う選択描画では、接続線の交差や重なり、一部の矢印にしかラベルが付いていない場合の所見も返します。戻り線の交差や重なりには配置に応じた修正案が付きます。矢印につながらない箱や、矢印でつないだ図が複数に分かれている場合も検査します。
+
+選択描画では、箱・キャプション・バナー・棒グラフ・画像が持つ文字のコントラスト検査も実行します。`appearance: 'auto'` のときは両方の配色を検査し、暗い配色でだけ起きる問題にはその旨を付記します。
+
+因果図、状態遷移図、クラス図、木、故障の木、ボウタイでは、幅に収めるために配置が自動で変わった場合の所見も、対応する帯の入口から返します。
+
+ワイヤーフレームは、注釈に対応しない番号、番号の欠番・重複、読む順と番号が食い違う箇所を、帯の個別入口からも報告します。
+
+SVG の題名を省略すると、表示中のキャプションやバナー、グループ見出し、対応する図形のラベルから題名を補います。題名候補がないときは、文書の検査で警告します。数値ラベルと目盛りを両方隠した棒グラフは、題名があれば説明に数値を含め、題名がなければ警告します。読み上げ用の説明を省略した場合は、表示中の表・シーケンス・スイムレーンの構成や、画像・数式・グラフの説明を各帯から集めます。構成を説明する帯がない場合は箱の見出しを使います。
+
+画像の個別入口は PNG・JPEG・GIF・WebP の data URI を受け取り、SVG 内に埋め込みます。Node.js では `svg-diagram/bands/image/node` の `imageFile(path, {alt, baseDir})` で画像ファイルを読み込み、同じ `renderBands` に渡せます。相対パスは `baseDir`（省略時はカレントディレクトリ）から解決します。`new URL('./picture.png', import.meta.url)` を渡すとモジュールからの相対指定になります。
+
+複数の帯を組み合わせる `canvas`、`hero`、`iconRow`、`versus` は `svg-diagram/compose/canvas`、`compose/hero`、`compose/icon-row`、`compose/versus` から個別に読み込めます。結果は `renderBands` に渡せます。`hero` と `versus` は複数の帯を返すので、配列に展開します。
+
+同じ帯を HTML に描くには `svg-diagram/html/selective` の `renderBandsHtml` を使います。
+`svg-diagram/html/bands/box` から箱・行・グリッド・キャプション・バナー・グループのアダプターを、`svg-diagram/html/bands/table` から表の `tableHtml` を選べます。たとえば `adapters: {box: boxHtml}` として使います。まとめて取り込む入口は `svg-diagram/html/bands` です。文字の位置合わせには `fontBox(size, weight, mono)` で ascent と descent を返します。アダプターが描けない帯と接続線はインライン SVG になり、`fallbacks` に載ります。`strict: true` では SVG への切り替えをエラーにできます。
+
+従来の HTML 出力と同じように、SVG フォールバックの文字を選択・検索できる HTML に変換するには、`svg-diagram/html/overlay` の `renderHtmlOverlay` を `renderBandsHtml` の `overlay` に渡します。変換できる図形は CSS になり、`raw` と `wordart` はインライン SVG のままです。
+
+キャプションだけを出力する場合は、`svg-diagram/html/bands/caption` の `captionHtml` または `svg-diagram/pptx/bands/caption` の `captionPptx` を選べます。バナー用には `svg-diagram/html/bands/banner` の `bannerHtml` と `svg-diagram/pptx/bands/banner` の `bannerPptx` があります。行・グリッド・グループも、各出力形式の `bands/row`、`bands/grid`、`bands/group` から選べます。
+
+1 枚の PowerPoint は `svg-diagram/pptx` の `renderBandsPptx` で出力できます。`svg-diagram/pptx/bands/box` から `boxPptx` や `rowPptx` を import し、`bands: {box: boxPptx, row: rowPptx}` を渡すと編集可能な図形になります。箱系に加え、`pptx/bands/table`、`tree`、`quadrant`、`states`、`cause`、`legend`、`flow`、`pyramid`、`timeline` の各入口から対応するアダプターを選べます。絵として埋め込む帯は `fallbacks` に載り、その場合は `rasterize(svg, scale)` が必要です。文字を輪郭化する場合は `outline(svg)` を渡します。`strict: true` は絵への切り替えをエラーにします。 グループやスイムレーンの構成要素を PowerPoint 上でまとめる場合は、`pptx/bands/group` の `groupSpan` や `pptx/bands/swimlane` の `swimlaneSpan` を `spans` に渡します。
+
+専用の PPTX アダプターがない帯も編集可能な図形にしたい場合は、`svg-diagram/pptx/svg-shapes` の `svgShapesXml` を `renderBandsPptx` の `svgShapes` に渡します。変換できる SVG は PowerPoint の図形になり、変換できない帯は通常の画像フォールバックになります。
+
+JSON spec の部品を限定するには、`svg-diagram/spec/selective` の `renderSpec(spec, {parts, measure})` を使います。`svg-diagram/spec/parts/<名前>` から、表（`table`）、ガント図（`gantt`）、フローチャート（`flowchart`）など必要な部品を選び、`parts` に渡します。既存カタログの全65部品に個別入口があります。同じ一覧から `specSchemaFor({parts})` と `partCatalog({parts})` も生成できます。図全体の項目には `lang`、`appearance`、`density`、`desc`、`canvas` も指定できます。`showTitle` または `sourceLine` を使う場合は `svg-diagram/bands/caption` から `captionDefinition` を読み込み、`captions` に渡します。`legend: "auto"` を指定する場合は、`svg-diagram/bands/legend` から `autoLegend` を読み込み、`renderSpec`、`validateSpec`、`specSchemaFor` のオプションに渡します。
+
+TOC の因果図では、凡例の指定を省略すると凡例を勧める所見が図全体で一度だけ出ます。部品に紐づく所見の `loc.specPath` には、`parts[0]` のように入力内の位置が入ります。表の行見出し、意味付き表、合計値や構成比の警告では、ルールを許容する設定例も返します。
+
+Edge で選択した JSON spec 部品から PowerPoint を作るには、`svg-diagram/pptx/selective/edge` の `renderPptxEdge(spec, engine, {parts, bands, rasterize})` を使います。`parts` は spec 部品、`bands` は編集可能な図形にする PPTX アダプターです。画像にする帯の文字は、`rasterize` に渡す前に輪郭化します。
+
+複数スライドでは `svg-diagram/pptx/deck/selective/edge` の `renderDeckPptxEdge(deck, engine, {parts, bands, rasterize})` を使います。列の配置や幅調整も行い、無効な図には `slides[0].columns[1].figure` のようにデッキ内の位置を返します。
+
+Edge で選択した部品を描画して文字を輪郭化するには、`svg-diagram/spec/selective/edge` の `renderSpecEdge(spec, engine, {parts})` を使います。`engine` は `spec/edge` と同じ `TextEngine` です。必要に応じて `captions`、`autoLegend`、`maxHeight` も渡せます。日本語の説明文を付ける場合は spec の `desc` に記述します。Node.js と Edge の選択入口は、帯の検査に加えて、縦長の図や文字量などの文書全体の所見も返します。ブラウザ向けの `svg-diagram/spec/selective` の `renderSpec` は既定では帯の検査だけを返します。文書全体の所見（文節の途中での折り返し、用語、縦長の図など）も欲しい場合は、同じ入口の `specFindings()` を展開して渡します（`renderSpec(spec, {parts, measure, ...specFindings()})`）。渡さなければ、その分はブラウザ向けの束に入りません。
+
+Node.js では `svg-diagram/spec/selective/node` の `renderSpec(spec, {parts, fonts})` を使えます。`fonts` は従来の `render` 入口と同じフォントファイル指定です。この入口は HarfBuzz のフォント測定を使います。文字測定だけなら `svg-diagram/measure/node` の `fontMeasurer(fonts)`、SVG を PNG に変換する場合は `svg-diagram/png` の `svgToPng(svg, options)` を使います。ZIP だけを作るには `svg-diagram/zip` の `zipEntries(entries)` を使えます。
+
+CLI では `svg-diagram spec 比較.json --part table > 比較.svg` で描画できます。複数の部品を許可する場合は `--part` を繰り返します。名前は `spec/parts` の公開名です。SVG は標準出力、検査結果は標準エラーに出ます。
+
+画面状態マトリクスは `svg-diagram/bands/screens` の `stateMatrix` と `stateRow`、アロー・ダイヤグラムは `svg-diagram/compose/arrow-diagram` の `arrowDiagram` を使います。どちらも `renderBands` に渡して描画できます。
+
+ワイヤーフレームの部品は `svg-diagram/wireframe/parts` から `col`、`text`、`btn` などを名前で import できます。組み立てたノードは従来の `wf` と同じ形式で、`wireframe` や `screens` に渡せます。
+
+基本ウィジェットだけを描画する場合は、`svg-diagram/bands/wireframe/basic` の `wireframe` を使えます。監視用の拡張部品、読み込み中などの状態表示、方向付きロボットマーカーを使う図は `svg-diagram/bands/wireframe` の入口を使います。1枚の図に複数のワイヤーフレームを置く場合は入口を揃えます。
+
+基本ウィジェットの描画も絞る場合は、`svg-diagram/wireframe/renderers` の `createWireframe([colRenderer, textRenderer, btnRenderer])` でビルダーを作ります。ノード配列を渡すと暗黙に縦並びになるため、その場合も `colRenderer` が必要です。同じ図に複数のワイヤーフレームを置く場合は、生成したビルダーを共有します。
+
+監視用ウィジェットも同じ入口から選べます。たとえばバッテリー表示には `batteryRenderer` を登録します。ロボットカード用の `robotRenderer` は、カード内に必要なバッテリーと信号の描画を含みます。
+
+状態表示には `createWireframe(renderers, {states: widgetStates})`、方向や視野付きのロボットマーカーには `createWireframe(renderers, {robotMarkers})` を使います。`widgetStates` と `robotMarkers` は `svg-diagram/wireframe/renderers` から必要なものを import します。
+
+ダイアログは `{dialog: dialogRenderer}`、トーストは `{toast: toastRenderer}` を `createWireframe` のオプションに渡します。ダイアログにボタンを置く場合は `btnRenderer` も部品に登録します。基本描画の一括入口 `bands/wireframe/basic` には両方が含まれます。
+
+画面遷移図と状態マトリクスの描画を絞るには、`svg-diagram/wireframe/renderers` の `const {screens, stateMatrix} = createScreens([textRenderer])` を使います。両方のビルダーで登録を共有できます。片方だけを使う場合は `createScreenGrid([textRenderer])` または `createStateMatrix([textRenderer])` が対応するビルダーを返します。装飾は `createWireframe` と同じ第2引数で指定します。
+
+RACI、FMEA、QFD、チェックシート、マトリクス、ジャーニーマップ、IS/IS NOT、なぜなぜ分析表は `svg-diagram/bands/table` から個別に import できます。木でなぜなぜ分析を描く場合は `svg-diagram/compose/why-why-tree` の `whyWhyTree` を使います。
+
+```ts
+import {renderBands} from 'svg-diagram/core';
+import {box} from 'svg-diagram/bands/box';
+import {svgMeasurer} from 'svg-diagram/measure/browser';
+
+await document.fonts.ready;
+const measure = svgMeasurer();
+try {
+  const {svg} = await renderBands([box({title: '設計', body: '仕様を確認する'})], {
+    measure,
+    width: 640,
+  });
+  document.querySelector('#diagram')!.innerHTML = svg;
+} finally {
+  measure.dispose();
+}
+```
+
+`renderBands` は実験的な SVG の入口です。`row()` と `grid()` の子には `svg-diagram/bands/box` の `box()`、`node()`、`stat()` を渡せます。手順を番号・強調付きで並べる `steps()` は `svg-diagram/bands/row` から import できます。親和図の `affinity()` は `svg-diagram/compose/affinity` から import し、返された帯の配列を `renderBands()` に渡します。`connect()` は箱の ID や行の列アンカーを参照でき、配列の前に書いても後から配置した端点に接続します。範囲を示す `bracket()`、吹き出しを付ける `callout()`、複数の接続線を作る `branch()` も `svg-diagram/bands/connect` から個別に import できます。行や横向きの `chevron` で `loopBack` を使う場合は `svg-diagram/bands/connect` から `connectDefinition` を import し、`renderBands(bands, {measure, connectors: connectDefinition})` と渡します。グループを含む行には `bands/group-row` の `groupRow()` に `group()` と `box()` を渡します。下書きバッジを図の上部に置くには、帯の配列の先頭に `status('draft')` を渡します。`swimlane()` に `flows` を渡すときは、第4引数に `connectDefinition` を渡します。全規則の検査や他の出力形式には従来の入口を使います。
+
+`svg-diagram/spotlight` の `spotlighter` と `spotlight: 'id'` または `spotlight: {ids, dim, edges}` を `renderBands` に渡すと、指定した帯や行の子・棒などを強調し、焦点外を薄く描きます。
+
+`renderBands` でスライドの予算 `slide: {maxHeight, contentWidth}` や予算に合わせて文字を拡大する `fill: true` を使う場合は、`svg-diagram/slide-fill` の `slideFitter` を `fitter` に渡します。
+
+`renderBands` に `width: 'fit'` を指定すると、`canvas` を使わない図の幅を内容に合わせて最小 320px まで縮めます。描画結果には `fit`（表示倍率と推奨の高さなど）、`fontScale`（描画時の文字倍率）、`laidOut`（配置結果）も含まれます。
+
+スライドの空き寸法をピクセル単位で `slide: {maxHeight, contentWidth}` に渡すと、`fit` がスライド上の縮尺と警告を返します。`fill: true` を併用すると、幅を `contentWidth` に合わせ、空きの高さに収まるように文字を拡大します。
+
+Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使えます。変換時にオプション依存の `mathjax-full` を読み込みます。この入口は Node.js 専用です。
+
 図を表示するページで「このノードをクリックした」を知りたいとき、`renderDiagram(d, {nodeIds: true})`（ブラウザ入口では `renderInBrowser(d, {measure, nodeIds: true})`）で、`id` を持つノードの図形に `data-node="名前"` が付く。既定は付けない（付けない SVG は 1 バイトも変わらない）。名前は `connect()` や spotlight が使うものと同じ（`scope` があれば `scope.id`）。HTML 出力（`--html`）には付かない。
 
 | 部品 | `data-node` が付く場所 |
@@ -1152,7 +1247,7 @@ svg-diagram icons list aws                       # 入った名前（aws-lambda,
 - SVG だけ。`--html` / `html: true` との併用は throw（`'dark'` を使う）。`build --dark` は `'auto'` も `'dark'` に上書きする。
 - `<img src>` の追従は、ページの `class="dark"` ではなく OS / ブラウザの設定に従う。Slidev の `html.dark` に追従させたいときは `<object>` かインライン SVG にする（それでも判定は `prefers-color-scheme`）。
 - `preview` / `show` / PNG（resvg）は明るい側で描かれる（resvg は `@media (prefers-color-scheme)` を評価しない）。
-- **検査は明暗の 2 回**: `check`（`verifyDiagram` と `lintDiagram`）と `lint-svg`（既定の geometry でも `--engine browser` でも）は、明るい配色と暗い配色の両方で検査する。暗い側にだけ出た指摘は末尾に ` (暗い配色)` が付く（`lint-svg` は `file (暗い配色)`）。許す色も側ごとで、明側に暗い色が混ざると `off-token-color`。`transparent: true` の `auto` は、明るい側は白、暗い側は暗い版の背景の上に置かれたものとして検査する。
+- **検査は明暗の 2 回**: `check` と `lint-svg`（既定の geometry でも `--engine browser` でも）は、明るい配色と暗い配色の両方で検査する。暗い側にだけ出た指摘は末尾に ` (暗い配色)` が付く（`lint-svg` は `file (暗い配色)`）。許す色も側ごとで、明側に暗い色が混ざると `off-token-color`。`transparent: true` の `auto` は、明るい側は白、暗い側は暗い版の背景の上に置かれたものとして検査する。
 
 `transparent: true` は、背景の矩形を描かない（スライドや Web ページの背景の上にそのまま置く）。`appearance` と組み合わせられる（`HTML` 出力も同じ）。
 **コントラスト検査**: `check` / `lint-svg` は、`appearance` の色（暗い図なら暗い版）で比べる。透明の図は、背景色が分からないので、**その図が想定する背景（明るい図は白、暗い図は暗い版の背景）の上に置かれたもの**として検査する（SVG のルートに `data-assumed-bg` として残る）。想定と違う背景に置くと、検査の外になる。
@@ -1423,7 +1518,7 @@ Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Go
 
 パスはそのファイルからの相対なので、サブフォルダのファイルは `../node_modules/...` にする。spec・図・デッキのスキーマは CLI が検査に使うものから作り、`site.json` と `.svg-diagram.json` のものは型とテストで CLI の検査に合わせている（部品を足したら `pnpm schema` で作り直す。古いままならテストが落ちる）。図とデッキのスキーマは隣の `spec.schema.json` を参照するので、5 つのファイルは同じフォルダに置いたまま使う。形で言えることだけを言う: 部品ごとの規則（id の重複、表紙に書けない項目、文字数の合計など）は CLI が最後に検査する。パッケージの出口は `svg-diagram/schema/<名前>.schema.json`。
 
-## check のルール（lib/rules.ts）
+## check のルール（規則 ID と説明は lib/rules.ts）
 `legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える。記法が少なく凡例が要らない図は `diagram({legend: false})` で「凡例は要らない」と宣言する。凡例を足すためだけに足さない）、`quadrant-empty-cell`（`quadrant()` に項目のないマスがある。意図した空きは `allowEmpty`）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
 `a11y-no-title`、`box-size-ignored`（警告: `box({size})` は効果がない。大きい文字は `stat()` などの役割で。次の版で throw する）、`source-wraps`（出典行が折り返している）、`connect-label-covers-arrow`（警告: 矢印のラベルが経路の 6 割超を覆い、見える部分が 20px 未満。箱の間隔を、文言に書いた要る間隔まで広げる・ラベルを短くする）、`glyph-missing`（警告: 絵文字として扱われない絵記号 ✅ ❌ など。字形が無いと空白になる。`icon.emoji()` か SVG アイコンへ）、`text-mid-word-break`（警告: カタカナ・英数字の語の途中で行が割れている。箱を広げる・`maxNodeW` や `dir` を変える・文言を短くする。漢字の途中は対象外）、`stat-fit-shrunk`（情報: `stat()` の値が箱に収まらず、自動で縮めた。`accept` で許容）、`draft-status`（情報: `diagram({status: 'draft'})` のまま。`check --forbid-draft` で warn。`accept` で許容）、`stat-no-source`（`diagram({evidenceCheck})` を書いた図だけ。出典のない `stat()` の数字。info、`'strict'` で warn）、`cjk-line-long`（見出し＝caption の title / display / stat と banner の headline の 1 行が、全角換算で本文幅 600px に収まる字数 — title 40・banner 37・stat 17・display 10 字 — を超える。半角は 0.5 字。目安以内でも、図が狭くて見出しが自動で折り返したときも出す。改行で分けるか短くする）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、`shrink-narrow-text`（`bpmn` / `swimlane` の `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。図を縦向きにする・2 つに分ける・文言を短くする・`maxWidth` を広げる）、`gray-tone-collision`（使っている 2 つのトーンの塗りが、白黒にすると見分けにくい。塗りを CIE L* にして、差が 10 未満なら警告。10 は、紙の白黒印刷で 2 つの平らな灰色が「違う」と読めなくなるあたり。soft（L* 約 93）と plain の白（100）が当たり、solid との組は当たらない。控えめにするトーン（muted / removed）は除く。破線の有無が違う組と、塗りが同じ組（new と accent、changed と plain。色でも塗りでは見分けていない）は除く。canvas() の、ピル（重点・中心など）で言葉にした領域は数えない。`diagram({accept})` で許容できる。`preview --gray` で目でも確かめる）、
 `image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`edge-bends`（情報: 自動配置の図の矢印が 5 回以上折れる、または帯の平均が 3 回超。下の `layoutCheck` の節の隣）、`auto-fit-applied`（`dir` を省略した自動配置の図を、幅に収めるためにレイアウトが変えた。warn。`dir: 'auto'` は info）、`one-story`、`canvas-region-empty`（`canvas({requireAll})` で内容のない領域）、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`font-floor-lowered`（情報: `canvas.minText` が 14 未満の図。「文字の下限を 14px から Npx に下げている（最小の文字 Mpx）。キャンバスは 1:1 で読まれる前提。投影には向かない」。`accept` で理由つきの info のまま許容できる）、`doc-width`（940px 以下。`maxWidth` で変更。図ごとは `diagram({maxWidth})`）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。

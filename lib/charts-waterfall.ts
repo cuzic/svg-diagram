@@ -1,3 +1,4 @@
+import type {ValueAxis} from './axis-comparison.ts';
 // waterfall(): how a start value turns into an end value, step by step. The bars float: an increase stands on the level it starts from
 // and rises, a decrease hangs from it, and thin connectors carry the running level from one bar to the next. Every bar prints its value
 // with a sign (+120 / -45), so an increase and a decrease differ by the sign and by the direction of the bar, not by colour alone.
@@ -202,4 +203,10 @@ function layoutWaterfallH(spec: WaterfallSpec, g: ChartGeom): LaidOutChartPart {
   }
   c.partsByOf(stepsByOf(spec));
   return c.done();
+}
+
+export function waterfallValueAxis(s: WaterfallSpec): ValueAxis | undefined {
+  if (!s.unit) return undefined;
+  const sc = waterfallScale(s);
+  return {label: `waterfall「${s.steps[0]?.label ?? ''}」`, unit: s.unit, vertical: s.dir === 'v', min: sc.min, max: sc.max, own: s.axisGroup === false};
 }

@@ -1,5 +1,5 @@
 // How much of an arrow its own label hides (pure: the route and the label's rectangle the layout left on the connect).
-import {connectLabelWidth, labelRects} from './layout-connect.ts';
+import {connectLabelWidth, labelRects} from './connect-geometry.ts';
 import type {LaidOutConnect} from './types/containers.ts';
 import type {Rect, Roles, WidthOf} from './types/core.ts';
 

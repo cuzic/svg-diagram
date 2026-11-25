@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {bars, box, checkDiagram, closeMeasurer, connect, diagram, group, renderDiagram, row, stat} from '../lib/dsl.ts';
-import {verifyDiagram} from '../lib/verify.ts';
-import {toneStyle, NO_TONES} from '../lib/tokens.ts';
+import {barsContrastProblems} from '../lib/verify-bars.ts';
+import {toneStyle, luminance, NO_TONES} from '../lib/tokens.ts';
 import type {LaidOutBars, LaidOutRow} from '../lib/dsl.ts';
 
 test.after(() => closeMeasurer());
@@ -108,7 +108,7 @@ test('labels drawn inside bars are contrast-checked against their series fill', 
   const value = b.labelBoxes.find(x => x.label === '100' && x.background)!; // not the '100' tick label
   assert.equal(value.background, 'accent');
   value.background = 'border';
-  assert.match(verifyDiagram(laidOut).problems.join('\n'), /bars: value label "100" .*low contrast/);
+  assert.match(barsContrastProblems(b, laidOut.day, luminance).join('\n'), /bars: value label "100" .*low contrast/);
 });
 
 test('box and group ids cannot reuse an earlier anchor id', async () => {

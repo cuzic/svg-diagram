@@ -1,5 +1,5 @@
 import {controlChartOpts} from '../qc-plane.ts';
-import {ticksOf} from '../plane.ts';
+import {ticksOf} from '../axis-ticks.ts';
 import {checkSheetParts, matrixParts} from '../qc-table.ts';
 import {fmeaParts, isIsNotDimLabel, isIsNotParts, isIsNotTestsParts, journeyMapParts, qfdParts, raciParts, whyWhyTableParts} from '../semantic-table.ts';
 import {isIsNotFindings, isIsNotTestFindings, whyWhyTableFindings} from '../rca-rules.ts';
@@ -10,7 +10,7 @@ import type {PlaneBand, PlaneOpts} from '../types/figures.ts';
 import type {TableBand} from '../types/sequence-table-swimlane.ts';
 import type {Declares, HandleOf} from '../strict.ts';
 import {plane} from './figures.ts';
-import {table} from './sequence-table-swimlane.ts';
+import {table} from './table.ts';
 
 /**
  * A control chart (管理図) from the data: the centre line and the limits are worked out (3 sigma), points outside them are red crosses,

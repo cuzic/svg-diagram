@@ -1,10 +1,9 @@
 // Tools for specifying a component and its states: state matrix, frames, states on any widget, anatomy numbers, regions.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {wf, layoutWireframe, layoutScreens, collectTextRequests} from '../lib/wireframe.ts';
-import {wireframe, stateMatrix, diagram} from '../lib/dsl.ts';
+import {wf, layoutWireframe, layoutScreens, collectTextRequests, collectScreenGridTextRequests, collectStateMatrixTextRequests} from '../lib/wireframe.ts';
+import {wireframe, stateMatrix, screens, diagram, checkDiagram} from '../lib/dsl.ts';
 import {NO_TONES} from '../lib/tokens.ts';
-import {lintDiagram} from '../lib/rules.ts';
 import type {PrimRect, PrimText, WfCol, WfInsight, WfRobotOpts, WfRow} from '../lib/types/wireframe-nodes.ts';
 import type {WfNote, WfRoot, WireframeOpts} from '../lib/types/wireframe.ts';
 
@@ -86,23 +85,31 @@ test('stateMatrix: cells are designs, "対象外" (with a reason) or "未設計"
   assert.equal(b.anchors.length, 2, 'the two designed cells');
   const asked = new Set(collectTextRequests(band).map(r => r[0]));
   assert.ok(asked.has('未設計') && asked.has('通常'), 'matrix strings are measured');
+  assert.deepEqual(collectStateMatrixTextRequests(band), collectTextRequests(band));
 });
 
-test('check: unfinished state matrices and missing required states are reported', () => {
+test('screen-grid measurement includes its content and reserves matrix labels for matrices', () => {
+  const band = screens([{title: '画面一覧', root: wf.text('内容')}], {marks: {new: '追加'}});
+  const asked = new Set(collectScreenGridTextRequests(band).map(([text]) => text));
+  assert.ok(asked.has('画面一覧') && asked.has('内容') && asked.has('追加'));
+  assert.ok(!asked.has('未設計') && !asked.has('対象外'));
+});
+
+test('check: unfinished state matrices and missing required states are reported', async () => {
   const d = diagram({theme: 'blue', title: 't'});
   // @ts-expect-error a JS caller can name a required state that is not a column; the type system rejects it (lib/strict.ts)
   d.add(stateMatrix(['通常', '空'], [{label: '一覧', cells: [wf.text('x'), undefined]}], {required: ['通常', '読み込み中']}));
-  const f = lintDiagram({...d, laidOut: [], connects: []});
+  const f = (await checkDiagram(d)).verdict.findings;
   assert.ok(f.some(x => x.rule === 'wf-states-todo' && /一覧×空/.test(x.message)));
   assert.ok(f.some(x => x.rule === 'wf-states-required' && /読み込み中/.test(x.message)));
 });
 
-test('check: callout numbers and notes must match one to one', () => {
-  const run = (root: WfRoot, notes: WfNote[]) => { const d = diagram({theme: 'blue', title: 't'}); d.add(wireframe(root, {notes, title: 'S'})); return lintDiagram({...d, laidOut: [], connects: []}).map(x => x.rule); };
-  assert.deepEqual(run(wf.col([wf.btn('a', {n: 1})]), [{title: 'a', text: 'x'}]).filter(r => r.startsWith('wf-')), []);
-  assert.ok(run(wf.col([wf.btn('a', {n: 1}), wf.btn('b', {n: 2})]), [{title: 'a', text: 'x'}]).includes('wf-callout-no-note'));
-  assert.ok(run(wf.col([wf.btn('a', {n: 1})]), [{title: 'a', text: 'x'}, {title: 'b', text: 'y'}]).includes('wf-note-no-callout'));
-  assert.ok(run(wf.col([wf.btn('a', {n: 1}), wf.btn('b', {n: 3})]), [{title: 'a', text: 'x'}, {title: 'b', text: 'y'}, {title: 'c', text: 'z'}]).includes('wf-callout-gap'));
+test('check: callout numbers and notes must match one to one', async () => {
+  const run = async (root: WfRoot, notes: WfNote[]) => { const d = diagram({theme: 'blue', title: 't'}); d.add(wireframe(root, {notes, title: 'S'})); return (await checkDiagram(d)).verdict.findings.map(x => x.rule); };
+  assert.deepEqual((await run(wf.col([wf.btn('a', {n: 1})]), [{title: 'a', text: 'x'}])).filter(r => r.startsWith('wf-')), []);
+  assert.ok((await run(wf.col([wf.btn('a', {n: 1}), wf.btn('b', {n: 2})]), [{title: 'a', text: 'x'}])).includes('wf-callout-no-note'));
+  assert.ok((await run(wf.col([wf.btn('a', {n: 1})]), [{title: 'a', text: 'x'}, {title: 'b', text: 'y'}])).includes('wf-note-no-callout'));
+  assert.ok((await run(wf.col([wf.btn('a', {n: 1}), wf.btn('b', {n: 3})]), [{title: 'a', text: 'x'}, {title: 'b', text: 'y'}, {title: 'c', text: 'z'}])).includes('wf-callout-gap'));
 });
 
 test('autoNumber: n: true numbers callouts in reading order, after explicit ones', () => {
@@ -118,7 +125,7 @@ test('region: a named block for a coarse screen, with a reading-order number', (
   assert.ok(texts(b).includes('地図') && texts(b).includes('約 2/3') && texts(b).includes('一覧'));
 });
 
-test('stateMatrix: a row shorter than the columns gets "未設計" cells (never blanks); a longer row is an error', () => {
+test('stateMatrix: a row shorter than the columns gets "未設計" cells (never blanks); a longer row is an error', async () => {
   // @ts-expect-error too few cells is a type error; the runtime pads with 未設計 for JS callers
   const band = stateMatrix(['通常', '空', 'エラー'], [{label: 'A', cells: [wf.text('x', {h: 30})]}]);
   const b = layoutScreens(band, 0, 0, 900, widthOf, NO_TONES, 'phrase');
@@ -126,7 +133,7 @@ test('stateMatrix: a row shorter than the columns gets "未設計" cells (never 
   const d = diagram({theme: 'blue', title: 't'});
   // @ts-expect-error too few cells is a type error; the runtime pads with 未設計 for JS callers
   d.add(stateMatrix(['通常', '空', 'エラー'], [{label: 'A', cells: [wf.text('x')]}]));
-  assert.match(lintDiagram({...d, laidOut: [], connects: []}).find(x => x.rule === 'wf-states-todo')!.message, /A×空.*A×エラー/);
+  assert.match((await checkDiagram(d)).verdict.findings.find(x => x.rule === 'wf-states-todo')!.message, /A×空.*A×エラー/);
   // @ts-expect-error too many cells is a type error; the runtime throws for JS callers
   assert.throws(() => layoutScreens(stateMatrix(['通常'], [{label: 'A', cells: ['na', 'na']}]), 0, 0, 900, widthOf, NO_TONES, 'phrase'), /2 cells for 1 columns/);
 });

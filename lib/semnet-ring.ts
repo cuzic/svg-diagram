@@ -4,7 +4,7 @@ import {Canvas} from './charts-base.ts';
 import type {ChartGeom} from './charts-base.ts';
 import {segHitsRect} from './bars.ts';
 import type {Pt} from './graph-layout.ts';
-import type {CausalLink, CausalLoop} from './semnet-analysis.ts';
+import type {CausalLink, CausalLoop} from './semnet-causal-loops.ts';
 
 type Rect = {x: number; y: number; w: number; h: number};
 export const RING_MIN = 2, RING_MAX = 8;

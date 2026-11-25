@@ -2,8 +2,10 @@
 // with the same measuring, everything placed by lib/deck-layout.ts and outlined with the project's font files (lib/font-metrics.ts).
 import {createHash} from 'node:crypto';
 import {chooseColumns, columnWidths, deckTexts, figureRooms, maxScale, planDeckLayout, roomMessage, smallTextWarning, type FigureFit, type TextWidth} from '../deck-layout.ts';
-import {autoColumns, fitOf, sharedColumns} from '../deck-spec.ts';
-import {drawColumnFigure, figureKey, hasSource, renderDeckFigure, type LoadedDeck} from '../deck-load.ts';
+import {autoColumns, fitOf, sharedColumns} from '../deck-spec-core.ts';
+import {figureKey, hasSource, type LoadedDeck} from '../deck-file.ts';
+import {drawColumnFigure, renderDeckFigure} from '../deck-render-figure.ts';
+import {figureMinPt} from '../pptx/deck-figure.ts';
 import {measureAll, splitAtoms, textWidth} from '../measure.ts';
 import {outlineFontFromFiles, textBox} from '../font-metrics.ts';
 import {minTextPt, placeShapes} from '../pptx/deck.ts';
@@ -78,7 +80,7 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
     if (hit[i] || !s.columns || !autoColumns(deck, s)) return undefined;
     const columns = s.columns, failures: string[][] = [];
     const chosen = await chooseColumns({...s, columns}, width, maxScale(fitOf(deck, s)), async (j, w) => {
-      const d = await drawColumnFigure(i, j, columns[j]?.figure, sources.get(figureKey(i, j)), cfg, w, opts.fresh);
+      const d = await drawColumnFigure(i, j, columns[j]?.figure, sources.get(figureKey(i, j)), cfg, w, figureMinPt, opts.fresh);
       if (!d.ok && w === null && d.errors) failures[j] = d.errors;
       return d;
     });

@@ -20,13 +20,15 @@ export const partStep = (kind: string, key: string | number | {index: string}, l
 /** A chart's axis (its grid lines, ticks, tick texts and name): `which` is x, y, or y2 for a second value axis. */
 export const axisPart = (which: string): string => partStep('axis', {index: which}, which);
 /** A chart's legend (its entries are parts inside it: partStep('entry', …)). */
-export const LEGEND = partStep('legend', 0, '');
+export const LEGEND = /* @__PURE__ */ partStep('legend', 0, '');
 /** A plane's axes, their ticks and their names: one part (lib/plane.ts). */
-export const PLANE_AXES = partStep('axes', 0, '');
+export const PLANE_AXES = /* @__PURE__ */ partStep('axes', 0, '');
+/** The crosshair and axis texts of a quadrant form one part. */
+export const QUADRANT_AXES = /* @__PURE__ */ partStep('axes', 0, '');
 /** A Gantt chart's date axis: its line, ticks and dates (lib/gantt.ts). */
-export const GANTT_AXIS = partStep('axis', 0, '');
+export const GANTT_AXIS = /* @__PURE__ */ partStep('axis', 0, '');
 /** A timeline's axis: its line, ticks and dates (lib/timeline.ts). */
-export const TIMELINE_AXIS = partStep('axis', 0, '');
+export const TIMELINE_AXIS = /* @__PURE__ */ partStep('axis', 0, '');
 
 /** ` data-part="…"` when `on` (the band was drawn with parts), else nothing. */
 export const partAttr = (on: boolean | undefined, ...steps: string[]): string => on && steps.length ? ` data-part="${escapeAttr(steps.join('/'))}"` : '';

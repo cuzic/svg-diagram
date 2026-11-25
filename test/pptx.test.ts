@@ -5,6 +5,22 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {register} from 'node:module';
 import test from 'node:test';
+import {pyramidPptx} from '../lib/pptx/pyramid-band.ts';
+import {timelinePptx} from '../lib/pptx/timeline-band.ts';
+import {flowPptx} from '../lib/pptx/flow-band.ts';
+import {pyramid as selectedPyramid} from '../lib/bands/pyramid.ts';
+import {timeline as selectedTimeline} from '../lib/bands/timeline.ts';
+import {chevron as selectedChevron} from '../lib/bands/chevron.ts';
+import {groupSpan} from '../lib/pptx/group-span.ts';
+import {groupPptx} from '../lib/pptx/box-bands.ts';
+import {group as selectedGroup} from '../lib/bands/group.ts';
+import {tablePptx} from '../lib/pptx/table-band.ts';
+import {table as selectedTable} from '../lib/bands/table.ts';
+import {renderBandsPptx} from '../lib/pptx/selective.ts';
+import {boxPptx, rowPptx} from '../lib/pptx/box-bands.ts';
+import {box as selectedBox} from '../lib/bands/box.ts';
+import {row as selectedRow} from '../lib/bands/row.ts';
+import {raw as selectedRaw} from '../lib/bands/raw.ts';
 import {fitConnector, evalConnector, maxDeviation, type Pt} from '../lib/pptx/geom.ts';
 import {zipStore} from '../lib/pptx/zip-node.ts';
 import {crc32, zipEntries} from '../lib/pptx/zip.ts';
@@ -125,3 +141,310 @@ test('example PPTX files have sound slide relationships', async t => {
 });
 
 test.after(async () => { await closeMeasurer(); });
+
+test('selected PPTX adapters preserve editable shapes and report picture fallbacks', async () => {
+  const native = [selectedRow([selectedBox({title: 'Review'}), selectedBox({title: 'Done'})]), selectedBox({title: 'Finish'})];
+  const raw = selectedRaw({h: 40, draw: ({x, y}) => `<rect x="${x}" y="${y}" width="24" height="24"/>`});
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    bands: {box: boxPptx, row: rowPptx},
+  };
+  const result = await renderBandsPptx(native, {...opts, strict: true});
+  const slide = unzipEntry(Buffer.from(result.pptx), 'ppt/slides/slide1.xml')!.toString('utf8');
+  assert.match(slide, /<p:grpSp>[\s\S]*<p:sp>[\s\S]*>Review<\/a:t>/);
+  assert.doesNotMatch(slide, /<p:pic>/);
+  assert.deepEqual(result.fallbacks, []);
+  const beforeReveal = await renderBandsPptx([
+    selectedRow([selectedBox({title: 'Visible'}), selectedBox({title: 'Hidden', reveal: 2})], {arrows: 'between'}),
+  ], {...opts, stage: 1});
+  const earlySlide = unzipEntry(Buffer.from(beforeReveal.pptx), 'ppt/slides/slide1.xml').toString();
+  assert.match(earlySlide, />Visible<\/a:t>/);
+  assert.doesNotMatch(earlySlide, /Hidden|row-arrow/);
+
+  await assert.rejects(renderBandsPptx([...native, raw], {...opts, strict: true}), /raw/);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=', 'base64');
+  const withFallback = await renderBandsPptx([...native, raw], {...opts, bands: {...opts.bands, raw: () => undefined}, rasterize(svg, scale) {
+    assert.match(svg, /<rect[^>]+width="24"/);
+    assert.equal(scale, 2);
+    return png;
+  }});
+  assert.deepEqual(withFallback.fallbacks, [{type: 'raw'}]);
+  assert.deepEqual(unzipEntry(Buffer.from(withFallback.pptx), 'ppt/media/image1.png'), png);
+  assert.match(unzipEntry(Buffer.from(withFallback.pptx), 'ppt/media/image1.svg')!.toString(), /<rect[^>]+width="24"/);
+});
+
+test('selective PPTX can embed a native editable table independently', async () => {
+  const {pptx, fallbacks} = await renderBandsPptx([selectedTable([{label: 'Review'}], [['Done']])], {
+    measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+    bands: {table: tablePptx}, strict: true,
+  });
+  const xml = unzipEntry(Buffer.from(pptx), 'ppt/slides/slide1.xml').toString();
+  assert.match(xml, /<a:tbl>[\s\S]*>Done<\/a:t>/);
+  assert.deepEqual(fallbacks, []);
+});
+
+test('selective PPTX groups nested bands only when a span adapter is supplied', async () => {
+  const input = [selectedGroup(selectedGroup(selectedBox({title: 'Nested'}))), selectedBox({title: 'Outside'})];
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    bands: {group: groupPptx, box: boxPptx},
+  };
+  const plain = await renderBandsPptx(input, opts);
+  const grouped = await renderBandsPptx(input, {...opts, spans: {group: groupSpan}});
+  const slide = (bytes: Uint8Array) => unzipEntry(Buffer.from(bytes), 'ppt/slides/slide1.xml').toString();
+  await assert.rejects(renderBandsPptx(input, {...opts, spans: {group: () => ({xml: '', count: -1})}}), /span must cover/);
+  assert.doesNotMatch(slide(plain.pptx), /<p:grpSp>/);
+  assert.equal([...slide(grouped.pptx).matchAll(/<p:grpSp>/g)].length, 2);
+  assert.match(slide(grouped.pptx), />Nested<\/a:t>[\s\S]*<\/p:grpSp><\/p:grpSp>[\s\S]*>Outside<\/a:t>/);
+});
+
+test('selective PPTX composes separate flow, pyramid and timeline renderers', async () => {
+  const result = await renderBandsPptx([
+    selectedChevron([{label: 'Review'}, {label: 'Decide'}]),
+    selectedPyramid(['Layers', 'Base']),
+    selectedTimeline({unit: 'ms', from: 0, to: 100, events: [{at: 25, label: 'Finish'}]}),
+  ], {
+    measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+    bands: {chevron: flowPptx, pyramid: pyramidPptx, timeline: timelinePptx}, strict: true,
+  });
+  const xml = unzipEntry(Buffer.from(result.pptx), 'ppt/slides/slide1.xml').toString();
+  assert.match(xml, />Review<\/a:t>[\s\S]*>Layers<\/a:t>[\s\S]*>Finish<\/a:t>/);
+  assert.doesNotMatch(xml, /<p:pic>/);
+  assert.deepEqual(result.fallbacks, []);
+});
+
+test('selected PPTX can convert unhandled SVG into editable shapes in strict mode', async () => {
+  const {svgShapesXml} = await import('../lib/pptx/svg-shapes.ts');
+  const {connect} = await import('../lib/bands/connect.ts');
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    svgShapes: svgShapesXml, strict: true,
+  };
+  const result = await renderBandsPptx([
+    selectedBox({id: 'shape', title: 'Review'}), selectedBox({id: 'done', title: 'Done'}),
+    connect('shape:bottom', 'done:top'),
+  ], opts);
+  const slide = unzipEntry(Buffer.from(result.pptx), 'ppt/slides/slide1.xml').toString();
+  assert.deepEqual(result.fallbacks, []);
+  assert.match(slide, /<p:grpSp>[\s\S]*<p:sp>/);
+  assert.match(slide, /name="anchor-shape"/);
+  assert.match(slide, /<a:stCxn id="\d+"/);
+  assert.doesNotMatch(slide, /<p:pic>/);
+  const unknown = selectedRaw({h: 40, draw: () => '<foreignObject width="10" height="20"/>'});
+  await assert.rejects(renderBandsPptx([unknown], opts), /picture fallback for raw/);
+});
+
+test('PPTX fallback drawing shares the legacy SVG shape grouping', async () => {
+  const {prepareBands} = await import('../lib/core.ts');
+  const {drawBandFallback} = await import('../lib/pptx/band-fallback.ts');
+  const {bandPicture} = await import('../lib/pptx/image-band-core.ts');
+  const {withParts} = await import('../lib/parts.ts');
+  const {svgShapesXml} = await import('../lib/pptx/svg-shapes.ts');
+  const {fontsOf, planSlideWith} = await import('../lib/pptx/slide-core.ts');
+  const {planSlide} = await import('../lib/pptx/slide.ts');
+  const raw = selectedRaw({h: 40, draw: ({x, y}) =>
+    `<rect x="${x}" y="${y}" width="24" height="24" fill="#666666"/>`});
+  const title = 'Fallback';
+  const {placed, emit} = await prepareBands([raw], {
+    title, measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
+  });
+  const fonts = fontsOf();
+  const selected = planSlideWith(placed, fonts, (band, ctx, index) => drawBandFallback(band, ctx, index,
+    () => bandPicture(placed, band, index, figure => emit(withParts(figure), true)), svgShapesXml), {title});
+  const legacy = planSlide(placed, fonts);
+  assert.match(selected.xml, /<p:grpSp>[\s\S]*<p:sp>/);
+  assert.deepEqual(selected.pictures, []);
+  assert.equal(selected.xml, legacy.xml);
+});
+
+test('the caption adapter renders editable PPTX text without box adapters', async () => {
+  const {caption} = await import('../lib/bands/caption.ts');
+  const {captionPptx} = await import('../lib/pptx/caption-band.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const input = [caption('Review & approve', {align: 'left', mono: true})];
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    title: 'Review',
+  };
+  const {placed} = await prepareBands(input, opts);
+  const rendered = await renderBandsPptx(input, {...opts, bands: {caption: captionPptx}, strict: true});
+  const xml = unzipEntry(Buffer.from(rendered.pptx), 'ppt/slides/slide1.xml').toString();
+  assert.equal(xml, planSlide(placed, fontsOf()).xml);
+  assert.deepEqual(rendered.fallbacks, []);
+  assert.match(xml, /<a:t>Review &amp; approve<\/a:t>/);
+});
+
+test('the banner adapter renders editable PPTX text without box adapters', async () => {
+  const {banner} = await import('../lib/bands/banner.ts');
+  const {boxPptx} = await import('../lib/pptx/box-band.ts');
+  const {planSlideWith} = await import('../lib/pptx/slide-core.ts');
+  const {bannerPptx} = await import('../lib/pptx/banner-band.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const input = [banner({headline: 'Review & approve', stamp: 'Draft'})];
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    title: 'Review',
+  };
+  const {placed} = await prepareBands(input, opts);
+  const rendered = await renderBandsPptx(input, {...opts, bands: {banner: bannerPptx}, strict: true});
+  const xml = unzipEntry(Buffer.from(rendered.pptx), 'ppt/slides/slide1.xml').toString();
+  assert.equal(xml, planSlide(placed, fontsOf()).xml);
+  const sharedBox = planSlideWith(placed, fontsOf(), (band, ctx) => {
+    assert.equal(band.type, 'banner');
+    return boxPptx(band, ctx);
+  }, {title: opts.title});
+  assert.equal(xml, sharedBox.xml);
+  assert.deepEqual(rendered.fallbacks, []);
+  assert.match(xml, /<a:t>Draft<\/a:t>/);
+  assert.match(xml, /<a:t>Review &amp; approve<\/a:t>/);
+});
+
+test('the standalone grid adapter preserves editable PPTX cells', async () => {
+  const {grid} = await import('../lib/bands/grid.ts');
+  const {gridPptx} = await import('../lib/pptx/grid-band.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const input = [grid([selectedBox({title: '比較 & 検討', span: 2}), selectedBox({title: '次の案'})], {cols: 2})];
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    title: 'Review',
+  };
+  const {placed} = await prepareBands(input, opts);
+  const rendered = await renderBandsPptx(input, {...opts, bands: {grid: gridPptx}, strict: true});
+  const xml = unzipEntry(Buffer.from(rendered.pptx), 'ppt/slides/slide1.xml').toString();
+  assert.equal(xml, planSlide(placed, fontsOf()).xml);
+  assert.deepEqual(rendered.fallbacks, []);
+  assert.match(xml, /<a:t>比較 &amp; 検討<\/a:t>/);
+});
+
+test('selective PPTX embeds a data URI image with the legacy slide geometry', async () => {
+  const {image} = await import('../lib/bands/image.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planPreparedPptx} = await import('../lib/pptx/selective.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const input = [image('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', {
+    id: 'picture', alt: 'Review', width: 240,
+  })];
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    title: 'Review',
+  };
+  const prepared = await prepareBands(input, opts);
+  const {plan, fallbacks, native} = planPreparedPptx(prepared, opts);
+  const legacy = planSlide(prepared.placed, fontsOf());
+  assert.equal(plan.xml, legacy.xml);
+  assert.deepEqual(plan.pictures, legacy.pictures);
+  assert.deepEqual(fallbacks, [{type: 'image', id: 'picture'}]);
+  assert.equal(native, 0);
+});
+
+test('shared XML escaping preserves text and protects quoted attributes', async () => {
+  const {escapeAttr, escapeXml} = await import('../lib/xml-escape.ts');
+  assert.equal(escapeXml('比較 <A> & "B"'), '比較 &lt;A&gt; &amp; "B"');
+  assert.equal(escapeAttr('比較 <A> & "B"'), '比較 &lt;A&gt; &amp; &quot;B&quot;');
+});
+
+test('selective PPTX legends preserve editable samples and the picture fallback', async () => {
+  const {legend} = await import('../lib/bands/legend.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {legendPptx} = await import('../lib/pptx/legend-band.ts');
+  const {planPreparedPptx} = await import('../lib/pptx/selective.ts');
+  const {svgShapesXml} = await import('../lib/pptx/svg-shapes.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    title: '凡例',
+  };
+  const native = await prepareBands([legend([
+    {label: 'レビュー & 承認', edge: 'and'},
+    {label: '制約', edge: 'blocks'},
+    {label: '強い関係', line: 'dotted', arrow: 'both', weight: 'strong'},
+  ])], opts);
+  const selected = planPreparedPptx(native, {...opts, bands: {legend: legendPptx}, strict: true});
+  assert.equal(selected.plan.xml, planSlide(native.placed, fontsOf()).xml);
+  assert.deepEqual(selected.fallbacks, []);
+  assert.equal(selected.native, 1);
+  assert.match(selected.plan.xml, /name="legend-and-arc"/);
+  assert.match(selected.plan.xml, /<a:t>レビュー &amp; 承認<\/a:t>/);
+
+  const gate = await prepareBands([legend([{label: 'AND gate', ftaGate: 'and'}])], opts);
+  const fallback = planPreparedPptx(gate, {...opts, bands: {legend: legendPptx}});
+  const legacy = planSlide(gate.placed, fontsOf());
+  const compatible = planPreparedPptx(gate, {...opts, bands: {legend: legendPptx}, svgShapes: svgShapesXml});
+  assert.equal(compatible.plan.xml, legacy.xml);
+  assert.deepEqual(compatible.plan.pictures, legacy.pictures);
+  assert.deepEqual(fallback.fallbacks, [{type: 'legend'}]);
+  assert.equal(fallback.plan.pictures.length, 1);
+  assert.match(fallback.plan.xml, /<p:pic>/);
+});
+
+test('the individual cause, state and tree adapters preserve legacy slide XML', async () => {
+  const {causeTree} = await import('../lib/bands/cause.ts');
+  const {flowchart} = await import('../lib/bands/states.ts');
+  const {tree} = await import('../lib/bands/tree.ts');
+  const {causePptx} = await import('../lib/pptx/cause-band.ts');
+  const {statesPptx} = await import('../lib/pptx/states-band.ts');
+  const {treePptx} = await import('../lib/pptx/tree-band.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planPreparedPptx} = await import('../lib/pptx/selective.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const nodes = [{id: 'a', label: 'レビュー'}, {id: 'b', label: '承認'}];
+  const edges = [{from: 'a', to: 'b'}];
+  const opts = {
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+    title: '審査',
+  };
+  const fixtures = [
+    {band: causeTree(nodes, edges), adapters: {cause: causePptx}},
+    {band: flowchart(nodes, edges), adapters: {states: statesPptx}},
+    {band: tree({label: 'レビュー', children: [{label: '承認'}]}), adapters: {tree: treePptx}},
+  ];
+  for (const {band, adapters} of fixtures) {
+    const prepared = await prepareBands([band], opts);
+    const selected = planPreparedPptx(prepared, {...opts, bands: adapters, strict: true});
+    assert.equal(selected.plan.xml, planSlide(prepared.placed, fontsOf()).xml, band.type);
+    assert.equal(selected.native, 1, band.type);
+    assert.deepEqual(selected.fallbacks, [], band.type);
+  }
+});
+
+test('the selective quadrant adapter preserves editable axes and item labels', async () => {
+  const {quadrant} = await import('../lib/bands/quadrant.ts');
+  const {quadrantPptx} = await import('../lib/pptx/quadrant-band.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planPreparedPptx} = await import('../lib/pptx/selective.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const opts = {
+    title: '四象限',
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+  };
+  const input = quadrant.preset('bcg', {items: [{label: 'レビュー & 承認', cell: [0, 0]}]});
+  const prepared = await prepareBands([input], opts);
+  const selected = planPreparedPptx(prepared, {...opts, bands: {quadrant: quadrantPptx}, strict: true});
+  assert.equal(selected.plan.xml, planSlide(prepared.placed, fontsOf()).xml);
+  assert.deepEqual(selected.fallbacks, []);
+  assert.match(selected.plan.xml, /name="axes"/);
+  assert.match(selected.plan.xml, /<a:t>レビュー &amp; 承認<\/a:t>/);
+});
+
+test('the selective swimlane span preserves lane and step grouping in PPTX', async () => {
+  const {swimlane} = await import('../lib/bands/swimlane.ts');
+  const {swimlaneSpan} = await import('../lib/pptx/swimlane-span.ts');
+  const {boxPptx} = await import('../lib/pptx/box-band.ts');
+  const {svgShapesXml} = await import('../lib/pptx/svg-shapes.ts');
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planPreparedPptx} = await import('../lib/pptx/selective.ts');
+  const {planSlide, fontsOf} = await import('../lib/pptx/slide.ts');
+  const opts = {
+    title: '作業の流れ',
+    measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}),
+  };
+  const input = swimlane([{id: 'team', label: '担当'}], [{id: 'review', lane: 'team', title: 'レビュー'}], {id: 'process'});
+  const prepared = await prepareBands(input, opts);
+  const selected = planPreparedPptx(prepared, {...opts, spans: {swimlane: swimlaneSpan}, bands: {box: boxPptx}, svgShapes: svgShapesXml, strict: true});
+  assert.equal(selected.plan.xml, planSlide(prepared.placed, fontsOf()).xml);
+  assert.deepEqual(selected.fallbacks, []);
+  assert.match(selected.plan.xml, /name="swimlane[^"]*"[\s\S]*name="lanes"[\s\S]*<a:t>レビュー<\/a:t>/);
+});

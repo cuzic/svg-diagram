@@ -1,4 +1,5 @@
-import {PALETTE, EMOJI_RE, STRONG_TRIM, colorOf, textColorOf, toneStyle, runColorOf} from './tokens.ts';
+import {escapeXml} from './xml-escape.ts';
+import {PALETTE, EMOJI_RE, FILLED_ARROW_LENGTH, STRONG_TRIM, textColorOf, runColorOf} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import type {Point, Theme, EmphasisTone, LineStyle, Arrow, Align} from './types/core.ts';
 import type {WrappedRun, Span} from './types/text-bands.ts';
@@ -13,15 +14,7 @@ export function snap4(n: number): number {
 }
 
 
-export const XML_ESC: Record<string, string> = {'&': '&amp;', '<': '&lt;', '>': '&gt;'};
-
-export function escapeXml(s: string): string {
-  return s.replace(/[&<>]/g, (c: string) => XML_ESC[c] ?? c);
-}
-
-/** For a double-quoted attribute value: escapeXml, and the quote itself. */
-export const escapeAttr = (s: string): string => escapeXml(s).replace(/"/g, '&quot;');
-
+export {XML_ESC, escapeXml, escapeAttr} from './xml-escape.ts';
 
 // Wraps emoji codepoints in <tspan class="emoji">, using the SAME EMOJI_RE
 // lint-svg.ts checks against — generated text can never trip that check.
@@ -41,15 +34,8 @@ export function emojiSpan(text: string): string {
 export const resolveTextColor = textColorOf;
 
 
-export interface BoxStyle {fill: string; stroke: string; dashed: boolean}
-
-export function resolveBoxStyle(tones: ToneEnv, tone: EmphasisTone | undefined, day: Theme, dashedOverride?: boolean): BoxStyle {
-  const t = toneStyle(tones, tone);
-  // doc themes (string keys) use a stroke that reaches 3:1 against the page; the slide decks keep the pale border
-  const stroke = typeof day === 'string' ? t.stroke : t.slideStroke ?? t.stroke;
-  return {fill: colorOf(t.fill, day), stroke: colorOf(stroke ?? t.fill, day), dashed: dashedOverride ?? t.dashed};
-}
-
+export {resolveBoxStyle} from './box-style.ts';
+export type {BoxStyle} from './box-style.ts';
 
 export const resolveLineColor = textColorOf;
 
@@ -138,7 +124,6 @@ export function trimPoints(points: Point[], arrow: Arrow): Point[] {
 
 
 // An arrow whose head is a shape, not a marker (a marker on a leftward end is not turned by every renderer). The line stops inside the head.
-import {ARROW_L} from './cause-hop.ts';
 /** A hop over another line: a bump of height `r` toward `side`, at a point on one of the runs (ADR 0028). */
 export interface PathCut {x: number; y: number; side: {x: number; y: number}; r: number}
 function cutPath(pts: {x: number; y: number}[], cuts: readonly PathCut[]): string {
@@ -163,7 +148,7 @@ export function arrowPath(points: {x: number; y: number}[], color: string, line:
   const pts = points.map(p => ({...p}));
   const heads: string[] = [];
   const head = (tip: {x: number; y: number}, from: {x: number; y: number}): {x: number; y: number} => {
-    const dx = Math.sign(tip.x - from.x), dy = Math.sign(tip.y - from.y), L = ARROW_L, W = 5, tx = snap4(tip.x), ty = snap4(tip.y); // the head hangs off the snapped tip, so it is symmetric about its line
+    const dx = Math.sign(tip.x - from.x), dy = Math.sign(tip.y - from.y), L = FILLED_ARROW_LENGTH, W = 5, tx = snap4(tip.x), ty = snap4(tip.y); // the head hangs off the snapped tip, so it is symmetric about its line
     heads.push(`<path d="M${tx},${ty} L${tx - dx * L - dy * W},${ty - dy * L + dx * W} L${tx - dx * L + dy * W},${ty - dy * L - dx * W} z" fill="${color}"/>`);
     return {x: tip.x - dx * (L - 2), y: tip.y - dy * (L - 2)};
   };

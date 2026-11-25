@@ -22,14 +22,14 @@ const KNOWN: Readonly<Record<string, string>> = {
   'spec-parts/r7': 'U5: import the needed builders directly',
 };
 
-const isSpecPart = (file: string): boolean => /^spec-parts\/[^/]+$/.test(file);
+const isSpecPart = (file: string): boolean => /^spec-parts\/(?:selective\/)?[^/]+$/.test(file);
 
 function composerViolations(root: string, sources: string[]): string[] {
   return sources.flatMap(file => {
     if (COMPOSER_IMPORTERS.includes(file) || isSpecPart(file)) return [];
     return importsOf(path.join(root, file + '.ts')).local
       .map(spec => resolveLocal(file, spec))
-      .filter(dep => dep.startsWith('compose/'))
+      .filter(dep => dep.startsWith('compose/') && file !== `compose/selective/${dep.slice('compose/'.length)}`)
       .map(dep => `${file} → ${dep}`);
   });
 }

@@ -1,5 +1,5 @@
 import {box} from './dsl/text-bands.ts';
-import {row} from './dsl/containers.ts';
+import {boxRow as row} from './dsl/box-row.ts';
 import {assertBoxTone} from './dsl/shared.ts';
 import type {LoopBack, RowBand} from './types/containers.ts';
 import type {Focus, TagTone} from './types/core.ts';

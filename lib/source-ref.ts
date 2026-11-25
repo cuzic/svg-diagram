@@ -30,6 +30,21 @@ export function sourceOf(target: object, key: SourceKey = SOURCE): SourceRef | u
   return (target as SourceMarks)[key];
 }
 
+/** Associate every band from a spec part with its path, preserving distinct builder call sites. */
+export function markSpecPart(bands: Iterable<object>, path: string): void {
+  const refs = new Map<SourceRef['stackHolder'], SourceRef>();
+  for (const band of bands) {
+    const target = band as SourceMarks;
+    const stack = target[SOURCE]?.stackHolder;
+    let ref = refs.get(stack);
+    if (!ref) {
+      ref = new SourceRef(stack, path);
+      refs.set(stack, ref);
+    }
+    target[SOURCE] = ref;
+  }
+}
+
 /** Preserve a more specific source already assigned by an inner operation. */
 export function withSource<T extends object>(target: T, ref: SourceRef | undefined, key: SourceKey = SOURCE): T {
   if (ref !== undefined && sourceOf(target, key) === undefined && Object.isExtensible(target)) (target as SourceMarks)[key] = ref;

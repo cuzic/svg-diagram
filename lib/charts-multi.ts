@@ -3,7 +3,7 @@
 // diagonal. Groups (a label per row) are told apart by marker shape and outline style as well as colour. Nothing is random.
 import {Canvas, checkIds, checkText, fail, finiteNum, inkOnShade, niceScale, numText} from './charts-base.ts';
 import type {ChartGeom, ChartOpts, ChartTone, LaidOutChartPart} from './charts-base.ts';
-import {markerPath, SHAPES} from './charts-cat.ts';
+import {markerPath, SHAPES} from './chart-markers.ts';
 import {histogramBins} from './qc.ts';
 import {binCounts, binIndex, kde2d} from './stats.ts';
 import {must} from './must.ts';

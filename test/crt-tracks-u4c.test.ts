@@ -10,7 +10,6 @@ import {register} from 'node:module';
 import {corridorLoad, laneStepOf, layeredAttempt, layoutWithLanes, routeLayered} from '../lib/layered-route.ts';
 import {crossingsOf, crossingsWith, gainsRunPairs, parallelRuns, runPairGain, runPairWays, type runsOfPath, runsOfRoute, scoreOf} from '../lib/polyline-metrics.ts';
 import type {RoutedRuns} from '../lib/polyline-metrics.ts';
-import {lintDiagram} from '../lib/rules.ts';
 import type {Pt} from '../lib/graph-layout.ts';
 import {causeTree, checkDiagram, closeMeasurer, diagram} from '../lib/dsl.ts';
 import {loadDiagram} from '../lib/load-source.ts';
@@ -139,7 +138,7 @@ test('random figures with the detour: no crossing more than without it, and fewe
 
 const causeOf = async (d: Parameters<typeof checkDiagram>[0]) => {
   const r = await checkDiagram(d);
-  return {t: r.laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause, cc: r.verdict.warnings.filter(w => w.startsWith('[cause-crossing]')).length, ep: lintDiagram(r.laidOut).filter(f => f.rule === 'edge-parallel').length};
+  return {t: r.laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause, cc: r.verdict.warnings.filter(w => w.startsWith('[cause-crossing]')).length, ep: r.verdict.findings.filter(f => f.rule === 'edge-parallel').length};
 };
 const MIN_TEXT = 18; // the fixture's canvas
 
@@ -212,7 +211,7 @@ test('edge-parallel in examples/toc-*: none but toc-hop-all (the pair of toc-hop
   const found: Record<string, number> = {};
   for (const name of ['toc-blocks', 'toc-compact', 'toc-core', 'toc-crt-loop', 'toc-crt', 'toc-frt', 'toc-hop-all', 'toc-hop', 'toc-legend', 'toc-nbr', 'toc-prt', 'toc-tt']) {
     const r = await checkDiagram(await loadDiagram(path.join(EXAMPLES, `${name}.ts`), config));
-    found[name] = lintDiagram(r.laidOut).filter(f => f.rule === 'edge-parallel').length;
+    found[name] = r.verdict.findings.filter(f => f.rule === 'edge-parallel').length;
   }
   assert.deepEqual(Object.fromEntries(Object.entries(found).filter(([, n]) => n > 0)), {'toc-hop-all': 1});
 });

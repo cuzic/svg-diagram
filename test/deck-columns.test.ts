@@ -3,8 +3,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {spawnSync} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
+import {build as bundle} from 'esbuild';
 import {columnFigurePath, validateDeck} from '../lib/deck-spec.ts';
 import {COLUMN_GAP, MARGIN_X, planDeckLayout, SLIDE_W, type TextWidth} from '../lib/deck-layout.ts';
 import {planDeckSlide, renumberShapes, slideIssues, type DeckFigure} from '../lib/pptx/deck.ts';
@@ -252,4 +254,154 @@ test('ADR 0061: a value chain\'s chevron gives its text the whole room between i
   // narrower still, the words are cut, and the check still sees it although each line sits at its own x
   const narrow = await renderSpec({...vc, width: 436}, {config: {measure: 'font', fonts: JA_FONTS}});
   assert.ok(narrow.findings.some(f => f.rule === 'text-mid-word-break'));
+});
+
+test('deck validation can use only the spec parts needed by its figures', async () => {
+  const {validateDeckWith} = await import('../lib/deck-spec-core.ts');
+  const {validateSpec} = await import('../lib/spec-selective.ts');
+  const {pyramidPart} = await import('../lib/spec-parts/selective/pyramid.ts');
+  const seen: unknown[] = [];
+  const pyramid = {version: 1, title: '計画', legend: false, parts: [pyramidPart.example]};
+  const input = {slides: [
+    {layout: 'cover', title: '表紙', figure: pyramid},
+    {figure: pyramid},
+    {columns: [{figure: {...pyramid, canvas: {}, parts: [{type: 'pyramid'}]}}, {text: '説明'}]},
+  ]};
+  const actual = validateDeckWith(input, figure => {
+    seen.push(figure);
+    return validateSpec(figure, {parts: [pyramidPart]});
+  });
+  assert.equal(seen.length, 2);
+  assert.ok(seen.every(figure => !Object.hasOwn(figure as object, 'canvas')));
+  assert.deepEqual(actual, validateDeck(input));
+});
+
+test('the deck validator does not bundle the full spec catalog', async () => {
+  const root = path.join(import.meta.dirname, '..');
+  const result = await bundle({
+    absWorkingDir: root,
+    stdin: {contents: `
+      import {validateDeckWith} from './lib/deck-spec-core.ts';
+      import {validateSpec} from './lib/spec-selective.ts';
+      import {pyramidPart} from './lib/spec-parts/selective/pyramid.ts';
+      export const validate = deck => validateDeckWith(deck, figure => validateSpec(figure, {parts: [pyramidPart]}));
+    `, resolveDir: root},
+    bundle: true, platform: 'browser', format: 'esm', metafile: true, write: false,
+  });
+  const inputs = Object.keys(Object.values(result.metafile.outputs)[0]?.inputs ?? {});
+  assert.ok(inputs.includes('lib/deck-spec-core.ts'));
+  assert.ok(inputs.includes('lib/spec-parts/selective/pyramid.ts'));
+  assert.ok(!inputs.some(input => /^lib\/(?:deck-spec\.ts|spec\.ts|spec-parts\/r[1-7]\.ts)$/.test(input)), inputs.join('\n'));
+});
+
+test('selective deck loading checks JSON paths and columns with the same locations', async () => {
+  const {loadDeckSelective} = await import('../lib/deck-load-selective.ts');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'svg-selective-deck-'));
+  try {
+    const file = path.join(dir, 'deck.json');
+    const figureFile = path.join(dir, 'figure.json');
+    fs.writeFileSync(figureFile, JSON.stringify({...spec('pyramid'), $schema: './schema.json'}));
+    const write = (figure: unknown) => fs.writeFileSync(file, JSON.stringify({
+      slides: [{figure: 'figure.json'}, {columns: [{figure}, {text: '説明'}]}],
+    }));
+    write(spec('table'));
+    const loaded = await loadDeckSelective(file);
+    assert.ok(loaded.ok);
+    assert.deepEqual(loaded, loadDeck(file));
+    assert.deepEqual(loaded.loaded.files, [file, figureFile]);
+    const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
+      import {registerHooks} from 'node:module';
+      const urls = new Set();
+      registerHooks({load(url, context, next) {
+        urls.add(url);
+        return next(url, context);
+      }});
+      const {loadDeckSelective} = await import('./lib/deck-load-selective.ts');
+      const result = await loadDeckSelective(process.argv[1]);
+      if (!result.ok) throw new Error(result.errors.join('\\n'));
+      console.log(JSON.stringify([...urls]));
+    `, file], {cwd: path.join(import.meta.dirname, '..'), encoding: 'utf8'});
+    assert.equal(child.status, 0, child.stderr);
+    const urls: string[] = JSON.parse(child.stdout);
+    const selected = urls.flatMap(url => /\/spec-parts\/selective\/([^/]+)\.ts$/.exec(url)?.[1] ?? []);
+    assert.deepEqual(selected.sort(), ['pyramid', 'table']);
+    assert.ok(!urls.some(url => /\/(?:spec|deck-spec|spec-parts\/r[1-7])\.ts$/.test(url)));
+    for (const type of ['pyramid', 'unknown', 'constructor']) {
+      write({version: 1, title: '不正な図', parts: [{type}]});
+      const invalid = await loadDeckSelective(file);
+      assert.ok(!invalid.ok);
+      assert.deepEqual(invalid, loadDeck(file));
+      assert.match(invalid.errors[0] ?? '', /^slides\[1\]\.columns\[0\]\.figure/);
+    }
+  } finally {
+    fs.rmSync(dir, {recursive: true, force: true});
+  }
+});
+
+test('JSON deck rendering draws the selected part without loading the full catalog', () => {
+  const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
+    import {registerHooks} from 'node:module';
+    const urls = new Set();
+    registerHooks({load(url, context, next) { urls.add(url); return next(url, context); }});
+    const {renderDeckFigure} = await import('./lib/deck-render-figure.ts');
+    const spec = {version: 1, title: '相談', width: 440,
+      parts: [{type: 'table', columns: [{label: '案'}], rows: [['先行テスト']]}]};
+    const result = await renderDeckFigure(0, spec, undefined, {measure: 'font'});
+    if (!result.ok) throw new Error(JSON.stringify(result.errors));
+    console.log(JSON.stringify({svg: result.result.svg, width: result.result.width, urls: [...urls]}));
+  `], {cwd: path.join(import.meta.dirname, '..'), encoding: 'utf8'});
+  assert.equal(child.status, 0, child.stderr);
+  const {svg, width, urls} = JSON.parse(child.stdout) as {svg: string; width: number; urls: string[]};
+  assert.equal(width, 440);
+  assert.match(svg, /先行テスト/);
+  assert.match(svg, /<desc id="svg-desc">表: 列 案<\/desc>/);
+  assert.ok(urls.some(url => url.endsWith('/spec-parts/selective/table.ts')));
+  assert.ok(!urls.some(url => /\/(?:spec|verify|verify-handlers|dsl\/render|spec-parts\/r[1-7])\.ts$/.test(url)));
+});
+
+test('selected deck rendering preserves the catalog SVG, fit and CLI diagnostics', async () => {
+  const {renderDeckSpec} = await import('../lib/deck-render-spec.ts');
+  const {specToDiagram} = await import('../lib/spec.ts');
+  const {renderDiagram} = await import('../lib/dsl/render.ts');
+  const {applyConfig} = await import('../lib/config.ts');
+  const cfg = {measure: 'font' as const, fonts: JA_FONTS, legend: 'auto' as const, maxWidth: 720,
+    legendLabels: {'tone:accent': '注目'}, terms: {変更: ['テスト']}};
+  for (const {type, example} of partCatalog()) {
+    const input = {version: 1, lang: 'en', title: ' 計画 ', showTitle: true, sourceLine: '出典を確認', parts: [example]};
+    const selected = await renderDeckSpec(input, cfg);
+    assert.ok(selected, type);
+    const legacy = await renderDiagram(applyConfig(specToDiagram(input), cfg), {name: 'slide1.svg', budget: 'cacheOnly'});
+    for (const key of ['svg', 'width', 'height', 'xml', 'fit'] as const) assert.deepEqual(selected[key], legacy[key], `${type}: ${key}`);
+    assert.deepEqual(selected.verdict, legacy.verdict, type);
+  }
+});
+
+test('selective Edge PPTX decks keep the legacy layout and diagnostics for table figures', async () => {
+  const {renderDeckPptxEdge: renderSelected} = await import('../lib/pptx-deck-selective-edge.ts');
+  const {tablePart} = await import('../lib/spec-parts/selective/table.ts');
+  const {tablePptx} = await import('../lib/pptx/table-band.ts');
+  const engine = realEngine();
+  const opts = {
+    parts: [tablePart], bands: {table: tablePptx},
+    rasterize: () => { throw new Error('the table should stay native'); },
+  };
+  const input = {slides: [
+    {title: '表', figure: spec('table')},
+    {title: '比較', columns: [{text: '説明'}, {figure: spec('table')}]},
+  ]};
+  const selected = await renderSelected(input, engine, opts);
+  const legacy = await renderDeckPptxEdge(input, engine, opts);
+  assert.ok(selected.pptx && legacy.pptx);
+  assert.deepEqual(selected.slides, legacy.slides);
+  assert.deepEqual(selected.warnings, legacy.warnings);
+  assert.deepEqual(selected.issues, []);
+  for (const i of [1, 2]) {
+    const name = `ppt/slides/slide${i}.xml`;
+    const xml = unzipEntry(Buffer.from(selected.pptx), name).toString();
+    assert.match(xml, /<a:tbl>/);
+    assert.equal(xml, unzipEntry(Buffer.from(legacy.pptx), name).toString());
+  }
+  const bad = await renderSelected({slides: [{columns: [{text: '説明'}, {figure: spec('sequence')}]}]}, engine, opts);
+  assert.equal(bad.pptx, null);
+  assert.ok(bad.issues.length && bad.issues.every(issue => issue.path.startsWith('slides[0].columns[1].figure')));
 });

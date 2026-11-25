@@ -5,6 +5,7 @@ import path from 'node:path';
 import {build as bundle} from 'esbuild';
 import {closeMeasurer} from '../lib/dsl.ts';
 import {partCatalog} from '../lib/spec.ts';
+import {loadSpecPartsFor} from '../lib/spec-cli-parts.ts';
 import {TextEngineError, guardedEngine, renderSpecEdge, type OutlineFont} from '../lib/spec-edge.ts';
 import {JA_FONTS, realEngine} from './helpers/text-engine.ts';
 import {renderSpec, svgToPng} from '../lib/spec-render.ts';
@@ -287,4 +288,64 @@ test('a canvas figure is drawn at the canvas width, with text grown to minText, 
   assert.ok(wide.height > doc.height, `text grows with minText: ${doc.height} -> ${wide.height}`);
   assert.ok(wide.height <= 1080);
   assert.deepEqual(wide.findings.filter(f => /doc-width|本文の表示幅/.test(f.message)), []);
+});
+
+test('the selected edge path matches outlining and rejects parts outside its registry', async () => {
+  const {renderSpecEdge: renderSelected} = await import('../lib/spec-selective-edge.ts');
+  const {tablePart} = await import('../lib/spec-parts/selective/table.ts');
+  const input = {...spec(tablePart.example), legend: false, desc: 'プランの比較'};
+  const engine = realEngine();
+  const options = {parts: [tablePart]};
+  const actual = await renderSelected(input, engine, options);
+  const legacy = await renderSpecEdge(input, engine);
+  assert.ok(actual.svg);
+  assert.equal(actual.svg, legacy.svg);
+  assert.deepEqual([actual.width, actual.height, actual.problems, actual.findings], [legacy.width, legacy.height, legacy.problems, legacy.findings]);
+  assert.deepEqual(xmlProblems(actual.svg), []);
+  assert.match(actual.svg, /<use href="#sd-glyph-/);
+  await assert.rejects(renderSelected(null, engine, {parts: []}), /supply at least one part/);
+  const failedEngine = {...engine, measure: () => { throw new Error('engine disconnected'); }};
+  await assert.rejects(renderSelected(input, failedEngine, options), TextEngineError);
+  const invalid = await renderSelected(spec({type: 'pyramid', layers: ['A']}), engine, options);
+  assert.equal(invalid.svg, null);
+  assert.ok(invalid.issues.length);
+  const tooTall = await renderSelected(input, engine, {...options, maxHeight: 1});
+  assert.match(tooTall.issues[0]?.message ?? '', /limit is 1px/);
+});
+
+test('the selected edge renderer preserves tall document diagnostics', async () => {
+  const {renderSpecEdge: renderSelected} = await import('../lib/spec-selective-edge.ts');
+  const {tablePart} = await import('../lib/spec-parts/selective/table.ts');
+  const rows = Array.from({length: 22}, (_, index) => [`Plan ${index}`, 'Check', 'Ready', 'Done']);
+  const input = {...spec({...tablePart.example, rows}), width: 480};
+  const engine = realEngine();
+  const legacy = await renderSpecEdge(input, engine);
+  assert.ok(legacy.findings.some(finding => finding.rule === 'aspect-tall'), JSON.stringify(legacy.issues));
+  const selected = await renderSelected(input, engine, {parts: [tablePart]});
+  assert.deepEqual(selected, legacy);
+});
+
+test('the selected edge renderer matches the legacy catalog results in finding order', async () => {
+  const {renderSpecEdge: renderSelected} = await import('../lib/spec-selective-edge.ts');
+  const {captionDefinition} = await import('../lib/bands/caption.ts');
+  const {autoLegend} = await import('../lib/bands/legend.ts');
+  const engine = realEngine();
+  const variants = [
+    {name: 'default', settings: {}},
+    {name: 'automatic legend and captions', settings: {legend: 'auto', showTitle: true, sourceLine: '出典: 例'}},
+    {name: 'English dark canvas', settings: {lang: 'en', appearance: 'dark', canvas: {width: 1280, height: 720}}},
+  ];
+  for (const {type, example} of partCatalog()) {
+    const base = spec(example);
+    const parts = await loadSpecPartsFor(base);
+    assert.ok(parts, type);
+    for (const {name, settings} of variants) {
+      const input = {...base, ...settings};
+      const label = `${type} (${name})`;
+      const legacy = await renderSpecEdge(input, engine);
+      const selected = await renderSelected(input, engine, {parts, captions: captionDefinition, autoLegend});
+      assert.deepEqual(selected, legacy, label);
+      assert.ok(legacy.svg, `${label} should draw an SVG`);
+    }
+  }
 });

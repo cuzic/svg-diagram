@@ -6,6 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {build} from 'esbuild';
 import {detachData} from '../lib/dsl/diagram.ts';
+import {importDefine} from '../lib/load-source.ts';
+import {installResolveHook} from '../lib/resolve-hook.ts';
 import {canvasMeasurer, svgMeasurer} from '../lib/web-measure.ts';
 import {rolesAt, ROLES, canvasRoles} from '../lib/tokens.ts';
 import {causeTree, cloud, diagram, gantt, image, math, renderInBrowser} from '../lib/web.ts';
@@ -13,6 +15,24 @@ import {causeTree, cloud, diagram, gantt, image, math, renderInBrowser} from '..
 const ROOT = path.resolve(import.meta.dirname, '..');
 const guess = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.9, h: Math.round(size * 1.2)});
 const smallCloud = () => diagram({theme: 'blue', title: 'クラウド'}).add(cloud({a: '成功させる', b: '品質を確保する', c: '機会を逃さない', d: '検証に時間をかける', d2: '早くリリースする'}));
+
+test('renderInBrowser draws the spotlight example through the band definitions', async () => {
+  installResolveHook();
+  const define = await importDefine(path.join(ROOT, 'examples/spotlight.ts'));
+  const result = await renderInBrowser(define(), {measure: guess, nodeIds: true});
+  assert.deepEqual(result.xml, []);
+  assert.deepEqual(result.verdict.problems, []);
+  const row = result.laidOut.laidOut.find(band => band.type === 'row');
+  assert.deepEqual(row?.children.map(node => [node.id, node.dim === true]), [
+    ['input', true], ['decision', false], ['archive', true],
+  ]);
+  assert.match(result.svg, /data-node="decision"/);
+
+  const bundle = await build({absWorkingDir: ROOT, entryPoints: ['lib/web.ts'], bundle: true, minify: true, platform: 'browser', write: false, metafile: true});
+  const files = Object.keys(Object.values(bundle.metafile.outputs)[0]!.inputs);
+  assert.ok(files.includes('lib/core.ts'));
+  assert.deepEqual(files.filter(file => /^lib\/(?:pipeline|layout-handlers|emit-handlers|verify-handlers)\.ts$/.test(file)), []);
+});
 
 test('detachData copies the bands, so a render never writes into the caller\'s diagram', () => {
   const d = smallCloud();

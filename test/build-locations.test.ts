@@ -7,9 +7,9 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {isDeepStrictEqual} from 'node:util';
 import {assertBuildOutput} from '../lib/build-verdict.ts';
-import {frameGeometry} from '../lib/emit-boxes.ts';
-import {ganttBarGeometry} from '../lib/emit-figures.ts';
-import {primRectGeometry} from '../lib/emit-tables.ts';
+import {frameGeometry} from '../lib/emit-box-frame.ts';
+import {ganttBarGeometry} from '../lib/emit-gantt.ts';
+import {primRectGeometry} from '../lib/emit-wireframe.ts';
 import {readProvenance} from '../lib/freshness.ts';
 import {layoutFinding} from '../lib/layout-issues.ts';
 import {SourceRef} from '../lib/source-ref.ts';
@@ -478,8 +478,8 @@ test('build result exposes layout as a non-enumerable field', async t => {
 
 test('check and build --locations report the problems of a legacy Verdict', t => {
   const p = fixture(t, {'figure.ts': overlap});
-  const verify = new URL('../lib/verify.ts', import.meta.url).href;
-  // Feed both command paths the same legacy verifier output, with only the text of each problem.
+  const verify = new URL('../lib/verify-core.ts', import.meta.url).href;
+  // Exercise both CLI consumers with a Verdict that carries only the text of each problem.
   p.write('legacy.mjs', `import {registerHooks} from 'node:module';
 registerHooks({
   resolve(specifier, context, next) {
@@ -489,9 +489,9 @@ registerHooks({
   }
 });
 `);
-  p.write('legacy-verify.mjs', `import {verifyDiagram as verify} from ${JSON.stringify(verify + '?legacy-fixture')};
-export function verifyDiagram(diagram) {
-  const {issues, ...verdict} = verify(diagram);
+  p.write('legacy-verify.mjs', `import {verifyWithServices as verify} from ${JSON.stringify(verify + '?legacy-fixture')};
+export function verifyWithServices(services, diagram) {
+  const {issues, ...verdict} = verify(services, diagram);
   return verdict;
 }
 `);

@@ -9,8 +9,11 @@ import {installResolveHook} from './lib/resolve-hook.ts';
 import {loadConfig} from './lib/config.ts';
 import {chooseColumns, columnWidths, figureRooms, maxScale, type FigureFit} from './lib/deck-layout.ts';
 import {closeMeasurer, configureMeasure, measureAll, splitAtoms, textWidth} from './lib/measure.ts';
-import {autoColumns, columnFigurePath, figurePath, fitOf, sharedColumns} from './lib/deck-spec.ts';
-import {drawColumnFigure, figureKey, loadDeck, renderDeckFigure} from './lib/deck-load.ts';
+import {autoColumns, columnFigurePath, figurePath, fitOf, sharedColumns} from './lib/deck-spec-core.ts';
+import {figureKey} from './lib/deck-file.ts';
+import {loadDeckSelective} from './lib/deck-load-selective.ts';
+import {drawColumnFigure, renderDeckFigure} from './lib/deck-render-figure.ts';
+import {figureMinPt} from './lib/pptx/deck-figure.ts';
 import {deckEntries, deckTexts, planDeckSlide, slideIssues, type DeckFigure, type TextWidth} from './lib/pptx/deck.ts';
 import {planSlide, fontsOf} from './lib/pptx/slide.ts';
 import {fontFilesOf, rasterize} from './lib/pptx/emit.ts';
@@ -37,7 +40,7 @@ const deckFile = path.resolve(files[0] as string), dir = path.dirname(deckFile);
 const fail = (lines: string[]): never => { for (const l of lines) console.error(`✗ ${l}`); process.exit(1); };
 
 try {
-  const got = loadDeck(deckFile);
+  const got = await loadDeckSelective(deckFile);
   if (!got.ok) fail(got.errors);
   const {deck, sources} = (got as Extract<typeof got, {ok: true}>).loaded;
   const cfg = loadConfig(dir);
@@ -70,7 +73,7 @@ try {
       const columns = s.columns, failures: string[][] = [];
       const chosen = await chooseColumns({...s, columns}, width, maxScale(fit), async (j, w) => {
         const c = columns[j];
-        const d = await drawColumnFigure(i, j, c?.figure, sources.get(figureKey(i, j)), cfg, w);
+        const d = await drawColumnFigure(i, j, c?.figure, sources.get(figureKey(i, j)), cfg, w, figureMinPt);
         if (!d.ok && w === null && d.errors) failures[j] = d.errors;
         return d;
       });

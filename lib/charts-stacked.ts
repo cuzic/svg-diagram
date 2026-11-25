@@ -1,3 +1,4 @@
+import type {ValueAxis} from './axis-comparison.ts';
 // stackedBars() and mekko(): columns cut into segments. stackedBars() draws each column at one width, as absolute values or (percent: true)
 // as 100% columns; mekko() (マリメッコ) makes the width of a column proportional to its total and the height of a segment its share of
 // the column, so the area of a segment is its share of the whole. Every segment prints its number; one too small for it is left out of
@@ -180,4 +181,11 @@ export function layoutStacked(s: StackedSpec, g: ChartGeom): LaidOutChartPart {
   c.partsByOf(new Map(s.columns.map((k, ci) => [k.id ?? `#${ci}`, partStep('column', k.id ?? ci, k.label)])));
   void Canvas;
   return c.done();
+}
+
+export function stackedValueAxis(s: StackedSpec): ValueAxis | undefined {
+  if (!s.unit) return undefined;
+  const sc = stackedScale(s);
+  if (!sc) return undefined;
+  return {label: `stackedBars「${s.columns[0]?.label ?? ''}」`, unit: s.unit, vertical: true, min: sc.min, max: sc.max, own: s.axisGroup === false};
 }

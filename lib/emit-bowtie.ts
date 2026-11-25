@@ -6,7 +6,7 @@ import type {ToneEnv} from './tokens.ts';
 import type {EmphasisTone, Theme} from './types/core.ts';
 import type {BowtieRole, LaidOutBowtie} from './types/diagrams.ts';
 import {arrowPath, snap4, emojiSpan} from './emit-common.ts';
-import {renderBoxRect} from './emit-boxes.ts';
+import {renderBoxRect} from './emit-box-frame.ts';
 
 const ROLE_TONE: Record<BowtieRole, EmphasisTone> = {hazard: 'muted', threat: 'changed', barrier: 'accent', event: 'danger', consequence: 'danger'};
 

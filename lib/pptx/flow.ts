@@ -1,21 +1,18 @@
 // The figures drawn from plain primitives, as native shapes: the flow shapes (chevron, funnel, cycle, Venn, concentric, emblem, value
-// chain), the pyramid and the timeline. Each polygon, circle, frame and path becomes a shape of its own (a filled path a freeform, an
+// chain). Each polygon, circle, frame and path becomes a shape of its own (a filled path a freeform, an
 // arrow path an open freeform with a head). A text inside a shape is that shape's text (fill.ts), so it moves and wraps with it; any other
 // is a text box at its baseline. Items with an id stay glueable through an invisible rectangle over their anchor. A dimmed band stays a
 // picture.
 import {PALETTE, colorOf, type ToneEnv} from '../tokens.ts';
-import {resolveBoxStyle} from '../emit-common.ts';
+import {resolveBoxStyle} from '../box-style.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutFlowShape} from '../flow-shapes.ts';
-import type {LaidOutPyramid} from '../types/figures.ts';
-import type {LaidOutTimeline} from '../types/timeline.ts';
 import type {Anchor} from '../types/core.ts';
-import {freeformPathXml} from './connectors.ts';
-import {bboxOf, drawAll, drawParts, geomHolder, joined, outlineHolder, polygonHolder, type Drawn, type PartDrawn, type Placed} from './fill.ts';
-import {TIMELINE_AXIS} from '../parts.ts';
+import {freeformPathXml} from './line-shapes.ts';
+import {bboxOf, drawParts, geomHolder, joined, outlineHolder, polygonHolder, type PartDrawn, type Placed} from './fill.ts';
 import type {Geo} from './parts-group.ts';
 import {anchorXml, groupXml} from './shapes.ts';
-import {dashOfSvg, lineXml, namedAs, nameOf, presetXml, prstGeomXml, roundGeomXml, type Paint, type TextLine} from './prims.ts';
+import {dashOfSvg, namedAs, nameOf, presetXml, roundGeomXml, type Paint, type TextLine} from './prims.ts';
 import {svgPathSteps} from './svg-path.ts';
 import type {Fonts, Rect} from './xml.ts';
 
@@ -56,40 +53,4 @@ export function flowShapeXml(b: LaidOutFlowShape, ld: LaidOutDiagram, tones: Ton
   anchors.glue.forEach((g, i) => { const a = b.anchors[i]; // (an anchor is invisible: its geometry is a point at its centre, so it never crosses a shape and never moves a group)
     drawn.push({d: anchorXml(g.id, `anchor-${g.dslId}`, g.rect), geo: {kind: 'rect', r: {x: g.rect.x + g.rect.w / 2, y: g.rect.y + g.rect.h / 2, w: 0, h: 0}}, ...(a?.part ? {part: a.part} : {})}); });
   return {xml: groupXml(next(), namedAs(b.type, '', b.id), b, drawParts(drawn, texts, fonts, next)), glue: anchors.glue};
-}
-
-/** A pyramid: each layer a trapezoid in the accent colour at its opacity, holding its lines. */
-export function pyramidXml(b: LaidOutPyramid, ld: LaidOutDiagram, fonts: Fonts, next: () => number): string {
-  const accent = PALETTE[b.day].accent, drawn: Drawn[] = [], texts: Placed[] = [];
-  for (const layer of b.layers) {
-    const id = next();
-    drawn.push(polygonHolder(id, () => nameOf('layer', id, layer.lines.join('')), layer.points.map(([x, y]) => ({x, y})), {fill: accent, fillOpacity: layer.opacity, stroke: accent, widthPx: 2.5}));
-    layer.lines.forEach((line, i) => texts.push({t: {text: line, x: layer.cx, y: layer.textYs[i] ?? 0, anchor: 'middle', size: ld.roles.title, bold: true, color: layer.textColor}}));
-  }
-  return groupXml(next(), 'pyramid', b, drawAll(drawn, texts, fonts, next));
-}
-
-/** A timeline: the axis, ticks, stems and guides as lines, the span and bars as rectangles (a bar holding the texts inside it), dots as circles, any other text a text box. */
-export function timelineXml(b: LaidOutTimeline, ld: LaidOutDiagram, fonts: Fonts, next: () => number): string {
-  // ADR 0054: an event (stem, dot, name, date), the axis (line, ticks, dates) and the remaining span (bracket, label) are parts
-  const col = (k: 'text' | 'muted' | 'accent' | 'danger'): string => colorOf(k, ld.day), out: PartDrawn[] = [];
-  const line = (x1: number, y1: number, x2: number, y2: number, color: string, w: number, part?: string) =>
-    out.push({d: lineXml(next(), 'line', {x: x1, y: y1}, {x: x2, y: y2}, color, w), geo: {kind: 'poly', pts: [{x: x1, y: y1}, {x: x2, y: y2}], w}, ...(part ? {part} : {})});
-  const area = (d: Drawn, r: Rect, part?: string) => out.push({d, geo: {kind: 'rect', r}, ...(part ? {part} : {})});
-  if (b.span?.fill) { const r = {x: b.span.x1, y: b.span.y - 12, w: b.span.x2 - b.span.x1, h: 24}; area(presetXml(next(), 'span', 'rect', r, {fill: b.span.tone === 'accent' ? PALETTE[ld.day].soft : PALETTE.border}), r); }
-  line(b.axis.x1, b.axis.y, b.axis.x2, b.axis.y, PALETTE.muted, 2, TIMELINE_AXIS);
-  if (b.span && !b.span.fill) line(b.span.x1, b.span.y, b.span.x2, b.span.y, col(b.span.tone), 8);
-  for (const g of b.guides ?? []) line(g.x1, g.y, g.x2, g.y, PALETTE.border, 1);
-  for (const r of b.bars ?? []) { const id = next(), rect = {x: r.x, y: r.y, w: r.w, h: r.h}; area(geomHolder(id, texts => nameOf('bar', id, joined(texts)), rect, prstGeomXml('rect'), {fill: col(r.tone), fillOpacity: .18, stroke: col(r.tone), widthPx: 2}), rect); }
-  for (const d of b.dims ?? []) { line(d.x1, d.y, d.x2, d.y, col(d.tone), 2); line(d.x1, d.y - 5, d.x1, d.y + 5, col(d.tone), 2); line(d.x2, d.y - 5, d.x2, d.y + 5, col(d.tone), 2); }
-  if (b.fullLine) line(b.fullLine.x, b.fullLine.y1, b.fullLine.x, b.fullLine.y2, col('danger'), 2);
-  for (const t of b.ticks) line(t.x, t.y1, t.x, t.y2, PALETTE.muted, 2, TIMELINE_AXIS);
-  for (const s of b.stems) line(s.x, s.y1, s.x, s.y2, col(s.tone), 2, s.part);
-  for (const d of b.dots) { const r = {x: d.x - d.r, y: d.y - d.r, w: 2 * d.r, h: 2 * d.r}; area(presetXml(next(), 'dot', 'ellipse', r, {fill: col(d.tone), stroke: PALETTE.bg, widthPx: 4}), r, d.part); }
-  if (b.bracket) {
-    const {x1, x2, y, tone, part} = b.bracket, pts = [{x: x1, y: y - 4}, {x: x1, y}, {x: x2, y}, {x: x2, y: y - 4}];
-    out.push({d: freeformPathXml(next(), 'bracket', pts.map((q, i) => ({op: i ? 'L' as const : 'M' as const, pts: [q]})), col(tone), 2), geo: {kind: 'poly', pts, w: 2}, ...(part ? {part} : {})});
-  }
-  const texts = b.texts.map((t): Placed => ({t: {text: t.text, x: t.x, y: t.y, anchor: t.anchor, size: t.size, bold: !!t.bold, color: col(t.fill)}, ...(t.part ? {part: t.part} : {})}));
-  return groupXml(next(), namedAs('timeline', '', b.id), b, drawParts(out, texts, fonts, next));
 }

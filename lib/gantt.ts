@@ -4,12 +4,12 @@
 import {GANTT_AXIS, partStep} from './parts.ts';
 import {textWidth} from './atoms.ts';
 import type {Pt} from './graph-layout.ts';
-import {ticksOf, timelineDay} from './timeline.ts';
+import {MS_DAY, ticksOf, timelineDay} from './calendar-axis.ts';
 import type {FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {GanttBand, GanttRow, GanttTask, LaidOutGantt} from './types/timeline.ts';
 
 import {must} from './must.ts';
-const ROW_H0 = 32, BAR_H0 = 18, HEAD_H0 = 44, PAD0 = 8, LABEL_MAX = 0.4, MS_DAY = 86400000, ARROW = 8;
+const ROW_H0 = 32, BAR_H0 = 18, HEAD_H0 = 44, PAD0 = 8, LABEL_MAX = 0.4, ARROW = 8;
 
 /** Drops repeated points and the middle point of three on a line. */
 const simplifyPts = (pts: Pt[]): Pt[] => {

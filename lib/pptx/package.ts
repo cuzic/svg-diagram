@@ -3,7 +3,7 @@
 import {must} from '../must.ts';
 import type {Picture} from './image-band.ts';
 import {TEMPLATE} from './template.ts';
-import {escapeXml} from '../emit-common.ts';
+import {escapeXml} from '../xml-escape.ts';
 
 export interface Entry {name: string; data: Uint8Array}
 /** The one slide: its XML, its size (EMU) and the pictures it places (picture i is media/image{i+1}.png / .svg). */

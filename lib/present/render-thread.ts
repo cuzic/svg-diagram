@@ -8,7 +8,7 @@ import {installResolveHook, recordResolved} from '../resolve-hook.ts';
 import {recordImageReads} from '../image-file.ts';
 import {loadConfig} from '../config.ts';
 import {configureMeasure} from '../measure.ts';
-import {loadDeck} from '../deck-load.ts';
+import {loadDeckSelective} from '../deck-load-selective.ts';
 import {outlineFontCheck} from '../font-metrics.ts';
 import fs from 'node:fs';
 import {renderDeck, type RenderedDeck, type SlideCache} from './render-deck.ts';
@@ -33,7 +33,7 @@ port.on('message', async (req: RenderRequest) => {
     const fonts = outlineFontCheck(cfg.fonts);
     if (fonts.ok) for (const f of fonts.files) files.add(f);
     for (let d = dir; ; d = path.dirname(d)) { files.add(path.join(d, '.svg-diagram.json')); if (path.dirname(d) === d) break; }
-    const got = loadDeck(req.deckFile);
+    const got = await loadDeckSelective(req.deckFile);
     if (!got.ok) { port.postMessage({deck: null, errors: got.errors, files: [path.resolve(req.deckFile), ...files]} satisfies RenderReply); return; }
     for (const f of got.loaded.files) files.add(f);
     for (const f of got.loaded.sources.values()) files.add(f);

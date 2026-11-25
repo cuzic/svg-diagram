@@ -1,6 +1,7 @@
-import {located} from '../located.ts';
+import {holdsChildren, located} from '../located.ts';
 import {group} from '../dsl/text-bands.ts';
-import {row, spacer} from '../dsl/containers.ts';
+import {row} from '../dsl/row.ts';
+import {spacer} from '../dsl/spacer.ts';
 import {connect} from '../dsl/connect.ts';
 import type {ConnectBand, GroupBand, GroupRowBand, SpacerBand} from '../types/containers.ts';
 import type {Arrow, BandInput, Route} from '../types/core.ts';
@@ -38,7 +39,7 @@ export interface VersusSharedOpts<C extends BandInput = BandInput, Id extends st
 }
 
 type VersusBands = (GroupRowBand | GroupBand | ConnectBand | SpacerBand)[];
-type VersusResult<LC, RC, LI extends string, RI extends string, SC = never, SI extends string = never> =
+export type VersusResult<LC, RC, LI extends string, RI extends string, SC = never, SI extends string = never> =
   ((GroupRowBand | GroupBand | ConnectBand | SpacerBand)
     & Declares<IdsOf<LC> | IdsOf<RC> | IdsOf<SC> | LI | RI | SI>
     & Refers<RefsOf<LC> | RefsOf<RC> | RefsOf<SC>>)[];
@@ -76,5 +77,5 @@ function versus(
   ];
 }
 
-const wrappedVersus = located(versus);
+const wrappedVersus = located(versus, holdsChildren);
 export {wrappedVersus as versus};

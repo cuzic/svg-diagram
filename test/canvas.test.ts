@@ -3,7 +3,6 @@ import './helpers/strict-width.ts'; // a label the layout did not register for m
 import assert from 'node:assert/strict';
 import {canvas, checkDiagram, closeMeasurer, connect, diagram, group, renderDiagram} from '../lib/dsl.ts';
 import {canvasKeys, canvasTemplates, TEMPLATES} from '../lib/compose/canvas.ts';
-import {lintDiagram} from '../lib/rules.ts';
 import {geometryChecks} from '../lib/geometry-checks.ts';
 import type {LaidOutGrid} from '../lib/types/containers.ts';
 import type {LaidOutBox} from '../lib/types/text-bands.ts';
@@ -31,11 +30,11 @@ test('every template: sample content lays out, regions stay inside the figure an
   for (const name of canvasTemplates() as (keyof typeof TEMPLATES)[]) {
     const content = SAMPLE(name);
     if (name !== 'pest') for (const k of ['legal', 'environmental']) delete content[k];
-    const {laidOut, verdict, boxes, d} = await laid(canvas(name, content, {title: name, requireAll: true}));
+    const {laidOut, verdict, boxes} = await laid(canvas(name, content, {title: name, requireAll: true}));
     assert.deepEqual(verdict.problems, [], name);
     for (const b of boxes) assert.ok(b.x >= 0 && b.x + b.w <= laidOut.width + 0.5 && b.y >= 0 && b.y + b.h <= (laidOut.contentHeight ?? 1e9) + 0.5, `${name}: ${b.title} is outside the figure`);
     for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) assert.ok(!overlap(boxes[i]!, boxes[j]!), `${name}: ${boxes[i]!.title} overlaps ${boxes[j]!.title}`);
-    const findings = lintDiagram({...d, laidOut: laidOut.laidOut, connects: laidOut.connects});
+    const {findings} = verdict;
     // layout-* are measurements (info; counted by layout-budget.test.ts): a canvas's floor height leaves room under the text on purpose until it is content-driven
     assert.deepEqual(findings.filter(f => f.rule !== 'a11y-no-title' && !f.rule.startsWith('layout-')), [], `${name}: rules`);
     const r = await renderDiagram(diagram({theme: 'blue', title: name}).add(canvas(name, content)), {name, budget: 'measure'});
@@ -270,7 +269,7 @@ test('a word longer than its region (no place to break) throws with the word and
 });
 
 test('slide canvas: the canvas keeps to the slide height (its aspect does not push it past 720px); content that needs more still grows', async () => {
-  const check = async (c: unknown) => { const d = diagram({theme: 'blue', title: 't', canvas: 'slide'}); d.add(c as never); const {laidOut} = await checkDiagram(d); return {laidOut, f: lintDiagram({...d, laidOut: laidOut.laidOut, connects: [], canvas: d.canvas, contentHeight: laidOut.contentHeight}).map(x => x.rule)}; };
+  const check = async (c: unknown) => { const d = diagram({theme: 'blue', title: 't', canvas: 'slide'}); d.add(c as never); const {laidOut, verdict} = await checkDiagram(d); return {laidOut, f: verdict.findings.map(x => x.rule)}; };
   for (const name of ['bmc', 'swot', 'empathy', 'a3'] as const) {
     const {laidOut, f} = await check(canvas(name, {}, {title: name}));
     assert.ok(laidOut.contentHeight! <= 720, `${name}: ${laidOut.contentHeight}`);
@@ -311,7 +310,7 @@ test('spotlight: a region can be lit and the rest dims', async () => {
 });
 
 test('requireAll: a missing region is a canvas-region-empty warning; optional regions are not counted; without requireAll nothing is said', async () => {
-  const rule = async (c: unknown) => { const {laidOut, d} = await laid(c); return lintDiagram({...d, laidOut: laidOut.laidOut, connects: []}).filter(f => f.rule === 'canvas-region-empty'); };
+  const rule = async (c: unknown) => { const {verdict} = await laid(c); return verdict.findings.filter(f => f.rule === 'canvas-region-empty'); };
   const f = await rule(canvas('swot', {strengths: ['a'], weaknesses: ['b']}, {requireAll: true}));
   assert.equal(f.length, 1);
   assert.match(f[0]!.message, /opportunities、threats/);
@@ -320,13 +319,13 @@ test('requireAll: a missing region is a canvas-region-empty warning; optional re
   assert.deepEqual(await rule(canvas('swot', SAMPLE('swot'), {requireAll: true})), []);
   assert.deepEqual(await rule(canvas('empathy', {thinks: ['a'], says: ['a'], does: ['a'], feels: ['a'], pains: ['a'], gains: ['a']}, {requireAll: true})), [], 'the person box is optional');
   assert.deepEqual(await rule(canvas('threeC', {customer: ['a'], competitor: ['a'], company: ['a']}, {requireAll: true})), [], 'the insight box is optional');
-  const {laidOut, d} = await laid(canvas('swot', {strengths: ['a']}, {requireAll: true}));
+  const {d} = await laid(canvas('swot', {strengths: ['a']}, {requireAll: true}));
   d.accept = {'canvas-region-empty': '草稿'};
-  assert.ok(lintDiagram({...d, laidOut: laidOut.laidOut, connects: []}).some(x => x.rule === 'canvas-region-empty'));
+  assert.equal((await checkDiagram(d)).verdict.findings.find(x => x.rule === 'canvas-region-empty')?.severity, 'info');
 });
 
 test('a tone that a pill explains needs no legend; a plain tone you pick yourself still does', async () => {
-  const lint = async (c: unknown) => { const {laidOut, d} = await laid(c); return lintDiagram({...d, laidOut: laidOut.laidOut, connects: []}).filter(f => f.rule === 'legend-missing'); };
+  const lint = async (c: unknown) => { const {verdict} = await laid(c); return verdict.findings.filter(f => f.rule === 'legend-missing'); };
   assert.deepEqual(await lint(canvas('sevenS', SAMPLE('sevenS'), {emphasis: ['strategy']})), []);
   assert.equal((await lint(canvas('swot', SAMPLE('swot'), {tone: {threats: 'danger'}}))).length, 1);
 });
@@ -342,9 +341,9 @@ test('the canvas does not change the caller\'s band, and the same band lays out 
 test('slide medium: text keeps the slide minimum size', async () => {
   const d = diagram({theme: 'blue', title: 't', canvas: 'slide'});
   d.add(canvas('swot', SAMPLE('swot', 3), {title: 'SWOT'}));
-  const {laidOut, verdict} = await checkDiagram(d);
+  const {verdict} = await checkDiagram(d);
   assert.deepEqual(verdict.problems, []);
-  const f = lintDiagram({...d, laidOut: laidOut.laidOut, connects: [], canvas: d.canvas, contentHeight: laidOut.contentHeight});
+  const f = verdict.findings;
   assert.deepEqual(f.filter(x => x.rule === 'slide-min-text'), []);
 });
 

@@ -1,22 +1,17 @@
 // connect() resolution: the "id:side@t" reference syntax, the polyline a connector follows, its label / chip placement, and
 // bracket() / callout() annotations. Pure functions of the anchors laid out so far.
 
+import type {LayoutCtx} from './layout-ctx.ts';
+import {connectLabelWidth, labelRects, parseRef} from './connect-geometry.ts';
+export {connectLabelWidth, labelRects, parseRef} from './connect-geometry.ts';
 import {textWidth} from './atoms.ts';
-import {resolveAnchor, unknownHint} from './anchor-scope.ts';
-import type {ScopeTable} from './anchor-scope.ts';
+import {resolveAnchor, unknownHint} from './scope-table.ts';
+import type {ScopeTable} from './scope-table.ts';
 import {CONNECT_LABEL_SIZE} from './tokens.ts';
 import type {ConnectBand, LaidOutConnect} from './types/containers.ts';
 import type {Bend, ConnectRef, Point, Rect, Roles, WidthOf} from './types/core.ts';
 
 import {must} from './must.ts';
-// 'id', 'id:side', or 'id:side@t' — t (0..1) slides the anchor along that side
-// (default 0.5) so several connectors can leave/enter the same side in parallel.
-export function parseRef(ref: string): ConnectRef {
-  const [id, sideAt] = ref.split(':');
-  const [side, at] = (sideAt ?? 'center').split('@');
-  return {id: must(id), side: must(side), at: at === undefined ? 0.5 : Number(at)};
-}
-
 /**
  * A reference as written, with its id turned into the name the anchor is registered under (ADR 0012): a qualified name is itself,
  * a bare id that only one scoped item answers to is that item's qualified name, and one several answer to throws. Without scoped
@@ -35,19 +30,6 @@ function anchorPoint(rect: Rect, side: string, at = 0.5): Point {
     case 'bottom': return {x: rect.x + rect.w * at, y: rect.y + rect.h};
     default: return {x: rect.x + rect.w / 2, y: rect.y + rect.h / 2};
   }
-}
-
-/** The width of a connect's label text (the chip, if any, is 16px wider). */
-export const connectLabelWidth = (label: string, roles: Roles, widthOf: WidthOf): number => textWidth(widthOf, label, roles.connectLabel ?? CONNECT_LABEL_SIZE, 400);
-
-/**
- * The rectangle a connect's label takes, its text baseline at (labelX, labelY): the text itself, or, for a chip, the 24px-high pill 16px
- * wider than the text (then `labelBox` is the chip too). One formula for the layout and for labelRoom() (lib/connect-rules.ts, ADR 0069 D1).
- */
-export function labelRects(labelWidth: number, roles: Roles, chip: boolean, labelX = 0, labelY = 0): {labelBox: Rect; chipBox?: Rect} {
-  const size = roles.connectLabel ?? CONNECT_LABEL_SIZE;
-  if (chip) { const chipBox = {x: labelX - (labelWidth + 16) / 2, y: labelY - 17, w: labelWidth + 16, h: 24}; return {labelBox: chipBox, chipBox}; }
-  return {labelBox: {x: labelX - labelWidth / 2, y: labelY - size, w: labelWidth, h: size + 4}};
 }
 
 // positions along a leg to try for a chip, nearest the middle first
@@ -313,4 +295,30 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
   // messages — `from`/`to` themselves get overwritten by the spread below
   // with the resolved {x,y} points emit.ts's renderConnectPath needs.
   return {...band, from, to, fromId: fromRef.id, toId: toRef.id, fromArea: areaIds.has(fromRef.id) ? fromRect : undefined, toArea: areaIds.has(toRef.id) ? toRect : undefined, ...(fromVia ? {fromVia} : {}), ...(toVia ? {toVia} : {}), fromLabel: band.from, toLabel: band.to, points, pathSegments: segments, labelX, labelY, labelBox, chipBox};
+}
+
+export function layoutConnect(band: ConnectBand, ctx: LayoutCtx): void {
+  const {roles, widthOf} = ctx;
+  // Resolved immediately (not deferred) so a loop-under route can
+  // reserve real vertical space for its dip + label — a zero-height
+  // overlay resolved only after the whole stack is laid out would let
+  // the return path silently collide with whatever comes next (this
+  // was caught by lint-svg.ts's container-overflow check on the first
+  // real test: a loop-under label overlapped the following banner).
+  // When an anchor is not laid out yet (connect() declared before a box it
+  // names) resolution waits until the whole stack is placed; such a
+  // connector reserves no loop-under space.
+  // A bare id that a scoped item also answers to waits too (ADR 0012): whether it is ambiguous is known only when every band is placed.
+  const waits = (id: string): boolean => !ctx.anchors.has(id) || ctx.scopes.byBare.has(id);
+  // a connect({via}) stops on a group's frame, read off the final laid-out groups (ADR 0069 D2): kept out of the layout state that
+  // snapshotCtx / restoreCtx take back, so a frame a row or an areas() lays out again is never read in its first, discarded size
+  if (band.via || waits(parseRef(band.from).id) || waits(parseRef(band.to).id)) { ctx.deferred.push(band); return; }
+  const resolved = resolveConnect(band, ctx.anchors, ctx.areaIds, widthOf, roles, ctx.nodeBottoms, ctx.scopes);
+  ctx.connects.push(resolved);
+  // a bracket / callout under its boxes needs room for its line and label, as a loop-under does
+  if (band.annot?.side === 'below') ctx.y = Math.max(ctx.y, ...resolved.pathSegments.map(r => r.y + r.h), resolved.labelBox ? resolved.labelBox.y + resolved.labelBox.h : 0) + 8;
+  if (band.route === 'loop-under') {
+    const labelClearance = band.label ? 24 : 8;
+    ctx.y = Math.max(resolved.from.y, resolved.to.y, ctx.y) + band.dip + labelClearance;
+  }
 }

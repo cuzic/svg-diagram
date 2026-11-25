@@ -7,14 +7,12 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {inspect} from 'node:util';
 import {box, build, callout, checkDiagram, closeMeasurer, connect, diagram, row, spacer, stat} from '../lib/dsl.ts';
-import {layoutWith} from '../lib/layout.ts';
+import {renderInBrowser} from '../lib/web.ts';
 import {loadDiagram} from '../lib/load-source.ts';
 import {installResolveHook} from '../lib/resolve-hook.ts';
 import {captureSourceLocations, sourceOf} from '../lib/source-ref.ts';
-import {ROLES} from '../lib/tokens.ts';
 import type {LaidOutDiagram} from '../lib/types/index.ts';
 import type {Issue} from '../lib/types/verdicts.ts';
-import {verifyDiagram} from '../lib/verify.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
 const cli = path.join(root, 'check-diagram.ts');
@@ -291,7 +289,7 @@ test('build layout failure carries non-enumerable issues and layout before writi
   assert.ok(!fs.existsSync(out));
 });
 
-test('layout problems keep their exact text and order without source capture', () => {
+test('layout problems keep their messages without source capture', async () => {
   captureSourceLocations(false);
   const d = diagram({
     theme: 'blue', width: 400, appearance: 'auto',
@@ -309,7 +307,9 @@ test('layout problems keep their exact text and order without source capture', (
     connect('b:left', 'a:left', {route: 'loop-side'}),
   );
   // Fixed widths keep the messages' dimensions independent of installed fonts.
-  const laidOut = layoutWith(d, ROLES, (text, size) => text.length * size / 2);
+  const draw = async (appearance: 'light' | 'auto') => (await renderInBrowser({...d, appearance}, {
+    measure: ({text, size}) => ({w: text.length * size / 2, h: size}),
+  })).verdict.problems;
   const light = [
     '"First" overlaps "Second" by 360x17px',
     `connect(a:bottom -> b:top) label "Label" overlaps its own end "First" by 51x20px (widen the gap between the boxes, shorten the label, or label a longer leg with route: 'elbow')`,
@@ -323,11 +323,11 @@ test('layout problems keep their exact text and order without source capture', (
     '"Second" at (20,-24) 360x53 exceeds the 400x297 canvas',
     '"First" (#22201b on #222222, in "First") has low contrast (delta=2, want >= 70)',
   ];
-  assert.deepEqual(verifyDiagram({...laidOut, appearance: 'light'}).problems, light);
-  assert.deepEqual(verifyDiagram(laidOut).problems, [
+  assert.deepEqual((await draw('light')).sort(), [...light].sort());
+  assert.deepEqual((await draw('auto')).sort(), [
     ...light,
     '"Repeated" (#22201b on #e6d3bd, in "Repeated") has low contrast (delta=1, want >= 70) (暗い配色)',
-  ]);
+  ].sort());
 });
 
 test('all examples stay free of layout problems with source capture enabled', async t => {

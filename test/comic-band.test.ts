@@ -3,7 +3,6 @@ import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {box, checkDiagram, closeMeasurer, comic, connect, diagram, renderDiagram} from '../lib/dsl.ts';
-import {lintDiagram} from '../lib/rules.ts';
 import type {ComicWorksheet, LaidOutComic} from '../lib/types/comic.ts';
 import {ARTIST} from './helpers/comic-character.ts';
 import {SAMPLE} from './helpers/comic-sample.ts';
@@ -101,7 +100,7 @@ test('lint: the line-break advice is a warn finding of the rule, located on the 
   const sheet = {...SAMPLE, panels: [{...SAMPLE.panels[0]!, dialogue: [{id: 'd1', who: 'me', kind: 'say' as const, tpl: 'Internationalization-supportあ'}]}, {id: 'x', stage: [], dialogue: []}, {id: 'x', stage: [], dialogue: []}, {id: 'x', stage: [], dialogue: []}].map((p, i) => ({...p, id: `p${i + 1}`}))};
   const d = figure(comic(sheet));
   const {r} = await laid(d);
-  const found = lintDiagram({...d, laidOut: r.laidOut.laidOut}).filter(f => f.rule.startsWith('comic-'));
+  const found = r.verdict.findings.filter(f => f.rule.startsWith('comic-'));
   assert.deepEqual(found.map(f => [f.rule, f.severity]).sort(), [['comic-bubble-wide', 'warn'], ['comic-orphan-line', 'warn']]);
   assert.deepEqual(tags(r.verdict.problems), [], 'advice is not a problem');
 });

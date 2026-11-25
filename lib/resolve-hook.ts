@@ -1,18 +1,37 @@
-// ESM resolve hook: lets diagram sources `import {...} from 'svg-diagram'`
+// ESM resolve hook: lets diagram sources import svg-diagram and its public code subpaths
 // regardless of which repo they live in. Registered by build-diagram.ts.
 //
 // It also makes a fresh load fresh all the way down: load-source.ts imports a source as `x.ts?svg-diagram-fresh=<n>` when asked
 // for a re-read (a watcher), and every local file that import graph pulls in gets the same query here, so an edited helper is
 // read again, not served from the module cache. svg-diagram's own modules and node_modules keep their URLs: they hold state
 // that must stay one copy.
+import {readFileSync} from 'node:fs';
 import {registerHooks} from 'node:module';
 import type {ResolveHookContext as ResolveContext} from 'node:module';
 
 type ResolveResult = {url: string; shortCircuit?: boolean; format?: string | null | undefined; importAttributes?: Record<string, string>};
-const DSL = new URL(import.meta.url.endsWith('.ts') ? './dsl.ts' : './dsl.js', import.meta.url).href;
+type PackageExports = Record<string, string | {node?: string; default?: string}>;
+const IS_SOURCE = import.meta.url.endsWith('.ts');
+const DSL = new URL(IS_SOURCE ? './dsl.ts' : './dsl.js', import.meta.url).href;
 const OWN = new URL('.', import.meta.url).href;
+const PACKAGE_ROOT = new URL(IS_SOURCE ? '../' : '../../', OWN);
+const PACKAGE_PREFIX = 'svg-diagram/';
 export const FRESH_PARAM = 'svg-diagram-fresh';
 const FRESH = new RegExp(`[?&](${FRESH_PARAM}=\\d+)`);
+
+let packageExports: PackageExports | undefined;
+function resolvePackage(specifier: string): ResolveResult | undefined {
+  if (specifier === 'svg-diagram') return {url: DSL, shortCircuit: true};
+  if (!specifier.startsWith(PACKAGE_PREFIX) || specifier.includes('*')) return undefined;
+
+  packageExports ??= (JSON.parse(readFileSync(new URL('package.json', PACKAGE_ROOT), 'utf8')) as {exports: PackageExports}).exports;
+  const entry = packageExports[`./${specifier.slice(PACKAGE_PREFIX.length)}`];
+  const target = typeof entry === 'string' ? entry : entry?.node ?? entry?.default;
+  if (!target?.endsWith('.js')) return undefined;
+
+  const file = IS_SOURCE ? target.replace(/^\.\/dist\/(.+)\.js$/, './$1.ts') : target;
+  return {url: new URL(file, PACKAGE_ROOT).href, shortCircuit: true};
+}
 
 let onResolved: ((url: string) => void) | null = null;
 /** Have every local file a source imports reported to `fn` (null: stop), as a file: URL with no query: what `serve` watches (ADR 0056 D5). */
@@ -29,13 +48,12 @@ function tagged(resolved: ResolveResult, context: ResolveContext): ResolveResult
 }
 
 export async function resolve(specifier: string, context: ResolveContext, next: (specifier: string, context: ResolveContext) => ResolveResult | Promise<ResolveResult>): Promise<ResolveResult> {
-  if (specifier === 'svg-diagram') return {url: DSL, shortCircuit: true};
-  return tagged(await next(specifier, context), context);
+  return resolvePackage(specifier) ?? tagged(await next(specifier, context), context);
 }
 
 /** The same hook, in-thread. `module.register` starts a loader thread that loads the type stripper again: about two seconds per process, for every CLI run. */
 export function installResolveHook(): void {
   registerHooks({
-    resolve: (specifier, context, next) => specifier === 'svg-diagram' ? {url: DSL, shortCircuit: true} : tagged(next(specifier, context) as ResolveResult, context),
+    resolve: (specifier, context, next) => resolvePackage(specifier) ?? tagged(next(specifier, context) as ResolveResult, context),
   });
 }

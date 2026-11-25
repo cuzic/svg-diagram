@@ -1,6 +1,5 @@
 // ADR 0031 §4: the whole pipeline over the example figures, asked for what a pure core must give: the same input draws the same output
-// whatever was drawn before (no state leaks between renders), every SVG is well-formed XML, and the stages after the pre-layout passes
-// never write into what they are handed (the data goes in frozen; a write would throw).
+// whatever was drawn before (no state leaks between renders), every SVG is well-formed XML, and render and check never write into what they are handed (the data goes in frozen; a write would throw).
 import {test} from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
@@ -9,17 +8,8 @@ import path from 'node:path';
 import {register} from 'node:module';
 import {loadConfig} from '../lib/config.ts';
 import {loadDiagram} from '../lib/load-source.ts';
-import {renderDiagram} from '../lib/dsl/render.ts';
-import {layoutDiagram} from '../lib/layout-measured.ts';
-import {runPreLayout, runPostLayout} from '../lib/pipeline.ts';
-import {verifyDiagram} from '../lib/verify.ts';
-import {resolveImages} from '../lib/image-file.ts';
-import {walkBands} from '../lib/rules.ts';
-import {emitSvg} from '../lib/emit.ts';
-import {emitHtml} from '../lib/emit-html.ts';
-import {fontBoxOf} from '../lib/font-box.ts';
+import {checkDiagram, renderDiagram} from '../lib/dsl/render.ts';
 import {closeMeasurer} from '../lib/measure.ts';
-import type {LaidOutDiagram} from '../lib/types/index.ts';
 
 register(new URL('../lib/resolve-hook.ts', import.meta.url)); // the examples import 'svg-diagram'
 test.after(() => closeMeasurer());
@@ -45,16 +35,13 @@ function deepFreeze<T>(v: T, seen = new Set<object>()): T {
   return Object.freeze(v);
 }
 
-test('after the pre-layout passes nothing writes into its input: layout, the post-layout passes, verify and both emitters accept frozen data', async () => {
+test('the render and check entries accept frozen example inputs', async () => {
   for (const abs of EXAMPLES) {
-    const copy = runPreLayout({...await load(abs)}); // the pre-layout passes write into their input: renderDiagram hands them a copy
-    resolveImages(walkBands(copy.bands), copy.sourceDir ?? process.cwd()); // and reads the pictures image() left for later
-    const prepared = deepFreeze(copy);
-    const laid = await layoutDiagram(prepared);
-    const post = deepFreeze(runPostLayout(laid));
-    const where = name(abs);
-    assert.doesNotThrow(() => verifyDiagram(post), `${where}: verify`);
-    assert.doesNotThrow(() => emitSvg(post), `${where}: emitSvg`);
-    if (post.appearance !== 'auto') assert.doesNotThrow(() => emitHtml(post as LaidOutDiagram, {fontBox: fontBoxOf(post.measure)}), `${where}: emitHtml`);
+    const input = deepFreeze(await load(abs));
+    const {verdict} = await checkDiagram(input);
+    const rendered = await renderDiagram(input, {name: name(abs) + '.svg', budget: 'cacheOnly', html: input.appearance !== 'auto'});
+    assert.deepEqual(verdict, rendered.verdict, name(abs));
+    assert.deepEqual(rendered.xml, [], name(abs));
+    if (input.appearance !== 'auto') assert.match(rendered.html ?? '', /<div/, name(abs));
   }
 });

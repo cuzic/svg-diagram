@@ -16,6 +16,11 @@ import type {ImageBand, ImageLabel, ImageMark, LaidOutImage} from './types/image
 /** Larger than this and rules.ts warns (`image-large`): the whole file travels inside every SVG, and again in every reveal stage. */
 export const IMAGE_WARN_BYTES = 300 * 1024;
 
+export function largeImageWarning(bytes: number): string | undefined {
+  if (bytes <= IMAGE_WARN_BYTES) return undefined;
+  return `画像（${Math.round(bytes / 1024)} KB）が大きい。SVG に埋め込まれ、段階表示の各ファイルにも入る。解像度を下げるか圧縮する（${IMAGE_WARN_BYTES / 1024} KB 以下が目安）`;
+}
+
 const PLATE_PAD_X = 8, PLATE_H_EXTRA = 14, MARK_STROKE = 3;
 
 /** The font-size of a label plate: its own role, else the picture's, else 'note'. Read at call time (fill mode rewrites ROLES). */

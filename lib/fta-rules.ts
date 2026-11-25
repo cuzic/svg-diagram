@@ -35,3 +35,11 @@ export function ftaFindings(band: Pick<FtaBand, 'root' | 'id'>): FtaFinding[] {
   }
   return out;
 }
+
+export const ftaRules = /* @__PURE__ */ Object.freeze({
+  'fta-gate-one-input': {doc: '故障の木(faultTree)の AND / OR / vote ゲートの入力が 1 つだけ。ゲートが意味を持たない。diagram({rcaCheck: "strict"}) で warn', scope: 'band'},
+  'fta-vote-degenerate': {doc: '故障の木の vote ゲートの k が 1(OR と同じ)または入力の数(AND と同じ)。diagram({rcaCheck: "strict"}) で warn', scope: 'band'},
+  'fta-top-is-leaf': {doc: '故障の木の頂上事象にゲートが無い(1 つの事象だけの木)。diagram({rcaCheck: "strict"}) で warn', scope: 'band'},
+  'fta-undeveloped-left': {doc: '故障の木に、展開していない事象(ひし形)が残っている(常に info。意図した省略なら無視してよい)', scope: 'band'},
+  'fta-single-point': {doc: '故障の木に、単独で頂上事象を起こす事象(大きさ 1 のカットセット)がある。カットセットが多すぎて調べられないときもこの規則の info(常に info)', scope: 'band'},
+} as const);

@@ -17,6 +17,7 @@
 # svg-diagram lint  [file.svg|file.ts|glob ...] [--svg-dir DIR] [--strict] [--fix] [--engine geometry|browser]   (default: ./svg/*.svg; geometry needs no browser)
 # svg-diagram show <file.svg|file.ts>... [--png FILE] [--scale N] [--width PX] [--engine resvg|chromium] [--require-fresh]   (draw it in the terminal as sixel)
 # svg-diagram preview <in.svg> [out.png] [scale] [--engine resvg|chromium] [--gray] [--no-stale-banner] [--require-fresh]   (warns when the SVG is older than its source)
+# svg-diagram spec <spec.json> --part <name> [--part <name> ...]   (render JSON to SVG on stdout)
 # Diagram sources import the DSL as:  import {diagram, box, ...} from 'svg-diagram'
 set -euo pipefail
 ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
@@ -30,6 +31,7 @@ if [ "$maj" -lt 22 ] || { [ "$maj" -eq 22 ] && [ "$min" -lt 18 ]; }; then
 fi
 cmd="${1:-}"; shift || true
 case "$cmd" in
+  spec)    exec node "$B/spec-diagram.$X" "$@" ;;
   build)   exec node "$B/build-diagram.$X" "$@" ;;
   init)    exec node "$B/init-project.$X" "$@" ;;
   icons)   exec node "$B/manage-icons.$X" "$@" ;;
@@ -47,5 +49,5 @@ case "$cmd" in
   check)   exec node "$B/check-diagram.$X" "$@" ;;
   lint)    exec node "$B/lint-svg.$X" "$@" ;;
   preview) exec node "$B/preview-svg.$X" "$@" ;;
-  *) sed -n 2,19p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
+  *) sed -n 2,20p "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 2 ;;
 esac

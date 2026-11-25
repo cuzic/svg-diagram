@@ -2,10 +2,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {wcagRatio} from '../lib/tokens.ts';
-import {usedNotation, legendKeys, applyAutoLegend, edgeStats, lintDiagram, diagramTitle} from '../lib/rules.ts';
+import {usedNotation, legendKeys, edgeStats, diagramTitle} from '../lib/rules.ts';
 import type {LaidOutConnect, LegendBand} from '../lib/types/containers.ts';
 import type {Point} from '../lib/types/core.ts';
-import {diagram, caption, box, connect, legend, swimlane} from '../lib/dsl.ts';
+import {diagram, caption, box, checkDiagram, closeMeasurer, connect, legend, swimlane} from '../lib/dsl.ts';
+import {calloutOrderFindings} from '../lib/verify-wireframe-callouts.ts';
+import {connectorFindings} from '../lib/verify-connect-crossings.ts';
+import {graphFindings} from '../lib/verify-connection-graph.ts';
+
+test.after(() => closeMeasurer());
 
 test('wcagRatio: black on white is 21:1, same colour is 1:1', () => {
   assert.equal(Math.round(wcagRatio('#000000', '#ffffff')), 21);
@@ -18,14 +23,14 @@ test('usedNotation: non-solid lines and non-plain tones need legend entries (and
   assert.equal(usedNotation([box({title: 'x'}), connect('a', 'b')]).size, 0);
 });
 
-test("legend: 'auto' adds only what is missing, keeping existing entries", () => {
+test("legend: 'auto' adds only what is missing, keeping existing entries", async () => {
   const d = diagram({theme: 'blue', legend: 'auto', legendLabels: {'tone:new': '新規'}});
   d.add(box({id: 'a', title: 'a', tone: 'new'}), box({id: 'b', title: 'b'}), connect('a', 'b', {line: 'dashed'}), legend([{line: 'dashed', label: 'WS'}]));
-  applyAutoLegend(d);
-  const keys = legendKeys(d.bands);
+  const {laidOut} = await checkDiagram(d);
+  const keys = legendKeys(laidOut.bands);
   assert.ok(keys.has('line:dashed') && keys.has('tone:new') && keys.has('line:solid'));
-  assert.equal(d.bands.filter(b => b.type === 'legend').length, 1);
-  assert.equal((d.bands.find(b => b.type === 'legend') as LegendBand).items.find(i => i.tone === 'new')!.label, '新規');
+  assert.equal(laidOut.bands.filter(b => b.type === 'legend').length, 1);
+  assert.equal((laidOut.bands.find(b => b.type === 'legend') as LegendBand).items.find(i => i.tone === 'new')!.label, '新規');
 });
 
 test('edgeStats: counts a crossing, ignores connectors that merely share an endpoint', () => {
@@ -44,9 +49,7 @@ test('swimlane: suggests a lane order that shortens hand-offs, never moves a fix
     [{id: 's1', lane: 'x', title: 's1'}, {id: 's2', lane: 'z', title: 's2'}, {id: 's3', lane: 'y', title: 's3'}, {id: 's4', lane: 'end', title: 's4'}],
     {flows: [{from: 's1', to: 's2'}, {from: 's2', to: 's3'}, {from: 's3', to: 's4'}]},
   ));
-  // connects are resolved at layout time; fake the resolved ones the rule reads
-  const connects = [{fromId: 's1', toId: 's2', points: []}, {fromId: 's2', toId: 's3', points: []}, {fromId: 's3', toId: 's4', points: []}] as unknown as LaidOutConnect[];
-  const f = lintDiagram({...d, laidOut: [], connects}).find(x => x.rule === 'swimlane-lane-order');
+  const f = (await checkDiagram(d)).verdict.findings.find(x => x.rule === 'swimlane-lane-order');
   assert.ok(f, 'a better order exists: X → Z → Y puts s2 and s3 in adjacent lanes only after reordering');
   assert.ok(f.message.endsWith('に減る') && f.message.includes('END'));
   assert.ok(f.message.indexOf('END') > f.message.indexOf('Y'), 'END stays last');
@@ -60,7 +63,7 @@ test('diagramTitle falls back to the first caption', () => {
 });
 
 test('wf-callout-order: a sidebar read first is fine; only a step back (up-and-left) is flagged', () => {
-  const lint = (callouts: {n: number; x: number; y: number}[]) => lintDiagram({...diagram({theme: 'blue', title: 't'}), connects: [], laidOut: [{type: 'wireframe', title: 'S', callouts} as never]}).filter(f => f.rule === 'wf-callout-order');
+  const lint = (callouts: {n: number; x: number; y: number}[]) => calloutOrderFindings({type: 'wireframe', title: 'S', callouts} as never);
   // 1 in the left sidebar (low), 2 top right: column order, not a violation
   assert.equal(lint([{n: 1, x: 40, y: 300}, {n: 2, x: 400, y: 60}]).length, 0);
   // down a row, or along the row: fine
@@ -72,7 +75,7 @@ test('wf-callout-order: a sidebar read first is fine; only a step back (up-and-l
 
 test('arrow-labels: none labelled is a convention; some labelled and most not is flagged', () => {
   const c = (label?: string) => ({label, points: [{x: 0, y: 0}, {x: 1, y: 0}], pathSegments: []}) as never;
-  const run = (cs: unknown[]) => lintDiagram({...diagram({theme: 'blue', title: 't'}), laidOut: [], connects: cs as never}).some(f => f.rule === 'arrow-labels');
+  const run = (cs: unknown[]) => connectorFindings({connects: cs as LaidOutConnect[]}).some(f => f.rule === 'arrow-labels');
   assert.equal(run([c(), c(), c(), c(), c()]), false);
   assert.equal(run([c('x'), c(), c(), c(), c()]), true);
   assert.equal(run([c('x'), c('y'), c('z'), c(), c()]), false);
@@ -82,11 +85,12 @@ test('graph rules: a box no arrow touches, and arrows that split into separate c
   const c = (fromId: string, toId: string) => ({fromId, toId, points: [{x: 0, y: 0}, {x: 10, y: 0}], pathSegments: []}) as unknown as LaidOutConnect;
   const bands = [box({id: 'a', title: 'A'}), box({id: 'b', title: 'B'}), box({id: 'c', title: 'C'}), box({id: 'd', title: 'D'}), box({id: 'lonely', title: '孤立'}), box({title: '注記'})];
   const d = {...diagram({theme: 'blue'}), bands, connects: [c('a', 'b'), c('b', 'c'), c('c', 'd')]};
-  const f = lintDiagram(d as never);
+  const findings = (input: typeof d) => graphFindings(input, bands => bands, () => []);
+  const f = findings(d);
   assert.match(f.find(x => x.rule === 'graph-orphan-node')!.message, /孤立.*lonely/);
   assert.ok(!f.find(x => x.rule === 'graph-orphan-node')!.message.includes('「注記」'), 'a box without an id is a note, not an orphan');
   assert.ok(!f.some(x => x.rule === 'graph-disconnected'));
-  const split = lintDiagram({...d, connects: [c('a', 'b'), c('b', 'c'), c('x', 'y')]} as never);
+  const split = findings({...d, connects: [c('a', 'b'), c('b', 'c'), c('x', 'y')]});
   assert.ok(split.some(x => x.rule === 'graph-disconnected'));
-  assert.ok(!lintDiagram({...d, connects: [c('a', 'b'), c('x', 'y')]} as never).some(x => x.rule.startsWith('graph-')), 'fewer than 3 arrows: not a flow yet');
+  assert.ok(!findings({...d, connects: [c('a', 'b'), c('x', 'y')]}).some(x => x.rule.startsWith('graph-')), 'fewer than 3 arrows: not a flow yet');
 });

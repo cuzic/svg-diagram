@@ -36,7 +36,7 @@ const internalExports = {
     canvasKeys: 'lists template regions for validation and tests',
     canvasTemplates: 'lists template names for validation and tests',
   },
-  './located.ts': {
+  './located-full.ts': {
     located: 'wraps the public builders',
   },
   './dsl/diagram.ts': {
@@ -44,8 +44,12 @@ const internalExports = {
     layoutFitted: 'lays out a diagram for the renderer',
   },
   './wireframe.ts': {
+    collectScreenGridTextRequests: 'collects measurement requests for the screen grid',
+    collectStateMatrixTextRequests: 'collects measurement requests for the state matrix',
     collectTextRequests: 'collects text measurement requests for layout',
+    layoutScreenGrid: 'lays out a screen grid for the screen band',
     layoutScreens: 'lays out a collection of screens for rendering',
+    layoutStateMatrix: 'lays out a state matrix for the screen band',
     layoutWireframe: 'lays out a wireframe for rendering',
   },
   './icon-registry.ts': {

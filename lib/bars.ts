@@ -1,7 +1,8 @@
+import type {ValueAxis} from './axis-comparison.ts';
 import {insetOrNeed} from './charts-base.ts';
 import {axisPart, partStep, PLANE_AXES} from './parts.ts';
 import {textWidth} from './atoms.ts';
-import {fmt, ticksOf} from './plane.ts';
+import {fmt, ticksOf} from './axis-ticks.ts';
 import type {BarDatum, BarsBand, BarsInk, BarsLine, LaidOutBars} from './types/bars.ts';
 import type {ColorKey, FontFamily, WidthOf, Roles} from './types/core.ts';
 
@@ -45,8 +46,6 @@ function flags(band: BarsBand) {
   const labels = band.labels ?? 'all', axis = band.axis !== false;
   return {showValues: labels === 'all', showCats: labels !== 'none', axis, grid: band.grid ?? (axis && !band.cumulative), baseline: band.baseline !== false, labels};
 }
-/** Values are on neither a label nor a scale: the figure alone cannot be read for them. */
-export const barsValuesHidden = (band: BarsBand): boolean => band.labels !== undefined && band.labels !== 'all' && band.axis === false;
 /** Text inside / beside a stacked segment: label and value, or what labels: leaves of them. */
 const segmentOf = (d: BarDatum, band: BarsBand, labels: 'all' | 'category' | 'none') =>
   labels === 'all' ? `${d.label} ${valueText(d, band)}` : labels === 'category' ? d.label : '';
@@ -370,4 +369,9 @@ function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: nu
     }
   }
   if (ink.lines.length || ink.polylines.length || ink.dots.length) out.ink = ink;
+}
+
+export function barsValueAxis(s: BarsBand): ValueAxis | undefined {
+  if (!s.unit) return undefined;
+  return {label: `bars「${s.data[0]?.label ?? ''}」`, unit: s.unit, vertical: s.dir === 'v', min: 0, max: s.max, own: false};
 }

@@ -80,25 +80,29 @@
     "./dist/deck-diagram.js",
     "./dist/diff-svg.js",
     "./dist/init-project.js",
+    "./dist/lib/bands/quadrant.js",
+    "./dist/lib/bands/screens.js",
+    "./dist/lib/bands/wireframe-basic.js",
     "./dist/lib/bowtie.js",
     "./dist/lib/comic/constants.js",
     "./dist/lib/comic/slot-values.js",
     "./dist/lib/compose/canvas.js",
+    "./dist/lib/deck-spec-core.js",
     "./dist/lib/deck-spec.js",
     "./dist/lib/deck-viewer/viewer.js",
-    "./dist/lib/dsl/charts-stats.js",
+    "./dist/lib/dsl/catplot.js",
+    "./dist/lib/dsl/distplot.js",
     "./dist/lib/dsl/figures.js",
+    "./dist/lib/dsl/multiplot.js",
+    "./dist/lib/dsl/regplot.js",
     "./dist/lib/dsl/wireframe-numbering.js",
     "./dist/lib/export-and-check.js",
     "./dist/lib/fit-width.js",
     "./dist/lib/font-metrics.js",
     "./dist/lib/icons.js",
     "./dist/lib/layout-connect.js",
-    "./dist/lib/layout-handlers.js",
-    "./dist/lib/layout-measure.js",
     "./dist/lib/markdown-it.js",
     "./dist/lib/parts.js",
-    "./dist/lib/pipeline.js",
     "./dist/lib/pptx/zip.js",
     "./dist/lib/present/qr.js",
     "./dist/lib/present/render-thread.js",
@@ -106,24 +110,95 @@
     "./dist/lib/quadrant.js",
     "./dist/lib/render-sync-worker.js",
     "./dist/lib/resolve-hook.js",
-    "./dist/lib/reveal-handlers.js",
     "./dist/lib/schema-files.js",
     "./dist/lib/slide-budget.js",
     "./dist/lib/slide-index.js",
     "./dist/lib/source-location-io.js",
     "./dist/lib/spec-kit.js",
+    "./dist/lib/spec-parts/board-definition.js",
     "./dist/lib/spec-parts/board.js",
+    "./dist/lib/spec-parts/r1-common.js",
     "./dist/lib/spec-parts/r1.js",
     "./dist/lib/spec-parts/r2.js",
+    "./dist/lib/spec-parts/r3-common.js",
     "./dist/lib/spec-parts/r3.js",
+    "./dist/lib/spec-parts/r4-common.js",
     "./dist/lib/spec-parts/r4.js",
     "./dist/lib/spec-parts/r5.js",
+    "./dist/lib/spec-parts/r6-common.js",
     "./dist/lib/spec-parts/r6.js",
     "./dist/lib/spec-parts/r7.js",
+    "./dist/lib/spec-parts/selective/affinity.js",
+    "./dist/lib/spec-parts/selective/bars.js",
+    "./dist/lib/spec-parts/selective/board.js",
+    "./dist/lib/spec-parts/selective/bowtie.js",
+    "./dist/lib/spec-parts/selective/boxplot.js",
+    "./dist/lib/spec-parts/selective/bpmn.js",
+    "./dist/lib/spec-parts/selective/bubble.js",
+    "./dist/lib/spec-parts/selective/burndown.js",
+    "./dist/lib/spec-parts/selective/burnup.js",
+    "./dist/lib/spec-parts/selective/butterfly.js",
+    "./dist/lib/spec-parts/selective/causal-loop.js",
+    "./dist/lib/spec-parts/selective/cause-tree.js",
+    "./dist/lib/spec-parts/selective/check-sheet.js",
+    "./dist/lib/spec-parts/selective/chevron.js",
+    "./dist/lib/spec-parts/selective/class-diagram.js",
+    "./dist/lib/spec-parts/selective/cloud.js",
+    "./dist/lib/spec-parts/selective/combo.js",
+    "./dist/lib/spec-parts/selective/compare.js",
+    "./dist/lib/spec-parts/selective/concentric.js",
+    "./dist/lib/spec-parts/selective/control-chart.js",
+    "./dist/lib/spec-parts/selective/cycle.js",
+    "./dist/lib/spec-parts/selective/dependency-network.js",
+    "./dist/lib/spec-parts/selective/fault-tree.js",
+    "./dist/lib/spec-parts/selective/flowchart.js",
+    "./dist/lib/spec-parts/selective/fmea.js",
+    "./dist/lib/spec-parts/selective/funnel.js",
+    "./dist/lib/spec-parts/selective/gantt.js",
+    "./dist/lib/spec-parts/selective/harvey.js",
+    "./dist/lib/spec-parts/selective/heatmap.js",
+    "./dist/lib/spec-parts/selective/histogram.js",
+    "./dist/lib/spec-parts/selective/is-is-not.js",
+    "./dist/lib/spec-parts/selective/journey-map.js",
+    "./dist/lib/spec-parts/selective/lines.js",
+    "./dist/lib/spec-parts/selective/matrix.js",
+    "./dist/lib/spec-parts/selective/mekko.js",
+    "./dist/lib/spec-parts/selective/mindmap.js",
+    "./dist/lib/spec-parts/selective/pareto.js",
+    "./dist/lib/spec-parts/selective/pdpc.js",
+    "./dist/lib/spec-parts/selective/pert.js",
+    "./dist/lib/spec-parts/selective/pyramid.js",
+    "./dist/lib/spec-parts/selective/qfd.js",
+    "./dist/lib/spec-parts/selective/quadrant.js",
+    "./dist/lib/spec-parts/selective/raci.js",
+    "./dist/lib/spec-parts/selective/radar.js",
+    "./dist/lib/spec-parts/selective/range-bars.js",
+    "./dist/lib/spec-parts/selective/relation-diagram.js",
+    "./dist/lib/spec-parts/selective/sankey.js",
+    "./dist/lib/spec-parts/selective/scatter.js",
+    "./dist/lib/spec-parts/selective/sequence.js",
+    "./dist/lib/spec-parts/selective/stacked-bars.js",
+    "./dist/lib/spec-parts/selective/state-diagram.js",
+    "./dist/lib/spec-parts/selective/steps.js",
+    "./dist/lib/spec-parts/selective/strategy-canvas.js",
+    "./dist/lib/spec-parts/selective/swimlane.js",
+    "./dist/lib/spec-parts/selective/table.js",
+    "./dist/lib/spec-parts/selective/timeline.js",
+    "./dist/lib/spec-parts/selective/tornado.js",
+    "./dist/lib/spec-parts/selective/tree.js",
+    "./dist/lib/spec-parts/selective/treemap.js",
+    "./dist/lib/spec-parts/selective/value-chain.js",
+    "./dist/lib/spec-parts/selective/venn.js",
+    "./dist/lib/spec-parts/selective/versus.js",
+    "./dist/lib/spec-parts/selective/waterfall.js",
+    "./dist/lib/spec-parts/selective/why-why-table.js",
+    "./dist/lib/spec-parts/selective/why-why-tree.js",
+    "./dist/lib/spec-parts/treemap.js",
     "./dist/lib/spec.js",
     "./dist/lib/svg-outline.js",
     "./dist/lib/tokens.js",
     "./dist/lib/web.js",
+    "./dist/lib/wireframe-layout-core.js",
     "./dist/lib/wireframe.js",
     "./dist/lib/wordart-vertical.js",
     "./dist/lib/wordart.js",
@@ -138,6 +213,7 @@
     "./dist/serve-diagram.js",
     "./dist/show-diagram.js",
     "./dist/site-diagram.js",
+    "./dist/spec-diagram.js",
     "./dist/typecheck.js"
   ],
   "types": "./dist/lib/dsl.d.ts",
@@ -149,6 +225,367 @@
     "./browser": {
       "types": "./dist/lib/web.d.ts",
       "default": "./dist/lib/web.js"
+    },
+    "./compose/affinity": {
+      "types": "./dist/lib/compose/selective/affinity.d.ts",
+      "default": "./dist/lib/compose/selective/affinity.js"
+    },
+    "./compose/why-why-tree": {
+      "types": "./dist/lib/compose/selective/why-why-tree.d.ts",
+      "default": "./dist/lib/compose/selective/why-why-tree.js"
+    },
+    "./core": {
+      "types": "./dist/lib/core.d.ts",
+      "default": "./dist/lib/core.js"
+    },
+    "./spotlight": {
+      "types": "./dist/lib/spotlight-core.d.ts",
+      "default": "./dist/lib/spotlight-core.js"
+    },
+    "./slide-fill": {
+      "types": "./dist/lib/slide-fill.d.ts",
+      "default": "./dist/lib/slide-fill.js"
+    },
+    "./bands/spacer": {
+      "types": "./dist/lib/bands/spacer.d.ts",
+      "default": "./dist/lib/bands/spacer.js"
+    },
+    "./bands/caption": {
+      "types": "./dist/lib/bands/caption.d.ts",
+      "default": "./dist/lib/bands/caption.js"
+    },
+    "./bands/connect": {
+      "types": "./dist/lib/bands/connect.d.ts",
+      "default": "./dist/lib/bands/connect.js"
+    },
+    "./bands/grid": {
+      "types": "./dist/lib/bands/grid.d.ts",
+      "default": "./dist/lib/bands/grid.js"
+    },
+    "./bands/group": {
+      "types": "./dist/lib/bands/group.d.ts",
+      "default": "./dist/lib/bands/group.js"
+    },
+    "./bands/group-row": {
+      "types": "./dist/lib/bands/group-row.d.ts",
+      "default": "./dist/lib/bands/group-row.js"
+    },
+    "./bands/row": {
+      "types": "./dist/lib/bands/row.d.ts",
+      "default": "./dist/lib/bands/row.js"
+    },
+    "./bands/areas": {
+      "types": "./dist/lib/bands/areas.d.ts",
+      "default": "./dist/lib/bands/areas.js"
+    },
+    "./bands/banner": {
+      "types": "./dist/lib/bands/banner.d.ts",
+      "default": "./dist/lib/bands/banner.js"
+    },
+    "./bands/raw": {
+      "types": "./dist/lib/bands/raw.d.ts",
+      "default": "./dist/lib/bands/raw.js"
+    },
+    "./bands/curve": {
+      "types": "./dist/lib/bands/curve.d.ts",
+      "default": "./dist/lib/bands/curve.js"
+    },
+    "./bands/pyramid": {
+      "types": "./dist/lib/bands/pyramid.d.ts",
+      "default": "./dist/lib/bands/pyramid.js"
+    },
+    "./bands/chevron": {
+      "types": "./dist/lib/bands/chevron.d.ts",
+      "default": "./dist/lib/bands/chevron.js"
+    },
+    "./bands/funnel": {
+      "types": "./dist/lib/bands/funnel.d.ts",
+      "default": "./dist/lib/bands/funnel.js"
+    },
+    "./bands/cycle": {
+      "types": "./dist/lib/bands/cycle.d.ts",
+      "default": "./dist/lib/bands/cycle.js"
+    },
+    "./bands/venn": {
+      "types": "./dist/lib/bands/venn.d.ts",
+      "default": "./dist/lib/bands/venn.js"
+    },
+    "./bands/concentric": {
+      "types": "./dist/lib/bands/concentric.d.ts",
+      "default": "./dist/lib/bands/concentric.js"
+    },
+    "./bands/emblem": {
+      "types": "./dist/lib/bands/emblem.d.ts",
+      "default": "./dist/lib/bands/emblem.js"
+    },
+    "./bands/value-chain": {
+      "types": "./dist/lib/bands/value-chain.d.ts",
+      "default": "./dist/lib/bands/value-chain.js"
+    },
+    "./bands/people": {
+      "types": "./dist/lib/bands/people.d.ts",
+      "default": "./dist/lib/bands/people.js"
+    },
+    "./bands/dots": {
+      "types": "./dist/lib/bands/dots.d.ts",
+      "default": "./dist/lib/bands/dots.js"
+    },
+    "./bands/timeline": {
+      "types": "./dist/lib/bands/timeline.d.ts",
+      "default": "./dist/lib/bands/timeline.js"
+    },
+    "./bands/status": {
+      "types": "./dist/lib/bands/status.d.ts",
+      "default": "./dist/lib/bands/status.js"
+    },
+    "./bands/wireframe/basic": {
+      "types": "./dist/lib/bands/wireframe-basic.d.ts",
+      "default": "./dist/lib/bands/wireframe-basic.js"
+    },
+    "./bands/wordart": {
+      "types": "./dist/lib/bands/wordart.d.ts",
+      "default": "./dist/lib/bands/wordart.js"
+    },
+    "./bands/math": {
+      "types": "./dist/lib/bands/math.d.ts",
+      "node": "./dist/lib/bands/math.js"
+    },
+    "./bands/legend": {
+      "types": "./dist/lib/bands/legend.d.ts",
+      "default": "./dist/lib/bands/legend.js"
+    },
+    "./bands/quadrant": {
+      "types": "./dist/lib/bands/quadrant.d.ts",
+      "default": "./dist/lib/bands/quadrant.js"
+    },
+    "./bands/plane": {
+      "types": "./dist/lib/bands/plane.d.ts",
+      "default": "./dist/lib/bands/plane.js"
+    },
+    "./bands/bars": {
+      "types": "./dist/lib/bands/bars.d.ts",
+      "default": "./dist/lib/bands/bars.js"
+    },
+    "./bands/sequence": {
+      "types": "./dist/lib/bands/sequence.d.ts",
+      "default": "./dist/lib/bands/sequence.js"
+    },
+    "./bands/table": {
+      "types": "./dist/lib/bands/table.d.ts",
+      "default": "./dist/lib/bands/table.js"
+    },
+    "./bands/wireframe": {
+      "types": "./dist/lib/bands/wireframe.d.ts",
+      "default": "./dist/lib/bands/wireframe.js"
+    },
+    "./bands/screens": {
+      "types": "./dist/lib/bands/screens.d.ts",
+      "default": "./dist/lib/bands/screens.js"
+    },
+    "./bands/bowtie": {
+      "types": "./dist/lib/bands/bowtie.d.ts",
+      "default": "./dist/lib/bands/bowtie.js"
+    },
+    "./bands/fta": {
+      "types": "./dist/lib/bands/fta.d.ts",
+      "default": "./dist/lib/bands/fta.js"
+    },
+    "./bands/cloud": {
+      "types": "./dist/lib/bands/cloud.d.ts",
+      "default": "./dist/lib/bands/cloud.js"
+    },
+    "./bands/bpmn": {
+      "types": "./dist/lib/bands/bpmn.d.ts",
+      "default": "./dist/lib/bands/bpmn.js"
+    },
+    "./bands/classes": {
+      "types": "./dist/lib/bands/classes.d.ts",
+      "default": "./dist/lib/bands/classes.js"
+    },
+    "./bands/states": {
+      "types": "./dist/lib/bands/states.d.ts",
+      "default": "./dist/lib/bands/states.js"
+    },
+    "./bands/tree": {
+      "types": "./dist/lib/bands/tree.d.ts",
+      "default": "./dist/lib/bands/tree.js"
+    },
+    "./bands/cause": {
+      "types": "./dist/lib/bands/cause.d.ts",
+      "default": "./dist/lib/bands/cause.js"
+    },
+    "./bands/swimlane": {
+      "types": "./dist/lib/bands/swimlane.d.ts",
+      "default": "./dist/lib/bands/swimlane.js"
+    },
+    "./bands/radar": {
+      "types": "./dist/lib/bands/radar.d.ts",
+      "default": "./dist/lib/bands/radar.js"
+    },
+    "./bands/waterfall": {
+      "types": "./dist/lib/bands/waterfall.d.ts",
+      "default": "./dist/lib/bands/waterfall.js"
+    },
+    "./bands/tornado": {
+      "types": "./dist/lib/bands/tornado.d.ts",
+      "default": "./dist/lib/bands/tornado.js"
+    },
+    "./bands/butterfly": {
+      "types": "./dist/lib/bands/butterfly.d.ts",
+      "default": "./dist/lib/bands/butterfly.js"
+    },
+    "./bands/bubble": {
+      "types": "./dist/lib/bands/bubble.d.ts",
+      "default": "./dist/lib/bands/bubble.js"
+    },
+    "./bands/harvey": {
+      "types": "./dist/lib/bands/harvey.d.ts",
+      "default": "./dist/lib/bands/harvey.js"
+    },
+    "./bands/catplot": {
+      "types": "./dist/lib/bands/catplot.d.ts",
+      "default": "./dist/lib/bands/catplot.js"
+    },
+    "./bands/distplot": {
+      "types": "./dist/lib/bands/distplot.d.ts",
+      "default": "./dist/lib/bands/distplot.js"
+    },
+    "./bands/multiplot": {
+      "types": "./dist/lib/bands/multiplot.d.ts",
+      "default": "./dist/lib/bands/multiplot.js"
+    },
+    "./bands/regplot": {
+      "types": "./dist/lib/bands/regplot.d.ts",
+      "default": "./dist/lib/bands/regplot.js"
+    },
+    "./bands/clustermap": {
+      "types": "./dist/lib/bands/clustermap.d.ts",
+      "default": "./dist/lib/bands/clustermap.js"
+    },
+    "./bands/combo": {
+      "types": "./dist/lib/bands/combo.d.ts",
+      "default": "./dist/lib/bands/combo.js"
+    },
+    "./bands/compare": {
+      "types": "./dist/lib/bands/compare.d.ts",
+      "default": "./dist/lib/bands/compare.js"
+    },
+    "./bands/pert": {
+      "types": "./dist/lib/bands/pert.d.ts",
+      "default": "./dist/lib/bands/pert.js"
+    },
+    "./bands/causal": {
+      "types": "./dist/lib/bands/causal.d.ts",
+      "default": "./dist/lib/bands/causal.js"
+    },
+    "./bands/dependency": {
+      "types": "./dist/lib/bands/dependency.d.ts",
+      "default": "./dist/lib/bands/dependency.js"
+    },
+    "./bands/image/node": {
+      "types": "./dist/lib/bands/image-node.d.ts",
+      "node": "./dist/lib/bands/image-node.js"
+    },
+    "./bands/image": {
+      "types": "./dist/lib/bands/image.d.ts",
+      "default": "./dist/lib/bands/image.js"
+    },
+    "./bands/comic": {"types": "./dist/lib/bands/comic.d.ts", "default": "./dist/lib/bands/comic.js"},
+    "./bands/stacked": {
+      "types": "./dist/lib/bands/stacked.d.ts",
+      "default": "./dist/lib/bands/stacked.js"
+    },
+    "./bands/treemap": {
+      "types": "./dist/lib/bands/treemap.d.ts",
+      "default": "./dist/lib/bands/treemap.js"
+    },
+    "./bands/heatmap": {
+      "types": "./dist/lib/bands/heatmap.d.ts",
+      "default": "./dist/lib/bands/heatmap.js"
+    },
+    "./bands/sankey": {
+      "types": "./dist/lib/bands/sankey.d.ts",
+      "default": "./dist/lib/bands/sankey.js"
+    },
+    "./bands/box": {
+      "types": "./dist/lib/bands/box.d.ts",
+      "default": "./dist/lib/bands/box.js"
+    },
+    "./bands/gantt": {
+      "types": "./dist/lib/bands/gantt.d.ts",
+      "default": "./dist/lib/bands/gantt.js"
+    },
+    "./measure/browser": {
+      "types": "./dist/lib/web-measure.d.ts",
+      "default": "./dist/lib/web-measure.js"
+    },
+    "./measure/node": {
+      "types": "./dist/lib/node-measure.d.ts",
+      "default": "./dist/lib/node-measure.js"
+    },
+    "./compose/arrow-diagram": {
+      "types": "./dist/lib/compose/selective/arrow-diagram.d.ts",
+      "default": "./dist/lib/compose/selective/arrow-diagram.js"
+    },
+    "./compose/canvas": {
+      "types": "./dist/lib/compose/selective/canvas.d.ts",
+      "default": "./dist/lib/compose/selective/canvas.js"
+    },
+    "./compose/hero": {
+      "types": "./dist/lib/compose/selective/hero.d.ts",
+      "default": "./dist/lib/compose/selective/hero.js"
+    },
+    "./compose/icon-row": {
+      "types": "./dist/lib/compose/selective/icon-row.d.ts",
+      "default": "./dist/lib/compose/selective/icon-row.js"
+    },
+    "./compose/versus": {
+      "types": "./dist/lib/compose/selective/versus.d.ts",
+      "default": "./dist/lib/compose/selective/versus.js"
+    },
+    "./html/selective": {
+      "types": "./dist/lib/html-selective.d.ts",
+      "default": "./dist/lib/html-selective.js"
+    },
+    "./html/bands": {
+      "types": "./dist/lib/html-native.d.ts",
+      "default": "./dist/lib/html-native.js"
+    },
+    "./html/bands/banner": {
+      "types": "./dist/lib/html-banner.d.ts",
+      "default": "./dist/lib/html-banner.js"
+    },
+    "./html/bands/caption": {
+      "types": "./dist/lib/html-caption.d.ts",
+      "default": "./dist/lib/html-caption.js"
+    },
+    "./html/bands/group": {
+      "types": "./dist/lib/html-group.d.ts",
+      "default": "./dist/lib/html-group.js"
+    },
+    "./html/bands/grid": {
+      "types": "./dist/lib/html-grid.d.ts",
+      "default": "./dist/lib/html-grid.js"
+    },
+    "./html/bands/row": {
+      "types": "./dist/lib/html-row.d.ts",
+      "default": "./dist/lib/html-row.js"
+    },
+    "./html/bands/box": {
+      "types": "./dist/lib/html-box-band.d.ts",
+      "default": "./dist/lib/html-box-band.js"
+    },
+    "./html/bands/table": {
+      "types": "./dist/lib/html-table.d.ts",
+      "default": "./dist/lib/html-table.js"
+    },
+    "./html/overlay": {
+      "types": "./dist/lib/html-overlay.d.ts",
+      "default": "./dist/lib/html-overlay.js"
+    },
+    "./html": {
+      "types": "./dist/lib/emit-html.d.ts",
+      "default": "./dist/lib/emit-html.js"
     },
     "./plugin": {
       "types": "./dist/lib/plugin.d.ts",
@@ -162,6 +599,10 @@
       "types": "./dist/lib/remark.d.ts",
       "default": "./dist/lib/remark.js"
     },
+    "./verify/document": {
+      "types": "./dist/lib/document-findings.d.ts",
+      "default": "./dist/lib/document-findings.js"
+    },
     "./vitepress": {
       "types": "./dist/lib/vitepress.d.ts",
       "default": "./dist/lib/vitepress.js"
@@ -174,6 +615,294 @@
       "types": "./dist/lib/render-source.d.ts",
       "default": "./dist/lib/render-source.js"
     },
+    "./spec/parts/affinity": {
+      "types": "./dist/lib/spec-parts/selective/affinity.d.ts",
+      "default": "./dist/lib/spec-parts/selective/affinity.js"
+    },
+    "./spec/parts/bars": {
+      "types": "./dist/lib/spec-parts/selective/bars.d.ts",
+      "default": "./dist/lib/spec-parts/selective/bars.js"
+    },
+    "./spec/parts/board": {
+      "types": "./dist/lib/spec-parts/selective/board.d.ts",
+      "default": "./dist/lib/spec-parts/selective/board.js"
+    },
+    "./spec/parts/bowtie": {
+      "types": "./dist/lib/spec-parts/selective/bowtie.d.ts",
+      "default": "./dist/lib/spec-parts/selective/bowtie.js"
+    },
+    "./spec/parts/boxplot": {
+      "types": "./dist/lib/spec-parts/selective/boxplot.d.ts",
+      "default": "./dist/lib/spec-parts/selective/boxplot.js"
+    },
+    "./spec/parts/bpmn": {
+      "types": "./dist/lib/spec-parts/selective/bpmn.d.ts",
+      "default": "./dist/lib/spec-parts/selective/bpmn.js"
+    },
+    "./spec/parts/bubble": {
+      "types": "./dist/lib/spec-parts/selective/bubble.d.ts",
+      "default": "./dist/lib/spec-parts/selective/bubble.js"
+    },
+    "./spec/parts/burndown": {
+      "types": "./dist/lib/spec-parts/selective/burndown.d.ts",
+      "default": "./dist/lib/spec-parts/selective/burndown.js"
+    },
+    "./spec/parts/burnup": {
+      "types": "./dist/lib/spec-parts/selective/burnup.d.ts",
+      "default": "./dist/lib/spec-parts/selective/burnup.js"
+    },
+    "./spec/parts/butterfly": {
+      "types": "./dist/lib/spec-parts/selective/butterfly.d.ts",
+      "default": "./dist/lib/spec-parts/selective/butterfly.js"
+    },
+    "./spec/parts/causal-loop": {
+      "types": "./dist/lib/spec-parts/selective/causal-loop.d.ts",
+      "default": "./dist/lib/spec-parts/selective/causal-loop.js"
+    },
+    "./spec/parts/cause-tree": {
+      "types": "./dist/lib/spec-parts/selective/cause-tree.d.ts",
+      "default": "./dist/lib/spec-parts/selective/cause-tree.js"
+    },
+    "./spec/parts/check-sheet": {
+      "types": "./dist/lib/spec-parts/selective/check-sheet.d.ts",
+      "default": "./dist/lib/spec-parts/selective/check-sheet.js"
+    },
+    "./spec/parts/chevron": {
+      "types": "./dist/lib/spec-parts/selective/chevron.d.ts",
+      "default": "./dist/lib/spec-parts/selective/chevron.js"
+    },
+    "./spec/parts/class-diagram": {
+      "types": "./dist/lib/spec-parts/selective/class-diagram.d.ts",
+      "default": "./dist/lib/spec-parts/selective/class-diagram.js"
+    },
+    "./spec/parts/cloud": {
+      "types": "./dist/lib/spec-parts/selective/cloud.d.ts",
+      "default": "./dist/lib/spec-parts/selective/cloud.js"
+    },
+    "./spec/parts/combo": {
+      "types": "./dist/lib/spec-parts/selective/combo.d.ts",
+      "default": "./dist/lib/spec-parts/selective/combo.js"
+    },
+    "./spec/parts/compare": {
+      "types": "./dist/lib/spec-parts/selective/compare.d.ts",
+      "default": "./dist/lib/spec-parts/selective/compare.js"
+    },
+    "./spec/parts/concentric": {
+      "types": "./dist/lib/spec-parts/selective/concentric.d.ts",
+      "default": "./dist/lib/spec-parts/selective/concentric.js"
+    },
+    "./spec/parts/control-chart": {
+      "types": "./dist/lib/spec-parts/selective/control-chart.d.ts",
+      "default": "./dist/lib/spec-parts/selective/control-chart.js"
+    },
+    "./spec/parts/cycle": {
+      "types": "./dist/lib/spec-parts/selective/cycle.d.ts",
+      "default": "./dist/lib/spec-parts/selective/cycle.js"
+    },
+    "./spec/parts/dependency-network": {
+      "types": "./dist/lib/spec-parts/selective/dependency-network.d.ts",
+      "default": "./dist/lib/spec-parts/selective/dependency-network.js"
+    },
+    "./spec/parts/fault-tree": {
+      "types": "./dist/lib/spec-parts/selective/fault-tree.d.ts",
+      "default": "./dist/lib/spec-parts/selective/fault-tree.js"
+    },
+    "./spec/parts/flowchart": {
+      "types": "./dist/lib/spec-parts/selective/flowchart.d.ts",
+      "default": "./dist/lib/spec-parts/selective/flowchart.js"
+    },
+    "./spec/parts/fmea": {
+      "types": "./dist/lib/spec-parts/selective/fmea.d.ts",
+      "default": "./dist/lib/spec-parts/selective/fmea.js"
+    },
+    "./spec/parts/funnel": {
+      "types": "./dist/lib/spec-parts/selective/funnel.d.ts",
+      "default": "./dist/lib/spec-parts/selective/funnel.js"
+    },
+    "./spec/parts/gantt": {
+      "types": "./dist/lib/spec-parts/selective/gantt.d.ts",
+      "default": "./dist/lib/spec-parts/selective/gantt.js"
+    },
+    "./spec/parts/harvey": {
+      "types": "./dist/lib/spec-parts/selective/harvey.d.ts",
+      "default": "./dist/lib/spec-parts/selective/harvey.js"
+    },
+    "./spec/parts/heatmap": {
+      "types": "./dist/lib/spec-parts/selective/heatmap.d.ts",
+      "default": "./dist/lib/spec-parts/selective/heatmap.js"
+    },
+    "./spec/parts/histogram": {
+      "types": "./dist/lib/spec-parts/selective/histogram.d.ts",
+      "default": "./dist/lib/spec-parts/selective/histogram.js"
+    },
+    "./spec/parts/is-is-not": {
+      "types": "./dist/lib/spec-parts/selective/is-is-not.d.ts",
+      "default": "./dist/lib/spec-parts/selective/is-is-not.js"
+    },
+    "./spec/parts/journey-map": {
+      "types": "./dist/lib/spec-parts/selective/journey-map.d.ts",
+      "default": "./dist/lib/spec-parts/selective/journey-map.js"
+    },
+    "./spec/parts/lines": {
+      "types": "./dist/lib/spec-parts/selective/lines.d.ts",
+      "default": "./dist/lib/spec-parts/selective/lines.js"
+    },
+    "./spec/parts/matrix": {
+      "types": "./dist/lib/spec-parts/selective/matrix.d.ts",
+      "default": "./dist/lib/spec-parts/selective/matrix.js"
+    },
+    "./spec/parts/mekko": {
+      "types": "./dist/lib/spec-parts/selective/mekko.d.ts",
+      "default": "./dist/lib/spec-parts/selective/mekko.js"
+    },
+    "./spec/parts/mindmap": {
+      "types": "./dist/lib/spec-parts/selective/mindmap.d.ts",
+      "default": "./dist/lib/spec-parts/selective/mindmap.js"
+    },
+    "./spec/parts/pareto": {
+      "types": "./dist/lib/spec-parts/selective/pareto.d.ts",
+      "default": "./dist/lib/spec-parts/selective/pareto.js"
+    },
+    "./spec/parts/pdpc": {
+      "types": "./dist/lib/spec-parts/selective/pdpc.d.ts",
+      "default": "./dist/lib/spec-parts/selective/pdpc.js"
+    },
+    "./spec/parts/pert": {
+      "types": "./dist/lib/spec-parts/selective/pert.d.ts",
+      "default": "./dist/lib/spec-parts/selective/pert.js"
+    },
+    "./spec/parts/pyramid": {
+      "types": "./dist/lib/spec-parts/selective/pyramid.d.ts",
+      "default": "./dist/lib/spec-parts/selective/pyramid.js"
+    },
+    "./spec/parts/qfd": {
+      "types": "./dist/lib/spec-parts/selective/qfd.d.ts",
+      "default": "./dist/lib/spec-parts/selective/qfd.js"
+    },
+    "./spec/parts/quadrant": {
+      "types": "./dist/lib/spec-parts/selective/quadrant.d.ts",
+      "default": "./dist/lib/spec-parts/selective/quadrant.js"
+    },
+    "./spec/parts/raci": {
+      "types": "./dist/lib/spec-parts/selective/raci.d.ts",
+      "default": "./dist/lib/spec-parts/selective/raci.js"
+    },
+    "./spec/parts/radar": {
+      "types": "./dist/lib/spec-parts/selective/radar.d.ts",
+      "default": "./dist/lib/spec-parts/selective/radar.js"
+    },
+    "./spec/parts/range-bars": {
+      "types": "./dist/lib/spec-parts/selective/range-bars.d.ts",
+      "default": "./dist/lib/spec-parts/selective/range-bars.js"
+    },
+    "./spec/parts/relation-diagram": {
+      "types": "./dist/lib/spec-parts/selective/relation-diagram.d.ts",
+      "default": "./dist/lib/spec-parts/selective/relation-diagram.js"
+    },
+    "./spec/parts/sankey": {
+      "types": "./dist/lib/spec-parts/selective/sankey.d.ts",
+      "default": "./dist/lib/spec-parts/selective/sankey.js"
+    },
+    "./spec/parts/scatter": {
+      "types": "./dist/lib/spec-parts/selective/scatter.d.ts",
+      "default": "./dist/lib/spec-parts/selective/scatter.js"
+    },
+    "./spec/parts/sequence": {
+      "types": "./dist/lib/spec-parts/selective/sequence.d.ts",
+      "default": "./dist/lib/spec-parts/selective/sequence.js"
+    },
+    "./spec/parts/stacked-bars": {
+      "types": "./dist/lib/spec-parts/selective/stacked-bars.d.ts",
+      "default": "./dist/lib/spec-parts/selective/stacked-bars.js"
+    },
+    "./spec/parts/state-diagram": {
+      "types": "./dist/lib/spec-parts/selective/state-diagram.d.ts",
+      "default": "./dist/lib/spec-parts/selective/state-diagram.js"
+    },
+    "./spec/parts/steps": {
+      "types": "./dist/lib/spec-parts/selective/steps.d.ts",
+      "default": "./dist/lib/spec-parts/selective/steps.js"
+    },
+    "./spec/parts/strategy-canvas": {
+      "types": "./dist/lib/spec-parts/selective/strategy-canvas.d.ts",
+      "default": "./dist/lib/spec-parts/selective/strategy-canvas.js"
+    },
+    "./spec/parts/swimlane": {
+      "types": "./dist/lib/spec-parts/selective/swimlane.d.ts",
+      "default": "./dist/lib/spec-parts/selective/swimlane.js"
+    },
+    "./spec/parts/table": {
+      "types": "./dist/lib/spec-parts/selective/table.d.ts",
+      "default": "./dist/lib/spec-parts/selective/table.js"
+    },
+    "./spec/parts/timeline": {
+      "types": "./dist/lib/spec-parts/selective/timeline.d.ts",
+      "default": "./dist/lib/spec-parts/selective/timeline.js"
+    },
+    "./spec/parts/tornado": {
+      "types": "./dist/lib/spec-parts/selective/tornado.d.ts",
+      "default": "./dist/lib/spec-parts/selective/tornado.js"
+    },
+    "./spec/parts/tree": {
+      "types": "./dist/lib/spec-parts/selective/tree.d.ts",
+      "default": "./dist/lib/spec-parts/selective/tree.js"
+    },
+    "./spec/parts/treemap": {
+      "types": "./dist/lib/spec-parts/selective/treemap.d.ts",
+      "default": "./dist/lib/spec-parts/selective/treemap.js"
+    },
+    "./spec/parts/value-chain": {
+      "types": "./dist/lib/spec-parts/selective/value-chain.d.ts",
+      "default": "./dist/lib/spec-parts/selective/value-chain.js"
+    },
+    "./spec/parts/venn": {
+      "types": "./dist/lib/spec-parts/selective/venn.d.ts",
+      "default": "./dist/lib/spec-parts/selective/venn.js"
+    },
+    "./spec/parts/versus": {
+      "types": "./dist/lib/spec-parts/selective/versus.d.ts",
+      "default": "./dist/lib/spec-parts/selective/versus.js"
+    },
+    "./spec/parts/waterfall": {
+      "types": "./dist/lib/spec-parts/selective/waterfall.d.ts",
+      "default": "./dist/lib/spec-parts/selective/waterfall.js"
+    },
+    "./spec/parts/why-why-table": {
+      "types": "./dist/lib/spec-parts/selective/why-why-table.d.ts",
+      "default": "./dist/lib/spec-parts/selective/why-why-table.js"
+    },
+    "./spec/parts/why-why-tree": {
+      "types": "./dist/lib/spec-parts/selective/why-why-tree.d.ts",
+      "default": "./dist/lib/spec-parts/selective/why-why-tree.js"
+    },
+    "./spec/selective": {
+      "types": "./dist/lib/spec-selective.d.ts",
+      "default": "./dist/lib/spec-selective.js"
+    },
+    "./spec/selective/edge": {
+      "types": "./dist/lib/spec-selective-edge.d.ts",
+      "default": "./dist/lib/spec-selective-edge.js"
+    },
+    "./wireframe/parts": {
+      "types": "./dist/lib/wireframe-builders.d.ts",
+      "default": "./dist/lib/wireframe-builders.js"
+    },
+    "./wireframe/renderers": {
+      "types": "./dist/lib/wireframe-renderers.d.ts",
+      "default": "./dist/lib/wireframe-renderers.js"
+    },
+    "./zip": {
+      "types": "./dist/lib/pptx/zip.d.ts",
+      "default": "./dist/lib/pptx/zip.js"
+    },
+    "./png": {
+      "types": "./dist/lib/png.d.ts",
+      "default": "./dist/lib/png.js"
+    },
+    "./spec/selective/node": {
+      "types": "./dist/lib/spec-selective-node.d.ts",
+      "default": "./dist/lib/spec-selective-node.js"
+    },
     "./spec": {
       "types": "./dist/lib/spec.d.ts",
       "default": "./dist/lib/spec.js"
@@ -182,6 +911,74 @@
       "types": "./dist/lib/spec-edge.d.ts",
       "default": "./dist/lib/spec-edge.js"
     },
+    "./pptx": {
+      "types": "./dist/lib/pptx/selective.d.ts",
+      "default": "./dist/lib/pptx/selective.js"
+    },
+    "./pptx/bands/banner": {
+      "types": "./dist/lib/pptx/banner-band.d.ts",
+      "default": "./dist/lib/pptx/banner-band.js"
+    },
+    "./pptx/bands/caption": {
+      "types": "./dist/lib/pptx/caption-band.d.ts",
+      "default": "./dist/lib/pptx/caption-band.js"
+    },
+    "./pptx/bands/grid": {
+      "types": "./dist/lib/pptx/grid-band.d.ts",
+      "default": "./dist/lib/pptx/grid-band.js"
+    },
+    "./pptx/bands/row": {
+      "types": "./dist/lib/pptx/row-band.d.ts",
+      "default": "./dist/lib/pptx/row-band.js"
+    },
+    "./pptx/bands/box": {
+      "types": "./dist/lib/pptx/box-bands.d.ts",
+      "default": "./dist/lib/pptx/box-bands.js"
+    },
+    "./pptx/bands/table": {
+      "types": "./dist/lib/pptx/table-band.d.ts",
+      "default": "./dist/lib/pptx/table-band.js"
+    },
+    "./pptx/bands/tree": {
+      "types": "./dist/lib/pptx/tree-band.d.ts",
+      "default": "./dist/lib/pptx/tree-band.js"
+    },
+    "./pptx/bands/quadrant": {
+      "types": "./dist/lib/pptx/quadrant-band.d.ts",
+      "default": "./dist/lib/pptx/quadrant-band.js"
+    },
+    "./pptx/bands/states": {
+      "types": "./dist/lib/pptx/states-band.d.ts",
+      "default": "./dist/lib/pptx/states-band.js"
+    },
+    "./pptx/bands/cause": {
+      "types": "./dist/lib/pptx/cause-band.d.ts",
+      "default": "./dist/lib/pptx/cause-band.js"
+    },
+    "./pptx/bands/legend": {
+      "types": "./dist/lib/pptx/legend-band.d.ts",
+      "default": "./dist/lib/pptx/legend-band.js"
+    },
+    "./pptx/bands/flow": {
+      "types": "./dist/lib/pptx/flow-band.d.ts",
+      "default": "./dist/lib/pptx/flow-band.js"
+    },
+    "./pptx/bands/group": {
+      "types": "./dist/lib/pptx/group-span.d.ts",
+      "default": "./dist/lib/pptx/group-span.js"
+    },
+    "./pptx/bands/swimlane": {
+      "types": "./dist/lib/pptx/swimlane-span.d.ts",
+      "default": "./dist/lib/pptx/swimlane-span.js"
+    },
+    "./pptx/bands/pyramid": {
+      "types": "./dist/lib/pptx/pyramid-band.d.ts",
+      "default": "./dist/lib/pptx/pyramid-band.js"
+    },
+    "./pptx/bands/timeline": {
+      "types": "./dist/lib/pptx/timeline-band.d.ts",
+      "default": "./dist/lib/pptx/timeline-band.js"
+    },
     "./pptx/edge": {
       "types": "./dist/lib/pptx-edge.d.ts",
       "default": "./dist/lib/pptx-edge.js"
@@ -189,6 +986,18 @@
     "./pptx/deck/edge": {
       "types": "./dist/lib/pptx-deck-edge.d.ts",
       "default": "./dist/lib/pptx-deck-edge.js"
+    },
+    "./pptx/deck/selective/edge": {
+      "types": "./dist/lib/pptx-deck-selective-edge.d.ts",
+      "default": "./dist/lib/pptx-deck-selective-edge.js"
+    },
+    "./pptx/selective/edge": {
+      "types": "./dist/lib/pptx-selective-edge.d.ts",
+      "default": "./dist/lib/pptx-selective-edge.js"
+    },
+    "./pptx/svg-shapes": {
+      "types": "./dist/lib/pptx/svg-shapes.d.ts",
+      "default": "./dist/lib/pptx/svg-shapes.js"
     },
     "./schema/*.json": "./schema/*.json"
   },

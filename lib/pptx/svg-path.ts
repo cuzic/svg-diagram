@@ -1,6 +1,6 @@
 // An SVG path's `d` as the steps of a DrawingML freeform: M, L, H, V, C, S, Q, T, A and Z, absolute or relative. Arcs become cubic
 // curves (at most 90 degrees each), smooth curves get their reflected control point, and every point is absolute.
-import type {PathStep} from './connectors.ts';
+import type {PathStep} from './line-shapes.ts';
 
 type P = {x: number; y: number};
 

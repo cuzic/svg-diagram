@@ -6,7 +6,6 @@ import './helpers/strict-width.ts'; // a label the layout did not register for m
 import assert from 'node:assert/strict';
 import {constrainedOrder, laneStepOf, layoutWithLanes, routeLayered} from '../lib/layered-route.ts';
 import {crossingsOf, parallelRuns, scoreOf} from '../lib/polyline-metrics.ts';
-import {lintDiagram} from '../lib/rules.ts';
 import type {Pt} from '../lib/graph-layout.ts';
 import {causeTree, checkDiagram, closeMeasurer, diagram} from '../lib/dsl.ts';
 import type {Diagram} from '../lib/dsl.ts';
@@ -137,7 +136,7 @@ test('the review\'s graphs (400, boxes 40 to 80 high): crossings + pairs on one 
 // edge-parallel is a lint rule (checkDiagram's findings carry it only for a doc's figure) and cause-crossing a warning of the verifier
 const laid = async (d: Diagram): Promise<{t: LaidOutCause; parallel: number; crossing: number}> => {
   const r = await checkDiagram(d);
-  return {t: r.laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause, parallel: lintDiagram(r.laidOut).filter(f => f.rule === 'edge-parallel').length, crossing: r.verdict.warnings.filter(w => w.startsWith('[cause-crossing]')).length};
+  return {t: r.laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause, parallel: r.verdict.findings.filter(f => f.rule === 'edge-parallel').length, crossing: r.verdict.warnings.filter(w => w.startsWith('[cause-crossing]')).length};
 };
 /** The crossings of the arrows of one AND with each other, for every AND of the band. */
 const inAnd = (t: LaidOutCause): number[] => t.ands.map(a => crossingsOf(t.edges.filter(e => e.to === a.to && a.from.includes(e.from)).map(e => e.points)));
