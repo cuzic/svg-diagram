@@ -22,7 +22,7 @@ First round.
 - Fix: optional: set Vite to 129,000 and say "measured + ~200 B" in the comment for the tightened rows.
 
 ### n3 (nit): one line in the new test is indented by 4 spaces
-- Evidence: `test/spec-tree-edge-tags.test.ts:76`.
+- Evidence: `test/spec-tree-edge-tags.test.ts:77`.
 - Fix: re-indent.
 
 ## What was checked and held
