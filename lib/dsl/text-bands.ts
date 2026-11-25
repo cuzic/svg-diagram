@@ -1,4 +1,4 @@
-import {walkBands} from '../rules.ts';
+import {walkBands} from '../legend-notation.ts';
 import {fillScaleLimit as scaleLimit, fillTextSize, imageFillTextSize} from '../slide-fill.ts';
 import {ROLES} from '../tokens.ts';
 import type {Band} from '../types/index.ts';

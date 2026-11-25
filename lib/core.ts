@@ -16,7 +16,7 @@ import {basicExtentOf, figureMetricsForExtent, unionOf} from './figure-metrics.t
 import {addScoped, emptyScopes} from './scope-table.ts';
 import {qualify, scopeOf} from './scope-name.ts';
 import type {slideFitter} from './slide-fill.ts';
-import {sourceOf} from './source-ref.ts';
+import {atBand, sourceOf} from './source-ref.ts';
 import type {spotlighter} from './spotlight-core.ts';
 import {ownRect, scopedRect} from './verify-rects.ts';
 import {verifyWithServices} from './verify-core.ts';
@@ -82,6 +82,15 @@ type DrawOptions = {
   connectors?: BandDef<ConnectBand, LaidOutConnect>;
 };
 
+type PreparationOptions = DrawOptions & ({measure: Measure} | BatchMeasurement) & {
+  /** Diagram fields that travel with a full entry's laid-out result. */
+  diagramData?: Omit<DiagramData, 'bands'>;
+  /** Format the description after the defined bands supply it. */
+  formatDescription?: (description: string) => string;
+  /** Add reveal timing for synthetic anchors after visiting the band's children. */
+  revealAnchorSlots?: (band: Band) => Iterable<readonly [string, RevealAnchor]>;
+};
+
 function size(name: string, value: number, min: number): number {
   if (!Number.isFinite(value) || value < min) throw new Error(`renderBands: ${name} must be finite and at least ${min}`);
   return value;
@@ -96,7 +105,7 @@ function definitionKey(band: Band | LaidOutBand): string {
 }
 
 /** @internal Shared layout and SVG emission for selective output formats. */
-export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOptions & ({measure: Measure} | BatchMeasurement)) {
+export async function prepareBands(bands: readonly DefinedBand[], opts: PreparationOptions) {
   const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...opts.canvas};
   const {slide, fill, fitter, spotlighter} = opts;
   if (opts.spotlight !== undefined && !spotlighter) {
@@ -119,7 +128,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const geometryScale = canvas ? canvasFontScale(canvas.minText) : 1;
   const requestedWidth = opts.width;
   const fitWidth = requestedWidth === 'fit';
-  const width = size('width', fill && slide ? slide.contentWidth : fitWidth ? 940 : requestedWidth ?? canvas?.width ?? 940, 1);
+  const width = size('width', fill && slide ? slide.contentWidth : fitWidth ? opts.diagramData?.width ?? 940 : requestedWidth ?? canvas?.width ?? 940, 1);
   const pad = size('pad', opts.pad ?? 20, 0);
   const gap = size('gap', opts.gap ?? 16, 0);
   const contentWidth = width - 2 * pad * geometryScale;
@@ -143,10 +152,12 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const diagramChecks = new Set<NonNullable<DrawOptions['diagramFindings']>>();
   const inputChecks: ((ctx: VerifyCtx) => Finding[])[] = [];
   const source = cloneData(bands) as unknown as Band[];
+  const authored = opts.diagramData;
   const data: DiagramData = {
-    day: theme, medium: slide ? 'slide' : 'doc', width, maxWidth: opts.maxWidth, accept: opts.accept, legend: opts.legend, pad, gap,
-    maxDisplayHeight: slide?.maxHeight, usableWidth: slide?.contentWidth, minEffectiveFont: opts.minEffectiveFont,
-    fill: fill === true, spotlight: opts.spotlight, bands: source, title: opts.title, desc: opts.desc, wrap: opts.wrap, keepWords: opts.keepWords, tones, canvas,
+    ...authored,
+    day: theme, medium: authored?.medium ?? (slide ? 'slide' : 'doc'), width, maxWidth: opts.maxWidth, accept: opts.accept, legend: opts.legend, pad, gap,
+    maxDisplayHeight: slide?.maxHeight ?? authored?.maxDisplayHeight, usableWidth: slide?.contentWidth ?? authored?.usableWidth, minEffectiveFont: opts.minEffectiveFont,
+    fill: authored?.fill ?? (fill === true), spotlight: opts.spotlight, bands: source, title: opts.title, desc: opts.desc, wrap: opts.wrap, keepWords: opts.keepWords, tones, canvas,
     appearance: opts.appearance, transparent: opts.transparent, density: opts.density, ...(fitWidth ? {fitWidth: true} : {}),
     tocCheck: opts.tocCheck, rcaCheck: opts.rcaCheck, layoutCheck: opts.layoutCheck, legendLabels: opts.legendLabels,
   };
@@ -190,17 +201,21 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       for (const type of def.outputTypes ?? []) syntheticOutputs.set(type, def);
     }
     const reveal = data as RevealOpts & {id?: string};
-    const start = Math.max(checked(reveal.reveal, data.type) ?? 0, inheritedStart);
-    const stop = Math.min(checked(reveal.until, `${data.type} (until)`) ?? Infinity, inheritedEnd);
+    const connector = authored && data.type === 'connect';
+    const start = Math.max(checked(reveal.reveal, data.type) ?? 0, connector ? 0 : inheritedStart);
+    const stop = Math.min(checked(reveal.until, `${data.type} (until)`) ?? Infinity, connector ? Infinity : inheritedEnd);
     const end = Number.isFinite(stop) ? stop : undefined;
-    if (end !== undefined && end <= start) throw new Error(`renderBands: ${data.type} until must be later than its reveal`);
+    if (end !== undefined && end <= start) {
+      throw new Error(authored ? `${data.type}(): until ${end} must be later than its reveal ${start || '(shown from the start)'}`
+        : `renderBands: ${data.type} until must be later than its reveal`);
+    }
     // Endpoint checks compare authored connector stages with the resolved stages of their anchors.
     const elements: RevealElements | undefined = def.revealElements?.(data, start, end);
     if (start) reveal.reveal = start;
     if (end !== undefined) reveal.until = end;
     last = Math.max(last, end ?? start);
     if (reveal.id) {
-      if (ids.has(reveal.id)) throw new Error(`renderBands: duplicate band id "${reveal.id}"`);
+      if (ids.has(reveal.id)) throw new Error(authored ? `duplicate anchor id "${reveal.id}": every band needs a unique id` : `renderBands: duplicate band id "${reveal.id}"`);
       ids.set(reveal.id, {start, end, band: data});
     }
     const scope = scopeOf(data);
@@ -227,9 +242,10 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     if (unscaledRoles && def.fillTextSize) largestFillText = Math.max(largestFillText, def.fillTextSize(data, unscaledRoles));
     for (const generated of def.generated?.(data) ?? []) collect(generated, start, stop);
     for (const generated of opts.generatedBands?.(data) ?? []) collect(generated, start, stop);
-    for (const child of def.children?.(data) ?? []) collect(child, start, stop);
+    for (const child of def.children?.(data) ?? []) atBand(child, () => collect(child, start, stop));
+    for (const [id, timing] of opts.revealAnchorSlots?.(data) ?? []) ids.set(id, timing);
   }
-  for (const input of data.bands) collect(input);
+  for (const input of data.bands) atBand(input, () => collect(input));
   const placedDefinition = (band: LaidOutBand) => definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
   const connection = definitions.get('connect');
   const layout = createLayoutWith({
@@ -247,11 +263,15 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       const place = def.layout;
       return (_band, ctx, x, w) => {
         const {laid, h, anchors} = place(input, {x, y: ctx.y, w, widthOf: ctx.widthOf, roles: ctx.roles, theme, tones: ctx.tones, wrap: ctx.wrap, keepWords: ctx.keepWords, space: ctx.space, today, canvas, geometryScale});
+        const scope = scopeOf(input);
         if ('id' in input && input.id) ctx.register(input.id, laid, 'each band needs a unique id');
         for (const anchor of anchors ?? []) {
-          if (anchor.id) ctx.register(anchor.id, anchor, 'each anchor needs a unique id', scopeOf(input));
+          if (anchor.id) {
+            const owner = input.type === 'chart' ? 'a chart mark' : input.type === 'gantt' ? 'a gantt task' : 'a figure item';
+            ctx.register(anchor.id, anchor, authored ? `${owner} takes an id that another anchor already has` : 'each anchor needs a unique id', scope);
+          }
         }
-        ctx.laidOut.push(laid as LaidOutBand);
+        ctx.laidOut.push((authored && scope ? {...laid, scope} : laid) as LaidOutBand);
         ctx.y += size('band height', h, 0) + ctx.d.gap;
       };
     },
@@ -298,10 +318,24 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   placed.fontScale = fontScale;
   placed.canvasHeight = Math.max(1, placed.canvasHeight);
   const revealConnector = connection?.internal ? connection.revealConnector : undefined;
-  if (revealConnector) placed.connects = placed.connects.map(connector => revealConnector(connector, ids));
+  if (revealConnector) placed.connects = placed.connects.map(connector => atBand(connector, () => {
+    if (!authored) return revealConnector(connector, ids);
+    const from = ids.get(connector.fromId), to = ids.get(connector.toId);
+    const start = connector.reveal ?? Math.max(from?.start ?? 0, to?.start ?? 0);
+    const stop = connector.until ?? Math.min(from?.end ?? Infinity, to?.end ?? Infinity);
+    if (stop <= start) {
+      throw new Error(`connect(${connector.fromLabel} -> ${connector.toLabel}): until ${stop} must be later than its reveal ${start || '(shown from the start)'} (an arrow between two things that are never on screen together has nothing to show)`);
+    }
+    return {...connector, ...(start ? {reveal: start} : {}), ...(Number.isFinite(stop) ? {until: stop} : {})};
+  }));
   for (const check of endpointChecks) check(ids, scopeTable, revealWarnings);
+  if (authored) {
+    placed.maxReveal = last;
+    placed.revealWarnings = revealWarnings;
+  }
   if (placed.spotlight) spotlighter?.apply(placed, placedDefinition, scopeTable);
   const stage = opts.stage ?? last;
+  const reveal = authored && opts.stage === undefined && stage === 0 ? undefined : stage;
   const ink = toneEnv(tones);
   const ctx = {theme, tones: ink, dimFill: spotlighter?.dim(placed) === 'fill', appearance: placed.appearance, rcaCheck: placed.rcaCheck, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
   const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => placedDefinition(band)?.verify?.targets?.(band as never) ?? ('h' in band ? [band] : []));
@@ -321,7 +355,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     const def = placedDefinition(laid);
     bandFindings.push(...(def?.verify?.layoutFindings?.(laid as never, ctx) ?? []));
   }
-  const fit = (slide && fitter ? fitter.analyzeFit : analyzeDocumentFit)(
+  const fit = (fitter?.analyzeFit ?? analyzeDocumentFit)(
     placed, laid => placedDefinition(laid)?.textSizes?.(laid as never) ?? [],
   );
   if (canvas) {
@@ -363,7 +397,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
           else warnings.push(finding.message);
         }
       }
-      return {issues, warnings: [...revealWarnings, ...warnings]};
+      return {issues, warnings: authored ? warnings : [...revealWarnings, ...warnings]};
     },
   }, placed);
   const emitEnv = {theme, roles, tones: ink, color: (key: Parameters<typeof colorOf>[0]) => colorOf(key, theme), stage, dimFill: ctx.dimFill};
@@ -376,14 +410,16 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       return spotlighter?.renderBand(band, svg, def) ?? svg;
     },
     renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
-    diagramTitle: diagram => definedDiagramTitle(diagram, stage),
-    diagramDesc: diagram => description ?? joinBandDescriptions(walkDefinedBands(diagram.bands)
-      .flatMap(band => {
-        const part = visibleAt(band, stage) ? defOf(band)?.describe?.(band, stage) : undefined;
+    diagramTitle: diagram => definedDiagramTitle(diagram, authored ? undefined : stage),
+    diagramDesc: diagram => {
+      const text = description ?? joinBandDescriptions(walkDefinedBands(diagram.bands).flatMap(band => {
+        const part = visibleAt(band, reveal) ? defOf(band)?.describe?.(band, reveal) : undefined;
         return part ? [part] : [];
-      })),
+      }));
+      return opts.formatDescription?.(text) ?? text;
+    },
     spotlightDim: spotlighter?.dim ?? (() => 'outline'),
-  }, figure, {reveal: stage, noRecolor});
+  }, figure, {reveal, noRecolor});
   return {placed, stage, verdict, emit, fit, fontScale};
 }
 

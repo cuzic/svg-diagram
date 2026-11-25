@@ -7,7 +7,7 @@ import type {DiagramInput} from '../strict.ts';
 import {applyConnectDefaults, connectBand} from './defaults.ts';
 import {applyWireframeDefaults} from './wireframe-numbering.ts';
 import {fillAutoToday} from '../today-auto.ts';
-import {walkBands} from '../rules.ts';
+import {walkBands} from '../legend-notation.ts';
 import {rewrite} from './rewrite.ts';
 import {captureHere, sourceOf, withSource} from '../source-ref.ts';
 import type {SourceRef} from '../source-ref.ts';

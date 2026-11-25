@@ -399,7 +399,6 @@
   "mid-word-findings:midWordFindings",
   "people:layoutPeople",
   "people:peopleTexts",
-  "pipeline:emitOutputs",
   "pptx-edge-core:noPptx",
   "pptx-edge-core:outlinePptxPictures",
   "pptx/adapter:register",

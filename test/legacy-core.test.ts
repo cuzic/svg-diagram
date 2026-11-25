@@ -7,7 +7,7 @@ import {rowDefinition} from '../lib/bands/row.ts';
 import {box, bubble, canvas, causeTree, chevron, connect, diagram, faultTree, group, legend, row, screens, stateMatrix, waterfall, wf} from '../lib/dsl-pure.ts';
 import {FULL_DEFINITIONS, UNDEFINED_BANDS, definitionFor} from '../lib/full-definitions.ts';
 import {LAYOUT_HANDLERS} from '../lib/layout-handlers.ts';
-import {attachDefinitions, renderLegacyDiagramWithCore, unsupportedCoreOptions} from '../lib/legacy-core.ts';
+import {attachDefinitions, prepareLegacyDiagramWithCore, renderLegacyDiagramWithCore, unsupportedCoreOptions} from '../lib/legacy-core.ts';
 import type {MeasureRequest} from '../lib/types/core.ts';
 import {renderInBrowser} from '../lib/web.ts';
 
@@ -62,6 +62,15 @@ test('the core renders a legacy row of two boxes and their connector at the lega
   assert.match(core.svg, /marker-end="url\(#/);
   assert.match(core.svg, /data-status="draft"[\s\S]*仮説[\s\S]*作業の流れ[\s\S]*開始[\s\S]*出典: 例/);
   assert.ok(core.verdict.findings.some(finding => finding.rule === 'draft-status'));
+});
+
+test('prepareLegacyDiagramWithCore checks a raw band without invoking its drawing function', async () => {
+  const d = diagram({theme: 'blue'}).add({
+    type: 'raw', h: 12, draw: () => { throw new Error('called only when emitting'); },
+  });
+  const prepared = await prepareLegacyDiagramWithCore(d, {measure});
+  assert.equal(prepared.verdict.ok, true);
+  assert.throws(() => prepared.emit(prepared.placed), /called only when emitting/);
 });
 
 test('the core draws a legacy spotlight at the supplied width', async () => {
