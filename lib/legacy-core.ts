@@ -65,11 +65,6 @@ export function attachDefinitions(d: DiagramData): DefinedBand[] {
   return cloneData(d.bands).map(data => atBand(data, () => attach(data)));
 }
 
-/** @internal Used by the parity report. The full adapter now handles all diagram settings. */
-export function unsupportedCoreOptions(_diagram: DiagramData): string[] {
-  return [];
-}
-
 type DrawOptions = Parameters<typeof prepareBands>[1];
 type LegacyOptions = (Pick<Extract<DrawOptions, {measure: unknown}>, 'measure'> | BatchMeasurement) & {
   budget?: DrawOptions['slide'] | null;
@@ -88,10 +83,7 @@ type LegacyServices = {
 export const legacySpotlighter: typeof spotlighter = {
   ...spotlighter,
   apply(diagram, definitionOf, scopes) {
-    applySpotlightWith(diagram, laid => {
-      const def = definitionOf(laid);
-      return (def?.internal ? def.spotlightOutputs?.[laid.type] ?? def : def)?.spotlight;
-    }, scopes, missing => {
+    applySpotlightWith(diagram, laid => definitionOf(laid)?.spotlight, scopes, missing => {
       const inFigure = missing.find(id => diagram.laidOut.some(band =>
         'anchors' in band && band.anchors.some(anchor => qualify(scopeOf(band), anchor.id) === id)));
       if (inFigure) throw new Error(`diagram({spotlight}): "${inFigure}" is a node inside a figure; spotlight lights a whole figure, so give the figure an {id} and spotlight that (to light one branch of a tree or mindmap, write its focus: '${inFigure}')`);
@@ -326,5 +318,5 @@ export async function renderLegacyDiagramWithCore(d: DiagramData, options: Legac
   const svg = emit(options.nodeIds ? withNodeIds(laidOut, placedDefinitionOf) : laidOut);
   const notes = d.fill && options.budget == null ? [UNMEASURED_FILL_NOTE] : [];
   return {svg, width: laidOut.width, height: laidOut.canvasHeight, xml: xmlProblems(svg), laidOut, verdict, fit, fontScale,
-    stage, emit, unsupported: unsupportedCoreOptions(d), notes};
+    stage, emit, notes};
 }

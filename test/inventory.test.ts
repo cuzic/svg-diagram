@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {banner, box, caption, causeTree, connect, diagram, em, grid, group, plane, row, steps} from '../lib/dsl-pure.ts';
-import {boxTextPlacement, captionTextPlacement, stampGeometry, tagGeometry} from '../lib/emit-boxes.ts';
+import {captionTextPlacement} from '../lib/emit-caption.ts';
+import {stampGeometry, tagGeometry} from '../lib/emit-box-frame.ts';
+import {boxTextPlacement} from '../lib/emit-box-text.ts';
 import {runLineOrigin} from '../lib/emit-common.ts';
 import {band} from '../lib/band-def.ts';
 import {boxDefinition} from '../lib/bands/box.ts';

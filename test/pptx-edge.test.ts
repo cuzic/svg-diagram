@@ -526,7 +526,7 @@ test('emojiParts, emojiMeasurer and emojiTextBox: an emoji the font lacks is one
 });
 
 test('a step badge is the svg\'s: an accent circle (stepBadgeAt) with its number in white on the title\'s baseline', async () => {
-  const {stepBadgeAt, ringed} = await import('../lib/emit-boxes.ts');
+  const {stepBadgeAt, ringed} = await import('../lib/box-step-geometry.ts');
   const {badgeTextKey} = await import('../lib/badge.ts');
   // the number is white on the accent; a solid box rings its badge in white
   assert.equal(badgeTextKey('#1d5fa8'), 'bg');

@@ -44,7 +44,6 @@ test('fill uses the same width, height and font scale as the legacy renderer', a
     assert.equal(result.width, legacy.width);
     assert.deepEqual(result.fit, legacy.fit);
   }
-  assert.deepEqual(adapted.unsupported, []);
 });
 
 test('a nested opt-in headline role limits the slide fill scale', async () => {

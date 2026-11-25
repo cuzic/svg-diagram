@@ -13,7 +13,7 @@ import {box, connect, diagram, renderInBrowser, row} from '../lib/web.ts';
 test('the shared SVG emitter bundles without legacy band emitters or rules', async () => {
   const {metafile} = await build({entryPoints: [fileURLToPath(new URL('../lib/emit-svg-core.ts', import.meta.url))],
     bundle: true, platform: 'browser', write: false, metafile: true});
-  const forbidden = ['/placed-definitions.ts', '/emit-boxes.ts', '/emit-connect.ts', '/rules.ts', '/emit-node-ids.ts', '/emit-spotlight.ts'];
+  const forbidden = ['/placed-definitions.ts', '/emit-box.ts', '/emit-connect.ts', '/rules.ts', '/emit-node-ids.ts', '/emit-spotlight.ts'];
   const found = Object.keys(metafile.inputs).filter(file => forbidden.some(suffix => file.endsWith(suffix)));
   assert.deepEqual(found, []);
 });
