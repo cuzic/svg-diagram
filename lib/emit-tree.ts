@@ -3,11 +3,24 @@ import type {ToneEnv} from './tokens.ts';
 import type {Theme} from './types/core.ts';
 import type {LaidOutTree} from './types/diagrams.ts';
 import {visibleAt} from './reveal-visibility.ts';
-import {snap4, emojiSpan, lineAttrs} from './emit-common.ts';
+import {snap4, emojiSpan, lineAttrs, resolveBoxStyle} from './emit-common.ts';
+import {pillSvg} from './badge.ts';
+import type {EmphasisTone, TagTone} from './types/core.ts';
 import {compareEdgeOrder, edgeStrokes, isOnePath} from './tree-edge-style.ts';
 import {renderBoxRect} from './emit-box-frame.ts';
 
 import {must} from './must.ts';
+
+/**
+ * The fill and text colours of a tree tag (ADR 0081 D4): the first row that applies, from the top: a dimmed band, a muted node,
+ * a tag whose resolved colour equals the box's fill (inverted: white with the colour as its text), the plain tag (colour with white text).
+ */
+export function treeTagColors(nodeTone: EmphasisTone, tagTone: TagTone, dim: boolean | undefined, day: Theme, tones: ToneEnv): {fill: string; text: string} {
+  if (dim || nodeTone === 'muted') return {fill: PALETTE.muted, text: PALETTE.bg};
+  const own = tagTone === 'muted' ? PALETTE.muted : colorOf(toneStyle(tones, tagTone).ink, day);
+  if (resolveBoxStyle(tones, nodeTone, day).fill.toLowerCase() === own.toLowerCase()) return {fill: PALETTE.bg, text: own};
+  return {fill: own, text: PALETTE.bg};
+}
 
 export function renderTree(b: LaidOutTree, day: Theme, tones: ToneEnv, stage?: number): string {
   const out: string[] = [];
@@ -28,6 +41,13 @@ export function renderTree(b: LaidOutTree, day: Theme, tones: ToneEnv, stage?: n
     out.push(`<path d="M${x + s * r},${y1} Q${x},${y1} ${x},${y1 + r} V${ym - r} Q${x},${ym} ${xt},${ym} Q${x},${ym} ${x},${ym + r} V${y2 - r} Q${x},${y2} ${x + s * r},${y2}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
   }
   for (const n of b.nodes) if (!n.band) out.push(renderBoxRect({...n, dim: b.dim}, day, tones, 'plain')); // a band node is drawn by its own band
+  for (const n of b.nodes) { // a tag is decoration: no data-node, so the box's own rect is what selects the node
+    const first = n.tags?.[0], rowX = first ? snap4(first.x) : 0; // snap the row origin once, then keep each tag's offset and width whole: the gap stays the laid-out gap and the text stays centred on its rect
+    for (const t of n.tags ?? []) {
+      const c = treeTagColors(n.tone, t.tone, b.dim, day, tones), g = {x: rowX + Math.round(t.x - (first as typeof t).x), y: snap4(t.y), w: Math.round(t.w), h: t.h};
+      out.push(pillSvg({...g, fill: c.fill, cx: g.x + g.w / 2, baseline: t.baseline, rawY: t.y, text: c.text, size: t.size, labelHtml: emojiSpan(t.text)}));
+    }
+  }
   const nodes = b.nodes;
   const ink = (t: LaidOutTree['texts'][number]): string => {
     if (b.dim) return PALETTE.muted;

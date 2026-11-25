@@ -12,6 +12,10 @@ import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutTree} from '../types/diagrams.ts';
 import {fitConnector, siteIndex, type Pt} from './geom.ts';
 import {boxXml, groupXml, type TextBox} from './shapes.ts';
+import {prstGeomXml} from './prims.ts';
+import {runXml} from './text.ts';
+import {treeTagColors} from '../emit-tree.ts';
+import {hex, sp, solidFill, xfrm} from './xml.ts';
 import {connectorShapeXml, freeformPathXml} from './line-shapes.ts';
 import type {Fonts, Rect} from './xml.ts';
 import {NODE_TEXT_PAD_Y, nodeRunsOf} from './node-runs.ts';
@@ -97,6 +101,12 @@ export function treeXml(b: LaidOutTree, ld: LaidOutDiagram, tones: ToneEnv, font
   for (const {n, i, id, rect} of nodes) {
     const runs = runsOf.get(i) ?? [], box: TextBox = {...rect, tone: n.tone, padX: PAD_X, padY: NODE_TEXT_PAD_Y, align: 'center', wrappedRuns: runs};
     add(boxXml(id, namedAs('box', linesText(runs.flatMap(r => r.lines)), n.id), box, ld.day, tones, fonts), {kind: 'rect', r: rect}, pathOf(i), runs.length > 0);
+    // ADR 0081 D4: a tag is a pill after its node's box, in the same branch (anchor ctr, the colours of the svg)
+    for (const t of n.tags ?? []) {
+      const c = treeTagColors(n.tone, t.tone, b.dim, ld.day, tones), r = {x: t.x, y: t.y, w: t.w, h: t.h};
+      add(sp(next(), namedAs('tag', t.text), `${xfrm(r)}${prstGeomXml('roundRect', 50000)}${solidFill(c.fill)}<a:ln><a:noFill/></a:ln>`,
+        `<a:bodyPr wrap="none" lIns="0" tIns="0" rIns="0" bIns="0" anchor="ctr"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr algn="ctr"/>${runXml(t.text, t.size, true, false, hex(c.text), fonts)}</a:p>`), {kind: 'rect', r}, pathOf(i));
+    }
   }
   return {xml: groupXml(next(), namedAs('tree', '', b.id), b, assembleParts(pieces, next)), glue};
 }

@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="584" viewBox="0 0 940 584" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">新しい勤怠システムを導入するか</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/mindmap-tags.ts","sourceSha256":"507ea85176083a1ccedd69adbace4d57fd9449c778ffe166af41596b90190387"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="584" fill="#ffffff"/>
+
+  <path d="M372,292 L396,292 L396,108 L416,108" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M516,108 L544,108 L544,64 L572,64" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M516,108 L544,108 L544,160 L572,160" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M372,292 L396,292 L396,304 L416,304" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M516,304 L544,304 L544,248 L572,248" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M516,304 L544,304 L544,348 L572,348" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M372,292 L396,292 L396,488 L416,488" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M528,488 L552,488 L552,444 L572,444" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M528,488 L552,488 L552,532 L572,532" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <rect x="176" y="264" width="196" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="416" y="88" width="100" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="572" y="20" width="192" height="84" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="572" y="128" width="168" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="416" y="284" width="100" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="572" y="216" width="156" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="572" y="304" width="192" height="84" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="416" y="472" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="572" y="412" width="168" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="572" y="500" width="168" height="64" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="648" y="28" width="44" height="24" rx="12" fill="#1d5fa8"/>
+  <text x="670" y="45" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">決定</text>
+  <rect x="628" y="136" width="58" height="24" rx="12" fill="#1d5fa8"/>
+  <text x="657" y="153" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">要確認</text>
+  <rect x="596" y="224" width="44" height="24" rx="12" fill="#b91c1c"/>
+  <text x="618" y="241" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">反対</text>
+  <rect x="646" y="224" width="58" height="24" rx="12" fill="#6f6659"/>
+  <text x="675" y="241" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">要確認</text>
+  <rect x="648" y="312" width="44" height="24" rx="12" fill="#b91c1c"/>
+  <text x="670" y="329" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">反対</text>
+  <rect x="636" y="420" width="44" height="24" rx="12" fill="#1d5fa8"/>
+  <text x="658" y="437" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">宿題</text>
+  <rect x="636" y="508" width="44" height="24" rx="12" fill="#6f6659"/>
+  <text x="658" y="525" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">保留</text>
+  <text x="275" y="286" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">新しい勤怠システムを導入</text>
+  <text x="275" y="306" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">するか</text>
+  <text x="466" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">賛成の理由</text>
+  <text x="668" y="70" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">集計の手間が減る</text>
+  <text x="668" y="90" text-anchor="middle" font-size="14" fill="#6f6659">月末の作業が半日→1時間</text>
+  <text x="657" y="178" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">打刻の漏れがなくなる</text>
+  <text x="466" y="306" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">反対の理由</text>
+  <text x="650" y="266" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">移行に時間がかかる</text>
+  <text x="668" y="354" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">費用が見合わない</text>
+  <text x="668" y="374" text-anchor="middle" font-size="14" fill="#6f6659">年間の利用料が現行の2倍</text>
+  <text x="473" y="492" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">次にやること</text>
+  <text x="657" y="462" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">現場に聞き取りをする</text>
+  <text x="657" y="550" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">他社の導入例を調べる</text>
+</svg>

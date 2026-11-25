@@ -151,6 +151,8 @@ export interface LayoutPlan<D extends string, R extends FitResult> {
   notTried?: string[];
   /** The one fix to name when the figure is not given as an explicit dir; default: a wider figure, or splitting it when that is a lot wider. */
   fix?: string;
+  /** Set when the figure carries tags: a tag row only widens a box, so the fix also names shortening them. Unset (no tags) leaves the message as it was. */
+  tagsHint?: boolean;
 }
 
 /** The widths a folded figure is cut to, as shares of its width (the first that fits is kept): the settling of the rows between their neighbours can push it wider than one row. */
@@ -253,6 +255,6 @@ export function planFit<D extends string, R extends FitResult>(plan: LayoutPlan<
         if (narrowest) split = splitWidest(must(lays[narrowest.i]).lay);
       }
     }
-    return fitFailure(plan.who, plan.w, fitted.tried, fix, notTried, plan.heightBudget, split);
+    return fitFailure(plan.who, plan.w, fitted.tried, plan.tagsHint && !tooTall ? `${fix}, or shorten / drop the tags` : fix, notTried, plan.heightBudget, split);
   }};
 }

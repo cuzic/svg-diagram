@@ -25,7 +25,11 @@ export interface TreeItem {
   from?: string;
   /** ADR 0081: the look of the line that joins this item to its parent. Leaving it out keeps the plain muted solid line. Not on the root, a `from` child, or in the brace / fishbone / timeline layouts. */
   edge?: {tone?: TagTone; line?: 'solid' | 'dashed' | 'dotted'};
+  /** ADR 0081: coloured tags in the node's top row (up to 3, 8 characters each). A string is an accent tag. Not on a band node. */
+  tags?: readonly (string | {text: string; tone?: TagTone})[];
 }
+/** A tag as the layout places it in a tree node (ADR 0081 D4); `size` and `baseline` are for the text. */
+export interface LaidOutTreeTag extends Rect {text: string; tone: TagTone; size: number; baseline: number}
 export interface TreeOpts extends RevealOpts, ScopeOpts {
   /** 'down' (default): levels run top to bottom. 'right': left to right, which fits more siblings in a narrow figure.
    *  'auto' (and leaving it out) lets the layout narrow the nodes and turn to the other direction when the figure is wider than the diagram
@@ -418,7 +422,7 @@ export interface LaidOutTree extends Rect, Dimmed {
   id?: string;
   reveal?: number;
   until?: number;
-  nodes: (Rect & {tone: EmphasisTone; id?: string; /** ADR 0034 */ dataNode?: string; /** A band node: the tree draws no box or text for it; the band is laid out in its rectangle. */ band?: true; /** ADR 0054: the index of its parent (none for the root) */ parent?: number})[];
+  nodes: (Rect & {tone: EmphasisTone; id?: string; /** ADR 0034 */ dataNode?: string; /** A band node: the tree draws no box or text for it; the band is laid out in its rectangle. */ band?: true; /** ADR 0054: the index of its parent (none for the root) */ parent?: number; /** ADR 0081: the tags in the node's top row (not in `texts`) */ tags?: LaidOutTreeTag[]})[];
   /** Parent to child, each a polyline (centre line of the box edge to the child's box edge); `curve` draws it as a smooth S, `bold` as a spine. */
   edges: {points: {x: number; y: number}[]; curve?: 'x' | 'y'; bold?: boolean; /** ADR 0054: the indexes (into `nodes`) of its parent and child; the same for a node's own line (a bone, a brace's stub) */ from?: number; to?: number; /** A line to a lit node of a `focus` tree: drawn in the accent colour. */ lit?: true; /** The index (in treeItems order) of the child this line leads to; only in a tree that has a `from`. */ child?: number; /** ADR 0081: what the item's own last segment looks like, when it is not the plain muted solid line. */ style?: {tone: TagTone; line: 'solid' | 'dashed' | 'dotted'}; /** ADR 0081: what the segments shared with the siblings look like, when it differs from `style` (none: the same as `style`). */ trunk?: {tone: TagTone; line: 'solid' | 'dashed' | 'dotted'}; /** A funnel line comes with the later of its child band and its parent band. */ reveal?: number; until?: number}[];
   /** brace maps: a `{` over the children of one parent. */
