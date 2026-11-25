@@ -81,7 +81,7 @@ export function colSlots(children: SlotSizing[]): {col: number; span: number}[] 
 /** swimlane({fit: 'shrink'}) leaves the lane label / gap sizes alone while every column is at least this wide. */
 export const SWIMLANE_COMFY_COL = 112;
 
-/** The grid the emitter snaps box and group edges to (emit-boxes.ts snap4). */
+/** The grid the emitter snaps box and group edges to (snap4 in emit-common.ts). */
 export const GRID = 4;
 const ceilGrid = (n: number): number => Math.ceil(n / GRID - 1e-9) * GRID;
 const roundGrid = (n: number): number => Math.round(n / GRID) * GRID;

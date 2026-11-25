@@ -357,7 +357,7 @@ try {
         fontBox: size => ({ascent: size, descent: 0}),
         adapters: {box: boxHtml}, strict: true,
       });
-    `, include: 'html-selective.js', budget: {esbuild: 87000, Vite: 111000}, bands: ['box.js'], exclude: [...legacy, 'html-box.js', 'html-row.js', 'html-grid.js', 'html-group.js', 'emit-html.js', 'lib/emit.js', 'svg-to-css.js', 'html-overlay.js', 'html-native.js', 'html-table.js', 'emit-tables.js', 'image-file.js'], draw: true},
+    `, include: 'html-selective.js', budget: {esbuild: 87000, Vite: 111000}, bands: ['box.js'], exclude: [...legacy, 'html-box.js', 'html-row.js', 'html-grid.js', 'html-group.js', 'emit-html.js', 'lib/emit.js', 'svg-to-css.js', 'html-overlay.js', 'html-native.js', 'html-table.js', 'image-file.js'], draw: true},
     {name: 'Selective HTML caption', source: `
       import {renderBandsHtml} from 'svg-diagram/html/selective';
       import {captionHtml} from 'svg-diagram/html/bands/caption';

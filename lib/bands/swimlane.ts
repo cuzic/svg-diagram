@@ -15,8 +15,6 @@ import {checked} from '../reveal-visibility.ts';
 import type {AnchorsOf, FlowCheck, FlowIn, LaneCheck, StepCheck, StepIds, SwimlaneStepIn} from '../strict.ts';
 import type {ConnectBand, LaidOutConnect} from '../types/containers.ts';
 import type {LaidOutSwimlane, SwimlaneBand, SwimlaneLane, SwimlaneOpts} from '../types/sequence-table-swimlane.ts';
-import type {LaidOutBox} from '../types/text-bands.ts';
-import {ownRect} from '../verify-rects.ts';
 import {boxDefinition, boxDiagramFindings} from './box.ts';
 
 /** one-story: more than one swimlane in a diagram. */
@@ -28,8 +26,7 @@ const oneStoryFindings: DiagramFindings = (diagram): Finding[] => {
 const definition = {
   type: 'swimlane',
   textSizes: ownRunSizes,
-  inventory: (laid, ctx) => laid.type === 'box' ? boxDefinition.inventory?.(laid, ctx) ?? [] : whole(laid, ctx),
-  svgDefs: laid => laid.type === 'box' ? boxDefinition.svgDefs?.(laid) ?? {} : {},
+  inventory: whole,
   describe: (data, stage) => ['structure', describeSwimlane(data, stage)],
   internal: true,
   layoutBoxLike,
@@ -55,17 +52,14 @@ const definition = {
     }
     return {last, warnings: [], items: data.steps};
   },
-  emit: (laid, env) => laid.type === 'box'
-    ? boxDefinition.emit(laid, env)
-    : renderSwimlane(laid, env.theme, env.roles),
+  emit: (laid, env) => renderSwimlane(laid, env.theme, env.roles),
   verify: {
     diagramFindings: [...boxDiagramFindings, oneStoryFindings],
     findings: (data, {connects}) => swimlaneFindings(data, connects),
-    layoutFindings: laid => laid.type === 'swimlane' ? narrowTextFindings(laid) : [],
-    rects: laid => laid.type === 'box' ? ownRect(laid) : [],
-    check: (laid, env) => laid.type === 'box' ? boxDefinition.verify?.check?.(laid, env) ?? [] : [],
+    layoutFindings: narrowTextFindings,
+    rects: () => [],
   },
-} satisfies BandDef<SwimlaneBand, LaidOutSwimlane | LaidOutBox>;
+} satisfies BandDef<SwimlaneBand, LaidOutSwimlane>;
 
 export function swimlane<
   const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [], const Id extends string = never,
@@ -75,7 +69,7 @@ export function swimlane<
   connectors?: BandDef<ConnectBand, LaidOutConnect>,
 ) {
   const bands = build<L, S, F, Id>(lanes, steps, opts).map(data => {
-    if (data.type === 'swimlane') return band<typeof data, LaidOutSwimlane | LaidOutBox>(definition, data);
+    if (data.type === 'swimlane') return band<typeof data, LaidOutSwimlane>(definition, data);
     if (!connectors?.internal || !connectors.resolveConnect) throw new Error('bands/swimlane: flows を使う場合は bands/connect の connectDefinition を第4引数に渡してください');
     return band<ConnectBand, LaidOutConnect>(connectors, data);
   });
@@ -83,4 +77,4 @@ export function swimlane<
 }
 
 /** @internal Definition used by the full renderer. */
-export const swimlaneDefinition: BandDef<SwimlaneBand, LaidOutSwimlane | LaidOutBox> = definition;
+export const swimlaneDefinition: BandDef<SwimlaneBand, LaidOutSwimlane> = definition;

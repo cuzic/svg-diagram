@@ -1,5 +1,5 @@
 // Layout quality metrics (ADR 0014 D4): pure functions over the laid-out bands that count how well a figure is aligned and spaced.
-// They measure what is DRAWN (box / group edges go through the emitter's 4px snap, see emit-boxes.ts), return raw numbers with the thresholds
+// They measure what is DRAWN (box / group edges go through the emitter's 4px snap, snap4 in emit-common.ts), return raw numbers with the thresholds
 // they were judged against, and know nothing about severities or `accept` (lib/rules.ts layoutQualityRules does). Thresholds come from
 // principles - the 4px grid, the 24px line height (twice that is 48px), 40% - not from the examples.
 //
@@ -56,7 +56,7 @@ const right = (f: Rect): number => f.x + f.w;
 const bottom = (f: Rect): number => f.y + f.h;
 const near = (a: number, b: number): boolean => { const d = Math.abs(a - b); return d >= 1 && d <= GRID; };
 
-/** The rect the emitter draws: a box / group is `rect(snap4(x), snap4(y), snap4(x + w) - snap4(x), snap4(h))` (emit-boxes.ts); a quadrant cell snaps its bottom edge too (emit-tables.ts). */
+/** The rect the emitter draws: a box / group is `rect(snap4(x), snap4(y), snap4(x + w) - snap4(x), snap4(h))` (emit-box.ts / emit-group.ts); a quadrant cell snaps its bottom edge too (emit-quadrant.ts). */
 function snapped(r: Rect, cell = false): Rect {
   const x = snap4(r.x), y = snap4(r.y);
   return {x, y, w: snap4(r.x + r.w) - x, h: cell ? snap4(r.y + r.h) - y : snap4(r.h)};
