@@ -1,6 +1,6 @@
 # ADR 0081: 木（`tree` / `mindmap`）の枝ごとの線の見た目と、項目の札
 
-- 状態: **決定**（Opus レビュー round 1 の B1・M1〜M8・m1〜m9、round 2 の M1〜M4・m1〜m10、round 3 の m1〜m7 を反映。round 3 で Blocker・Major なし（収束）。決める人の答え Q1〜Q3 を反映）。U1（`edge`）は実装済み（PR 待ち）
+- 状態: **実装済み**（Opus レビュー round 1 の B1・M1〜M8・m1〜m9、round 2 の M1〜M4・m1〜m10、round 3 の m1〜m7 を反映。round 3 で Blocker・Major なし（収束）。決める人の答え Q1〜Q3 を反映）。U1（`edge`、PR #464）・U2（`tags`、PR #465）・U3（JSON spec、PR #466）・U4 の文書（README・skill、本 PR）は実装済み。版のリリースは決める人の承認待ち
 - 日付: 2026-11-25
 - 基点: `main`（377c61d6。ADR 0080 D13 まで）
 - 関連: ADR 0045（`svg-diagram/browser`、`renderInBrowser`）、ADR 0049（帯のノード）、ADR 0029（`keepWords`）、ADR 0027 / 0054（PPTX）、ADR 0069（`partCatalog`）、ADR 0071（JSON Schema）、ADR 0080（帯の定義、tree shaking、D2b の `.type ===` ラチェット）
@@ -167,7 +167,7 @@ export interface TreeItem {
 | U1 | D1〜D3 の `edge`: 型、DSL の検査（D3 の表）、正規化、`layoutTreeBand` が `style` / `trunk` を決める、24px の間隔、`renderTree` の分割と描く順、PPTX の線種と描く順、テスト（配置ごと・兄弟の範囲・`focus` / `dim` との組合せ・バイト不変・その項目だけの区間が 24px 以上。ただし帯ノードの子は格子への吸着で ±2px 動くので 22px 以上で確かめる。round 3 m1） |
 | U2 | D4 の `tags`: 型、DSL の検査、`measureNode` の `opts.tags`、`LaidOutTree.nodes[i].tags`、`renderTree` の `pillSvg`（反転を含む）、PPTX、テスト |
 | U3 | D7: spec、JSON Schema（`pnpm schema`）、部品の目録の例、スキーマの大きさの測定 |
-| U4 | 例と golden、README（`legend` を手で書く例を含む）、CHANGELOG（D6 の一覧を載せる）、次の版のリリース（決める人の承認後） |
+| U4 | 例と golden、README（`legend` を手で書く例を含む。CHANGELOG は無いので、D6 の一覧は README から本 ADR の D6 へリンクする）、次の版のリリース（決める人の承認後） |
 
 ### `focus` / `dim` と `edge` の組合せ（round 1 M3）
 
