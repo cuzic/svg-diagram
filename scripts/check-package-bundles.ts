@@ -121,7 +121,7 @@ try {
     ...standaloneSpecBands.map(part => ({part, bands: [part + '.js']})),
   ];
   const {exports: published} = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as {exports: Record<string, ExportTarget>};
-  // Minified byte budgets for the catalog examples, with 10% headroom rounded up to 1,000 bytes.
+  // Minified byte budgets for the catalog examples, with 10% headroom rounded up to 1,000 bytes (mindmap and tree: measured + about 200 bytes, ADR 0081).
   const specBudgets = new Map<string, Budget>([
     ['affinity', {esbuild: 119000, Vite: 149000}],
     ['bars', {esbuild: 87000, Vite: 112000}],
@@ -158,7 +158,7 @@ try {
     ['lines', {esbuild: 85000, Vite: 111000}],
     ['matrix', {esbuild: 101000, Vite: 122000}],
     ['mekko', {esbuild: 85000, Vite: 104000}],
-    ['mindmap', {esbuild: 97500, Vite: 126700}],
+    ['mindmap', {esbuild: 99400, Vite: 128700}],
     ['pareto', {esbuild: 88000, Vite: 113000}],
     ['pdpc', {esbuild: 191000, Vite: 254000}],
     ['pert', {esbuild: 148000, Vite: 199000}],

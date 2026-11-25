@@ -475,7 +475,6 @@
   "spec-kit:oneOf",
   "spec-kit:pair",
   "spec-kit:text",
-  "spec-kit:treeItem",
   "spec-kit:treeSize",
   "spec-kit:uniqueIds",
   "spec-kit:whyNode",
