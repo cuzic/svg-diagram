@@ -1092,8 +1092,10 @@ test('every selective band type returns the legacy rectangles for the same place
 
   const compare = async (type: LaidOutType, bands: SelectedBands) => {
     const {placed} = await prepareBands(bands, {measure, title: '計画'});
-    const def = bands[0]?.[DEF] as BandDef<unknown, LaidOutBand> | undefined;
-    assert.ok(def);
+    const owner = bands[0]?.[DEF] as BandDef<unknown, LaidOutBand> | undefined;
+    assert.ok(owner);
+    // Core resolves a placed band of another type through the owning definition's outputDefinitions.
+    const def = (owner.internal ? (owner.outputDefinitions?.[type] as BandDef<unknown, LaidOutBand> | undefined) : undefined) ?? owner;
     const matches = placed.laidOut.filter(band => band.type === type);
     assert.ok(matches.length, `missing placed ${type}`);
     for (const laid of matches) {
