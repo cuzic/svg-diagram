@@ -231,6 +231,27 @@ try {
   const browserMeasureCase = {name: '文字測定', source: "export {canvasMeasurer} from 'svg-diagram/measure/browser';",
     include: 'web-measure.js', exclude: ['web.js', 'emit-html.js', 'pipeline.js', 'layout-handlers.js'],
     budget: {esbuild: 4000, Vite: 4000}};
+  const comicDrawCases = [false, true].map(browserMeasure => ({
+    name: browserMeasure ? 'Comic + browser measurer' : 'Comic',
+    source: `
+      import {renderBands} from 'svg-diagram/core';
+      import {comic} from 'svg-diagram/bands/comic';
+      ${browserMeasure ? "export {svgMeasurer} from 'svg-diagram/measure/browser';" : ''}
+      const sheet = {
+        version: 1, title: 'Review', layout: '1x2', cast: {}, panels: [
+          {id: 'first', stage: [], dialogue: [{id: 'note', kind: 'narration', tpl: 'Review'}]},
+          {id: 'second', stage: [], dialogue: []},
+        ],
+      };
+      export const draw = (measure = ${measure}) => renderBands([comic(sheet)], {width: 492, measure});
+    `,
+    include: 'bands/comic.js', draw: true,
+    exclude: [...legacy, 'full-definitions.js', 'dsl-pure.js', 'layout-measure.js', 'layout-connect.js',
+      'reveal-handlers.js', 'band-ids.js', 'comic/render.js', 'emit-html.js', 'emit-figures.js',
+      'lib/spec.js', 'lib/pptx.js', 'lib/measure.js', 'font-metrics.js', 'icon-registry.js', 'icon-builtins.js',
+      ...(!browserMeasure ? ['web-measure.js'] : [])],
+    budget: browserMeasure ? {esbuild: 92500, Vite: 112000} : {esbuild: 91500, Vite: 110500},
+  }));
   // New budgets are measured minified sizes with about 10% headroom per bundler.
   const browserDrawCases = [
     {name: './browser', source: `
@@ -314,6 +335,7 @@ try {
   ];
   const cases = [
     ...browserDrawCases,
+    ...comicDrawCases,
     ...specCases,
     {name: 'HTML box adapter', source: "export {boxHtml} from 'svg-diagram/html/bands/box';",
       include: 'box-style.js', budget: {esbuild: 5500, Vite: 6500},
@@ -1061,7 +1083,7 @@ try {
     'ブラウザ描画': browserEntries,
     'Node.js 描画': [...nodeDrawCases.map(fixture => fixture.source), nodeSpecSource, imageSource, mathSource].flatMap(importedEntries)
       .filter(key => !browserEntries.has(key)),
-    'バンドルと予算': importedEntries(browserMeasureCase.source),
+    'バンドルと予算': importedEntries(browserMeasureCase.source).filter(key => !browserEntries.has(key)),
     '型のみ': ['./plugin'],
     'JSON': ['./schema/*.json'],
   };
@@ -1122,6 +1144,7 @@ try {
       const label = `${bundler}: ${name}`;
       const has = (filename: string) => files.some(file => ('/' + file.replaceAll('\\', '/')).endsWith('/' + filename));
       assert.ok(has(include), `${label} に ${include} が必要です`);
+      if (name === 'Comic + browser measurer') assert.ok(has('web-measure.js'), label);
       if (name === 'Core' || name === 'Box') {
         for (const file of ['slide-budget.js', 'slide-budget-live.js', 'layout-measured.js', 'measure.js', 'dsl/render.js']) {
           assert.ok(!has(file), `${label}: unexpected ${file}`);
@@ -1336,6 +1359,7 @@ try {
           continue;
         }
         assert.match(result.svg, name === 'Sankey' ? /<text[^>]*>Review 5<\/text>/ : name === 'funnel' ? /<text[^>]*>Review +1<\/text>/ : name === 'Composer Arrow diagram' ? /<text[^>]*>Review 3<\/text>/ : /<text[^>]*>Review<\/text>/, label);
+        if (name === 'Comic' || name === 'Comic + browser measurer') assert.match(result.svg, /data-comic="1x2"/, label);
         if (name === 'Image') {
           assert.match(result.svg, /<image [^>]*href="data:image\/gif;base64,/);
           assert.doesNotMatch(code, /\bBuffer\b/, label);

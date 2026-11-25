@@ -487,6 +487,7 @@
       "types": "./dist/lib/bands/image.d.ts",
       "default": "./dist/lib/bands/image.js"
     },
+    "./bands/comic": {"types": "./dist/lib/bands/comic.d.ts", "default": "./dist/lib/bands/comic.js"},
     "./bands/stacked": {
       "types": "./dist/lib/bands/stacked.d.ts",
       "default": "./dist/lib/bands/stacked.js"

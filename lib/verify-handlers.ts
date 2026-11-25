@@ -2,7 +2,7 @@
 // (`rects`), the figure-internal checks it runs (`check`, in the `phase` it belongs to) and its text-contrast check (`contrast`).
 // One entry per laid-out band type, each checked against its own band type; a band type without one fails to compile.
 
-import {bareNameIn, qualify, scopeOf} from './anchor-scope.ts';
+import {scopeOf} from './anchor-scope.ts';
 import {imageContrast, imageProblems, imageRects} from './verify-image.ts';
 import {barsContrastProblems, barsProblems, barsRects} from './verify-bars.ts';
 import {checkChart} from './charts-verify.ts';
@@ -16,7 +16,8 @@ import {sourceOf} from './source-ref.ts';
 import type {SourceRef} from './source-ref.ts';
 import {bowtieRects} from './verify-bowtie-rects.ts';
 import {captionRects} from './verify-caption.ts';
-import {comicRects, comicSlotOwners} from './verify-comic-rects.ts';
+import {comicConnectorProblems, comicRects} from './verify-comic-rects.ts';
+import {comicProblems} from './comic/findings.ts';
 import {ftaRects} from './verify-fta-rects.ts';
 import {childRects, emblemRects, figureRects, frameRects, overlappingFigureRects, ownRect, scopedRect, statusRects} from './verify-rects.ts';
 import {classesProblems} from './verify-classes.ts';
@@ -28,7 +29,7 @@ import {quadrantProblems} from './verify-quadrant.ts';
 import {timelineProblems} from './verify-timeline.ts';
 import {flowProblems} from './verify-flow.ts';
 import {ganttProblems} from './verify-gantt.ts';
-import {issueAt, rectOverlap, statesProblems} from './verify-base.ts';
+import {issueAt, statesProblems} from './verify-base.ts';
 import type {LaidOutOf, LaidOutType} from './band-table.ts';
 import type {LaidOutComic} from './types/comic.ts';
 import type {EmphasisTone} from './types/core.ts';
@@ -76,25 +77,12 @@ const checkStates = (band: LaidOutOf<'states'>, _d: LaidOutDiagram, {problems}: 
   problems.push(...statesProblems(band));
 };
 
-// A cause arrow must not run through an entity it does not touch; the arrows of an AND must be joined by their arc.
-// A comic's data and layout problems (ADR 0074 D6): the findings of its layout that are mistakes (the advice ones are lint findings, lib/rules.ts).
+// A comic's layout findings and connectors to its blanks (ADR 0074 D6).
 const checkComic = (band: LaidOutComic, d: LaidOutDiagram, {problems}: VerifyOut): void => {
-  for (const f of band.findings) if (f.severity === 'problem') problems.push(`comic: ${f.message} [${f.rule}]`);
-  if (!d.connects.length) return;
-  const scope = scopeOf(band), owners = comicSlotOwners(band);
-  for (const c of d.connects) {
-    const fromId = bareNameIn(scope, c.fromId), toId = bareNameIn(scope, c.toId);
-    const from = fromId === undefined ? undefined : owners.get(fromId), to = toId === undefined ? undefined : owners.get(toId);
-    if (!from && !to) continue;
-    // Other panels are checked by their frames. Inside the endpoint panels, check the bubbles individually.
-    for (const b of band.bubbles) {
-      if (b.panel !== from?.panel && b.panel !== to?.panel) continue;
-      if (b === from || b === to || b.id === fromId || b.id === toId) continue;
-      if (c.pathSegments.some(seg => rectOverlap(seg, b))) {
-        problems.push(`connect(${c.fromLabel} -> ${c.toLabel}) の経路がふきだし "${qualify(scope, b.id)}" に重なります。接続の辺か経路を変えてください`);
-      }
-    }
-  }
+  problems.push(...comicProblems(band).map(f => f.message));
+  problems.push(...comicConnectorProblems(band, d.connects.map(c => ({
+    fromId: c.fromId, toId: c.toId, fromLabel: c.fromLabel, toLabel: c.toLabel, segments: c.pathSegments,
+  }))));
 };
 
 const checkNoWrap = (band: LaidOutBox, out: VerifyOut): void => { out.problems.push(...nowrapProblems(band)); };
