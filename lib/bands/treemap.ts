@@ -1,19 +1,22 @@
+import {chartSpotlight, emitSpotlightChart} from '../emit-spotlight-chart.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutTreemap, treemapTexts} from '../charts-treemap.ts';
 import type {TreemapNode, TreemapOpts, TreemapSpec} from '../charts-treemap.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {treemap as build} from '../dsl/treemap.ts';
-import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  selfDimming: true,
+  spotlight: chartSpotlight,
   describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, treemapTexts(data.spec as TreemapSpec)),
   layout: (data, env) => layoutSelectiveChart(data, env, geom => layoutTreemap(data.spec as TreemapSpec, geom)),
-  emit: emitChart,
+  emit: emitSpotlightChart,
   verify: verifyChart,
 } satisfies BandDef<ChartBand, LaidOutChart>;
 

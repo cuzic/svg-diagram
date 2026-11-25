@@ -13,6 +13,7 @@ import {definitionFor, UNDEFINED_BANDS} from './full-definitions.ts';
 import {withTitleLine} from './layout-caption-lines.ts';
 import {legendFindings} from './legend-notation.ts';
 import {UNMEASURED_FILL_NOTE} from './slide-fill.ts';
+import {dimmedBands} from './spotlight.ts';
 import {sourceOf, withSource} from './source-ref.ts';
 import {withStatus} from './status.ts';
 import {toneEnv} from './tokens.ts';
@@ -50,7 +51,7 @@ export function unsupportedCoreOptions(d: DiagramData): string[] {
       if (d[key] !== undefined) unsupported.push(key);
     }
   }
-  for (const key of ['spotlight', 'source', 'terms', 'evidenceCheck'] as const) {
+  for (const key of ['source', 'terms', 'evidenceCheck'] as const) {
     if (d[key] !== undefined) unsupported.push(key);
   }
   return unsupported;
@@ -76,7 +77,7 @@ const legacyDiagramFindings: CoreFindings = (diagram, stage, definitionOf) => {
     )
     : grayToneFindings(diagram, tones, samples);
   const notation = diagram.legend === false ? [] : bands.flatMap(data => defOf(data)?.verify?.legendNotation?.(data) ?? []);
-  return [...documentFindings(diagram, stage), ...gray, ...legendFindings(notation, worded, diagram.legendLabels)];
+  return [...documentFindings(diagram, stage), ...gray, ...legendFindings(notation, worded, diagram.legendLabels, dimmedBands(diagram))];
 };
 
 function legacyDiagramAcceptHint(rule: string): string | undefined {
@@ -108,11 +109,12 @@ export async function renderLegacyDiagramWithCore(d: DiagramData, {measure, budg
   const result = await renderBands(bands, {
     measure, generatedBands, theme: d.day, width: canvas ? undefined : d.fitWidth ? 'fit' : d.width, maxWidth: d.maxWidth,
     slide, fill, minEffectiveFont: d.slide ? d.minEffectiveFont : undefined,
-    pad: d.pad, gap: d.gap, legend: d.legend, legendLabels: d.legendLabels, accept: d.accept, canvas, appearance: d.appearance,
+    pad: d.pad, gap: d.gap, legend: d.legend, spotlight: d.spotlight, legendLabels: d.legendLabels, accept: d.accept, canvas, appearance: d.appearance,
     transparent: d.transparent, tocCheck: d.tocCheck, rcaCheck: d.rcaCheck, layoutCheck: d.layoutCheck,
     diagramFindings: legacyDiagramFindings, diagramAcceptHint: legacyDiagramAcceptHint,
-    addAutoLegend(source, labels) {
-      const automatic = autoLegend(source, labels);
+    addAutoLegend(diagram) {
+      const source = diagram.bands;
+      const automatic = autoLegend(source, diagram.legendLabels, dimmedBands(diagram));
       if (!automatic) return;
       const existing = source.find(data => data.type === 'legend');
       if (existing) existing.items.push(...automatic.items);

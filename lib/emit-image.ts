@@ -1,7 +1,9 @@
+import {anchoredSpotlightTarget} from './emit-spotlight.ts';
+import type {SpotlightHooks} from './band-def.ts';
 import {PALETTE, colorOf, toneStyle} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import type {Theme, ColorKey} from './types/core.ts';
-import type {LaidOutImage} from './types/image.ts';
+import type {LaidOutImage, ImageBand} from './types/image.ts';
 import {visibleAt} from './reveal-visibility.ts';
 import {MARK_STROKE, plateStyle} from './image.ts';
 import {snap4, escapeAttr, emojiSpan} from './emit-common.ts';
@@ -32,3 +34,15 @@ export function renderImage(b: LaidOutImage, day: Theme, tones: ToneEnv, stage?:
   }
   return out.join('\n  ');
 }
+
+export const imageSpotlight: SpotlightHooks<ImageBand, LaidOutImage> = {
+  targets: anchoredSpotlightTarget,
+  dim(laid, focus) {
+    if (focus.contains(laid)) { laid.dim = false; return; }
+    const lit = laid.marks.map(focus.contains);
+    laid.marks.forEach((mark, i) => { mark.dim = !lit[i]; });
+    laid.plates.forEach(plate => { plate.dim = plate.mark === undefined || !lit[plate.mark]; });
+    const holes = laid.marks.filter((_mark, i) => lit[i]).map(({x, y, w, h}) => ({x, y, w, h}));
+    if (holes.length) laid.holes = holes; else laid.dim = true;
+  },
+};

@@ -14,6 +14,7 @@ const withToday = (data: GanttBand, today: string | undefined): GanttBand =>
 
 const definition = {
   type: 'gantt',
+  selfDimming: true,
   textSizes: texts,
   ids: data => data.rows.flatMap(row => 'id' in row && row.id ? [row.id] : []),
   measure(data, {atoms, roles, today}) {

@@ -15,6 +15,7 @@ import {anchorRects} from '../verify-rects.ts';
 
 const definition = {
   type: 'bpmn',
+  selfDimming: true,
   textSizes: textsAndLabels,
   ids: data => data.nodes.map(item => item.id),
   measure(data, {atoms, roles}) {

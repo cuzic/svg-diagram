@@ -8,7 +8,7 @@ import type {BandDef, DiagramFindings, WithBandDef} from '../band-def.ts';
 import {barsTexts, layoutBars, barsValueAxis} from '../bars.ts';
 import {bars as build, histogram as buildHistogram, pareto as buildPareto, rangeBars as buildRangeBars} from '../dsl/bars.ts';
 import type {HistogramOpts, ParetoOpts} from '../dsl/bars.ts';
-import {renderBars} from '../emit-bars.ts';
+import {barsSpotlight, renderBars} from '../emit-bars.ts';
 import {snapGrid} from '../layout-util.ts';
 import {revealBarElements} from '../reveal-bars.ts';
 import {scopeOf} from '../scope-name.ts';
@@ -22,6 +22,8 @@ const hiddenValuesFindings: DiagramFindings = (diagram, stage) =>
 
 const definition = {
   type: 'bars',
+  selfDimming: true,
+  spotlight: barsSpotlight,
   describe(data, stage) {
     const description = hiddenBarsDescription(data, stage);
     return description ? ['values', description] : undefined;
@@ -40,15 +42,15 @@ const definition = {
     return {laid, h: laid.h, anchors: laid.anchors};
   },
   revealElements: revealBarElements,
-  emit: (laid, {theme, stage}) => renderBars(laid, theme, stage),
+  emit: (laid, {theme, stage, dimFill}) => renderBars(laid, theme, stage, dimFill),
   verify: {
     rects: barsRects,
     diagramFindings: [thinBarFindings, selectedAxisFindings, hiddenValuesFindings],
     acceptHint: rule => rule === 'bars-values-hidden' ? findingAcceptanceHint(rule) : undefined,
     check: laid => barsProblems(laid).map(message => ({rule: 'bars', severity: 'problem', message})),
-    contrast(laid, {theme, tones, appearance}) {
+    contrast(laid, {theme, tones, appearance, dimFill}) {
       const paint = paintOf(tones, appearance);
-      return barsContrastProblems(laid, theme, hex => luminance(paint(hex)));
+      return barsContrastProblems(laid, theme, hex => luminance(paint(hex)), dimFill);
     },
   },
 } satisfies BandDef<BarsBand, LaidOutBars>;

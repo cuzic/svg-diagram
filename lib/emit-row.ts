@@ -1,3 +1,5 @@
+import {dimChildren} from './emit-spotlight.ts';
+import type {SpotlightHooks} from './band-def.ts';
 import {renderBox} from './emit-box.ts';
 import {childTextSvgDefs} from './emit-box-defs.ts';
 import {snap4} from './emit-common.ts';
@@ -20,3 +22,17 @@ export function renderRow(band: LaidOutRow, day: Theme, tones: ToneEnv, roles: R
   ).join('\n  ');
   return arrows ? `${boxes}\n\n  ${arrows}` : boxes;
 }
+
+export function rowSlot<T>(band: {id?: string; children: readonly T[]}, id: string): T | undefined {
+  if (!band.id || !id.startsWith(`${band.id}#`)) return undefined;
+  const slot = id.slice(band.id.length + 1);
+  return /^\d+$/.test(slot) ? band.children[Number(slot) - 1] : undefined;
+}
+
+export const rowSpotlight: SpotlightHooks<never, LaidOutRow> = {
+  dim: dimChildren,
+  targets(band, id, endpoint) {
+    const slot = endpoint ? undefined : rowSlot(band, id);
+    return [...(slot ? [slot] : []), ...band.children.filter(c => c.id === id)];
+  },
+};

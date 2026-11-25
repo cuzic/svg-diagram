@@ -29,6 +29,7 @@ const tocDiagramFindings: DiagramFindings = d => {
 
 export const causeDefinition: BandDef<CauseBand, LaidOutCause> = {
   type: 'cause',
+  selfDimming: true,
   textSizes: texts,
   ids: data => data.nodes.filter(node => !data.unanchored?.includes(node.id)).map(node => node.id),
   measure(data, {atoms, roles}) {

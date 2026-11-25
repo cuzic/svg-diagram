@@ -28,6 +28,7 @@ const definition = {
   layoutBoxLike,
   layout: layoutSwimlane,
   outputTypes: ['box'],
+  spotlightOutputs: {box: boxDefinition},
   measure(data, env) {
     const {atoms, roles} = env;
     for (const lane of data.lanes) atoms(lane.label, roles.title, 700);

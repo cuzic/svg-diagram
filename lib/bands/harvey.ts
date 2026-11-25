@@ -1,19 +1,22 @@
+import {chartSpotlight, emitSpotlightChart} from '../emit-spotlight-chart.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutHarvey, harveyTexts} from '../charts-harvey.ts';
 import type {HarveyCell, HarveyRow, HarveyOpts, HarveySpec} from '../charts-harvey.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {harvey as build} from '../dsl/harvey.ts';
-import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  selfDimming: true,
+  spotlight: chartSpotlight,
   describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, harveyTexts(data.spec as HarveySpec)),
   layout: (data, env) => layoutSelectiveChart(data, env, geom => layoutHarvey(data.spec as HarveySpec, geom)),
-  emit: emitChart,
+  emit: emitSpotlightChart,
   verify: verifyChart,
 } satisfies BandDef<ChartBand, LaidOutChart>;
 

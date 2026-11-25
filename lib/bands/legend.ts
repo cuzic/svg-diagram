@@ -26,8 +26,8 @@ export function legend(items: LegendItem[], opts?: LegendOpts): WithBandDef<Lege
 }
 
 /** Build the legend for the notation in a selected diagram, if it needs any entries. */
-export function autoLegend(bands: readonly {type: string}[], labels?: Partial<Record<string, string>>) {
-  const items = missingLegendItems(bands as Band[], labels);
+export function autoLegend(bands: readonly {type: string}[], labels?: Partial<Record<string, string>>, dimmed?: Set<Band>) {
+  const items = missingLegendItems(bands as Band[], labels, dimmed);
   return items.length ? legend(items) : undefined;
 }
 

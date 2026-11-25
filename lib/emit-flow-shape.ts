@@ -1,3 +1,5 @@
+import {anchoredSpotlightTarget} from './emit-spotlight.ts';
+import type {SpotlightHooks} from './band-def.ts';
 import {PALETTE, colorOf} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import type {Theme} from './types/core.ts';
@@ -35,3 +37,10 @@ export function renderFlowShape(b: LaidOutFlowShape, day: Theme, tones: ToneEnv)
   for (const t of b.texts) out.push(`<text x="${n(t.tx)}" y="${n(t.ty)}"${t.anchor === 'start' ? '' : ` text-anchor="${t.anchor}"`} font-size="${t.size}" font-weight="${t.weight}" fill="${ink(colorOf(t.tone, day))}">${emojiSpan(t.text)}</text>`);
   return out.join('\n  ');
 }
+
+export const flowSpotlight: SpotlightHooks<never, LaidOutFlowShape> = {
+  targets: (band, id, endpoint) => endpoint ? [] : anchoredSpotlightTarget(band, id),
+  dim(band, focus) {
+    band.dim = !focus.contains(band) && !band.anchors.some(focus.contains);
+  },
+};

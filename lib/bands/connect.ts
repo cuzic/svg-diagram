@@ -12,7 +12,7 @@ import {bracket as buildBracket} from '../dsl/bracket.ts';
 import {branch as buildBranch} from '../dsl/branch.ts';
 import {callout as buildCallout} from '../dsl/callout.ts';
 import type {BracketOpts, CalloutOpts} from '../dsl/connect.ts';
-import {connectorSvgDefs, renderConnect} from '../emit-connect.ts';
+import {connectSpotlight, connectorSvgDefs, renderConnect} from '../emit-connect.ts';
 import {layoutConnect, resolveConnect} from '../layout-connect.ts';
 import type {BranchInput, ConnectInput, Ok} from '../strict.ts';
 import {loopBackConnectors} from '../loop-back-connectors.ts';
@@ -59,6 +59,7 @@ const selectedGraphFindings: DiagramFindings = diagram =>
 
 export const connectDefinition: BandDef<ConnectBand, LaidOutConnect> = {
   type: 'connect',
+  spotlight: connectSpotlight,
   internal: true,
   layout: layoutConnect,
   connectorDefs: connectorSvgDefs,

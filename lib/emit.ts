@@ -25,7 +25,7 @@ function defsNeeded(band: LaidOutBand): SvgBandDefs {
     || band.type === 'cycle'
     || band.type === 'concentric' && band.primitives.some(p => p.k === 'path' && !!p.arrow);
   const strongArrow = !!legend.strongArrow;
-  return {mono, arrow, dimArrow: !!band.dim && arrow, strongArrow, dimStrongArrow: !!band.dim && strongArrow};
+  return {mono, arrow, strongArrow};
 }
 
 const services = {connectorDefs: connectorSvgDefs, defsNeeded, renderBand, renderConnect, diagramTitle, diagramDesc, spotlightDim};

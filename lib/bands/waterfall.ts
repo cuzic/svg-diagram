@@ -1,3 +1,4 @@
+import {chartSpotlight, emitSpotlightChart} from '../emit-spotlight-chart.ts';
 import {selectedAxisFindings} from '../axis-selected.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
@@ -5,17 +6,19 @@ import {layoutWaterfall, waterfallTexts, waterfallValueAxis} from '../charts-wat
 import type {WaterfallOpts, WaterfallSpec, WaterfallStep} from '../charts-waterfall.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {waterfall as build} from '../dsl/waterfall.ts';
-import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  selfDimming: true,
+  spotlight: chartSpotlight,
   describe: describeChart,
   valueAxis: data => waterfallValueAxis(data.spec as WaterfallSpec),
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, waterfallTexts(data.spec as WaterfallSpec)),
   layout: (data, env) => layoutSelectiveChart(data, env, geom => layoutWaterfall(data.spec as WaterfallSpec, geom)),
-  emit: emitChart,
+  emit: emitSpotlightChart,
   verify: {...verifyChart, diagramFindings: selectedAxisFindings},
 } satisfies BandDef<ChartBand, LaidOutChart>;
 

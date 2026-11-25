@@ -3,7 +3,7 @@ import {sizesOf} from '../band-text-sizes.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {image as build} from '../dsl/image.ts';
-import {renderImage} from '../emit-image.ts';
+import {imageSpotlight, renderImage} from '../emit-image.ts';
 import {IMAGE_PAD, imageSize, imageTexts} from '../image.ts';
 import {layoutImageBand} from '../layout-image.ts';
 import type {ImageBand, ImageMark, ImageOpts, LaidOutImage} from '../types/image.ts';
@@ -16,6 +16,8 @@ export type SelectedBand = Band & {readonly [DEF]: object};
 
 export const imageDefinition: BandDef<ImageBand, LaidOutImage> = {
   type: 'image',
+  selfDimming: true,
+  spotlight: imageSpotlight,
   describe: data => data.alt ? ['image', `画像: ${oneLine(data.alt)}`] : undefined,
   textSizes: band => sizesOf(band.plates),
   fillTextSize: imageFillTextSize,

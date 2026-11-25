@@ -1,19 +1,22 @@
+import {chartSpotlight, emitSpotlightChart} from '../emit-spotlight-chart.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutButterfly, butterflyTexts} from '../charts-butterfly.ts';
 import type {ButterflyRow, ButterflyOpts, ButterflySpec} from '../charts-butterfly.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {butterfly as build} from '../dsl/butterfly.ts';
-import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  selfDimming: true,
+  spotlight: chartSpotlight,
   describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, butterflyTexts(data.spec as ButterflySpec)),
   layout: (data, env) => layoutSelectiveChart(data, env, geom => layoutButterfly(data.spec as ButterflySpec, geom)),
-  emit: emitChart,
+  emit: emitSpotlightChart,
   verify: verifyChart,
 } satisfies BandDef<ChartBand, LaidOutChart>;
 

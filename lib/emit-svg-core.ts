@@ -36,9 +36,9 @@ export function emitSvgWith(services: SvgServices, laidOutDiagram: LaidOutDiagra
   const usesMono = bandDefs.some(d => d.mono);
   const connectorDefs = services.connectorDefs?.(connects, day, tones);
   const needsArrow = connectorDefs?.arrow || bandDefs.some(d => d.arrow);
-  const needsDimArrow = connectorDefs?.dimArrow || bandDefs.some(d => d.dimArrow);
+  const needsDimArrow = connectorDefs?.dimArrow || bandDefs.some((d, i) => d.dimArrow || d.arrow && laidOut[i]?.dim);
   const needsStrongArrow = connectorDefs?.strongArrow || bandDefs.some(d => d.strongArrow);
-  const needsDimStrongArrow = connectorDefs?.dimStrongArrow || bandDefs.some(d => d.dimStrongArrow);
+  const needsDimStrongArrow = connectorDefs?.dimStrongArrow || bandDefs.some((d, i) => d.dimStrongArrow || d.strongArrow && laidOut[i]?.dim);
   const strongMarker = (id: string, fill: string) => `
     <marker id="${id}" viewBox="0 0 10 10" refX="${STRONG_HEAD_REF_X}" refY="5" markerUnits="userSpaceOnUse" markerWidth="${STRONG_HEAD}" markerHeight="${STRONG_HEAD}" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="${fill}"/>

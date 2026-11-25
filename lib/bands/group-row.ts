@@ -6,7 +6,7 @@ import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {buildMixedRow, normalizeRowChildren} from '../dsl/mixed-row.ts';
 import {validateRowOptions} from '../dsl/row-options.ts';
-import {renderRow, rowSvgDefs} from '../emit-row.ts';
+import {rowSpotlight, renderRow, rowSvgDefs} from '../emit-row.ts';
 import {layoutGroupRow} from '../layout-group-row.ts';
 import type {Declares, IdsOf, Refers, RefsOf, RowHandleOf} from '../strict.ts';
 import type {GroupBand, GroupRowBand, LaidOutRow, RowOpts} from '../types/containers.ts';
@@ -14,6 +14,8 @@ import type {BoxBand} from '../types/text-bands.ts';
 
 export const groupRowDefinition: BandDef<GroupRowBand, LaidOutRow> = {
   type: 'grouprow',
+  selfDimming: true,
+  spotlight: rowSpotlight,
   inventory: rowItems,
   svgDefs: rowSvgDefs,
   textSizes: childRuns,

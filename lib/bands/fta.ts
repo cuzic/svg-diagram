@@ -14,6 +14,7 @@ import {ftaRects} from '../verify-fta-rects.ts';
 
 const definition = {
   type: 'fta',
+  selfDimming: true,
   textSizes: texts,
   ids: data => ftaIds(data.root),
   measure(data, {atoms, roles}) {

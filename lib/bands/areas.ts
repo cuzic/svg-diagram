@@ -7,13 +7,15 @@ import {band, defOf, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {areas as buildAreas} from '../dsl/areas.ts';
 import type {AreaContent} from '../dsl/areas.ts';
-import {renderRow, rowSvgDefs} from '../emit-row.ts';
+import {rowSpotlight, renderRow, rowSvgDefs} from '../emit-row.ts';
 import {layoutAreas} from '../layout-areas.ts';
 import type {AreasBand, AreasOpts, LaidOutRow} from '../types/containers.ts';
 import {groupDefinition} from './group.ts';
 
 const definition = {
   type: 'areas',
+  selfDimming: true,
+  spotlight: rowSpotlight,
   inventory: rowItems,
   svgDefs: rowSvgDefs,
   textSizes: childRuns,

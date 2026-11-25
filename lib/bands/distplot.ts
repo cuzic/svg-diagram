@@ -1,19 +1,22 @@
+import {chartSpotlight, emitSpotlightChart} from '../emit-spotlight-chart.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutDist, distTexts} from '../charts-dist.ts';
 import type {DistGroup, DistOpts, DistSpec} from '../charts-dist.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {displot as buildDisplot, histplot as buildHistplot, kdeplot as buildKdeplot, ecdfplot as buildEcdfplot, rugplot as buildRugplot} from '../dsl/distplot.ts';
-import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  selfDimming: true,
+  spotlight: chartSpotlight,
   describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, distTexts(data.spec as DistSpec)),
   layout: (data, env) => layoutSelectiveChart(data, env, geom => layoutDist(data.spec as DistSpec, geom)),
-  emit: emitChart,
+  emit: emitSpotlightChart,
   verify: verifyChart,
 } satisfies BandDef<ChartBand, LaidOutChart>;
 

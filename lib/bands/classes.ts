@@ -14,6 +14,7 @@ import {anchorRects} from '../verify-rects.ts';
 
 const definition = {
   type: 'classes',
+  selfDimming: true,
   textSizes: textsAndLabels,
   ids: data => data.classes.map(item => item.id),
   measure(data, {atoms, roles}) {

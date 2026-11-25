@@ -1,3 +1,4 @@
+import {flowSpotlight} from '../emit-flow-shape.ts';
 import {figureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
@@ -9,6 +10,8 @@ import type {ValueChainBand, ValueChainOpts, FlowStep, LaidOutFlowShape} from '.
 
 const definition = {
   type: 'valueChain',
+  selfDimming: true,
+  spotlight: flowSpotlight,
   title: data => [2, data.primary[0]?.label],
   textSizes: texts,
   ids: data => flowItemIds([...data.support, ...data.primary]),

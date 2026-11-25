@@ -1,3 +1,4 @@
+import type {SpotlightHooks} from './band-def.ts';
 import {badgeSvg, pillSvg} from './badge.ts';
 import {ringed, stepBadgeAt} from './box-step-geometry.ts';
 import {renderBoxRect, renderStamp, tagGeometry} from './emit-box-frame.ts';
@@ -39,3 +40,5 @@ export function renderBox(band: LaidOutBox, day: Theme, tones: ToneEnv, roles: R
   const frame = band.frame === false ? '' : `${renderBoxRect(band, day, tones, 'plain')}\n  `;
   return `${frame}${renderBoxText(band, day, tones)}${badge}${iconText}${tag}${renderStamp(band, roles)}`;
 }
+
+export const boxSpotlight: SpotlightHooks<never, LaidOutBox> = {scopedId: true};

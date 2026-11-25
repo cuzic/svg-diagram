@@ -1,9 +1,10 @@
+import type {SpotlightHooks} from './band-def.ts';
 import {pillSvg} from './badge.ts';
 import {arrowMarkers, escapeXml, lineAttrs, resolveLineColor, snap4, tonedHead, trimPoints} from './emit-common.ts';
 import type {SvgBandDefs} from './emit-svg-core.ts';
 import {CONNECT_LABEL_SIZE, PALETTE, STRONG_STROKE} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
-import type {LaidOutConnect} from './types/containers.ts';
+import type {LaidOutConnect, ConnectBand} from './types/containers.ts';
 import type {Roles, Theme} from './types/core.ts';
 
 export function connectorSvgDefs(connects: readonly LaidOutConnect[], day: Theme, tones: ToneEnv): SvgBandDefs & {markers: string} {
@@ -51,3 +52,5 @@ export function renderConnect(c: LaidOutConnect, day: Theme, tones: ToneEnv, rol
   }
   return `${path}\n  <text x="${c.labelX}" y="${c.labelY}" text-anchor="middle" font-size="${(roles.connectLabel ?? CONNECT_LABEL_SIZE)}" fill="${color}">${escapeXml(c.label)}</text>`;
 }
+
+export const connectSpotlight: SpotlightHooks<ConnectBand, LaidOutConnect> = {endpoints: data => [data.from, data.to]};

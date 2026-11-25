@@ -9,13 +9,15 @@ import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {grid as buildGrid} from '../dsl/grid.ts';
 import {childTextSvgDefs} from '../emit-box-defs.ts';
-import {renderGrid} from '../emit-grid.ts';
+import {gridSpotlight, renderGrid} from '../emit-grid.ts';
 import {layoutGridBand} from '../layout-grid.ts';
 import type {GridBand, LaidOutGrid, GridOpts} from '../types/containers.ts';
 import type {BoxBand} from '../types/text-bands.ts';
 
 export const gridDefinition: BandDef<GridBand, LaidOutGrid> = {
   type: 'grid',
+  selfDimming: true,
+  spotlight: gridSpotlight,
   inventory: childBoxes,
   svgDefs: childTextSvgDefs,
   textSizes: childRuns,

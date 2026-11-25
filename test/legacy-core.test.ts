@@ -64,12 +64,26 @@ test('the core renders a legacy row of two boxes and their connector at the lega
   assert.ok(core.verdict.findings.some(finding => finding.rule === 'draft-status'));
 });
 
-test('the core reports unsupported diagram options and still draws at the supplied width', async () => {
+test('the core draws a legacy spotlight at the supplied width', async () => {
   const d = diagram({theme: 'blue', width: 640, spotlight: 'start'}).add(box({title: '開始', id: 'start'}));
   const core = await renderLegacyDiagramWithCore(d, {measure});
-  assert.deepEqual(core.unsupported, ['spotlight']);
+  assert.deepEqual(core.unsupported, []);
   assert.deepEqual(core.unsupported, unsupportedCoreOptions(d));
+  assert.equal(core.laidOut.laidOut[0]?.dim, false);
   assert.equal(core.width, d.width);
+});
+
+test('the core leaves notation from dimmed row children and edges out of the automatic legend', async () => {
+  const d = diagram({theme: 'blue', legend: 'auto', spotlight: {ids: 'choices#2', edges: 'between'}}).add(
+    row([box({id: 'other', title: '別案', tone: 'danger'}), box({id: 'main', title: '本案', tone: 'accent'})], {id: 'choices'}),
+    box({id: 'end', title: '完了'}),
+    connect('main', 'end', {line: 'dashed'}),
+  );
+  const legacy = await renderInBrowser(d, {measure});
+  const core = await renderLegacyDiagramWithCore(d, {measure});
+  const automatic = core.laidOut.bands.find(b => b.type === 'legend');
+  assert.deepEqual(automatic?.items, [{tone: 'accent', label: '強調'}]);
+  assert.equal(core.svg, legacy.svg);
 });
 
 test('the core draws the automatic legend with the legacy height and custom labels', async () => {

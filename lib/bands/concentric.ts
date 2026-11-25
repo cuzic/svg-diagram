@@ -1,3 +1,4 @@
+import {flowSpotlight} from '../emit-flow-shape.ts';
 import {concentricFindings} from '../verify-concentric.ts';
 import {overlappingFigureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
@@ -10,6 +11,8 @@ import type {ConcentricBand, ConcentricOpts, ConcentricRing, LaidOutFlowShape} f
 
 const definition = {
   type: 'concentric',
+  selfDimming: true,
+  spotlight: flowSpotlight,
   title: data => [2, data.centre ?? data.rings[0]?.label],
   textSizes: texts,
   ids: data => flowItemIds([...data.rings, ...data.sectors ?? [], ...data.marks ?? []]),

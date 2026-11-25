@@ -67,6 +67,7 @@ interface MeasureEnv {
 
 interface EmitEnv {
   readonly stage?: number;
+  readonly dimFill?: boolean;
   readonly theme: Theme;
   readonly roles: Roles;
   readonly tones: ToneEnv;
@@ -78,6 +79,7 @@ export interface VerifyCtx {
   readonly tones: ToneEnv;
   readonly appearance?: Appearance;
   readonly rcaCheck?: DiagramData['rcaCheck'];
+  readonly dimFill?: boolean;
   readonly connects: readonly {
     readonly fromId: string;
     readonly toId: string;
@@ -92,10 +94,29 @@ interface BandFinding {
   where?: string;
 }
 
+interface SpotlightFocus {
+  readonly ids: ReadonlySet<string>;
+  contains(rect: Rect): boolean;
+}
+
+export interface SpotlightHooks<D, L extends object> {
+  /** A placed band's own id is scoped, like the steps in a swimlane. */
+  scopedId?: true;
+  /** Placed parts addressed by an id, optionally restricted to connector endpoints. */
+  targets?(laid: L, id: string, endpoint: boolean): readonly Rect[];
+  /** Apply the spotlight to a placed band's internal parts. */
+  dim?(laid: L, focus: SpotlightFocus): void;
+  /** Pre-layout connector endpoints for the automatic legend. */
+  endpoints?(data: D): readonly [string, string];
+}
+
 interface BandHooks<D, L extends object> {
   type: string;
   readonly [EXTERNAL]?: true;
   emit(laid: L, env: EmitEnv): string;
+  /** The emitter draws its own dim state. */
+  selfDimming?: true;
+  spotlight?: SpotlightHooks<D, L>;
   svgDefs?(laid: L): SvgBandDefs;
   loopBackSource?(data: D): LoopBackSource | undefined;
   measure?(data: D, env: MeasureEnv): void;
@@ -151,6 +172,7 @@ interface InternalLayout<D> {
   decorateCaptions?(data: DiagramData): Band[];
   areasPrelayout?: typeof areasPrelayout;
   outputTypes?: readonly string[];
+  spotlightOutputs?: Readonly<Record<string, Pick<BandDef<never, object>, 'selfDimming' | 'spotlight'>>>;
   revealConnector?(placed: LaidOutConnect, ids: ReadonlyMap<string, {start: number; end?: number}>): LaidOutConnect;
   resolveConnect?: typeof resolveConnect;
   checkConnectionGeometry?: typeof checkConnectionGeometry;

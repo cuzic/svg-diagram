@@ -1,3 +1,4 @@
+import {flowSpotlight} from '../emit-flow-shape.ts';
 import {figureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
@@ -10,6 +11,8 @@ import type {FunnelBand, FunnelOpts, FunnelStage, LaidOutFlowShape} from '../flo
 
 const definition = {
   type: 'funnel',
+  selfDimming: true,
+  spotlight: flowSpotlight,
   title: data => [2, data.stages[0]?.label],
   textSizes: texts,
   ids: data => flowItemIds(data.stages),

@@ -10,6 +10,7 @@ import {timelineProblems} from '../verify-timeline.ts';
 
 const definition = {
   type: 'timeline',
+  selfDimming: true,
   offGrid: true,
   textSizes: texts,
   measure(data, {atoms, roles}) {

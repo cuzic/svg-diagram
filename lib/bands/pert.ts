@@ -1,3 +1,4 @@
+import {chartSpotlight, emitSpotlightChart} from '../emit-spotlight-chart.ts';
 import {edgeBendFindings} from '../verify-edge-bends.ts';
 import type {PertTask} from '../semnet-critical-path.ts';
 import {band} from '../band-def.ts';
@@ -6,16 +7,18 @@ import {layoutPert, pertTexts} from '../semnet-pert.ts';
 import type {PertOpts, PertSpec} from '../semnet-pert.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {pert as build} from '../dsl/pert.ts';
-import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  selfDimming: true,
+  spotlight: chartSpotlight,
   describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, pertTexts(data.spec as PertSpec)),
   layout: (data, env) => layoutSelectiveChart(data, env, geom => layoutPert(data.spec as PertSpec, geom)),
-  emit: emitChart,
+  emit: emitSpotlightChart,
   verify: {...verifyChart, diagramFindings: edgeBendFindings},
 } satisfies BandDef<ChartBand, LaidOutChart>;
 

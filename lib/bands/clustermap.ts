@@ -1,19 +1,22 @@
+import {chartSpotlight, emitSpotlightChart} from '../emit-spotlight-chart.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutCluster, clusterTexts} from '../charts-cluster.ts';
 import type {ClusterOpts, ClusterSpec} from '../charts-cluster.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {clustermap as buildClustermap} from '../dsl/clustermap.ts';
-import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  selfDimming: true,
+  spotlight: chartSpotlight,
   describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, clusterTexts(data.spec as ClusterSpec)),
   layout: (data, env) => layoutSelectiveChart(data, env, geom => layoutCluster(data.spec as ClusterSpec, geom)),
-  emit: emitChart,
+  emit: emitSpotlightChart,
   verify: verifyChart,
 } satisfies BandDef<ChartBand, LaidOutChart>;
 

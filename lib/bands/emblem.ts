@@ -1,3 +1,4 @@
+import {flowSpotlight} from '../emit-flow-shape.ts';
 import {emblemRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
@@ -9,6 +10,8 @@ import type {EmblemBand, EmblemOpts, EmblemItem, LaidOutFlowShape} from '../flow
 
 const definition = {
   type: 'emblem',
+  selfDimming: true,
+  spotlight: flowSpotlight,
   title: data => [2, data.items[0]?.label],
   textSizes: texts,
   ids: data => flowItemIds(data.items),

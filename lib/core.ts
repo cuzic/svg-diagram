@@ -6,6 +6,7 @@ import {canvasFindings} from './canvas-findings.ts';
 import {splitAtoms} from './atoms.ts';
 import {band, defOf, DEF, EXTERNAL, walkDefinedBands} from './band-def.ts';
 import {cloneData} from './clone-data.ts';
+import {applySpotlightWith, dimBandSvg, spotlightDim} from './emit-spotlight.ts';
 import {emitSvgWith} from './emit-svg-core.ts';
 import {analyzeFit} from './fit.ts';
 import type {layoutBoxLike} from './layout-box-like.ts';
@@ -47,6 +48,7 @@ type DrawOptions = {
   minEffectiveFont?: number;
   maxWidth?: number;
   legend?: DiagramData['legend'];
+  spotlight?: DiagramData['spotlight'];
   accept?: DiagramData['accept'];
   diagramFindings?: (diagram: LaidOutDiagram, stage: number, definitionOf: (band: LaidOutBand) => BandDef | undefined) => Finding[];
   diagramAcceptHint?: (rule: string) => string | undefined;
@@ -65,7 +67,7 @@ type DrawOptions = {
   layoutCheck?: DiagramData['layoutCheck'];
   legendLabels?: DiagramData['legendLabels'];
   /** @internal Append or extend a legend after generated connectors are present. */
-  addAutoLegend?: (bands: Band[], labels?: DiagramData['legendLabels']) => void;
+  addAutoLegend?: (diagram: DiagramData) => void;
   density?: DiagramData['density'];
   showTitle?: boolean;
   sourceLine?: string;
@@ -136,7 +138,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const data: DiagramData = {
     day: theme, medium: slide ? 'slide' : 'doc', width, maxWidth: opts.maxWidth, accept: opts.accept, legend: opts.legend, pad, gap,
     maxDisplayHeight: slide?.maxHeight, usableWidth: slide?.contentWidth, minEffectiveFont: opts.minEffectiveFont,
-    fill: fill === true, bands: source, title: opts.title, desc: opts.desc, wrap: opts.wrap, keepWords: opts.keepWords, tones, canvas,
+    fill: fill === true, spotlight: opts.spotlight, bands: source, title: opts.title, desc: opts.desc, wrap: opts.wrap, keepWords: opts.keepWords, tones, canvas,
     appearance: opts.appearance, transparent: opts.transparent, density: opts.density, ...(fitWidth ? {fitWidth: true} : {}),
     tocCheck: opts.tocCheck, rcaCheck: opts.rcaCheck, layoutCheck: opts.layoutCheck, legendLabels: opts.legendLabels,
   };
@@ -154,7 +156,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       .map(link => band(connector, link))];
   });
   data.bands = expandLoopBacks(source);
-  if (opts.legend === 'auto') opts.addAutoLegend?.(data.bands, opts.legendLabels);
+  if (opts.legend === 'auto') opts.addAutoLegend?.(data);
   if (opts.showTitle && opts.title || opts.sourceLine !== undefined) {
     const captions = opts.captions;
     if (!captions?.internal || !captions.decorateCaptions) {
@@ -221,6 +223,10 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   }
   for (const input of data.bands) collect(input);
   const placedDefinition = (band: LaidOutBand) => definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
+  const spotlightDefinition = (band: LaidOutBand) => {
+    const def = placedDefinition(band);
+    return def?.internal ? def.spotlightOutputs?.[band.type] ?? def : def;
+  };
   const connection = definitions.get('connect');
   const layout = createLayoutWith({
     offGrid: data => defOf(data)?.offGrid === true,
@@ -290,9 +296,10 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const revealConnector = connection?.internal ? connection.revealConnector : undefined;
   if (revealConnector) placed.connects = placed.connects.map(connector => revealConnector(connector, ids));
   for (const check of endpointChecks) check(ids, scopeTable, revealWarnings);
+  if (placed.spotlight) applySpotlightWith(placed, band => spotlightDefinition(band)?.spotlight, scopeTable);
   const stage = opts.stage ?? last;
   const ink = toneEnv(tones);
-  const ctx = {theme, tones: ink, appearance: placed.appearance, rcaCheck: placed.rcaCheck, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
+  const ctx = {theme, tones: ink, dimFill: spotlightDim(placed) === 'fill', appearance: placed.appearance, rcaCheck: placed.rcaCheck, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
   const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => placedDefinition(band)?.verify?.targets?.(band as never) ?? ('h' in band ? [band] : []));
   const bandFindings = inputChecks.flatMap(check => check(ctx));
   if (!canvas) {
@@ -341,7 +348,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     },
     // Layout findings are computed once and shared by both colour schemes.
     mergeFindingSides: light => [...light],
-    hasMutedBox: () => false,
+    hasMutedBox: figure => walkDefinedBands(figure.bands).some(band => band.type === 'box' && band.tone === 'muted'),
     checkFigures: figure => {
       const issues: Issue[] = [], warnings: string[] = [];
       for (const band of leaves(figure)) {
@@ -353,11 +360,14 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
       return {issues, warnings: [...revealWarnings, ...warnings]};
     },
   }, placed);
-  const emitEnv = {theme, roles, tones: ink, color: (key: Parameters<typeof colorOf>[0]) => colorOf(key, theme), stage};
+  const emitEnv = {theme, roles, tones: ink, color: (key: Parameters<typeof colorOf>[0]) => colorOf(key, theme), stage, dimFill: ctx.dimFill};
   const emit = (figure: LaidOutDiagram, noRecolor = false, description = opts.desc) => emitSvgWith({
     connectorDefs: connection?.internal ? connection.connectorDefs : undefined,
     defsNeeded: band => placedDefinition(band)?.svgDefs?.(band as never) ?? {},
-    renderBand: band => must(placedDefinition(band)).emit(band as never, emitEnv),
+    renderBand: band => {
+      const svg = must(placedDefinition(band)).emit(band as never, emitEnv);
+      return band.dim && !spotlightDefinition(band)?.selfDimming ? dimBandSvg(svg) : svg;
+    },
     renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
     diagramTitle: diagram => definedDiagramTitle(diagram, stage),
     diagramDesc: diagram => description ?? joinBandDescriptions(walkDefinedBands(diagram.bands)
@@ -365,7 +375,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
         const part = visibleAt(band, stage) ? defOf(band)?.describe?.(band, stage) : undefined;
         return part ? [part] : [];
       })),
-    spotlightDim: () => 'outline',
+    spotlightDim,
   }, figure, {reveal: stage, noRecolor});
   return {placed, stage, verdict, emit, fit, fontScale};
 }

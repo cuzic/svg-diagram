@@ -1,5 +1,7 @@
+import {anchoredSpotlightTarget} from './emit-spotlight.ts';
+import type {SpotlightHooks} from './band-def.ts';
 import {PALETTE, colorOf} from './tokens.ts';
-import type {LaidOutBars} from './types/bars.ts';
+import type {LaidOutBars, BarsBand} from './types/bars.ts';
 import type {Theme, ColorKey} from './types/core.ts';
 import {visibleAt} from './reveal-visibility.ts';
 import {emojiSpan} from './emit-common.ts';
@@ -39,3 +41,14 @@ export function renderBars(b: LaidOutBars, day: Theme, stage?: number, dimFill =
   }
   return out.join('\n  ');
 }
+
+export const barsSpotlight: SpotlightHooks<BarsBand, LaidOutBars> = {
+  targets: anchoredSpotlightTarget,
+  dim(laid, focus) {
+    if (focus.contains(laid)) return;
+    for (const bar of laid.bars) bar.dim = !focus.contains(bar);
+    for (const text of laid.texts) if (text.bar !== undefined) text.dim = must(laid.bars[text.bar]).dim;
+    // The axis dims only when no bar is lit.
+    laid.dim = laid.bars.every(bar => bar.dim);
+  },
+};

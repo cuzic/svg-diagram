@@ -1,19 +1,22 @@
+import {chartSpotlight, emitSpotlightChart} from '../emit-spotlight-chart.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutSankey, sankeyTexts} from '../charts-sankey.ts';
 import type {SankeyOpts, SankeySpec, SankeyNode, SankeyLink} from '../charts-sankey.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {sankey as build} from '../dsl/sankey.ts';
-import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  selfDimming: true,
+  spotlight: chartSpotlight,
   describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, sankeyTexts(data.spec as SankeySpec)),
   layout: (data, env) => layoutSelectiveChart(data, env, geom => layoutSankey(data.spec as SankeySpec, geom)),
-  emit: emitChart,
+  emit: emitSpotlightChart,
   verify: verifyChart,
 } satisfies BandDef<ChartBand, LaidOutChart>;
 

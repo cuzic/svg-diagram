@@ -11,6 +11,7 @@ import {cloudProblems, cloudRects} from '../verify-cloud.ts';
 
 const definition = {
   type: 'cloud',
+  selfDimming: true,
   textSizes: band => [...sizesOf(band.texts), ...sizesOf(band.chips)],
   ids: data => (['a', 'b', 'c', 'd', 'd2'] as const).flatMap(key => {
     const item = data[key];

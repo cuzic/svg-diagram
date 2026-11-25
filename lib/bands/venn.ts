@@ -1,3 +1,4 @@
+import {flowSpotlight} from '../emit-flow-shape.ts';
 import {overlappingFigureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
@@ -9,6 +10,8 @@ import type {VennBand, VennOpts, VennSet, LaidOutFlowShape} from '../flow-shapes
 
 const definition = {
   type: 'venn',
+  selfDimming: true,
+  spotlight: flowSpotlight,
   title: data => [2, data.sets.map(set => set.label ?? set.name).join('・')],
   textSizes: texts,
   ids: data => flowItemIds(data.sets),

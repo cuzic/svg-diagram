@@ -1,3 +1,4 @@
+import {flowSpotlight} from '../emit-flow-shape.ts';
 import {chevronLoopBack} from '../loop-back-source.ts';
 import {figureRects} from '../verify-rects.ts';
 import {texts} from '../band-text-sizes.ts';
@@ -10,6 +11,8 @@ import type {ChevronBand, ChevronOpts, FlowStep, LaidOutFlowShape} from '../flow
 
 const definition = {
   type: 'chevron',
+  selfDimming: true,
+  spotlight: flowSpotlight,
   loopBackSource: chevronLoopBack,
   title: data => [2, data.steps[0]?.label],
   textSizes: texts,

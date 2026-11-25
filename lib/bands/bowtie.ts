@@ -13,6 +13,7 @@ import {bowtieRects} from '../verify-bowtie-rects.ts';
 
 const definition = {
   type: 'bowtie',
+  selfDimming: true,
   textSizes: texts,
   measure(data, {atoms, roles}) {
     for (const [text, size, weight, font] of bowtieMeasure(data, roles)) atoms(text, size, weight, font);

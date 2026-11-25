@@ -1,7 +1,9 @@
+import {anchoredSpotlightTarget} from './emit-spotlight.ts';
+import type {SpotlightHooks} from './band-def.ts';
 import {PALETTE, colorOf, toneStyle} from './tokens.ts';
 import type {ToneEnv} from './tokens.ts';
 import type {Theme} from './types/core.ts';
-import type {LaidOutQuadrant} from './quadrant.ts';
+import type {LaidOutQuadrant, QuadrantBand} from './quadrant.ts';
 import {snap4, escapeAttr, emojiSpan} from './emit-common.ts';
 
 import {must} from './must.ts';
@@ -51,3 +53,16 @@ export function renderQuadrant(b: LaidOutQuadrant, day: Theme, tones: ToneEnv): 
   }
   return out.join('\n  ');
 }
+
+export const quadrantSpotlight: SpotlightHooks<QuadrantBand, LaidOutQuadrant> = {
+  targets: anchoredSpotlightTarget,
+  dim(laid, focus) {
+    if (focus.contains(laid)) return;
+    for (const anchor of laid.anchors) {
+      const bubble = laid.bubbles.find(b => b.id === anchor.id);
+      if (bubble) bubble.dim = !focus.contains(anchor);
+    }
+    for (const bubble of laid.bubbles) if (bubble.dim === undefined) bubble.dim = true;
+    laid.dim = laid.bubbles.every(b => b.dim);
+  },
+};

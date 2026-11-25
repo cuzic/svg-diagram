@@ -1,19 +1,22 @@
+import {chartSpotlight, emitSpotlightChart} from '../emit-spotlight-chart.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {layoutCompare, compareTexts} from '../charts-compare.ts';
 import type {CompareCell, CompareOpts, CompareSpec} from '../charts-compare.ts';
 import type {ChartBand, LaidOutChart} from '../charts.ts';
 import {compare as build} from '../dsl/compare.ts';
-import {describeChart, chartIds, emitChart, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
+import {describeChart, chartIds, layoutSelectiveChart, measureChart, verifyChart} from '../selective-chart.ts';
 
 const definition = {
   type: 'chart',
+  selfDimming: true,
+  spotlight: chartSpotlight,
   describe: describeChart,
   textSizes: band => [band.size],
   ids: chartIds,
   measure: (data, env) => measureChart(data, env, compareTexts(data.spec as CompareSpec)),
   layout: (data, env) => layoutSelectiveChart(data, env, geom => layoutCompare(data.spec as CompareSpec, geom)),
-  emit: emitChart,
+  emit: emitSpotlightChart,
   verify: verifyChart,
 } satisfies BandDef<ChartBand, LaidOutChart>;
 

@@ -16,6 +16,7 @@ import {anchorRects} from '../verify-rects.ts';
 
 export const statesDefinition: BandDef<StatesBand, LaidOutStates> = {
   type: 'states',
+  selfDimming: true,
   textSizes: textsAndLabels,
   ids: data => data.states.map(item => item.id),
   measure(data, {atoms, roles}) {

@@ -6,7 +6,7 @@ import {captionRects, duplicateTitleFindings, sourceLineFindings} from '../verif
 import {band, defOf, walkDefinedBands} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {caption as buildCaption} from '../dsl/caption.ts';
-import {renderCaption} from '../emit-caption.ts';
+import {captionSpotlight, renderCaption} from '../emit-caption.ts';
 import {layoutBoxLike, layoutBoxLikeBand} from '../layout-box-like.ts';
 import {styledAtoms, textRuns} from '../layout-text.ts';
 import type {CaptionBand, CaptionOpts, LaidOutCaption, RichText} from '../types/text-bands.ts';
@@ -14,6 +14,8 @@ import {boxLikeContrastProblems} from '../verify-box-like.ts';
 
 export const captionDefinition: BandDef<CaptionBand, LaidOutCaption> = {
   type: 'caption',
+  selfDimming: true,
+  spotlight: captionSpotlight,
   textSizes: ownRunSizes,
   inventory: captionItems,
   svgDefs: textSvgDefs,

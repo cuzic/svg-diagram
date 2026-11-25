@@ -11,6 +11,7 @@ import {treeRects} from '../verify-tree.ts';
 
 const definition = {
   type: 'tree',
+  selfDimming: true,
   textSizes: texts,
   internal: true,
   layout: layoutTree,

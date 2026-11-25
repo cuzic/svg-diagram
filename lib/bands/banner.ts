@@ -13,6 +13,7 @@ import {boxLikeContrastProblems} from '../verify-box-like.ts';
 
 export const bannerDefinition: BandDef<BannerBand, LaidOutBanner> = {
   type: 'banner',
+  selfDimming: true,
   textSizes: ownRunSizes,
   fillTextSize: (data, roles) => fillTextSize(roles, data.headlineRole),
   inventory: boxItems,

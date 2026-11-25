@@ -4,7 +4,7 @@ import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import type {quadrant as legacy} from '../dsl/figures.ts';
 import {withHandle} from '../dsl/shared.ts';
-import {renderQuadrant} from '../emit-quadrant.ts';
+import {quadrantSpotlight, renderQuadrant} from '../emit-quadrant.ts';
 import {layoutQuadrant, quadrantBand, quadrantTexts} from '../quadrant.ts';
 import type {LaidOutQuadrant, QuadrantBand, QuadrantItem, QuadrantOpts, QuadrantPreset} from '../quadrant.ts';
 import {scopeOf} from '../scope-name.ts';
@@ -13,6 +13,8 @@ import {quadrantFindings, quadrantLayoutFindings, quadrantProblems} from '../ver
 
 const definition = {
   type: 'quadrant',
+  selfDimming: true,
+  spotlight: quadrantSpotlight,
   offGrid: true,
   textSizes: texts,
   ids: data => data.items.flatMap(item => item.id ? [item.id] : []),
