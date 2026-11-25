@@ -6,18 +6,18 @@
 
 ## 一本化(ADR 0080 D13)
 
-- [ ] S1: `core` に従来の経路だけが持つ機能を移す(`width: 'fit'`、スライドの予算と fill・文字倍率の探索、`diagram({status})`、spotlight、`fit` の報告、配置結果)。検査の欠け(帯ごとの矩形、reveal の警告、`draft-status`)を埋める。
+- [x] S1: `core` に従来の経路だけが持つ機能を移す(`width: 'fit'`、スライドの予算と fill・文字倍率の探索、`diagram({status})`、spotlight、`fit` の報告、配置結果)。検査の欠け(帯ごとの矩形、reveal の警告、`draft-status`)を埋める。
   - [x] 帯ごとの重なり検査の矩形を従来の検査表の全 43 種と一致させ、chevron の手順への接続線の誤検出を解消(`5c352d74`)。
   - [x] 接続線の reveal・until の警告と `draft-status` の所見(`931f040d`)。
   - [x] `width: 'fit'`、`fit` の報告、`fontScale`、配置結果(`b0078a01`)。
   - [x] スライドの予算と `fill` を数値で受け取り、倍率の探索を `core` で行う(Q21。`c1aab8f4`)。
-  - [ ] spotlight を帯の定義の hook で扱う(Q20)。実装とレビューは済み、`fill` との衝突の解消を取り込み待ち。
-  - [ ] spotlight と `fill` の処理を、使う構成だけが渡す形にする(今は全構成で約 5 KB 増える)。
-- [ ] S2: 全部入りの入口(`renderDiagram`、`checkDiagram`、`renderInBrowser`、全部入りの `renderSpec`)を `core` で描き、golden を作り直す。`comic` に帯の定義を作る。
+  - [x] spotlight を帯の定義の hook で扱う(Q20。`d48e5d90`)。
+  - [x] spotlight と `fill` を、使う構成だけが渡す形にする(`svg-diagram/spotlight` の `spotlighter`、`svg-diagram/slide-fill` の `slideFitter`。`e0dd1067`)。
+- [x] S2: 全部入りの入口(`renderDiagram`、`checkDiagram`、`renderInBrowser`、全部入りの `renderSpec`)を `core` で描き、golden を作り直す。`comic` に帯の定義を作る。
   - [x] 従来のビルダーの図に帯の定義を付けて `core` で描く内部関数と、全作例の差の報告(`scripts/core-parity-report.ts`)。従来の設定と所見(自動凡例、`gray-tone-collision`、`legend-missing`、`aspect-tall` ほか)を揃え、spotlight の 8 作例を除く 186 作例が同一(`885ce0f5`、`9038f8c9`)。spotlight を取り込むと 194 作例すべて同一の見込み(Codex の報告)。
   - [x] `comic` の帯の定義を完成させ、`svg-diagram/bands/comic` を公開。マンガとブラウザの測定器の束は esbuild 84,056 バイト、Vite 101,371 バイト(`e40963b8`)。
-  - [ ] 全部入りの入口を `core` に切り替える。
-- [ ] S3: 全部入りの HTML・PPTX を帯ごとのアダプターで組み立て、全帯の出力の表を消す。PPTX の golden を作り直す。
+  - [x] `renderInBrowser`・`renderDiagram`・`checkDiagram`(と、それを通る spec・デッキ・PPTX)を帯の定義の経路に切り替え。194 作例の SVG・HTML と、PPTX の edge の 65 部品 × 3 設定のスライド XML が切り替え前と一致。golden 不変。`./browser` は 1,058,814 → 1,033,536 バイト(`917a6a85`)。
+- [ ] S3: 全部入りの HTML・PPTX を帯ごとのアダプターで組み立て、全帯の出力の表を消す。PPTX の golden を作り直す。(S2 で出力は変わらなかったため、PPTX の golden の作り直しは不要の見込み。全帯の出力の表は S4 と一緒に消す)
 - [ ] S4: 全帯の表と `withLegacyTables` を消し、`.type === '<リテラル>'` の検査を有効にする。
 - [ ] S5: MCP・VS Code 拡張・デッキの作例で新しい版を確かめ、破壊的変更として版を上げる。
 
