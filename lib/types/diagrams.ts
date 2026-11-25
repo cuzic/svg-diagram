@@ -1,7 +1,7 @@
 // Types: tree, states, cause / cloud (TOC), classes and bpmn.
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
-import type {Anchor, Dimmed, EmphasisTone, FocusOpts, RcaInfo, Rect, RevealOpts, ScopeOpts, TextTone} from './core.ts';
+import type {Anchor, Dimmed, EmphasisTone, FocusOpts, RcaInfo, Rect, RevealOpts, ScopeOpts, TagTone, TextTone} from './core.ts';
 import type {BoxTone} from './text-bands.ts';
 import type {Band} from './index.ts';
 import type {GanttText} from './timeline.ts';
@@ -23,6 +23,8 @@ export interface TreeItem {
   focusLit?: true;
   /** On a child of a band node: the id of a part inside the parent's band (a chevron's step ...). The line to this child leaves from that part: its two ends on the near side to the two ends of this node's near side (a funnel), instead of the middle of the parent's edge to the middle of the child's. */
   from?: string;
+  /** ADR 0081: the look of the line that joins this item to its parent. Leaving it out keeps the plain muted solid line. Not on the root, a `from` child, or in the brace / fishbone / timeline layouts. */
+  edge?: {tone?: TagTone; line?: 'solid' | 'dashed' | 'dotted'};
 }
 export interface TreeOpts extends RevealOpts, ScopeOpts {
   /** 'down' (default): levels run top to bottom. 'right': left to right, which fits more siblings in a narrow figure.
@@ -418,7 +420,7 @@ export interface LaidOutTree extends Rect, Dimmed {
   until?: number;
   nodes: (Rect & {tone: EmphasisTone; id?: string; /** ADR 0034 */ dataNode?: string; /** A band node: the tree draws no box or text for it; the band is laid out in its rectangle. */ band?: true; /** ADR 0054: the index of its parent (none for the root) */ parent?: number})[];
   /** Parent to child, each a polyline (centre line of the box edge to the child's box edge); `curve` draws it as a smooth S, `bold` as a spine. */
-  edges: {points: {x: number; y: number}[]; curve?: 'x' | 'y'; bold?: boolean; /** ADR 0054: the indexes (into `nodes`) of its parent and child; the same for a node's own line (a bone, a brace's stub) */ from?: number; to?: number; /** A line to a lit node of a `focus` tree: drawn in the accent colour. */ lit?: true; /** The index (in treeItems order) of the child this line leads to; only in a tree that has a `from`. */ child?: number; /** A funnel line comes with the later of its child band and its parent band. */ reveal?: number; until?: number}[];
+  edges: {points: {x: number; y: number}[]; curve?: 'x' | 'y'; bold?: boolean; /** ADR 0054: the indexes (into `nodes`) of its parent and child; the same for a node's own line (a bone, a brace's stub) */ from?: number; to?: number; /** A line to a lit node of a `focus` tree: drawn in the accent colour. */ lit?: true; /** The index (in treeItems order) of the child this line leads to; only in a tree that has a `from`. */ child?: number; /** ADR 0081: what the item's own last segment looks like, when it is not the plain muted solid line. */ style?: {tone: TagTone; line: 'solid' | 'dashed' | 'dotted'}; /** ADR 0081: what the segments shared with the siblings look like, when it differs from `style` (none: the same as `style`). */ trunk?: {tone: TagTone; line: 'solid' | 'dashed' | 'dotted'}; /** A funnel line comes with the later of its child band and its parent band. */ reveal?: number; until?: number}[];
   /** brace maps: a `{` over the children of one parent. */
   braces?: {x: number; y1: number; y2: number; ymid: number; tipX: number; side: 'right' | 'left'; /** ADR 0054: the index of the parent it gathers the children of */ of?: number}[];
   texts: TreeNodeText[];

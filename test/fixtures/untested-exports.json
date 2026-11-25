@@ -221,7 +221,6 @@
   "emit-swimlane:renderSwimlane",
   "emit-table:renderTable",
   "emit-timeline:renderTimeline",
-  "emit-tree:renderTree",
   "emit-wireframe:renderPrims",
   "figure-metrics:basicExtentOf",
   "figure-metrics:contentExtent",

@@ -11,6 +11,7 @@ import type {LaidOutTree, TreeBand, TreeItem, TreeNodeText} from './types/diagra
 import type {Band} from './types/index.ts';
 
 import {must} from './must.ts';
+import {assignEdgeStyles, hasStyledEdge} from './tree-edge-style.ts';
 const PAD_X = 14, PAD_Y = 8, MIN_W = 88, GAP = 24, LEVEL_GAP = 44;
 
 /** Every item of a tree in drawing order (a parent before its children). */
@@ -121,10 +122,13 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     if (band.sides && kind !== 'radial') throw new Error(`mindmap(): sides applies to the radial layout (this is layout: '${kind}')`);
     const styled = band.edges !== undefined && band.edges !== 'elbow' && band.edges !== false;
     if (styled && !['radial', 'right', 'left', 'down', 'up'].includes(kind)) throw new Error(`mindmap(): edges: '${band.edges}' applies to the radial, right, left, down and up layouts (this is layout: '${kind}')`);
-    const grown = (dir: 'down' | 'right'): TreeLayout => layoutTree(laidRoot, {dir, gap: Math.round(GAP * (env.space ?? 1)), levelGap: Math.round(LEVEL_GAP * (env.space ?? 1))});
-    const raw: TreeLayout = kind === 'radial' ? layoutBalanced(laidRoot, {gap: Math.round(GAP * (env.space ?? 1)), levelGap: Math.round(LEVEL_GAP * (env.space ?? 1)), sides})
+    // ADR 0081 D2: a tree with a styled line widens the segment that is the item's alone to 24px or more (a tree without one is laid out as before)
+    const wide = hasStyledEdge(items);
+    const levelGap = wide ? Math.max(Math.round(LEVEL_GAP * (env.space ?? 1)), 48) : Math.round(LEVEL_GAP * (env.space ?? 1));
+    const grown = (dir: 'down' | 'right'): TreeLayout => layoutTree(laidRoot, {dir, gap: Math.round(GAP * (env.space ?? 1)), levelGap});
+    const raw: TreeLayout = kind === 'radial' ? layoutBalanced(laidRoot, {gap: Math.round(GAP * (env.space ?? 1)), levelGap, sides})
       : kind === 'right' ? grown('right') : kind === 'left' ? mirror(grown('right'), 'x') : kind === 'down' ? grown('down') : kind === 'up' ? mirror(grown('down'), 'y')
-      : kind === 'org' ? layoutHanging(laidRoot, {rowFirst: true}) : kind === 'list' ? layoutHanging(laidRoot)
+      : kind === 'org' ? layoutHanging(laidRoot, wide ? {rowFirst: true, indent: 38, rowTop: laidRoot.size.h + 46, bus: true} : {rowFirst: true}) : kind === 'list' ? layoutHanging(laidRoot, wide ? {indent: 38} : {})
       : kind === 'brace' ? layoutBrace(laidRoot) : kind === 'fishbone' ? layoutFishbone(laidRoot) : layoutTimelineMap(laidRoot);
     // the line style: straight or smooth instead of the elbow (the first and last point of each line, the smooth one along the way the tree grows)
     const along: 'x' | 'y' = kind === 'down' || kind === 'up' ? 'y' : 'x';
@@ -162,6 +166,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
   const funnels = items.some(n => n.from !== undefined);
   const ends = (e: {from: string; to: string}) => ({...(indexOf.has(e.from) ? {from: must(indexOf.get(e.from))} : {}), ...(indexOf.has(e.to) ? {to: must(indexOf.get(e.to))} : {})});
   for (const e of tree.edges) out.edges.push({points: e.points.map(p => ({x: p.x + dx, y: p.y + dy})), ...ends(e), ...(e.curve ? {curve: e.curve} : {}), ...(e.bold ? {bold: true} : {}), ...(band.focused && indexOf.has(e.to) && items[must(indexOf.get(e.to))]?.focusLit ? {lit: true as const} : {}), ...(funnels && indexOf.has(e.to) ? {child: must(indexOf.get(e.to))} : {})});
+  assignEdgeStyles(out.edges, e => e.to === undefined ? undefined : items[e.to], band.focused === true);
   if (tree.braces?.length) out.braces = tree.braces.map(({of, ...b}) => ({...b, x: b.x + dx, tipX: b.tipX + dx, y1: b.y1 + dy, y2: b.y2 + dy, ymid: b.ymid + dy, ...(of !== undefined && indexOf.has(of) ? {of: must(indexOf.get(of))} : {})}));
   return out;
 }

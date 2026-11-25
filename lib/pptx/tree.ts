@@ -6,7 +6,8 @@ import {assembleParts, type Geo, type Piece} from './parts-group.ts';
 import {partStep} from '../parts.ts';
 import {linesText} from './prims.ts';
 import {namedAs} from './prims.ts';
-import {PALETTE, colorOf} from '../tokens.ts';
+import {PALETTE} from '../tokens.ts';
+import {compareEdgeOrder, edgeStrokes} from '../tree-edge-style.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutTree} from '../types/diagrams.ts';
 import {fitConnector, siteIndex, type Pt} from './geom.ts';
@@ -65,10 +66,11 @@ export function treeXml(b: LaidOutTree, ld: LaidOutDiagram, tones: ToneEnv, font
   const pathOf = (i: number | undefined): string[] => i === undefined ? [] : branches[i]?.path ?? [];
   const pieces: Piece[] = [];
   const add = (xml: string, geo: Geo, path: string[], text = false) => pieces.push({order: pieces.length, xml, geo, part: path, ...(text ? {text} : {})});
-  for (const e of b.edges.toSorted((p, q) => Number(p.lit ?? 0) - Number(q.lit ?? 0))) {
+  for (const e of b.edges.toSorted(compareEdgeOrder)) {
     const a = e.points[0], z = e.points[e.points.length - 1];
     if (!a || !z) continue;
-    const color = e.lit && !b.dim ? colorOf('accent', ld.day) : PALETTE.muted;
+    // one connector in the item's own look (ADR 0081 D2); the segments shared with the siblings are not drawn apart in pptx
+    const {own: stroke} = edgeStrokes(e, b.dim, ld.day, tones), color = stroke.color, dashOpts = {...(stroke.line === 'dashed' ? {dashed: true} : {}), ...(stroke.line === 'dotted' ? {dotted: true} : {})};
     const width = e.bold ? 4 : 2;
     const from = nodeAt(nodes, a), to = nodeAt(nodes, z);
     const start: Glue | undefined = from && {id: from.id, idx: siteIndex(from.rect, a, '')};
@@ -80,8 +82,8 @@ export function treeXml(b: LaidOutTree, ld: LaidOutDiagram, tones: ToneEnv, font
     const geo: Geo = {kind: 'poly', pts: route, w: width};
     if (fit.ok) {
       const x = e.curve ? {...fit.x, prst: fit.x.prst.replace('bentConnector', 'curvedConnector')} : fit.x;
-      add(connectorShapeXml(id, 'line', x, color, width, start, end), geo, pathOf(e.from));
-    } else add(freeformPathXml(id, 'line', e.points.map((p, i) => ({op: i ? 'L' : 'M', pts: [p]})), color, width), geo, pathOf(e.from));
+      add(connectorShapeXml(id, 'line', x, color, width, start, end, dashOpts), geo, pathOf(e.from));
+    } else add(freeformPathXml(id, 'line', e.points.map((p, i) => ({op: i ? 'L' : 'M', pts: [p]})), color, width, dashOpts), geo, pathOf(e.from));
   }
   for (const br of b.braces ?? []) {
     const s = br.side === 'right' ? 1 : -1, r = 8, {x, tipX: xt, y1, y2, ymid: ym} = br;

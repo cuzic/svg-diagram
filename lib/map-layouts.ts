@@ -24,7 +24,7 @@ export function mirror(t: TreeLayout, axis: 'x' | 'y'): TreeLayout {
  * (an outline). With `rowFirst` the root's children stand side by side under the root, each with its own list below (an org chart
  * whose lower levels are lists).
  */
-export function layoutHanging(root: TreeNode, opts: {rowFirst?: boolean; gap?: number; indent?: number; rowGap?: number} = {}): TreeLayout {
+export function layoutHanging(root: TreeNode, opts: {rowFirst?: boolean; gap?: number; indent?: number; rowGap?: number; rowTop?: number; bus?: boolean} = {}): TreeLayout {
   const vgap = opts.gap ?? 12, indent = opts.indent ?? 28, colGap = opts.rowGap ?? 28;
   const seen = new Set<string>(), nodes = new Map<string, Placed>(), edges: TreeLayout['edges'] = [];
   /** places `n` at (x, y) and its descendants below; returns the bottom edge and the right edge used */
@@ -44,7 +44,7 @@ export function layoutHanging(root: TreeNode, opts: {rowFirst?: boolean; gap?: n
   if (!opts.rowFirst) { const r = list(root, 0, 0); return {nodes, edges, w: r.right, h: r.bottom}; }
   const kids = root.children ?? [];
   dup(seen, root.id);
-  const rowTop = root.size.h + 44;
+  const rowTop = opts.rowTop ?? root.size.h + 44;
   let cx = 0, h = rowTop;
   const cols: {id: string; x: number; w: number}[] = [];
   for (const k of kids) {
@@ -64,7 +64,7 @@ export function layoutHanging(root: TreeNode, opts: {rowFirst?: boolean; gap?: n
   for (const c of cols) {
     const ccx = c.x + c.w / 2;
     // a child 1-4px off the root's centre would get a 1-4px step in its bus line: drop straight from the root at the child's own x instead
-    if (ccx !== rcx && Math.abs(ccx - rcx) <= 4 && ccx >= rootL && ccx <= rootR) { edges.push({from: root.id, to: c.id, points: [{x: ccx, y: root.size.h}, {x: ccx, y: rowTop}]}); continue; }
+    if (!opts.bus && ccx !== rcx && Math.abs(ccx - rcx) <= 4 && ccx >= rootL && ccx <= rootR) { edges.push({from: root.id, to: c.id, points: [{x: ccx, y: root.size.h}, {x: ccx, y: rowTop}]}); continue; }
     edges.push({from: root.id, to: c.id, points: [{x: rcx, y: root.size.h}, {x: rcx, y: bus}, {x: ccx, y: bus}, {x: ccx, y: rowTop}]});
   }
   return {nodes, edges, w: Math.max(w + shift, rootX + shift + root.size.w), h};
