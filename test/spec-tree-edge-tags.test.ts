@@ -53,11 +53,15 @@ test('edge and tags errors say where they are', () => {
   const at = 'parts[0].root.children[0]';
   const one = (child: Record<string, unknown>, extra: Record<string, unknown> = {}) => issues({...extra, root: {label: 'r', children: [{label: 'c', ...child}]}});
   assert.deepEqual(issues({root: {label: 'r', edge: {tone: 'accent'}}}).map(s => s.split(':')[0]), ['parts[0].root.edge']);
-  assert.match(issues({root: {label: 'r', edge: {}}})[0]!, /根.*edge は書けません/);
+  // the root takes no edge: the schema says so (one source of truth), with the known fields in the message
+  assert.match(issues({root: {label: 'r', edge: {}}})[0]!, /^parts\[0\]\.root\.edge: is not a known field \(known: .*tags/);
   assert.match(one({edge: {}}, {edges: false})[0]!, new RegExp(`^${at.replace(/[[\]]/g, '\\$&')}\\.edge: .*edges: false`));
   for (const layout of ['brace', 'fishbone', 'timeline']) assert.match(one({edge: {line: 'dashed'}}, {layout})[0]!, new RegExp(`\\.children\\[0\\]\\.edge: .*layout: '${layout}' では使えません`));
   for (const layout of ['radial', 'right', 'left', 'down', 'up', 'org', 'list']) assert.deepEqual(one({edge: {}}, {layout}), [], layout);
   assert.match(one({tags: ['東京タワー・スカイツリー展']})[0]!, /^parts\[0\]\.root\.children\[0\]\.tags\[0\]: 札「.*」は 13 文字です/);
+  // a blank tag: the schema's message is what the user gets (the part's check() does not run when the schema has issues)
+  assert.deepEqual(one({tags: ['  ']}), [`${at}.tags[0]: must not be empty`]);
+  assert.deepEqual(one({tags: [{text: '　', tone: 'accent'}]}), [`${at}.tags[0].text: must not be empty`]);
   assert.match(one({tags: ['ok', {text: '　 ', tone: 'accent'}]})[0]!, /^parts\[0\]\.root\.children\[0\]\.tags\[1\]\.text: /);
   assert.deepEqual(one({tags: ['あいうえおかきく', '😀😀😀😀😀😀😀😀', 'abc']}), []);
   assert.match(one({tags: ['a', 'b', 'c', 'd']})[0]!, /^parts\[0\]\.root\.children\[0\]\.tags: /);
@@ -74,7 +78,7 @@ test('the schema of other parts does not change: only a mind map takes edge and 
   const tree = partCatalog().find(p => p.type === 'tree')!;
   assert.deepEqual(tree.schema.properties?.['root'], treeItem(MAX_TREE_DEPTH));
   assert.doesNotMatch(JSON.stringify(tree), /"edge"|"tags"/);
-    assert.match(JSON.stringify(partCatalog().find(p => p.type === 'mindmap')!.schema), /"edge".*"tags"/);
+  assert.match(JSON.stringify(partCatalog().find(p => p.type === 'mindmap')!.schema), /"edge".*"tags"/);
   assert.match(JSON.stringify(partCatalog().find(p => p.type === 'mindmap')!.schema), /"maxLength":16/);
   const bad = validateSpec({version: 1, title: '例', parts: [{type: 'tree', root: {label: 'r', children: [{label: 'c', edge: {}}]}}]})[0]!;
   assert.equal(bad.path, 'parts[0].root.children[0].edge');

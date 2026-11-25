@@ -4179,32 +4179,6 @@
                 "solid-danger"
               ]
             },
-            "edge": {
-              "type": "object",
-              "properties": {
-                "tone": {
-                  "type": "string",
-                  "enum": [
-                    "accent",
-                    "muted",
-                    "danger"
-                  ],
-                  "description": "The colour of the line to the parent (default muted): accent for a pro, danger for a con."
-                },
-                "line": {
-                  "type": "string",
-                  "enum": [
-                    "solid",
-                    "dashed",
-                    "dotted"
-                  ],
-                  "description": "The line to the parent (default solid)."
-                }
-              },
-              "required": [],
-              "additionalProperties": false,
-              "description": "How the line from the parent to this node looks. Not on the root, and not with edges: false or layout brace, fishbone or timeline."
-            },
             "tags": {
               "type": "array",
               "items": {
@@ -4213,7 +4187,6 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 16,
-                    "description": "A tag (8 characters at most).",
                     "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                     "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
                   },
@@ -4224,7 +4197,6 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 16,
-                        "description": "The tag (8 characters at most).",
                         "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                         "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
                       },
@@ -4306,7 +4278,7 @@
                     },
                     "required": [],
                     "additionalProperties": false,
-                    "description": "How the line from the parent to this node looks. Not on the root, and not with edges: false or layout brace, fishbone or timeline."
+                    "description": "How the line from the parent to this node looks. Not with edges: false or layout brace, fishbone or timeline."
                   },
                   "tags": {
                     "type": "array",
@@ -4327,7 +4299,7 @@
                               "type": "string",
                               "minLength": 1,
                               "maxLength": 16,
-                              "description": "The tag (8 characters at most).",
+                              "description": "A tag (8 characters at most).",
                               "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                               "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
                             },
@@ -4394,8 +4366,7 @@
                                 "accent",
                                 "muted",
                                 "danger"
-                              ],
-                              "description": "The colour of the line to the parent (default muted): accent for a pro, danger for a con."
+                              ]
                             },
                             "line": {
                               "type": "string",
@@ -4403,13 +4374,11 @@
                                 "solid",
                                 "dashed",
                                 "dotted"
-                              ],
-                              "description": "The line to the parent (default solid)."
+                              ]
                             }
                           },
                           "required": [],
-                          "additionalProperties": false,
-                          "description": "How the line from the parent to this node looks. Not on the root, and not with edges: false or layout brace, fishbone or timeline."
+                          "additionalProperties": false
                         },
                         "tags": {
                           "type": "array",
@@ -4419,7 +4388,6 @@
                                 "type": "string",
                                 "minLength": 1,
                                 "maxLength": 16,
-                                "description": "A tag (8 characters at most).",
                                 "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                                 "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
                               },
@@ -4430,7 +4398,6 @@
                                     "type": "string",
                                     "minLength": 1,
                                     "maxLength": 16,
-                                    "description": "The tag (8 characters at most).",
                                     "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                                     "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
                                   },
@@ -4497,8 +4464,7 @@
                                       "accent",
                                       "muted",
                                       "danger"
-                                    ],
-                                    "description": "The colour of the line to the parent (default muted): accent for a pro, danger for a con."
+                                    ]
                                   },
                                   "line": {
                                     "type": "string",
@@ -4506,13 +4472,11 @@
                                       "solid",
                                       "dashed",
                                       "dotted"
-                                    ],
-                                    "description": "The line to the parent (default solid)."
+                                    ]
                                   }
                                 },
                                 "required": [],
-                                "additionalProperties": false,
-                                "description": "How the line from the parent to this node looks. Not on the root, and not with edges: false or layout brace, fishbone or timeline."
+                                "additionalProperties": false
                               },
                               "tags": {
                                 "type": "array",
@@ -4522,7 +4486,6 @@
                                       "type": "string",
                                       "minLength": 1,
                                       "maxLength": 16,
-                                      "description": "A tag (8 characters at most).",
                                       "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                                       "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
                                     },
@@ -4533,7 +4496,6 @@
                                           "type": "string",
                                           "minLength": 1,
                                           "maxLength": 16,
-                                          "description": "The tag (8 characters at most).",
                                           "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                                           "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
                                         },
@@ -4600,8 +4562,7 @@
                                             "accent",
                                             "muted",
                                             "danger"
-                                          ],
-                                          "description": "The colour of the line to the parent (default muted): accent for a pro, danger for a con."
+                                          ]
                                         },
                                         "line": {
                                           "type": "string",
@@ -4609,13 +4570,11 @@
                                             "solid",
                                             "dashed",
                                             "dotted"
-                                          ],
-                                          "description": "The line to the parent (default solid)."
+                                          ]
                                         }
                                       },
                                       "required": [],
-                                      "additionalProperties": false,
-                                      "description": "How the line from the parent to this node looks. Not on the root, and not with edges: false or layout brace, fishbone or timeline."
+                                      "additionalProperties": false
                                     },
                                     "tags": {
                                       "type": "array",
@@ -4625,7 +4584,6 @@
                                             "type": "string",
                                             "minLength": 1,
                                             "maxLength": 16,
-                                            "description": "A tag (8 characters at most).",
                                             "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                                             "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
                                           },
@@ -4636,7 +4594,6 @@
                                                 "type": "string",
                                                 "minLength": 1,
                                                 "maxLength": 16,
-                                                "description": "The tag (8 characters at most).",
                                                 "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                                                 "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
                                               },

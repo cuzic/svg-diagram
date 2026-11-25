@@ -151,12 +151,12 @@ export const PART_EN: Record<string, Json> = {
   quadrant: {sizeLegend: 'Bubble area = size'},
 };
 
-/** `extra` (ADR 0081 D7): more fields of every item, which the mind map gives (`edge` and `tags`); it lives in the mind map's file so other parts' bundles do not carry it. Other parts' trees are the same as before. */
-export const treeItem = (levels: number, extra?: () => Record<string, JsonSchema>): JsonSchema => object({
+/** `extra` (ADR 0081 D7): more fields of every item, which the mind map gives (`edge` and `tags`, by the levels left: none on the root); it lives in the mind map's file so other parts' bundles do not carry it. Other parts' trees are the same as before. */
+export const treeItem = (levels: number, extra?: (levels: number) => Record<string, JsonSchema>): JsonSchema => object({
   label: text('The text of the node.'),
   sub: text('A second, muted line.'),
   tone: EMPHASIS_TONE,
-  ...(extra ? extra() : {}),
+  ...(extra ? extra(levels) : {}),
   ...(levels > 0 ? {children: list(treeItem(levels - 1, extra), 12)} : {}),
 }, ['label']);
 export const flowSteps = (min: number, max: number): JsonSchema => list(object({label: text('The step.', 40), sub: text('A second, muted line.', 60), tone: EMPHASIS_TONE}, ['label']), max, min);
