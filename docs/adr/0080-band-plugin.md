@@ -355,6 +355,8 @@ const rating = pluginBands(ratingDemo);   // コアが構築関数を作る(loca
 
 `.type === '<リテラル>'` が**帯のフォルダとコア所有の帯の外にある**ことを禁じる検査(grep のテスト)を、M7 で有効にする。それまでは、残っている数を PR ごとに減らす。
 
+**実装(S4b-2)**: `test/band-type-literals.test.ts` が `lib/**/*.ts`(`lib/bands/` を除く)の `.type === '…'`・`!==`・`switch (….type)` の `case '…':` を数え、許可したファイルの一覧(各行に理由)と、ファイルごとの上限(ラチェット)と照らす。一覧に無いファイルに出る、または上限を超えると落ち、上限より減ったのに一覧を直さなくても落ちる(減らす PR が上限も下げる)。理由は 5 種類: 帯の種類ではない(Markdown のトークンなど)、1 つの帯・図の族を実装するモジュール、特定の帯を組み立てる構築関数・composer、コア所有の帯とコアの本体、**負債**(帯の定義の hook に移すべき横断の分岐。`legacy-core.ts`・`legend-notation.ts`・`layout-metrics.ts`・`diagram-summary.ts` ほか)。新しい hook として `nameNodes`(`data-node` の名前づけ。`emit-node-ids.ts` の種類の `switch` を置き換えた)と `locations`(位置の地図の枠・項目の矩形・名指しの無い錨。`locations-map.ts` の分岐を置き換えた)を足した。どちらも信頼できる定義だけが持てる(外部の帯は `BandError`)。
+
 ### D3. 入口とパッケージの構成 — 中核、帯ごと、出力形式、バックエンド
 
 **推奨(Q4)**: `package.json` の `exports` に入口を足し、**`"sideEffects": false`** を入れる(今は指定なし)。既存の入口は**互換のため残す**(全部入り)。
