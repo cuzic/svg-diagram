@@ -128,7 +128,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
     const grown = (dir: 'down' | 'right'): TreeLayout => layoutTree(laidRoot, {dir, gap: Math.round(GAP * (env.space ?? 1)), levelGap});
     const raw: TreeLayout = kind === 'radial' ? layoutBalanced(laidRoot, {gap: Math.round(GAP * (env.space ?? 1)), levelGap, sides})
       : kind === 'right' ? grown('right') : kind === 'left' ? mirror(grown('right'), 'x') : kind === 'down' ? grown('down') : kind === 'up' ? mirror(grown('down'), 'y')
-      : kind === 'org' ? layoutHanging(laidRoot, wide ? {rowFirst: true, indent: 38, rowTop: laidRoot.size.h + 46} : {rowFirst: true}) : kind === 'list' ? layoutHanging(laidRoot, wide ? {indent: 38} : {})
+      : kind === 'org' ? layoutHanging(laidRoot, wide ? {rowFirst: true, indent: 38, rowTop: laidRoot.size.h + 46, bus: true} : {rowFirst: true}) : kind === 'list' ? layoutHanging(laidRoot, wide ? {indent: 38} : {})
       : kind === 'brace' ? layoutBrace(laidRoot) : kind === 'fishbone' ? layoutFishbone(laidRoot) : layoutTimelineMap(laidRoot);
     // the line style: straight or smooth instead of the elbow (the first and last point of each line, the smooth one along the way the tree grows)
     const along: 'x' | 'y' = kind === 'down' || kind === 'up' ? 'y' : 'x';

@@ -185,3 +185,60 @@ test('hasStyledEdge, isOnePath, compareEdgeOrder: the small rules', () => {
   const pt = [{x: 0, y: 0}, {x: 1, y: 1}], plain = {points: pt}, styled = {points: pt, style: DEF as never}, lit = {points: pt, lit: true as const};
   assert.deepEqual([lit, styled, plain].toSorted(compareEdgeOrder), [plain, styled, lit]);
 });
+
+test('org, m1: with any edge, a root child near the root centre gets the 4-point bus and joins the shared drop; without edge it keeps the 2-point line', async () => {
+  const kids = (edge: boolean): TreeItem => ({label: '本部', children: [{label: 'ア', id: 'a', ...(edge ? {edge: {line: 'dashed'}} : {})}, {label: 'イ', id: 'b'}, {label: 'ウウウウウ', id: 'c', ...(edge ? {edge: {line: 'dashed'}} : {})}]});
+  const styled = (await place(mindmap(kids(true), {layout: 'org'}))).t;
+  assert.equal(edgeTo(styled, 'b').points.length, 4, 'the middle child uses the bus');
+  assert.deepEqual(edgeTo(styled, 'b').trunk, undefined, 'it differs from the dashed pair, so the trunk is the default and it has no own style');
+  assert.deepEqual(edgeTo(styled, 'a').trunk, DEF, 'the shared drop is plain (a mixed group)');
+  const plain = (await place(mindmap(kids(false), {layout: 'org'}))).t;
+  assert.equal(edgeTo(plain, 'b').points.length, 2, 'no edge: today\'s 2-point line');
+});
+
+test('draw order: the pptx lines are default, styled, lit (a lit line is over the trunk it shares)', async () => {
+  const {treeXml} = await import('../lib/pptx/tree.ts');
+  const pts = (x: number) => [{x, y: 20}, {x, y: 40}, {x: x + 20, y: 40}, {x: x + 20, y: 60}];
+  const nodes = [{x: 0, y: 0, w: 40, h: 20, tone: 'plain' as const}, {x: 0, y: 60, w: 40, h: 20, tone: 'plain' as const, parent: 0}];
+  const laidTree: LaidOutTree = {type: 'tree', x: 0, y: 0, w: 200, h: 200, nodes, texts: [], anchors: [], labelBoxes: [], edges: [
+    {points: pts(0), from: 0, to: 1, lit: true},
+    {points: pts(50), from: 0, to: 1, style: {tone: 'danger', line: 'dashed'}},
+    {points: pts(100), from: 0, to: 1},
+  ]};
+  let n = 1;
+  const xml = treeXml(laidTree, {day: 'blue'} as never, {styles: {}} as never, {} as never, () => n++).xml;
+  const at = (s: string): number => xml.indexOf(s);
+  const plainAt = at(PALETTE.muted.slice(1).toUpperCase()), dashAt = at('prstDash val="dash"'), litAt = at(colorOf('accent', 'blue').slice(1).toUpperCase());
+  assert.ok(plainAt >= 0 && dashAt >= 0 && litAt >= 0, 'all three lines are found');
+  assert.ok(plainAt < dashAt && dashAt < litAt, `order ${plainAt} ${dashAt} ${litAt}`);
+});
+
+test('focus: unlit siblings that are all dashed still share a plain solid trunk', async () => {
+  const items: TreeItem = {label: '根', children: [{label: 'ア', id: 'a', children: [{label: 'ア1', id: 'a1'}]}, {label: 'イ', id: 'b', children: [{label: 'イ1', id: 'b1', edge: {line: 'dashed'}}, {label: 'イ2', id: 'b2', edge: {line: 'dashed'}}]}]};
+  const {t} = await place(mindmap(items, {layout: 'right', focus: 'a1'}));
+  assert.deepEqual(edgeTo(t, 'b1').trunk, DEF);
+  assert.deepEqual(edgeTo(t, 'b2').trunk, DEF);
+  assert.deepEqual(edgeTo(t, 'b1').style, {tone: 'muted', line: 'dashed'});
+});
+
+test('renderTree: a curve and a 2-point line that are dim and dashed are one whole path each, never a stub', async () => {
+  const {renderTree} = await import('../lib/emit-tree.ts');
+  const node = {x: 0, y: 0, w: 40, h: 20, tone: 'plain' as const};
+  const style = {tone: 'danger' as const, line: 'dashed' as const};
+  const laid: LaidOutTree = {type: 'tree', x: 0, y: 0, w: 200, h: 200, dim: true, nodes: [node], texts: [], anchors: [], labelBoxes: [], edges: [
+    {points: [{x: 20, y: 20}, {x: 80, y: 80}], from: 0, to: 0, curve: 'y', style},
+    {points: [{x: 20, y: 20}, {x: 120, y: 80}], from: 0, to: 0, style},
+  ]};
+  const ps = renderTree(laid, 'blue', {styles: {}} as never).match(/<path d="[^"]*"/g) ?? [];
+  assert.equal(ps.length, 2, 'one path per line');
+  assert.match(ps[0]!, / C/);
+  assert.match(ps[1]!, /M\d+,\d+ L\d+,\d+"/);
+});
+
+test('errors, m4: an unknown key in edge is rejected (one line, what and how to fix), also from mindmap() without the tree() prefix', () => {
+  const one = (e: unknown) => { assert.ok(!(e as Error).message.includes('\n')); return (e as Error).message; };
+  assert.throws(() => tree({label: 'r', children: [{label: 'a', edge: {color: 'red'} as never}]}), e => /edge に color は書けません.*tone と line/.test(one(e)) && one(e).startsWith('tree():'));
+  assert.throws(() => mindmap({label: 'r', children: [{label: 'a', edge: {style: 'dashed'} as never}]}), e => /edge に style は書けません/.test(one(e)) && one(e).startsWith('mindmap():'));
+  assert.throws(() => mindmap({label: 'r', children: [{label: 'a', edge: {tone: 'bogus' as never}}]}), e => one(e).startsWith('mindmap():') && /edge\.tone が bogus/.test(one(e)));
+  assert.throws(() => mindmap({label: 'r', edge: PRO}), e => one(e).startsWith('mindmap():'));
+});

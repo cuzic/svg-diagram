@@ -60,13 +60,13 @@ export interface TreeItem {
 | right / left | `lib/graph-layout.ts:78-80`（left は `mirror`、`lib/map-layouts.ts:15-19`） | `[a, (mid,a.y), (mid,b.y), b]` | 1 区間目と、x=mid の縦の親寄り | `levelGap/2`（22px。compact 16.5px） |
 | down / up | 同上（up は `mirror`） | `[a, (a.x,mid), (b.x,mid), b]` | 1 区間目と、y=mid の横の同じ側 | 同上 |
 | radial | 根の子 `lib/graph-layout.ts:131-136`、その下 `:138-141` | `[a, (m,a.y), (m,b.y), b]` | **左右それぞれ**の兄弟だけ | 同上 |
-| org | 根 → 子 `lib/map-layouts.ts:62-68`、その下は list と同じ `:39` | 4 点（バス）、または 2 点（根の中心から 4px 以内の子 `:67`） | 縦の下り口と、バスの rcx の左右それぞれ。2 点の線は何も共有しない | 根の子 22px、その下 14px |
+| org | 根 → 子 `lib/map-layouts.ts:62-68`、その下は list と同じ `:39` | 4 点（バス）。`edge` が 1 つでもある木は根の子を常に 4 点にする（`edge` の無い木だけ、根の中心から 4px 以内の子が 2 点 `:67`） | 縦の下り口と、バスの rcx の左右それぞれ | 根の子 22px、その下 14px |
 | list | `lib/map-layouts.ts:39` | 3 点 `[(x+14,y+h), (x+14,cy), (cx,cy)]` | 1 区間目（縦の柱） | `indent - 14` = 14px |
 | `straight` / `curve` | `lib/tree.ts:132` | 2 点 | なし | 線全体 |
 
 規則:
 
-- **同じ幹の組**（round 2 M1）: 配置の名前ではなく形で決める。**同じ親を持ち、点列の最初の点（`points[0]`）が同じ枝**が 1 つの組。2 点の枝と、`from`（漏斗）の子の枝は組に入れない（round 2 m2）。これで radial は左右で別の組（`points[0]` が違う。`lib/graph-layout.ts:134`）、org の根の子はバスの左右を通して 1 つの組（下り口を共有する）、list・right・down は親ごとに 1 組になる。org でバスの左右の見た目を分けることは v1 ではしない。
+- **同じ幹の組**（round 2 M1）: 配置の名前ではなく形で決める。**同じ親を持ち、点列の最初の点（`points[0]`）が同じ枝**が 1 つの組。2 点の枝と、`from`（漏斗）の子の枝は組に入れない（round 2 m2）。org の根の子は、2 点にすると共有する下り口の 2.5px 横を走って幹が二重に見えるので、`edge` が 1 つでもある木では 2 点の近道を使わず、常に 4 点のバスにして組に入れる（PR #464 round 1 m1）。`edge` の無い木は今までどおり（出力は変わらない）。これで radial は左右で別の組（`points[0]` が違う。`lib/graph-layout.ts:134`）、org の根の子はバスの左右を通して 1 つの組（下り口を共有する）、list・right・down は親ごとに 1 組になる。org でバスの左右の見た目を分けることは v1 ではしない。
 - **見た目 S と T**（round 2 M2）: 各枝について、その項目だけの区間の見た目 S と、共有区間の見た目 T を決める（`focus` / `dim` があるときは後の表で上書きする）。
   - S = その項目の正規化した `edge`。
   - T = 組の全員の S が同じならその S、1 つでも違えば既定（muted の実線）。組に入らない枝（2 点・`from`）は T = S。
