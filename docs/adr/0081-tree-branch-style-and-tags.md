@@ -1,6 +1,6 @@
 # ADR 0081: 木（`tree` / `mindmap`）の枝ごとの線の見た目と、項目の札
 
-- 状態: **決定**（Opus レビュー round 1 の B1・M1〜M8・m1〜m9、round 2 の M1〜M4・m1〜m10、round 3 の m1〜m7 を反映。round 3 で Blocker・Major なし（収束）。決める人の答え Q1〜Q3 を反映）
+- 状態: **決定**（Opus レビュー round 1 の B1・M1〜M8・m1〜m9、round 2 の M1〜M4・m1〜m10、round 3 の m1〜m7 を反映。round 3 で Blocker・Major なし（収束）。決める人の答え Q1〜Q3 を反映）。U1（`edge`）は実装済み（PR 待ち）
 - 日付: 2026-11-25
 - 基点: `main`（377c61d6。ADR 0080 D13 まで）
 - 関連: ADR 0045（`svg-diagram/browser`、`renderInBrowser`）、ADR 0049（帯のノード）、ADR 0029（`keepWords`）、ADR 0027 / 0054（PPTX）、ADR 0069（`partCatalog`）、ADR 0071（JSON Schema）、ADR 0080（帯の定義、tree shaking、D2b の `.type ===` ラチェット）

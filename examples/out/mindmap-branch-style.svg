@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="376" viewBox="0 0 940 376" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">導入するか(賛成と反対の枝)</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/mindmap-branch-style.ts","sourceSha256":"964e1b0b8ae211934cdc8cac682293aba1dabad75291019674fa04130436faee"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="376" fill="#ffffff"/>
+
+  <path d="M568,248 L592,248 L592,280 L616,280" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M368,188 L392,188 L392,68" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M392,68 L416,68" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M528,68 L572,68 L572,40 L616,40" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M528,68 L572,68 L572,100 L616,100" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M368,188 L392,188 L392,160" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M392,160 L416,160" fill="none" stroke="#1d5fa8" stroke-width="2"/>
+  <path d="M368,188 L392,188 L392,248" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M392,248 L416,248" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M568,248 L592,248 L592,220" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M592,220 L616,220" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4"/>
+  <path d="M368,188 L392,188 L392,340" fill="none" stroke="#6f6659" stroke-width="2"/>
+  <path d="M392,340 L416,340" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6,4"/>
+  <rect x="172" y="160" width="196" height="56" rx="8" fill="#dce9f7" stroke="#1d5fa8" stroke-width="2.5"/>
+  <rect x="416" y="52" width="112" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="616" y="20" width="156" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="616" y="80" width="156" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="416" y="140" width="140" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="416" y="232" width="152" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="616" y="200" width="140" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="616" y="260" width="128" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="416" y="320" width="140" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="268" y="182" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">新しい勤怠システムを導入</text>
+  <text x="268" y="202" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5fa8">するか</text>
+  <text x="470" y="72" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">費用が下がる</text>
+  <text x="693" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">保守費が半分になる</text>
+  <text x="693" y="102" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">紙の集計がなくなる</text>
+  <text x="484" y="162" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">現場の手間が減る</text>
+  <text x="491" y="252" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">移行に時間がかかる</text>
+  <text x="686" y="222" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">教育の時間が要る</text>
+  <text x="679" y="282" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">旧データの整理</text>
+  <text x="484" y="342" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">契約の縛りが長い</text>
+</svg>

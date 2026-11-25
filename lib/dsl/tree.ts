@@ -1,6 +1,7 @@
 import {resolveFocus} from '../focus.ts';
 import type {AnchorsOf, Declares, HandleOf} from '../strict.ts';
 import {treeItems} from '../tree.ts';
+import type {TagTone} from '../types/core.ts';
 import type {TreeBand, TreeItem, TreeOpts, MindmapOpts} from '../types/diagrams.ts';
 import {revealOf, scopeOpt, TREE_TONES, withAnchors, withHandle} from './shared.ts';
 import type {TreeIds} from './shared.ts';
@@ -16,6 +17,7 @@ import type {TreeIds} from './shared.ts';
  * focused: 'solid'; under a focused node, or on the path from one up to the root: 'accent'; anywhere else: 'muted'.
  * A band node keeps its own look (it takes no tone). The input tree is not changed.
  */
+const EDGE_TONES: readonly string[] = ['accent', 'muted', 'danger'], EDGE_LINES: readonly string[] = ['solid', 'dashed', 'dotted'];
 function focusTree(root: TreeItem, focus: string | readonly string[], who: string): TreeItem {
   const items = treeItems(root);
   const hit = resolveFocus(focus, items.map(n => n.id), who);
@@ -41,6 +43,15 @@ export function tree(root: TreeItem, opts: TreeOpts = {}): TreeBand {
   if (opts.edges !== undefined && opts.edges !== false) throw new Error(`tree(): edges can only be false (no lines); got ${String(opts.edges)}`);
   const usedBands = new Set<object>();
   const walk = (n: TreeItem, parent?: TreeItem): void => {
+    if (n.edge !== undefined) {
+      const who = `"${n.label}"`, e = n.edge as {tone?: unknown; line?: unknown} | null;
+      if (!parent) throw new Error(`tree(): 根(${who})に edge は書けません(親がありません)。edge を消して、子の項目に書いてください`);
+      if (typeof e !== 'object' || e === null || Array.isArray(e)) throw new Error(`tree(): ${who} の edge は {tone?, line?} の形で書いてください`);
+      if (e.tone !== undefined && !EDGE_TONES.includes(e.tone as TagTone)) throw new Error(`tree(): ${who} の edge.tone が ${String(e.tone)} です。${EDGE_TONES.join(' / ')} のどれかにしてください`);
+      if (e.line !== undefined && !EDGE_LINES.includes(e.line as string)) throw new Error(`tree(): ${who} の edge.line が ${String(e.line)} です。${EDGE_LINES.join(' / ')} のどれかにしてください`);
+      if (opts.edges === false) throw new Error(`tree(): ${who} の edge は edges: false では描く線がないので使えません。edge を消すか、edges: false を外してください`);
+      if (n.from !== undefined) throw new Error(`tree(): ${who} は from を持つので edge は使えません(漏斗の線は元の線を作り直します)。edge か from のどちらかを消してください`);
+    }
     if (n.from !== undefined) {
       if (typeof n.from !== 'string' || !n.from) throw new Error(`tree(): "${n.label}": from is the id of a part inside the parent's band`);
       if (!parent) throw new Error(`tree(): the root has no parent, so "${n.label}" takes no from`);
@@ -77,6 +88,10 @@ export function mindmap(root: TreeItem, opts: MindmapOpts = {}): TreeBand {
   if (opts.edges !== undefined && opts.edges !== false && !['elbow', 'curve', 'straight'].includes(opts.edges)) throw new Error(`mindmap(): edges must be elbow | curve | straight | false (got ${String(opts.edges)})`);
   const band = tree(opts.focus === undefined ? root : focusTree(root, opts.focus, 'mindmap()'), {...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...revealOf(opts)});
   if (opts.edges === false) for (const n of treeItems(root)) if (n.from !== undefined) throw new Error(`mindmap(): "${n.label}": from draws a line, and edges: false draws none`);
+  const edged = treeItems(root).filter(n => n.edge !== undefined);
+  const noEdgeLayout = ['brace', 'fishbone', 'timeline'].find(l => l === opts.layout);
+  if (edged[0] && noEdgeLayout) throw new Error(`mindmap(): "${edged[0].label}" の edge は layout: '${noEdgeLayout}' では使えません。edge を消すか、layout: 'right' などにしてください`);
+  if (edged[0] && opts.edges === false) throw new Error(`mindmap(): "${edged[0].label}" の edge は edges: false では描く線がないので使えません。edge を消すか、edges: false を外してください`);
   Object.assign(band, {balanced: true, ...(opts.focus === undefined ? {} : {focused: true}), ...(opts.sides ? {sides: opts.sides} : {}), ...(opts.layout ? {layout: opts.layout} : {}), ...(opts.edges !== undefined ? {edges: opts.edges} : {})});
   return band as never;
 }
