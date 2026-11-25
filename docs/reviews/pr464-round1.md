@@ -27,6 +27,7 @@ None (round 1).
 ### m3 (Minor): `examples/out/pptx-golden.json` has no entry for the new example, so the D8 PPTX check fails as specified
 - Evidence: `test/helpers/pptx/golden.ts` exits 1 on `new (not in the manifest): mindmap-branch-style`. So `gh workflow run pptx-golden.yml -f update=false` (ADR D8) reports a failure even though every existing hash is unchanged (verified locally, 194/194).
 - Fix: run the workflow with `update=true` on this branch and commit the one added hash.
+- Update: commit 9adf369d, pushed while this review was in progress, adds the `mindmap-branch-style` hash. That appears to resolve m3; confirm it in round 2.
 
 ### m4 (Minor): unknown keys in `edge` are silently ignored
 - Evidence: `tree({label:'r', children:[{label:'a', edge:{color:'red'}}]})` does not throw and draws a plain line (`lib/dsl/tree.ts:46-54` checks only `tone` and `line`). A user who writes `color` (or `style`, or `dash`) gets the default line with no message.
