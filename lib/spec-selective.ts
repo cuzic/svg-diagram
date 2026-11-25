@@ -132,7 +132,8 @@ function prepareSpec(input: unknown, options: PrepareOptions) {
     sourceLine, canvas, legend: doc.legend, desc: desc ?? (lang === 'en' ? title : undefined), connectors}};
 }
 
-function specFindings(terms?: SpecProject['terms']): Pick<RenderOptions, 'diagramFindings' | 'diagramAcceptHint'> {
+/** Document findings (mid-word breaks, terms, page-level checks) for `renderSpec`: spread into its options to opt in, `renderSpec(spec, {parts, measure, ...specFindings()})`. */
+export function specFindings(terms?: SpecProject['terms']): Pick<RenderOptions, 'diagramFindings' | 'diagramAcceptHint'> {
   return {
     diagramFindings: (diagram, stage) => [...midWordFindings(diagram), ...termFindings(diagram.bands, terms), ...documentFindings(diagram, stage)],
     diagramAcceptHint: rule => rule === 'term-variant' || rule === 'term-avoid' || rule === 'text-mid-word-break' ? findingAcceptanceHint(rule) : documentAcceptHint(rule),
@@ -171,6 +172,7 @@ export function prepareSpecLayout(input: unknown, options: PrepareOptions & {pro
   };
 }
 
-export async function renderSpec(input: unknown, options: PartOptions & Pick<RenderOptions, 'measure' | 'captions'>) {
-  return prepareSpecRender(input, options)(options.measure);
+export async function renderSpec(input: unknown, options: PartOptions & Pick<RenderOptions, 'measure' | 'captions' | 'diagramFindings' | 'diagramAcceptHint'>) {
+  const {diagramFindings, diagramAcceptHint} = options;
+  return prepareSpecRender(input, options, {diagramFindings, diagramAcceptHint})(options.measure);
 }

@@ -472,3 +472,14 @@ test("legend: 'auto' without autoLegend names what to pass", async () => {
   const input = {version: 1, title: 'Plan', parts: [stepsPart.example]};
   assert.throws(() => prepareSpecLayout(input, {parts: [stepsPart], project: {legend: 'auto'}}), /legend: 'auto' needs autoLegend from svg-diagram\/bands\/legend/);
 });
+
+test('renderSpec reports document findings only when the caller passes specFindings', async () => {
+  const {specFindings} = await import('../lib/spec-selective.ts');
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const input = {version: 1, title: 'vc', width: 480, legend: false, parts: [valueChainPart.example]};
+  const plain = await renderSpec(input, {measure, parts: [valueChainPart]});
+  const checked = await renderSpec(input, {measure, parts: [valueChainPart], ...specFindings()});
+  const has = (r: typeof plain) => r.verdict.findings.some(f => f.rule === 'text-mid-word-break');
+  assert.equal(has(plain), false);
+  assert.equal(has(checked), true);
+});
