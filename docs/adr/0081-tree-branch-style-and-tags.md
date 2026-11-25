@@ -102,7 +102,7 @@ export interface TreeItem {
 
 - **置き場所**: 箱の中の最上段に、札を横に並べた 1 行（中央寄せ）。その下に `label`、`sub` が続く。
 - **大きさ**（round 2 M4）: 文字の大きさ `f = roles.tag ?? 14`、`s = f / 14` として、札の高さ `round(24s)`、ベースラインは札の上端から `round(17s)`、左右の余白 `round(8s)`、札の間 `round(6s)`、札の行の下 `round(4s)`、`rx` は高さの半分。札 1 つの幅 = 文字の幅（`f`、太字 700 で測る）+ 2 × 左右の余白。キャンバス（`canvas: 'slide'` など）で文字が大きくなっても、札からはみ出さない。箱の内側の高さは札の行（高さ + 下の余白）だけ増える。箱の幅は `札の行の幅 + 2 × PAD_X（14）` より狭くならない（広げるだけ。エラーにしない。round 1 M6）。`box` の札の同じ問題（`TAG_H` 固定）は範囲外。
-- **検査は DSL で 1 回だけ**（round 1 M6）: 空文字、9 文字以上（**コードポイントで数える** `[...text].length`。round 2 m5）、4 つ以上、`tone` が `TagTone` でない、はエラー（`tree()` / `mindmap()` の検査。幅合わせの試行の中では投げない）。札の行が広くて図が収まらないときは、今の「収まらない」エラーと同じ経路で報告される。
+- **検査は DSL で 1 回だけ**（round 1 M6）: 空文字（空白だけの札も空文字と同じくエラー。ラベルの `!label.trim()` と同じ規則で、U3 の `check()` も同じ規則にする）、9 文字以上（**コードポイントで数える** `[...text].length`。round 2 m5）、4 つ以上、`tone` が `TagTone` でない、はエラー（`tree()` / `mindmap()` の検査。幅合わせの試行の中では投げない）。札の行が広くて図が収まらないときは、今の「収まらない」エラーと同じ経路で報告される。
 - **色**（形は `pillSvg`。縁なし）:
 
   | 箱 | 札の塗り | 札の文字 |
@@ -114,7 +114,7 @@ export interface TreeItem {
 
   複数の行に当てはまるときは、上から `dim` → 項目の `tone` が `muted` → 同じ色（反転）→ ふつう の順で先に当てはまる行を使う（round 3 m2）。反転は「解決した色が同じか」で決め、tone の名前では決めない。`a11y-text-contrast` は v1 では木の札を検査しない（今は `box` の札だけ。`lib/legacy-core.ts:123-128`。足すなら `lib/bands/tree.ts` の hook で）。
 - **描く順**（round 2 m8）: 箱の `rect` → 札の `rect` と `text` → 項目の文字。札の `rect` に `data-node` は付けない（札は飾り。項目を選ぶのは箱の `rect`）。
-- **持ち方**（round 1 M5）: 札の行の高さは `NodeLines` の省略できる `tagRowH`（既定 0）に持ち、`nodeRuns` は本文をその下から置く（`states()` など `tagRowH` を持たない呼び出しは今と同じ。round 3 m7）。札は `LaidOutTree.texts` に入れない。`LaidOutTree.nodes[i].tags?: {text, tone, x, y, w, h}[]` に置く（SVG の `ink()`、PPTX の `nodeRunsOf` が、箱の中の文字を箱の本文として扱うため）。`measureNode` には省略できる `opts.tags` を足すだけで、他の部品（`states` / `bpmn` / `fta` / `toc` / `cloud` / `bowtie` / `flow-nodes`）の呼び方と出力は変えない。札の文字は `treeTexts` で測る対象に入れる（`svgMeasurer` でも同じ）。
+- **持ち方**（round 1 M5）: 札の行の高さは `NodeLines` の省略できる `tagRowH`（既定 0）に持ち、`nodeRuns` は本文をその下から置く（`states()` など `tagRowH` を持たない呼び出しは今と同じ。round 3 m7）。札は `LaidOutTree.texts` に入れない。`LaidOutTree.nodes[i].tags?: {text, tone, x, y, w, h, size, baseline}[]` に置く（`size` と `baseline` は、emit が `roles` を持たないので配置のときに持たせる）（SVG の `ink()`、PPTX の `nodeRunsOf` が、箱の中の文字を箱の本文として扱うため）。`measureNode` には省略できる `opts.tags` を足すだけで、他の部品（`states` / `bpmn` / `fta` / `toc` / `cloud` / `bowtie` / `flow-nodes`）の呼び方と出力は変えない。札の文字は `treeTexts` で測る対象に入れる（`svgMeasurer` でも同じ）。
 - **PPTX**（round 2 M3・round 3 m5）: 木だけの関数で、角丸の図形（`roundRect`、角の丸みは高さの半分 = `adj` 50000）を、その項目の箱の**後**に、同じグループに入れる。文字は上下中央（`anchor="ctr"`）。塗りと文字の色は上の表と同じ（`boxBadge` は箱の tone で塗るので使わない。`lib/pptx/box-band.ts:21`。`boxBadge` と `box` の PPTX は変えない）。文字の大きさは、木の項目の文字と同じ px → pt の換算で `f` を換算する。
 
 ### D5: 説明文と凡例（round 1 B1・m6）

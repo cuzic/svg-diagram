@@ -35,9 +35,12 @@ export function renderTree(b: LaidOutTree, day: Theme, tones: ToneEnv, stage?: n
     out.push(`<path d="M${x + s * r},${y1} Q${x},${y1} ${x},${y1 + r} V${ym - r} Q${x},${ym} ${xt},${ym} Q${x},${ym} ${x},${ym + r} V${y2 - r} Q${x},${y2} ${x + s * r},${y2}" fill="none" stroke="${PALETTE.muted}" stroke-width="2"/>`);
   }
   for (const n of b.nodes) if (!n.band) out.push(renderBoxRect({...n, dim: b.dim}, day, tones, 'plain')); // a band node is drawn by its own band
-  for (const n of b.nodes) for (const t of n.tags ?? []) { // a tag is decoration: no data-node, so the box's own rect is what selects the node
-    const c = treeTagColors(n.tone, t.tone, b.dim, day, tones), g = {x: snap4(t.x), y: snap4(t.y), w: snap4(t.w), h: t.h};
-    out.push(pillSvg({...g, fill: c.fill, cx: t.x + t.w / 2, baseline: t.baseline, rawY: t.y, text: c.text, size: t.size, labelHtml: emojiSpan(t.text)}));
+  for (const n of b.nodes) { // a tag is decoration: no data-node, so the box's own rect is what selects the node
+    const first = n.tags?.[0], rowX = first ? snap4(first.x) : 0; // snap the row origin once, then keep each tag's offset and width whole: the gap stays the laid-out gap and the text stays centred on its rect
+    for (const t of n.tags ?? []) {
+      const c = treeTagColors(n.tone, t.tone, b.dim, day, tones), g = {x: rowX + Math.round(t.x - (first as typeof t).x), y: snap4(t.y), w: Math.round(t.w), h: t.h};
+      out.push(pillSvg({...g, fill: c.fill, cx: g.x + g.w / 2, baseline: t.baseline, rawY: t.y, text: c.text, size: t.size, labelHtml: emojiSpan(t.text)}));
+    }
   }
   const nodes = b.nodes;
   const ink = (t: LaidOutTree['texts'][number]): string => {

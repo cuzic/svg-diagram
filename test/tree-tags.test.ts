@@ -185,3 +185,21 @@ test('treeTagColors: dim, muted node, equal colours (inverted), then plain, in t
   assert.deepEqual(treeTagColors('solid', 'accent', false, 'blue', env), {fill: PALETTE.bg, text: accent}, 'then equal colours');
   assert.deepEqual(treeTagColors('plain', 'accent', false, 'blue', env), {fill: accent, text: PALETTE.bg});
 });
+
+test('svg geometry (m1): the gap between tags is the laid-out 6px and each text is centred on its rect', async () => {
+  const {svg} = await render(mindmap(item(['<a&b>"', 'WWWWWWWW', '👍🇯🇵']), {layout: 'right'}));
+  const pills = rects(svg).filter(r => r.h === 24 && r.rx === 12);
+  assert.equal(pills.length, 3);
+  for (let i = 1; i < pills.length; i++) assert.equal((pills[i] as {x: number}).x - ((pills[i - 1] as {x: number}).x + (pills[i - 1] as {w: number}).w), 6, `gap ${i}`);
+  const xs = [...svg.matchAll(/<text x="(-?\d+)" y="[\d.]+" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">/g)].map(m => +(m[1] as string));
+  assert.equal(xs.length, 3);
+  pills.forEach((p, i) => assert.ok(Math.abs((xs[i] as number) - (p.x + p.w / 2)) <= 0.5, `text ${i} centred`));
+});
+
+test('fit error (m2): a figure too wide because of tags names the tags in the fix; one without tags keeps the old message', async () => {
+  const root = (tags?: string[]) => ({label: 'r', id: 'r', children: Array.from({length: 8}, (_, i) => ({label: `c${i}`, id: `c${i}`, ...(tags ? {tags} : {})}))});
+  const msg = async (tags?: string[]) => (await checkDiagram(diagram({theme: 'blue'}).add(tree(root(tags), {dir: 'down'}))).then(() => '', e => (e as Error).message));
+  const withTags = await msg(['AAAAAAAA', 'BBBBBBBB', 'CCCCCCCC']);
+  assert.match(withTags, /does not fit[\s\S]*fix: [^\n]*or shorten \/ drop the tags/);
+  assert.doesNotMatch(await msg(), /tags/);
+});
