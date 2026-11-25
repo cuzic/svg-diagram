@@ -158,7 +158,7 @@ try {
     ['lines', {esbuild: 85000, Vite: 111000}],
     ['matrix', {esbuild: 101000, Vite: 122000}],
     ['mekko', {esbuild: 85000, Vite: 104000}],
-    ['mindmap', {esbuild: 97500, Vite: 126700}],
+    ['mindmap', {esbuild: 99900, Vite: 129100}],
     ['pareto', {esbuild: 88000, Vite: 113000}],
     ['pdpc', {esbuild: 191000, Vite: 254000}],
     ['pert', {esbuild: 148000, Vite: 199000}],
