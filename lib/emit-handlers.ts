@@ -1,15 +1,5 @@
-import {imageSpotlight, renderImage} from './emit-image.ts';
-import type {BandDef} from './band-def.ts';
+import {renderImage} from './emit-image.ts';
 import {dimBandSvg} from './emit-spotlight.ts';
-import {gridSpotlight} from './emit-grid.ts';
-import {rowSpotlight} from './emit-row.ts';
-import {flowSpotlight} from './emit-flow-shape.ts';
-import {chartSpotlight} from './emit-spotlight-chart.ts';
-import {boxSpotlight} from './emit-box.ts';
-import {captionSpotlight} from './emit-caption.ts';
-import {statusSpotlight} from './emit-status.ts';
-import {barsSpotlight} from './emit-bars.ts';
-import {quadrantSpotlight} from './emit-quadrant.ts';
 import type {ToneEnv} from './tokens.ts';
 import type {Theme, Roles} from './types/core.ts';
 import type {LaidOutBand} from './types/index.ts';
@@ -27,15 +17,14 @@ import {renderSequence, renderTable, renderPrims} from './emit-tables.ts';
 
 export interface EmitHandler<B extends object> {
   selfDimming?: true;
-  spotlight?: BandDef<never, B>['spotlight'];
   render(band: B, day: Theme, tones: ToneEnv, roles: Roles, stage: number | undefined, dimFill: boolean): string;
 }
 
 /** One emitter per band type, each checked against its own band type; a band type without one fails to compile. */
 export const EMIT_HANDLERS = {
-  caption: {selfDimming: true, spotlight: captionSpotlight, render: (b, day, tones) => renderCaption(b, day, tones)},
-  status: {spotlight: statusSpotlight, render: b => renderStatus(b)},
-  box: {selfDimming: true, spotlight: boxSpotlight, render: (b, day, tones, roles) => renderBox(b, day, tones, roles)},
+  caption: {selfDimming: true, render: (b, day, tones) => renderCaption(b, day, tones)},
+  status: {render: b => renderStatus(b)},
+  box: {selfDimming: true, render: (b, day, tones, roles) => renderBox(b, day, tones, roles)},
   banner: {selfDimming: true, render: (b, day, tones, roles) => renderBanner(b, day, tones, roles)},
   group: {selfDimming: true, render: (b, day, tones, roles) => renderGroup(b, day, tones, roles)},
   legend: {render: (b, day, tones, roles) => renderLegend(b, day, tones, roles)},
@@ -44,24 +33,24 @@ export const EMIT_HANDLERS = {
   screens: {render: (b, day) => renderPrims(b, day)},
   sequence: {render: (b, day, tones, roles) => renderSequence(b, day, tones, roles)},
   table: {render: (b, day, tones, roles) => renderTable(b, day, tones, roles)},
-  row: {selfDimming: true, spotlight: rowSpotlight, render: (b, day, tones, roles, stage) => renderRow(b, day, tones, roles, stage)},
-  grid: {selfDimming: true, spotlight: gridSpotlight, render: (b, day, tones, roles, stage) => renderGrid(b, day, tones, roles, stage)},
+  row: {selfDimming: true, render: (b, day, tones, roles, stage) => renderRow(b, day, tones, roles, stage)},
+  grid: {selfDimming: true, render: (b, day, tones, roles, stage) => renderGrid(b, day, tones, roles, stage)},
   raw: {render: (b, day) => renderRaw(b, day)},
   pyramid: {render: (b, _day, _tones, roles) => renderPyramid(b, roles)},
   curve: {render: (b, day, tones) => renderCurve(b, day, tones)},
   plane: {render: (b, day, tones, _roles, stage) => renderPlane(b, day, tones, stage)},
-  quadrant: {selfDimming: true, spotlight: quadrantSpotlight, render: (b, day, tones) => renderQuadrant(b, day, tones)},
+  quadrant: {selfDimming: true, render: (b, day, tones) => renderQuadrant(b, day, tones)},
   wordart: {selfDimming: true, render: (b, day) => renderWordArt(b, day, !!b.dim)},
-  chevron: {selfDimming: true, spotlight: flowSpotlight, render: (b, day, tones) => renderFlowShape(b, day, tones)},
-  funnel: {selfDimming: true, spotlight: flowSpotlight, render: (b, day, tones) => renderFlowShape(b, day, tones)},
-  cycle: {selfDimming: true, spotlight: flowSpotlight, render: (b, day, tones) => renderFlowShape(b, day, tones)},
-  venn: {selfDimming: true, spotlight: flowSpotlight, render: (b, day, tones) => renderFlowShape(b, day, tones)},
-  concentric: {selfDimming: true, spotlight: flowSpotlight, render: (b, day, tones) => renderFlowShape(b, day, tones)},
-  emblem: {selfDimming: true, spotlight: flowSpotlight, render: (b, day, tones) => renderFlowShape(b, day, tones)},
-  valueChain: {selfDimming: true, spotlight: flowSpotlight, render: (b, day, tones) => renderFlowShape(b, day, tones)},
-  bars: {selfDimming: true, spotlight: barsSpotlight, render: (b, day, _tones, _roles, stage, dimFill) => renderBars(b, day, stage, dimFill)},
-  chart: {selfDimming: true, spotlight: chartSpotlight, render: (b, day, _tones, _roles, stage, dimFill) => renderChart(b, day, emojiSpan, stage, dimFill)},
-  image: {selfDimming: true, spotlight: imageSpotlight, render: (b, day, tones, _roles, stage) => renderImage(b, day, tones, stage)},
+  chevron: {selfDimming: true, render: (b, day, tones) => renderFlowShape(b, day, tones)},
+  funnel: {selfDimming: true, render: (b, day, tones) => renderFlowShape(b, day, tones)},
+  cycle: {selfDimming: true, render: (b, day, tones) => renderFlowShape(b, day, tones)},
+  venn: {selfDimming: true, render: (b, day, tones) => renderFlowShape(b, day, tones)},
+  concentric: {selfDimming: true, render: (b, day, tones) => renderFlowShape(b, day, tones)},
+  emblem: {selfDimming: true, render: (b, day, tones) => renderFlowShape(b, day, tones)},
+  valueChain: {selfDimming: true, render: (b, day, tones) => renderFlowShape(b, day, tones)},
+  bars: {selfDimming: true, render: (b, day, _tones, _roles, stage, dimFill) => renderBars(b, day, stage, dimFill)},
+  chart: {selfDimming: true, render: (b, day, _tones, _roles, stage, dimFill) => renderChart(b, day, emojiSpan, stage, dimFill)},
+  image: {selfDimming: true, render: (b, day, tones, _roles, stage) => renderImage(b, day, tones, stage)},
   people: {render: (b, day, tones) => renderPeople(b, day, tones)},
   dots: {render: (b, day, tones) => renderDots(b, day, tones)},
   math: {render: b => renderMath(b)},

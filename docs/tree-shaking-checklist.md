@@ -14,11 +14,13 @@
   - [x] spotlight を帯の定義の hook で扱う(Q20。`d48e5d90`)。
   - [x] spotlight と `fill` を、使う構成だけが渡す形にする(`svg-diagram/spotlight` の `spotlighter`、`svg-diagram/slide-fill` の `slideFitter`。`e0dd1067`)。
 - [x] S2: 全部入りの入口(`renderDiagram`、`checkDiagram`、`renderInBrowser`、全部入りの `renderSpec`)を `core` で描き、golden を作り直す。`comic` に帯の定義を作る。
-  - [x] 従来のビルダーの図に帯の定義を付けて `core` で描く内部関数と、全作例の差の報告(`scripts/core-parity-report.ts`)。従来の設定と所見(自動凡例、`gray-tone-collision`、`legend-missing`、`aspect-tall` ほか)を揃え、spotlight の 8 作例を除く 186 作例が同一(`885ce0f5`、`9038f8c9`)。spotlight を取り込むと 194 作例すべて同一の見込み(Codex の報告)。
+  - [x] 従来のビルダーの図に帯の定義を付けて `core` で描く内部関数と、全作例の差の報告(S4a で、従来の経路と一緒に報告の script も消した)。従来の設定と所見(自動凡例、`gray-tone-collision`、`legend-missing`、`aspect-tall` ほか)を揃え、spotlight の 8 作例を除く 186 作例が同一(`885ce0f5`、`9038f8c9`)。spotlight を取り込むと 194 作例すべて同一の見込み(Codex の報告)。
   - [x] `comic` の帯の定義を完成させ、`svg-diagram/bands/comic` を公開。マンガとブラウザの測定器の束は esbuild 84,056 バイト、Vite 101,371 バイト(`e40963b8`)。
   - [x] `renderInBrowser`・`renderDiagram`・`checkDiagram`(と、それを通る spec・デッキ・PPTX)を帯の定義の経路に切り替え。194 作例の SVG・HTML と、PPTX の edge の 65 部品 × 3 設定のスライド XML が切り替え前と一致。golden 不変。`./browser` は 1,058,814 → 1,033,536 バイト(`917a6a85`)。
 - [ ] S3: 全部入りの HTML・PPTX を帯ごとのアダプターで組み立て、全帯の出力の表を消す。PPTX の golden を作り直す。(S2 で出力は変わらなかったため、PPTX の golden の作り直しは不要の見込み。全帯の出力の表は S4 と一緒に消す)
 - [ ] S4: 全帯の表と `withLegacyTables` を消し、`.type === '<リテラル>'` の検査を有効にする。
+  - [x] S4a: 公開の入口から届かない従来の描画経路(`pipeline`・`pipeline-core`・`layout`・`layout-handlers`・`layout-measure`・`layout-measured`・`layout-decoration`・`measure-core`・`reveal`・`reveal-handlers`・`spotlight`・`verify`・`inventory`・`band-ids`・`band-dispatch`・`consistency`・`axis-rules`・`loop-back`・`migrated`、`scripts/core-parity-report.ts`)と、その専用の検査・描画の hook を消した。従来の `lintDiagram` の規則の実行も消え、`check` は帯の定義の検査だけを通る。全作例の `--drift --rebuild` は HEAD と同一の出力、`scripts/golden-docker.sh` は通った。`./browser` は esbuild 1,020,821 → 1,019,612 バイト(`scripts/check-package-bundles.ts`)、Vite 1,310,428 → 1,310,873 バイト(`scripts/bundle-size.ts` では 1,033,536 → 1,033,981)。Vite 側が微増したのは、`core` に欠けていた `one-story`(スイムレーンが複数)の所見と、ワイヤーフレームの注釈の自動番号の測定を足したため。全 452 計測の合計は 63,534,533 → 63,351,933 バイト。
+  - [ ] S4b: `band-children.ts`・`fit-handlers.ts`・`pptx/bands.ts` の全帯の表と、`rules.ts` の型による分岐を消す。
 - [ ] S5: MCP・VS Code 拡張・デッキの作例で新しい版を確かめ、破壊的変更として版を上げる。
 
 ## 共有基盤

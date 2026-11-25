@@ -12,7 +12,7 @@ import type {layoutBoxLike} from './layout-box-like.ts';
 import type {fitLineScale} from './layout-cause-fit.ts';
 import {createLayoutWith} from './layout-core.ts';
 import {layoutFitted} from './layout-fit-width.ts';
-import {basicExtentOf, figureMetricsForExtent, unionOf} from './figure-metrics.ts';
+import {basicExtentOf, figureMetricsForExtent, layoutFinding, unionOf} from './figure-metrics.ts';
 import {addScoped, emptyScopes} from './scope-table.ts';
 import {qualify, scopeOf} from './scope-name.ts';
 import type {slideFitter} from './slide-fill.ts';
@@ -347,7 +347,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Preparat
       return extent ? [extent] : [];
     });
     for (const metric of figureMetricsForExtent(unionOf(extents), placed.width)) {
-      bandFindings.push({...metric, severity: placed.layoutCheck === 'strict' ? 'warn' : 'info'});
+      bandFindings.push(layoutFinding(metric, placed.layoutCheck));
     }
   }
   for (const check of diagramChecks) bandFindings.push(...check(placed, stage, placedDefinition));
@@ -400,26 +400,29 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: Preparat
       return {issues, warnings: authored ? warnings : [...revealWarnings, ...warnings]};
     },
   }, placed);
-  const emitEnv = {theme, roles, tones: ink, color: (key: Parameters<typeof colorOf>[0]) => colorOf(key, theme), stage, dimFill: ctx.dimFill};
-  const emit = (figure: LaidOutDiagram, noRecolor = false, description = opts.desc) => emitSvgWith({
-    connectorDefs: connection?.internal ? connection.connectorDefs : undefined,
-    defsNeeded: band => placedDefinition(band)?.svgDefs?.(band as never) ?? {},
-    renderBand: band => {
-      const def = must(placedDefinition(band));
-      const svg = def.emit(band as never, emitEnv);
-      return spotlighter?.renderBand(band, svg, def) ?? svg;
-    },
-    renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
-    diagramTitle: diagram => definedDiagramTitle(diagram, authored ? undefined : stage),
-    diagramDesc: diagram => {
-      const text = description ?? joinBandDescriptions(walkDefinedBands(diagram.bands).flatMap(band => {
-        const part = visibleAt(band, reveal) ? defOf(band)?.describe?.(band, reveal) : undefined;
-        return part ? [part] : [];
-      }));
-      return opts.formatDescription?.(text) ?? text;
-    },
-    spotlightDim: spotlighter?.dim ?? (() => 'outline'),
-  }, figure, {reveal, noRecolor});
+  const emitEnv = {theme, roles, tones: ink, color: (key: Parameters<typeof colorOf>[0]) => colorOf(key, theme), dimFill: ctx.dimFill};
+  const emit = (figure: LaidOutDiagram, noRecolor = false, description = opts.desc, revealStage = reveal) => {
+    const env = {...emitEnv, stage: revealStage ?? stage};
+    return emitSvgWith({
+      connectorDefs: connection?.internal ? connection.connectorDefs : undefined,
+      defsNeeded: band => placedDefinition(band)?.svgDefs?.(band as never) ?? {},
+      renderBand: band => {
+        const def = must(placedDefinition(band));
+        const svg = def.emit(band as never, env);
+        return spotlighter?.renderBand(band, svg, def) ?? svg;
+      },
+      renderConnect: connector => must(definitions.get('connect')).emit(connector as never, env),
+      diagramTitle: diagram => definedDiagramTitle(diagram, authored ? undefined : stage),
+      diagramDesc: diagram => {
+        const text = description ?? joinBandDescriptions(walkDefinedBands(diagram.bands).flatMap(band => {
+          const part = visibleAt(band, revealStage) ? defOf(band)?.describe?.(band, revealStage) : undefined;
+          return part ? [part] : [];
+        }));
+        return opts.formatDescription?.(text) ?? text;
+      },
+      spotlightDim: spotlighter?.dim ?? (() => 'outline'),
+    }, figure, {reveal: revealStage, noRecolor});
+  };
   return {placed, stage, verdict, emit, fit, fontScale};
 }
 

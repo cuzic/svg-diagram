@@ -1702,7 +1702,6 @@ test('selected SVG descriptions assemble visible band summaries in the legacy or
 
 test('selected placement provides the same content inventory as the complete layout', async () => {
   const {prepareBands} = await import('../lib/core.ts');
-  const {buildInventory} = await import('../lib/inventory.ts');
   const input = [
     caption('比較'),
     row([box({id: 'a', title: '案 A'}), box({id: 'b', title: '案 B'})], {arrows: 'between'}),
@@ -1711,9 +1710,8 @@ test('selected placement provides the same content inventory as the complete lay
     bars([{label: '例', value: 2}]),
   ];
   const {placed} = await prepareBands(input, {measure});
-  const expected = buildInventory(placed.laidOut, placed.connects,
-    (text, size) => measure({text, size}).w, placed.roles.connectLabel);
-  assert.deepEqual(placed.inventory, expected);
+  const {laidOut} = await renderInBrowser(diagram({theme: 'blue'}).add(...input), {measure});
+  assert.deepEqual(placed.inventory, laidOut.inventory);
   assert.ok(placed.inventory.items.some(item => item.kind === 'arrowhead'));
 });
 

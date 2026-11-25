@@ -6,7 +6,7 @@ import {emitSvgWith} from './emit-svg-core.ts';
 import type {SvgBandDefs} from './emit-svg-core.ts';
 import {withParts} from './parts.ts';
 import {diagramTitle, diagramDesc} from './rules.ts';
-import {spotlightDim} from './spotlight.ts';
+import {spotlightDim} from './emit-spotlight.ts';
 import type {LaidOutBand, LaidOutDiagram} from './types/index.ts';
 import type {WrappedRun} from './types/text-bands.ts';
 

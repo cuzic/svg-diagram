@@ -7,12 +7,11 @@ import path from 'node:path';
 import {register} from 'node:module';
 import {causeTree, checkDiagram, closeMeasurer, diagram} from '../lib/dsl.ts';
 import type {Diagram} from '../lib/dsl.ts';
-import {fitLineScale} from '../lib/layout.ts';
+import {fitLineScale} from '../lib/layout-cause-fit.ts';
 import {crossingsOf} from '../lib/polyline-metrics.ts';
 import {inFrame, layerRank, layoutCauseBand, layoutCauseBandOnce, mayBeTaller, passesHeight, pickFinal, searchStats} from '../lib/toc.ts';
 import {lexLess} from '../lib/layered-route.ts';
 import type {Judged} from '../lib/toc.ts';
-import {lintDiagram} from '../lib/rules.ts';
 import type {CauseBand, LaidOutCause} from '../lib/types/diagrams.ts';
 import type {DiagramData} from '../lib/types/core.ts';
 import type {LaidOutDiagram} from '../lib/types/index.ts';
@@ -133,7 +132,7 @@ for (const n of [1, 2]) {
     const r = (await tryCanvas(g, H, n))!;
     assert.deepEqual(droppedAt(r), causeBands(r).map(() => false), '倍率の線は外れない');
     assert.ok(r.laidOut.contentHeight! <= H);
-    assert.equal(lintDiagram(r.laidOut).filter(f => f.rule === 'cause-line-scale-dropped').length, 0);
+    assert.equal(r.verdict.findings.filter(f => f.rule === 'cause-line-scale-dropped').length, 0);
     assert.equal(r.laidOut.contentHeight, cOff, '交換なしで描いた図全体');
     assert.deepEqual(causeBands(r).map(b => b.edges), causeBands(squeezed).map(b => b.edges), '帯の点列は、交換なしの描き方 (再配置 (2)) と同じ');
   });
@@ -152,7 +151,7 @@ test('canvas #42: 交換なしでも収まらなければ、今までどおり�
   const r = (await tryCanvas(g, H))!;
   assert.deepEqual(droppedAt(r), [true]);
   assert.ok(r.laidOut.contentHeight! <= H);
-  assert.equal(lintDiagram(r.laidOut).filter(f => f.rule === 'cause-line-scale-dropped').length, 1);
+  assert.equal(r.verdict.findings.filter(f => f.rule === 'cause-line-scale-dropped').length, 1);
 });
 
 test('canvas #70: 何をしても収まらない図は、交換なしで描いた図のまま (交換ありの高い図にしない)。main と同じ', async () => {

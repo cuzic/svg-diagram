@@ -4,11 +4,10 @@ import path from 'path';
 import {execFileSync} from 'child_process';
 import {assertBuildOutput} from '../build-verdict.ts';
 import {located} from '../located.ts';
-import {emitRevealStage} from '../pipeline.ts';
 import type {Diagram} from '../types/core.ts';
-import type {BuildResult, RenderResult} from '../types/verdicts.ts';
+import type {BuildResult} from '../types/verdicts.ts';
 import {math} from './math.ts';
-import {renderDiagram} from './render.ts';
+import {renderWithStages} from './render.ts';
 
 const locatedImage = located(image);
 export {locatedImage as image};
@@ -28,10 +27,10 @@ export {locatedImage as image};
 // opts.name: the SVG's published name when outPath is a scratch file (it keys the slide-budget cache). opts.lint: false skips the per-file lint-svg.ts run (it starts its own Chromium), for callers that lint many
 // files in one go afterwards (build-diagram.ts). Default true.
 export async function build(d: Diagram, outPath: string, opts: {lint?: boolean; name?: string; html?: boolean} = {}): Promise<BuildResult> {
-  const r = await renderDiagram(d, {name: opts.name ?? path.basename(outPath), budget: 'measure', html: opts.html});
-  return finishBuild(r, outPath, opts.lint ?? true);
+  const render = await renderWithStages(d, {name: opts.name ?? path.basename(outPath), budget: 'measure', html: opts.html});
+  return finishBuild(render, outPath, opts.lint ?? true);
 }
-async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Promise<BuildResult> {
+async function finishBuild({result: r, emitRevealStage}: Awaited<ReturnType<typeof renderWithStages>>, outPath: string, lint: boolean): Promise<BuildResult> {
   const {verdict} = r;
   assertBuildOutput(r, outPath);
   fs.mkdirSync(path.dirname(outPath), {recursive: true});
@@ -46,7 +45,7 @@ async function finishBuild(r: RenderResult, outPath: string, lint: boolean): Pro
     const ext = path.extname(outPath), stem = outPath.slice(0, -ext.length);
     for (let stage = 0; stage <= r.laidOut.maxReveal; stage++) {
       const revealPath = `${stem}.reveal${stage}${ext}`;
-      fs.writeFileSync(revealPath, emitRevealStage(r.laidOut, stage));
+      fs.writeFileSync(revealPath, emitRevealStage(stage));
       revealPaths.push(revealPath);
     }
   }

@@ -1,7 +1,7 @@
 // The SVG of a chart band: its rects, paths and texts in the order the layout made them (what comes later is drawn over what came
 // before). Spotlight: an element whose anchor is dimmed is drawn outline-only in the muted colour; the rest of the figure stays.
 import {PALETTE, colorOf} from './tokens.ts';
-import {visibleAt} from './reveal.ts';
+import {visibleAt} from './reveal-visibility.ts';
 import {iconSvg} from './icon-svg.ts';
 import type {LaidOutChart} from './charts.ts';
 import type {ColorKey, Theme} from './types/core.ts';

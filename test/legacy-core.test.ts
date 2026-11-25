@@ -6,7 +6,6 @@ import {boxDefinition} from '../lib/bands/box.ts';
 import {rowDefinition} from '../lib/bands/row.ts';
 import {box, bubble, canvas, causeTree, chevron, connect, diagram, faultTree, group, legend, row, screens, stateMatrix, waterfall, wf} from '../lib/dsl-pure.ts';
 import {FULL_DEFINITIONS, UNDEFINED_BANDS, definitionFor} from '../lib/full-definitions.ts';
-import {LAYOUT_HANDLERS} from '../lib/layout-handlers.ts';
 import {attachDefinitions, prepareLegacyDiagramWithCore, renderLegacyDiagramWithCore, unsupportedCoreOptions} from '../lib/legacy-core.ts';
 import type {MeasureRequest} from '../lib/types/core.ts';
 import {renderInBrowser} from '../lib/web.ts';
@@ -14,7 +13,6 @@ import {renderInBrowser} from '../lib/web.ts';
 const measure = ({text, size}: MeasureRequest) => ({w: [...text].length * size * 0.6, h: size});
 
 test('the full definition table accounts for every legacy band type', () => {
-  assert.deepEqual([...Object.keys(FULL_DEFINITIONS), ...Object.keys(UNDEFINED_BANDS)].sort(), Object.keys(LAYOUT_HANDLERS).sort());
   for (const [type, entry] of Object.entries(FULL_DEFINITIONS)) {
     if (typeof entry !== 'function') assert.equal(entry.type, type);
   }

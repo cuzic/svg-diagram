@@ -2,14 +2,7 @@ import {readFileSync} from 'node:fs';
 import type {ChartKind} from '../lib/charts-base.ts';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {ALL_BANDS_HANDLED, LAYOUT_HANDLERS} from '../lib/layout-handlers.ts';
-
-// The compile-time half is UnhandledBandTypes (tsc fails when a Band type has no handler); this is the run-time half.
-test('every band type has a layout handler', () => {
-  assert.equal(ALL_BANDS_HANDLED, true);
-  for (const [type, handler] of Object.entries(LAYOUT_HANDLERS)) assert.equal(typeof handler, 'function', type);
-  for (const type of ['caption', 'box', 'banner', 'row', 'grid', 'group', 'swimlane', 'connect', 'spacer']) assert.ok(type in LAYOUT_HANDLERS, type);
-});
+import {FULL_DEFINITIONS, UNDEFINED_BANDS} from '../lib/full-definitions.ts';
 
 const chartKinds = {
   waterfall: true, tornado: true, heatmap: true, stacked: true, radar: true, treemap: true,
@@ -24,6 +17,6 @@ test('the tree-shaking checklist lists every band and chart kind once', () => {
   const entries = [...bandSections.matchAll(/^( {0,2})- \[[ x]\] `([^`]+)`/gm)];
   const namesAt = (indent: string) => entries.filter(match => match[1] === indent).map(match => match[2]).sort();
 
-  assert.deepEqual(namesAt(''), Object.keys(LAYOUT_HANDLERS).sort(), 'band checklist rows');
+  assert.deepEqual(namesAt(''), [...Object.keys(FULL_DEFINITIONS), ...Object.keys(UNDEFINED_BANDS)].sort(), 'band checklist rows');
   assert.deepEqual(namesAt('  '), Object.keys(chartKinds).sort(), 'chart kind checklist rows');
 });

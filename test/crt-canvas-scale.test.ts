@@ -142,18 +142,18 @@ test('a figure that fits only with the old lines is drawn with them: the scale n
   assert.throws(() => draw(undefined, old.h - 20), /does not fit/, 'a canvas too short for the old lines still says so');
 });
 
-import {lintDiagram} from '../lib/rules.ts';
+import {parallelEdgeFindings} from '../lib/verify-cause-spacing.ts';
 
 test('a figure drawn with the old lines is told so (cause-line-scale-dropped, info), and edge-parallel measures at the scaled lane step', async () => {
   const mk = (height: number) => diagram({theme: 'blue', canvas: {width: 2600, height, minText: 18, fit: 'content'}}).add(causeTree(CRT_REPORT_NODES, CRT_REPORT_LINKS, CRT_REPORT_OPTIONS));
   const tall = (await checked(mk(2000))).t;
   assert.ok(!tall.lineScaleDropped, 'room enough: the scaled lines');
-  assert.deepEqual(lintDiagram((await checkDiagram(mk(2000))).laidOut).filter(f => f.rule === 'cause-line-scale-dropped'), []);
+  assert.deepEqual((await checkDiagram(mk(2000))).verdict.findings.filter(f => f.rule === 'cause-line-scale-dropped'), []);
   // a canvas too short for the scaled figure (1818 + the title), tall enough for the old one (1584)
   const short = await checkDiagram(mk(1700));
   const band = short.laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause;
   assert.equal(band.lineScaleDropped, true);
-  const found = lintDiagram(short.laidOut);
+  const found = short.verdict.findings;
   assert.equal(found.filter(f => f.rule === 'cause-line-scale-dropped').length, 1);
   assert.equal(found.find(f => f.rule === 'cause-line-scale-dropped')!.severity, 'info');
   const {causeTree: selectedCauseTree} = await import('../lib/bands/cause.ts');
@@ -166,8 +166,8 @@ test('a figure drawn with the old lines is told so (cause-line-scale-dropped, in
   assert.deepEqual(spacingNotes(selected.verdict.findings), spacingNotes(found));
   assert.ok(minSpacing(band) < laneStepOf(S18), 'the old lines are 14px apart');
   // edge-parallel: measured at 18px on a canvas, so the fallback figure's 14px lanes are reported; the scaled figure's are not
-  assert.ok(found.some(f => f.rule === 'edge-parallel'), 'the fallback figure is reported by edge-parallel');
-  assert.deepEqual(lintDiagram((await checkDiagram(mk(2000))).laidOut).filter(f => f.rule === 'edge-parallel'), []);
+  assert.ok(parallelEdgeFindings(short.laidOut).length > 0, 'the fallback figure is reported by edge-parallel');
+  assert.deepEqual(parallelEdgeFindings((await checkDiagram(mk(2000))).laidOut), []);
 });
 
 test('canvas の高さ: 広げた線で内容が canvas を超えるが、広げない線なら収まる図は、広げない線で描く (cause-line-scale-dropped)、十分高い canvas なら出ない', async () => {
@@ -186,20 +186,20 @@ test('canvas の高さ: 広げた線で内容が canvas を超えるが、広げ
   assert.equal(bandOf(r).lineScaleDropped, true);
   assert.ok(r.laidOut.contentHeight! <= between);
   assert.ok(!r.verdict.warnings.some(w => w.includes('slide-canvas-overflow')), r.verdict.warnings.join('\n'));
-  assert.equal(lintDiagram(r.laidOut).filter(f => f.rule === 'cause-line-scale-dropped').length, 1);
-  assert.ok(!lintDiagram(r.laidOut).some(f => f.rule === 'slide-canvas-overflow'));
+  assert.equal(r.verdict.findings.filter(f => f.rule === 'cause-line-scale-dropped').length, 1);
+  assert.ok(!r.verdict.findings.some(f => f.rule === 'slide-canvas-overflow'));
   const enough = await checkDiagram(mk(scaledC));
   assert.equal(bandOf(enough).lineScaleDropped, undefined);
-  assert.deepEqual(lintDiagram(enough.laidOut).filter(f => f.rule === 'cause-line-scale-dropped'), []);
-  assert.ok(!lintDiagram(enough.laidOut).some(f => f.rule === 'slide-canvas-overflow'));
+  assert.deepEqual(enough.verdict.findings.filter(f => f.rule === 'cause-line-scale-dropped'), []);
+  assert.ok(!enough.verdict.findings.some(f => f.rule === 'slide-canvas-overflow'));
 });
 
 test('canvas の高さ (ADR 0070 U5): 下の帯 (凡例・出典) と合わせて広げた線で canvas を超え、広げない線なら収まる図は、図全体を広げない線で描き直す', async () => {
   const mk = (height: number) => diagram({theme: 'blue', title: 'タイトル', showTitle: true, legend: 'auto', sourceLine: '出典: ダミー', canvas: {width: 2600, height, minText: 18, fit: 'content'}})
     .add(causeTree(CRT_REPORT_NODES, CRT_REPORT_LINKS, CRT_REPORT_OPTIONS));
   const bandOf = (r: Awaited<ReturnType<typeof checkDiagram>>) => r.laidOut.laidOut.find(b => b.type === 'cause') as LaidOutCause;
-  const overflow = (r: Awaited<ReturnType<typeof checkDiagram>>) => r.verdict.warnings.some(w => w.includes('slide-canvas-overflow')) || lintDiagram(r.laidOut).some(f => f.rule === 'slide-canvas-overflow');
-  const dropped = (r: Awaited<ReturnType<typeof checkDiagram>>) => lintDiagram(r.laidOut).filter(f => f.rule === 'cause-line-scale-dropped').length;
+  const overflow = (r: Awaited<ReturnType<typeof checkDiagram>>) => r.verdict.warnings.some(w => w.includes('slide-canvas-overflow')) || r.verdict.findings.some(f => f.rule === 'slide-canvas-overflow');
+  const dropped = (r: Awaited<ReturnType<typeof checkDiagram>>) => r.verdict.findings.filter(f => f.rule === 'cause-line-scale-dropped').length;
   const tryHeight = async (h: number) => { try { return await checkDiagram(mk(h)); } catch { return undefined; } };
   // 高さは測った値から決める (CI のフォントで px が違う)
   const roomy = (await tryHeight(100000))!, scaledC = roomy.laidOut.contentHeight!;

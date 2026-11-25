@@ -12,7 +12,6 @@ import {image as embeddedImage} from '../lib/bands/image.ts';
 import {renderBands} from '../lib/core.ts';
 import {pathToFileURL} from 'node:url';
 import {emitSvg} from '../lib/emit.ts';
-import {lintDiagram} from '../lib/rules.ts';
 import {IMAGE_WARN_BYTES} from '../lib/image.ts';
 import {readImage, resolveImages, sniffImage} from '../lib/image-file.ts';
 import {geometryChecks} from '../lib/geometry-checks.ts';
@@ -160,9 +159,9 @@ test('image-large warns for a big file; a small one is quiet', async () => {
   const noise = path.join(dir, 'noise.png');
   fs.writeFileSync(noise, makePng(400, 300, () => [...crypto.randomBytes(3)] as [number, number, number])); // noise does not compress
   assert.ok(fs.statSync(noise).size > IMAGE_WARN_BYTES);
-  const rules = (src: string) => { const d = diagram({theme: 'blue', title: 't'}); d.add(image(src, {alt: 'x'})); resolveImages(d.bands, dir); return lintDiagram({...d, laidOut: [], connects: []}).map(f => f.rule); };
-  assert.ok(rules(noise).includes('image-large'));
-  assert.ok(!rules(kitchen).includes('image-large'));
+  const rules = async (src: string) => (await checkDiagram(diagram({theme: 'blue', title: 't'}).add(image(src, {alt: 'x'})))).verdict.findings.map(f => f.rule);
+  assert.ok((await rules(noise)).includes('image-large'));
+  assert.ok(!(await rules(kitchen)).includes('image-large'));
 });
 
 test('--html: the picture is an inline SVG image, the plates are boxes, the words are HTML', async () => {

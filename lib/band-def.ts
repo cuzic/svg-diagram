@@ -16,7 +16,7 @@ import type {SvgBandDefs} from './emit-svg-core.ts';
 import {BandError} from './band-error.ts';
 import type {resolveConnect} from './layout-connect.ts';
 import type {BandLayoutHandler} from './layout-ctx.ts';
-import type {RevealHandler} from './reveal-handlers.ts';
+import type {RevealHandler} from './reveal-warnings.ts';
 import type {ToneEnv} from './tokens.ts';
 import type {Anchor, Appearance, ColorKey, DiagramData, FontFamily, FontWeight, Rect, RevealOpts, Roles, ScopeOpts, SlideCanvas, TextTone, Theme, WidthOf, WrapMode} from './types/core.ts';
 import type {Band, LaidOutBand, LaidOutDiagram} from './types/index.ts';

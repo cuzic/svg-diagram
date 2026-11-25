@@ -5,7 +5,6 @@ import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {box, checkDiagram, closeMeasurer, diagram, renderDiagram} from '../lib/dsl.ts';
-import {layoutDiagram} from '../lib/layout-measured.ts';
 import {emitPptx} from '../lib/pptx/emit.ts';
 import {configureMeasure, measureAll} from '../lib/measure.ts';
 import {unzipEntry} from './helpers/pptx/unzip.ts';
@@ -72,14 +71,14 @@ test('two renders at once with different wrap modes each break by their own mode
   assert.notDeepEqual(linesOf(char), linesOf(phrase), 'the text must break differently in the two modes, or the test shows nothing');
 });
 
-// The same through layoutDiagram: a diagram carries the settings of the project it was loaded from (DiagramData.measure), so the
+// The same through checkDiagram: a diagram carries the settings of the project it was loaded from (DiagramData.measure), so the
 // process default changing under it — a second project loading while this one awaits its measurement — does not reach its layout.
 test('a diagram measures with its own settings while the process default changes under it', {skip: ![REGULAR, BOLD, ARIAL, ARIAL_BOLD].every(f => fs.existsSync(f))}, async () => {
-  const title = Array.from({length: 12}, () => 'Wide wide mmm WWW iii').join(' ') + ' — layoutDiagram repro';
+  const title = Array.from({length: 12}, () => 'Wide wide mmm WWW iii').join(' ') + ' — checkDiagram repro';
   const settings = (n: 0 | 1) => ({backend: 'font' as const, explicit: true, fonts: fontsOf(n)});
   const heightOf = async (n: 0 | 1) => {
     const d = {...diagram({theme: 'blue', width: 360}).add(box({id: 'a', title})), measure: settings(n)};
-    const b = (await layoutDiagram(d as never)).laidOut.find(x => x.type === 'box');
+    const b = (await checkDiagram(d)).laidOut.laidOut.find(x => x.type === 'box');
     return b && 'h' in b ? b.h : NaN;
   };
   configureMeasure({measure: 'font', fonts: fontsOf(1)});

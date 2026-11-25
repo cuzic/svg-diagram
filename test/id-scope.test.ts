@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {box, checkDiagram, chevron, closeMeasurer, connect, diagram, gantt, bars, quadrant, swimlane, tree} from '../lib/dsl.ts';
-import {addScoped, bareNameIn, emptyScopes, qualify, resolveAnchor, scopesOf} from '../lib/anchor-scope.ts';
+import {addScoped, bareNameIn, emptyScopes, qualify, resolveAnchor} from '../lib/anchor-scope.ts';
 import {emitSvg} from '../lib/emit.ts';
 import {collectRects} from '../lib/verify-handlers.ts';
 
@@ -36,13 +36,13 @@ test('qualify / bareNameIn', () => {
   assert.equal(bareNameIn(undefined, 'p0'), 'p0');
 });
 
-test('scopesOf reads every scoped item, in nested bands too', () => {
-  const t = scopesOf([plan({scope: 'plan'}), sched({scope: 'sched'}), bars([{label: 'a', value: 1, id: 'p0'}], {scope: 'b'}), tree({label: 'r', id: 'p0'})]);
-  assert.deepEqual(t.byBare.get('p0'), ['plan.p0', 'sched.p0', 'b.p0']);
-  assert.deepEqual(t.byBare.get('p1'), ['plan.p1']);
-  assert.equal(scopesOf([plan(), sched()]).byBare.size, 0); // unscoped bands add nothing
+test('the checker registers scoped items from the definitions of different bands', async () => {
+  const d = diagram({theme: 'blue'}).add(
+    plan({scope: 'plan'}), sched({scope: 'sched'}), bars([{label: 'a', value: 1, id: 'p0'}], {scope: 'b'}),
+    tree({label: 'r', id: 'p0'}), connect('p0', 'plan.p1'),
+  );
+  await assert.rejects(checkDiagram(d), /ambiguous anchor id "p0": p0, plan\.p0, sched\.p0, b\.p0/);
 });
-
 test('a scope must be a plain name', () => {
   for (const bad of ['', 'a b', 'a.b', 'a:b', 'a@b', 'a#b']) assert.throws(() => plan({scope: bad}), /scope must be a non-empty name/);
 });

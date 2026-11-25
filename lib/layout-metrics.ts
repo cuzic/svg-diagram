@@ -8,7 +8,7 @@
 
 import {at} from './finding-rules.ts';
 import {snap4} from './emit-common.ts';
-import {extentOf, figureLayoutMetrics} from './figure-metrics.ts';
+import {extentOf, figureLayoutMetrics, layoutFinding} from './figure-metrics.ts';
 import {must} from './must.ts';
 import type {Rect} from './types/core.ts';
 import type {LaidOutBand, LaidOutDiagram} from './types/index.ts';
@@ -214,5 +214,6 @@ export function layoutMetrics(laidOut: LaidOutBand[], opts: {width: number; slid
 
 /** Frame measurements span bands and should run once even when several bands register them. */
 export function frameLayoutFindings({laidOut, layoutCheck}: LaidOutDiagram): Finding[] {
-  return frameMetrics(laidOut).map(metric => ({...metric, severity: layoutCheck === 'strict' ? 'warn' : 'info'}));
+  return frameMetrics(laidOut).map(metric => layoutFinding(metric, layoutCheck));
 }
+

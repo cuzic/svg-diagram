@@ -5,7 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {banner, bars, box, build, checkDiagram, closeMeasurer, connect, diagram, group, plane, renderDiagram, row, table} from '../lib/dsl.ts';
-import {emitSvg} from '../lib/emit.ts';
+import {band} from '../lib/band-def.ts';
+import {boxDefinition} from '../lib/bands/box.ts';
+import {renderWithStages} from '../lib/dsl/render.ts';
 import {imgSelector} from '../lib/slide-budget-live.ts';
 
 test.after(() => closeMeasurer());
@@ -14,6 +16,7 @@ const ROOT = path.resolve(import.meta.dirname, '..');
 const tmp = (prefix: string) => fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 const canvas = (svg: string) => svg.match(/viewBox="[^"]+"/)?.[0];
 const stage = (svg: string) => JSON.parse(svg.match(/<metadata id="svg-diagram">(.*?)<\/metadata>/)![1]!.replace(/&quot;/g, '"')).reveal;
+const drawStages = (d: ReturnType<typeof diagram>) => renderWithStages(d, {name: 'x.svg', budget: 'cacheOnly'});
 const SOURCE = {generator: 'svg-diagram', toolVersion: 'test', source: 'x.ts', sourceSha256: 'x'};
 
 function staged() {
@@ -30,10 +33,10 @@ function staged() {
 test('stages are cumulative and keep one layout and canvas', async () => {
   const d = staged();
   d.source = SOURCE;
-  const {laidOut} = await checkDiagram(d);
+  const {result: {laidOut}, emitRevealStage} = await drawStages(d);
   assert.equal(laidOut.connects[0]!.reveal, 1);
   assert.equal(laidOut.maxReveal, 3);
-  const stages = [0, 1, 2, 3].map(n => emitSvg(laidOut, {reveal: n}));
+  const stages = [0, 1, 2, 3].map(emitRevealStage);
   assert.match(stages[0]!, />always</);
   assert.doesNotMatch(stages[0]!, />one</);
   assert.doesNotMatch(stages[0]!, /dsl-arrow\)/);
@@ -88,6 +91,23 @@ test('build writes name.revealN.svg only for a revealing diagram and removes sta
   assert.deepEqual(fs.readdirSync(dir), ['figure.svg']);
 });
 
+test('build draws reveal files with the same band definition and layout as the final SVG', async t => {
+  const dir = tmp('svg-diagram-reveal-definition-');
+  t.after(() => fs.rmSync(dir, {recursive: true, force: true}));
+  const out = path.join(dir, 'figure.svg');
+  const defined = band({
+    ...boxDefinition,
+    emit: (laid, env) => `<g data-stage="${env.stage}">${boxDefinition.emit(laid, env)}</g>`,
+  }, box({title: 'later', reveal: 1}));
+  const {revealPaths} = await build(diagram({theme: 'blue', title: 't'}).add(defined), out, {lint: false});
+  const [first, last] = revealPaths.map(file => fs.readFileSync(file, 'utf8'));
+  const final = fs.readFileSync(out, 'utf8');
+  assert.doesNotMatch(first!, /data-stage=|>later</);
+  assert.match(last!, /data-stage="1"/);
+  assert.equal(canvas(first!), canvas(final));
+  assert.equal(last, final);
+});
+
 test('a diagram without reveal is emitted exactly as before', async () => {
   const d = () => diagram({theme: 'blue', title: 't'}).add(row([box({id: 'a', title: 'a'}), box({id: 'b', title: 'b'})]), connect('a:right', 'b:left'));
   const dir = tmp('svg-diagram-plain-');
@@ -139,10 +159,10 @@ test('bars inside a later group hide their axis too, and the bars band alone kee
     return diagram({theme: 'blue'}).add(box({title: 'x'}), inGroup ? group([b], {reveal: 2}) : b);
   };
   const lines = (svg: string) => svg.match(/stroke="#[0-9a-f]+" stroke-width="2"\/>/g)?.length ?? 0;
-  const grouped = (await checkDiagram(mk(true))).laidOut, alone = (await checkDiagram(mk(false))).laidOut;
-  assert.equal(lines(emitSvg(grouped, {reveal: 0})), 0);
-  assert.ok(lines(emitSvg(grouped, {reveal: 2})) > 0);
-  assert.ok(lines(emitSvg(alone, {reveal: 0})) > 0);
+  const grouped = await drawStages(mk(true)), alone = await drawStages(mk(false));
+  assert.equal(lines(grouped.emitRevealStage(0)), 0);
+  assert.ok(lines(grouped.emitRevealStage(2)) > 0);
+  assert.ok(lines(alone.emitRevealStage(0)) > 0);
 });
 
 test('a group in a row inherits its own reveal into its boxes and the connect between them (the versus() shape)', async () => {
@@ -153,9 +173,9 @@ test('a group in a row inherits its own reveal into its boxes and the connect be
     ], {cols: [6, 6]}),
     connect('l', 'r', {label: 'CONLABEL'}),
   );
-  const {laidOut} = await checkDiagram(d);
+  const {result: {laidOut}, emitRevealStage} = await drawStages(d);
   assert.equal(laidOut.maxReveal, 2);
-  const drawn = (stage: number) => emitSvg(laidOut, {reveal: stage}).replace(/<(title|desc)\b.*?<\/\1>/g, ''); // the doc <desc> lists every box
+  const drawn = (stage: number) => emitRevealStage(stage).replace(/<(title|desc)\b.*?<\/\1>/g, ''); // the doc <desc> lists every box
   const one = drawn(1), two = drawn(2);
   assert.match(one, /LEFTBOX/);
   assert.doesNotMatch(one, /RIGHTBOX|Right|CONLABEL/);
@@ -168,9 +188,9 @@ test('reveal reaches boxes through nested row > group > row > group', async () =
   const d = diagram({theme: 'blue'}).add(
     row([group([row([group([box({id: 'deep', title: 'DEEPBOX'})], {title: 'Inner'})], {cols: [12]})], {title: 'Outer', reveal: 2})], {cols: [12]}),
   );
-  const {laidOut} = await checkDiagram(d);
+  const {result: {laidOut}, emitRevealStage} = await drawStages(d);
   assert.equal(laidOut.maxReveal, 2);
-  const drawn = (stage: number) => emitSvg(laidOut, {reveal: stage}).replace(/<(title|desc)\b.*?<\/\1>/g, '');
+  const drawn = (stage: number) => emitRevealStage(stage).replace(/<(title|desc)\b.*?<\/\1>/g, '');
   assert.doesNotMatch(drawn(1), /DEEPBOX|Inner|Outer/);
   assert.match(drawn(2), /DEEPBOX/);
 });
@@ -195,8 +215,7 @@ test('until: an element vanishes at its click, a group takes its children along,
     row([a, b], {id: 'r'}), connect(a.right, b.left),
     group([banner({headline: 'inner'})], {title: 'g', reveal: 1, until: 3}),
   );
-  const laid = await layoutOf(d);
-  const at = (n: number) => emitSvg(laid, {reveal: n});
+  const {result: {laidOut: laid}, emitRevealStage: at} = await drawStages(d);
   assert.match(at(0), /a</);   assert.doesNotMatch(at(0), /inner/);
   assert.match(at(1), /inner/); assert.match(at(1), /a</);
   assert.doesNotMatch(at(2), /a</); assert.match(at(2), /inner/);
@@ -216,14 +235,14 @@ test('bars replaces: the new bar takes the old one\'s row, which vanishes at its
     {id: 'p', label: 'permit', value: 31, reveal: 2, replaces: 'o', ...extra},
     {label: 'self', value: 12, reveal: 3},
   ], {max: 100}));
-  const laid = await layoutOf(mk());
+  const {result: {laidOut: laid}, emitRevealStage} = await drawStages(mk());
   const band = laid.laidOut.find(b => b.type === 'bars')!;
   assert.ok(band.type === 'bars');
   assert.equal(band.bars[0]!.y, band.bars[1]!.y);
   assert.notEqual(band.bars[0]!.y, band.bars[2]!.y);
   assert.equal(band.bars[0]!.until, 2);
-  assert.match(emitSvg(laid, {reveal: 1}), /order/); assert.doesNotMatch(emitSvg(laid, {reveal: 1}), /permit/);
-  assert.doesNotMatch(emitSvg(laid, {reveal: 2}), /order/); assert.match(emitSvg(laid, {reveal: 2}), /permit/);
+  assert.match(emitRevealStage(1), /order/); assert.doesNotMatch(emitRevealStage(1), /permit/);
+  assert.doesNotMatch(emitRevealStage(2), /order/); assert.match(emitRevealStage(2), /permit/);
   await assert.rejects(() => layoutOf(mk({reveal: undefined})), /needs a reveal/);
   await assert.rejects(() => layoutOf(mk({replaces: 'nope'})), /earlier bar/);
 });
@@ -259,8 +278,8 @@ test('review fixes: row#n arrows go with their cell, replaces under a band until
   const hidden = diagram({theme: 'blue', title: 't'}).add(bars([
     {label: 'gone', value: 5, until: 2}, {label: 'later', value: 6, reveal: 2},
   ], {max: 10, axis: false, labels: 'category'}));
-  const lo = await layoutOf(hidden);
-  const desc = (n: number) => emitSvg(lo, {reveal: n}).match(/<desc[^>]*>(.*?)<\/desc>/)?.[1] ?? '';
+  const {emitRevealStage} = await drawStages(hidden);
+  const desc = (n: number) => emitRevealStage(n).match(/<desc[^>]*>(.*?)<\/desc>/)?.[1] ?? '';
   assert.match(desc(1), /gone/); assert.doesNotMatch(desc(1), /later/);
   assert.match(desc(2), /later/); assert.doesNotMatch(desc(2), /gone/);
   // (3) a stacked column's small segment is labelled beside it, not inside the segment above

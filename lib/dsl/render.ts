@@ -1,3 +1,4 @@
+import {withNodeIds} from '../emit-node-ids.ts';
 import {resolveImages} from '../image-file.ts';
 import {prepareLegacyDiagramWithCore, renderLegacyDiagramWithCore} from '../legacy-core.ts';
 import {defaultMeasureSettings, measureAll} from '../measure.ts';
@@ -22,9 +23,15 @@ type RenderOptions = {name: string; budget: 'measure' | 'cacheOnly'; html?: bool
 // (A define()/constructor/layout error still throws.) budget: 'measure' measures a slide that has no cached budget (starts the
 // dev server, writes the cache); 'cacheOnly' reads the cache and falls back to the default sizes with a note.
 export async function renderDiagram(input: Diagram, opts: RenderOptions): Promise<RenderResult> {
+  return (await renderWithStages(input, opts)).result;
+}
+
+/** @internal Keep the prepared SVG emitter for build's reveal files. */
+export function renderWithStages(input: Diagram, opts: RenderOptions) {
   return render(input, opts).catch(e => throwAtDiagram(e, input));
 }
-async function render(input: Diagram, opts: RenderOptions): Promise<RenderResult> {
+
+async function render(input: Diagram, opts: RenderOptions) {
   const d = detach(input);
   const notes: string[] = [];
   let budget: SlideBudget | null = null;
@@ -54,7 +61,9 @@ async function render(input: Diagram, opts: RenderOptions): Promise<RenderResult
     const [{emitHtml}, {fontBoxOf}] = await Promise.all([import('../emit-html.ts'), import('../font-box.ts')]);
     html = emitHtml(laidOut, {reveal: result.stage, fontBox: fontBoxOf(laidOut.measure), emit: result.emit});
   }
-  return {svg, ...(html !== undefined ? {html} : {}), laidOut, verdict, xml, notes: [...notes, ...result.notes], width, height, fit, budget, budgetSource, fontScale};
+  const rendered: RenderResult = {svg, ...(html !== undefined ? {html} : {}), laidOut, verdict, xml, notes: [...notes, ...result.notes], width, height, fit, budget, budgetSource, fontScale};
+  const emitRevealStage = (stage: number) => result.emit(opts.nodeIds ? withNodeIds(laidOut) : laidOut, false, undefined, stage);
+  return {result: rendered, emitRevealStage};
 }
 // Layout + verification + rules, without writing any file: the engine behind `svg-diagram check`.
 export async function checkDiagram(input: DiagramData): Promise<CheckResult> {

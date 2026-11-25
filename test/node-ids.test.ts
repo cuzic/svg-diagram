@@ -5,10 +5,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {register} from 'node:module';
-import {bpmn, box, causeTree, checkDiagram, chevron, closeMeasurer, concentric, cycle, diagram, emblem, funnel, grid, mindmap, quadrant, relationDiagram, renderDiagram, row, tree, venn, whyWhyTree} from '../lib/dsl.ts';
+import {bpmn, box, causeTree, chevron, closeMeasurer, concentric, cycle, diagram, emblem, funnel, grid, mindmap, quadrant, relationDiagram, renderDiagram, row, tree, venn, whyWhyTree} from '../lib/dsl.ts';
 import {loadConfig} from '../lib/config.ts';
 import {loadDiagram} from '../lib/load-source.ts';
-import {emitRevealStage} from '../lib/pipeline.ts';
+import {renderWithStages} from '../lib/dsl/render.ts';
 import {withNodeIds, withNodeIdsBand} from '../lib/emit-node-ids.ts';
 import type {LaidOutBand} from '../lib/types/index.ts';
 
@@ -102,9 +102,10 @@ test('nodeIds: why-why marks the names connect() can use: the author\'s ids, and
 
 test('nodeIds: the stages of a click-through draw carry the names too when asked', async () => {
   const d = diagram({theme: 'blue'}).add(tree({id: 'r', label: '目的', children: [{id: 'c', label: '手段'}]}, {reveal: 1} as never));
-  const {laidOut} = await checkDiagram(d);
-  assert.deepEqual(marks(emitRevealStage(laidOut, 1)), []);
-  assert.ok(marks(emitRevealStage(laidOut, 1, {nodeIds: true})).includes('r'));
+  const plain = await renderWithStages(d, {name: 't', budget: 'cacheOnly'});
+  const named = await renderWithStages(d, {name: 't', budget: 'cacheOnly', nodeIds: true});
+  assert.deepEqual(marks(plain.emitRevealStage(1)), []);
+  assert.ok(marks(named.emitRevealStage(1)).includes('r'));
 });
 
 test('withNodeIds: a band that has no named frame is returned as it is', () => {

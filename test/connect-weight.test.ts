@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {box, checkDiagram, closeMeasurer, connect, diagram, legend, renderDiagram, row} from '../lib/dsl.ts';
-import {applyAutoLegend, edgeStats, legendKeys, lintDiagram, usedNotation} from '../lib/rules.ts';
+import {edgeStats, legendKeys, usedNotation} from '../lib/rules.ts';
 import type {ConnectInput} from '../lib/strict.ts';
 import type {Diagram} from '../lib/types/core.ts';
 import type {LaidOutConnect, LegendBand} from '../lib/types/containers.ts';
@@ -51,17 +51,17 @@ test('weight: a dimmed strong arrow gets the dim strong marker', async () => {
   assert.match(svg, /<marker id="dsl-arrow-strong-dim"/);
 });
 
-test("legend: a used weight is a notation key; legend: 'auto' adds 強い流れ and lint reports a missing one", () => {
+test("legend: a used weight is a notation key; legend: 'auto' adds 強い流れ and lint reports a missing one", async () => {
   const bands = [box({id: 'a', title: 'a'}), box({id: 'b', title: 'b'}), connect('a', 'b', {weight: 'strong'})];
   assert.deepEqual([...usedNotation(bands)].sort(), ['line:solid', 'weight:strong']);
   const d = diagram({theme: 'blue', legend: 'auto', title: 't'});
   d.add(...bands);
-  applyAutoLegend(d);
-  const items = (d.bands.find(b => b.type === 'legend') as LegendBand).items;
+  const {laidOut} = await checkDiagram(d);
+  const items = (laidOut.bands.find(b => b.type === 'legend') as LegendBand).items;
   assert.deepEqual(items.find(i => i.weight)!, {line: 'solid', weight: 'strong', label: '強い流れ'});
-  assert.ok(legendKeys(d.bands).has('weight:strong'));
+  assert.ok(legendKeys(laidOut.bands).has('weight:strong'));
   const plain = diagram({theme: 'blue', title: 't'}).add(...bands);
-  assert.ok(lintDiagram({...plain, laidOut: [], connects: []}).some(f => f.rule === 'legend-missing' && f.message.includes('weight:strong')));
+  assert.ok((await checkDiagram(plain)).verdict.findings.some(f => f.rule === 'legend-missing' && f.message.includes('weight:strong')));
 });
 
 test('legend({weight}) fills in the solid line', () => {

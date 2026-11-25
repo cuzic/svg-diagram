@@ -1,4 +1,4 @@
-import type {RevealCtx} from './reveal-handlers.ts';
+import type {RevealCtx} from './reveal-warnings.ts';
 import {checked} from './reveal-visibility.ts';
 import type {BarsBand} from './types/bars.ts';
 

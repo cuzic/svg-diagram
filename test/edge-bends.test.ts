@@ -3,7 +3,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import './helpers/strict-width.ts';
-import {lintDiagram} from '../lib/rules.ts';
+import {edgeBendFindings} from '../lib/verify-edge-bends.ts';
+import {applyFindingAcceptance} from '../lib/finding-rules.ts';
+import type {LintTarget} from '../lib/types/verdicts.ts';
 import {bendsOf} from '../lib/polyline-metrics.ts';
 import {causalLoop, causeTree, checkDiagram, closeMeasurer, dependencyNetwork, diagram, pert, stateDiagram} from '../lib/dsl.ts';
 import type {LaidOutConnect} from '../lib/types/containers.ts';
@@ -11,7 +13,7 @@ import type {LaidOutConnect} from '../lib/types/containers.ts';
 test.after(() => closeMeasurer());
 
 type Pts = {x: number; y: number}[];
-type Target = Parameters<typeof lintDiagram>[0];
+type Target = LintTarget;
 /** A staircase with exactly `n` bends. */
 function stairs(n: number): Pts {
   const out = [{x: 0, y: 0}];
@@ -20,7 +22,7 @@ function stairs(n: number): Pts {
 }
 const withBand = (band: object, extra: object = {}): Target => ({...diagram({theme: 'blue', title: 't', ...extra}), laidOut: [band]}) as unknown as Target;
 const withEdges = (type: 'cause' | 'states' | 'bpmn' | 'classes', edges: {from: string; to: string; points: Pts}[], extra: object = {}): Target => withBand({type, x: 0, y: 0, w: 400, h: 300, edges}, extra);
-const bends = (d: Target) => lintDiagram(d).filter(f => f.rule === 'edge-bends');
+const bends = (d: Target) => edgeBendFindings(d).map(f => applyFindingAcceptance(f, d.accept));
 
 test('edge-bends: the fixtures have the bends they claim', () => {
   for (const n of [0, 1, 4, 5, 6]) assert.equal(bendsOf(stairs(n)), n, `stairs(${n})`);

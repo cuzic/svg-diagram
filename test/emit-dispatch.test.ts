@@ -7,13 +7,13 @@ import {renderBand} from '../lib/emit-handlers.ts';
 import {emitSvgWith} from '../lib/emit-svg-core.ts';
 import {emitSvg} from '../lib/emit.ts';
 import {diagramTitle, diagramDesc} from '../lib/rules.ts';
-import {spotlightDim} from '../lib/spotlight.ts';
+import {spotlightDim} from '../lib/emit-spotlight.ts';
 import {box, connect, diagram, renderInBrowser, row} from '../lib/web.ts';
 
 test('the shared SVG emitter bundles without legacy band emitters or rules', async () => {
   const {metafile} = await build({entryPoints: [fileURLToPath(new URL('../lib/emit-svg-core.ts', import.meta.url))],
     bundle: true, platform: 'browser', write: false, metafile: true});
-  const forbidden = ['/emit-handlers.ts', '/emit-boxes.ts', '/emit-connect.ts', '/rules.ts', '/emit-node-ids.ts', '/spotlight.ts', '/reveal.ts'];
+  const forbidden = ['/emit-handlers.ts', '/emit-boxes.ts', '/emit-connect.ts', '/rules.ts', '/emit-node-ids.ts', '/emit-spotlight.ts'];
   const found = Object.keys(metafile.inputs).filter(file => forbidden.some(suffix => file.endsWith(suffix)));
   assert.deepEqual(found, []);
 });

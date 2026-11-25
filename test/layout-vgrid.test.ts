@@ -2,8 +2,7 @@
 // Only relations are asserted (never a font-dependent absolute): the text sits the same distance below its frame wherever the frame stands.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {banner, box, caption, diagram, grid, group, renderDiagram, row, spacer, closeMeasurer} from '../lib/dsl.ts';
-import {layoutDiagram} from '../lib/layout-measured.ts';
+import {banner, box, caption, diagram, grid, group, renderDiagram, row, spacer, checkDiagram, closeMeasurer} from '../lib/dsl.ts';
 import type {LaidOutBand} from '../lib/types/index.ts';
 import type {Band} from '../lib/types/index.ts';
 
@@ -32,7 +31,7 @@ function tops(b: LaidOutBand, out: Placed[] = []): Placed[] {
 
 test('every frame and caption top is already on the 4px grid after layout (the emitter snap is the identity)', async () => {
   for (const lead of OFFSETS) {
-    const laid = await layoutDiagram(sample(lead));
+    const {laidOut: laid} = await checkDiagram(sample(lead));
     const ys = laid.laidOut.flatMap(b => tops(b));
     assert.ok(ys.length >= 12, `${ys.length} frames`);
     for (const p of ys) assert.equal(p.y % 4, 0, `${p.type} at y=${p.y} (lead ${lead})`);

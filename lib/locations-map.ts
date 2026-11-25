@@ -5,7 +5,7 @@ import {primRectGeometry} from './emit-wireframe.ts';
 import {layoutFinding} from './layout-issues.ts';
 import type {ResolveSource} from './layout-issues.ts';
 import {must} from './must.ts';
-import {visibleAt} from './reveal.ts';
+import {visibleAt} from './reveal-visibility.ts';
 import {walkBands} from './rules.ts';
 import {qualify, scopeOf} from './scope-name.ts';
 import type {SourceLoc} from './source-location.ts';

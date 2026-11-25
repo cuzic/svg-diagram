@@ -4,7 +4,8 @@ import {whole} from '../inventory-core.ts';
 import {describeSwimlane} from '../diagram-description.ts';
 import {narrowTextFindings} from '../verify-shrink.ts';
 import {band} from '../band-def.ts';
-import type {BandDef} from '../band-def.ts';
+import type {BandDef, DiagramFindings} from '../band-def.ts';
+import type {Finding} from '../types/verdicts.ts';
 import {withAnchors} from '../dsl/shared.ts';
 import {swimlane as build} from '../dsl/swimlane.ts';
 import {renderSwimlane} from '../emit-swimlane.ts';
@@ -16,7 +17,13 @@ import type {ConnectBand, LaidOutConnect} from '../types/containers.ts';
 import type {LaidOutSwimlane, SwimlaneBand, SwimlaneLane, SwimlaneOpts} from '../types/sequence-table-swimlane.ts';
 import type {LaidOutBox} from '../types/text-bands.ts';
 import {ownRect} from '../verify-rects.ts';
-import {boxDefinition} from './box.ts';
+import {boxDefinition, boxDiagramFindings} from './box.ts';
+
+/** one-story: more than one swimlane in a diagram. */
+const oneStoryFindings: DiagramFindings = (diagram): Finding[] => {
+  const count = diagram.bands.filter(b => b.type === 'swimlane').length;
+  return count > 1 ? [{rule: 'one-story', severity: 'warn', message: `スイムレーンが ${count} つある。1 図 1 話にして、図を分けることを検討する`}] : [];
+};
 
 const definition = {
   type: 'swimlane',
@@ -53,7 +60,7 @@ const definition = {
     ? boxDefinition.emit(laid, env)
     : renderSwimlane(laid, env.theme, env.roles),
   verify: {
-    diagramFindings: boxDefinition.verify?.diagramFindings,
+    diagramFindings: [...boxDiagramFindings, oneStoryFindings],
     findings: (data, {connects}) => swimlaneFindings(data, connects),
     layoutFindings: laid => laid.type === 'swimlane' ? narrowTextFindings(laid) : [],
     rects: laid => laid.type === 'box' ? ownRect(laid) : [],

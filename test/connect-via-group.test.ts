@@ -2,7 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {areas, box, bracket, branch, checkDiagram, closeMeasurer, connect, diagram, group, node, renderDiagram, row, table} from '../lib/dsl.ts';
-import {lintDiagram} from '../lib/rules.ts';
+import {defOf, walkDefinedBands} from '../lib/band-def.ts';
+import {graphFindings} from '../lib/verify-connection-graph.ts';
 import {fontsOf, planSlide} from '../lib/pptx/slide.ts';
 import type {LaidOutBox} from '../lib/types/text-bands.ts';
 import type {ConnectBand, LaidOutConnect, LaidOutGroup} from '../lib/types/containers.ts';
@@ -112,7 +113,7 @@ test('via: a frame round an anchor that is not a box (a table) works the same', 
 test('via: the graph rules still see the boxes the line does not reach (c2, c3)', async () => {
   // (the graph rules look at a figure of 3 arrows or more)
   const l = await render(row([memo(), convs()], {cols: [6, 6]}), ...[0.3, 0.5, 0.7].map(t => connect(`memo:right@${t}`, 'c1:left', {via: {to: 'group'}})));
-  const f = lintDiagram(l as never);
+  const f = graphFindings(l, walkDefinedBands, b => defOf(b)?.ids?.(b) ?? []);
   const orphan = f.find(x => x.rule === 'graph-orphan-node');
   assert.ok(orphan && /c2/.test(orphan.message) && /c3/.test(orphan.message), JSON.stringify(f.map(x => x.rule)));
 });

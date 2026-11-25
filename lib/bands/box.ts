@@ -20,6 +20,8 @@ import {boxLikeContrastProblems, boxSizeFindings, nowrapProblems, statFitFinding
 import {ownRect} from '../verify-rects.ts';
 
 const selectedBoxSizeFindings: DiagramFindings = ({bands}) => boxSizeFindings(walkDefinedBands(bands));
+/** Shared by every band that is drawn as a box, so a check runs once per diagram. */
+export const boxDiagramFindings: readonly DiagramFindings[] = [frameLayoutFindings, selectedBoxSizeFindings, statFitFindings];
 
 export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
   type: 'box',
@@ -48,7 +50,7 @@ export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
   verify: {
     tones: data => [data.tone ?? 'plain'],
     legendNotation: data => data,
-    diagramFindings: [frameLayoutFindings, selectedBoxSizeFindings, statFitFindings],
+    diagramFindings: boxDiagramFindings,
     rects: ownRect,
     check: laid => nowrapProblems(laid).map(message => ({rule: 'nowrap', severity: 'problem', message})),
     contrast: (laid, {theme, tones, appearance}) => boxLikeContrastProblems(laid, laid.tone ?? 'plain', theme, tones, appearance),

@@ -1,18 +1,15 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-import {LAYOUT_HANDLERS} from '../lib/layout-handlers.ts';
 import {CHILD_BANDS, STACK_WIDTH, childrenOf, nestedBandsOf, stackWidthOf} from '../lib/band-children.ts';
-import {MEASURE_HANDLERS, collectMeasures} from '../lib/layout-measure.ts';
+import {FULL_DEFINITIONS, UNDEFINED_BANDS} from '../lib/full-definitions.ts';
+import {renderInBrowser, diagram, box, group, legend} from '../lib/web.ts';
 import {TEXT_RUNS} from '../lib/layout-text.ts';
-import {ROLES} from '../lib/tokens.ts';
-import type {DiagramData} from '../lib/types/core.ts';
 import type {Band} from '../lib/types/index.ts';
 
 // The compile-time half is each table's `satisfies` over Band['type']; this is the run-time half: the tables cover the same types.
 test('every per-band-type registry has an entry for every band type', () => {
-  const types = Object.keys(LAYOUT_HANDLERS).sort();
-  for (const [name, table] of Object.entries({CHILD_BANDS, STACK_WIDTH, MEASURE_HANDLERS})) {
+  const types = [...Object.keys(FULL_DEFINITIONS), ...Object.keys(UNDEFINED_BANDS)].sort();
+  for (const [name, table] of Object.entries({CHILD_BANDS, STACK_WIDTH})) {
     assert.deepEqual(Object.keys(table).sort(), types, name);
     for (const [type, fn] of Object.entries(table)) assert.equal(typeof fn, 'function', `${name}.${type}`);
   }
@@ -36,15 +33,16 @@ test('childrenOf / nestedBandsOf follow the bands a band holds', () => {
   assert.equal(stackWidthOf(row, 500), null);
 });
 
-test('collectMeasures registers the atoms of nested bands and of the stamp / title of a group', () => {
-  const data = {width: 800, pad: 20, gap: 10, bands: [
-    {type: 'group', title: 'Frame', stamp: 'Draft', children: [{type: 'box', title: 'Inner', body: 'text'}]},
-    {type: 'legend', items: [{label: 'Legend'}]},
-  ]} as unknown as DiagramData;
-  const texts = new Set([...collectMeasures(data, ROLES).values()].map(r => r.text));
-  for (const t of ['Frame', 'Draft', 'Inner', 'text', 'Legend']) assert.ok(texts.has(t), t);
-});
 
-test('layout-handlers.ts does not import layout.ts (no import cycle)', () => {
-  assert.doesNotMatch(readFileSync(new URL('../lib/layout-handlers.ts', import.meta.url), 'utf8'), /from '\.\/layout\.ts'/);
+test('renderInBrowser measures nested bands and group labels', async () => {
+  const data = diagram({theme: 'blue', title: 't'}).add(
+    group([box({title: 'Inner', body: 'text'})], {title: 'Frame', stamp: 'Draft'}),
+    legend([{tone: 'accent', label: 'Legend'}]),
+  );
+  const texts = new Set<string>();
+  await renderInBrowser(data, {measure: ({text, size}) => {
+    texts.add(text);
+    return {w: text.length * size / 2, h: size};
+  }});
+  for (const text of ['Frame', 'Draft', 'Inner', 'text', 'Legend']) assert.ok(texts.has(text), text);
 });

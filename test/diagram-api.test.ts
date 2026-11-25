@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {diagram, box, banner, caption, row, grid, group, table, sequence, wireframe, screens, swimlane, connect, branch, legend, wf, checkDiagram, closeMeasurer} from '../lib/dsl.ts';
-import {lintDiagram, applyAutoLegend, legendKeys, DEFAULT_LEGEND_LABELS, RULE_DOCS, walkBands} from '../lib/rules.ts';
+import {legendKeys, DEFAULT_LEGEND_LABELS, RULE_DOCS, walkBands} from '../lib/rules.ts';
 import type {LegendBand, LegendItem} from '../lib/types/containers.ts';
 import type {Finding} from '../lib/types/verdicts.ts';
 
@@ -79,7 +79,7 @@ test('accept: a finding of that rule becomes info with the reason; others keep t
   assert.ok(f.message.startsWith(before!.message), 'the original message is kept');
 });
 
-test('accept: set through diagram({accept}) reaches lintDiagram for different rules', async () => {
+test('accept: set through diagram({accept}) reaches the checker for different rules', async () => {
   const mk = (accept?: Record<string, string>) => {
     const d = diagram({theme: 'blue', width: 1200, accept: accept as never});
     d.add(box({id: 'a', title: 'a'}), box({id: 'b', title: 'b'}), connect('a', 'b', {line: 'dashed'}));
@@ -95,50 +95,48 @@ test('accept: set through diagram({accept}) reaches lintDiagram for different ru
   assert.match(byRule(acc, 'legend-missing')!.message, /許容: l/);
 });
 
-test('accept: applies to lintDiagram called directly, including rules that fire from raw data', () => {
+test('accept: applies to rules that fire from authored data', async () => {
   const d = diagram({theme: 'blue', accept: {'one-story': '2 本で 1 話'}});
   d.add(...swimlane([{id: 'l', label: 'L'}], [{id: 's', lane: 'l', title: 'S'}]), ...swimlane([{id: 'm', label: 'M'}], [{id: 't', lane: 'm', title: 'T'}]));
-  const f = lintDiagram({...d, laidOut: [], connects: []}).find(x => x.rule === 'one-story')!;
+  const f = (await findingsOf(d)).find(x => x.rule === 'one-story')!;
   assert.equal(f.severity, 'info');
   assert.match(f.message, /許容: 2 本で 1 話/);
-  assert.equal(lintDiagram({...d, accept: undefined, laidOut: [], connects: []}).find(x => x.rule === 'one-story')!.severity, 'warn');
+  assert.equal((await findingsOf({...d, accept: undefined})).find(x => x.rule === 'one-story')!.severity, 'warn');
 });
 
-test('accept: an empty reason / unrelated rule id leaves findings alone; every RULE_DOCS key is a string key', () => {
+test('accept: an empty reason / unrelated rule id leaves findings alone; every RULE_DOCS key is a string key', async () => {
   const d = diagram({theme: 'blue', accept: {'density': 'x'}});
   d.add(swimlane([{id: 'l', label: 'L'}], [{id: 's', lane: 'l', title: 'S'}]), swimlane([{id: 'm', label: 'M'}], [{id: 't', lane: 'm', title: 'T'}]) as never);
-  const f = lintDiagram({...d, laidOut: [], connects: []}).find(x => x.rule === 'one-story')!;
+  const f = (await findingsOf(d)).find(x => x.rule === 'one-story')!;
   assert.equal(f.severity, 'warn');
   assert.ok(Object.keys(RULE_DOCS).every(k => RULE_DOCS[k as keyof typeof RULE_DOCS].length > 0));
 });
 
 // ---- legendLabels ------------------------------------------------------------------------------------
-const labelsOf = (d: ReturnType<typeof diagram>) => Object.fromEntries((d.bands.find(b => b.type === 'legend') as LegendBand).items.map((i: LegendItem) => [i.tone ?? `line:${i.line}`, i.label]));
+const labelsOf = (d: Pick<ReturnType<typeof diagram>, 'bands'>) => Object.fromEntries((d.bands.find(b => b.type === 'legend') as LegendBand).items.map((i: LegendItem) => [i.tone ?? `line:${i.line}`, i.label]));
 
-test("legend 'auto' uses legendLabels over DEFAULT_LEGEND_LABELS, per key, and falls back to the default", () => {
+test("legend 'auto' uses legendLabels over DEFAULT_LEGEND_LABELS, per key, and falls back to the default", async () => {
   const d = diagram({theme: 'blue', legend: 'auto', legendLabels: {'tone:new': '追加', 'tone:danger': '要注意'}});
   d.add(box({id: 'a', title: 'a', tone: 'new'}), box({id: 'b', title: 'b', tone: 'changed'}), box({id: 'c', title: 'c', tone: 'danger'}), connect('a', 'b'));
-  applyAutoLegend(d);
-  const l = labelsOf(d);
+  const {laidOut} = await checkDiagram(d);
+  const l = labelsOf(laidOut);
   assert.equal(l['new'], '追加');
-  assert.ok(legendKeys(d.bands).has('tone:changed'));
+  assert.ok(legendKeys(laidOut.bands).has('tone:changed'));
   assert.equal(l['danger'], '要注意');
   assert.equal(l['changed'], DEFAULT_LEGEND_LABELS['tone:changed']);
 });
 
-test("legend 'auto' is not applied without the option, and does not duplicate an entry already listed", () => {
+test("legend 'auto' is not applied without the option, and does not duplicate an entry already listed", async () => {
   const off = diagram({theme: 'blue'});
   off.add(box({id: 'a', tone: 'new', title: 'a'}));
-  applyAutoLegend(off);
-  assert.equal(off.bands.some(b => b.type === 'legend'), false);
+  assert.equal((await checkDiagram(off)).laidOut.bands.some(b => b.type === 'legend'), false);
 
   const on = diagram({theme: 'blue', legend: 'auto'});
   on.add(box({id: 'a', tone: 'new', title: 'a'}), legend([{tone: 'new', label: '手書き'}]));
-  applyAutoLegend(on);
-  assert.equal(on.bands.filter(b => b.type === 'legend').length, 1);
-  assert.equal(labelsOf(on)['new'], '手書き', 'a hand-written entry wins over both the default and legendLabels');
-  applyAutoLegend(on); // idempotent
-  assert.equal((on.bands.find(b => b.type === 'legend') as LegendBand).items.length, 1);
+  const {laidOut} = await checkDiagram(on);
+  assert.equal(laidOut.bands.filter(b => b.type === 'legend').length, 1);
+  assert.equal(labelsOf(laidOut)['new'], '手書き', 'a hand-written entry wins over both the default and legendLabels');
+  assert.equal(((await checkDiagram(on)).laidOut.bands.find(b => b.type === 'legend') as LegendBand).items.length, 1);
 });
 
 test('legendLabels flow through checkDiagram: with legend auto there is no legend-missing / legend-incomplete warning', async () => {
@@ -163,19 +161,17 @@ test('legend: false declares that no legend is needed: legend-missing / legend-i
 });
 
 test('cjk-line-long: a long title or banner headline line is flagged, a short or line-broken one is not', async () => {
-  const {fullWidthUnits} = await import('../lib/rules.ts');
-  const {HEADLINE_PX} = await import('../lib/rules.ts');
-  const {ROLES} = await import('../lib/tokens.ts');
-  for (const [r, px] of Object.entries(HEADLINE_PX)) assert.equal(px, ROLES[r as keyof typeof ROLES], `HEADLINE_PX.${r} follows ROLES`);
+  const {fullWidthUnits} = await import('../lib/verify-caption.ts');
   assert.equal(fullWidthUnits('あいabc'), 3.5);
   assert.equal(fullWidthUnits('ｱｲｳ'), 1.5, 'halfwidth katakana is half');
   assert.equal(fullWidthUnits('한국ＡＢ𠮷'), 5);
-  const f = (...bands: any[]) => { const d = diagram({theme: 'blue', title: 't'}); for (const b of bands) d.add(b); return lintDiagram({...d, laidOut: [], connects: []}).filter(x => x.rule === 'cjk-line-long'); };
-  assert.equal(f(caption('あ'.repeat(41), {role: 'title'})).length, 1);
-  assert.equal(f(caption('あ'.repeat(40), {role: 'title'})).length, 0);
-  assert.equal(f(caption('あ'.repeat(30) + '\n' + 'い'.repeat(30), {role: 'title'})).length, 0);
-  assert.equal(f(banner({headline: 'あ'.repeat(38)})).length, 1);
-  assert.equal(f(banner({headline: '短い見出し'})).length, 0);
+  const f = async (band: ReturnType<typeof caption> | ReturnType<typeof banner>) =>
+    (await findingsOf(diagram({theme: 'blue', title: 't', width: 1300}).add(band))).filter(x => x.rule === 'cjk-line-long');
+  assert.equal((await f(caption('あ'.repeat(41), {role: 'title'}))).length, 1);
+  assert.equal((await f(caption('あ'.repeat(40), {role: 'title'}))).length, 0);
+  assert.equal((await f(caption('あ'.repeat(30) + '\n' + 'い'.repeat(30), {role: 'title'}))).length, 0);
+  assert.equal((await f(banner({headline: 'あ'.repeat(38)}))).length, 1);
+  assert.equal((await f(banner({headline: '短い見出し'}))).length, 0);
   // under the budget but wrapped by a narrow diagram
   const narrow = await findingsOf(diagram({theme: 'blue', title: 't', legend: false, width: 320}).add(banner({headline: '承認待ちが三日から一日へ短くなった'})));
   assert.match(narrow.filter(x => x.rule === 'cjk-line-long').map(x => x.message).join(), /自動で折り返している/);

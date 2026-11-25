@@ -3,13 +3,13 @@ const root = process.argv[2]!, N = Number(process.argv[3] ?? 100);
 await import(root + '/test/helpers/strict-width.ts');
 const {register} = await import('node:module'); register(new URL('file://' + root + '/lib/resolve-hook.ts'));
 const {checkDiagram, closeMeasurer, diagram, pdpc, relationDiagram, whyWhyTree, causeTree} = await import(root + '/lib/dsl.ts');
-const {lintDiagram} = await import(root + '/lib/rules.ts');
+const {parallelEdgeFindings} = await import(root + '/lib/verify-cause-spacing.ts');
 const {loadDiagram} = await import(root + '/lib/load-source.ts');
 const fs = await import('node:fs'); const path = await import('node:path');
 let seed = 99; const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648; const ri = (n: number) => Math.floor(rnd() * n);
 const lab = (k: string) => k + ' ' + 'あ'.repeat(3 + ri(9));
 const res: Record<string, {n: number; flagged: number; errs: number; pairs: number[]}> = {};
-const rec = (kind: string, laid: any) => { const f = lintDiagram(laid).filter((x: any) => x.rule === 'edge-parallel'); const r = (res[kind] ??= {n: 0, flagged: 0, errs: 0, pairs: []}); r.n++; if (f.length) { r.flagged++; r.pairs.push(f.length); } };
+const rec = (kind: string, laid: any) => { const f = parallelEdgeFindings(laid); const r = (res[kind] ??= {n: 0, flagged: 0, errs: 0, pairs: []}); r.n++; if (f.length) { r.flagged++; r.pairs.push(f.length); } };
 const run = async (kind: string, mk: () => any) => { try { const d = diagram({theme: 'blue', width: 1800}).add(mk()); const r = await checkDiagram(d); rec(kind, r.laidOut); } catch (e) { (res[kind] ??= {n: 0, flagged: 0, errs: 0, pairs: []}).errs++; } };
 for (let g = 0; g < N; g++) {
   const n = 8 + ri(10);
@@ -32,5 +32,5 @@ for (let g = 0; g < N; g++) {
   await run('causeTree(ref)', () => causeTree(cn, cl, {tree: 'crt', dir: 'up'}));
 }
 const ex = path.join(root, 'examples'); const exr: Record<string, number> = {};
-for (const f of ['qc-pdpc.ts', 'qc-relation.ts', 'why-why.ts']) { try { const r = await checkDiagram(await loadDiagram(path.join(ex, f)) as any); exr[f] = lintDiagram(r.laidOut).filter((x: any) => x.rule === 'edge-parallel').length; } catch (e) { exr[f] = -1; } }
+for (const f of ['qc-pdpc.ts', 'qc-relation.ts', 'why-why.ts']) { try { const r = await checkDiagram(await loadDiagram(path.join(ex, f)) as any); exr[f] = parallelEdgeFindings(r.laidOut).length; } catch (e) { exr[f] = -1; } }
 console.log(JSON.stringify({res, exr})); closeMeasurer();

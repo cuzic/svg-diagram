@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {checkDiagram, closeMeasurer, diagram, renderDiagram, table} from '../lib/dsl.ts';
-import {lintDiagram} from '../lib/rules.ts';
 import {PALETTE} from '../lib/tokens.ts';
 import type {LaidOutTable, TableBand} from '../lib/types/sequence-table-swimlane.ts';
 
@@ -13,7 +12,7 @@ const run = async (t: TableBand) => {
   const d = diagram({theme: 'blue', title: 't'}).add(t);
   const {laidOut, verdict} = await checkDiagram(d);
   assert.deepEqual(verdict.problems, []);
-  const findings = lintDiagram({...d, laidOut: laidOut.laidOut, connects: []});
+  const findings = verdict.findings;
   return {t: laidOut.laidOut.find(b => b.type === 'table') as LaidOutTable, findings};
 };
 const svgOf = async (t: TableBand) => (await renderDiagram(diagram({theme: 'blue', title: 't'}).add(t), {name: 't.svg', budget: 'cacheOnly'})).svg;

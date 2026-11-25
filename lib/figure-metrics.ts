@@ -1,6 +1,7 @@
 import type {LayoutMetric} from './layout-metrics.ts';
 import type {Rect} from './types/core.ts';
 import type {LaidOutBand} from './types/index.ts';
+import type {Finding} from './types/verdicts.ts';
 
 /** Left and right margins of the whole figure that differ by this much or more (the figure sits to one side). */
 export const FIGURE_OFFSET_PX = 48;
@@ -45,4 +46,9 @@ export function figureMetricsForExtent(box: Rect | null, width: number): LayoutM
   if (off >= FIGURE_OFFSET_PX) out.push({rule: 'layout-figure-offset', message: `内容の左の余白が ${Math.round(left)}px、右が ${Math.round(rightMargin)}px で、${Math.round(off)}px の差がある。図が左右どちらかに寄っている`, data: {measured: Math.round(off), threshold: FIGURE_OFFSET_PX, fix: '図の部品全体を中央に置く（row の justify: center、図形とラベルの外接で寄せる）'}});
   if (box.w < FIGURE_NARROW_RATIO * width) out.push({rule: 'layout-figure-narrow', message: `内容の幅が ${Math.round(box.w)}px で、図の幅 ${width}px の ${Math.round(100 * box.w / width)}% しかない。diagram({width}) で内容に合わせて狭めると余白が減る`, data: {measured: Math.round(box.w), threshold: Math.round(FIGURE_NARROW_RATIO * width), fix: 'diagram({width}) を内容に合わせて小さくする'}});
   return out;
+}
+
+/** A layout metric as a finding, keeping the key order rule, severity, message, data. */
+export function layoutFinding({rule, message, data, ...location}: LayoutMetric, layoutCheck?: 'info' | 'strict'): Finding {
+  return {rule, severity: layoutCheck === 'strict' ? 'warn' : 'info', message, data, ...location};
 }

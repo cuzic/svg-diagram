@@ -5,7 +5,7 @@ import {existsSync, readFileSync} from 'node:fs';
 import {resolve, FRESH_PARAM} from '../lib/resolve-hook.ts';
 
 const DSL = new URL('../lib/dsl.ts', import.meta.url).href;
-const OWN_FILE = new URL('../lib/layout.ts', import.meta.url).href;
+const OWN_FILE = new URL('../lib/core.ts', import.meta.url).href;
 const ctx = (parentURL?: string) => ({parentURL, conditions: [], importAttributes: {}}) as never;
 const to = (url: string) => async () => ({url});
 const fresh = (url: string, n = 7) => `${url}?${FRESH_PARAM}=${n}`;
@@ -86,7 +86,7 @@ test('node_modules, node: builtins and svg-diagram\'s own modules keep their URL
   const a = fresh('file:///p/a.ts');
   assert.equal((await resolve('left-pad', ctx(a), to('file:///p/node_modules/left-pad/index.js'))).url, 'file:///p/node_modules/left-pad/index.js');
   assert.equal((await resolve('node:fs', ctx(a), to('node:fs'))).url, 'node:fs');
-  assert.equal((await resolve('../lib/layout.ts', ctx(a), to(OWN_FILE))).url, OWN_FILE);
+  assert.equal((await resolve('../lib/core.ts', ctx(a), to(OWN_FILE))).url, OWN_FILE);
 });
 
 test('a URL that already has a query keeps it, the fresh query is added with &; one that has the fresh query is not tagged twice', async () => {

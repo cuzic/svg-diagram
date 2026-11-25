@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {box, build, caption, checkDiagram, closeMeasurer, connect, diagram, quadrant, renderDiagram} from '../lib/dsl.ts';
 import {QUADRANT_PRESETS, quadrantBand, quadrantDefaults, sizeRefs} from '../lib/quadrant.ts';
-import {verifyDiagram} from '../lib/verify.ts';
+import {quadrantProblems} from '../lib/verify-quadrant.ts';
 import type {LaidOutQuadrant, QuadrantItem, QuadrantPreset} from '../lib/quadrant.ts';
 
 test.after(() => closeMeasurer());
@@ -329,7 +329,7 @@ test('verify reports an item mark or label that runs out of its cell', async () 
   f.bubbles[0]!.y = cell!.y + cell!.h; // the centre on the bottom edge
   const box = f.labelBoxes.find(b => b.kind === 'item')!;
   box.x = cell!.x + cell!.w - 2;
-  const problems = verifyDiagram(laidOut).problems.join('\n');
+  const problems = quadrantProblems(f).join('\n');
   assert.match(problems, /item "A" crosses the border of its cell/);
   assert.match(problems, /the label of "A" runs out of its cell/);
 });

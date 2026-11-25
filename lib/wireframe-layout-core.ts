@@ -67,7 +67,7 @@ export function collectStateMatrixTextRequestsWith(band: ScreensBand, runtime: W
 export function collectTextRequestsWith(band: WireframeBand | ScreensBand, runtime: WireframeRuntime): TextRequest[] {
   const values = band.type === 'screens'
     ? [band.items, band.matrix, band.marks]
-    : [band.root, band.overlays, band.title, band.tag, band.notes, band.marks];
+    : [band.root, band.overlays, band.title, band.tag, band.notes, band.marks, band.notes?.map((_, i) => String(i + 1))];
   return collectTextRequestsFrom(values, runtime, MATRIX_STRINGS);
 }
 

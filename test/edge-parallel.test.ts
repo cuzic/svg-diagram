@@ -3,7 +3,8 @@
 import test from 'node:test';
 import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
-import {lintDiagram, RULE_DOCS} from '../lib/rules.ts';
+import {RULE_DOCS} from '../lib/rules.ts';
+import {parallelEdgeFindings} from '../lib/verify-cause-spacing.ts';
 import {parallelRuns, runsTogether, type P} from '../lib/polyline-metrics.ts';
 import {laneStepOf} from '../lib/layered-route.ts';
 import {causeTree, checkDiagram, closeMeasurer, diagram, pdpc, relationDiagram, whyWhyTree} from '../lib/dsl.ts';
@@ -13,11 +14,11 @@ import {crtReportShape} from './fixtures/crt-report-shape.ts';
 
 test.after(() => closeMeasurer());
 
-type Target = Parameters<typeof lintDiagram>[0];
+type Target = Parameters<typeof parallelEdgeFindings>[0];
 type Edge = {from: string; to: string; points: P[]};
 const withBand = (band: object, extra: object = {}): Target => ({...diagram({theme: 'blue', title: 't', ...extra}), laidOut: [band]}) as unknown as Target;
 const causeBand = (edges: Edge[], extra: object = {}) => ({type: 'cause', x: 0, y: 0, w: 400, h: 300, edges, ...extra});
-const parallel = (d: Target) => lintDiagram(d).filter(f => f.rule === 'edge-parallel');
+const parallel = (d: Target) => parallelEdgeFindings(d);
 /** Two level arrows `gap` apart, `len` long together. */
 const pair = (gap: number, len: number, ends: [string, string, string, string] = ['a', 'b', 'c', 'd']): Edge[] => [
   {from: ends[0], to: ends[1], points: [{x: 0, y: 0}, {x: len, y: 0}]},

@@ -8,7 +8,7 @@ import type {LaidOutQuadrant} from '../lib/quadrant.ts';
 import type {LaidOutBox} from '../lib/types/text-bands.ts';
 import type {LaidOutGroup} from '../lib/types/containers.ts';
 import type {Band} from '../lib/types/index.ts';
-import {groupFillPlan} from '../lib/layout-handlers.ts';
+import {groupFillPlan} from '../lib/layout-group.ts';
 
 const kids = (n: number) => Array.from({length: n}, () => ({}));
 const edges = (g: {x: number[]; w: number[]}) => g.x.flatMap((x, i) => [x, x + g.w[i]!]);

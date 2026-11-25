@@ -3,45 +3,22 @@ import {test} from 'node:test';
 import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
 import {parseRef} from '../lib/connect-geometry.ts';
-import {layoutBoxLikeBand} from '../lib/layout-box-like.ts';
-import {layoutAreas} from '../lib/layout-areas.ts';
-import {layoutCurve} from '../lib/layout-curve.ts';
-import {layoutPyramid} from '../lib/layout-pyramid.ts';
-import {layoutRaw} from '../lib/layout-raw.ts';
-import {layoutConnect} from '../lib/layout-connect.ts';
-import {layoutGroup} from '../lib/layout-group.ts';
-import {layoutGroupRow} from '../lib/layout-group-row.ts';
-import {layoutGridBand} from '../lib/layout-grid.ts';
-import {layoutRow, registerRowSlots} from '../lib/layout-row.ts';
-import {LAYOUT_HANDLERS} from '../lib/layout-handlers.ts';
+import {registerRowSlots} from '../lib/layout-row.ts';
 import type {Rect} from '../lib/types/core.ts';
-
-test('the legacy table uses the independently importable row, grid and connector handlers', () => {
-  assert.equal(LAYOUT_HANDLERS.group, layoutGroup);
-  assert.equal(LAYOUT_HANDLERS.grouprow, layoutGroupRow);
-  assert.equal(LAYOUT_HANDLERS.areas, layoutAreas);
-  assert.equal(LAYOUT_HANDLERS.curve, layoutCurve);
-  assert.equal(LAYOUT_HANDLERS.pyramid, layoutPyramid);
-  assert.equal(LAYOUT_HANDLERS.raw, layoutRaw);
-  assert.equal(LAYOUT_HANDLERS.box, layoutBoxLikeBand);
-  assert.deepEqual(parseRef('plan#1-2:right@0.25'), {id: 'plan#1-2', side: 'right', at: 0.25});
-  assert.equal(LAYOUT_HANDLERS.row, layoutRow);
-  assert.equal(LAYOUT_HANDLERS.grid, layoutGridBand);
-  assert.equal(LAYOUT_HANDLERS.connect, layoutConnect);
-});
 
 test('bundling one container handler does not bring in the other handlers', async () => {
   const modules = ['layout-row', 'layout-grid', 'layout-connect'];
   for (const name of modules) {
     const {metafile} = await build({entryPoints: [fileURLToPath(new URL(`../lib/${name}.ts`, import.meta.url))],
       bundle: true, platform: 'browser', metafile: true, write: false});
-    const forbidden = [...modules.filter(module => module !== name), 'layout-handlers', 'band-children', 'rules', 'verify-handlers', 'emit-handlers'];
+    const forbidden = [...modules.filter(module => module !== name), 'band-children', 'rules', 'verify-handlers', 'emit-handlers'];
     const present = Object.keys(metafile.inputs).filter(file => forbidden.some(module => file.endsWith(`/${module}.ts`)));
     assert.deepEqual(present, [], name);
   }
 });
 
 test('row slots register anchor ranges for connectors without any layout table', () => {
+  assert.deepEqual(parseRef('plan#1-2:right@0.25'), {id: 'plan#1-2', side: 'right', at: 0.25});
   const anchors = new Map<string, Rect>();
   const areaIds = new Set<string>();
   const ctx = {anchors, areaIds, claimed: (id: string): never => { throw new Error(id); }};

@@ -3,17 +3,19 @@ import assert from 'node:assert/strict';
 import {banner, box, caption, causeTree, connect, diagram, em, grid, group, plane, row, steps} from '../lib/dsl-pure.ts';
 import {boxTextPlacement, captionTextPlacement, stampGeometry, tagGeometry} from '../lib/emit-boxes.ts';
 import {runLineOrigin} from '../lib/emit-common.ts';
-import {EMIT_HANDLERS} from '../lib/emit-handlers.ts';
-import {emitSvg} from '../lib/emit.ts';
-import {INVENTORY_HANDLERS} from '../lib/inventory.ts';
-import {layoutWith} from '../lib/layout.ts';
+import {band} from '../lib/band-def.ts';
+import {boxDefinition} from '../lib/bands/box.ts';
+import {renderLegacyDiagramWithCore} from '../lib/legacy-core.ts';
+import {connectorInventory} from '../lib/inventory-lines.ts';
 import {BOX_PAD_X, BOX_PAD_Y, STEP_INDENT} from '../lib/layout-util.ts';
-import {runPreLayout} from '../lib/pipeline.ts';
-import {CONNECT_LABEL_SIZE, ROLES} from '../lib/tokens.ts';
+import {CONNECT_LABEL_SIZE, SLIDE_CANVAS} from '../lib/tokens.ts';
 import type {Arrow, DiagramData, InventoryItem, LaidOutDiagram, Point, Rect} from '../lib/types/index.ts';
 
 const widthOf = (text: string, size: number) => text.length * size / 2;
-const layout = (d: DiagramData) => layoutWith(d, ROLES, widthOf);
+const draw = (d: DiagramData) => renderLegacyDiagramWithCore(d, {
+  measure: ({text, size}) => ({w: widthOf(text, size), h: size}),
+});
+const layout = async (d: DiagramData) => (await draw(d)).laidOut;
 const figure = (width?: number) => diagram({theme: 'blue', width});
 const title = '要確認';
 const change = 'ここが変更点';
@@ -39,15 +41,15 @@ function contains(r: Rect, p: Point): boolean {
   return r.x <= p.x && p.x <= r.x + r.w && r.y <= p.y && p.y <= r.y + r.h;
 }
 
-function svgTexts(d: LaidOutDiagram) {
-  return [...emitSvg(d).matchAll(/<text\b([^>]*)>(.*?)<\/text>/g)].map(([, attrs, content]) => {
+function svgTexts(svg: string) {
+  return [...svg.matchAll(/<text\b([^>]*)>(.*?)<\/text>/g)].map(([, attrs, content]) => {
     const get = (name: string) => attrs!.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1];
     return {content: content!, x: Number(get('x')), y: Number(get('y')), size: Number(get('font-size')), anchor: get('text-anchor') ?? 'start'};
   });
 }
 
-test('T1: a left-aligned box records its text and a clockwise frame', () => {
-  const d = layout(singleBox());
+test('T1: a left-aligned box records its text and a clockwise frame', async () => {
+  const {laidOut: d, svg} = await draw(singleBox());
   const b = d.laidOut[0]!;
   assert.equal(b.type, 'box');
   const run = b.wrappedRuns[0]!;
@@ -63,14 +65,14 @@ test('T1: a left-aligned box records its text and a clockwise frame', () => {
   const fs = frames(d);
   assert.equal(fs.length, 1);
   assert.equal(fs[0]!.owner, 'a');
-  const drawn = emitSvg(d).match(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" rx="8"/);
+  const drawn = svg.match(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" rx="8"/);
   assert.ok(drawn);
   const [x, y, w, h] = drawn.slice(1).map(Number) as [number, number, number, number];
   assert.deepEqual(fs[0]!.poly, [{x, y}, {x: x + w, y}, {x: x + w, y: y + h}, {x, y: y + h}]);
 });
 
-test('T1: the title starts after the step indent', () => {
-  const d = layout(figure().add(box({title, id: 'a', step: 1})));
+test('T1: the title starts after the step indent', async () => {
+  const {laidOut: d, svg} = await draw(figure().add(box({title, id: 'a', step: 1})));
   const b = d.laidOut[0]!;
   assert.equal(b.type, 'box');
   const ts = texts(d, 'a');
@@ -78,15 +80,15 @@ test('T1: the title starts after the step indent', () => {
   const x = b.x + BOX_PAD_X + STEP_INDENT;
   near(ts[0]!.rect.x, x - 0.125 * ts[0]!.size);
   assert.deepEqual(runLineOrigin(b.wrappedRuns[0]!, boxTextPlacement(b)), {lx: x, anchor: 'start'});
-  near(svgTexts(d).find(t => t.content === title)!.x, x);
+  near(svgTexts(svg).find(t => t.content === title)!.x, x);
 });
 
-test('T2: a right-aligned step title wraps within the indented space and reaches the right padding', () => {
-  const d = layout(figure(160).add(box({title: change, id: 'a', step: 1, align: 'right'})));
+test('T2: a right-aligned step title wraps within the indented space and reaches the right padding', async () => {
+  const {laidOut: d, svg} = await draw(figure(160).add(box({title: change, id: 'a', step: 1, align: 'right'})));
   const b = d.laidOut[0]!;
   assert.equal(b.type, 'box');
   const right = b.x + b.w - BOX_PAD_X;
-  const rendered = svgTexts(d).filter(t => t.anchor === 'end');
+  const rendered = svgTexts(svg).filter(t => t.anchor === 'end');
   assert.deepEqual(rendered.map(t => t.content), ['ここが', '変更点']);
   assert.equal(texts(d, 'a').length, 2);
   for (const t of rendered) near(t.x, right);
@@ -96,18 +98,18 @@ test('T2: a right-aligned step title wraps within the indented space and reaches
   }
 });
 
-test('T2: boxes respect the center and right text alignment', () => {
-  const center = layout(singleBox('center'));
+test('T2: boxes respect the center and right text alignment', async () => {
+  const center = await layout(singleBox('center'));
   const cb = center.laidOut[0]!, ct = texts(center, 'a')[0]!.rect;
   near(ct.x + ct.w / 2, cb.x + cb.w / 2);
-  const right = layout(singleBox('right'));
+  const right = await layout(singleBox('right'));
   const rb = right.laidOut[0]!, {rect: rt, size} = texts(right, 'a')[0]!;
   near(rt.x + rt.w, rb.x + rb.w - BOX_PAD_X + 0.125 * size);
 });
 
-test('T3: a wrapped title records each line at its own baseline and width', () => {
+test('T3: a wrapped title records each line at its own baseline and width', async () => {
   for (const align of ['left', 'center', 'right'] as const) {
-    const d = layout(wrappedBox(align));
+    const d = await layout(wrappedBox(align));
     const b = d.laidOut[0]!;
     assert.equal(b.type, 'box');
     const run = b.wrappedRuns[0]!, ts = texts(d);
@@ -124,9 +126,9 @@ test('T3: a wrapped title records each line at its own baseline and width', () =
   }
 });
 
-test('T4: row children keep their IDs at different gaps', () => {
+test('T4: row children keep their IDs at different gaps', async () => {
   for (const gap of [12, 40]) {
-    const d = layout(figure().add(boxesInRow(gap)));
+    const d = await layout(figure().add(boxesInRow(gap)));
     assert.deepEqual(texts(d).map(t => t.owner), ['a', 'b']);
     assert.deepEqual(frames(d).map(t => t.owner), ['a', 'b']);
     const b = d.laidOut[0]!;
@@ -138,8 +140,8 @@ test('T4: row children keep their IDs at different gaps', () => {
   }
 });
 
-test('T5: captions use explicit left alignment and default center alignment', () => {
-  const d = layout(captions());
+test('T5: captions use explicit left alignment and default center alignment', async () => {
+  const d = await layout(captions());
   const [left, center] = d.laidOut;
   const [lt, ct] = texts(d);
   assert.equal(center?.type, 'caption');
@@ -149,8 +151,8 @@ test('T5: captions use explicit left alignment and default center alignment', ()
   near(ct!.rect.x + ct!.rect.w / 2, center!.x + center!.w / 2);
 });
 
-test('T6: a labelled connector records its polyline, end arrowhead and label box', () => {
-  const d = layout(linkedBoxes());
+test('T6: a labelled connector records its polyline, end arrowhead and label box', async () => {
+  const d = await layout(linkedBoxes());
   const c = d.connects[0]!;
   const connectors = d.inventory.items.filter(item => item.kind === 'connector');
   assert.deepEqual(connectors, [{kind: 'connector', owner: 'a>b', points: c.points}]);
@@ -163,23 +165,23 @@ test('T6: a labelled connector records its polyline, end arrowhead and label box
   assert.deepEqual(texts(d, 'a>b'), [{kind: 'text', owner: 'a>b', rect: c.labelBox, size: CONNECT_LABEL_SIZE}]);
 });
 
-test('T7: arrowheads are recorded at the requested ends only', () => {
-  const both = layout(linkedBoxes('both'));
+test('T7: arrowheads are recorded at the requested ends only', async () => {
+  const both = await layout(linkedBoxes('both'));
   const c = both.connects[0]!;
   const heads = arrowheads(both);
   assert.equal(heads.length, 2);
   for (const end of [c.from, c.to]) assert.equal(heads.filter(h => contains(h.rect, end)).length, 1);
-  const start = layout(linkedBoxes('start'));
+  const start = await layout(linkedBoxes('start'));
   assert.equal(arrowheads(start).length, 1);
   assert.ok(contains(arrowheads(start)[0]!.rect, start.connects[0]!.from));
-  assert.equal(arrowheads(layout(linkedBoxes('none'))).length, 0);
+  assert.equal(arrowheads(await layout(linkedBoxes('none'))).length, 0);
 });
 
-test('M1: steps record the between-box arrows and the loop back to the first box', () => {
+test('M1: steps record the between-box arrows and the loop back to the first box', async () => {
   const input = figure().add(steps([{title}, {title: change}, {title}], {
     id: 'steps', loopBack: {from: 3, to: 1},
   }));
-  const d = layout(runPreLayout({...input}));
+  const d = await layout(input);
   const r = d.laidOut[0]!;
   assert.equal(r.type, 'row');
   assert.equal(r.arrows.length, 2);
@@ -199,26 +201,26 @@ test('M1: steps record the between-box arrows and the loop back to the first box
   assert.ok(!contains(heads[2]!.rect, loop.from));
 });
 
-test('T8: a chip contributes one label rectangle with the actual connector font size', () => {
-  const d = layoutWith(linkedBoxes(undefined, true), {...ROLES, connectLabel: 18}, widthOf);
+test('T8: a chip contributes one label rectangle with the actual connector font size', async () => {
+  const d = await layout({...linkedBoxes(undefined, true), canvas: {...SLIDE_CANVAS, minText: 18}});
   const c = d.connects[0]!;
   assert.ok(c.chipBox);
   assert.deepEqual(texts(d, 'a>b'), [{kind: 'text', owner: 'a>b', rect: c.chipBox, size: 18}]);
 });
 
-test('T9: an unsupported band contributes its whole rectangle once', () => {
-  const d = layout(figure().add(plane({x: {max: 2}, y: {max: 2}})));
+test('T9: an unsupported band contributes its whole rectangle once', async () => {
+  const d = await layout(figure().add(plane({x: {max: 2}, y: {max: 2}})));
   const b = d.laidOut[0]!;
   assert.equal(b.type, 'plane');
   const {x, y, w, h} = b;
   assert.deepEqual(d.inventory.items, [{kind: 'whole', owner: 'plane[0]', band: 'plane', rect: {x, y, w, h}}]);
 });
 
-test('T10: wrapped text position and padded width agree with SVG and connector labels use their layout baselines', () => {
+test('T10: wrapped text position and padded width agree with SVG and connector labels use their layout baselines', async () => {
   const styled = figure().add(caption('「要確認」。', {mono: true}), box({body: ['Check ', em.b('this'), '.']}));
   for (const input of [singleBox(), singleBox('center'), singleBox('right'), wrappedBox(), figure().add(boxesInRow()), captions(), linkedBoxes(), styled]) {
-    const d = layout(input);
-    const rendered = svgTexts(d);
+    const {laidOut: d, svg} = await draw(input);
+    const rendered = svgTexts(svg);
     for (const c of d.connects) {
       const label = rendered.pop(); // Connectors are drawn after all the bands.
       assert.ok(label);
@@ -246,25 +248,19 @@ test('T10: wrapped text position and padded width agree with SVG and connector l
   }
 });
 
-test('T11: every laid-out band type has an inventory handler', () => {
-  assert.deepEqual(Object.keys(INVENTORY_HANDLERS).sort(), Object.keys(EMIT_HANDLERS).sort());
-  for (const handler of Object.values(INVENTORY_HANDLERS)) assert.equal(typeof handler, 'function');
-});
-
-test('T12: an inventory exception escapes bunsetsu-soft without retrying', t => {
+test('an inventory hook exception escapes bunsetsu-soft without retrying', async () => {
   const error = new Error('inventory failure');
-  const original = INVENTORY_HANDLERS.box;
-  const failOnce: typeof original = (band, ctx) => {
-    if (handler.mock.callCount() === 0) throw error;
-    return original(band, ctx);
-  };
-  const handler = t.mock.method(INVENTORY_HANDLERS, 'box', failOnce);
-  const input = {...singleBox(), wrap: 'bunsetsu-soft'} as const;
-  assert.throws(() => layout(input), caught => caught === error);
-  assert.equal(handler.mock.callCount(), 1);
+  let calls = 0;
+  const data = band({
+    ...boxDefinition,
+    inventory: () => { calls++; throw error; },
+  }, box({title, id: 'a'}));
+  const input = diagram({theme: 'blue', wrap: 'bunsetsu-soft'}).add(data);
+  await assert.rejects(layout(input), caught => caught === error);
+  assert.equal(calls, 1);
 });
 
-test('T12: inventory also records text when bunsetsu-soft falls back to phrase', () => {
+test('T12: inventory also records text when bunsetsu-soft falls back to phrase', async () => {
   // The seven-to-one tree from wrap-soft.test.ts, with widths and labels that trigger the fallback using widthOf.
   const leaves = Array.from({length: 7}, (_, i) => ({id: `n${i}`, label: 'ここが変更点確認してください'}));
   const nodes = [...leaves, {id: 'top', label: change}];
@@ -272,21 +268,21 @@ test('T12: inventory also records text when bunsetsu-soft falls back to phrase',
   const input = diagram({theme: 'blue', width: 840, wrap: 'bunsetsu-soft'}).add(
     box({title, id: 'a'}), causeTree(nodes, edges, {dir: 'up', maxNodeW: 80, tree: 'frt'}),
   );
-  const d = layout(input);
+  const d = await layout(input);
   assert.equal(d.wrapFellBack, true);
   assert.equal(texts(d, 'a').length, 1);
-  assert.deepEqual(d.inventory, layout({...input, wrap: 'phrase'}).inventory);
+  assert.deepEqual(d.inventory, (await layout({...input, wrap: 'phrase'})).inventory);
 });
 
-test('T13: laying out the same input twice gives the same inventory', () => {
+test('T13: laying out the same input twice gives the same inventory', async () => {
   const input = linkedBoxes('both', true);
-  const first = layout(input), second = layout(input);
+  const first = await layout(input), second = await layout(input);
   assert.ok(first.inventory.items.length > 0);
   assert.equal(JSON.stringify(first.inventory), JSON.stringify(second.inventory));
 });
 
-test('banner and group headings, grid children, and tag and stamp boxes are recorded', () => {
-  const d = layout(figure().add(
+test('banner and group headings, grid children, and tag and stamp boxes are recorded', async () => {
+  const {laidOut: d, svg} = await draw(figure().add(
     banner({id: 'header', headline: title}),
     group(grid([box({title, tag: title, stamp: change})], {cols: 1}), {id: 'group', title: change, stamp: title}),
   ));
@@ -300,7 +296,7 @@ test('banner and group headings, grid children, and tag and stamp boxes are reco
   const g = d.laidOut[3]!;
   assert.equal(g.type, 'grid');
   const tags = d.inventory.items.filter(item => item.kind === 'badge' && item.what === 'tag');
-  const drawnTag = emitSvg(d).match(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" rx="12"/);
+  const drawnTag = svg.match(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" rx="12"/);
   assert.ok(drawnTag);
   const [x, y, w, h] = drawnTag.slice(1).map(Number);
   const tagRect = {x, y, w, h};
@@ -314,13 +310,13 @@ test('banner and group headings, grid children, and tag and stamp boxes are reco
   assert.deepEqual(stamps.map(s => s.owner), ['group', 'grid[3]/0']);
   const child = g.children[0]!;
   assert.deepEqual(stampGeometry(child, child.stampW!), stamps[1]!.rect);
-  const drawnStamps = [...emitSvg(d).matchAll(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="24" rx="4"/g)];
+  const drawnStamps = [...svg.matchAll(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="24" rx="4"/g)];
   assert.deepEqual(stamps.map(s => s.rect), drawnStamps.map(([, x, y, w]) => ({x: Number(x), y: Number(y), w: Number(w), h: 24})));
 });
 
-test('connector inventory keeps its own copies of points and label rectangles', () => {
+test('connector inventory keeps its own copies of points and label rectangles', async () => {
   for (const chip of [false, true]) {
-    const d = layout(linkedBoxes(undefined, chip));
+    const d = await layout(linkedBoxes(undefined, chip));
     const c = d.connects[0]!;
     const snapshot = structuredClone(d.inventory);
     c.points[0]!.x += 100;
@@ -331,12 +327,11 @@ test('connector inventory keeps its own copies of points and label rectangles', 
 });
 
 test('the arrowhead follows a short leg around its bend and repeated links have distinct owners', async () => {
-  const {buildInventory} = await import('../lib/inventory.ts');
-  const c = layout(linkedBoxes()).connects[0]!;
+  const c = (await layout(linkedBoxes())).connects[0]!;
   const points = [{x: 0, y: 0}, {x: 0, y: 0}, {x: 6, y: 0}, {x: 6, y: 20}];
-  const {items} = buildInventory([], [
+  const items = connectorInventory([
     {...c, points, arrow: 'start'}, {...c, arrow: 'none'}, {...c, toId: 'b[1]', arrow: 'none'},
-  ], widthOf);
+  ]);
   const owners = items.filter(item => item.kind === 'connector').map(item => item.owner);
   assert.equal(owners.length, 3);
   assert.equal(owners[2], 'a>b[1]');
@@ -346,12 +341,12 @@ test('the arrowhead follows a short leg around its bend and repeated links have 
   ]);
 });
 
-test('unframed boxes still contribute hidden and dimmed text', () => {
+test('unframed boxes still contribute hidden and dimmed text', async () => {
   const input = figure().add(row([box({title, frame: false, reveal: 2}), box({title: change, frame: false, until: 1})], {id: 'row'}));
   const b = input.bands[0]!;
   assert.equal(b.type, 'row');
   Object.assign(b.children[1]!, {dim: true});
-  const d = layout(input);
+  const d = await layout(input);
   const placed = d.laidOut[0]!;
   assert.equal(placed.type, 'row');
   assert.equal(placed.children[1]!.dim, true);
