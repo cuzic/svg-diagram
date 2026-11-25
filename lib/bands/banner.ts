@@ -7,7 +7,7 @@ import {banner as buildBanner} from '../dsl/banner.ts';
 import {renderBanner} from '../emit-banner.ts';
 import {layoutBoxLike, layoutBoxLikeBand} from '../layout-box-like.ts';
 import {styledAtoms, textRuns} from '../layout-text.ts';
-import {fillTextSize} from '../slide-fill.ts';
+import {fillTextSize} from '../slide-fill-text.ts';
 import type {BannerBand, BannerOpts, LaidOutBanner} from '../types/text-bands.ts';
 import {boxLikeContrastProblems} from '../verify-box-like.ts';
 

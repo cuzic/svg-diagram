@@ -222,7 +222,9 @@ try {
 
 `renderBands` は実験的な SVG の入口です。`row()` と `grid()` の子には `svg-diagram/bands/box` の `box()`、`node()`、`stat()` を渡せます。手順を番号・強調付きで並べる `steps()` は `svg-diagram/bands/row` から import できます。親和図の `affinity()` は `svg-diagram/compose/affinity` から import し、返された帯の配列を `renderBands()` に渡します。`connect()` は箱の ID や行の列アンカーを参照でき、配列の前に書いても後から配置した端点に接続します。範囲を示す `bracket()`、吹き出しを付ける `callout()`、複数の接続線を作る `branch()` も `svg-diagram/bands/connect` から個別に import できます。行や横向きの `chevron` で `loopBack` を使う場合は `svg-diagram/bands/connect` から `connectDefinition` を import し、`renderBands(bands, {measure, connectors: connectDefinition})` と渡します。グループを含む行には `bands/group-row` の `groupRow()` に `group()` と `box()` を渡します。下書きバッジを図の上部に置くには、帯の配列の先頭に `status('draft')` を渡します。`swimlane()` に `flows` を渡すときは、第4引数に `connectDefinition` を渡します。全規則の検査や他の出力形式には従来の入口を使います。
 
-`renderBands` に `spotlight: 'id'` または `spotlight: {ids, dim, edges}` を渡すと、指定した帯や行の子・棒などを強調し、焦点外を薄く描きます。
+`svg-diagram/spotlight` の `spotlighter` と `spotlight: 'id'` または `spotlight: {ids, dim, edges}` を `renderBands` に渡すと、指定した帯や行の子・棒などを強調し、焦点外を薄く描きます。
+
+`renderBands` でスライドの予算 `slide: {maxHeight, contentWidth}` や予算に合わせて文字を拡大する `fill: true` を使う場合は、`svg-diagram/slide-fill` の `slideFitter` を `fitter` に渡します。
 
 `renderBands` に `width: 'fit'` を指定すると、`canvas` を使わない図の幅を内容に合わせて最小 320px まで縮めます。描画結果には `fit`（表示倍率と推奨の高さなど）、`fontScale`（描画時の文字倍率）、`laidOut`（配置結果）も含まれます。
 

@@ -243,6 +243,14 @@
       "types": "./dist/lib/core.d.ts",
       "default": "./dist/lib/core.js"
     },
+    "./spotlight": {
+      "types": "./dist/lib/spotlight-core.d.ts",
+      "default": "./dist/lib/spotlight-core.js"
+    },
+    "./slide-fill": {
+      "types": "./dist/lib/slide-fill.d.ts",
+      "default": "./dist/lib/slide-fill.js"
+    },
     "./bands/spacer": {
       "types": "./dist/lib/bands/spacer.d.ts",
       "default": "./dist/lib/bands/spacer.js"

@@ -1,21 +1,10 @@
 import {MathTooWideError} from './math.ts';
 import {OPT_IN_TEXT_MAX} from './tokens.ts';
-import type {Role, Roles} from './types/core.ts';
-import type {ImageBand} from './types/image.ts';
+import {analyzeFit} from './fit.ts';
+
+export {fillTextSize, imageFillTextSize} from './slide-fill-text.ts';
 
 export const UNMEASURED_FILL_NOTE = 'fill: true の図はスライドの空き寸法が要るため、既定の幅・倍率で描いた';
-
-/** The unscaled size of a role explicitly opted into the extended text range. */
-export function fillTextSize(roles: Roles, role?: Role): number {
-  return role ? roles[role] : 0;
-}
-
-export function imageFillTextSize(data: Pick<ImageBand, 'labelRole' | 'marks' | 'labels'>, roles: Roles): number {
-  let size = fillTextSize(roles, data.labelRole);
-  for (const mark of data.marks ?? []) size = Math.max(size, fillTextSize(roles, mark.role));
-  for (const label of data.labels ?? []) size = Math.max(size, fillTextSize(roles, label.role));
-  return size;
-}
 
 /** Keep opted-in large text within the ceiling. Ordinary roles can always try 1.8x. */
 export function fillScaleLimit(largestOptInText: number): number {
@@ -38,3 +27,11 @@ export async function findFillScale(maxHeight: number, limit: number, heightAt: 
   }
   return Math.floor(lo * 100) / 100;
 }
+
+/** Supply as `fitter` when drawing into a numeric slide budget. */
+export const slideFitter = {
+  fontScale(maxHeight: number, largestOptInText: number, heightAt: (scale: number) => Promise<number>) {
+    return findFillScale(maxHeight, fillScaleLimit(largestOptInText), heightAt);
+  },
+  analyzeFit,
+};

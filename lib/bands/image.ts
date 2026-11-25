@@ -8,7 +8,7 @@ import {IMAGE_PAD, imageSize, imageTexts} from '../image.ts';
 import {layoutImageBand} from '../layout-image.ts';
 import type {ImageBand, ImageMark, ImageOpts, LaidOutImage} from '../types/image.ts';
 import {checked} from '../reveal-visibility.ts';
-import {imageFillTextSize} from '../slide-fill.ts';
+import {imageFillTextSize} from '../slide-fill-text.ts';
 import type {Band} from '../types/index.ts';
 import {imageContrast, imageProblems, imageRects, imageSizeFindings} from '../verify-image.ts';
 

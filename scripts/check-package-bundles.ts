@@ -64,7 +64,8 @@ try {
       measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
     });
   `;
-  const legacy = ['web.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'fit-handlers.js', 'rules.js', 'inventory.js', 'math-tex.js', 'spotlight.js', 'full-definitions.js'];
+  const fullRenderer = ['web.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'fit-handlers.js', 'rules.js', 'inventory.js', 'math-tex.js', 'spotlight.js', 'full-definitions.js'];
+  const legacy = [...fullRenderer, 'spotlight-core.js', 'slide-fill.js'];
   const otherSpotlightBands = ['emit-spotlight-chart.js', 'emit-bars.js', 'emit-flow-shape.js', 'emit-image.js'];
   const flowSamples = [
     ['chevron', 'layoutChevron', "chevron([{label: 'Review'}, {label: 'Release'}])"],
@@ -131,15 +132,15 @@ try {
     ['bubble', {esbuild: 83000, Vite: 103000}],
     ['burndown', {esbuild: 84000, Vite: 110000}],
     ['burnup', {esbuild: 84000, Vite: 111000}],
-    ['butterfly', {esbuild: 77000, Vite: 105000}],
+    ['butterfly', {esbuild: 77000, Vite: 100900}],
     ['causal-loop', {esbuild: 160000, Vite: 216000}],
     ['cause-tree', {esbuild: 191000, Vite: 254000}],
     ['check-sheet', {esbuild: 100000, Vite: 121000}],
-    ['chevron', {esbuild: 72000, Vite: 95000}],
+    ['chevron', {esbuild: 69200, Vite: 91000}],
     ['class-diagram', {esbuild: 147000, Vite: 203000}],
-    ['cloud', {esbuild: 75000, Vite: 98000}],
+    ['cloud', {esbuild: 72100, Vite: 93300}],
     ['combo', {esbuild: 87000, Vite: 108000}],
-    ['compare', {esbuild: 79000, Vite: 107000}],
+    ['compare', {esbuild: 79000, Vite: 103000}],
     ['concentric', {esbuild: 85000, Vite: 112000}],
     ['control-chart', {esbuild: 107000, Vite: 135000}],
     ['cycle', {esbuild: 73000, Vite: 96000}],
@@ -147,8 +148,8 @@ try {
     ['fault-tree', {esbuild: 96000, Vite: 122000}],
     ['flowchart', {esbuild: 170000, Vite: 230000}],
     ['fmea', {esbuild: 100000, Vite: 122000}],
-    ['funnel', {esbuild: 72000, Vite: 94000}],
-    ['gantt', {esbuild: 69000, Vite: 99000}],
+    ['funnel', {esbuild: 68300, Vite: 89700}],
+    ['gantt', {esbuild: 69000, Vite: 94600}],
     ['harvey', {esbuild: 80000, Vite: 99000}],
     ['heatmap', {esbuild: 80000, Vite: 99000}],
     ['histogram', {esbuild: 90000, Vite: 116000}],
@@ -161,7 +162,7 @@ try {
     ['pareto', {esbuild: 88000, Vite: 113000}],
     ['pdpc', {esbuild: 191000, Vite: 254000}],
     ['pert', {esbuild: 148000, Vite: 199000}],
-    ['pyramid', {esbuild: 63000, Vite: 82000}],
+    ['pyramid', {esbuild: 59300, Vite: 77900}],
     ['qfd', {esbuild: 100000, Vite: 122000}],
     ['quadrant', {esbuild: 108000, Vite: 135000}],
     ['raci', {esbuild: 100000, Vite: 122000}],
@@ -170,7 +171,7 @@ try {
     ['relation-diagram', {esbuild: 192000, Vite: 255000}],
     ['sankey', {esbuild: 90000, Vite: 110000}],
     ['scatter', {esbuild: 83000, Vite: 107000}],
-    ['sequence', {esbuild: 74000, Vite: 104000}],
+    ['sequence', {esbuild: 74000, Vite: 99500}],
     ['stacked-bars', {esbuild: 85000, Vite: 105000}],
     ['state-diagram', {esbuild: 169000, Vite: 229000}],
     ['steps', {esbuild: 141000, Vite: 178000}],
@@ -181,8 +182,8 @@ try {
     ['tornado', {esbuild: 83000, Vite: 102000}],
     ['tree', {esbuild: 92000, Vite: 121000}],
     ['treemap', {esbuild: 80000, Vite: 100000}],
-    ['value-chain', {esbuild: 72000, Vite: 95000}],
-    ['venn', {esbuild: 70000, Vite: 93000}],
+    ['value-chain', {esbuild: 68800, Vite: 90500}],
+    ['venn', {esbuild: 67100, Vite: 88500}],
     ['versus', {esbuild: 152000, Vite: 190000}],
     ['waterfall', {esbuild: 86000, Vite: 106000}],
     ['why-why-table', {esbuild: 100000, Vite: 121000}],
@@ -251,7 +252,7 @@ try {
       'reveal-handlers.js', 'band-ids.js', 'comic/render.js', 'emit-html.js', 'emit-figures.js',
       'lib/spec.js', 'lib/pptx.js', 'lib/measure.js', 'font-metrics.js', 'icon-registry.js', 'icon-builtins.js',
       ...(!browserMeasure ? ['web-measure.js'] : [])],
-    budget: browserMeasure ? {esbuild: 92500, Vite: 112000} : {esbuild: 91500, Vite: 110500},
+    budget: browserMeasure ? {esbuild: 92000, Vite: 110900} : {esbuild: 90700, Vite: 109400},
   }));
   // New budgets are measured minified sizes with about 10% headroom per bundler.
   const browserDrawCases = [
@@ -513,7 +514,7 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
         bands: {banner: bannerPptx}, strict: true,
       });
-    `, include: 'pptx/banner-band.js', budget: {esbuild: 110000, Vite: 145000}, bands: ['banner.js'],
+    `, include: 'pptx/banner-band.js', budget: {esbuild: 110000, Vite: 140700}, bands: ['banner.js'],
       exclude: [...legacy, 'pptx/box-band.js', 'emit-box.js', 'pptx/box-bands.js', 'pptx/bands.js', 'pptx/table-band.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js'], draw: true},
     {name: 'Selective PPTX Grid', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
@@ -781,7 +782,7 @@ try {
       export const draw = () => renderSpec({version: 1, title: 'Plan', parts: [{type: 'steps', items: [{title: 'Review'}, {title: 'Next'}], loopBack: [{from: 2, to: 1, label: 'Retry'}]}]}, {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}), parts: [stepsPart],
       });
-    `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 149500, Vite: 190000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
+    `, include: 'spec-parts/selective/steps.js', budget: {esbuild: 146900, Vite: 186100}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'lib/spec.js', 'spec-parts/r5.js', 'spec-parts/board.js', 'spec-parts/versus.js', 'dsl-pure.js'], draw: true},
     {name: 'Selected screen widgets', layout: 'layoutScreenGridWith', source: composedSource([], "screens([{id: 'review', title: 'Review', root: text('Details')}], {cols: 1})",
       "import {createScreenGrid, textRenderer} from 'svg-diagram/wireframe/renderers'; import {text} from 'svg-diagram/wireframe/parts'; const screens = createScreenGrid([textRenderer]);"),
       include: 'screens-definition.js', bands: [], budget: {esbuild: 58000, Vite: 78000},
@@ -822,8 +823,24 @@ try {
       include: 'wireframe-builders.js', exclude: [...legacy, 'wireframe-insight.js', 'wireframe.js', 'wireframe-parts.js', 'lib/core.js', 'emit-spotlight.js'],
       budget: {esbuild: 500, Vite: 500}},
     browserMeasureCase,
+    {name: 'Spotlight', source: `
+      import {renderBands} from 'svg-diagram/core';
+      import {box} from 'svg-diagram/bands/box';
+      import {spotlighter} from 'svg-diagram/spotlight';
+      export const draw = () => renderBands([box({id: 'review', title: 'Review'}), box({id: 'next', title: 'Next'})],
+        {spotlight: 'review', spotlighter, measure: ${measure}});
+    `, include: 'spotlight-core.js', bands: ['box.js'], exclude: [...fullRenderer, ...otherSpotlightBands, 'spotlight-legend.js', 'slide-fill.js'],
+      budget: {esbuild: 82700, Vite: 105200}, draw: true},
+    {name: 'Slide fill', source: `
+      import {renderBands} from 'svg-diagram/core';
+      import {box} from 'svg-diagram/bands/box';
+      import {slideFitter} from 'svg-diagram/slide-fill';
+      export const draw = () => renderBands([box({title: 'Review'})],
+        {slide: {maxHeight: 200, contentWidth: 640}, fill: true, fitter: slideFitter, measure: ${measure}});
+    `, include: 'slide-fill.js', bands: ['box.js'], exclude: [...fullRenderer, 'spotlight-core.js', 'emit-spotlight.js', 'slide-budget.js', 'slide-budget-live.js'],
+      budget: {esbuild: 81700, Vite: 103800}, draw: true},
     {name: 'Core', source: "export {renderBands} from 'svg-diagram/core';", include: 'core.js',
-      exclude: [...legacy, ...otherSpotlightBands, 'emit-connect.js', 'verify-connect-geometry.js', 'layout-box-like.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'document-findings.js', 'term-rules.js', 'toc-rules.js', 'verify-bars.js', 'axis-comparison.js', 'axis-selected.js', 'verify-image.js', 'verify-box-like.js', 'verify-shrink.js', 'verify-density.js', 'verify-cause-spacing.js', 'verify-edge-bends.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'verify-caption.js', 'verify-grid.js', 'table-number-rules.js', 'verify-flowchart.js', 'verify-concentric.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 43000, Vite: 57000}},
+      exclude: [...legacy, ...otherSpotlightBands, 'emit-connect.js', 'verify-connect-geometry.js', 'layout-box-like.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'document-findings.js', 'term-rules.js', 'toc-rules.js', 'verify-bars.js', 'axis-comparison.js', 'axis-selected.js', 'verify-image.js', 'verify-box-like.js', 'verify-shrink.js', 'verify-density.js', 'verify-cause-spacing.js', 'verify-edge-bends.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'verify-caption.js', 'verify-grid.js', 'table-number-rules.js', 'verify-flowchart.js', 'verify-concentric.js', 'box.js', 'gantt.js', 'emit-boxes.js', 'emit-gantt.js', 'layout-metrics.js'], budget: {esbuild: 39800, Vite: 53100}},
     {name: 'Document findings', source: `
       import {renderBands} from 'svg-diagram/core';
       import {box} from 'svg-diagram/bands/box';
@@ -835,23 +852,23 @@ try {
     `, include: 'document-findings.js', bands: ['box.js'], exclude: [...legacy, 'term-rules.js', 'layout-connect.js'],
       budget: {esbuild: 89000, Vite: 113000}, draw: true},
     {name: 'Box', source: bandSource('box'), include: 'bands/box.js',
-      exclude: [...legacy, ...otherSpotlightBands, 'document-findings.js', 'legend-notation.js', 'verify-gray-tones.js', 'emit-boxes.js', 'emit-grid.js', 'emit-row.js', 'dsl/node.js', 'dsl/stat.js', 'emit-connect.js', 'reveal-warnings.js', 'reveal-handlers.js', 'reveal-row.js', 'verify-connect-geometry.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 78000, Vite: 99000}, draw: true},
+      exclude: [...legacy, ...otherSpotlightBands, 'document-findings.js', 'legend-notation.js', 'verify-gray-tones.js', 'emit-boxes.js', 'emit-grid.js', 'emit-row.js', 'dsl/node.js', 'dsl/stat.js', 'emit-connect.js', 'reveal-warnings.js', 'reveal-handlers.js', 'reveal-row.js', 'verify-connect-geometry.js', 'verify-connect-label.js', 'verify-connect-crossings.js', 'verify-connection-graph.js', 'verify-layout-fit.js', 'verify-wireframe-callouts.js', 'gantt.js', 'emit-gantt.js', 'timeline.js', 'people.js', 'emit-fta.js'], budget: {esbuild: 76700, Vite: 97400}, draw: true},
     {name: 'Node and stat', source: composedSource([], "node({icon: 'check', label: 'Review'}), stat(12, 'Count', {source: 'Report'})",
       "import {icon, node, stat} from 'svg-diagram/bands/box'; icon.use({version: 1, icons: {check: {d: 'M2 2h20v20H2z', vb: [0, 0, 24], from: 'file:check.svg', license: 'local'}}});"),
-      include: 'dsl/stat.js', budget: {esbuild: 86500, Vite: 106000}, bands: ['box.js'],
+      include: 'dsl/stat.js', budget: {esbuild: 83300, Vite: 105700}, bands: ['box.js'],
       exclude: [...legacy, 'layout-row.js', 'layout-grid.js', 'layout-connect.js', 'layout-areas.js'], draw: true},
     {name: 'Gantt', source: bandSource('gantt'), include: 'bands/gantt.js',
       exclude: [...legacy, 'emit-connect.js', 'verify-connect-geometry.js', 'layout-box-like.js', 'layout-cause-fit.js', 'box.js', 'emit-boxes.js', 'layout-connect.js', 'timeline.js', 'emit-timeline.js', 'emit-figures.js', 'charts.js'], budget: {esbuild: 53000, Vite: 70500}, draw: true},
     {name: 'Row', source: composedSource(['box', 'row'], "row([box({title: 'Review'}), box({title: 'Next'})], {arrows: 'between'})"),
-      include: 'bands/row.js', budget: {esbuild: 94000, Vite: 120000}, bands: ['box.js', 'row.js'], exclude: [...legacy, 'dsl/row.js', 'dsl/group.js', 'dsl/container-children.js', 'loop-back.js', 'loop-back-connectors.js', 'dsl/containers.js', 'dsl/areas.js', 'dsl/grid.js', 'emit-boxes.js', 'emit-grid.js', 'steps.js', 'emit-connect.js', 'verify-connect-geometry.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'layout-grid.js', 'layout-connect.js', 'layout-group.js', 'layout-group-row.js', 'layout-areas.js', 'gantt.js'], draw: true},
+      include: 'bands/row.js', budget: {esbuild: 91100, Vite: 115900}, bands: ['box.js', 'row.js'], exclude: [...legacy, 'dsl/row.js', 'dsl/group.js', 'dsl/container-children.js', 'loop-back.js', 'loop-back-connectors.js', 'dsl/containers.js', 'dsl/areas.js', 'dsl/grid.js', 'emit-boxes.js', 'emit-grid.js', 'steps.js', 'emit-connect.js', 'verify-connect-geometry.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'layout-grid.js', 'layout-connect.js', 'layout-group.js', 'layout-group-row.js', 'layout-areas.js', 'gantt.js'], draw: true},
     {name: 'Steps', source: composedSource([], "steps([{title: 'Review'}, {title: 'Approve'}], {numbered: true, focus: 2})",
       "import {steps} from 'svg-diagram/bands/row';"),
-      include: 'steps.js', budget: {esbuild: 97500, Vite: 124000}, bands: ['box.js', 'row.js'],
+      include: 'steps.js', budget: {esbuild: 94300, Vite: 119700}, bands: ['box.js', 'row.js'],
       exclude: [...legacy, 'dsl/row.js', 'dsl/group.js', 'dsl/container-children.js', 'loop-back.js', 'loop-back-connectors.js', 'layout-connect.js', 'bands/connect.js', 'layout-grid.js', 'layout-group-row.js', 'layout-areas.js'], draw: true},
     {name: 'Grid', source: composedSource(['box', 'grid'], "grid([box({title: 'Review'}), box({title: 'Next'})], {cols: 2})"),
-      include: 'bands/grid.js', budget: {esbuild: 85500, Vite: 107500}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'dsl/containers.js', 'dsl/row.js', 'dsl/areas.js', 'dsl/group.js', 'dsl/container-children.js', 'emit-boxes.js', 'emit-row.js', 'emit-connect.js', 'verify-connect-geometry.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-connect.js', 'gantt.js'], draw: true},
+      include: 'bands/grid.js', budget: {esbuild: 85200, Vite: 106100}, bands: ['box.js', 'grid.js'], exclude: [...legacy, 'dsl/containers.js', 'dsl/row.js', 'dsl/areas.js', 'dsl/group.js', 'dsl/container-children.js', 'emit-boxes.js', 'emit-row.js', 'emit-connect.js', 'verify-connect-geometry.js', 'layout-cause-fit.js', 'layout-caption-lines.js', 'layout-decoration.js', 'status.js', 'layout-connect-gaps.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Connect', source: composedSource(['box', 'connect'], "connect('a:bottom', 'b:top'), connect('b:bottom', 'c:top'), connect('d:bottom', 'e:top'), box({id: 'a', title: 'Review'}), ...['b', 'c', 'd', 'e', 'f'].map(id => box({id, title: id}))"),
-      include: 'layout-connect-gaps.js', budget: {esbuild: 117000, Vite: 148500}, bands: ['box.js', 'connect.js'], exclude: [...legacy, 'dsl/bracket.js', 'dsl/callout.js', 'dsl/branch.js', 'loop-back.js', 'loop-back-options.js', 'loop-back-source.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-grid.js', 'gantt.js'], draw: true},
+      include: 'layout-connect-gaps.js', budget: {esbuild: 115200, Vite: 146900}, bands: ['box.js', 'connect.js'], exclude: [...legacy, 'dsl/bracket.js', 'dsl/callout.js', 'dsl/branch.js', 'loop-back.js', 'loop-back-options.js', 'loop-back-source.js', 'layout-areas-gaps.js', 'layout-row.js', 'layout-grid.js', 'gantt.js'], draw: true},
     ...([
       ['bracket', "bracket('a:left', 'b:right', {label: '範囲'})"],
       ['callout', "callout('a', {text: '注意', side: 'above'})"],
@@ -871,11 +888,11 @@ try {
       export const draw = () => renderBands([
         row([box({title: 'Review'}), box({title: 'Next'})], {loopBack: {from: 2, to: 1, label: 'Retry'}})
       ], {connectors: connectDefinition, measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size})});
-    `, include: 'bands/row.js', budget: {esbuild: 131000, Vite: 167000}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'dsl/row.js', 'dsl/group.js', 'dsl/container-children.js', 'loop-back.js', 'layout-grid.js', 'gantt.js'], draw: true},
+    `, include: 'bands/row.js', budget: {esbuild: 128400, Vite: 163300}, bands: ['box.js', 'connect.js', 'row.js'], exclude: [...legacy, 'dsl/row.js', 'dsl/group.js', 'dsl/container-children.js', 'loop-back.js', 'layout-grid.js', 'gantt.js'], draw: true},
     {name: 'Image', source: composedSource(['image'], "image('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', {alt: 'Picture', width: 240, labels: [{text: 'Review', at: [0.3, 0.5]}]})"),
       include: 'bands/image.js', budget: {esbuild: 68000, Vite: 91000}, exclude: [...legacy, 'verify-bars.js', 'dsl/io.js', 'image-file.js', 'charts.js', 'layout-connect.js'], draw: true},
     {name: 'Spacer', source: composedSource(['spacer'], 'spacer(24)'),
-      include: 'bands/spacer.js', budget: {esbuild: 43500, Vite: 57500}, bands: ['spacer.js'],
+      include: 'bands/spacer.js', budget: {esbuild: 40300, Vite: 53400}, bands: ['spacer.js'],
       exclude: [...legacy, 'dsl/containers.js', 'dsl/row.js', 'dsl/grid.js', 'dsl/areas.js', 'bands/caption.js', 'bands/box.js', 'layout-box-like.js', 'emit-boxes.js', 'layout-connect.js'], draw: true},
     {name: 'Caption and spacer', source: composedSource(['caption', 'spacer'], "caption('Review', {mono: true}), spacer(24), caption('Next')"),
       include: 'bands/caption.js', budget: {esbuild: 62000, Vite: 82000}, bands: ['caption.js', 'spacer.js'], exclude: [...legacy, 'emit-boxes.js', 'emit-grid.js', 'emit-row.js', 'layout-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
@@ -884,13 +901,13 @@ try {
     {name: 'Group row', source: composedSource(['box', 'group', 'groupRow'], "groupRow([group(box({title: 'Review'})), box({title: 'Next'})])"),
       include: 'bands/group-row.js', budget: {esbuild: 99500, Vite: 126500}, bands: ['box.js', 'caption.js', 'group-row.js', 'group.js'], exclude: [...legacy, 'dsl/row.js', 'dsl/box-row.js', 'loop-back-options.js', 'loop-back-connectors.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Areas', source: composedSource(['areas', 'box'], "areas(['wide wide', 'left right'], {wide: box({title: 'Review'}), left: box({title: 'Left'}), right: box({title: 'Right'})})"),
-      include: 'layout-areas-gaps.js', budget: {esbuild: 107000, Vite: 136500}, bands: ['areas.js', 'box.js', 'caption.js', 'group.js'], exclude: [...legacy, 'dsl/containers.js', 'dsl/row.js', 'dsl/grid.js', 'layout-connect-gaps.js', 'layout-group-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
+      include: 'layout-areas-gaps.js', budget: {esbuild: 104100, Vite: 132200}, bands: ['areas.js', 'box.js', 'caption.js', 'group.js'], exclude: [...legacy, 'dsl/containers.js', 'dsl/row.js', 'dsl/grid.js', 'layout-connect-gaps.js', 'layout-group-row.js', 'layout-grid.js', 'layout-connect.js', 'gantt.js'], draw: true},
     {name: 'Banner', source: composedSource(['banner'], "banner({headline: 'Review', stamp: 'Draft'})"),
       include: 'emit-banner.js', budget: {esbuild: 61000, Vite: 78000}, bands: ['banner.js'],
       exclude: [...legacy, 'emit-box.js', 'emit-boxes.js', 'emit-caption.js', 'emit-raw.js', 'layout-connect.js'], draw: true},
     {name: 'Raw', source: composedSource(['raw'], `raw({h: 40, draw: ({x, y, color}) =>
       '<text x="' + x + '" y="' + (y + 20) + '" fill="' + color('accent') + '">Review</text>'})`),
-      include: 'dsl/raw.js', budget: {esbuild: 44000, Vite: 58500}, bands: ['raw.js'],
+      include: 'dsl/raw.js', budget: {esbuild: 40900, Vite: 54600}, bands: ['raw.js'],
       exclude: [...legacy, 'dsl/text-bands.js', 'dsl/banner.js', 'emit-boxes.js', 'emit-banner.js', 'emit-box.js', 'layout-box-like.js'], draw: true},
     {name: 'Banner and raw', source: composedSource(['banner', 'raw'], `banner({headline: 'Review'}), raw({h: 32, draw: ({x, y}) => '<rect x="' + x + '" y="' + y + '" width="24" height="24"/>'})`),
       include: 'bands/banner.js', budget: {esbuild: 63500, Vite: 85500}, bands: ['banner.js', 'raw.js'], exclude: [...legacy, 'emit-boxes.js', 'emit-status.js', 'layout-areas.js', 'layout-group.js', 'layout-connect.js', 'gantt.js'], draw: true},
@@ -1147,7 +1164,7 @@ try {
       assert.ok(has(include), `${label} に ${include} が必要です`);
       if (name === 'Comic + browser measurer') assert.ok(has('web-measure.js'), label);
       if (name === 'Core' || name === 'Box') {
-        for (const file of ['slide-budget.js', 'slide-budget-live.js', 'layout-measured.js', 'measure.js', 'dsl/render.js']) {
+        for (const file of ['emit-spotlight.js', 'slide-budget.js', 'slide-budget-live.js', 'layout-measured.js', 'measure.js', 'dsl/render.js']) {
           assert.ok(!has(file), `${label}: unexpected ${file}`);
         }
         assert.ok(!files.some(file => file.includes('__vite-browser-external')), label);
@@ -1388,6 +1405,11 @@ try {
           assert.match(result.svg, /<path d="M[\d,]+ L[\d,]+ L[\d,]+ L[\d,]+"[^>]*stroke-width="1.5"/, label);
         }
         if (name === 'Box') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'box-size-ignored'), label);
+        if (name === 'Spotlight') assert.deepEqual(result.laidOut.laidOut.map((band: {dim?: boolean}) => band.dim), [false, true], label);
+        if (name === 'Slide fill') {
+          assert.equal(result.width, 640, label);
+          assert.ok(result.fontScale > 1 && result.height <= 200, label);
+        }
         if (name === 'Node and stat') assert.match(result.svg, /出典: Report/, label);
         if (name === 'Composer Canvas') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'canvas-region-empty'), label);
         if (name === 'funnel') assert.ok(result.verdict.findings.some((finding: {rule: string}) => finding.rule === 'funnel-values-rise'), label);

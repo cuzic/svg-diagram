@@ -6,9 +6,8 @@ import {canvasFindings} from './canvas-findings.ts';
 import {splitAtoms} from './atoms.ts';
 import {band, defOf, DEF, EXTERNAL, walkDefinedBands} from './band-def.ts';
 import {cloneData} from './clone-data.ts';
-import {applySpotlightWith, dimBandSvg, spotlightDim} from './emit-spotlight.ts';
 import {emitSvgWith} from './emit-svg-core.ts';
-import {analyzeFit} from './fit.ts';
+import {analyzeDocumentFit} from './fit.ts';
 import type {layoutBoxLike} from './layout-box-like.ts';
 import type {fitLineScale} from './layout-cause-fit.ts';
 import {createLayoutWith} from './layout-core.ts';
@@ -16,8 +15,9 @@ import {layoutFitted} from './layout-fit-width.ts';
 import {basicExtentOf, figureMetricsForExtent, unionOf} from './figure-metrics.ts';
 import {addScoped, emptyScopes} from './scope-table.ts';
 import {qualify, scopeOf} from './scope-name.ts';
-import {fillScaleLimit, findFillScale} from './slide-fill.ts';
+import type {slideFitter} from './slide-fill.ts';
 import {sourceOf} from './source-ref.ts';
+import type {spotlighter} from './spotlight-core.ts';
 import {ownRect, scopedRect} from './verify-rects.ts';
 import {verifyWithServices} from './verify-core.ts';
 import type {BandDef, VerifyCtx} from './band-def.ts';
@@ -44,11 +44,13 @@ type DrawOptions = {
   width?: number | 'fit';
   slide?: {maxHeight: number; contentWidth: number};
   fill?: boolean;
+  fitter?: typeof slideFitter;
   /** @internal Effective slide text floor from a legacy diagram. */
   minEffectiveFont?: number;
   maxWidth?: number;
   legend?: DiagramData['legend'];
   spotlight?: DiagramData['spotlight'];
+  spotlighter?: typeof spotlighter;
   accept?: DiagramData['accept'];
   diagramFindings?: (diagram: LaidOutDiagram, stage: number, definitionOf: (band: LaidOutBand) => BandDef | undefined) => Finding[];
   diagramAcceptHint?: (rule: string) => string | undefined;
@@ -96,7 +98,13 @@ function definitionKey(band: Band | LaidOutBand): string {
 /** @internal Shared layout and SVG emission for selective output formats. */
 export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOptions & ({measure: Measure} | BatchMeasurement)) {
   const canvas = opts.canvas === undefined ? undefined : {...SLIDE_CANVAS, ...opts.canvas};
-  const {slide, fill} = opts;
+  const {slide, fill, fitter, spotlighter} = opts;
+  if (opts.spotlight !== undefined && !spotlighter) {
+    throw new Error('renderBands: spotlight には svg-diagram/spotlight の spotlighter を spotlighter に指定してください');
+  }
+  if ((slide || fill) && !fitter) {
+    throw new Error('renderBands: slide または fill には svg-diagram/slide-fill の slideFitter を fitter に指定してください');
+  }
   if (fill && !slide) throw new Error('renderBands: fill には slide: {maxHeight, contentWidth} を指定してください');
   if (slide) {
     if (canvas || opts.width === 'fit') throw new Error("renderBands: slide を使う場合は canvas と width: 'fit' を外してください");
@@ -223,10 +231,6 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   }
   for (const input of data.bands) collect(input);
   const placedDefinition = (band: LaidOutBand) => definitions.get(definitionKey(band)) ?? syntheticOutputs.get(band.type);
-  const spotlightDefinition = (band: LaidOutBand) => {
-    const def = placedDefinition(band);
-    return def?.internal ? def.spotlightOutputs?.[band.type] ?? def : def;
-  };
   const connection = definitions.get('connect');
   const layout = createLayoutWith({
     offGrid: data => defOf(data)?.offGrid === true,
@@ -283,8 +287,8 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     const spacing = canvas || slide ? {pad: Math.round(pad * scale), gap: Math.round(gap * scale)} : {pad, gap};
     return () => layout({...data, ...spacing}, roles, widthOf);
   }
-  const fontScale = fill && slide
-    ? await findFillScale(slide.maxHeight, fillScaleLimit(largestFillText), async s => {
+  const fontScale = fill && slide && fitter
+    ? await fitter.fontScale(slide.maxHeight, largestFillText, async s => {
       const place = await prepareLayoutAt(s);
       return place().canvasHeight;
     })
@@ -296,10 +300,10 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
   const revealConnector = connection?.internal ? connection.revealConnector : undefined;
   if (revealConnector) placed.connects = placed.connects.map(connector => revealConnector(connector, ids));
   for (const check of endpointChecks) check(ids, scopeTable, revealWarnings);
-  if (placed.spotlight) applySpotlightWith(placed, band => spotlightDefinition(band)?.spotlight, scopeTable);
+  if (placed.spotlight) spotlighter?.apply(placed, placedDefinition, scopeTable);
   const stage = opts.stage ?? last;
   const ink = toneEnv(tones);
-  const ctx = {theme, tones: ink, dimFill: spotlightDim(placed) === 'fill', appearance: placed.appearance, rcaCheck: placed.rcaCheck, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
+  const ctx = {theme, tones: ink, dimFill: spotlighter?.dim(placed) === 'fill', appearance: placed.appearance, rcaCheck: placed.rcaCheck, connects: placed.connects.map(c => ({fromId: c.fromId, toId: c.toId, segments: c.pathSegments}))};
   const leaves = (figure: LaidOutDiagram) => figure.laidOut.flatMap(band => placedDefinition(band)?.verify?.targets?.(band as never) ?? ('h' in band ? [band] : []));
   const bandFindings = inputChecks.flatMap(check => check(ctx));
   if (!canvas) {
@@ -317,7 +321,9 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     const def = placedDefinition(laid);
     bandFindings.push(...(def?.verify?.layoutFindings?.(laid as never, ctx) ?? []));
   }
-  const fit = analyzeFit(placed, laid => placedDefinition(laid)?.textSizes?.(laid as never) ?? []);
+  const fit = (slide && fitter ? fitter.analyzeFit : analyzeDocumentFit)(
+    placed, laid => placedDefinition(laid)?.textSizes?.(laid as never) ?? [],
+  );
   if (canvas) {
     bandFindings.push(...canvasFindings(canvas, fit.effectiveFont, placed.contentHeight));
   }
@@ -365,8 +371,9 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
     connectorDefs: connection?.internal ? connection.connectorDefs : undefined,
     defsNeeded: band => placedDefinition(band)?.svgDefs?.(band as never) ?? {},
     renderBand: band => {
-      const svg = must(placedDefinition(band)).emit(band as never, emitEnv);
-      return band.dim && !spotlightDefinition(band)?.selfDimming ? dimBandSvg(svg) : svg;
+      const def = must(placedDefinition(band));
+      const svg = def.emit(band as never, emitEnv);
+      return spotlighter?.renderBand(band, svg, def) ?? svg;
     },
     renderConnect: connector => must(definitions.get('connect')).emit(connector as never, emitEnv),
     diagramTitle: diagram => definedDiagramTitle(diagram, stage),
@@ -375,7 +382,7 @@ export async function prepareBands(bands: readonly DefinedBand[], opts: DrawOpti
         const part = visibleAt(band, stage) ? defOf(band)?.describe?.(band, stage) : undefined;
         return part ? [part] : [];
       })),
-    spotlightDim,
+    spotlightDim: spotlighter?.dim ?? (() => 'outline'),
   }, figure, {reveal: stage, noRecolor});
   return {placed, stage, verdict, emit, fit, fontScale};
 }

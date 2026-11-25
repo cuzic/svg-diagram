@@ -12,7 +12,7 @@ import {barsSpotlight, renderBars} from '../emit-bars.ts';
 import {snapGrid} from '../layout-util.ts';
 import {revealBarElements} from '../reveal-bars.ts';
 import {scopeOf} from '../scope-name.ts';
-import {fillTextSize} from '../slide-fill.ts';
+import {fillTextSize} from '../slide-fill-text.ts';
 import {luminance, paintOf} from '../tokens.ts';
 import type {BarDatum, BarsBand, BarsOpts, LaidOutBars} from '../types/bars.ts';
 import {barsContrastProblems, barsProblems, barsRects, hiddenBarsTitleFindings, thinBarFindings} from '../verify-bars.ts';

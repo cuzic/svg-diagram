@@ -4,7 +4,7 @@ import {plane as build} from '../dsl/plane.ts';
 import {renderPlane} from '../emit-plane.ts';
 import {layoutPlane, planeTexts} from '../plane.ts';
 import {revealPlane} from '../reveal-plane.ts';
-import {fillTextSize} from '../slide-fill.ts';
+import {fillTextSize} from '../slide-fill-text.ts';
 import type {LaidOutPlane, PlaneBand, PlaneOpts} from '../types/figures.ts';
 import {planeProblems} from '../verify-plane.ts';
 

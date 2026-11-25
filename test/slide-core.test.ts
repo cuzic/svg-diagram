@@ -9,7 +9,7 @@ import {banner, diagram, group} from '../lib/dsl-pure.ts';
 import {renderDiagram} from '../lib/dsl/render.ts';
 import {renderLegacyDiagramWithCore} from '../lib/legacy-core.ts';
 import {closeMeasurer} from '../lib/measure.ts';
-import {fillTextSize, imageFillTextSize} from '../lib/slide-fill.ts';
+import {fillTextSize, imageFillTextSize, slideFitter} from '../lib/slide-fill.ts';
 import {rolesAt} from '../lib/tokens.ts';
 import type {MeasureRequest} from '../lib/types/core.ts';
 import {slideCacheKeyForTest} from './helpers/slide-fixture.ts';
@@ -32,7 +32,7 @@ test('fill uses the same width, height and font scale as the legacy renderer', a
   const bands = [box({title: 'Review', body: 'Plan'}), box({title: 'Release', body: 'Done'})];
   const diagramData = diagram({day: 2, slide, fill: true, width: 500}).add(bands);
   const legacy = await renderDiagram(diagramData, {name: 'p.svg', budget: 'cacheOnly'});
-  const core = await renderBands(bands, {measure, slide: budget, fill: true, width: 500});
+  const core = await renderBands(bands, {measure, fitter: slideFitter, slide: budget, fill: true, width: 500});
   const adapted = await renderLegacyDiagramWithCore(diagramData, {measure, budget});
   assert.equal(legacy.budgetSource, 'cache');
   assert.equal(core.width, budget.contentWidth);
@@ -73,7 +73,7 @@ test('a slide that is too tall at 1x reports the same fit warning as the legacy 
   slideCacheKeyForTest(dir, tight);
   const bands = [box({title: 'Review', body: 'Plan'}), box({title: 'Release', body: 'Done'})];
   const legacy = await renderDiagram(diagram({day: 2, slide, fill: true}).add(bands), {name: 'p.svg', budget: 'cacheOnly'});
-  const core = await renderBands(bands, {measure, slide: tight, fill: true});
+  const core = await renderBands(bands, {measure, fitter: slideFitter, slide: tight, fill: true});
   assert.equal(core.fontScale, 1);
   assert.ok(core.fit.scale < 1);
   assert.match(core.fit.warnings[0] ?? '', /on-slide text/);
@@ -81,7 +81,14 @@ test('a slide that is too tall at 1x reports the same fit warning as the legacy 
 });
 
 test('fill without a slide budget rejects with instructions to supply it', async () => {
-  await assert.rejects(renderBands([box({title: 'Review'})], {measure, fill: true}), /fill.*slide.*maxHeight.*contentWidth/);
+  await assert.rejects(renderBands([box({title: 'Review'})], {measure, fitter: slideFitter, fill: true}), /fill.*slide.*maxHeight.*contentWidth/);
+});
+
+test('renderBands tells callers to import the slide fitter for slide or fill', async () => {
+  const bands = [box({title: 'Review'})];
+  for (const options of [{slide: budget}, {slide: budget, fill: true}, {fill: true}]) {
+    await assert.rejects(renderBands(bands, {measure, ...options}), /svg-diagram\/slide-fill.*slideFitter.*fitter/);
+  }
 });
 
 test('an uncached legacy slide keeps the requested width and reports the default fit', async () => {

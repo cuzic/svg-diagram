@@ -12,8 +12,8 @@ import {SLIDE_MAX_DISPLAY_HEIGHT, SLIDE_USABLE_WIDTH} from './fit.ts';
 import {definitionFor, UNDEFINED_BANDS} from './full-definitions.ts';
 import {withTitleLine} from './layout-caption-lines.ts';
 import {legendFindings} from './legend-notation.ts';
-import {UNMEASURED_FILL_NOTE} from './slide-fill.ts';
-import {dimmedBands} from './spotlight.ts';
+import {slideFitter, UNMEASURED_FILL_NOTE} from './slide-fill.ts';
+import {dimmedBands, spotlighter} from './spotlight-core.ts';
 import {sourceOf, withSource} from './source-ref.ts';
 import {withStatus} from './status.ts';
 import {toneEnv} from './tokens.ts';
@@ -108,8 +108,8 @@ export async function renderLegacyDiagramWithCore(d: DiagramData, {measure, budg
   const fill = d.fill && (!d.slide || budget != null);
   const result = await renderBands(bands, {
     measure, generatedBands, theme: d.day, width: canvas ? undefined : d.fitWidth ? 'fit' : d.width, maxWidth: d.maxWidth,
-    slide, fill, minEffectiveFont: d.slide ? d.minEffectiveFont : undefined,
-    pad: d.pad, gap: d.gap, legend: d.legend, spotlight: d.spotlight, legendLabels: d.legendLabels, accept: d.accept, canvas, appearance: d.appearance,
+    slide, fill, fitter: slideFitter, minEffectiveFont: d.slide ? d.minEffectiveFont : undefined,
+    pad: d.pad, gap: d.gap, legend: d.legend, spotlight: d.spotlight, spotlighter, legendLabels: d.legendLabels, accept: d.accept, canvas, appearance: d.appearance,
     transparent: d.transparent, tocCheck: d.tocCheck, rcaCheck: d.rcaCheck, layoutCheck: d.layoutCheck,
     diagramFindings: legacyDiagramFindings, diagramAcceptHint: legacyDiagramAcceptHint,
     addAutoLegend(diagram) {

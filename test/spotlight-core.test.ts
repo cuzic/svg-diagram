@@ -11,10 +11,26 @@ import {row} from '../lib/bands/row.ts';
 import {waterfall} from '../lib/bands/waterfall.ts';
 import {renderBands} from '../lib/core.ts';
 import {diagram} from '../lib/dsl-pure.ts';
+import {dimmedBands, spotlighter} from '../lib/spotlight-core.ts';
 import type {MeasureRequest} from '../lib/types/core.ts';
 import {renderInBrowser} from '../lib/web.ts';
 
 const measure = ({text, size}: MeasureRequest) => ({w: [...text].length * size * 0.6, h: size});
+
+test('renderBands tells callers to import the spotlighter when spotlight is set', async () => {
+  await assert.rejects(
+    renderBands([box({id: 'main', title: 'Main'})], {measure, spotlight: 'main'}),
+    /spotlight.*svg-diagram\/spotlight.*spotlighter/,
+  );
+});
+
+test('the legend omits an unfocused row slot and an edge leaving the focus', () => {
+  const choices = row([box({id: 'left', title: 'Left'}), box({id: 'right', title: 'Right'})], {id: 'choices'});
+  const outside = box({id: 'outside', title: 'Outside'});
+  const edge = connect('right', 'outside');
+  const dimmed = dimmedBands({bands: [choices, outside, edge], spotlight: {ids: 'choices#2', edges: 'between'}});
+  assert.deepEqual(dimmed, new Set([choices, choices.children[0], outside, edge]));
+});
 
 test('renderBands focuses a box and the nth child of a row', async () => {
   const spotlight = {ids: ['main', 'choices#2'], edges: 'between'} as const;
@@ -24,7 +40,7 @@ test('renderBands focuses a box and the nth child of a row', async () => {
     row([box({id: 'left', title: 'Left'}), box({id: 'right', title: 'Right'})], {id: 'choices'}),
     connect('main', 'left'),
   ];
-  const result = await renderBands(bands, {measure, spotlight});
+  const result = await renderBands(bands, {measure, spotlight, spotlighter});
   const boxes = result.laidOut.laidOut.filter(b => b.type === 'box');
   assert.deepEqual(boxes.map(b => b.dim), [false, true]);
   const choices = result.laidOut.laidOut.find(b => b.type === 'row');
@@ -36,7 +52,7 @@ test('renderBands focuses a box and the nth child of a row', async () => {
 test('renderBands dims the other bars and their labels, with the legacy pale fill', async () => {
   const spotlight = {ids: 'b2', dim: 'fill'} as const;
   const band = bars([{id: 'b1', label: 'One', value: 3}, {id: 'b2', label: 'Two', value: 5}], {dir: 'v', max: 6, scope: 'sales'});
-  const result = await renderBands([band], {measure, spotlight});
+  const result = await renderBands([band], {measure, spotlight, spotlighter});
   const legacy = await renderInBrowser(diagram({theme: 'blue', spotlight}).add(plain(band)), {measure});
   const placed = result.laidOut.laidOut.find(b => b.type === 'bars');
   assert.deepEqual(placed?.bars.map(b => b.dim), [true, false]);
@@ -48,7 +64,7 @@ test('renderBands dims the other bars and their labels, with the legacy pale fil
 test('renderBands dims individual chart elements using the legacy pale fill', async () => {
   const spotlight = {ids: 'change', dim: 'fill'} as const;
   const band = waterfall([{id: 'start', label: 'Start', value: 10}, {id: 'change', label: 'Change', value: 5}]);
-  const result = await renderBands([band], {measure, spotlight});
+  const result = await renderBands([band], {measure, spotlight, spotlighter});
   const legacy = await renderInBrowser(diagram({theme: 'blue', spotlight}).add(plain(band)), {measure});
   const dimIds = result.laidOut.laidOut.find(b => b.type === 'chart')?.dimIds;
   assert.ok(dimIds);
@@ -63,7 +79,7 @@ test('renderBands keeps a flow shape lit when one of its items is focused', asyn
     funnel([{label: 'Visit', tone: 'accent'}, {label: 'Order', tone: 'danger'}]),
   ];
   const spotlight = 'now';
-  const result = await renderBands(bands, {measure, spotlight});
+  const result = await renderBands(bands, {measure, spotlight, spotlighter});
   const legacy = await renderInBrowser(diagram({theme: 'blue', spotlight}).add(...bands.map(band => plain(band))), {measure});
   assert.deepEqual(result.laidOut.laidOut.map(b => b.dim), [false, true]);
   assert.equal(result.svg, legacy.svg);
@@ -75,7 +91,7 @@ test('renderBands mutes the SVG of a band without its own dimming', async () => 
     raw({h: 24, draw: ({x, y}) => `<rect x="${x}" y="${y}" width="24" height="24" fill="#abcdef"/>`}),
   ];
   const spotlight = 'main';
-  const result = await renderBands(bands, {measure, spotlight});
+  const result = await renderBands(bands, {measure, spotlight, spotlighter});
   const legacy = await renderInBrowser(diagram({theme: 'blue', spotlight}).add(...bands.map(band => plain(band))), {measure});
   assert.deepEqual(result.laidOut.laidOut.map(b => b.dim), [false, true]);
   assert.doesNotMatch(result.svg, /fill="#abcdef"/);
@@ -87,7 +103,7 @@ test('renderBands defines the muted arrow for an out-of-focus row', async () => 
     box({id: 'main', title: 'Main'}),
     row([box({title: 'First'}), box({title: 'Second'})], {arrows: 'between'}),
   ];
-  const result = await renderBands(bands, {measure, spotlight: 'main'});
+  const result = await renderBands(bands, {measure, spotlight: 'main', spotlighter});
   assert.match(result.svg, /id="dsl-arrow-dim"/);
   assert.match(result.svg, /marker-end="url\(#dsl-arrow-dim\)"/);
 });
