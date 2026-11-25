@@ -1,6 +1,6 @@
 # ADR 0081: 木（`tree` / `mindmap`）の枝ごとの線の見た目と、項目の札
 
-- 状態: **提案**（Opus レビュー round 1 の B1・M1〜M8・m1〜m9、round 2 の M1〜M4・m1〜m10 を反映。決める人の答え Q1〜Q3 を反映）
+- 状態: **決定**（Opus レビュー round 1 の B1・M1〜M8・m1〜m9、round 2 の M1〜M4・m1〜m10、round 3 の m1〜m7 を反映。round 3 で Blocker・Major なし（収束）。決める人の答え Q1〜Q3 を反映）
 - 日付: 2026-11-25
 - 基点: `main`（377c61d6。ADR 0080 D13 まで）
 - 関連: ADR 0045（`svg-diagram/browser`、`renderInBrowser`）、ADR 0049（帯のノード）、ADR 0029（`keepWords`）、ADR 0027 / 0054（PPTX）、ADR 0069（`partCatalog`）、ADR 0071（JSON Schema）、ADR 0080（帯の定義、tree shaking、D2b の `.type ===` ラチェット）
@@ -107,15 +107,15 @@ export interface TreeItem {
 
   | 箱 | 札の塗り | 札の文字 |
   |---|---|---|
-  | ふつう | 札の色（`muted` は `PALETTE.muted`、`accent` / `danger` は `colorOf(toneStyle(tones, tone).ink)`） | 白（`PALETTE.bg`） |
+  | ふつう | 札の色（`muted` は `PALETTE.muted`、`accent` / `danger` は `colorOf(toneStyle(tones, tone).ink, day)`） | 白（`PALETTE.bg`） |
   | **箱の塗りと札の塗りが同じ色**（`solid` の中の accent の札、`solid-danger` の中の danger の札、`diagram({tones})` の上書きで同じ色になった場合も。round 1 M4・round 2 m7） | 白 | 札の色（白黒を反転） |
   | 項目の `tone` が `muted`（`focus` で光らない項目、利用者が書いた `muted` も。round 2 m6a） | `PALETTE.muted` | 白 |
   | 帯全体が `dim`（`diagram({spotlight})`） | `PALETTE.muted` | 白（`dim` の箱は塗りが白に戻るので反転しない。round 2 m6b） |
 
-  反転は「解決した色が同じか」で決め、tone の名前では決めない。`a11y-text-contrast` は v1 では木の札を検査しない（今は `box` の札だけ。`lib/legacy-core.ts:123-128`。足すなら `lib/bands/tree.ts` の hook で）。
+  複数の行に当てはまるときは、上から `dim` → 項目の `tone` が `muted` → 同じ色（反転）→ ふつう の順で先に当てはまる行を使う（round 3 m2）。反転は「解決した色が同じか」で決め、tone の名前では決めない。`a11y-text-contrast` は v1 では木の札を検査しない（今は `box` の札だけ。`lib/legacy-core.ts:123-128`。足すなら `lib/bands/tree.ts` の hook で）。
 - **描く順**（round 2 m8）: 箱の `rect` → 札の `rect` と `text` → 項目の文字。札の `rect` に `data-node` は付けない（札は飾り。項目を選ぶのは箱の `rect`）。
-- **持ち方**（round 1 M5）: 札は `LaidOutTree.texts` に入れない。`LaidOutTree.nodes[i].tags?: {text, tone, x, y, w, h}[]` に置く（SVG の `ink()`、PPTX の `nodeRunsOf` が、箱の中の文字を箱の本文として扱うため）。`measureNode` には省略できる `opts.tags` を足すだけで、他の部品（`states` / `bpmn` / `fta` / `toc` / `cloud` / `bowtie` / `flow-nodes`）の呼び方と出力は変えない。札の文字は `treeTexts` で測る対象に入れる（`svgMeasurer` でも同じ）。
-- **PPTX**（round 2 M3）: 木だけの関数で、角丸の図形を、その項目の箱と同じグループに入れる。塗りと文字の色は上の表と同じ（`boxBadge` は箱の tone で塗るので使わない。`lib/pptx/box-band.ts:21`。`boxBadge` と `box` の PPTX は変えない）。文字の大きさは、木の項目の文字と同じ px → pt の換算で `f` を換算する。
+- **持ち方**（round 1 M5）: 札の行の高さは `NodeLines` の省略できる `tagRowH`（既定 0）に持ち、`nodeRuns` は本文をその下から置く（`states()` など `tagRowH` を持たない呼び出しは今と同じ。round 3 m7）。札は `LaidOutTree.texts` に入れない。`LaidOutTree.nodes[i].tags?: {text, tone, x, y, w, h}[]` に置く（SVG の `ink()`、PPTX の `nodeRunsOf` が、箱の中の文字を箱の本文として扱うため）。`measureNode` には省略できる `opts.tags` を足すだけで、他の部品（`states` / `bpmn` / `fta` / `toc` / `cloud` / `bowtie` / `flow-nodes`）の呼び方と出力は変えない。札の文字は `treeTexts` で測る対象に入れる（`svgMeasurer` でも同じ）。
+- **PPTX**（round 2 M3・round 3 m5）: 木だけの関数で、角丸の図形（`roundRect`、角の丸みは高さの半分 = `adj` 50000）を、その項目の箱の**後**に、同じグループに入れる。文字は上下中央（`anchor="ctr"`）。塗りと文字の色は上の表と同じ（`boxBadge` は箱の tone で塗るので使わない。`lib/pptx/box-band.ts:21`。`boxBadge` と `box` の PPTX は変えない）。文字の大きさは、木の項目の文字と同じ px → pt の換算で `f` を換算する。
 
 ### D5: 説明文と凡例（round 1 B1・m6）
 
@@ -138,7 +138,7 @@ export interface TreeItem {
 | 要素 | 属性 | 値 | どの指定で |
 |---|---|---|---|
 | `path`（枝の線） | `stroke` | accent・danger の色（`#rrggbb`。`diagram({tones})` の上書きに従う） | `edge.tone` |
-| `path` | — | 1 本の枝が 2 本の `path`（共有区間とその項目だけの区間）になる（D2 の S ≠ T のとき） | 同じ幹の組で `edge` が違うとき、または `focus` |
+| `path` | — | 1 本の枝が 2 本の `path`（共有区間とその項目だけの区間）になる（D2 の S ≠ T のとき） | 同じ幹の組で `edge` が違うとき、または `focus` / `dim` の木で実線でない `edge` があるとき（`focus` だけでは分かれない。round 3 m3） |
 | `rect`（札） | `x` `y` `width` `height` `rx`（高さの半分。既定 `12`） `fill`（`#rrggbb`） | 縁（`stroke`）と `data-node` は付けない | `tags` |
 | `text`（札の文字） | `x` `y` `text-anchor="middle"` `font-size`（`roles.tag`。既定 14、キャンバスでは大きくなる） `font-weight="700"` `fill`（`#rrggbb`） | 文字は `emojiSpan` を通す（`tspan class="emoji"` が出うる） | `tags` |
 
@@ -164,14 +164,14 @@ export interface TreeItem {
 
 | 単位 | 内容 |
 |---|---|
-| U1 | D1〜D3 の `edge`: 型、DSL の検査（D3 の表）、正規化、`layoutTreeBand` が `style` / `trunk` を決める、24px の間隔、`renderTree` の分割と描く順、PPTX の線種と描く順、テスト（配置ごと・兄弟の範囲・`focus` / `dim` との組合せ・バイト不変・その項目だけの区間が 24px 以上） |
+| U1 | D1〜D3 の `edge`: 型、DSL の検査（D3 の表）、正規化、`layoutTreeBand` が `style` / `trunk` を決める、24px の間隔、`renderTree` の分割と描く順、PPTX の線種と描く順、テスト（配置ごと・兄弟の範囲・`focus` / `dim` との組合せ・バイト不変・その項目だけの区間が 24px 以上。ただし帯ノードの子は格子への吸着で ±2px 動くので 22px 以上で確かめる。round 3 m1） |
 | U2 | D4 の `tags`: 型、DSL の検査、`measureNode` の `opts.tags`、`LaidOutTree.nodes[i].tags`、`renderTree` の `pillSvg`（反転を含む）、PPTX、テスト |
 | U3 | D7: spec、JSON Schema（`pnpm schema`）、部品の目録の例、スキーマの大きさの測定 |
 | U4 | 例と golden、README（`legend` を手で書く例を含む）、CHANGELOG（D6 の一覧を載せる）、次の版のリリース（決める人の承認後） |
 
 ### `focus` / `dim` と `edge` の組合せ（round 1 M3）
 
-D2 の T（共有区間）と S（その項目だけの区間）を、図の状態で次のように上書きする。上書きした後も「S = T なら 1 本」の規則はそのまま。
+D2 の T（共有区間）と S（その項目だけの区間）を、図の状態で次のように上書きする。上書きした後も「S = T なら 1 本」の規則はそのまま。`focus` と `dim` が両方あるときは `dim` の行を使う（今のコードと同じ。round 3 m2）。PPTX では `dim` の木は絵のまま出す（今と同じ）ので、`dim` の行は SVG だけに当てはまる（round 3 m4）。
 
 | 図の状態 | 枝 | T（共有区間） | S（その項目だけの区間） |
 |---|---|---|---|
