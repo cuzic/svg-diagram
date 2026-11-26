@@ -73,6 +73,7 @@ export function flowchart(nodes: readonly FlowNode[], edges: readonly FlowEdge[]
 
 type LadderIds<N extends number> = `q${N}` | `a${N}` | 'otherwise';
 const LADDER_STEP_KEYS: readonly string[] = ['q', 'yes', 'sub', 'tone', 'yesLabel', 'noLabel'];
+const LADDER_END_KEYS: readonly string[] = ['label', 'sub', 'tone'];
 const LADDER_OPT_KEYS: readonly string[] = ['yes', 'no', 'question', 'maxNodeW', 'id', 'scope', 'reveal', 'until'];
 const isText = (v: unknown): v is string => typeof v === 'string' && v.trim() !== '';
 /**
@@ -87,6 +88,9 @@ export function decisionLadder(steps: readonly LadderStep[], otherwise: LadderEn
   if (!Array.isArray(steps) || steps.length === 0) throw new Error(`${who}: needs at least one step ({q, yes}: the question and the answer its yes leads to)`);
   const end = typeof otherwise === 'string' ? {label: otherwise} : otherwise;
   if (!end || typeof end !== 'object' || !isText(end.label)) throw new Error(`${who}: the second argument \`otherwise\` is required: the text (or {label, sub?, tone?}) of the box the last "no" ends in`);
+  const endExtra = Object.keys(end).filter(k => !LADDER_END_KEYS.includes(k));
+  if (endExtra.length) throw new Error(`${who}: \`otherwise\` has an unknown option ${endExtra.map(k => `'${k}'`).join(', ')} (${LADDER_END_KEYS.join(', ')})`);
+  if (end.sub !== undefined && typeof end.sub !== 'string') throw new Error(`${who}: \`otherwise\`: sub is the second line of the final box, as text`);
   if (typeof opts !== 'object' || opts === null) throw new Error(`${who}: the options are an object ({yes, no, question, maxNodeW, id})`);
   for (const k of Object.keys(opts)) if (!LADDER_OPT_KEYS.includes(k)) throw new Error(`${who}: has no option '${k}' (${LADDER_OPT_KEYS.join(', ')}): the ladder is always two columns, questions down the left`);
   if (opts.question !== undefined && opts.question !== 'box' && opts.question !== 'diamond') throw new Error(`${who}: question must be 'box' or 'diamond' (got ${String(opts.question)})`);

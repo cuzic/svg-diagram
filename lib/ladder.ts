@@ -12,6 +12,8 @@ import type {LaidOutStates, StateItem, StatesBand, Transition} from './types/dia
 
 const CHIP_PAD = 6, ARROW = 14, STUB = 10, MIN_BOX = 80, STEP = 8, TAIL = 4, DEFAULT_MAX = 360;
 const grid4 = (v: number): number => Math.ceil(v / 4) * 4;
+/** A column's width: the widest line on the 4px grid, but never past `cap` (the grid must not push a box over maxNodeW) unless the text itself is wider. */
+const colW = (widest: number, cap: number): number => Math.max(Math.ceil(widest), Math.min(grid4(widest), cap));
 type R = {x: number; y: number; w: number; h: number};
 
 /** One candidate wrap of the question column: the lines of each question (and of the final box), the column width, and what that costs. */
@@ -32,36 +34,50 @@ export function layoutLadder(band: StatesBand, x: number, y: number, w: number, 
   const stub = Math.round(STUB * space), noPad = 6;
   const baseGap = Math.max(Math.round(48 * space), yesW + 2 * stub + ARROW);
   const gapFor = (qW: number): number => Math.max(baseGap, noW ? Math.ceil(noW + noPad + stub - qW / 2) : 0);
-  const vGap = Math.max(Math.round(32 * space), lh + Math.round(10 * space)); // room for the no chip beside the arrow
+  // The strip between two rows holds the no chip (at the top of it) and the next row's yes chip, which rises above that row's top when the row is short:
+  // the strip is as tall as both, so the two chips never meet (a row of one line of text rises 7px).
+  const pad = Math.max(2, Math.round(3 * space)), minGap = Math.round(32 * space);
+  const rise = (i: number, rowH: number): number => i < n && yesT[i]?.label ? Math.max(0, lh + 3 - rowH / 2) : 0;
   const cap = band.maxNodeW ?? DEFAULT_MAX;
   const diamond = qs.some(q => q.shape === 'diamond');
   const measure = (s: StateItem, max: number): NodeLines => s.shape === 'diamond' ? diamondLines(s.label, s.sub, max, 0, widthOf, roles, env.wrap, floor) : measureNode(s.label, s.sub, max, widthOf, roles, env.wrap, floor);
   const qItems = [...qs, end];
   const qColumn = (max: number): QColumn => {
-    const lines = qItems.map(s => measure(s, max)), cw = grid4(Math.max(...lines.map(l => l.w)));
+    const lines = qItems.map(s => measure(s, max)), cw = colW(Math.max(...lines.map(l => l.w)), max);
     // the last line of a wrapped question is never a stray 1-3 characters
     const tailOk = lines.every(l => l.label.length < 2 || [...must(l.label.at(-1))].length >= TAIL);
     return {lines, w: cw, gap: gapFor(cw), tailOk};
   };
-  const aColumn = (max: number): {lines: NodeLines[]; w: number} => { const lines = as.map(s => measure(s, max)); return {lines, w: grid4(Math.max(...lines.map(l => l.w)))}; };
+  const aColumn = (max: number): {lines: NodeLines[]; w: number} => { const lines = as.map(s => measure(s, max)); return {lines, w: colW(Math.max(...lines.map(l => l.w)), max)}; };
+  /** The widest wrap of the answers (from `max` down) that fits in `room`: a box may come out a few px wider than the width it was wrapped at, so the next narrower wrap is tried. */
+  const answersIn = (max: number, room: number): {lines: NodeLines[]; w: number} | undefined => {
+    for (let m = Math.floor(max); m >= MIN_BOX; m -= STEP) { const a = aColumn(m); if (a.w <= room) return a; }
+    const a = aColumn(MIN_BOX);
+    return a.w <= room ? a : undefined;
+  };
   const rowHs = (q: QColumn, a: {lines: NodeLines[]}): number[] => qs.map((_, i) => grid4(Math.max(must(q.lines[i]).h, must(a.lines[i]).h)));
-  // D2: the question column's width is tried in 8px steps; of the ones the answers still fit beside, the shortest figure wins, among them a wrap that leaves no stray last line, then the narrower column
-  type Cand = {q: QColumn; a: {lines: NodeLines[]; w: number}; h: number};
+    type Cand = {q: QColumn; a: {lines: NodeLines[]; w: number}; h: number};
   const cands: Cand[] = [];
-  for (let m = Math.min(cap, Math.floor(w) - MIN_BOX - baseGap); m >= MIN_BOX; m -= STEP) {
+  // widths from the cap down on a fixed grid (so a wider figure only adds candidates), and the narrowest wrap last: when it does not fit, nothing does
+  const widths: number[] = [];
+  for (let m = cap; m >= MIN_BOX; m -= STEP) if (m <= Math.floor(w) - MIN_BOX - baseGap) widths.push(m);
+  if (!widths.includes(MIN_BOX)) widths.push(MIN_BOX);
+  for (const m of widths) {
     const q = qColumn(m), room = w + 0.5 - q.w - q.gap;
     if (room < MIN_BOX) continue;
-    const a = aColumn(Math.min(cap, Math.floor(room)));
-    if (a.w > room) continue;
-    cands.push({q, a, h: rowHs(q, a).reduce((s, v) => s + v, 0) + must(q.lines[n]).h});
+    const a = answersIn(Math.min(cap, Math.floor(room)), room);
+    if (!a) continue;
+    cands.push({q, a, h: rowHs(q, a).reduce((sum, v) => sum + v, 0) + must(q.lines[n]).h});
   }
-  const best = cands.reduce<Cand | undefined>((b, c) => !b || (c.q.tailOk !== b.q.tailOk ? c.q.tailOk : c.h !== b.h ? c.h < b.h : c.q.w < b.q.w) ? c : b, undefined);
+  // fewest lines (the shortest figure) first; of those a wrap with no stray last line; then the narrower column (ADR 0083 D2)
+  const best = cands.reduce<Cand | undefined>((b, c) => !b || (c.h !== b.h ? c.h < b.h : c.q.tailOk !== b.q.tailOk ? c.q.tailOk : c.q.w < b.q.w) ? c : b, undefined);
   if (!best) {
     const q = qColumn(MIN_BOX), a = aColumn(MIN_BOX), need = q.w + q.gap + a.w;
-    return {noFit: true, failure: () => fitFailure('decisionLadder()', w, [{label: `two columns at the narrowest wrap (questions ${q.w}px, answers ${a.w}px)`, w: need, h: rowHs(q, a).reduce((s, v) => s + v, 0)}],
-      `widen the figure (diagram({width: ${widerThan([{label: '', w: need, h: 0}])}})), or shorten the text of the questions and answers`, ['the other direction (a ladder always has the questions down the left, the answers on their rows)'])};
+    // the band sits inside the diagram's 40px margins: the width to write is the one the figure needs plus them
+    return {noFit: true, failure: () => fitFailure('decisionLadder()', w, [{label: `two columns at the narrowest wrap (questions ${q.w}px, answers ${a.w}px)`, w: Math.ceil(need), h: rowHs(q, a).reduce((sum, v) => sum + v, 0)}],
+      `widen the figure (diagram({width: ${widerThan([{label: '', w: need, h: 0}], 40)}})), or shorten the text of the questions and answers`, ['the other direction (a ladder always has the questions down the left, the answers on their rows)'])};
   }
-  const {q: qc, a: ac} = best, heights = rowHs(qc, ac), hGap = qc.gap, vgap = vGap;
+  const {q: qc, a: ac} = best, heights = rowHs(qc, ac), hGap = qc.gap;
   const total = qc.w + hGap + ac.w, x0 = x + Math.max(0, (w - total) / 2), ax = x0 + qc.w + hGap, cx = x0 + qc.w / 2;
   const out: LaidOutStates = {
     type: 'states', flavor: 'flowchart', arrange: 'ladder', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: 0,
@@ -84,8 +100,8 @@ export function layoutLadder(band: StatesBand, x: number, y: number, w: number, 
   };
   // every row's rects first (the "no" arrow of a row ends at the next one), then the boxes and arrows in the order of the states
   const rowTop: number[] = [];
-  let cy = y;
-  for (const rh of heights) { rowTop.push(cy); cy += rh + vgap; }
+  let cy = y + rise(0, must(heights[0])); // the first yes chip rises above its row: the band starts above it
+  for (const [i, rh] of heights.entries()) { rowTop.push(cy); cy += rh + Math.max(minGap, lh + pad + rise(i + 1, heights[i + 1] ?? 0)); }
   const qRect = (i: number): R => {
     const l = must(qc.lines[i]), top = i < n ? must(rowTop[i]) : cy, rh = i < n ? must(heights[i]) : l.h;
     return diamond ? {x: x0 + (qc.w - l.w) / 2, y: top + (rh - l.h) / 2, w: l.w, h: l.h} : {x: x0, y: top + (rh - l.h) / 2, w: qc.w, h: l.h};
@@ -97,8 +113,8 @@ export function layoutLadder(band: StatesBand, x: number, y: number, w: number, 
     // the yes chip: centred over the arrow, just above it
     arrowOut(yesT[i], q.id, a.id, [{x: qr.x + qr.w, y: mid}, {x: ar.x, y: mid}], cw => ({x: (qr.x + qr.w + ar.x) / 2 - cw / 2, y: mid - lh / 2 - 3}));
     const next = qRect(i + 1), nextId = i + 1 < n ? must(qs[i + 1]).id : end.id;
-    // the no chip: right of the arrow, halfway down it
-    arrowOut(noT[i], q.id, nextId, [{x: cx, y: qr.y + qr.h}, {x: cx, y: next.y}], () => ({x: cx + noPad, y: (qr.y + qr.h + next.y) / 2}));
+    // the no chip: right of the arrow, at the top of it (the next row's yes chip rises into the lower part of the strip)
+    arrowOut(noT[i], q.id, nextId, [{x: cx, y: qr.y + qr.h}, {x: cx, y: next.y}], () => ({x: cx + noPad, y: qr.y + qr.h + 2 + lh / 2}));
   }
   place(end, must(qc.lines[n]), qRect(n));
   out.h = qRect(n).y + must(qc.lines[n]).h - y;

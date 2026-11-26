@@ -87,17 +87,24 @@ test('the question boxes are all one width, the answer boxes are all one width, 
   assert.ok(rect(t, 'q1').x + rect(t, 'q1').w < rect(t, 'a1').x);
 });
 
-test('a long question that wraps never leaves a last line shorter than 4 characters', async () => {
-  const long = '返却期限が過ぎた本が自宅にあり、かつ延滞の連絡も受けていないのは確かですか？';
-  for (const maxNodeW of [undefined, 160, 200, 240, 300]) {
-    const steps = [{q: long, yes: '延滞の窓口へ案内する'}, {q: long + 'あ', yes: '返却箱の場所を伝える'}, {q: '短い？', yes: '受け付ける'}];
-    const {t} = await laid(decisionLadder(steps, END, maxNodeW === undefined ? {} : {maxNodeW}));
-    for (const id of ['q1', 'q2']) {
-      const r = rect(t, id), lines = t.texts.filter(x => x.bold && x.x > r.x && x.x < r.x + r.w && x.y > r.y && x.y < r.y + r.h).sort((a, b) => a.y - b.y);
-      assert.ok(lines.length >= 1);
-      if (lines.length > 1) assert.ok([...lines.at(-1)!.text].length >= 4, `maxNodeW ${maxNodeW} ${id}: last line "${lines.at(-1)!.text}"`);
-    }
+const boldLines = (t: LaidOutStates, id: string): string[] => { const r = rect(t, id); return t.texts.filter(x => x.bold && x.x > r.x && x.x < r.x + r.w && x.y > r.y && x.y < r.y + r.h).sort((p, q) => p.y - q.y).map(x => x.text); };
+
+test('among wraps with the same number of lines, the one that leaves no stray last line is taken (ADR 0083 D2)', async () => {
+  for (const n of [25, 26, 27, 28, 29, 30]) {
+    const {t} = await laid(decisionLadder([{q: '本'.repeat(n - 1) + '？', yes: '答え'}], END));
+    const lines = boldLines(t, 'q1');
+    assert.equal(lines.length, 2, `${n} characters take two lines`);
+    assert.ok([...lines.at(-1)!].length >= 4, `${n} characters: last line "${lines.at(-1)}"`);
   }
+});
+
+test('fewest lines come before the last-line rule: a question that fits one line is not wrapped for the sake of another question', async () => {
+  // q1 (25 characters) has a 3-character last line at the widest wrap that takes two lines; q2 (23) fits on one line at that width.
+  const {t} = await laid(decisionLadder([{q: '本'.repeat(24) + '？', yes: '答え'}, {q: '書'.repeat(22) + '？', yes: '答え'}], END));
+  assert.equal(boldLines(t, 'q2').length, 1, 'q2 stays on one line');
+  assert.equal(boldLines(t, 'q1').length, 2);
+  const narrowH = (await laid(decisionLadder([{q: '本'.repeat(24) + '？', yes: '答え'}, {q: '書'.repeat(22) + '？', yes: '答え'}], END, {maxNodeW: 220}))).t.h;
+  assert.ok(t.h < narrowH, `${t.h} < ${narrowH}`);
 });
 
 test('the wrapped ladder has the fewest lines for its width (a column is not narrower than it has to be)', async () => {
@@ -207,4 +214,119 @@ test('layoutLadder(): the placement itself, at a given width (a laid-out band, o
   const narrow = layoutLadder(band, 0, 0, 150, widthOf, ROLES, env);
   assert.ok(isNoFit(narrow));
   assert.match(narrow.failure(), /^decisionLadder\(\): the figure does not fit 150px\./);
+});
+
+const SHORT = [{q: 'A?', yes: 'x'}, {q: 'B?', yes: 'y'}, {q: 'C?', yes: 'z'}];
+
+test('a "no" or "yes" word of any length leaves the figure free of problems, under short questions too (the chips never meet)', async () => {
+  const words: [string, string][] = [['可', '該当しない'], ['Yes', 'Not yet'], ['はい', 'いいえ（不可）'], ['はい（該当する）', 'いいえ（該当しない）'], ['', '該当しない'], ['条件を満たしている', ''], ['Yes, and', 'No, and not for a while']];
+  for (const [yes, no] of words) for (const density of ['normal', 'compact'] as const) for (const steps of [SHORT, STEPS]) for (const question of ['box', 'diamond'] as const) {
+    const {t, verdict} = await laid(decisionLadder(steps, 'Z', {yes, no, question}), {width: 640, density});
+    assert.deepEqual(verdict.problems, [], `${yes}/${no} ${density} ${question}`);
+    for (let i = 0; i < t.labels.length; i++) for (let j = i + 1; j < t.labels.length; j++) assert.ok(!overlap(t.labels[i]!, t.labels[j]!), `${t.labels[i]!.text} / ${t.labels[j]!.text}`);
+  }
+});
+
+test('the default words under short questions do not touch either (the chip of the next row stays below the chip of the arrow above it)', async () => {
+  const {t} = await laid(decisionLadder(SHORT, 'Z'));
+  const no = t.labels.filter(l => l.text === 'いいえ'), yes = t.labels.filter(l => l.text === 'はい');
+  for (const n of no) for (const y of yes) assert.ok(n.y + n.h <= y.y || y.y + y.h <= n.y || n.x + n.w <= y.x || y.x + y.w <= n.x);
+  for (const l of t.labels) assert.ok(l.y >= t.y && l.y + l.h <= t.y + t.h, `${l.text} is inside the band`);
+});
+
+test('the band contains every chip, the first row\'s yes chip included', async () => {
+  for (const question of ['box', 'diamond'] as const) {
+    const {t} = await laid(decisionLadder(STEPS, END, {question}));
+    for (const l of t.labels) assert.ok(l.y >= t.y - 0.5 && l.y + l.h <= t.y + t.h + 0.5 && l.x >= t.x && l.x + l.w <= t.x + t.w, `${question}: ${l.text}`);
+  }
+});
+
+test('the rows: each answer shares its question\'s vertical centre, and the yes arrow runs along it onto the answer\'s left edge', async () => {
+  const texts = [STEPS, SHORT, [{q: '返却期限が過ぎた本が自宅にあり、かつ延滞の連絡も受けていないのは確かですか？', yes: 'x'}, {q: 'q?', yes: '延滞の窓口へ案内する'.repeat(3), sub: '2 行目'}, ...STEPS]];
+  for (const steps of texts) for (const question of ['box', 'diamond'] as const) {
+    const {t} = await laid(decisionLadder(steps, END, {question}));
+    for (let i = 1; i <= steps.length; i++) {
+      const q = rect(t, `q${i}`), a = rect(t, `a${i}`), yes = edge(t, `q${i}`, `a${i}`).e;
+      assert.equal(q.y + q.h / 2, a.y + a.h / 2, `row ${i} centre`);
+      assert.equal(yes.points[0]!.y, a.y + a.h / 2);
+      assert.equal(yes.points[1]!.x, a.x);
+      assert.ok(yes.points[1]!.y > a.y && yes.points[1]!.y < a.y + a.h, 'ends on the answer box');
+    }
+  }
+});
+
+test('nothing sticks out of the band, at any width the ladder fits; the answers have room beside the questions', async () => {
+  for (const width of [340, 360, 400, 480, 640, 900]) {
+    let t: LaidOutStates;
+    try { t = (await laid(decisionLadder(STEPS, END), {width})).t; } catch { continue; }
+    for (const a of t.anchors) assert.ok(a.x >= t.x - 0.5 && a.x + a.w <= t.x + t.w + 0.5, `width ${width}: ${a.id} ${a.x}+${a.w} in ${t.x}+${t.w}`);
+    for (const l of t.labels) assert.ok(l.x >= t.x - 0.5 && l.x + l.w <= t.x + t.w + 0.5, `width ${width}: label ${l.text}`);
+    for (let i = 1; i <= 5; i++) assert.ok(rect(t, `q${i}`).x + rect(t, `q${i}`).w < rect(t, `a${i}`).x, `width ${width}: row ${i}`);
+  }
+});
+
+test('the figure is centred in its band', async () => {
+  const {t} = await laid(decisionLadder(STEPS, END), {width: 900});
+  const left = Math.min(...t.anchors.map(a => a.x)) - t.x, right = t.x + t.w - Math.max(...t.anchors.map(a => a.x + a.w));
+  assert.ok(Math.abs(left - right) <= 0.5, `${left} / ${right}`);
+  assert.ok(left > 20, 'there is room to centre in');
+});
+
+test('the figure is centred on its columns, not on its chips: the arrow gap is the same on every row', async () => {
+  const {t} = await laid(decisionLadder(STEPS, END, {yes: '条件を満たしている'}));
+  const gaps = new Set(STEPS.map((_, i) => rect(t, `a${i + 1}`).x - (rect(t, `q${i + 1}`).x + rect(t, `q${i + 1}`).w)));
+  assert.equal(gaps.size, 1);
+});
+
+test('NoFit is monotone: a ladder that fits at a width fits at every wider one, and the width the error suggests fits', async () => {
+  const one = [{q: '利用者カードを持っている？', yes: 'カードで受け付ける'}];
+  for (const keepWords of [false, true]) {
+    let fits = false;
+    for (let width = 200; width <= 700; width += 10) {
+      const d = diagram({theme: 'blue', title: 't', width, ...(keepWords ? {keepWords: true} : {})} as never);
+      let ok = true;
+      try { await checkDiagram(d.add(decisionLadder(one, 'ルーム'))); } catch { ok = false; }
+      assert.ok(ok || !fits, `keepWords ${keepWords}: fits below ${width} but not at ${width}`);
+      fits = fits || ok;
+    }
+  }
+});
+
+test('the width the NoFit message suggests is wider than the current one, and the figure fits at it', async () => {
+  const steps = [{q: '利用者カードを持っている？', yes: 'カードで受け付ける'}];
+  for (const keepWords of [false, true]) for (const width of [200, 240, 300, 320]) {
+    const mk = (w: number) => diagram({theme: 'blue', title: 't', width: w, ...(keepWords ? {keepWords: true} : {})} as never).add(decisionLadder(steps, 'ルーム'));
+    let message = '';
+    try { await checkDiagram(mk(width)); } catch (e) { message = (e as Error).message; }
+    if (!message) continue;
+    const suggested = Number(/width: (\d+)/.exec(message)![1]);
+    assert.ok(suggested > width, `${message}`);
+    await checkDiagram(mk(suggested));
+    const said = Number(/does not fit (\d+)px/.exec(message)![1]), needed = Number(/(\d+)px wide/.exec(message)![1]);
+    assert.ok(needed > said, 'the message is consistent: what it needs is more than what it has');
+  }
+});
+
+test('otherwise: an object is checked as a step is', () => {
+  const need = (f: () => unknown, re: RegExp) => assert.throws(f, (e: Error) => { assert.match(e.message, /^decisionLadder\(/); assert.match(e.message, re); return true; });
+  need(() => decisionLadder(STEPS, {label: 'Z', foo: 1} as never), /'foo'/);
+  need(() => decisionLadder(STEPS, {label: 'Z', sub: 3} as never), /sub/);
+});
+
+test('a long "no" word under a short question beside a tall answer stays clear of the answer box', async () => {
+  const tall = [{q: 'A?', yes: '答えの文が長くて二行になる', sub: '注の行'}, {q: 'B?', yes: '答えの文が長くて二行になる', sub: '注の行'}, {q: 'C?', yes: 'z'}];
+  for (const no of ['該当しない場合', 'No, and not for a while', 'いいえ']) {
+    const {t, verdict} = await laid(decisionLadder(tall, 'Z', {no}), {width: 640});
+    assert.deepEqual(verdict.problems, [], no);
+    for (const l of t.labels) for (const a of t.anchors) assert.ok(!overlap(l, a), `${l.text} on ${a.id}`);
+  }
+});
+
+test('answers fit beside the questions at every width, measured: no box reaches past the band (the width at which the answers come out wider than they were wrapped)', async () => {
+  const one = [{q: '利用者カードを持っている？', yes: 'カードで受け付ける'}];
+  for (let width = 260; width <= 420; width += 10) {
+    let t: LaidOutStates;
+    try { t = (await laid(decisionLadder(one, 'ルーム'), {width})).t; } catch { continue; }
+    for (const a of t.anchors) assert.ok(a.x + a.w <= t.x + t.w + 0.5 && a.x >= t.x - 0.5, `width ${width}: ${a.id}`);
+  }
 });
