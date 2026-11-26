@@ -261,7 +261,7 @@ Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使�
     svg-diagram build <source.ts> --no-source-line       # diagram({sourceLine}) を描かない（スライド用と文書用を 1 つのソースで使い分ける。ソースは変えない。deck も同じフラグを受ける）
     svg-diagram build|check [--today YYYY-MM-DD] <source.ts>...   # gantt({today: 'auto'}) の日付を渡す（環境変数 SVG_DIAGRAM_TODAY、.svg-diagram.json の "today" でも可。「ガントチャート」の節）
     svg-diagram build <source.ts> --html                 # <name>.html も書く（文字・箱・表・線・矢印・曲線を HTML/CSS で。docs/adr/0006）
-    svg-diagram build <source.ts>... --id-prefix <p|auto>   # 複数の図を 1 つの HTML に貼るとき、SVG/HTML の内側の id（svg-title・dsl-arrow など）と参照に <p>-<id> を付ける。ソースが複数なら <p>-<ソース名>-<id>、auto は内容ハッシュ（sd<8 桁>）。<metadata id="svg-diagram"> は書き換えない（check --drift・--stale が読む）。付けなければ出力は 1 バイトも変わらない。--stale とは併用しても毎回作り直す（docs/adr/0012 D2）
+    svg-diagram build <source.ts>... --id-prefix <p|auto>   # 複数の図を 1 つの HTML に貼るとき、SVG/HTML の内側の id（svg-title・dsl-arrow など）と参照に <p>-<id> を付ける。ソースが複数なら <p>-<ソース名>-<id>、auto は内容ハッシュ（sd<8 桁>）。<metadata id="svg-diagram"> は書き換えない（check --drift・--stale が読む）。付けなければ出力は 1 バイトも変わらない。`--inline` を足すと、書き出す SVG から width / height を除いて viewBox だけにする（CSS で大きさを決めるページ向け。--stale とは併用しても毎回作り直す）。--stale とは併用しても毎回作り直す（docs/adr/0012 D2）
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --forbid-draft <source.ts>...      # diagram({status: 'draft'}) の図を warn にする（公開ジョブだけが付ける。「下書きバッジ」の節）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild [--jobs N] [--no-cache] [--cache-dir DIR]] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明。並列＋成功のキャッシュ: 下の「ズレ検査を速くする」）
@@ -921,7 +921,23 @@ connect('plan.p0:right', 'sched.p0:left')
 - `resolveAnchor(table, id, has)`（`lib/anchor-scope.ts`。純関数）が、完全一致 → 素の名前が 1 つ → 曖昧（error）→ なし（error）の 4 段で決める。
 - ハンドル `.anchors.p0` は、scope 付きの帯では修飾名（`sched.p0:right`）を返すので、同じ素の id が複数あっても使える。型は、`.` を含む参照を形だけで通す（綴り間違いは実行時の候補つきエラーで捕まる。素の id が曖昧かどうかも実行時）。`@` を含む id は従来どおり型エラー。
 - `reveal` の段階は項目ごとに記録され、同じ素の id を持つ別の帯と混ざらない（`connect` の `reveal` の自動導出は、参照した側の段階になる）。spotlight は、gantt の task と tree の node を直接は指せない（scope があっても変わらない。図全体の `id` で指す）。
-- 複数の SVG を 1 つの HTML に貼るときの内部 id の衝突は、`build --id-prefix`（上の「使い方」）が別に防ぐ。
+- 複数の SVG を 1 つの HTML に貼るときの内部 id の衝突は、`build --id-prefix`（上の「使い方」）が別に防ぐ（プログラムから描くときは `idPrefix`、下の「HTML に埋め込む」）。
+
+### HTML に埋め込む（`idPrefix` / `inline` / `appearance: 'auto'`）
+
+SVG を 1 つの HTML ページ（または Artifact などのページ）に直接貼るときの 3 点。
+
+- **`idPrefix`**: 図ごとに `svg-title`・矢じり・グラデーション・`clipPath` などの id が同じになるので、2 枚目以降の参照が 1 枚目の定義を指してしまう。`idPrefix: 'fig1-'` を付けると、図の id と参照（`url(#…)`・`href` / `xlink:href="#…"`・`aria-labelledby` / `aria-describedby`・`<use>`・`<style>` の `#id`）が `fig1-<id>` になり、図ごとに閉じる。`fig1` と `fig1-` は同じ。付けなければ出力は変わらない。`<metadata id="svg-diagram">` は書き換えない。
+- **`inline: true`**: `<?xml?>` 宣言と、ルート `<svg>` の `width` / `height` を除き、`viewBox` だけにする。大きさは CSS（`svg { width: 100%; height: auto }` など）で決める。
+- **`appearance: 'auto'`**: 図に書くと、埋め込み先の `prefers-color-scheme` に追従する（上の「暗い背景と透明背景」）。ページ側の `data-theme` のような手動の切り替えには追従しない。
+
+```ts
+import {renderSpec} from 'svg-diagram/render';
+const r = await renderSpec(spec, {idPrefix: 'fig1-', inline: true});
+if (r.ok) page += r.svg; // 次の図は {idPrefix: 'fig2-', inline: true}
+```
+
+`renderSpec`（`svg-diagram/render`・`svg-diagram/spec/selective`）、`renderDiagram`（`svg-diagram`）、`renderInBrowser`（`svg-diagram/browser`）が同じ 2 つのオプションを取る。CLI は `svg-diagram build <source>... --id-prefix <p|auto> --inline`。PPTX の出力は変わらない。
 
 ### コンサル系のチャート（`waterfall` / `radar` / `heatmap` / `lines` / `stackedBars` / `mekko` / `treemap` / `sankey` / `tornado` / `bubble` / `butterfly` / `combo` / `harvey`）
 

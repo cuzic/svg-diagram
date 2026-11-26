@@ -82,6 +82,18 @@ test('build --id-prefix: ids and references are prefixed in the SVG and the HTML
   assert.deepEqual(ids(svg).filter(i => ids(fs.readFileSync(other, 'utf8')).includes(i)), []);
 });
 
+test('build --inline: the SVG has a viewBox and no width / height; with --id-prefix both apply; without it nothing changes', () => {
+  const plain = path.join(proj, 'inl-plain.svg'), inl = path.join(proj, 'inl-on.svg');
+  assert.equal(node(proj, BUILD, 'src/flow.ts', '--out', plain, '--no-lint').status, 0);
+  const r = node(proj, BUILD, 'src/flow.ts', '--out', inl, '--no-lint', '--inline', '--id-prefix', 'z');
+  assert.equal(r.status, 0, out(r));
+  const root = (f: string) => /<svg\b[^>]*>/.exec(fs.readFileSync(f, 'utf8'))?.[0] ?? '';
+  assert.match(root(plain), /\swidth="\d+"/);
+  assert.doesNotMatch(root(inl), /\s(?:width|height)=/);
+  assert.match(root(inl), /viewBox="0 0 \d+ \d+"/);
+  assert.match(fs.readFileSync(inl, 'utf8'), /<title id="z-svg-title"/);
+});
+
 test('build --id-prefix: several sources get <p>-<basename>; auto is a content hash; a bad prefix is a usage error', () => {
   const dir = path.join(proj, 'idp-multi');
   const r = node(proj, BUILD, 'src/flow.ts', 'src/legacy.mjs', '--out-dir', dir, '--no-lint', '--id-prefix', 'p');

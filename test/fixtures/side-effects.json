@@ -1,5 +1,5 @@
 {
-  "build-diagram.ts": {"count": 305, "reason": "Runs the build CLI, writes diagrams, and lints the outputs."},
+  "build-diagram.ts": {"count": 312, "reason": "Runs the build CLI, writes diagrams, and lints the outputs."},
   "check-diagram.ts": {"count": 563, "reason": "Runs the check CLI and reports diagram and drift findings."},
   "contact-sheet.ts": {"count": 81, "reason": "Runs the contact CLI and writes contact sheets."},
   "deck-diagram.ts": {"count": 75, "reason": "Runs the deck CLI and writes the HTML deck."},

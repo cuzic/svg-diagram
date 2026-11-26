@@ -11,6 +11,7 @@
    - 型エラーは `check` の警告より前に直す。型を通っても、重なり・コントラスト・見た目は下のビルド・検査・目視で確かめる。
 2. **ビルド**: `svg-diagram build src.ts --out out.svg`（重なり検査と lint --strict まで走る。失敗するとエラー文が出る）
    - 複数の SVG を 1 つの HTML に貼るなら `--id-prefix <p|auto>` を付ける（`svg-title`・`dsl-arrow` などの id と参照が `<p>-<id>` になり、重ならない。ソースが複数なら `<p>-<ソース名>-<id>`。`<metadata id="svg-diagram">` はそのまま残るので `check --drift` も読める）。
+   - ページに直接貼る SVG は `--inline` も付ける（width / height を除き viewBox だけ。大きさは CSS）。プログラムから描くなら `renderSpec(spec, {idPrefix: 'fig1-', inline: true})`（`svg-diagram/render`）。ダークモードに追従させるなら図に `appearance: 'auto'`。
    - 出典行（`diagram({sourceLine})`）をスライドには出し、文書には出したくないとき: `--no-source-line`（ソースは変えない。`deck` も同じフラグ。`<metadata>` に `noSourceLine` が残り、`--stale` と `check --drift --rebuild` が読む）。
    - `gantt({today: 'auto'})` の日付は呼び出し側が渡す: `SVG_DIAGRAM_TODAY=$(date +%F) svg-diagram build x.ts`（`--today YYYY-MM-DD` が優先。`build` と `check` の両方で同じ日付にする）。限界: `--stale` は日付を見ないので、日付が変わっても fresh と出る。
    - 下書きの図は `diagram({status: 'draft', statusLabel?: '仮説'})`（最上段に 1 段、右端に破線の札。`<desc>` の先頭に「(下書き)」、`<metadata>` に status。`check` は info の `draft-status`、公開ジョブでは `check --forbid-draft` で warn にして止める）。

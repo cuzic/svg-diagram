@@ -8,6 +8,8 @@ import type {RenderResult, CheckResult, SlideBudget} from '../types/verdicts.ts'
 import {walkAnyBands as walkBands} from '../full-definitions.ts';
 import {detachData} from './diagram.ts';
 import {throwAtDiagram} from '../source-ref.ts';
+import {prepareForEmbedding, prepareHtmlForEmbedding} from '../svg-ids.ts';
+import type {EmbedOptions} from '../svg-ids.ts';
 
 /** detachData() plus the pictures image() left unread, read from the source's folder. */
 function detach<D extends DiagramData>(d: D): D {
@@ -16,7 +18,7 @@ function detach<D extends DiagramData>(d: D): D {
   out.measure ??= defaultMeasureSettings();
   return out;
 }
-type RenderOptions = {name: string; budget: 'measure' | 'cacheOnly'; html?: boolean; /** `data-node="id"` on the outline of each author-named node (ADR 0034) */ nodeIds?: boolean};
+type RenderOptions = {name: string; budget: 'measure' | 'cacheOnly'; html?: boolean; /** `data-node="id"` on the outline of each author-named node (ADR 0034) */ nodeIds?: boolean} & EmbedOptions;
 
 // Everything build() does short of the disk: layout (with the slide budget and the fill / font scale search), verification,
 // the SVG, its XML well-formedness. It does not throw for a failed verification or a malformed SVG — it reports them in
@@ -62,7 +64,8 @@ async function render(input: Diagram, opts: RenderOptions) {
     const [{emitHtml}, {fontBoxOf}] = await Promise.all([import('../emit-html.ts'), import('../font-box.ts')]);
     html = emitHtml(laidOut, {reveal: result.stage, fontBox: fontBoxOf(laidOut.measure), emit: result.emit});
   }
-  const rendered: RenderResult = {svg, ...(html !== undefined ? {html} : {}), laidOut, verdict, xml, notes: [...notes, ...result.notes], width, height, fit, budget, budgetSource, fontScale};
+  const embed = {idPrefix: opts.idPrefix, inline: opts.inline};
+  const rendered: RenderResult = {svg: prepareForEmbedding(svg, embed), ...(html !== undefined ? {html: prepareHtmlForEmbedding(html, embed)} : {}), laidOut, verdict, xml, notes: [...notes, ...result.notes], width, height, fit, budget, budgetSource, fontScale};
   const emitRevealStage = (stage: number) => result.emit(opts.nodeIds ? withNodeIds(laidOut, placedDefinitionOf) : laidOut, false, undefined, stage);
   return {result: rendered, emitRevealStage};
 }

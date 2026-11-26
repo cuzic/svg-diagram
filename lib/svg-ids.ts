@@ -42,3 +42,37 @@ export function prefixSvgIds(markup: string, prefix: string, opts: {rootId?: str
     }) + close);
   return s;
 }
+
+/** Options for a figure that is pasted into a page as inline markup (ADR 0012 D2 as an option of the render functions). */
+export interface EmbedOptions {
+  /** Every id of the figure, and every reference to it, becomes `<idPrefix>-<id>` (a trailing `-` of the prefix is not doubled). Names the figure in one page. */
+  idPrefix?: string;
+  /** Inline output: no `<?xml?>` declaration and no `width` / `height` on the root `<svg>`, only the viewBox, so CSS sizes the figure. */
+  inline?: boolean;
+}
+
+const PREFIX_NAME = /^[A-Za-z_][\w.-]*$/;
+
+/** The prefix as `prefixSvgIds` takes it: `fig1-` and `fig1` are the same prefix. Throws for a text that cannot start an id. */
+export function normalizeIdPrefix(prefix: string): string {
+  const name = prefix.replace(/-+$/, '');
+  if (!PREFIX_NAME.test(name)) throw new Error(`idPrefix must be a name usable in an id (letters, digits, _ . -; not starting with a digit), got "${prefix}". Use e.g. "fig1-"`);
+  return name;
+}
+
+/** `<svg>` text with `opts` applied: the id prefix first, then the inline form. No option: the text as it is. */
+export function prepareForEmbedding(svg: string, opts: EmbedOptions): string {
+  let s = svg;
+  if (opts.idPrefix !== undefined) s = prefixSvgIds(s, normalizeIdPrefix(opts.idPrefix));
+  if (opts.inline) {
+    s = s.replace(/^\s*<\?xml[^>]*\?>\s*/, '');
+    s = s.replace(/<svg\b[^>]*>/, root => root.replace(/\s(?:width|height)="[^"]*"/g, ''));
+  }
+  return s;
+}
+
+/** The HTML form of a figure: its ids get the prefix, and its root (named by a content hash) is named by the prefix itself, as `build --id-prefix` does. */
+export function prepareHtmlForEmbedding(html: string, opts: EmbedOptions): string {
+  if (opts.idPrefix === undefined) return html;
+  return prefixSvgIds(html, normalizeIdPrefix(opts.idPrefix), {rootId: /<div id="(sd-[0-9a-f]+)" class="sd"/.exec(html)?.[1]});
+}
