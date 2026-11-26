@@ -1,6 +1,6 @@
 # ADR 0083: 判断のはしご（`decisionLadder()`）— はい/いいえの質問を縦に並べ、「はい」は右の答えへ、「いいえ」は下の次の質問へ
 
-- 状態: 承認(Accepted。2026-11-26。Q1〜Q7 は決める人がすべて推奨どおりに決定。U1 → U2 の順で実装する。U3(flowchart の別名)は作らない。**U1 実装済み (PR #478)**)
+- 状態: 承認(Accepted。2026-11-26。Q1〜Q7 は決める人がすべて推奨どおりに決定。U1 → U2 の順で実装する。U3(flowchart の別名)は作らない。**U1 実装済み (PR #478)・U2 実装済み (spec・文書・例)**)
 - 日付: 2026-11-26
 - 基点: `main`（8379af91。ADR 0081 U4 まで）
 - 関連: ADR 0041（`flowchart()`。`StatesBand` の上の薄い入口、ひし形の寸法）、ADR 0016（層に分ける配置と経路 `layered-route.ts`）、ADR 0080（帯の定義 `BandDef`、D2b の `.type ===` ラチェット、tree shaking）、ADR 0069（`partCatalog`）、ADR 0071（JSON Schema）、ADR 0027 / 0054（PPTX）

@@ -3,6 +3,7 @@ import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {checkDiagram, closeMeasurer, compare, diagram} from '../lib/dsl.ts';
 import {compareAlt, compareTexts, layoutCompare, resolveCompare} from '../lib/charts-compare.ts';
+import {comparePart} from '../lib/spec-parts/selective/compare.ts';
 import {compareBand} from '../lib/charts-dsl.ts';
 import {layoutRatingTable} from '../lib/charts-rating-table.ts';
 import type {ChartGeom} from '../lib/charts-base.ts';
@@ -86,4 +87,70 @@ test('layoutCompare(): needs a mark column and room for the note in every option
   const part = layoutCompare(resolveCompare(['r'], ['A'], [[['△', 'n']]]), geom);
   assert.ok(part.items.some(i => i.k === 'text' && i.s === '△' && i.anchor === 'middle'));
   assert.throws(() => layoutCompare(resolveCompare(['r'], ['A', 'B', 'C', 'D'], [[null, null, null, null]]), {...geom, w: 300}), /do not fit/);
+});
+
+test('compare(): a long row header keeps its padding from the first column rule (C1)', () => {
+  // bold text is wider than regular text, as in a real font; the row headers are drawn bold
+  const widthOf = ((s: string, size: number, weight: number) => [...s].length * size * (weight >= 700 ? 0.62 : 0.55)) as unknown as ChartGeom['widthOf'];
+  const names = ['Cloud Native Platform', 'Managed Database Service'], cell = ['○', 'ok'] as const;
+  for (const w of [640, 800, 1000]) {
+    const part = layoutCompare(resolveCompare(names, ['A', 'B', 'C', 'D'], names.map(() => [cell, cell, cell, cell]), {corner: 'Axis'}), {...geom, w, widthOf});
+    const rules = part.items.flatMap(i => i.k === 'path' && !i.dash ? [...i.d.matchAll(/^M([\d.]+),[\d.]+ L([\d.]+),[\d.]+$/g)].filter(m => m[1] === m[2]).map(m => Number(m[1])) : []);
+    const ruleX = Math.min(...rules);
+    const heads = part.items.filter((i): i is Extract<typeof i, {k: 'text'}> => i.k === 'text' && i.anchor === 'start' && i.x < ruleX);
+    assert.ok(heads.length >= 3, 'corner and both row names');
+    for (const h of heads) {
+      const right = h.x + widthOf(h.s, h.size, h.bold ? 700 : 400, '' as never);
+      assert.ok(right + 8 <= ruleX + 0.5, `"${h.s}" ends at ${right}, rule at ${ruleX} (width ${w})`);
+    }
+  }
+});
+
+test('compare(): too many columns says how to fix it (C2)', () => {
+  const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+  assert.throws(() => resolveCompare(['r'], cols, [cols.map(() => null)]), /7 columns is over the limit of 6.*transpose.*split into two figures/);
+});
+
+test('compare(): more than 6 columns and rows advises only splitting (m2)', () => {
+  const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'], rows = ['1', '2', '3', '4', '5', '6', '7'];
+  assert.throws(() => resolveCompare(rows, cols, rows.map(() => cols.map(() => null))), (e: Error) => /split into two figures/.test(e.message) && !/transpose/.test(e.message));
+});
+
+test('compare(): the spec schema tells how to fix too many columns (m2)', () => {
+  const cols = (comparePart.schema as {properties: {cols: {description: string}}}).properties.cols;
+  assert.match(cols.description, /transpose|as rows/);
+});
+
+test('compare(): narrow figures still draw a long single-word row name, and column heads keep their padding (M1, m1)', () => {
+  const widthOf = ((s: string, size: number, weight: number) => [...s].length * size * (weight >= 700 ? 0.62 : 0.55)) as unknown as ChartGeom['widthOf'];
+  const cell = ['○', 'ok'] as const, rows = ['Internationalizations', 'Telecommunications Infrastructure'];
+  for (const w of [640, 720]) {
+    const part = layoutCompare(resolveCompare(rows, ['Alpha', 'Beta', 'Gamma', 'Delta'], rows.map(() => [cell, cell, cell, cell])), {...geom, w, widthOf});
+    const rules = part.items.flatMap(i => i.k === 'path' && !i.dash ? [...i.d.matchAll(/^M([\d.]+),[\d.]+ L([\d.]+),[\d.]+$/g)].filter(m => m[1] === m[2]).map(m => Number(m[1])) : []).sort((a, b) => a - b);
+    const ruleX = rules[0]!;
+    for (const h of part.items.filter((i): i is Extract<typeof i, {k: 'text'}> => i.k === 'text' && i.anchor === 'start' && i.x < ruleX)) assert.ok(h.x + widthOf(h.s, h.size, h.bold ? 700 : 400, '' as never) + 8 <= ruleX + 0.5, `"${h.s}" at width ${w}`);
+    for (const h of part.items.filter((i): i is Extract<typeof i, {k: 'text'}> => i.k === 'text' && i.anchor === 'middle' && i.s === 'Alpha')) {
+      const half = widthOf(h.s, h.size, 700, '' as never) / 2, colW = rules[1]! - rules[0]!;
+      assert.ok(colW / 2 - half >= 8 - 0.5, `column head padding at width ${w}`);
+    }
+  }
+});
+
+test('compare(): a long single-word column head still draws in a 6-column table, with 8px padding when it fits (round 2 M1)', () => {
+  const widthOf = ((s: string, size: number, weight: number) => [...s].length * size * (weight >= 700 ? 0.62 : 0.55)) as unknown as ChartGeom['widthOf'];
+  const cell = ['○', 'ok'] as const, cols = ['Observability', 'B', 'C', 'D', 'E', 'F'];
+  for (const w of [800, 960]) {
+    const part = layoutCompare(resolveCompare(['Cost', 'Price'], cols, [cols.map(() => cell), cols.map(() => cell)]), {...geom, w, widthOf});
+    const rules = part.items.flatMap(i => i.k === 'path' && !i.dash ? [...i.d.matchAll(/^M([\d.]+),[\d.]+ L([\d.]+),[\d.]+$/g)].filter(m => m[1] === m[2]).map(m => Number(m[1])) : []).sort((a, b) => a - b);
+    const head = part.items.find((i): i is Extract<typeof i, {k: 'text'}> => i.k === 'text' && i.s === 'Observability')!;
+    const gap = (rules[1]! - rules[0]!) / 2 - widthOf(head.s, head.size, 700, '' as never) / 2;
+    assert.ok(gap >= 2 - 0.5, `the head stays inside its column at width ${w} (gap ${gap})`);
+    const short = part.items.find((i): i is Extract<typeof i, {k: 'text'}> => i.k === 'text' && i.s === 'B')!;
+    assert.ok((rules[1]! - rules[0]!) / 2 - widthOf('B', short.size, 700, '' as never) / 2 >= 8);
+  }
+});
+
+test('compare(): more than 12 columns advises only splitting, as a transpose would exceed 12 rows (round 2 m2)', () => {
+  const cols = Array.from({length: 13}, (_, i) => `c${i}`);
+  assert.throws(() => resolveCompare(['a', 'b', 'c'], cols, [0, 1, 2].map(() => cols.map(() => null))), (e: Error) => /split into two figures/.test(e.message) && !/transpose/.test(e.message));
 });

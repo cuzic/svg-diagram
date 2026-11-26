@@ -24,6 +24,7 @@ export const specPartLoaders: Readonly<Record<string, () => Promise<SelectedPart
   'concentric': () => import('./spec-parts/selective/concentric.ts').then(m => m.concentricPart),
   'control-chart': () => import('./spec-parts/selective/control-chart.ts').then(m => m.controlChartPart),
   'cycle': () => import('./spec-parts/selective/cycle.ts').then(m => m.cyclePart),
+  'decision-ladder': () => import('./spec-parts/selective/decision-ladder.ts').then(m => m.decisionLadderPart),
   'dependency-network': () => import('./spec-parts/selective/dependency-network.ts').then(m => m.dependencyNetworkPart),
   'fault-tree': () => import('./spec-parts/selective/fault-tree.ts').then(m => m.faultTreePart),
   'flowchart': () => import('./spec-parts/selective/flowchart.ts').then(m => m.flowchartPart),

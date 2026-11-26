@@ -105,7 +105,7 @@ try {
     fta: ['fault-tree'],
     plane: ['burndown', 'burnup', 'control-chart', 'lines', 'scatter', 'strategy-canvas'],
     stacked: ['mekko', 'stacked-bars'],
-    states: ['flowchart', 'state-diagram'],
+    states: ['decision-ladder', 'flowchart', 'state-diagram'],
     table: ['check-sheet', 'fmea', 'is-is-not', 'journey-map', 'matrix', 'qfd', 'raci', 'table', 'why-why-table'],
     tree: ['mindmap', 'tree'],
   };
@@ -144,6 +144,7 @@ try {
     ['concentric', {esbuild: 85000, Vite: 112000}],
     ['control-chart', {esbuild: 107000, Vite: 135000}],
     ['cycle', {esbuild: 73000, Vite: 96000}],
+    ['decision-ladder', {esbuild: 170000, Vite: 230000}],
     ['dependency-network', {esbuild: 148000, Vite: 200000}],
     ['fault-tree', {esbuild: 96000, Vite: 122000}],
     ['flowchart', {esbuild: 170000, Vite: 230000}],

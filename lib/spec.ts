@@ -6,7 +6,7 @@ export {capped, validateAgainst} from './spec-validation.ts';
 //
 // Nothing here touches the disk or a process: this file imports only dsl-pure (and modules as pure as it, such as quadrant.ts). Left out on purpose: image() and math() (files, MathJax),
 // `slide` / `fill` (a measured slide), `today: 'auto'` (the build's date) and `icon` (a process-wide manifest).
-import {causeTree, chevron, cloud, cycle, diagram, flowchart, funnel, gantt, journeyMap, mindmap, pyramid, quadrant, raci, sequence, stateDiagram, swimlane, table, valueChain, venn, whyWhyTree} from './dsl-pure.ts';
+import {causeTree, chevron, cloud, cycle, decisionLadder, diagram, flowchart, funnel, gantt, journeyMap, mindmap, pyramid, quadrant, raci, sequence, stateDiagram, swimlane, table, valueChain, venn, whyWhyTree} from './dsl-pure.ts';
 import {walkAnyBands as walkBands} from './full-definitions.ts';
 import {markSpecPart} from './source-ref.ts';
 import {locateIn, messageOf} from './spec-result.ts';
@@ -28,6 +28,7 @@ import {PARTS_R6} from './spec-parts/r6.ts';
 import {PARTS_R7} from './spec-parts/r7.ts';
 import {BOARD} from './spec-parts/board.ts';
 
+import {defineDecisionLadderPart} from './spec-parts/decision-ladder.ts';
 import {defineFlowchartPart} from './spec-parts/flowchart.ts';
 import {definePyramidPart} from './spec-parts/pyramid.ts';
 import {defineFunnelPart} from './spec-parts/funnel.ts';
@@ -51,6 +52,7 @@ import {defineWhyWhyTreePart} from './spec-parts/why-why-tree.ts';
 
 const PARTS: readonly PartDef[] = [
   defineFlowchartPart<ReturnType<typeof flowchart>>(flowchart),
+  defineDecisionLadderPart<ReturnType<typeof decisionLadder>>(decisionLadder),
   defineCauseTreePart<ReturnType<typeof causeTree>>(causeTree),
   defineCloudPart<ReturnType<typeof cloud>>(cloud),
   defineValueChainPart<ReturnType<typeof valueChain>>(valueChain),

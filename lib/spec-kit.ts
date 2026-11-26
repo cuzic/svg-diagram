@@ -123,6 +123,8 @@ export interface PartDef<Result = unknown> {
    * function that gathers them with their places (a part whose ids are nested, such as board's groups).
    */
   anchors?: string | ((part: Json, at: string) => {id: string; path: string}[]);
+  /** Said after a clash of this part's anchors with another part's, when the ids are fixed by the part (so the author cannot rename them). */
+  anchorsHint?: string;
   /** Options the part takes when the spec says `lang: 'en'` and the part does not give them. */
   en?: Json;
   /** English for the words this part puts in the legend (keys as in LEGEND_EN), for `lang: 'en'`. */
