@@ -126,8 +126,9 @@ export function layoutTimeline(band: TimelineBand | NumericTimelineBand, x: numb
   const crosses = (left: number, tw: number): boolean => full && dlX >= left - 3 && dlX <= left + tw + 3;
   const placed: {label: string; left: number; tw: number; moved: boolean}[] = [];
   // a short axis gets day-level ticks: the finest set whose labels sit apart at this width (else the month ticks, as ever)
-  const tx0 = (day: number): number => plotL + (day - from) / (to - from) * (plotR - plotL);
-  const apart = (set: {day: number; label: string}[]): boolean => set.every((t, i) => i === 0 || tx0(must(set[i - 1]).day) + textWidth(widthOf, must(set[i - 1]).label, S, 400) / 2 + 8 <= tx0(t.day) - textWidth(widthOf, t.label, S, 400) / 2);
+  const at = (t: {day: number; label: string}): {left: number; tw: number} => { const tw = textWidth(widthOf, t.label, S, 400); return {tw, left: Math.min(Math.max(plotL + (t.day - from) / (to - from) * (plotR - plotL) - tw / 2, x), x + w - tw)}; }; // as drawn below, end clamp included
+  const clash = (a: {left: number; tw: number}, b: {left: number; tw: number}): boolean => a.left < b.left + b.tw + 6 && b.left < a.left + a.tw + 6;
+  const apart = (set: {day: number; label: string}[]): boolean => set.every((t, i) => i === 0 || !clash(at(must(set[i - 1])), at(t)));
   const ticks = fineTickSets(from, to).find(apart) ?? ticksOf(from, to);
   for (const t of ticks) {
     const tx = plotL + (t.day - from) / (to - from) * (plotR - plotL);
@@ -137,7 +138,6 @@ export function layoutTimeline(band: TimelineBand | NumericTimelineBand, x: numb
     if (crosses(left, tw)) { left = tx >= dlX ? dlX + 6 : dlX - 6 - tw; moved = true; }
     placed.push({label: t.label, left, tw, moved});
   }
-  const clash = (a: {left: number; tw: number}, b: {left: number; tw: number}): boolean => a.left < b.left + b.tw + 6 && b.left < a.left + a.tw + 6;
   for (const p of placed) {
     if (p.moved && (p.left < x || p.left + p.tw > x + w || placed.some(o => o !== p && clash(p, o)))) continue;
     text(p.label, p.left, ty, 'start', 'muted', false, p.tw, TIMELINE_AXIS);

@@ -153,6 +153,9 @@ test('M2: a short axis never fails check where it passed before: narrow figures 
   }
   const narrow = await checkDiagram(diagram({theme: 'blue', title: 't', width: 400, legend: false}).add(timeline({marks: [{at: '2026-12-01', label: 'a'}, {at: '2026-12-09', label: 'b'}]}) as never));
   assert.ok(narrow.verdict.ok, narrow.verdict.problems.join('\n'));
+  // m1 (round 3): the year-labelled last tick is clamped at the figure's edge; the fit test must see that shift
+  const edge = await checkDiagram(diagram({theme: 'blue', title: 't', width: 400, legend: false}).add(timeline({from: '2026-12-21', to: '2027-01-02', now: {at: '2026-12-21'}, deadline: {at: '2026-12-27', label: '締切', line: 'full'}}) as never));
+  assert.ok(edge.verdict.ok, edge.verdict.problems.join('\n'));
   assert.ok(t);
 });
 
