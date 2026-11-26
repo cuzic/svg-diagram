@@ -4,6 +4,7 @@ import {test} from 'node:test';
 import {renderSpec, partCatalog, specSchemaFor, validateSpec} from '../lib/spec-selective.ts';
 import {captionDefinition} from '../lib/bands/caption.ts';
 import {flowchartPart} from '../lib/spec-parts/selective/flowchart.ts';
+import {decisionLadderPart} from '../lib/spec-parts/selective/decision-ladder.ts';
 import {funnelPart} from '../lib/spec-parts/selective/funnel.ts';
 import {pyramidPart} from '../lib/spec-parts/selective/pyramid.ts';
 import {partCatalog as legacyCatalog, specToDiagram} from '../lib/spec.ts';
@@ -99,7 +100,7 @@ test('the selected schema rejects duplicates and validation keywords it cannot e
     /unsupported schema keyword "pattern" at pyramid.properties.caption/);
 });
 
-const moreParts = [stepsPart, versusPart, burnupPart, burndownPart, affinityPart, boardPart, faultTreePart, bowtiePart, fmeaPart, isIsNotPart, matrixPart, pdpcPart, relationDiagramPart, causalLoopPart, whyWhyTreePart, histogramPart, scatterPart, controlChartPart, checkSheetPart, rangeBarsPart, boxplotPart, qfdPart, whyWhyTablePart, concentricPart, harveyPart, comparePart, mekkoPart, butterflyPart, comboPart, barsPart, linesPart, stackedBarsPart, waterfallPart, radarPart, paretoPart, sankeyPart, treemapPart, heatmapPart, bubblePart, tornadoPart, strategyCanvasPart, bpmnPart, classDiagramPart, pertPart, timelinePart, treePart, dependencyNetworkPart, causeTreePart, cloudPart, valueChainPart, mindmapPart, quadrantPart, chevronPart, cyclePart, stateDiagramPart, ganttPart, vennPart, tablePart, journeyMapPart, raciPart, swimlanePart, sequencePart];
+const moreParts = [decisionLadderPart, stepsPart, versusPart, burnupPart, burndownPart, affinityPart, boardPart, faultTreePart, bowtiePart, fmeaPart, isIsNotPart, matrixPart, pdpcPart, relationDiagramPart, causalLoopPart, whyWhyTreePart, histogramPart, scatterPart, controlChartPart, checkSheetPart, rangeBarsPart, boxplotPart, qfdPart, whyWhyTablePart, concentricPart, harveyPart, comparePart, mekkoPart, butterflyPart, comboPart, barsPart, linesPart, stackedBarsPart, waterfallPart, radarPart, paretoPart, sankeyPart, treemapPart, heatmapPart, bubblePart, tornadoPart, strategyCanvasPart, bpmnPart, classDiagramPart, pertPart, timelinePart, treePart, dependencyNetworkPart, causeTreePart, cloudPart, valueChainPart, mindmapPart, quadrantPart, chevronPart, cyclePart, stateDiagramPart, ganttPart, vennPart, tablePart, journeyMapPart, raciPart, swimlanePart, sequencePart];
 for (const part of moreParts) test(`selected ${part.type} draws the existing catalog example`, async () => {
   const spec = {version: 1, title: 'Plan', legend: false, parts: [part.example]};
   const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});

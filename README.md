@@ -171,7 +171,7 @@ SVG の題名を省略すると、表示中のキャプションやバナー、�
 
 専用の PPTX アダプターがない帯も編集可能な図形にしたい場合は、`svg-diagram/pptx/svg-shapes` の `svgShapesXml` を `renderBandsPptx` の `svgShapes` に渡します。変換できる SVG は PowerPoint の図形になり、変換できない帯は通常の画像フォールバックになります。
 
-JSON spec の部品を限定するには、`svg-diagram/spec/selective` の `renderSpec(spec, {parts, measure})` を使います。`svg-diagram/spec/parts/<名前>` から、表（`table`）、ガント図（`gantt`）、フローチャート（`flowchart`）など必要な部品を選び、`parts` に渡します。既存カタログの全65部品に個別入口があります。同じ一覧から `specSchemaFor({parts})` と `partCatalog({parts})` も生成できます。図全体の項目には `lang`、`appearance`、`density`、`desc`、`canvas` も指定できます。`showTitle` または `sourceLine` を使う場合は `svg-diagram/bands/caption` から `captionDefinition` を読み込み、`captions` に渡します。`legend: "auto"` を指定する場合は、`svg-diagram/bands/legend` から `autoLegend` を読み込み、`renderSpec`、`validateSpec`、`specSchemaFor` のオプションに渡します。
+JSON spec の部品を限定するには、`svg-diagram/spec/selective` の `renderSpec(spec, {parts, measure})` を使います。`svg-diagram/spec/parts/<名前>` から、表（`table`）、ガント図（`gantt`）、フローチャート（`flowchart`）など必要な部品を選び、`parts` に渡します。既存カタログの全66部品に個別入口があります。同じ一覧から `specSchemaFor({parts})` と `partCatalog({parts})` も生成できます。図全体の項目には `lang`、`appearance`、`density`、`desc`、`canvas` も指定できます。`showTitle` または `sourceLine` を使う場合は `svg-diagram/bands/caption` から `captionDefinition` を読み込み、`captions` に渡します。`legend: "auto"` を指定する場合は、`svg-diagram/bands/legend` から `autoLegend` を読み込み、`renderSpec`、`validateSpec`、`specSchemaFor` のオプションに渡します。
 
 TOC の因果図では、凡例の指定を省略すると凡例を勧める所見が図全体で一度だけ出ます。部品に紐づく所見の `loc.specPath` には、`parts[0]` のように入力内の位置が入ります。表の行見出し、意味付き表、合計値や構成比の警告では、ルールを許容する設定例も返します。
 
@@ -337,7 +337,7 @@ Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使�
 | lines(series, {x, y, target, annotate}) / strategyCanvas / burndown / burnup | 折れ線（`plane` の薄い層）。系列ごとに印の形と線の種類が違い、名前は線の右端に直接書く。目標線・注目点。戦略キャンバス・バーンダウン・バーンアップのひな形つき |
 | stackedBars(columns, {unit, percent}) / mekko(columns, {unit}) | 積み上げ棒（`percent: true` で 100%）とマリメッコ図（列の幅 ∝ 合計、高さ ∝ 構成比）。各部分に数字。入らない部分は描かず `<desc>` に残る |
 | treemap(tree, {unit, percent, strict}) | ツリーマップ（squarified）。面積 ∝ 値（グループの枠と見出しの分も補正し、グループの中でも外でも同じ比）。名前と値が入らない小さなセルは描かず `<desc>` に残る（`strict: true` はエラー） |
-| sankey(nodes, links, {unit, align}) | サンキー図。層に分け、ノードの高さとリボンの太さは値に比例（目盛りは図全体で一つ）、ノードの名前に値、重ならない。リンクのないノードはエラー |
+| sankey(nodes, links, {unit, align, values}) | サンキー図。層に分け、ノードの高さとリボンの太さは値に比例（目盛りは図全体で一つ）、ノードの名前に値、重ならない。リンクのないノードはエラー |
 | tornado(items, {base, unit}) | トルネード図（感度分析）。基準値から低ケース・高ケースの棒、幅の大きい順 |
 | bubble(points, {x, y, sizeTitle, sizeUnit}) | バブルチャート。x・y が数値軸、円の**面積**が 3 つ目の指標（凡例の円つき）。`x.line` / `y.line` で境目の破線。名前は円の中か横、軸は円がはみ出さないよう自動で広がる |
 | butterfly(rows, {leftLabel, rightLabel, unit}) | バタフライチャート。中央の項目名をはさんで、左右の群の棒を同じ目盛りで比べる。`sort: 'left'｜'right'` |
@@ -538,6 +538,27 @@ flowchart(
 - **戻る矢印（やり直し）は、既定で図の外側を回る**（`returns: 'outer'`。判断へ戻る矢印は横の頂点に入る）。`returns: 'inline'` にもできる（別のノードを通ると build が止まる）。判断・開始終了の自己ループは書けない。
 - ひし形は同じ文でも箱の 2〜3 倍の高さになる。判断が多い流れで縦に長くなるときは、`dir: 'right'` にするか、図を分ける（`aspect-tall` が知らせる）。レーン（担当）が要る業務フローは `bpmn`。
 - 検査: 判断から出る矢印が 2 本未満・3 本以上・ラベルなし（情報 `flowchart-decision-edges`）。ほかは `stateDiagram` と同じ（`text-mid-word-break`・`edge-crossings` など）。例は `examples/flowchart.ts`、設計は ADR 0041。
+
+### 判断のはしご（`decisionLadder`）
+
+```ts
+diagram({theme: 'blue', title: '来館者の受け付け', width: 640}).add(
+  decisionLadder(
+    [
+      {q: '貸出票は書いてある？', yes: '窓口で受け付ける'},
+      {q: '返却期限は守れる？', yes: '貸出の手続きに進む'},
+      {q: '次回の入荷を待てる？', yes: '入荷の連絡を登録する', sub: '7 日間有効'},
+    ],
+    '後日の来館をお願いする',
+  ),
+)
+```
+
+- 判断が **1 本の鎖**(最初に「はい」になった質問が答えを決める)のときの図。質問を左の列に縦に積み、「はい」は右の答えの箱へ、「いいえ」は真下の次の質問へ進み、最後の「いいえ」は最後の箱で終わる。`flowchart` は同じ形が斜めの階段になり、16:9 で 7〜8pt まで縮む。「いいえ」が別の列へ分かれる・戻る流れは `flowchart`。
+- 段 `{q, yes, sub?, tone?, yesLabel?, noLabel?}`（`sub` と `tone` は答えの箱）。**最後の箱（第 2 引数）は必須**で、文字か `{label, sub?, tone?}`。選択肢は `yes` / `no`（矢印の言葉。既定 `はい` / `いいえ`。`''` で言葉なし。段の `yesLabel` / `noLabel` が優先）、`question: 'box' | 'diamond'`（既定は角の丸い箱。ひし形は行が高くなり、5 段で 9pt ほどまで縮む）、`maxNodeW`、`id`、`scope`、`reveal` / `until`。`focus` / `dir` / `returns` は無い（常に 2 列）。
+- 座標は書かない。2 列は図の幅の中央に置かれ、矢印はすべて 2 点の直線。anchor は質問 `q1`〜`qN`、答え `a1`〜`aN`、最後の箱 `otherwise`（`connect()` から指せる。同じ図に 2 つ置くときは `scope` を付ける）。
+- **幅は `diagram({width: 640})` が目安**: 既定の 900px だと図が 470px ほどで、スライドに載せたときの文字が 14pt にとどまる。640 なら 17pt。`maxNodeW`（既定 360）は折り返しの幅で、箱の幅の上限ではない（折り返せない語があると、その分だけ広くなる）。2 列が図の幅に入らないときは、直し方（図を広げる・文を短くする）を言って止まる。
+- JSON の spec は `{type: 'decisionLadder', steps, otherwise, yes?, no?, question?}`（`svg-diagram/spec/parts/decision-ladder`）。**1 つの spec に置けるのは 1 つ**（anchor `q1`… `a1`… `otherwise` は固定で、`scope` / `id` は無い）。2 つ以上は DSL で `scope` を付ける。例は `examples/decision-ladder.ts`、設計は ADR 0083。
 
 ### TOC の思考プロセス（`causeTree` / `cloud`）
 
@@ -965,7 +986,7 @@ harvey(['価格', '品質'], ['A 社', 'B 社'], [[4, 2], [1, 3]], {highlight: [
 - **`lines`**: `plane` を返すので、`labelRole`・`id`・`reveal` はそのまま効く。`x: {categories}` なら系列は値の配列（`null` は途切れ）、数値軸なら `[x, y]` の配列。系列名は線の右端に書き、同じ高さで終わる名前は縦にずらす。早く終わる系列の名前は、近くに空きがなければ右端へ点線でつなぐ。`ideal: true` は破線の計画線（名前は線の途中に付く）、`target: {at, label}` は目標の横線、`annotate: [{at: [x, y]｜{series, index}, label}]` は注目点の輪と名前。カノモデルは `[x, y]` の点と `smooth: true`。系列は 6 つまで（印は ● ■ ◆ ▲ ○ ✕）。
 - **`mekko` / `stackedBars`**: 部分の名前は、列の最初の登場順に下から積む。7 つ以上の部分は止まる（「その他」にまとめる）。`stackedBars` の列は数字が入る幅まで広がる（区画の幅まで）。それでも数字が入らない部分は描かず `<desc>` に残る。`mekko` の列は最大 12、`stackedBars` は 20。
 - **`treemap`**: 葉は `{label, value}`、グループは `children`（4 階層まで。グループの値は子の合計で、書くなら一致が必要）。葉の `tone: 'accent'｜'danger'` は塗りつぶし。グループの名前が入らないときも `<desc>` に残る。グループの枠と見出しの帯が子の場所を取る分は重みを補正するので、葉の面積はグループの中でも外でも値に比例する。`percent: true` で全体に対する割合を添える。
-- **`sankey`**: ノードは文字列か `{id, label?, tone?}`（どのリンクにも出てこないノードはエラー）。層は最長経路で決まり（循環は止まる）、出ていかないノードは最後の層に寄る（`align: 'left'` で寄せない）。ノードの並びは交差が少なくなるように入れ替える。ノードの高さが値に比例するので、名前が収まらないほど低いノードでも、名前の高さ分の場所は空ける。リボンには、両端のどちらの名前にも載っていない値（分岐・合流の途中）だけ数字が入る。`tone: 'danger'` のリボンは赤の破線で縁取る。
+- **`sankey`**: ノードは文字列か `{id, label?, tone?}`（どのリンクにも出てこないノードはエラー）。層は最長経路で決まり（循環は止まる）、出ていかないノードは最後の層に寄る（`align: 'left'` で寄せない）。ノードの並びは交差が少なくなるように入れ替える。ノードの高さが値に比例するので、名前が収まらないほど低いノードでも、名前の高さ分の場所は空ける。リボンには、両端のどちらの名前にも載っていない値（分岐・合流の途中）だけ数字が入る。`values: false` で、ノードの名前とリボンの数字から値を外す（流れの形だけを見せたいとき。名前だけで折り返し・右の余白を決め、高さと太さ、代替テキスト（alt）の値はそのまま。リボンの数字は `linkLabels` が `true` でも出ない。値は図に題名があるとき `<desc>` に入り、題名がなければ警告 `bars-values-hidden`）。`tone: 'danger'` のリボンは赤の破線で縁取る。
 - **`tornado`**: `low` / `high` は「その入力が低い / 高いときの結果」（結果が低いとは限らない）。結果が基準と同じならその棒は描かず数字だけ書く。両方が基準の同じ側に出るときは、棒を 2 段に分ける。
 - **`regplot` / `residplot`**: `{x: [..], y: [..], group?: [..]}`（生の値）。最小二乗の直線（`order: 2｜3` で多項式の曲線）と、平均の 95% 信頼帯（解析解。t 分布）を描き（`lowess: true` は多項式の代わりに LOWESS = 局所回帰の曲線。外れ値に強い反復つきで、`frac`（各点の当てはめに使う点の割合、既定 2/3）が小さいほど細かく追う。帯・式・R² はない（`stats` と併用すると止まる）。`order` とも併用できない）、`band: false` で帯なし、`stats: true` で凡例に式（直線のとき）と R²。グループごとに別の回帰（印・線の種類・色が違う）。x の異なる値が `order + 1` 個、点が `order + 2` 個ないと止まる。`residplot` は同じ当てはめからの残差と、破線の 0 の線（曲がりが残っていれば形に出る）。`lowess: true` は残差の LOWESS 曲線を重ね、直線が取りこぼした形を見せる。
 - **`facet(data, make, {cols, share})`**: `data` のキーごとに 1 枚、`make(キー, 値, 番号, axes)` が返す図を枠つき（キーが見出し）で並べる（`cols` 列ずつ、最後の行も同じ列幅）。**軸は既定で全パネル共通**（seaborn の sharex / sharey）: 一度ふつうに描いて各パネルの軸を調べ、全体の範囲を `axes`（`{xRange, yRange}`）として渡して描き直すので、`make` は `axes` をそのまま図の opts に展開する（`histplot(値, {...axes})`）。`share: 'x'｜'y'｜'xy'｜'none'`。共有できるのは `histplot` / `kdeplot` / `ecdfplot` / `displot` / `regplot` / `residplot` のパネル（ほかの図は何もされず、そういうパネルしかないのに `share` を明示すると止まる）。`...facet()` で `.add()` に展開する。

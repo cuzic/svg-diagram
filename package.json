@@ -149,6 +149,7 @@
     "./dist/lib/spec-parts/selective/concentric.js",
     "./dist/lib/spec-parts/selective/control-chart.js",
     "./dist/lib/spec-parts/selective/cycle.js",
+    "./dist/lib/spec-parts/selective/decision-ladder.js",
     "./dist/lib/spec-parts/selective/dependency-network.js",
     "./dist/lib/spec-parts/selective/fault-tree.js",
     "./dist/lib/spec-parts/selective/flowchart.js",
@@ -699,6 +700,10 @@
     "./spec/parts/cycle": {
       "types": "./dist/lib/spec-parts/selective/cycle.d.ts",
       "default": "./dist/lib/spec-parts/selective/cycle.js"
+    },
+    "./spec/parts/decision-ladder": {
+      "types": "./dist/lib/spec-parts/selective/decision-ladder.d.ts",
+      "default": "./dist/lib/spec-parts/selective/decision-ladder.js"
     },
     "./spec/parts/dependency-network": {
       "types": "./dist/lib/spec-parts/selective/dependency-network.d.ts",
