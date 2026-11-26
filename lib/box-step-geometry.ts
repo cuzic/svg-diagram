@@ -12,8 +12,12 @@ export const ringed = (band: Pick<LaidOutBox, 'dim' | 'tone'>): boolean => !band
 
 
 /** Where a box's step badge is: its centre and radius, the number's size and baseline (the title's own). The svg and the PPTX place it alike. */
-export function stepBadgeAt(band: Pick<LaidOutBox, 'x' | 'y' | 'w' | 'wrappedRuns' | 'padX' | 'padY' | 'align' | 'iconAt' | 'titleW' | 'icon'>, roles?: Roles): {cx: number; cy: number; r: number; size: number; baseline: number} {
+export function stepBadgeAt(band: Pick<LaidOutBox, 'x' | 'y' | 'w' | 'wrappedRuns' | 'padX' | 'padY' | 'align' | 'iconAt' | 'titleW' | 'icon' | 'stepAbove'>, roles?: Roles): {cx: number; cy: number; r: number; size: number; baseline: number} {
   const g = roles ? stepBadgeGeom(roles) : {r: STEP_BADGE_R, offset: STEP_BADGE_BASELINE_OFFSET, indent: STEP_INDENT, size: 16}, R = g.r; // a canvas diagram grows the badge with its text
+  if (band.stepAbove) { // the badge on its own line above the title: at the box's top, on the title's alignment; the number sits where it sits in a badge beside a title
+    const top = band.y + (band.padY ?? BOX_PAD_Y), x0 = band.x + (band.padX ?? BOX_PAD_X), x1 = band.x + band.w - (band.padX ?? BOX_PAD_X), al = band.align ?? 'left';
+    return {cx: al === 'center' ? (x0 + x1) / 2 : al === 'right' ? x1 - R : x0 + R, cy: top + R, r: R, size: g.size, baseline: top + R + g.offset};
+  }
   const titleRun = must(band.wrappedRuns[0]);
   // the same padding the text and the icon use (a swimlane step has its own)
   const px = band.padX ?? BOX_PAD_X, titleBaselineY = band.y + (band.padY ?? BOX_PAD_Y) + must(titleRun.lineYs[0]);

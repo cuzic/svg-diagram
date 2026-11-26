@@ -146,6 +146,8 @@ export interface LadderOpts extends RevealOpts, ScopeOpts {
   no?: string;
   /** The shape of a question: 'box' (default: a rounded box, one line of text sets the row height) or 'diamond'. */
   question?: 'box' | 'diamond';
+  /** Number the questions 1..N with the badge of box({step}) at the left of each (the answers and the final box are not numbered). Not with `question: 'diamond'`. Default false. */
+  numbered?: boolean;
   maxNodeW?: number;
   id?: string;
 }
@@ -173,6 +175,8 @@ export interface StatesBand extends Omit<StatesOpts, 'focus'> {
   defaultDir?: 'down';
   /** Internal: made by decisionLadder() (ADR 0083): the fixed two-column placement, questions down the left and each answer on its row. */
   arrange?: 'ladder';
+  /** Internal: decisionLadder({numbered}). */
+  numbered?: true;
   states: StateItem[];
   transitions: Transition[];
 }
@@ -477,6 +481,12 @@ export interface LaidOutStates extends Rect, Dimmed {
   reveal?: number;
   until?: number;
   nodes: (Rect & {tone: EmphasisTone; final?: boolean; circle?: boolean; shape?: 'diamond' | 'pill'})[];
+  /** decisionLadder(), a figure too tall for a slide: the band width that draws it at least 3 % larger on a slide's figure room, with the heights and the gain (what `ladder-height-bound` names). */
+  /** The number of layouts the width search for `betterW` made (a cost check). */
+  searched?: number;
+  betterW?: {w: number; fromH: number; toH: number; gain: number};
+  /** The step badges of a numbered decisionLadder(): the circle's centre and radius, the number and its size (as box({step}) draws it). */
+  badges?: {cx: number; cy: number; r: number; size: number; label: string}[];
   initial?: {x: number; y: number; r: number};
   /** Orthogonal polylines from the tail state's box edge to the head's; the arrowhead is at the last point. */
   edges: {from: string; to: string; points: {x: number; y: number}[]; line: 'solid' | 'dashed' | 'dotted'; tone?: 'danger' | 'accent' | 'muted'; strong?: boolean}[];

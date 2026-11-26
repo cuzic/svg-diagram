@@ -58,12 +58,21 @@ export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause 
   return usedBandNotation(all, dimmed, wordedCanvasBands(all), withCause);
 }
 
-function usedBandNotation(all: readonly Band[], dimmed: ReadonlySet<Band>, worded: ReadonlySet<Band>, withCause = false): Set<string> {
+// `itemWords` (the legend check only, not legend: 'auto'): a dashed / dotted style whose lines (two or more) all carry one shared label says in words what it is,
+// so it needs no legend entry (a bare line, or different labels such as per-line values, keep the entry needed). A box's `tag` is not read: a canvas puts its region name there, which does not explain a tone
+function usedBandNotation(all: readonly Band[], dimmed: ReadonlySet<Band>, worded: ReadonlySet<Band>, withCause = false, itemWords = false): Set<string> {
   const used = new Set<string>(), lines = new Set<string>();
+  const byStyle = new Map<string, {n: number; labels: Set<string>; bare: boolean}>(); // per non-solid line style: its lines and their labels
   for (const b of all) {
     if (dimmed.has(b) || worded.has(b)) continue;
     if (b.type === 'connect') {
       lines.add(b.line ?? 'solid');
+      if (b.line !== undefined && b.line !== 'solid') {
+        const e = byStyle.get(b.line) ?? {n: 0, labels: new Set<string>(), bare: false};
+        e.n++;
+        if (b.label) e.labels.add(b.label); else e.bare = true;
+        byStyle.set(b.line, e);
+      }
       if (b.arrow === 'both') used.add('arrow:both');
       if (b.weight) used.add(`weight:${b.weight}`);
     } else if (b.type === 'box' && b.tone && b.tone !== 'plain') used.add(`tone:${b.tone}`);
@@ -87,6 +96,8 @@ function usedBandNotation(all: readonly Band[], dimmed: ReadonlySet<Band>, worde
       }
     }
   }
+  // a style at least two lines use, all with one shared label (a value label such as a duration differs per line; a lone labelled line cannot be told from a value)
+  if (itemWords) for (const [style, e] of byStyle) if (!e.bare && e.n > 1 && e.labels.size === 1) lines.delete(style);
   const nonSolid = [...lines].filter(l => l !== 'solid');
   for (const l of nonSolid) used.add(`line:${l}`);
   if (nonSolid.length || used.has('arrow:both') || used.has('weight:strong')) used.add('line:solid'); // the plain line needs a legend entry once others exist
@@ -153,7 +164,7 @@ export function missingLegendItems(bands: Band[], custom?: Partial<Record<string
 
 /** Check notation gathered from the participating bands in source order. */
 export function legendFindings(all: readonly LegendNotationBand[], worded: ReadonlySet<Band>, custom?: Partial<Record<string, string>>, dim = new Set<Band>()): Finding[] {
-  const used = usedBandNotation(all, dim, worded), have = listedNotation(all);
+  const used = usedBandNotation(all, dim, worded, false, true), have = listedNotation(all);
   if (!used.size) return [];
   const missing = [...used].filter(k => !have.has(k));
   if (!missing.length) return [];

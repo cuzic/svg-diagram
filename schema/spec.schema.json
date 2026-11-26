@@ -3860,6 +3860,10 @@
             "diamond"
           ],
           "description": "The shape of a question: 'box' (default, rounded) or 'diamond'."
+        },
+        "numbered": {
+          "type": "boolean",
+          "description": "true numbers the questions 1..N with the step badge of a box at the left of each (answers and the final box are not numbered). Not with question: 'diamond'. Default false."
         }
       },
       "required": [
