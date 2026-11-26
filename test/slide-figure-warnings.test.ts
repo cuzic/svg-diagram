@@ -28,8 +28,12 @@ test('doc-width: a plain document figure still gets it (control)', async () => {
   assert.ok((await rules(wide())).includes('doc-width'));
 });
 
-test('doc-width: a figure placed on a slide (slide: {page, heading}) does not', async () => {
-  assert.ok(!(await rules(wide({slide: {page: 'p', heading: 'h'}}))).includes('doc-width'));
+test('doc-width: a slide figure with its own width (no fill) still gets it (control)', async () => {
+  assert.ok((await rules(wide({slide: {page: 'p', heading: 'h'}}))).includes('doc-width'));
+});
+
+test('doc-width: a figure built to its slide slot (slide + fill) does not', async () => {
+  assert.ok(!(await rules(wide({slide: {page: 'p', heading: 'h'}, fill: true}))).includes('doc-width'));
 });
 
 test('doc-width: a canvas figure does not (unchanged)', async () => {
@@ -86,8 +90,20 @@ test('legend-missing: a dashed line without a legend still fires (control)', asy
   assert.ok((await rules(lines({}, {}))).includes('legend-missing'));
 });
 
-test('legend-missing: every dashed line carries its own label (words), so it does not fire', async () => {
-  assert.ok(!(await rules(lines({label: '非同期'}, {label: '通知'}))).includes('legend-missing'));
+test('legend-missing: every dashed line shares one label (it names the style), so it does not fire', async () => {
+  assert.ok(!(await rules(lines({label: '非同期'}, {label: '非同期'}))).includes('legend-missing'));
+});
+
+test('legend-missing: a single labelled dashed line still fires (it cannot be told from a value label) (control)', async () => {
+  const d = diagram({theme: 'blue', title: 't'}).add(box({id: 'a', title: 'a'}), box({id: 'b', title: 'b'}), connect('a', 'b', {line: 'dashed', label: '非同期'}));
+  assert.ok((await rules(d)).includes('legend-missing'));
+});
+
+test('legend-missing: value labels that differ per line (solid, dashed and dotted each labelled) do not explain the styles (control)', async () => {
+  const d = diagram({theme: 'blue', title: 't'}).add(box({id: 'a', title: 'a'}), box({id: 'b', title: 'b'}), box({id: 'c', title: 'c'}), box({id: 'd', title: 'd'}),
+    connect('a', 'b', {label: '3 件'}), connect('b', 'c', {line: 'dashed', label: '5 件'}), connect('c', 'd', {line: 'dotted', label: '2 件'}));
+  assert.ok((await rules(d)).includes('legend-missing'));
+  assert.ok((await rules(lines({label: '5 件'}, {label: '7 件'}))).includes('legend-missing'), 'two dashed lines with different labels');
 });
 
 test('legend-missing: one unlabelled dashed line keeps it firing (control)', async () => {
@@ -109,4 +125,11 @@ test('gray-tone-collision / legend-missing: a tag is not read as an explanation 
 test('gray-tone-collision: a tone with both dashed and solid boxes shares an outline with the other, so it still fires (control)', async () => {
   const d = pair({dashed: true}, {}).add(box({id: 'c', title: 'c'}));
   assert.ok((await rules(d)).includes('gray-tone-collision'));
+});
+
+test('gray-tone-collision: dashed on solid / solid-danger (no outline of their own: the dashes are drawn in the fill colour) does not tell them apart (control)', async () => {
+  const mk = (extra: object) => diagram({theme: 'blue', title: 't', legend: false}).add(box({id: 'a', title: 'a', tone: 'solid', ...extra}), box({id: 'b', title: 'b', tone: 'solid-danger'}));
+  const base = (await rules(mk({}))).includes('gray-tone-collision');
+  assert.ok(base, 'fires without dashed');
+  assert.ok((await rules(mk({dashed: true}))).includes('gray-tone-collision'));
 });

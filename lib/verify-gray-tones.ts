@@ -29,7 +29,9 @@ export function grayToneFindings(d: Pick<DiagramData, 'day' | 'appearance'>, ton
   const fills = [...used].map(([name, parts]) => {
     const t = toneStyle(tones, name), box = resolveBoxStyle(tones, name as EmphasisTone, d.day);
     // the outlines this tone is drawn with (a box may override the tone's own)
-    const outlines = new Set([...parts].map(b => marks.get(b)?.dashed ?? box.dashed));
+    // (a tone with no stroke of its own, solid / solid-danger, draws the dashes in the fill colour: the edge still looks solid, so a box's `dashed` is no cue there)
+    const visible = p(box.stroke).toLowerCase() !== p(box.fill).toLowerCase();
+    const outlines = new Set([...parts].map(b => (visible ? marks.get(b)?.dashed : undefined) ?? box.dashed));
     return {name, parts, fill: p(box.fill).toLowerCase(), dashed: box.dashed, outlines, l: lightnessOf(p(box.fill)), quiet: t.fill === 'code'};
   });
   const hits = new Map<string, string>(), parts = new Set<object>();

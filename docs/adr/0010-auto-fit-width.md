@@ -262,3 +262,6 @@ U1〜U4 は `types.ts` の同じ型に項目を足すので、各 PR が自分�
 - **`auto-fit-applied`**: 省略時 warn、`'auto'` 時 info、`accept` で外せる。`verify.ts` は、スライド向け(`medium: 'slide'`)の図でもこの所見を通す(通さないと build の警告に載らない)。`describeApplied` の文面は日本語(例: `dir を up から right に変えた(1460→880px)`)。
 - **`diagram({maxWidth})`**: `doc-width` の閾値だけを図ごとに変える(正の有限数、他は throw)。レイアウトの幅(`width`、既定 940)は変えない。図の値が、設定ファイルの `maxWidth` に勝つ。`canvas` の図は検査しない。
 - **`wrap: 'bunsetsu'`**: 規則は D8 のとおり。箱の幅の上限は `maxNodeW` の 1.5 倍(内幅 + 2 * PAD_X の幅として実装)。`Intl.Segmenter` は使わない。`lib/wrap.ts` に `longestUnitWidth` / `getWrapMode` を足した。
+
+## 追記(2026-11-26): `doc-width` を出さない図
+`doc-width` は文書の本文幅の目安なので、`canvas` の図(従来どおり)と、`diagram({slide, fill})` でスライドの空きに合わせて作る図には出さない。`slide` だけで `fill` のない図は幅が自前で、スライドに入れると縮むので、従来どおり出す。デッキが描くスライドの図(`renderDeck` / `pptx-deck`。`lib/deck-render-figure.ts`)でも出さない(デッキ側に縮小率と最小文字の警告がある)。ただし同じファイルを単独で `check` / `build` すると、デッキの文脈が無いので出る(案件の `maxWidth` か `accept` で扱う)。
