@@ -773,7 +773,10 @@ export const dialogRenderer: OverlayRenderer<WfDialog> = function drawDialog(o, 
   const body = o.body ? wrapT(ctx, o.body, S, 400, dw - 2 * pad) : [];
   const buttons = o.buttons ?? [];
   const dh = pad + 24 + (body.length ? 8 + body.length * lh(S) : 0) + (buttons.length ? 16 + 32 : 0) + pad;
-  const dx = x + (w - dw) / 2, dy = y + (h - dh) / 2;
+  const at = o.at ?? 'center', edge = 16;
+  if (!['center', 'top', 'bottom', 'left', 'right'].includes(at)) throw new Error(`wf.dialog(): at must be 'center', 'top', 'bottom', 'left' or 'right' (got "${String(at)}")`);
+  const dx = at === 'left' ? x + edge : at === 'right' ? x + w - dw - edge : x + (w - dw) / 2;
+  const dy = at === 'top' ? y + edge : at === 'bottom' ? y + h - dh - edge : y + (h - dh) / 2;
   rect(ctx, x, y, w, h, {fill: 'text', op: 0.3});
   hideUnder(ctx, dx, dy, dw, dh);
   rect(ctx, dx, dy, dw, dh, {r: 8, fill: 'bg', stroke: 'text', sw: 2.5});

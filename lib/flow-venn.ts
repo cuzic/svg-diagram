@@ -10,6 +10,10 @@ export function vennBand(sets: readonly VennSet[], opts: VennOpts = {}): VennBan
   common('venn', sets.map(s => ({label: s.name, id: s.id})), opts.id);
   assertScope(opts.scope, 'venn()');
   checkTones('venn', sets, TEXT_TONES);
+  for (const s of sets) {
+    if (!s.items) continue;
+    if (s.items.length === 0 || s.items.length > 4 || s.items.some(i => !i.trim())) throw new Error(`venn(): set "${s.name}" items must be 1 to 4 non-empty strings`);
+  }
   const names = new Set(sets.map(s => s.name));
   if (names.size !== sets.length) throw new Error('venn(): set names must be unique');
   const seen = new Set<string>();
@@ -26,10 +30,12 @@ export function vennBand(sets: readonly VennSet[], opts: VennOpts = {}): VennBan
 }
 /** `rings` may be a count (1-6) of plain rings when the rings are cut into `sectors` (a bullseye whose rings have no names). */
 
+const bullet = (item: string) => `・${item}`;
+
 export function vennTexts(b: VennBand, roles: Roles): [string, number, number, FontFamily][] {
   const bold = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 700]] : [];
   const plain = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 400]] : [];
-  const specs = [...b.sets.flatMap(s => bold(s.label ?? s.name)), ...b.overlaps.flatMap(o => bold(o.label)), ...bold(b.centre), ...plain(typeof b.universe === 'string' ? b.universe : undefined)];
+  const specs = [...b.sets.flatMap(s => [...bold(s.label ?? s.name), ...(s.items ?? []).flatMap(i => plain(bullet(i)))]), ...b.overlaps.flatMap(o => bold(o.label)), ...bold(b.centre), ...plain(typeof b.universe === 'string' ? b.universe : undefined)];
   return specs.map(([text, size, weight]) => [text, size, weight, 'sans']);
 }
 
@@ -53,7 +59,19 @@ export function layoutVenn(b: VennBand, out: LaidOutFlowShape, t: Texts, anchor:
     const [px, py] = must(pos[i]), dx = px - mid[0], dy = py - mid[1], d = Math.hypot(dx, dy) || 1, k = three ? .5 : .42;
     out.primitives.push({k: 'circle', cx: px, cy: py, r, tone: s.tone ?? must(TONES[i]), opacity: .22, ...(DASH[i] ? {dash: DASH[i]} : {}), ...nodeOf(s)});
     anchor(s.id, {x: px - r, y: py - r, w: 2 * r, h: 2 * r});
-    centred(s.label ?? s.name, [px + dx / d * k * r, py + dy / d * k * r], .8 * r); // in the part only this set covers
+    const at: Pt = [px + dx / d * k * r, py + dy / d * k * r]; // in the part only this set covers
+    if (!s.items?.length) { centred(s.label ?? s.name, at, .8 * r); return; }
+    // title (bold) above a short bullet list (left-aligned), the block centred on that spot
+    const title = t.wrap(s.label ?? s.name, .8 * r), rows = s.items.map(item => t.wrap(bullet(item), .8 * r, 400));
+    const gap = 4, H = title.h + gap + rows.reduce((a, q) => a + q.h, 0), listW = Math.max(...rows.map(q => q.w));
+    const top = at[1] - H / 2, left = at[0] - listW / 2;
+    const boxes: [number, number, number, number][] = [[at[0] - title.w / 2, top, at[0] + title.w / 2, top + title.h]];
+    t.place(title, at[0], top);
+    let y = top + title.h + gap;
+    for (const q of rows) { t.place(q, left, y, 'text', 'start'); boxes.push([left, y, left + q.w, y + q.h]); y += q.h; }
+    const dist = (x: number, yy: number, c: Pt) => Math.hypot(x - c[0], yy - c[1]);
+    const fits = boxes.every(([x0, y0, x1, y1]) => [[x0, y0], [x1, y0], [x0, y1], [x1, y1]].every(([x, yy]) => dist(x!, yy!, [px, py]) <= r - 2 && pos.every((o, j) => j === i || dist(x!, yy!, o) >= r + 2)));
+    if (!fits) (out.misfits ??= []).push(s.name);
   });
   for (const o of b.overlaps) {
     const idx = o.sets.map(name => b.sets.findIndex(s => s.name === name));

@@ -135,3 +135,43 @@ test('valueChain: no margin, no titles, no support leaves just the chevrons; bad
   assert.throws(() => valueChain({primary: [{id: 'a', label: 'x'}], support: [{id: 'a', label: 'y'}]}), /duplicate id "a"/);
   assert.throws(() => valueChain({primary: ['x']}, {margin: ''}), /margin/);
 });
+
+test('venn: a set with items draws its title and bullets inside the part only that set covers', () => {
+  const f = figure(venn([{name: 'Alpha', items: ['速い', '軽い']}, {name: 'Beta', items: ['安い']}], {overlaps: [{sets: ['Alpha', 'Beta'], label: '共通'}]}));
+  const circles = f.primitives.filter(p => p.k === 'circle') as {cx: number; cy: number; r: number}[];
+  const title = textAt(f, 'Alpha'), item = textAt(f, '・速い'), item2 = textAt(f, '・軽い');
+  assert.equal(title.weight, 700);
+  assert.equal(item.weight, 400);
+  assert.ok(title.y + title.h <= item.y + 1 && item.y < item2.y, 'title above the items, in order');
+  const [a, b] = circles;
+  for (const t of [title, item, item2]) {
+    for (const [x, y] of [[t.x, t.y], [t.x + t.w, t.y + t.h]] as const) {
+      assert.ok(Math.hypot(x - a!.cx, y - a!.cy) <= a!.r, 'inside its own circle');
+      assert.ok(Math.hypot(x - b!.cx, y - b!.cy) >= b!.r, 'outside the other circle');
+    }
+  }
+  assert.equal(f.misfits, undefined);
+});
+
+test('venn: items that cannot fit inside the circle are reported with a fix hint', async () => {
+  const band = venn([{name: 'A', items: ['とても長い特徴の説明がここに入る', '二つ目もかなり長い説明', '三つ目', '四つ目']}, {name: 'B'}], {width: 320});
+  const r = await renderDiagram(diagram({theme: 'blue', title: 'flow'}).add(band), {name: 'f.svg', budget: 'cacheOnly'});
+  assert.ok(!r.verdict.ok);
+  assert.ok(r.verdict.problems.some(p => /set "A".*do not fit.*(fewer|shorter)/.test(p)), r.verdict.problems.join('; '));
+});
+
+test('venn: sets with a few short items pass the verdict (2 and 3 sets)', async () => {
+  for (const band of [
+    venn([{name: 'Alpha', items: ['速い', '軽い', '安い']}, {name: 'Beta', items: ['丈夫']}], {overlaps: [{sets: ['Alpha', 'Beta'], label: '共通'}]}),
+    venn([{name: '甲', items: ['一', '二']}, {name: '乙', items: ['三', '四']}, {name: '丙', items: ['五', '六']}], {centre: '中'}),
+  ]) {
+    const r = await renderDiagram(diagram({theme: 'blue', title: 'flow'}).add(band), {name: 'f.svg', budget: 'cacheOnly'});
+    assert.ok(r.verdict.ok, r.verdict.problems.join('; '));
+  }
+});
+
+test('venn: items must be 1 to 4 non-empty strings', () => {
+  assert.throws(() => venn([{name: 'A', items: []}, {name: 'B'}]), /items/);
+  assert.throws(() => venn([{name: 'A', items: ['a', 'b', 'c', 'd', 'e']}, {name: 'B'}]), /items/);
+  assert.throws(() => venn([{name: 'A', items: [' ']}, {name: 'B'}]), /items/);
+});

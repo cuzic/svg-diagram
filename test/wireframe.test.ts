@@ -98,3 +98,21 @@ test('skeleton: body text becomes bars, titles stay text', async () => {
   assert.ok(!texts(band!).includes('本文のテキスト'));
   assert.ok(texts(band!).includes('保存'));
 });
+
+test('dialog at: places the card off-centre, default stays centred, and content outside the card stays drawn', async () => {
+  const frameOf = (b: Screen) => b.prims.find((p): p is PrimRect => p.k === 'rect' && p.stroke === 'text' && p.sw === 2.5 && p.r === 8)!;
+  const run = async (at?: 'center' | 'top' | 'bottom' | 'left' | 'right') => {
+    const [band] = await layout(wireframe([wf.text('main-content'), wf.text('x')], {h: 260, overlays: [wf.dialog('確認', {body: '内容', buttons: [wf.btn('はい')], at})]}));
+    return band!;
+  };
+  const def = await run(), centre = await run('center');
+  assert.deepEqual(frameOf(def), frameOf(centre), 'default is centre');
+  const cx = frameOf(centre).x + frameOf(centre).w / 2, cy = frameOf(centre).y + frameOf(centre).h / 2;
+  const top = frameOf(await run('top')), bottom = frameOf(await run('bottom')), left = frameOf(await run('left')), right = frameOf(await run('right'));
+  assert.ok(top.y + top.h / 2 < cy && Math.abs(top.x + top.w / 2 - cx) < 1);
+  assert.ok(bottom.y + bottom.h / 2 > cy && Math.abs(bottom.x + bottom.w / 2 - cx) < 1);
+  assert.ok(left.x + left.w / 2 < cx && Math.abs(left.y + left.h / 2 - cy) < 1);
+  assert.ok(right.x + right.w / 2 > cx && Math.abs(right.y + right.h / 2 - cy) < 1);
+  assert.ok(texts(await run('bottom')).includes('main-content'), 'the content the card does not cover is still drawn');
+  await assert.rejects(() => layout(wireframe([wf.text('x')], {h: 200, overlays: [wf.dialog('t', {at: 'middle' as 'top'})]})), /at must be/);
+});
