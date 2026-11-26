@@ -127,6 +127,7 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
     const said: {at: string; text: string}[] = [...(f?.warnings ?? []).map(text => ({at: '.figure', text})),
       ...cols.flatMap((c, j) => (c?.warnings ?? []).map(text => ({at: `.columns[${j}].figure`, text})))];
     const layout = planDeckLayout(s, f, width, s.columns?.map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: cols[j] ?? undefined})), s.columnScale, fitOf(deck, s));
+    if (layout.sourceError) { errors.push(`${here}.source: ${layout.sourceError}`); return null; }
     if (layout.noRoom) { errors.push(`${here}: ${roomMessage(f !== undefined || cols.some(Boolean), s.layout === 'cover')}`); return null; }
     const crowded = layout.columns.flatMap((c, j) => c.noRoom ? [s.columns?.[j]?.text !== undefined
       ? `${here}.columns[${j}].text: the text does not fit the column: shorten it, or give the column a larger width`

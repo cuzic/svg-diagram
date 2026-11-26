@@ -19,6 +19,10 @@ export const maxScale = (fit: FigureFit): number => fit === 'fill' ? FILL_FIGURE
 export const MIN_TEXT_PT = 9;
 /** Line pitch as a multiple of the text size. */
 export const LINE = 1.3;
+/** The longest `source` (footnote), in characters (ADR 0055 D1, raised from 300). It wraps at STYLE.source.size, and the figure's room shrinks by its lines. */
+export const SOURCE_MAX_CHARS = 800;
+/** The most lines a `source` may take: past it the slide is an error, not a smaller figure. */
+export const SOURCE_MAX_LINES = 10;
 
 /** Sizes in px, colours as RRGGBB. */
 export const STYLE = {
@@ -57,6 +61,8 @@ export interface DeckLayout {
   columns: ColumnPlace[];
   /** The room the slide's text leaves for its figure (or its columns): what a figure is fitted into. */
   room: {w: number; h: number};
+  /** Set when the source wraps to more than SOURCE_MAX_LINES: the error to report (the slide is then `noRoom`). */
+  sourceError: string | null;
 }
 
 /** Between two columns, px. */
@@ -92,6 +98,17 @@ const textBlock = (name: string, x: number, y: number, width: number, size: numb
  * the room the figure would have, side by side; `scale` 'same' puts every column figure at one scale.
  */
 export function planDeckLayout(s: DeckTextIn, figure: {w: number; h: number} | undefined, w: TextWidth, columns?: readonly ColumnIn[], scale: 'each' | 'same' = 'each', fit: FigureFit = 'width'): DeckLayout {
+  const l = planDeckLayoutInner(s, figure, w, columns, scale, fit);
+  const lines = (l.bottom.flat().find(b => b.kind === 'text' && b.name === 'source') as TextBlock | undefined)?.lines.length ?? 0;
+  if (lines <= SOURCE_MAX_LINES) return l;
+  return {...l, noRoom: true, sourceError: sourceMessage((s.source ?? '').length, lines)};
+}
+
+/** Why a `source` cannot be drawn: where, how long it came out, and how to fix it. */
+export const sourceMessage = (chars: number, lines: number): string =>
+  `the source (${chars} characters) wraps to ${lines} lines at ${STYLE.source.size}px, over the limit of ${SOURCE_MAX_LINES}: shorten it to about ${Math.floor(chars * SOURCE_MAX_LINES / lines * 0.95)} characters, or move the detail to the notes`;
+
+function planDeckLayoutInner(s: DeckTextIn, figure: {w: number; h: number} | undefined, w: TextWidth, columns?: readonly ColumnIn[], scale: 'each' | 'same' = 'each', fit: FigureFit = 'width'): DeckLayout {
   if (s.layout === 'cover') return planCover(s, w);
   const width = SLIDE_W - 2 * MARGIN_X;
   const top: TextBlock[] = [], bottom: Block[][] = [];
@@ -121,7 +138,7 @@ export function planDeckLayout(s: DeckTextIn, figure: {w: number; h: number} | u
   let place: FigurePlace | null = null, noRoom = false;
   if (columns?.length) {
     const roomTop = y + (s.title || s.lead ? GAP : 0) + FIG_PAD, roomH = low - (bottom.length ? GAP - 10 : 0) - roomTop - FIG_PAD;
-    return {top, bottom, figure: null, noRoom: roomH < 48, columns: planColumns(columns, roomTop, roomH, w, scale, maxScale(fit)), room: {w: width, h: roomH}};
+    return {top, bottom, sourceError: null, figure: null, noRoom: roomH < 48, columns: planColumns(columns, roomTop, roomH, w, scale, maxScale(fit)), room: {w: width, h: roomH}};
   }
   if (figure) {
     // FIG_PAD on each side: a figure's ink may reach a few px past its laid-out size (a shadow, a label's overhang)
@@ -134,7 +151,7 @@ export function planDeckLayout(s: DeckTextIn, figure: {w: number; h: number} | u
     }
   } else if (y > low + 10) noRoom = true;
   const roomTop = y + (s.title || s.lead ? GAP : 0) + FIG_PAD, roomH = low - (bottom.length ? GAP - 10 : 0) - roomTop - FIG_PAD;
-  return {top, bottom, figure: place, noRoom, columns: [], room: {w: width, h: roomH}};
+  return {top, bottom, sourceError: null, figure: place, noRoom, columns: [], room: {w: width, h: roomH}};
 }
 
 /** The source line at the bottom, pushed to `bottom`; the y above it that the rest of the slide may reach. */
@@ -199,7 +216,7 @@ function planCover(s: DeckTextIn, w: TextWidth): DeckLayout {
     const t = it.text;
     return {...textBlock(it.name, x, at, COVER.width, t.size, t.lines.map(l => [{text: l, bold: t.bold, color: t.color}])), pitch: t.pitch, align: 'center'};
   });
-  return {top, bottom, figure: null, noRoom: h > room || tooWide, columns: [], room: {w: SLIDE_W - 2 * MARGIN_X, h: Math.max(0, room - h)}};
+  return {top, bottom, sourceError: null, figure: null, noRoom: h > room || tooWide, columns: [], room: {w: SLIDE_W - 2 * MARGIN_X, h: Math.max(0, room - h)}};
 }
 
 /** Each column's width in px: the row (the slide less its margins and the gaps) shared by the columns' `width`. */

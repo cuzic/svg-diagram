@@ -28,6 +28,8 @@ export interface PlannedSlide {
   minTextPt: number | null;
   /** The slide's text leaves the figure no room, or (without a figure) the text from the top runs into the text from the bottom. */
   noRoom: boolean;
+  /** The source wraps to too many lines (lib/deck-layout.ts SOURCE_MAX_LINES): the error to report, with noRoom. */
+  sourceError?: string | null;
   name: string;
   /** A cover (ADR 0066): its no-room message is its own. */
   cover?: boolean;
@@ -104,7 +106,7 @@ export function planDeckSlide(s: DeckSlideIn, fonts: Fonts, w: TextWidth): Plann
   // drawn in this order: the heading and lead, the figure (its dark panel first), then the callouts and source on top
   const tree = top.join('') + figureXml + bottom.reverse().join('');
   const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sld ${NS}><p:cSld${name ? ` name="${attr(name)}"` : ''}><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${tree}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
-  return {xml, notes: s.notes ?? '', pictures: fig && !layout.noRoom ? fig.plan.pictures : [], scale, minTextPt: small, noRoom: layout.noRoom, name, columns: [], ...(s.layout === 'cover' ? {cover: true} : {})};
+  return {xml, notes: s.notes ?? '', pictures: fig && !layout.noRoom ? fig.plan.pictures : [], scale, minTextPt: small, noRoom: layout.noRoom, sourceError: layout.sourceError, name, columns: [], ...(s.layout === 'cover' ? {cover: true} : {})};
 }
 
 const slideXml = (name: string, tree: string): string => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sld ${NS}><p:cSld${name ? ` name="${attr(name)}"` : ''}><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${tree}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
@@ -146,7 +148,7 @@ function planColumnSlide(s: DeckSlideIn, columns: DeckColumnIn[], fonts: Fonts, 
   const bottom = layout.bottom.map(group => group.map(b => blockShape(id(), b, fonts)).join(''));
   const name = s.title ?? columns.find(c => c.figure)?.figure?.plan.title ?? '';
   const noRoom = layout.noRoom || stats.some(c => c.noRoom);
-  return {xml: slideXml(name, top.join('') + figures.join('') + texts.join('') + bottom.reverse().join('')), notes: s.notes ?? '', pictures: noRoom ? [] : pictures, scale: null, minTextPt: null, noRoom, name, columns: stats};
+  return {xml: slideXml(name, top.join('') + figures.join('') + texts.join('') + bottom.reverse().join('')), notes: s.notes ?? '', pictures: noRoom ? [] : pictures, scale: null, minTextPt: null, noRoom, sourceError: layout.sourceError, name, columns: stats};
 }
 
 const SLIDE_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide';
@@ -228,6 +230,7 @@ export function deckEntries(slides: readonly PlannedSlide[], pngs: readonly (rea
  */
 export function slideIssues(p: PlannedSlide, i: number, hasFigure: boolean, kinds: readonly ('figure' | 'text')[] = []): {errors: {path: string; message: string}[]; warnings: {path: string; message: string}[]} {
   const errors: {path: string; message: string}[] = [], warnings: {path: string; message: string}[] = [];
+  if (p.sourceError) return {errors: [{path: `slides[${i}].source`, message: p.sourceError}], warnings};
   if (!kinds.length) {
     if (p.noRoom) errors.push({path: `slides[${i}]`, message: roomMessage(hasFigure, p.cover)});
     else { const w = smallTextWarning(p); if (w) warnings.push({path: `slides[${i}].figure`, message: w}); }
