@@ -72,12 +72,22 @@ test('renderDeck (serve / site): an 800-character full-width source draws, and s
   assert.ok(long.slides[0].text.endsWith('出典の例。'.repeat(160)), 'the whole source is on the slide');
 });
 
+test('renderDeck (serve / site): a source over the line limit is reported at slides[i].source, not as the generic no-room message', async () => {
+  // built by hand: the schema's 800 characters never wrap past the limit with real fonts, so the over-long text skips validation
+  const deck = {slides: [{title: 't', figure, source: source(1400)}]};
+  const out = await renderDeck({deck, sources: new Map(), files: []} as unknown as Parameters<typeof renderDeck>[0], cfg);
+  assert.equal(out.errors.length, 1);
+  assert.match(out.errors[0] ?? '', /^slides\[0\]\.source: the source \(1400 characters\) wraps to \d+ lines at 13px, over the limit of 12/);
+  assert.equal(out.slides[0], null);
+});
+
 test('pptx: the footnote text box grows with its lines and the issue is reported at slides[i].source', async () => {
   const lines = (n: number) => {
     const p = planDeckSlide({title: 't', source: source(PER_LINE * n)}, fontsOf(), fixed);
     const m = /name="source"[\s\S]*?<a:ext cx="\d+" cy="(\d+)"/.exec(p.xml);
     return Number(m?.[1]);
   };
+  assert.match(planDeckSlide({title: 't', source: source(PER_LINE * 2)}, fontsOf(), fixed).xml.match(/name="source"[\s\S]*?<a:bodyPr wrap="(\w+)"/)?.[0] ?? '', /wrap="none"/, 'the lines are already broken: the box does not wrap them again');
   assert.ok(lines(4) > lines(1) && lines(4) === lines(1) * 4, `${lines(1)} ${lines(4)}`);
   const over = planDeckSlide({title: 't', source: source(PER_LINE * (SOURCE_MAX_LINES + 1))}, fontsOf(), fixed);
   assert.equal(over.noRoom, true);
@@ -100,4 +110,6 @@ test('a long source makes the figure smaller, and a dense figure then gets the s
   const short = await run('出典の例。'), long = await run('出典の例。'.repeat(160));
   assert.ok(long.scale < short.scale, `${long.scale} < ${short.scale}`);
   assert.ok(long.warnings.some(w => /smallest text/.test(w)), 'the existing small-text warning fires');
+  assert.ok(long.warnings.some(w => /move part of the source to the notes/.test(w)), 'and names the long source as a cause');
+  assert.ok(!short.warnings.some(w => /source to the notes/.test(w)), 'a short source is not blamed');
 });

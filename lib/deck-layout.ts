@@ -22,7 +22,7 @@ export const LINE = 1.3;
 /** The longest `source` (footnote), in characters (ADR 0055 D1, raised from 300). It wraps at STYLE.source.size, and the figure's room shrinks by its lines. */
 export const SOURCE_MAX_CHARS = 800;
 /** The most lines a `source` may take: past it the slide is an error, not a smaller figure. */
-export const SOURCE_MAX_LINES = 10;
+export const SOURCE_MAX_LINES = 12;
 
 /** Sizes in px, colours as RRGGBB. */
 export const STYLE = {
@@ -43,7 +43,7 @@ export interface ColumnPlace {x: number; width: number; caption: TextBlock | nul
 
 export interface Run {text: string; bold: boolean; color: string}
 /** A text box: lines of runs, each line `pitch` px below the last, inside an inset; `align` 'center' puts each line in the middle of the box (ADR 0066). */
-export interface TextBlock {kind: 'text'; name: string; x: number; y: number; width: number; size: number; pitch: number; lines: Run[][]; inset: {x: number; y: number}; align?: 'center'}
+export interface TextBlock {kind: 'text'; name: string; x: number; y: number; width: number; size: number; pitch: number; lines: Run[][]; inset: {x: number; y: number}; align?: 'center'; /** 'none': the lines are already broken (a cover, the source): the box does not wrap them again. */ wrap?: 'none'}
 export interface RectBlock {kind: 'rect'; name: string; x: number; y: number; w: number; h: number; fill: string}
 export type Block = TextBlock | RectBlock;
 export interface FigurePlace {x: number; y: number; w: number; h: number; k: number}
@@ -63,6 +63,8 @@ export interface DeckLayout {
   room: {w: number; h: number};
   /** Set when the source wraps to more than SOURCE_MAX_LINES: the error to report (the slide is then `noRoom`). */
   sourceError: string | null;
+  /** How many lines the source wraps to (0 without one). */
+  sourceLines: number;
 }
 
 /** Between two columns, px. */
@@ -100,8 +102,8 @@ const textBlock = (name: string, x: number, y: number, width: number, size: numb
 export function planDeckLayout(s: DeckTextIn, figure: {w: number; h: number} | undefined, w: TextWidth, columns?: readonly ColumnIn[], scale: 'each' | 'same' = 'each', fit: FigureFit = 'width'): DeckLayout {
   const l = planDeckLayoutInner(s, figure, w, columns, scale, fit);
   const lines = (l.bottom.flat().find(b => b.kind === 'text' && b.name === 'source') as TextBlock | undefined)?.lines.length ?? 0;
-  if (lines <= SOURCE_MAX_LINES) return l;
-  return {...l, noRoom: true, sourceError: sourceMessage((s.source ?? '').length, lines)};
+  if (lines <= SOURCE_MAX_LINES) return {...l, sourceLines: lines};
+  return {...l, sourceLines: lines, noRoom: true, sourceError: sourceMessage((s.source ?? '').length, lines)};
 }
 
 /** Why a `source` cannot be drawn: where, how long it came out, and how to fix it. */
@@ -138,7 +140,7 @@ function planDeckLayoutInner(s: DeckTextIn, figure: {w: number; h: number} | und
   let place: FigurePlace | null = null, noRoom = false;
   if (columns?.length) {
     const roomTop = y + (s.title || s.lead ? GAP : 0) + FIG_PAD, roomH = low - (bottom.length ? GAP - 10 : 0) - roomTop - FIG_PAD;
-    return {top, bottom, sourceError: null, figure: null, noRoom: roomH < 48, columns: planColumns(columns, roomTop, roomH, w, scale, maxScale(fit)), room: {w: width, h: roomH}};
+    return {top, bottom, sourceError: null, sourceLines: 0, figure: null, noRoom: roomH < 48, columns: planColumns(columns, roomTop, roomH, w, scale, maxScale(fit)), room: {w: width, h: roomH}};
   }
   if (figure) {
     // FIG_PAD on each side: a figure's ink may reach a few px past its laid-out size (a shadow, a label's overhang)
@@ -151,7 +153,7 @@ function planDeckLayoutInner(s: DeckTextIn, figure: {w: number; h: number} | und
     }
   } else if (y > low + 10) noRoom = true;
   const roomTop = y + (s.title || s.lead ? GAP : 0) + FIG_PAD, roomH = low - (bottom.length ? GAP - 10 : 0) - roomTop - FIG_PAD;
-  return {top, bottom, sourceError: null, figure: place, noRoom, columns: [], room: {w: width, h: roomH}};
+  return {top, bottom, sourceError: null, sourceLines: 0, figure: place, noRoom, columns: [], room: {w: width, h: roomH}};
 }
 
 /** The source line at the bottom, pushed to `bottom`; the y above it that the rest of the slide may reach. */
@@ -161,7 +163,7 @@ function sourceBlock(s: DeckTextIn, w: TextWidth, bottom: Block[][]): number {
   if (s.source) {
     const st = STYLE.source, lines = wrapped(s.source, st.size, width, w, false), h = lines.length * Math.round(st.size * LINE);
     low -= h;
-    bottom.push([textBlock('source', MARGIN_X, low, width, st.size, lines.map(t => [{text: t, bold: false, color: st.color}]))]);
+    bottom.push([{...textBlock('source', MARGIN_X, low, width, st.size, lines.map(t => [{text: t, bold: false, color: st.color}])), wrap: 'none'}]);
     low -= 10;
   }
   return low;
@@ -216,7 +218,7 @@ function planCover(s: DeckTextIn, w: TextWidth): DeckLayout {
     const t = it.text;
     return {...textBlock(it.name, x, at, COVER.width, t.size, t.lines.map(l => [{text: l, bold: t.bold, color: t.color}])), pitch: t.pitch, align: 'center'};
   });
-  return {top, bottom, sourceError: null, figure: null, noRoom: h > room || tooWide, columns: [], room: {w: SLIDE_W - 2 * MARGIN_X, h: Math.max(0, room - h)}};
+  return {top, bottom, sourceError: null, sourceLines: 0, figure: null, noRoom: h > room || tooWide, columns: [], room: {w: SLIDE_W - 2 * MARGIN_X, h: Math.max(0, room - h)}};
 }
 
 /** Each column's width in px: the row (the slide less its margins and the gaps) shared by the columns' `width`. */
@@ -300,10 +302,11 @@ export const roomMessage = (hasFigure: boolean, cover = false): string => cover
   : 'the heading and lead run into the callouts and source: shorten them, or split the slide';
 
 /** A warning for a slide whose figure's smallest text is under MIN_TEXT_PT, or null. */
-export function smallTextWarning(p: {scale: number | null; minTextPt: number | null}): string | null {
+export function smallTextWarning(p: {scale: number | null; minTextPt: number | null; sourceLines?: number}): string | null {
   if (p.minTextPt === null || p.scale === null || p.minTextPt >= MIN_TEXT_PT) return null;
   const how = p.scale < 1 ? `scaled to ${Math.round(p.scale * 100)}% to fit the slide, its` : 'its';
-  return `${how} smallest text is ${p.minTextPt.toFixed(1)}pt (under ${MIN_TEXT_PT}pt): split the figure, or move text off the slide`;
+  const fix = (p.sourceLines ?? 0) > 4 ? 'split the figure, move text off the slide, or move part of the source to the notes' : 'split the figure, or move text off the slide';
+  return `${how} smallest text is ${p.minTextPt.toFixed(1)}pt (under ${MIN_TEXT_PT}pt): ${fix}`;
 }
 
 /** The layout widths 'fill' tries (ADR 0060): the document's 940 and narrower, each about 12 % less, down to the spec's 320. */

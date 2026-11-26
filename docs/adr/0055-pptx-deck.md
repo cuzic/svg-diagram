@@ -87,6 +87,8 @@ PowerPoint 書き出し(ADR 0027)は、図 1 つを 1 枚の pptx にする。�
 
 - `source` の上限を 300 字から 800 字(`SOURCE_MAX_CHARS`)にした。大きさは 13px(約 9.75pt)のまま。この大きさは図の文字の下限 `MIN_TEXT_PT`(9pt)の対象ではなく(下限は図の文字にだけかかる)、変えない。
 - 長い脚注は、これまでどおり本文の幅で折り返す(`lib/deck-layout.ts` の `sourceBlock`)。行数のぶん図の置き場(`room`)が縮む。PPTX の脚注の箱も同じ計算で、行数ぶん伸びる。
-- 折り返しが `SOURCE_MAX_LINES`(10 行)を超えると、`slides[i].source` の誤りになる(字数・行数・直し方を書く)。全角 800 字は 9 行で、上限に届かない。
+- 折り返しが `SOURCE_MAX_LINES`(12 行)を超えると、`slides[i].source` の誤りになる(字数・行数・直し方を書く)。全角 800 字は 9〜10 行(句読点の禁則で 1 行増える)で、上限には 2 行以上の余裕がある。
+- PPTX の脚注の箱は、折り返し済みの行をそのまま使う `wrap="none"`(表紙と同じ)。PowerPoint のフォントが少し広くても、下にはみ出さず横の余白に出る。
+- 長い脚注(5 行以上)のスライドの「smallest text」の警告には、「or move part of the source to the notes」を足す。
 - 図が縮んで文字が 9pt を下回れば、既存の「smallest text」の警告が出る(`serve` / `site` / `pptx-deck` 共通)。測った値は PR の説明にある。
 - 行ごとの配列(`source: string[]`)は、スキーマの書き方(字数の上限つきの 1 つの文字列)に合わないので足していない。
