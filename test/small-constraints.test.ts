@@ -55,6 +55,9 @@ test('stamp reserves a strip under the content and is drawn bottom-right of box,
   assert.doesNotMatch(plain.svg, /架空の例/);
 });
 
-test('a stamp wider than its box is an error, not a silent overflow', async () => {
-  await assert.rejects(render(diagram({theme: 'blue'}).add(row([box({title: 'a', stamp: '長い長い長い長い長い長いスタンプ'}), box({title: 'b'}), box({title: 'c'}), box({title: 'd'})], {cols: 12}))), /stamp .* is wider than its box/);
+test('a stamp wider than its box is wrapped onto two lines, not thrown', async () => {
+  const d = () => diagram({theme: 'blue'}).add(row([box({title: 'a', stamp: '長い長い長い長い長い長いスタンプ'}), box({title: 'b'}), box({title: 'c'}), box({title: 'd'})], {cols: 12}));
+  const r = await render(d());
+  assert.match(r.svg, /スタンプ/);
+  assert.deepEqual((await checkDiagram(d())).verdict.problems, []);
 });

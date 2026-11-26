@@ -22,6 +22,7 @@ const definition = {
   layout: (data, env) => placeFlow(data, env, layoutChevron),
   emit: emitFlow,
   nameNodes: nameFlowShapeNodes,
+  svgDefs: laid => ({arrow: laid.primitives.some(p => p.k === 'path' && !!p.arrow)}),
   verify: {...verifyFlow, rects: figureRects},
 } satisfies BandDef<ChevronBand, LaidOutFlowShape>;
 

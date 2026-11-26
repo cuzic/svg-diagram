@@ -14,6 +14,9 @@ export const hairColor = (hue: number): string => `hsl(${hue} 35% 28%)`;
 export const clothesColor = (hue: number): string => `hsl(${hue} 45% 62%)`;
 const n = f1;
 
+/** A fixed hue by cast position, stepping around the colour wheel by approximately the golden angle. */
+export const defaultHue = (cast: Readonly<Record<string, unknown>>, who: string): number => (210 + 137 * Math.max(0, Object.keys(cast).indexOf(who))) % 360;
+
 function features(kind: ComicExpression, cx: number, cy: number): string {
   const ex = 13, ey = cy + 1, my = cy + 15;
   const stroke = (d: string, w = 2.5): string => `<path d="${d}" fill="none" stroke="${COLOR.ink}" stroke-width="${w}" stroke-linecap="round"/>`;

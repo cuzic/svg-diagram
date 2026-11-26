@@ -215,7 +215,11 @@ test('graph-disconnected points to the nodes outside the largest component', asy
 // These rules are reported by entry points outside checkDiagram.
 const DOC_LOCATION = 'Markdown location from --docs; no diagram() call';
 const COMIC_VALUE_LOCATION = 'slot id in renderComic findings; no checkDiagram source location';
+const CHAT_PROBLEM_LOCATION = 'a problem of the placed chat: verdict.problems carries no source location';
 const OUTSIDE_FIGURE = {
+  'chat-self-missing': CHAT_PROBLEM_LOCATION,
+  'chat-speaker-unknown': CHAT_PROBLEM_LOCATION,
+  'chat-name-wide': CHAT_PROBLEM_LOCATION,
   'comic-value-invalid': COMIC_VALUE_LOCATION,
   'comic-values-unknown': COMIC_VALUE_LOCATION,
   'slot-overflow': COMIC_VALUE_LOCATION,
@@ -296,6 +300,9 @@ const EXPECTED_SCOPE = {
   'comic-bubble-wide': 'band',
   'comic-orphan-line': 'band',
   'comic-follower-split': 'band',
+  'chat-self-missing': 'band',
+  'chat-speaker-unknown': 'band',
+  'chat-name-wide': 'band',
   'comic-value-invalid': 'band',
   'comic-values-unknown': 'band',
   'slot-overflow': 'band',

@@ -11,8 +11,8 @@ import {paragraphsOf, pitchOf} from './text.ts';
 export type TextBox = Rect & Pick<LaidOutBox, 'tone' | 'dashed' | 'frame' | 'padX' | 'padY' | 'align' | 'wrappedRuns'> & {noWrap?: true};
 
 /** The text-only box of a badge or label the layout does not carry as a box: one centred run on one line, never wrapped. */
-export function plainBox(rect: Rect, text: string, o: {size: number; weight: FontWeight; tone: LaidOutBox['tone']; frame: boolean; padX: number; padY: number}): TextBox {
-  return {...rect, ...(o.frame ? {} : {frame: false as const}), padX: o.padX, padY: o.padY, tone: o.tone, align: 'center', noWrap: true, wrappedRuns: [{text, size: o.size, weight: o.weight, mono: false, lines: [text], lineYs: [o.size]}]};
+export function plainBox(rect: Rect, text: string, o: {size: number; weight: FontWeight; tone: LaidOutBox['tone']; frame: boolean; padX: number; padY: number}, lines: readonly string[] = [text]): TextBox {
+  return {...rect, ...(o.frame ? {} : {frame: false as const}), padX: o.padX, padY: o.padY, tone: o.tone, align: 'center', noWrap: true, wrappedRuns: [{text, size: o.size, weight: o.weight, mono: false, lines: [...lines], lineYs: lines.length === 1 ? [o.size] : lines.map((_, i) => (rect.h * (i + 0.5)) / lines.length + o.size * 0.35)}]};
 }
 
 /** A shape's fill and outline. */

@@ -121,3 +121,19 @@ test('the edge writer: fit width falls back too; a problem at the figure\'s own 
   assert.equal(hard.pptx, null);
   assert.ok(hard.issues.some(i => i.path === 'slides[0].columns[0].figure' && i.message.includes('some-rule')), JSON.stringify(hard.issues));
 });
+
+// chat() bands raise problems the same way (chat-self-missing: the cast has no `me` and no `self` is given)
+test('renderDeck: a chat with a problem stops the slide; an ordinary chat (examples/chat-draft.ts) draws with no errors', async () => {
+  fs.writeFileSync(path.join(dir, 'chat-bad.diagram.ts'), `import {chat, diagram} from 'svg-diagram';
+export default function define() {
+  return diagram({theme: 'blue', title: 'c', showTitle: false, legend: false, width: 520}).add(chat({version: 1, title: 'c', cast: {a: {name: '甲'}, b: {name: '乙'}},
+    dialogue: [{id: 'd1', who: 'a', kind: 'say', tpl: 'こんにちは。'}, {id: 'd2', who: 'b', kind: 'say', tpl: 'どうも。'}]}));
+}\n`);
+  fs.copyFileSync(path.join(ROOT, 'examples/chat-draft.ts'), path.join(dir, 'chat-ok.diagram.ts'));
+  const bad = await draw(write('chat-bad.json', [{title: 'B', figure: 'chat-bad.diagram.ts'}]));
+  assert.equal(bad.slides[0], null);
+  assert.ok(bad.errors.some(e => e.startsWith('slides[0].figure: ') && e.includes('chat-self-missing')), JSON.stringify(bad.errors));
+  const ok = await draw(write('chat-ok.json', [{title: 'O', figure: 'chat-ok.diagram.ts'}]));
+  assert.deepEqual(ok.errors, []);
+  assert.ok(ok.slides[0]);
+});

@@ -140,7 +140,7 @@ diagram({spotlight: 'main'})
 |---|---|---|
 | `stat()` / `display` ロール | 実装済み(#19) | |
 | `bars()` | 実装済み(#19) | コードレビュー 10 件を反映 |
-| `group({frame:false})` / `table({cellH})` / `stamp` | 実装済み(#22) | stamp は帯の確保と幅超過の throw で担保し、verify の矩形検査には載せていない。`frame:false` は title / tone / dashed と併用すると throw |
+| `group({frame:false})` / `table({cellH})` / `stamp` | 実装済み(#22) | stamp は帯の確保と幅超過の扱い(当初は throw。のちに 2 行へ折り返し、収まらなければ描いて `check` の問題 `stamp-too-wide` で知らせる形に変更)で担保し、verify の矩形検査には載せていない。`frame:false` は title / tone / dashed と併用すると throw |
 | `reveal` | 本リポジトリ側は実装済み(#23) | slidev addon 側(段別ファイルの差し替え)は未実装。`slide-budget` のセレクタは前方一致の近似。`name.svg` の metadata に最大段が入る |
 | `spotlight` | 実装済み(#20) | 既定は `edges: 'touching'`(examples で `between` と比較し、ADR どおりと確認) |
 | `versus` | 実装済み(#21) | `shared` 使用時は左右・共通部すべてに `id` が必須。接続ラベルは `connectLabels.left/right`。間に spacer を入れる |

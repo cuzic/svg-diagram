@@ -209,7 +209,8 @@ for (const f of files) {
 
   // (box({icon}) draws a line / colour icon as one <g transform> around the set's own shapes: that group is the icon)
   // (math() draws a formula as outlines inside nested transformed groups: they are the formula's own, not shapes an author placed)
-  const shapes = src.replace(/<g data-math=""[\s\S]*?<\/g><!--\/math-->/g, '');
+  // (chat() draws a speaker's face in its own head-local frame inside a nested <svg data-avatar-face viewBox>: its features are the face's, not placed shapes)
+  const shapes = src.replace(/<g data-math=""[\s\S]*?<\/g><!--\/math-->/g, '').replace(/<svg data-avatar-face\b[\s\S]*?<\/svg>/g, '');
   if (/<g(?![^>]*\bdata-icon=)[^>]*\btransform\s*=/.test(shapes)) {
     advisoryFindings.push({file: f, check: 'group-transform', detail: '<g transform="..."> wrapping children — bake the offset into each child\'s own coordinates instead'});
   }

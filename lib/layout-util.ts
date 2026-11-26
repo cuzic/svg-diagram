@@ -2,6 +2,7 @@
 // box padding, icon / step-badge sizes, the row() / grid() width distribution and the group title caption. No text metrics, no state.
 
 import {textWidth} from './atoms.ts';
+import {wrapAtoms, wrapText} from './wrap.ts';
 import type {GroupBand, RowBand, GridBand} from './types/containers.ts';
 import type {Roles, WidthOf, Rect} from './types/core.ts';
 import type {CaptionBand} from './types/text-bands.ts';
@@ -61,6 +62,36 @@ export const CANVAS_MIN_REGION_W = 96;
 export const STAMP_H = 24, STAMP_GAP = 6;
 const STAMP_PAD_X = 6; // the stamp chip and the strip reserved for it under the content
 export const stampChipW = (widthOf: WidthOf, text: string, roles: Roles): number => textWidth(widthOf, text, roles.note, 400) + 2 * STAMP_PAD_X;
+/** The line pitch of a two-line stamp chip (the same 1.4 em as any wrapped text). */
+export const stampLineH = (roles: Roles): number => Math.round(roles.note * LINE_HEIGHT_EM);
+/** What a laid-out stamp carries beyond `stamp` / `stampW`, only when it is not the plain one-line chip (so a fitting stamp is unchanged). */
+export interface StampFit {w: number; h: number; lines?: string[]; over?: {width: number; avail: number; lines: number}}
+/**
+ * The chip for `text` in `avail` px (the frame's width less its 8px margins): one line when it fits (24px high, as ever); else wrapped into as many
+ * lines as it takes, the chip growing one line at a time (`note` is already the smallest text, so it is never shrunk). `over` is set (stamp-too-wide) when
+ * that is more than two lines, or when one unbreakable word is still wider than the chip. The figure is always drawn, every line kept.
+ */
+export function fitStamp(widthOf: WidthOf, text: string, roles: Roles, avail: number): StampFit {
+  const one = stampChipW(widthOf, text, roles);
+  if (one <= avail) return {w: one, h: STAMP_H};
+  const maxWidth = avail - 2 * STAMP_PAD_X;
+  const atomWidth = (a: string) => widthOf(a, roles.note, 400, 'sans');
+  let lines = wrapText(text, {maxWidth, atomWidth, mode: 'phrase'});
+  const lineW = (l: string) => textWidth(widthOf, l, roles.note, 400);
+  let widest = Math.max(...lines.map(lineW)); // measured per wrapped line: the atoms are the text's own
+  if (widest > maxWidth) { // one word wider than the chip (a URL): break it per character, as the wrapper does for a long CJK run
+    lines = wrapAtoms([...text], {maxWidth, atomWidth, mode: 'char'});
+    widest = Math.max(...lines.map(l => [...l].reduce((sum, ch) => sum + atomWidth(ch), 0)));
+  }
+  const h = STAMP_H + (lines.length - 1) * stampLineH(roles);
+  const wide = widest > maxWidth; // a single character wider than the chip: nothing left to break
+  return {w: wide ? avail : widest + 2 * STAMP_PAD_X, h, lines, ...(wide || lines.length > 2 ? {over: {width: widest, avail: maxWidth, lines: lines.length}} : {})};
+}
+/** The verify message for a stamp that needs more than two lines (or has a character wider than its chip). */
+export const stampTooWideMessage = (text: string, avail: number, over: {width: number; avail: number; lines: number}): string =>
+  over.width > over.avail
+    ? `stamp「${text}」の 1 文字が ${Math.ceil(over.width)}px あり、枠(幅 ${Math.round(avail + 16)}px)のチップ(${Math.floor(over.avail)}px)に入らない。stamp を短くするか、枠を広げる(span / flex / width)`
+    : `stamp「${text}」が 2 行に収まらない(折り返すと ${over.lines} 行になる。枠の幅は ${Math.round(avail + 16)}px)。stamp を短くするか、枠を広げる(span / flex / width)`;
 export const LEGEND_SWATCH_W = 36, LEGEND_ITEM_GAP = 28, LEGEND_ROW_H = 24;
 
 // group() title is laid out as a left-aligned bold caption inside the frame.
