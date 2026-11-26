@@ -72,10 +72,7 @@ export function flowchart(nodes: readonly FlowNode[], edges: readonly FlowEdge[]
 }
 
 type LadderIds<N extends number> = `q${N}` | `a${N}` | 'otherwise';
-const LADDER_STEP_KEYS: readonly string[] = ['q', 'yes', 'sub', 'tone', 'yesLabel', 'noLabel'];
-const LADDER_END_KEYS: readonly string[] = ['label', 'sub', 'tone'];
-const LADDER_OPT_KEYS: readonly string[] = ['yes', 'no', 'question', 'maxNodeW', 'id', 'scope', 'reveal', 'until'];
-const isText = (v: unknown): v is string => typeof v === 'string' && v.trim() !== '';
+const LADDER_STEP_KEYS = ['q', 'yes', 'sub', 'tone', 'yesLabel', 'noLabel'], LADDER_END_KEYS = ['label', 'sub', 'tone'], LADDER_OPT_KEYS = ['yes', 'no', 'question', 'maxNodeW', 'id', 'scope', 'reveal', 'until'];
 /**
  * A decision ladder (ADR 0083): yes/no questions stacked down the left; each "yes" goes right to its answer, each "no" goes straight down to the next question,
  * and the last "no" ends in the final box. It is placed as two fixed columns (no layers, no staircase), so five questions fit a 16:9 slide in readable text.
@@ -84,32 +81,26 @@ const isText = (v: unknown): v is string => typeof v === 'string' && v.trim() !=
  */
 export function decisionLadder<const Id extends string = never>(steps: readonly LadderStep[], otherwise: LadderEnd, opts?: LadderOpts & {id?: Id}): StatesBand & Declares<Id | LadderIds<number>> & HandleOf<Id> & AnchorsOf<LadderIds<number>>;
 export function decisionLadder(steps: readonly LadderStep[], otherwise: LadderEnd, opts: LadderOpts = {}): StatesBand {
-  const who = 'decisionLadder()';
-  if (!Array.isArray(steps) || steps.length === 0) throw new Error(`${who}: needs at least one step ({q, yes}: the question and the answer its yes leads to)`);
+  const bad = (m: string): never => { throw new Error(`decisionLadder(): ${m}`); };
+  // `blank`: '' is allowed (the words on the arrows)
+  const text = (v: unknown, of: string, blank = false): string => typeof v === 'string' && (blank || v.trim()) ? v : bad(`${of} must be text`);
+  const only = (o: object | null | undefined, ok: string[], of: string): void => { const x = Object.keys(o ?? bad(`${of} is missing`)).filter(k => !ok.includes(k)); if (x.length) bad(`${of} has no option ${x.map(k => `'${k}'`)} (${ok})`); };
+  if (!Array.isArray(steps) || !steps.length) bad('needs at least one step');
   const end = typeof otherwise === 'string' ? {label: otherwise} : otherwise;
-  if (!end || typeof end !== 'object' || !isText(end.label)) throw new Error(`${who}: the second argument \`otherwise\` is required: the text (or {label, sub?, tone?}) of the box the last "no" ends in`);
-  const endExtra = Object.keys(end).filter(k => !LADDER_END_KEYS.includes(k));
-  if (endExtra.length) throw new Error(`${who}: \`otherwise\` has an unknown option ${endExtra.map(k => `'${k}'`).join(', ')} (${LADDER_END_KEYS.join(', ')})`);
-  if (end.sub !== undefined && typeof end.sub !== 'string') throw new Error(`${who}: \`otherwise\`: sub is the second line of the final box, as text`);
-  if (typeof opts !== 'object' || opts === null) throw new Error(`${who}: the options are an object ({yes, no, question, maxNodeW, id})`);
-  for (const k of Object.keys(opts)) if (!LADDER_OPT_KEYS.includes(k)) throw new Error(`${who}: has no option '${k}' (${LADDER_OPT_KEYS.join(', ')}): the ladder is always two columns, questions down the left`);
-  if (opts.question !== undefined && opts.question !== 'box' && opts.question !== 'diamond') throw new Error(`${who}: question must be 'box' or 'diamond' (got ${String(opts.question)})`);
-  for (const k of ['yes', 'no'] as const) if (opts[k] !== undefined && typeof opts[k] !== 'string') throw new Error(`${who}: ${k} is the word on the arrow, as text (got ${String(opts[k])}; '' puts no word)`);
-  const yes = opts.yes ?? 'はい', no = opts.no ?? 'いいえ';
+  only(end, LADDER_END_KEYS, '`otherwise`');
+  text(end.label, '`otherwise`'); if (end.sub !== undefined) text(end.sub, '`otherwise` sub');
+  only(opts, LADDER_OPT_KEYS, 'options');
+  if (opts.question !== undefined && opts.question !== 'box' && opts.question !== 'diamond') bad(`question must be 'box' or 'diamond'`);
+  const words = [opts.yes ?? 'はい', opts.no ?? 'いいえ'].map((v, k) => text(v, ['yes', 'no'][k] as string, true));
   const items: StateItem[] = [], edges: Transition[] = [];
   const arrow = (from: string, to: string, label: string): Transition => ({from, to, ...(label ? {label} : {})});
-  steps.forEach((s, i) => {
-    const at = `step ${i + 1}`;
-    if (!s || typeof s !== 'object') throw new Error(`${who}: ${at} is {q, yes}: the question and the answer its yes leads to`);
-    const extra = Object.keys(s).filter(k => !LADDER_STEP_KEYS.includes(k));
-    if (extra.length) throw new Error(`${who}: ${at} has an unknown option ${extra.map(k => `'${k}'`).join(', ')} (${LADDER_STEP_KEYS.join(', ')})`);
-    if (!isText(s.q)) throw new Error(`${who}: ${at} needs q (the question, as text)`);
-    if (!isText(s.yes)) throw new Error(`${who}: ${at} needs yes (the text of the answer box its yes leads to)`);
-    if (s.sub !== undefined && typeof s.sub !== 'string') throw new Error(`${who}: ${at}: sub is the second line of the answer box, as text`);
-    for (const k of ['yesLabel', 'noLabel'] as const) if (s[k] !== undefined && typeof s[k] !== 'string') throw new Error(`${who}: ${at}: ${k} is the word on the arrow, as text (got ${String(s[k])}; '' puts no word)`);
-    const id = (p: string) => `${p}${i + 1}`, next = i + 1 < steps.length ? `q${i + 2}` : 'otherwise';
-    items.push({id: id('q'), label: s.q, ...(opts.question === 'diamond' ? {shape: 'diamond' as const} : {})}, {id: id('a'), label: s.yes, ...(s.sub ? {sub: s.sub} : {}), ...(s.tone ? {tone: s.tone} : {})});
-    edges.push(arrow(id('q'), id('a'), s.yesLabel ?? yes), arrow(id('q'), next, s.noLabel ?? no));
+  steps.forEach((st, i) => {
+    const at = `step ${i + 1}`, id = (p: string) => `${p}${i + 1}`;
+    only(st, LADDER_STEP_KEYS, at);
+    text(st.q, `${at} q`); text(st.yes, `${at} yes`);
+    for (const k of ['sub', 'yesLabel', 'noLabel'] as const) if (st[k] !== undefined) text(st[k], `${at} ${k}`, k !== 'sub');
+    items.push({id: id('q'), label: st.q, ...(opts.question === 'diamond' ? {shape: 'diamond' as const} : {})}, {id: id('a'), label: st.yes, ...(st.sub ? {sub: st.sub} : {}), ...(st.tone ? {tone: st.tone} : {})});
+    edges.push(arrow(id('q'), id('a'), st.yesLabel ?? words[0] as string), arrow(id('q'), i + 1 < steps.length ? `q${i + 2}` : 'otherwise', st.noLabel ?? words[1] as string));
   });
   items.push({id: 'otherwise', label: end.label, ...(end.sub ? {sub: end.sub} : {}), ...(end.tone ? {tone: end.tone} : {})});
   const {question: _question, yes: _yes, no: _no, ...rest} = opts;

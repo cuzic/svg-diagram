@@ -330,3 +330,28 @@ test('answers fit beside the questions at every width, measured: no box reaches 
     for (const a of t.anchors) assert.ok(a.x + a.w <= t.x + t.w + 0.5 && a.x >= t.x - 0.5, `width ${width}: ${a.id}`);
   }
 });
+
+test('the 4 character last-line rule decides between wraps of equal height (removing it leaves a 3 character last line here)', async () => {
+  const mk = (n: number) => Array.from({length: n}, (_, i) => '本書図館資'[i % 5]).join('') + '？';
+  const {t} = await laid(decisionLadder([{q: mk(21), yes: '答え'}, {q: mk(24), yes: '答え'}], END));
+  assert.equal(boldLines(t, 'q1').length, 1);
+  const lines = boldLines(t, 'q2');
+  assert.equal(lines.length, 2);
+  assert.ok([...lines[1]!].length >= 4, `last line "${lines[1]}"`);
+});
+
+test('diamonds are centred on the column: their centre is the x of the no arrow', async () => {
+  const {t} = await laid(decisionLadder([{q: '短い？', yes: 'x'}, {q: '返却期限が過ぎた本が自宅にあり、かつ延滞の連絡も受けていないのは確かですか？', yes: 'y'}, {q: 'B?', yes: 'z'}], END, {question: 'diamond'}));
+  const cx = edge(t, 'q1', 'q2').e.points[0]!.x;
+  for (const id of ['q1', 'q2', 'q3', 'otherwise']) { const r = rect(t, id); assert.equal(r.x + r.w / 2, cx, id); }
+  for (let i = 1; i <= 3; i++) assert.equal(edge(t, `q${i}`, i < 3 ? `q${i + 1}` : 'otherwise').e.points[0]!.x, cx);
+});
+
+test('at the narrowest width that fits, the columns are the narrowest wraps (there is no NoFit between a width that fits and the next)', async () => {
+  const one = [{q: '利用者？', yes: '受付'}];
+  let narrowest = 0;
+  for (let width = 200; width <= 300 && !narrowest; width += 2) { try { await checkDiagram(diagram({theme: 'blue', title: 't', width}).add(decisionLadder(one, '終', {maxNodeW: 250}))); narrowest = width; } catch { /* does not fit yet */ } }
+  assert.ok(narrowest > 0 && narrowest < 300, `fits from ${narrowest}`);
+  const {t} = await laid(decisionLadder(one, '終', {maxNodeW: 250}), {width: narrowest}); // 250 is not 80 plus a multiple of the 8px step: the 80px wrap is its own candidate
+  assert.ok(rect(t, 'q1').w <= 100 && rect(t, 'a1').w <= 100, `${rect(t, 'q1').w} ${rect(t, 'a1').w}`);
+});
