@@ -13,6 +13,7 @@ import {renderDeck} from '../lib/present/render-deck.ts';
 import {planFigureEdge} from '../lib/pptx-edge.ts';
 import {renderDeckPptxEdgeWith} from '../lib/pptx-deck-edge-core.ts';
 import {validateDeck} from '../lib/deck-spec.ts';
+import {figureProblemErrors, figureProblemMessages} from '../lib/deck-spec-core.ts';
 import {closeMeasurer} from '../lib/dsl.ts';
 import {partCatalog} from '../lib/spec.ts';
 import type {Config} from '../lib/types/project.ts';
@@ -136,4 +137,15 @@ export default function define() {
   const ok = await draw(write('chat-ok.json', [{title: 'O', figure: 'chat-ok.diagram.ts'}]));
   assert.deepEqual(ok.errors, []);
   assert.ok(ok.slides[0]);
+});
+
+test('figureProblemMessages / figureProblemErrors: one summary line per figure, then each problem as it is; nothing for none', () => {
+  assert.deepEqual(figureProblemMessages([]), []);
+  assert.deepEqual(figureProblemErrors('slides[2].figure', []), []);
+  const m = figureProblemMessages(['a [r-1]', 'b']);
+  assert.equal(m.length, 3);
+  assert.match(m[0]!, /^2 個の問題があるので、このスライドを描かない/);
+  assert.deepEqual(m.slice(1), ['a [r-1]', 'b']);
+  assert.deepEqual(figureProblemErrors('slides[2].columns[1].figure', ['a [r-1]']).map(e => e.slice(0, 29)), ['slides[2].columns[1].figure: ', 'slides[2].columns[1].figure: ']);
+  assert.ok(figureProblemErrors('p', ['x']).at(-1) === 'p: x');
 });
