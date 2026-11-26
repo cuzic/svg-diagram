@@ -182,7 +182,9 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
     const cands: {p: Pt; cost: number}[] = runs.map(p => ({p, cost: -1}));
     for (let f = 0.05; f < 0.96; f += 0.05) for (const [ox, oy] of offs) { const q = at(f); cands.push({p: {x: q.x + ox, y: q.y + oy}, cost: Math.hypot(ox, oy) + Math.abs(f - 0.5) * 30}); }
     cands.sort((u, v) => u.cost - v.cost);
-    const c = must(cands.find(k => free(boxAt(k.p))) ?? cands[0]).p;
+    // none is clear (a crowded figure): the least bad one, a chip on another chip counting most, so two labels are never stacked while a spot beside a node or an arrow is left
+    const crowd = (k: {p: Pt}): number => { const bx = boxAt(k.p); return out.labels.filter(o => hit(bx, o)).length * 4 + out.nodes.filter(n => hit(bx, n)).length * 2 + (tip && hit(bx, tip) ? 2 : 0) + (onOther(bx) ? 1 : 0) + (bx.x < out.x || bx.x + bx.w > out.x + out.w ? 5 : 0); };
+    const c = must(cands.find(k => free(boxAt(k.p))) ?? cands.reduce((a, k) => (crowd(k) < crowd(a) ? k : a), must(cands[0]))).p;
     const b = boxAt(c);
     out.labels.push({text, ...b, tx: c.x, ty: b.y + S + 2, size: S, edge: own});
     out.labelBoxes.push({label: text, ...b});

@@ -99,7 +99,7 @@ test('pert: predecessors must exist, not repeat, and not go round a circle', () 
 test('timeline: the two forms are not mixed, dates are real and on the axis, and lanes are known', () => {
   const dated = {type: 'timeline', from: '2026-01', to: '2027-12', now: {at: '2026-10'}, deadline: {at: '2027-06', label: '期限'}};
   assert.deepEqual(validateSpec(spec(dated)), []);
-  assert.deepEqual(pathsOf(spec({type: 'timeline', from: '2026-01', to: '2027-12'})), ['parts[0].now', 'parts[0].deadline']);
+  assert.deepEqual(pathsOf(spec({type: 'timeline', from: '2026-01', to: '2027-12'})), ['parts[0].marks']);
   assert.deepEqual(pathsOf(spec({...dated, from: '2026-13', deadline: {at: '2028-02', label: '期限'}, marks: [{at: '2026-02-30', label: 'x'}]})), ['parts[0].from', 'parts[0].deadline.at', 'parts[0].marks[0].at']);
   assert.deepEqual(pathsOf(spec({...dated, from: '2028', to: '2027'})), ['parts[0].to']);
   assert.deepEqual(pathsOf(spec({...dated, unit: 'ms', events: []})), ['parts[0].now', 'parts[0].deadline', 'parts[0].from', 'parts[0].to']);

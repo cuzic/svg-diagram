@@ -129,6 +129,8 @@ export interface LaidOutWireframe extends Rect {
   title?: string;
   prims: Prim[];
   callouts: WfCallout[];
+  /** wf-dialog-too-big: a dialog card bigger than its screen. */
+  problems?: string[];
   /** The screen frame, as a connect() anchor (only when the wireframe has an id). */
   anchors: Anchor[];
 }
@@ -139,6 +141,8 @@ export interface LaidOutScreens extends Rect {
   id?: string;
   title?: string;
   prims: Prim[];
+  /** wf-dialog-too-big: a dialog card bigger than its screen. */
+  problems?: string[];
   /** One per screen with an id (state-matrix cells get none and keep id-less rects: see layout). */
   anchors: Anchor[];
 }

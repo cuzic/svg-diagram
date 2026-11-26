@@ -5,7 +5,7 @@ export function defineFlowchartPart<Result>(builder: (nodes: never, edges: never
   return {
     type: 'flowchart',
     anchors: 'nodes',
-    description: 'A flowchart: steps, decisions (a diamond holding the question) and start / end pills joined by arrows. Use for a process with branches or loops. Put Yes / No on the edges that leave a decision.',
+    description: 'A flowchart: steps, decisions (a diamond holding the question) and start / end pills joined by arrows. Use for a process with branches or loops. Put Yes / No on the edges that leave a decision. When the decisions form one chain (the first yes decides), use decisionLadder: it is smaller and stays readable on a slide.',
     schema: object({
       type: {const: 'flowchart'},
       nodes: list(object({

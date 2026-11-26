@@ -71,7 +71,9 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 - デッキ、パスで書いた図、`.ts` が import したファイル、`image()` の画像、`.svg-diagram.json`、フォントを監視し、保存すると描き直す。誤りがあれば前のスライドを残し、誤りは発表者の画面と端末にだけ出す。
 - 既定は `127.0.0.1` だけで待ち受ける。同じ LAN の端末に見せるには `--host 0.0.0.0`（QR が出る。LAN は暗号化されないので、会場の Wi-Fi では `--publish` を勧める）。
 - `--publish https://<自分の Worker>`（または `SVG_DIAGRAM_PUBLISH_ORIGIN`）と `SVG_DIAGRAM_PUBLISH_TOKEN` で、自分の Cloudflare にデプロイした Worker に送る。手元のサーバーは立ち上げず、保存するたびに送る。Worker のデプロイと設定は `worker/README.md`。
-- **表紙**（`pptx-deck` も同じ。ADR 0066）: スライドに `"layout": "cover"` を書くと、`event`（会・シリーズの名前）・`title`・`lead`（副題）・`date`・`presenter` を大きく中央にそろえて描く。`date` と `presenter` は書いたとおりに描く（「2026年11月27日」でも「2026-11-27」でもよい）。表紙は `title` が要り、`figure`・`columns`・`columnScale`・`fit`・`callouts` は書けない（場所つきの誤り）。`event`・`date`・`presenter` は表紙にだけ書ける。例: `{"layout": "cover", "event": "第3回 図の描き方 勉強会", "title": "図で伝える、要件の話", "lead": "言葉だけでは伝わらないことを、図にして渡す。", "date": "2026年12月4日", "presenter": "山田 花子"}`。
+- **表紙**（`pptx-deck` も同じ。ADR 0066）: スライドに `"layout": "cover"` を書くと、`event`（会・シリーズの名前）・`title`・`lead`（副題）・`date`・`presenter` を大きく中央にそろえて描く。`date` と `presenter` は書いたとおりに描く（「2026年11月27日」でも「2026-11-27」でもよい）。表紙は `title` が要り（2 行以上になる題名は、語の途中で割らない範囲で、最後の行が短く落ちないよう、行の長さをそろえて折り返す。ふつうのスライドの見出しも同じ。`title` に `\n` を書くとそこで必ず改行する）、`figure`・`columns`・`columnScale`・`fit`・`callouts` は書けない（場所つきの誤り）。`event`・`date`・`presenter` は表紙にだけ書ける。例: `{"layout": "cover", "event": "第3回 図の描き方 勉強会", "title": "図で伝える、要件の話", "lead": "言葉だけでは伝わらないことを、図にして渡す。", "date": "2026年12月4日", "presenter": "山田 花子"}`。
+
+- **脚注 `source`**（`pptx-deck` / `serve` / `site` も同じ。ADR 0055 D1 の追記）: スライドの `source` は 800 字まで（以前は 300 字）。調査の種類・標本の大きさ・指標と向き・信頼区間・用語の定義のように長い脚注は、そのまま書ける。長い脚注は、今までと同じ小さい文字（13px）のまま下の端で折り返し、増えた行の分だけ図の置き場が縮む（箱の高さは行数で決まるので、PPTX の脚注の箱も伸びる）。図の文字が 9pt を下回るほど縮めば、いつもの「smallest text」の警告が出る。折り返しが 12 行を超えると、そのスライドの誤り（`slides[i].source: the source (N characters) wraps to M lines …`）になり、描かれない。脚注を短くするか、詳細をノートへ移す。
 
 **複数のデッキをサイトにする（`svg-diagram site`）**: `svg-diagram site site.json --out dist`（またはデッキを並べて `svg-diagram site a/deck.json b/deck.json --out dist`）は、デッキを静的なサイトに書き出す（ADR 0067）。一覧のページと、デッキごとに `serve` の聴き手と同じ画面（発表者なし）・印刷のページ・スライドの SVG を作る。ノートは書き出さない。ネットワークには触れないので、置くのは自分で行う（Cloudflare なら `npx wrangler deploy`。手順は `docs/deck-site-deploy.md`）。
 
@@ -171,7 +173,7 @@ SVG の題名を省略すると、表示中のキャプションやバナー、�
 
 専用の PPTX アダプターがない帯も編集可能な図形にしたい場合は、`svg-diagram/pptx/svg-shapes` の `svgShapesXml` を `renderBandsPptx` の `svgShapes` に渡します。変換できる SVG は PowerPoint の図形になり、変換できない帯は通常の画像フォールバックになります。
 
-JSON spec の部品を限定するには、`svg-diagram/spec/selective` の `renderSpec(spec, {parts, measure})` を使います。`svg-diagram/spec/parts/<名前>` から、表（`table`）、ガント図（`gantt`）、フローチャート（`flowchart`）など必要な部品を選び、`parts` に渡します。既存カタログの全65部品に個別入口があります。同じ一覧から `specSchemaFor({parts})` と `partCatalog({parts})` も生成できます。図全体の項目には `lang`、`appearance`、`density`、`desc`、`canvas` も指定できます。`showTitle` または `sourceLine` を使う場合は `svg-diagram/bands/caption` から `captionDefinition` を読み込み、`captions` に渡します。`legend: "auto"` を指定する場合は、`svg-diagram/bands/legend` から `autoLegend` を読み込み、`renderSpec`、`validateSpec`、`specSchemaFor` のオプションに渡します。
+JSON spec の部品を限定するには、`svg-diagram/spec/selective` の `renderSpec(spec, {parts, measure})` を使います。`svg-diagram/spec/parts/<名前>` から、表（`table`）、ガント図（`gantt`）、フローチャート（`flowchart`）など必要な部品を選び、`parts` に渡します。既存カタログの全66部品に個別入口があります。同じ一覧から `specSchemaFor({parts})` と `partCatalog({parts})` も生成できます。図全体の項目には `lang`、`appearance`、`density`、`desc`、`canvas` も指定できます。`showTitle` または `sourceLine` を使う場合は `svg-diagram/bands/caption` から `captionDefinition` を読み込み、`captions` に渡します。`legend: "auto"` を指定する場合は、`svg-diagram/bands/legend` から `autoLegend` を読み込み、`renderSpec`、`validateSpec`、`specSchemaFor` のオプションに渡します。
 
 TOC の因果図では、凡例の指定を省略すると凡例を勧める所見が図全体で一度だけ出ます。部品に紐づく所見の `loc.specPath` には、`parts[0]` のように入力内の位置が入ります。表の行見出し、意味付き表、合計値や構成比の警告では、ルールを許容する設定例も返します。
 
@@ -196,6 +198,8 @@ CLI では `svg-diagram spec 比較.json --part table > 比較.svg` で描画で
 監視用ウィジェットも同じ入口から選べます。たとえばバッテリー表示には `batteryRenderer` を登録します。ロボットカード用の `robotRenderer` は、カード内に必要なバッテリーと信号の描画を含みます。
 
 状態表示には `createWireframe(renderers, {states: widgetStates})`、方向や視野付きのロボットマーカーには `createWireframe(renderers, {robotMarkers})` を使います。`widgetStates` と `robotMarkers` は `svg-diagram/wireframe/renderers` から必要なものを import します。
+
+`wf.dialog(title, {body, buttons, at})` の `at`（`'center'`（既定）/ `'top'` / `'bottom'` / `'left'` / `'right'`）で、カードを画面の端（16px の余白）に寄せられる（暗幕は全面のまま。カードが覆わない所は描かれる）。端の余白は、それだけが原因ならカードが収まるまで縮む。カードが画面より大きいとき（本文が長い・画面が低い・`w` が広い）は、左上（題が見える位置）に寄せて描き、`check` が problem `wf-dialog-too-big` で直し方（本文を短く・`w` を狭く・`h` を高く）を示す（`at` が不正なときだけ throw）。
 
 ダイアログは `{dialog: dialogRenderer}`、トーストは `{toast: toastRenderer}` を `createWireframe` のオプションに渡します。ダイアログにボタンを置く場合は `btnRenderer` も部品に登録します。基本描画の一括入口 `bands/wireframe/basic` には両方が含まれます。
 
@@ -305,7 +309,7 @@ Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使�
 | wireframe(root, {title, tag, h, frame, notes, skeleton}) | 画面 1 枚のローファイ・ワイヤーフレーム + 番号つき注釈欄。部品は `wf.*`（下記）。`n:` で番号の丸、`mark:'new'/'changed'` で新規・改修の枠 |
 | screens(items, {cols, gap, rowGap, h, skeleton}) | 画面のサムネイルを並べる（画面遷移図）。item の `at:[行, 列]`（列は小数可）で配置、各 `id` を `connect()` で結ぶ。`skeleton` で文字を帯に |
 | stateMatrix(cols, rows, {required, cellH, cellFrame}) | 部品の**状態の一覧**。行=部品、列=状態（通常・読み込み中・空・エラー…）。欄は `wf.*` の図、`'na'` / `{na: '理由'}`（対象外）、未指定（**未設計**。`check` が警告）。`required` の列がなければ警告。行は `stateRow('在庫カード', stock, {通常: {}, 読み込み中: 'loading', ...})` で「部品 1 つ + 状態ごとの差分」としても書ける |
-| timeline({from, to, now, deadline, marks, remaining}) | 横軸が時間の部品。期限（danger 色の大きな点）、今日、途中の日付（`marks`）を旗で示し、今日から期限までを太い帯と「あと 1 年 5 か月」で見せる。詳細は下の「時間軸と期限」 |
+| timeline({from?, to?, now?, deadline?, marks?, remaining?}) | 横軸が時間の部品。期限（danger 色の大きな点）、今日、途中の日付（`marks`）を旗で示し、今日から期限までを太い帯と「あと 1 年 5 か月」で見せる。詳細は下の「時間軸と期限」 |
 | timeline({unit, from, to, lanes, events, spans}) | **数値の軸**（`unit: 'ms'`、`from: 0`、`to: 700`）の時間軸。レーン・イベント（点と名前と値）・区間（棒、`dim: true` なら寸法線で長さを自動で書く）。下の「数値の時間軸」 |
 | steps(items, {numbered, highlight, highlightTone, arrows, id}) | 日付のない「順序だけの出来事」。番号バッジ・アイコン・タグ・本文つきの箱を矢印でつなぎ、1つだけ強調する。中身は普通の `row()`（`id#n` で `connect()`・`bracket()` の端点になる）。下の「順序だけの出来事」 `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
 | bracket(from, to, {label, side, tone}) / callout(target, {text, side}) | 注釈用のコネクタ。`bracket` は 2 つの箱にまたがる括弧、`callout` は箱を指す吹き出し。下の「注釈のコネクタ」 |
@@ -335,7 +339,7 @@ Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使�
 | lines(series, {x, y, target, annotate}) / strategyCanvas / burndown / burnup | 折れ線（`plane` の薄い層）。系列ごとに印の形と線の種類が違い、名前は線の右端に直接書く。目標線・注目点。戦略キャンバス・バーンダウン・バーンアップのひな形つき |
 | stackedBars(columns, {unit, percent}) / mekko(columns, {unit}) | 積み上げ棒（`percent: true` で 100%）とマリメッコ図（列の幅 ∝ 合計、高さ ∝ 構成比）。各部分に数字。入らない部分は描かず `<desc>` に残る |
 | treemap(tree, {unit, percent, strict}) | ツリーマップ（squarified）。面積 ∝ 値（グループの枠と見出しの分も補正し、グループの中でも外でも同じ比）。名前と値が入らない小さなセルは描かず `<desc>` に残る（`strict: true` はエラー） |
-| sankey(nodes, links, {unit, align}) | サンキー図。層に分け、ノードの高さとリボンの太さは値に比例（目盛りは図全体で一つ）、ノードの名前に値、重ならない。リンクのないノードはエラー |
+| sankey(nodes, links, {unit, align, values}) | サンキー図。層に分け、ノードの高さとリボンの太さは値に比例（目盛りは図全体で一つ）、ノードの名前に値、重ならない。リンクのないノードはエラー |
 | tornado(items, {base, unit}) | トルネード図（感度分析）。基準値から低ケース・高ケースの棒、幅の大きい順 |
 | bubble(points, {x, y, sizeTitle, sizeUnit}) | バブルチャート。x・y が数値軸、円の**面積**が 3 つ目の指標（凡例の円つき）。`x.line` / `y.line` で境目の破線。名前は円の中か横、軸は円がはみ出さないよう自動で広がる |
 | butterfly(rows, {leftLabel, rightLabel, unit}) | バタフライチャート。中央の項目名をはさんで、左右の群の棒を同じ目盛りで比べる。`sort: 'left'｜'right'` |
@@ -537,6 +541,27 @@ flowchart(
 - ひし形は同じ文でも箱の 2〜3 倍の高さになる。判断が多い流れで縦に長くなるときは、`dir: 'right'` にするか、図を分ける（`aspect-tall` が知らせる）。レーン（担当）が要る業務フローは `bpmn`。
 - 検査: 判断から出る矢印が 2 本未満・3 本以上・ラベルなし（情報 `flowchart-decision-edges`）。ほかは `stateDiagram` と同じ（`text-mid-word-break`・`edge-crossings` など）。例は `examples/flowchart.ts`、設計は ADR 0041。
 
+### 判断のはしご（`decisionLadder`）
+
+```ts
+diagram({theme: 'blue', title: '来館者の受け付け', width: 640}).add(
+  decisionLadder(
+    [
+      {q: '貸出票は書いてある？', yes: '窓口で受け付ける'},
+      {q: '返却期限は守れる？', yes: '貸出の手続きに進む'},
+      {q: '次回の入荷を待てる？', yes: '入荷の連絡を登録する', sub: '7 日間有効'},
+    ],
+    '後日の来館をお願いする',
+  ),
+)
+```
+
+- 判断が **1 本の鎖**(最初に「はい」になった質問が答えを決める)のときの図。質問を左の列に縦に積み、「はい」は右の答えの箱へ、「いいえ」は真下の次の質問へ進み、最後の「いいえ」は最後の箱で終わる。`flowchart` は同じ形が斜めの階段になり、16:9 で 7〜8pt まで縮む。「いいえ」が別の列へ分かれる・戻る流れは `flowchart`。
+- 段 `{q, yes, sub?, tone?, yesLabel?, noLabel?}`（`sub` と `tone` は答えの箱）。**最後の箱（第 2 引数）は必須**で、文字か `{label, sub?, tone?}`。選択肢は `yes` / `no`（矢印の言葉。既定 `はい` / `いいえ`。`''` で言葉なし。段の `yesLabel` / `noLabel` が優先）、`question: 'box' | 'diamond'`（既定は角の丸い箱。ひし形は行が高くなり、5 段で 9pt ほどまで縮む）、`maxNodeW`、`id`、`scope`、`reveal` / `until`。`focus` / `dir` / `returns` は無い（常に 2 列）。
+- 座標は書かない。2 列は図の幅の中央に置かれ、矢印はすべて 2 点の直線。anchor は質問 `q1`〜`qN`、答え `a1`〜`aN`、最後の箱 `otherwise`（`connect()` から指せる。同じ図に 2 つ置くときは `scope` を付ける）。
+- **幅は `diagram({width: 640})` が目安**: 既定の 900px だと図が 470px ほどで、スライドに載せたときの文字が 14pt にとどまる。640 なら 17pt。`maxNodeW`（既定 360）は折り返しの幅で、箱の幅の上限ではない（折り返せない語があると、その分だけ広くなる）。2 列が図の幅に入らないときは、直し方（図を広げる・文を短くする）を言って止まる。
+- JSON の spec は `{type: 'decisionLadder', steps, otherwise, yes?, no?, question?}`（`svg-diagram/spec/parts/decision-ladder`）。**1 つの spec に置けるのは 1 つ**（anchor `q1`… `a1`… `otherwise` は固定で、`scope` / `id` は無い）。2 つ以上は DSL で `scope` を付ける。例は `examples/decision-ladder.ts`、設計は ADR 0083。
+
 ### TOC の思考プロセス（`causeTree` / `cloud`）
 
 Goldratt の制約理論（TOC）の図は、箱の形より**矢印の意味**が約束事になっている。十分原因（「Xが成り立てばYが起きる」）の現状・未来現実・移行ツリーと、必要条件（「Yのためには X が必要」）の前提条件ツリー・クラウドは、同じ箱と矢印で描いても読み方が違うので、図の見出しか凡例で書く。
@@ -663,7 +688,7 @@ chevron(
 例は `examples/chevron-rows.ts`。
 - `funnel`: 下ほど狭い漏斗。各段は上の段の下端と同じ幅で始まる。`scale: 'value'` は全段の `value` が必要で、幅が値に比例する（下の段で値が増えると警告 `funnel-values-rise`）。`showRate` は前段からの率を段の左に出す（左に余地がなければ段の文字の下）。段に入らない文字は段の右へ出す。
 - `cycle`: 3〜8 個の節を、円周に沿った矢印で閉じる（矢印は節の間だけを通り、節や文字に重ならない）。`direction: 'cw' | 'ccw'`、`centre`、各節の `sub`。
-- `venn`: 2 または 3 集合。色に加えて線種（実線・破線・点線）を変え、色だけに頼らない。集合の名前はその集合だけの部分に、`overlaps` の 2 集合のラベルはその 2 つだけが重なる部分に、`centre` は全集合が重なる部分に入る（`centre` と全集合の overlap を両方書くと throw）。`universe` で全体の枠（文字列ならその名前）。
+- `venn`: 2 または 3 集合。色に加えて線種（実線・破線・点線）を変え、色だけに頼らない。集合の名前はその集合だけの部分に、`overlaps` の 2 集合のラベルはその 2 つだけが重なる部分に、`centre` は全集合が重なる部分に入る（`centre` と全集合の overlap を両方書くと throw）。`universe` で全体の枠（文字列ならその名前）。集合に `items`（短い文字列 1〜4 個）を付けると、名前（太字。`label` も書いたときはそちらが題になり、`name` は重なりの指定にだけ使う）の下に箇条（「・」付き。折り返した行は文字の下にそろえる）として、その集合だけの部分に入る（名前と特徴を分けて置く。3 集合では幅 640〜900px で、8 字ほどの箇条 2〜3 個が目安。収まらないときは `venn: the title and items of set "…" do not fit inside its circle` の problem になるので、箇条を減らす・短くする）。JSON spec の `sets[].items` も同じ。例は `examples/venn-features.ts`。
 - `concentric`: 同心円。`order: 'outer-first' | 'inner-first'`（`rings` を書く順）、`centre`。`labels: 'inside'`（既定）は各層の帯の上部に、`'side'` は右の凡例に出して引き出し線で層につなぐ（円とキーは 1 つの塊として帯の幅の中央に置く）。`description` は「ラベル — 説明」で続く。
 - `emblem`: 円・三角・四角・ひし形・六角形・台形・平行四辺形・五角形・端子・角丸四角・書類・円柱（`shape: 'circle' | 'square' | 'triangle' | 'diamond' | 'hexagon' | 'trapezoid' | 'inverted-trapezoid' | 'parallelogram' | 'pentagon-down' | 'pill' | 'rounded' | 'document' | 'cylinder'`）の中に、1 語〜数語の文字を入れる。他の作図ツールの「図形（Shape）」「ノード」にあたる、文字入りで単独で置く部品。`emblem('重要', {shape, sub, tone, id})` は 1 個（`id` は図形の id）、`emblem([{label, sub, shape, tone, id}, …], {shape})` は複数（`shape` は項目に書かなかったときの既定、既定は `circle`。`id` は帯の id、項目の id は各項目に書く）。形は文字が入る大きさまで 8px ずつ広がり、同じ帯の中は同じ幅（`minSize` は最小の幅、既定 96、64〜320。8px の刻みに切り上げる）。`pill`・`rounded`・`parallelogram`・`document`・`cylinder` は、幅を揃えたまま**高さを文字の行数で伸ばす**（端子に `sub` を 1 行足しても、同じ帯の他の形は大きくならない）。幅が足りなければ次の行へ折り返す（`gap` は 4px の格子に丸める）。文字は、形ごとに決めた「文字が入る長方形」（三角形は下寄り、ひし形は狭い）に折り返して入れるので、輪郭に触れない（実フォントで 975 通りを測って、文字の箱と輪郭の余白は最小 2.3px）。カタカナ・英数字の語は、240px まで広げて割らずに入れる（割らずに入るのは、全角 14px で円が約 13 字、六角形が約 11 字、ひし形・三角形が約 9 字まで。空白・改行・「・」での折り返しは語を割ったことにならない）。240px でも割れる語がある項目は割ってよく、他の項目の語は守る（割れた語は、320px まで広げて入れる）。320px（帯が狭ければ帯の幅）でも入らない文字、帯より広い `minSize` は throw する（短くする、`sub` に移す、`shape: 'square'`、帯を広げる）。`connect()` の anchor は、`:top` / `:bottom` / `:left` / `:right` が輪郭に乗るように決める（円・四角・ひし形・六角形・五角形・端子・角丸四角・円柱は外接矩形、三角形・台形・平行四辺形は斜辺の中点、書類は波の中央まで）。辺を書かない `connect('a', 'b')` は文字の上を通るので、`connect('a:bottom', 'b:top')` のように辺を書く。同じ帯の下の行を越える線は、経路が止まることがある（`minSize` を下げて 1 行に収める、`width` を広げる）。種類（`shape`）が混ざる行は、各図形の外接矩形を行の中で縦に中央寄せにするので、三角形の文字だけ少し下にある。`tone` は箱と同じ塗り・枠で、**ラベルの文字も tone の文字色**（`accent` は accent 色、`danger` は danger 色、`muted` / `removed` は muted 色、`plain` / `new` / `changed` は通常の色。`sub` はどの tone でも muted）。線種が変わるのは `danger` / `removed`（破線）だけ。`accent` と `new` は文字の色だけ、`plain` と `changed` は枠の色だけの違いなので、意味の違いは `sub` にも書く。`gray-tone-collision`（白黒にすると見分けにくい塗りの組）は `emblem` の tone も数える。`spotlight` は帯単位（`chevron` などと同じ。1 個だけ強調したいときは `emblem` を別の帯に分ける）。他のツールの「判断のひし形」を流れ図で使うなら `flowchart()`（矢印の出口・Yes/No の札・質問文に合わせた大きさ）、判断でない文字入りの図形を 1 個ずつ置くなら `emblem()`。ワイヤーフレームの番号の印 `badge` とは別で、`badge` は短い印、`emblem` は文字を折り返して入れる大きめの図形。流れ図の記号としては、`pill` が端子（開始・終了）、`rounded` が処理、`diamond` が判断、`parallelogram` がデータ（入出力）、`inverted-trapezoid` が手作業、`hexagon` が準備、`document` が書類、`cylinder` がデータベース（ストレージ）、`pentagon-down`（下が尖った家形。正五角形ではなく、`chevron({first: 'pentagon'})` の右向きの家形とも向きが違う）が他ページへの接続。`trapezoid`（上が狭い）はピラミッドの層などにも使える。層状に並べて矢印の出口や Yes/No の札まで付けたいときは `flowchart()`（判断・端子・処理だけ。上の他の記号はまだない）。星形やパス指定の図形はまだない。
 - `valueChain`: ポーターの価値連鎖（バリューチェーン）。`support`（支援活動。横長の帯を縦に積む）と `primary`（主活動。矢羽根を横に並べる）に、文字列か `{label, sub, id, tone}` を書く。右端に全体の高さの矢印で `margin`（既定 `'マージン'`、`false` で外す）、帯の上に `titles`（既定 `['支援活動', '主活動']`、`false` で外す）。`support` は省ける。コトラーなどが示す価値連鎖も、活動の名前を変えれば同じ形で描ける。`id` は `connect()` / spotlight の対象。主活動の語が割れるときは `keepWords: true`。
@@ -963,7 +988,7 @@ harvey(['価格', '品質'], ['A 社', 'B 社'], [[4, 2], [1, 3]], {highlight: [
 - **`lines`**: `plane` を返すので、`labelRole`・`id`・`reveal` はそのまま効く。`x: {categories}` なら系列は値の配列（`null` は途切れ）、数値軸なら `[x, y]` の配列。系列名は線の右端に書き、同じ高さで終わる名前は縦にずらす。早く終わる系列の名前は、近くに空きがなければ右端へ点線でつなぐ。`ideal: true` は破線の計画線（名前は線の途中に付く）、`target: {at, label}` は目標の横線、`annotate: [{at: [x, y]｜{series, index}, label}]` は注目点の輪と名前。カノモデルは `[x, y]` の点と `smooth: true`。系列は 6 つまで（印は ● ■ ◆ ▲ ○ ✕）。
 - **`mekko` / `stackedBars`**: 部分の名前は、列の最初の登場順に下から積む。7 つ以上の部分は止まる（「その他」にまとめる）。`stackedBars` の列は数字が入る幅まで広がる（区画の幅まで）。それでも数字が入らない部分は描かず `<desc>` に残る。`mekko` の列は最大 12、`stackedBars` は 20。
 - **`treemap`**: 葉は `{label, value}`、グループは `children`（4 階層まで。グループの値は子の合計で、書くなら一致が必要）。葉の `tone: 'accent'｜'danger'` は塗りつぶし。グループの名前が入らないときも `<desc>` に残る。グループの枠と見出しの帯が子の場所を取る分は重みを補正するので、葉の面積はグループの中でも外でも値に比例する。`percent: true` で全体に対する割合を添える。
-- **`sankey`**: ノードは文字列か `{id, label?, tone?}`（どのリンクにも出てこないノードはエラー）。層は最長経路で決まり（循環は止まる）、出ていかないノードは最後の層に寄る（`align: 'left'` で寄せない）。ノードの並びは交差が少なくなるように入れ替える。ノードの高さが値に比例するので、名前が収まらないほど低いノードでも、名前の高さ分の場所は空ける。リボンには、両端のどちらの名前にも載っていない値（分岐・合流の途中）だけ数字が入る。`tone: 'danger'` のリボンは赤の破線で縁取る。
+- **`sankey`**: ノードは文字列か `{id, label?, tone?}`（どのリンクにも出てこないノードはエラー）。層は最長経路で決まり（循環は止まる）、出ていかないノードは最後の層に寄る（`align: 'left'` で寄せない）。ノードの並びは交差が少なくなるように入れ替える。ノードの高さが値に比例するので、名前が収まらないほど低いノードでも、名前の高さ分の場所は空ける。リボンには、両端のどちらの名前にも載っていない値（分岐・合流の途中）だけ数字が入る。`values: false` で、ノードの名前とリボンの数字から値を外す（流れの形だけを見せたいとき。名前だけで折り返し・右の余白を決め、高さと太さ、代替テキスト（alt）の値はそのまま。リボンの数字は `linkLabels` が `true` でも出ない。値は図に題名があるとき `<desc>` に入り、題名がなければ警告 `bars-values-hidden`）。`tone: 'danger'` のリボンは赤の破線で縁取る。
 - **`tornado`**: `low` / `high` は「その入力が低い / 高いときの結果」（結果が低いとは限らない）。結果が基準と同じならその棒は描かず数字だけ書く。両方が基準の同じ側に出るときは、棒を 2 段に分ける。
 - **`regplot` / `residplot`**: `{x: [..], y: [..], group?: [..]}`（生の値）。最小二乗の直線（`order: 2｜3` で多項式の曲線）と、平均の 95% 信頼帯（解析解。t 分布）を描き（`lowess: true` は多項式の代わりに LOWESS = 局所回帰の曲線。外れ値に強い反復つきで、`frac`（各点の当てはめに使う点の割合、既定 2/3）が小さいほど細かく追う。帯・式・R² はない（`stats` と併用すると止まる）。`order` とも併用できない）、`band: false` で帯なし、`stats: true` で凡例に式（直線のとき）と R²。グループごとに別の回帰（印・線の種類・色が違う）。x の異なる値が `order + 1` 個、点が `order + 2` 個ないと止まる。`residplot` は同じ当てはめからの残差と、破線の 0 の線（曲がりが残っていれば形に出る）。`lowess: true` は残差の LOWESS 曲線を重ね、直線が取りこぼした形を見せる。
 - **`facet(data, make, {cols, share})`**: `data` のキーごとに 1 枚、`make(キー, 値, 番号, axes)` が返す図を枠つき（キーが見出し）で並べる（`cols` 列ずつ、最後の行も同じ列幅）。**軸は既定で全パネル共通**（seaborn の sharex / sharey）: 一度ふつうに描いて各パネルの軸を調べ、全体の範囲を `axes`（`{xRange, yRange}`）として渡して描き直すので、`make` は `axes` をそのまま図の opts に展開する（`histplot(値, {...axes})`）。`share: 'x'｜'y'｜'xy'｜'none'`。共有できるのは `histplot` / `kdeplot` / `ecdfplot` / `displot` / `regplot` / `residplot` のパネル（ほかの図は何もされず、そういうパネルしかないのに `share` を明示すると止まる）。`...facet()` で `.add()` に展開する。
@@ -1007,11 +1032,12 @@ timeline({
 })
 ```
 
-- 日付は `'YYYY'` / `'YYYY-MM'` / `'YYYY-MM-DD'`（年・月だけなら、その初日）。**`now` は必ず書く**（ビルドは時計を読まないので、同じソースは同じ SVG になる）。`from` < `to`、`now` / `deadline` / `marks` が軸の外にある、実在しない日付、`deadline.label` が空、は throw。
+- 日付は `'YYYY'` / `'YYYY-MM'` / `'YYYY-MM-DD'`（年・月だけなら、その初日）。`now` は書くなら日付を明示する（ビルドは時計を読まないので、同じソースは同じ SVG になる）。`from` < `to`、`now` / `deadline` / `marks` が軸の外にある、実在しない日付、`deadline.label` が空、`now` `deadline` `marks` が 1 つも無い、は throw。
+- **`now` と `deadline` は省ける**。省いた側の旗・帯・残りの文言は出ない（両方そろったときだけ、今日から期限までの帯と「あと …」が出る）。`from` / `to` も省ける: 省いた端は、`now` / `deadline` / `marks` の最初（最後）の日付から、間隔の 8%（3 日以上）だけ外に取る。期限のない予定の並びは `timeline({marks: [{at: '2026-12-01', label: '試作'}, …]})` だけで描ける（例は `examples/timeline-marks-only.ts`）。日付を持たない「明日・来週・1 か月後」のような相対の点は日付の形では書けない。数値の形（下）で `unit: '日'`、`events: [{at: 1, label: …}, {at: 7, …}, {at: 30, …}]` のように今日からの日数で置く（値が `7日` と添わる）。
 - 今日から期限までは太い帯（期限が先なら accent、過ぎていれば danger）で、下の括弧に残りを書く。既定の文言は暦の月で数える（`あと 1 年 5 か月` / `あと 5 か月` / 1 か月未満は `あと 19 日` / 過ぎていれば `期限を 2 か月 過ぎた`）。`remaining: '残り 1.5 年'` で文言を替え、`remaining: false` で文言と括弧を消す（帯は残る）。
 - `deadline: {…, line: 'full'}` は、期限の縦線を図の高さいっぱいに引く（danger 色。どの文字もこの線にかからないよう旗の位置を選び、かかるなら verify が止める。期限の旗は線の右に置く）。`span: 'fill'` は、今日から期限までを、軸の上下 12px ずつの淡い面（accent のとき `soft`、期限を過ぎていれば `border` 色）で塗る（既定の `'bar'` は軸上の太線）。目盛りの文字は面にかからないよう 4px 下げる。例は `examples/timeline-line-fill.ts`。
 - 旗（今日・期限・`marks`）は、日付が近いと段を変えて階段にする（左の旗が高い）。旗は茎の位置から右へ置き、収まらなければ中央・左へ。最大 5 段で、それでも文字が重なるなら throw（マークを減らす・短くする・幅を広げる）。検査（verify）は、文字どうしの重なりと図からのはみ出しも止める。
-- 目盛りは範囲に応じて 1 / 3 / 6 / 12 か月…刻み（約 8 本まで）。文字は 14px 固定。`id` は `connect()` の端点と spotlight の対象になり、`reveal` は図全体に付く。例は `examples/timeline.ts`（ふつう）と `examples/timeline-crowded.ts`（日付が近い旗）。
+- 目盛りは範囲に応じて 1 / 3 / 6 / 12 か月…刻み（約 8 本まで）。軸が 2 か月未満なら、日単位の目盛り（`12/7` の形）を、1 日ごと・2 日ごと・月曜ごと・隔週の月曜ごと（各 16 本まで）の順に、ラベルが重ならない最も細かいものを図の幅で選ぶ（どれも収まらなければ月目盛り）。年をまたぐときは、新しい年の最初の目盛りに年が付く（`2027/1/4`）。`remaining` / `span` は `now` と `deadline` の両方があるときだけ書ける（片方だけなら throw）。文字は 14px 固定。`id` は `connect()` の端点と spotlight の対象になり、`reveal` は図全体に付く。例は `examples/timeline.ts`（ふつう）と `examples/timeline-crowded.ts`（日付が近い旗）。
 
 ### 数値の時間軸（`timeline({unit})`）
 

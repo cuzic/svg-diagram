@@ -19,6 +19,7 @@ const LINKS = [{from: 'a', to: 'v', value: 100}, {from: 'v', to: 'b', value: 15}
 
 test('sankey, treemap and heatmap specs draw the same SVG as the DSL', async () => {
   await same({type: 'sankey', nodes: NODES, links: LINKS, unit: '人', linkLabels: false}, sankey(NODES as never, LINKS as never, {unit: '人', linkLabels: false}));
+  await same({type: 'sankey', nodes: NODES, links: LINKS, unit: '人', values: false}, sankey(NODES as never, LINKS as never, {unit: '人', values: false}));
   const tree = [{label: '国内', children: [{label: '東京', value: 40}, {label: '大阪', value: 22}]}, {label: '海外', value: 30, tone: 'accent'}];
   await same({type: 'treemap', items: tree, unit: '億円', percent: true}, treemap(tree as never, {unit: '億円', percent: true}));
   const rows = ['A', 'B'], cols = ['1月', '2月', '3月'], values = [[1, 2, 3], [4, 5, 6]];

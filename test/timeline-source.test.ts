@@ -71,7 +71,8 @@ test('timeline: bad input throws, naming the field', () => {
   assert.throws(() => timeline({...BASE, marks: [{at: '2040', label: 'x'}]}), /marks\[0\].at/);
   assert.throws(() => timeline({...BASE, deadline: {at: '2028', label: ' '}}), /deadline.label is required/);
   assert.throws(() => timeline({...BASE, marks: [{at: '2027', label: 'x', tone: 'blue' as never}]}), /tone must be/);
-  assert.throws(() => timeline({...BASE, now: undefined as never}), /now is required/);
+  assert.doesNotThrow(() => timeline({...BASE, now: undefined as never})); // now is optional (the axis is still given)
+  assert.throws(() => timeline({from: '2026', to: '2029'} as never), /at least one of now, deadline or marks/);
   assert.throws(() => timeline({...BASE, reveal: 1, remaining: 3 as never}), /remaining must be/);
 });
 

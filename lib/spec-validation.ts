@@ -95,13 +95,13 @@ export function totalText(v: unknown): number {
 export function checkAnchors(parts: readonly Json[], issues: SpecIssue[], partOf: (type: unknown) => PartDef | undefined): void {
   const first = new Map<string, number>();
   parts.forEach((part, i) => {
-    const key = partOf(part['type'])?.anchors, at = `parts[${i}]`;
+    const def = partOf(part['type']), key = def?.anchors, at = `parts[${i}]`;
     if (!key) return;
     const ids = typeof key === 'function' ? key(part, at) : items(part, key).flatMap((x, j) => typeof x['id'] === 'string' ? [{id: x['id'], path: `${at}.${key}[${j}].id`}] : []);
     for (const {id: v, path} of ids) {
       const seen = first.get(v);
       if (seen === undefined) first.set(v, i);
-      else if (seen !== i) issues.push({path, message: `"${v}" is already used in parts[${seen}] (ids must be unique in the figure)`});
+      else if (seen !== i) issues.push({path, message: `"${v}" is already used in parts[${seen}] (ids must be unique in the figure)${def?.anchorsHint ? `: ${def.anchorsHint}` : ''}`});
     }
   });
 }

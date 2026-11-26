@@ -499,6 +499,7 @@
   "spec-parts/concentric:defineConcentricPart",
   "spec-parts/control-chart:defineControlChartPart",
   "spec-parts/cycle:defineCyclePart",
+  "spec-parts/decision-ladder:defineDecisionLadderPart",
   "spec-parts/dependency-network:defineDependencyNetworkPart",
   "spec-parts/fault-tree:defineFaultTreePart",
   "spec-parts/flowchart:defineFlowchartPart",

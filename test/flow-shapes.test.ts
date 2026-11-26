@@ -135,3 +135,71 @@ test('valueChain: no margin, no titles, no support leaves just the chevrons; bad
   assert.throws(() => valueChain({primary: [{id: 'a', label: 'x'}], support: [{id: 'a', label: 'y'}]}), /duplicate id "a"/);
   assert.throws(() => valueChain({primary: ['x']}, {margin: ''}), /margin/);
 });
+
+test('venn: a set with items draws its title and bullets inside the part only that set covers', () => {
+  const f = figure(venn([{name: 'Alpha', items: ['速い', '軽い']}, {name: 'Beta', items: ['安い']}], {overlaps: [{sets: ['Alpha', 'Beta'], label: '共通'}]}));
+  const circles = f.primitives.filter(p => p.k === 'circle') as {cx: number; cy: number; r: number}[];
+  const title = textAt(f, 'Alpha'), item = textAt(f, '・速い'), item2 = textAt(f, '・軽い');
+  assert.equal(title.weight, 700);
+  assert.equal(item.weight, 400);
+  assert.ok(title.y + title.h <= item.y + 1 && item.y < item2.y, 'title above the items, in order');
+  const [a, b] = circles;
+  for (const t of [title, item, item2]) {
+    for (const [x, y] of [[t.x, t.y], [t.x + t.w, t.y + t.h]] as const) {
+      assert.ok(Math.hypot(x - a!.cx, y - a!.cy) <= a!.r, 'inside its own circle');
+      assert.ok(Math.hypot(x - b!.cx, y - b!.cy) >= b!.r, 'outside the other circle');
+    }
+  }
+  assert.equal(f.misfits, undefined);
+});
+
+test('venn: items that cannot fit inside the circle are reported with a fix hint', async () => {
+  const band = venn([{name: 'A', items: ['とても長い特徴の説明がここに入る', '二つ目もかなり長い説明', '三つ目', '四つ目']}, {name: 'B'}], {width: 320});
+  const r = await renderDiagram(diagram({theme: 'blue', title: 'flow'}).add(band), {name: 'f.svg', budget: 'cacheOnly'});
+  assert.ok(!r.verdict.ok);
+  assert.ok(r.verdict.problems.some(p => /set "A".*do not fit.*(fewer|shorter)/.test(p)), r.verdict.problems.join('; '));
+});
+
+test('venn: sets with a few short items pass the verdict (2 and 3 sets)', async () => {
+  for (const band of [
+    venn([{name: 'Alpha', items: ['速い', '軽い', '安い']}, {name: 'Beta', items: ['丈夫']}], {overlaps: [{sets: ['Alpha', 'Beta'], label: '共通'}]}),
+    venn([{name: '甲', items: ['一', '二']}, {name: '乙', items: ['三', '四']}, {name: '丙', items: ['五', '六']}], {centre: '中'}),
+  ]) {
+    const r = await renderDiagram(diagram({theme: 'blue', title: 'flow'}).add(band), {name: 'f.svg', budget: 'cacheOnly'});
+    assert.ok(r.verdict.ok, r.verdict.problems.join('; '));
+  }
+});
+
+test('venn: items must be 1 to 4 non-empty strings', () => {
+  assert.throws(() => venn([{name: 'A', items: []}, {name: 'B'}]), /items/);
+  assert.throws(() => venn([{name: 'A', items: ['a', 'b', 'c', 'd', 'e']}, {name: 'B'}]), /items/);
+  assert.throws(() => venn([{name: 'A', items: [' ']}, {name: 'B'}]), /items/);
+});
+
+test('venn of three: items that stay in their own circle but cut into a neighbour are reported', () => {
+  const f = figure(venn([{name: '甲'}, {name: '乙', items: ['あ'.repeat(5), 'あ'.repeat(14), 'あ'.repeat(19)]}, {name: '丙'}]), 587);
+  const [c0, c1, c2] = f.primitives.filter(p => p.k === 'circle') as {cx: number; cy: number; r: number}[];
+  const corners = (t: Rect) => [[t.x, t.y], [t.x + t.w, t.y], [t.x, t.y + t.h], [t.x + t.w, t.y + t.h]] as const;
+  const items = f.texts.filter(t => t.text.includes('あ'));
+  assert.ok(items.every(t => corners(t).every(([x, y]) => Math.hypot(x - c1!.cx, y - c1!.cy) <= c1!.r - 2)), 'precondition: inside its own circle');
+  assert.ok(items.some(t => corners(t).some(([x, y]) => [c0!, c2!].some(c => Math.hypot(x - c.cx, y - c.cy) < c.r + 2))), 'precondition: cuts into a neighbour');
+  assert.deepEqual(f.misfits, ['乙']);
+});
+
+test('venn: a wrapped item hangs under its text, and every corner of every line stays in its own circle', () => {
+  const f = figure(venn([{name: 'A', items: ['あ'.repeat(18)]}, {name: 'B'}]), 892);
+  const lines = f.texts.filter(t => t.text.includes('あ'));
+  assert.ok(lines.length >= 2, 'the item wraps');
+  const bullet = must(lines[0]), next = must(lines[1]);
+  assert.ok(bullet.text.startsWith('・') && !next.text.startsWith('・'));
+  assert.ok(next.x > bullet.x + 1, 'continuation is indented past the bullet');
+  const [a] = f.primitives.filter(p => p.k === 'circle') as {cx: number; cy: number; r: number}[];
+  for (const t of lines) for (const [x, y] of [[t.x, t.y], [t.x + t.w, t.y], [t.x, t.y + t.h], [t.x + t.w, t.y + t.h]] as const) assert.ok(Math.hypot(x - a!.cx, y - a!.cy) <= a!.r);
+  assert.equal(f.misfits, undefined);
+});
+
+test('venn: wrapped item lines are checked one by one, so a short last line does not reject a figure that fits', () => {
+  const f = figure(venn([{name: '甲', items: ['とても長い特徴の説明がここに入る']}, {name: '乙'}, {name: '丙'}]), 640);
+  assert.ok(f.texts.filter(t => t.text.includes('特徴') || t.text.includes('入る')).length >= 2, 'the item wraps');
+  assert.equal(f.misfits, undefined);
+});

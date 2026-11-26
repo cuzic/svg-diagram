@@ -1,3 +1,4 @@
+import {dialogProblems} from './verify-wireframe-callouts.ts';
 import {band} from './band-def.ts';
 import type {BandDef, WithBandDef} from './band-def.ts';
 import {stateMatrix as buildMatrix} from './dsl/state-matrix.ts';
@@ -29,7 +30,7 @@ export function screensDefinition(collect: (data: ScreensBand) => TextRequest[],
         return frame?.k === 'rect' ? primRectGeometry(frame) : undefined;
       },
     },
-    verify: {rects: frameRects, findings},
+    verify: {rects: frameRects, findings, check: laid => dialogProblems(laid)},
   };
 }
 
