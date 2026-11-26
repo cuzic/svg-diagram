@@ -49,6 +49,12 @@ interface DrawnFigure {svg: string; w: number; h: number; title: string; laidOut
  * a .ts figure is taken from it when its input (all but the notes), the project's settings and `fontStamp` are the same. A slide with a .ts
  * figure (its own or a column's) is always drawn (what it imports is not in the key). The cache keeps only this deck's slides afterwards.
  */
+/** What to say when the unsupported feature is one a WordArt option draws with (every preset works on slides; these two options do not). */
+const WORDART_HINT: Readonly<Record<string, string>> = {
+  'letter-spacing': ' (a WordArt with `spacing` is one: all WordArt presets work on slides, but not `spacing`)',
+  rotate: ' (a WordArt with `arc` is one: all WordArt presets work on slides, but not `arc`)',
+};
+
 export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?: boolean; cache?: SlideCache; fontStamp?: string} = {}): Promise<RenderedDeck> {
   const {deck, sources} = loaded;
   const errors: string[] = [], warnings: string[] = [];
@@ -127,7 +133,7 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
     layout.columns.forEach((c, j) => { const cf = cols[j]; if (cf && c.figure) { const w = smallText(cf, c.figure.k); if (w) said.push({at: `.columns[${j}].figure`, text: w}); } });
     const out = slideSvg(layout, f ? {svg: f.svg} : undefined, font, box, cols.map(c => c ? {svg: c.svg} : undefined));
     for (const m of out.missing) errors.push(`${here}: no font has a glyph for 「${m.char}」 (in 「${m.text}」): name a font that has it in .svg-diagram.json "fonts"`);
-    for (const u of out.unsupported) errors.push(`${here}: text drawn with ${u} cannot be outlined, so the slide would lose it: take it out of the figure`);
+    for (const u of out.unsupported) errors.push(`${here}: text drawn with ${u} cannot be outlined, so the slide would lose it: take it out of the figure${WORDART_HINT[u] ?? ''}`);
     if (out.liveEmoji.length) said.push({at: '', text: `emoji ${[...new Set(out.liveEmoji)].join(' ')} are left to the viewer's emoji font (no outline for them), so their width may differ from the measured one`});
     const allowed = checkSlideSvg(out.svg);
     if (!allowed.ok) for (const p of allowed.problems) errors.push(`${here}: the slide SVG has ${p.what} (${p.where})`);

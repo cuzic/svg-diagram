@@ -86,7 +86,7 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
   - 輪郭にするフォントは、**測ったときと同じ選び方**をする。今 Node で輪郭にできるのはテスト用の `test/helpers/text-engine.ts` だけ(sans の 400/700 だけ、family を見ない、`wght` を当てない)なので、`lib/` に輪郭用のフォントを新しく作る: `measureText` と同じく、family(sans / mono。測る側に serif はない)と太さごとにフォントのファイルを `resolveFontFile` で決め(`.svg-diagram.json` の `fonts`、なければ fontconfig)、可変フォントには同じ `wght` を当て、グリフがなければ測るときと同じ順(絵文字のフォント、次に sans)で借りる。`measureWithFonts` と同じ幅になることをテストで確かめる。
   - `serve` は起動時に、使う family と太さのフォントのファイルがすべて見つかり、harfbuzzjs が読めることを確かめ、足りなければ何が足りないかを出して止まる(測るほうは黙って Chromium に切り替わりうるが、輪郭はファイルがないと描けない)。`measure: 'chromium'` のプロジェクトでも、ファイルが見つかれば描き、測ったフォントと違いうることを 1 度警告する。
   - どのフォントにもないグリフだけを、そのスライドの誤り(場所付き)にする。絵文字は、手元のカラー絵文字のフォント(`lib/emoji-color.ts`)があれば輪郭(画像)にし、なければ `liveEmoji` で文字のまま残して警告する(測った幅と、端末で描かれる幅が違いうるため)。
-  - 輪郭にできない文字の飾り(`outlineText` の `unsupported`。WordArt の縁取りの `paint-order` など)は、黙って落とさずスライドの誤り(場所付き)にする(`lib/spec-edge.ts` と同じ扱い)。
+  - 文字の `stroke`・`stroke-linejoin`/`linecap`/`miterlimit`・`stroke-opacity`・`paint-order` は、輪郭(グリフの `<g>`)に引き継ぐ(`stroke-width` はグリフの縮尺で割る)。`<text>` 自身の `clip-path`・`mask`・`filter` は輪郭の `<g>` に移す。それでも輪郭にできない文字の飾り(`outlineText` の `unsupported`。WordArt の `spacing`(`letter-spacing`)と `arc`(`rotate`) など)は、黙って落とさずスライドの誤り(場所付き)にする(`lib/spec-edge.ts` と同じ扱い)。
   - 図の見た目は端末の設定に左右させない: `appearance: 'auto'` の図が持つ `@media (prefers-color-scheme: dark)` の塊は取り除いて明るい形で描き、`appearance: 'dark'` の図は PowerPoint と同じく背景の色の矩形を図の後ろに置く。
   - 9pt 未満の警告は、PowerPoint の XML から数える `minTextPt` が使えないので、SVG の側でも同じ値を出す計算を持ち、両方が同じになることをテストする。
   - 読み上げ: `<img>` の中の SVG の `<title>` は読まれないので、スライドの文字は `<img alt>` に入れ、スライドが変わったことは `aria-live` の領域で知らせる。
@@ -247,7 +247,7 @@ Slidev(`slidev slides.md`)のように、**デッキのファイルを渡すと�
 - Access の JWT の確かめ方が足りず、workers.dev や Worker 全体の Access では聴き手まで閉じる → `kid`・RS256・`aud`・`iss`・`exp`・`email` を確かめ、独自ドメインとパスを限ったアプリを README に(D13)。
 - `id` の署名に `SESSION_SECRET` を使うと、secret を替えたら配った URL と QR が全部使えなくなる → `newUniqueId()` / `idFromString()` にした(D12)。
 - `appearance: 'auto'` の図が端末のダークモードで暗くなり、暗い図に背景がなかった → 明るい形に固定し、暗い図には背景の矩形(D2)。
-- WordArt の縁取りなど輪郭にできない飾りが黙って消えた → スライドの誤り(D2)。
+- WordArt の字間・弧など輪郭にできない飾りが黙って消えた → スライドの誤り(D2)。
 - 1 枚 1 MiB では写真の帯で断られ、送る前に分からなかった → 既定を 4 MiB / 16 MiB にし、送る前に手元で同じ上限と許可リストに当てる。検査は Durable Object の中で(D12、D16)。
 - `worker/` は npm のパッケージに入らず、版のずれを見つける手段がなかった。Worker では `fs` で画面のファイルを読めない → タグで取ってくる手順、`/api/version` で送り受けの版を比べる、画面はビルドに入れる(D4、D11)。
 - 既定の `127.0.0.1` で LAN のアドレスの QR を出していた。Worker の URL は版 7 以上が要る → `127.0.0.1` のときは QR を出さず案内、版 1〜10 と版情報、上限のテスト、読み取りの往復は `jsqr`(D10)。

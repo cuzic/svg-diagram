@@ -91,7 +91,10 @@ test('what outlines would not reproduce is reported, whichever way it was writte
 
 test('what outlines would not reproduce is reported, not silently lost', () => {
   assert.deepEqual(outlineText(wrap('<text x="0" y="10" writing-mode="tb">A</text>'), fake, fakeBox).unsupported, ['writing-mode']);
-  assert.deepEqual(outlineText(wrap('<text x="0" y="10" stroke="#fff">A</text>'), fake, fakeBox).unsupported, ['stroke']);
+  // a stroke is not lost: it moves to the glyphs (WordArt outlines on slides)
+  const stroked = outlineText(wrap('<text x="0" y="10" stroke="#fff" stroke-width="2" paint-order="stroke">A</text>'), fake, fakeBox);
+  assert.deepEqual(stroked.unsupported, []);
+  assert.match(stroked.svg, /<g stroke="#fff" stroke-width="[\d.]+" paint-order="stroke">/);
 });
 
 // a real engine: HarfBuzz over the fonts the layout measures with
