@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="436" viewBox="0 0 640 436" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">貸出の申し込みの受け付け(例)</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"ladder-box-w640.ts","sourceSha256":"993f7d9337f5f33e78784c48382a1c82fff741dddb3c345fc657fe642016ff12","depsSha256":"cfa511326c617eeaf41e2b442bbff3de0577f2d7a9b6c77eecbdbf39d3221ee6"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="640" height="436" fill="#ffffff"/>
+
+  <path d="M292,40 L356,40" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M364,40 L352,44 L352,32 z" fill="#22201b"/>
+  <path d="M292,108 L356,108" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M364,108 L352,112 L352,100 z" fill="#22201b"/>
+  <path d="M292,176 L356,176" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M364,176 L352,180 L352,168 z" fill="#22201b"/>
+  <path d="M292,244 L356,244" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M364,244 L352,248 L352,236 z" fill="#22201b"/>
+  <path d="M292,320 L356,320" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M364,320 L352,324 L352,316 z" fill="#22201b"/>
+  <path d="M184,56 L184,80" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M184,88 L180,76 L192,76 z" fill="#22201b"/>
+  <path d="M184,124 L184,148" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M184,156 L180,144 L192,144 z" fill="#22201b"/>
+  <path d="M184,192 L184,216" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M184,224 L180,212 L192,212 z" fill="#22201b"/>
+  <path d="M184,260 L184,292" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M184,304 L180,292 L192,292 z" fill="#22201b"/>
+  <path d="M184,340 L184,372" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M184,380 L180,368 L192,368 z" fill="#22201b"/>
+  <rect x="80" y="20" width="212" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="364" y="20" width="196" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="80" y="88" width="212" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="364" y="88" width="196" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="80" y="156" width="212" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="364" y="156" width="196" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="80" y="224" width="212" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="364" y="224" width="196" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="80" y="304" width="212" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="364" y="292" width="196" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="80" y="380" width="212" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <text x="185" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">利用者カードを持っている？</text>
+  <text x="463" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">カードで受け付ける</text>
+  <text x="185" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">本人確認の書類がある？</text>
+  <text x="463" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">その場でカードを作る</text>
+  <text x="185" y="178" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">家族がカードを持っている？</text>
+  <text x="463" y="178" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">家族の同意書で受け付ける</text>
+  <text x="185" y="246" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">館内で読むだけ？</text>
+  <text x="463" y="246" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">閲覧席へ案内する</text>
+  <text x="185" y="324" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">予約だけしたい？</text>
+  <text x="463" y="314" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">仮予約の票を渡す</text>
+  <text x="463" y="334" text-anchor="middle" font-size="14" fill="#6f6659">7 日間有効</text>
+  <text x="185" y="402" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">後日の来館をお願いする</text>
+  <rect x="308" y="12" width="40" height="22" fill="#ffffff"/>
+  <text x="328" y="28" text-anchor="middle" font-size="14" fill="#22201b">はい</text>
+  <rect x="308" y="80" width="40" height="22" fill="#ffffff"/>
+  <text x="328" y="96" text-anchor="middle" font-size="14" fill="#22201b">はい</text>
+  <rect x="308" y="148" width="40" height="22" fill="#ffffff"/>
+  <text x="328" y="164" text-anchor="middle" font-size="14" fill="#22201b">はい</text>
+  <rect x="308" y="216" width="40" height="22" fill="#ffffff"/>
+  <text x="328" y="232" text-anchor="middle" font-size="14" fill="#22201b">はい</text>
+  <rect x="308" y="296" width="40" height="22" fill="#ffffff"/>
+  <text x="328" y="312" text-anchor="middle" font-size="14" fill="#22201b">はい</text>
+  <rect x="192" y="60" width="56" height="22" fill="#ffffff"/>
+  <text x="218" y="76" text-anchor="middle" font-size="14" fill="#22201b">いいえ</text>
+  <rect x="192" y="128" width="56" height="22" fill="#ffffff"/>
+  <text x="218" y="144" text-anchor="middle" font-size="14" fill="#22201b">いいえ</text>
+  <rect x="192" y="196" width="56" height="22" fill="#ffffff"/>
+  <text x="218" y="212" text-anchor="middle" font-size="14" fill="#22201b">いいえ</text>
+  <rect x="192" y="272" width="56" height="22" fill="#ffffff"/>
+  <text x="218" y="288" text-anchor="middle" font-size="14" fill="#22201b">いいえ</text>
+  <rect x="192" y="348" width="56" height="22" fill="#ffffff"/>
+  <text x="218" y="364" text-anchor="middle" font-size="14" fill="#22201b">いいえ</text>
+</svg>
