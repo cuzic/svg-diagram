@@ -37,7 +37,12 @@ for (const [name, wrap] of [
 
   test(`${name}: a hopeless stamp is still drawn and reported as stamp-too-wide`, async () => {
     const r = await checkDiagram(mk().add(wrap(HOPELESS)));
-    assert.ok(find(r).stampOver);
+    const b = find(r);
+    assert.ok(b.stampOver);
+    assert.ok(b.stampLines!.length > 2);
+    assert.equal(b.stampLines!.join(''), HOPELESS, 'every character kept, nothing re-joined with a space');
+    assert.equal(b.stampH, 24 + (b.stampLines!.length - 1) * 20);
+    assert.ok(b.stampW! <= b.w - 16, 'the chip stays inside the frame');
     assert.equal(r.verdict.ok, false);
     const f = r.verdict.problems.filter(p => /stamp/.test(p));
     assert.equal(f.length, 1);
@@ -64,9 +69,41 @@ test('fitStamp: one line when it fits, two when wrapping helps, two with `over` 
   const two = fitStamp(widthOf, WRAPS, ROLES, 200);
   assert.equal(two.lines?.length, 2); assert.equal(two.over, undefined); assert.ok(two.w <= 200 && two.h > STAMP_H);
   const bad = fitStamp(widthOf, HOPELESS, ROLES, 200);
-  assert.ok(bad.over && bad.w === 200);
+  assert.ok(bad.over && bad.lines!.length > 2 && bad.w <= 200);
   const msg = stampTooWideMessage('x', 200, bad.over!);
   assert.match(msg, /短くするか、枠を広げる/);
   assert.deepEqual(stampProblems({stamp: 'x', stampOver: bad.over, w: 216}), [msg]);
   assert.deepEqual(stampProblems({stamp: 'x', w: 216}), []);
+});
+
+test('an unbreakable word: the chip is as high as its lines (one), and a too-wide word is reported', async () => {
+  const {fitStamp} = await import('../lib/layout-util.ts');
+  const {measureAtoms} = await import('../lib/measure.ts');
+  const {ROLES} = await import('../lib/tokens.ts');
+  const word = 'averyveryverylongunbreakablepathname';
+  const m = await measureAtoms([word], {size: ROLES.note, weight: 400});
+  const fit = fitStamp(a => m.width(a), word, ROLES, 100);
+  assert.equal(fit.lines?.length, 1);
+  assert.equal(fit.h, 24);
+  assert.ok(fit.over);
+});
+
+test('layout-unused-space: a frame with a wrapped (taller) stamp is still not flagged for the room by its stamp', async () => {
+  const {frameLayoutFindings} = await import('../lib/layout-metrics.ts');
+  const b = {type: 'box', title: 't', tone: 'plain', x: 20, y: 20, w: 400, h: 130, stampW: 100, stampH: 64, wrappedRuns: [{lines: ['t'], lineYs: [16], size: 16}]};
+  assert.deepEqual(frameLayoutFindings({laidOut: [b]} as never).filter(f => f.rule === 'layout-unused-space'), []);
+});
+
+test('PowerPoint: a wrapped stamp is a badge of its lines at the one-line size, a one-line stamp is unchanged', async () => {
+  const {fontsOf, planSlide} = await import('../lib/pptx/slide.ts');
+  const xmlOf = async (stamp: string) => {
+    const r = await renderDiagram(mk().add(box({title: 'タイトル', body: '本文', stamp})), {name: 'x', budget: 'measure'});
+    return planSlide(r.laidOut, fontsOf()).xml;
+  };
+  const badge = (xml: string) => /name="stamp[^"]*"[\s\S]*?<\/p:sp>/.exec(xml)![0];
+  const size = (x: string) => [...x.matchAll(/sz="(\d+)"/g)].map(m => m[1]);
+  const one = badge(await xmlOf('仮説')), wrapped = badge(await xmlOf(WRAPS));
+  assert.deepEqual([...new Set(size(wrapped))], [...new Set(size(one))], 'the same font size as the one-line badge');
+  assert.equal((wrapped.match(/<a:br>/g) ?? []).length, 1, 'the two wrapped lines are separate lines of the badge');
+  assert.equal([...wrapped.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m => m[1]).join(''), WRAPS, 'every character kept');
 });

@@ -10,7 +10,7 @@ import type {Ctx} from './adapter.ts';
 import {boxBadge, stampBadge, textOf} from './box-decoration.ts';
 
 /** A box or banner, with the parts a box may carry beside its frame. */
-type BoxLike = TextBox & Pick<LaidOutOf<'box'>, 'id' | 'tag' | 'tagBox' | 'stamp' | 'stampW' | 'stampH' | 'step' | 'icon'>;
+type BoxLike = TextBox & Pick<LaidOutOf<'box'>, 'id' | 'tag' | 'tagBox' | 'stamp' | 'stampW' | 'stampH' | 'stampLines' | 'step' | 'icon'>;
 
 export const boxPptx = (b: BoxLike, ctx: Ctx): string => {
   const id = ctx.next();
@@ -19,7 +19,7 @@ export const boxPptx = (b: BoxLike, ctx: Ctx): string => {
   if (!b.tag && !b.stamp && b.step === undefined && !b.icon) return main;
   const extra: string[] = [];
   if (b.tag && b.tagBox) extra.push(boxBadge(ctx, b.tone, b.tag, b.tagBox, namedAs('tag', b.tag)));
-  if (b.stamp) extra.push(stampBadge(ctx, b, b.stamp));
+  if (b.stamp) extra.push(stampBadge(ctx, b, b.stamp, b.stampLines));
   // the icon glyph is not drawn yet (ADR 0027 follow-up): an empty frame in its place would read as a real shape
   if (b.step !== undefined && 'wrappedRuns' in b) {
     // as the SVG draws it: a circle in the accent with the number in white on the title's baseline

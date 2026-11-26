@@ -13,8 +13,8 @@ export function nowrapProblems(b: LaidOutBox): string[] {
   return (b.nowrapOverflow ?? []).map(o => `stat: value "${o.value}" does not fit its box even at the smallest size (${o.min}px: needs ${Math.ceil(o.width)}px, the box has ${Math.floor(o.avail)}px).\n  fix: widen the box (span / flex / width), shorten the value, or put the unit in the label.`);
 }
 
-/** stamp-too-wide: a stamp that does not fit its frame even on two lines (it is drawn, spilling out of its chip). */
-export function stampProblems(b: {stamp?: string; stampOver?: {width: number; avail: number}; w: number}): string[] {
+/** stamp-too-wide: a stamp that needs more than two lines, or has a word wider than its chip (it is drawn in full, the chip grown to fit). */
+export function stampProblems(b: {stamp?: string; stampOver?: {width: number; avail: number; lines: number}; w: number}): string[] {
   return b.stamp && b.stampOver ? [stampTooWideMessage(b.stamp, b.w - 16, b.stampOver)] : [];
 }
 
