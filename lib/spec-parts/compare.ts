@@ -10,7 +10,7 @@ export function defineComparePart<Result>(builder: (rows: never, cols: never, ce
     schema: object({
       type: {const: 'compare'},
       rows: list(text('A criterion.', 30), 12, 1),
-      cols: list(text('An option.', 20), 6, 1),
+      cols: {...list(text('An option.', 20), 6, 1), description: 'The options, at most 6. With more, put the options as rows and the criteria as columns (when there are at most 6 of them), or split into two figures.'},
       cells: list({type: 'array', items: object({
         mark: {...oneOf('◎', '○', '△', '×', '-'), description: "◎ best, ○ good, △ fair, × poor; '-' not rated (drawn as a dash, with no note)."},
         note: text('Why: the reason for the mark, in a phrase.', 40),

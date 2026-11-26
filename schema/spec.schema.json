@@ -237,7 +237,7 @@
               "A business process in BPMN style: lanes (who) as rows, tasks, a start and an end event, and gateways (xor: one way, and: all ways in parallel, or: some ways) joined by flows. A flow out of a gateway carries its condition as a label; a dashed flow is a message between lanes. The columns follow the flow; a wide figure is narrowed to fit.",
               "A UML class diagram: classes with attributes and methods, and relations. inherit and implement run from the child to the parent (triangle at the parent); compose and aggregate put the diamond on `from`, the whole; arrow is a directed association, depend a dashed dependency, assoc a plain line. Parents are placed above.",
               "A PERT network (activity on node): tasks with a duration and the tasks that must finish first. The earliest and latest start and finish, the slack and the critical path (zero slack, drawn in red) are worked out. No task may depend on itself, directly or round a circle.",
-              "A time axis, in one of two forms. Date form: from and to as dates ('YYYY', 'YYYY-MM', 'YYYY-MM-DD'), now (today, always written out) and the deadline the figure is about; the time left between them is written ('あと 1 年 3 か月'); marks add other dates. Number form: unit ('ms', '日' ...), from and to as numbers, lanes (rows), events (dots) and spans (bars, or a dimension line with dim).",
+              "A time axis, in one of two forms. Date form: dates are 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD'. Give any of now (today, always written out), the deadline the figure is about and marks (other dates); with both now and deadline the time left between them is written ('あと 1 年 3 か月'). from and to may be left out: the axis then runs from the first to the last date with a little padding. Number form: unit ('ms', '日' ...), from and to as numbers, lanes (rows), events (dots) and spans (bars, or a dimension line with dim).",
               "A tree of boxes joined by lines, such as an organization, a breakdown of work (WBS) or a category hierarchy: the root at the top (or the left with dir right), each node with its children below it.",
               "A dependency network: things (services, modules, teams) and typed arrows between them: depends, uses, blocks or relates. A node kind and each arrow type are named in a legend; a weight thickens the arrow.",
               "A fault tree (FTA): the top event (the failure to prevent) at the top, a logic gate under each event (and, or, vote, inhibit) and its inputs below, down to basic events (circles) and undeveloped events (diamonds). An event with no gate needs a kind. `{ref: id}` repeats a basic event that feeds two gates. cutSets marks the events that alone cause the top event; quant works out its probability from every basic event's p.",
@@ -2517,7 +2517,7 @@
           },
           {
             "label": "timeline",
-            "description": "A time axis, in one of two forms. Date form: from and to as dates ('YYYY', 'YYYY-MM', 'YYYY-MM-DD'), now (today, always written out) and the deadline the figure is about; the time left between them is written ('あと 1 年 3 か月'); marks add other dates. Number form: unit ('ms', '日' ...), from and to as numbers, lanes (rows), events (dots) and spans (bars, or a dimension line with dim).",
+            "description": "A time axis, in one of two forms. Date form: dates are 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD'. Give any of now (today, always written out), the deadline the figure is about and marks (other dates); with both now and deadline the time left between them is written ('あと 1 年 3 か月'). from and to may be left out: the axis then runs from the first to the last date with a little padding. Number form: unit ('ms', '日' ...), from and to as numbers, lanes (rows), events (dots) and spans (bars, or a dimension line with dim).",
             "body": {
               "type": "timeline",
               "from": "2026-01",
@@ -8948,12 +8948,10 @@
         }
       },
       "required": [
-        "type",
-        "from",
-        "to"
+        "type"
       ],
       "additionalProperties": false,
-      "description": "A time axis, in one of two forms. Date form: from and to as dates ('YYYY', 'YYYY-MM', 'YYYY-MM-DD'), now (today, always written out) and the deadline the figure is about; the time left between them is written ('あと 1 年 3 か月'); marks add other dates. Number form: unit ('ms', '日' ...), from and to as numbers, lanes (rows), events (dots) and spans (bars, or a dimension line with dim)."
+      "description": "A time axis, in one of two forms. Date form: dates are 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD'. Give any of now (today, always written out), the deadline the figure is about and marks (other dates); with both now and deadline the time left between them is written ('あと 1 年 3 か月'). from and to may be left out: the axis then runs from the first to the last date with a little padding. Number form: unit ('ms', '日' ...), from and to as numbers, lanes (rows), events (dots) and spans (bars, or a dimension line with dim)."
     },
     "part.tree": {
       "type": "object",
@@ -12044,7 +12042,8 @@
             "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
           },
           "minItems": 1,
-          "maxItems": 6
+          "maxItems": 6,
+          "description": "The options, at most 6. With more, put the options as rows and the criteria as columns (when there are at most 6 of them), or split into two figures."
         },
         "cells": {
           "type": "array",

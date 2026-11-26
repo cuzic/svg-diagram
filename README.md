@@ -307,7 +307,7 @@ Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使�
 | wireframe(root, {title, tag, h, frame, notes, skeleton}) | 画面 1 枚のローファイ・ワイヤーフレーム + 番号つき注釈欄。部品は `wf.*`（下記）。`n:` で番号の丸、`mark:'new'/'changed'` で新規・改修の枠 |
 | screens(items, {cols, gap, rowGap, h, skeleton}) | 画面のサムネイルを並べる（画面遷移図）。item の `at:[行, 列]`（列は小数可）で配置、各 `id` を `connect()` で結ぶ。`skeleton` で文字を帯に |
 | stateMatrix(cols, rows, {required, cellH, cellFrame}) | 部品の**状態の一覧**。行=部品、列=状態（通常・読み込み中・空・エラー…）。欄は `wf.*` の図、`'na'` / `{na: '理由'}`（対象外）、未指定（**未設計**。`check` が警告）。`required` の列がなければ警告。行は `stateRow('在庫カード', stock, {通常: {}, 読み込み中: 'loading', ...})` で「部品 1 つ + 状態ごとの差分」としても書ける |
-| timeline({from, to, now, deadline, marks, remaining}) | 横軸が時間の部品。期限（danger 色の大きな点）、今日、途中の日付（`marks`）を旗で示し、今日から期限までを太い帯と「あと 1 年 5 か月」で見せる。詳細は下の「時間軸と期限」 |
+| timeline({from?, to?, now?, deadline?, marks?, remaining?}) | 横軸が時間の部品。期限（danger 色の大きな点）、今日、途中の日付（`marks`）を旗で示し、今日から期限までを太い帯と「あと 1 年 5 か月」で見せる。詳細は下の「時間軸と期限」 |
 | timeline({unit, from, to, lanes, events, spans}) | **数値の軸**（`unit: 'ms'`、`from: 0`、`to: 700`）の時間軸。レーン・イベント（点と名前と値）・区間（棒、`dim: true` なら寸法線で長さを自動で書く）。下の「数値の時間軸」 |
 | steps(items, {numbered, highlight, highlightTone, arrows, id}) | 日付のない「順序だけの出来事」。番号バッジ・アイコン・タグ・本文つきの箱を矢印でつなぎ、1つだけ強調する。中身は普通の `row()`（`id#n` で `connect()`・`bracket()` の端点になる）。下の「順序だけの出来事」 `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
 | bracket(from, to, {label, side, tone}) / callout(target, {text, side}) | 注釈用のコネクタ。`bracket` は 2 つの箱にまたがる括弧、`callout` は箱を指す吹き出し。下の「注釈のコネクタ」 |
@@ -1030,11 +1030,12 @@ timeline({
 })
 ```
 
-- 日付は `'YYYY'` / `'YYYY-MM'` / `'YYYY-MM-DD'`（年・月だけなら、その初日）。**`now` は必ず書く**（ビルドは時計を読まないので、同じソースは同じ SVG になる）。`from` < `to`、`now` / `deadline` / `marks` が軸の外にある、実在しない日付、`deadline.label` が空、は throw。
+- 日付は `'YYYY'` / `'YYYY-MM'` / `'YYYY-MM-DD'`（年・月だけなら、その初日）。`now` は書くなら日付を明示する（ビルドは時計を読まないので、同じソースは同じ SVG になる）。`from` < `to`、`now` / `deadline` / `marks` が軸の外にある、実在しない日付、`deadline.label` が空、`now` `deadline` `marks` が 1 つも無い、は throw。
+- **`now` と `deadline` は省ける**。省いた側の旗・帯・残りの文言は出ない（両方そろったときだけ、今日から期限までの帯と「あと …」が出る）。`from` / `to` も省ける: 省いた端は、`now` / `deadline` / `marks` の最初（最後）の日付から、間隔の 8%（3 日以上）だけ外に取る。期限のない予定の並びは `timeline({marks: [{at: '2026-12-01', label: '試作'}, …]})` だけで描ける（例は `examples/timeline-marks-only.ts`）。日付を持たない「明日・来週・1 か月後」のような相対の点は日付の形では書けない。数値の形（下）で `unit: '日'`、`events: [{at: 1, label: …}, {at: 7, …}, {at: 30, …}]` のように今日からの日数で置く（値が `7日` と添わる）。
 - 今日から期限までは太い帯（期限が先なら accent、過ぎていれば danger）で、下の括弧に残りを書く。既定の文言は暦の月で数える（`あと 1 年 5 か月` / `あと 5 か月` / 1 か月未満は `あと 19 日` / 過ぎていれば `期限を 2 か月 過ぎた`）。`remaining: '残り 1.5 年'` で文言を替え、`remaining: false` で文言と括弧を消す（帯は残る）。
 - `deadline: {…, line: 'full'}` は、期限の縦線を図の高さいっぱいに引く（danger 色。どの文字もこの線にかからないよう旗の位置を選び、かかるなら verify が止める。期限の旗は線の右に置く）。`span: 'fill'` は、今日から期限までを、軸の上下 12px ずつの淡い面（accent のとき `soft`、期限を過ぎていれば `border` 色）で塗る（既定の `'bar'` は軸上の太線）。目盛りの文字は面にかからないよう 4px 下げる。例は `examples/timeline-line-fill.ts`。
 - 旗（今日・期限・`marks`）は、日付が近いと段を変えて階段にする（左の旗が高い）。旗は茎の位置から右へ置き、収まらなければ中央・左へ。最大 5 段で、それでも文字が重なるなら throw（マークを減らす・短くする・幅を広げる）。検査（verify）は、文字どうしの重なりと図からのはみ出しも止める。
-- 目盛りは範囲に応じて 1 / 3 / 6 / 12 か月…刻み（約 8 本まで）。文字は 14px 固定。`id` は `connect()` の端点と spotlight の対象になり、`reveal` は図全体に付く。例は `examples/timeline.ts`（ふつう）と `examples/timeline-crowded.ts`（日付が近い旗）。
+- 目盛りは範囲に応じて 1 / 3 / 6 / 12 か月…刻み（約 8 本まで）。軸が 2 か月未満なら、日単位の目盛り（`12/7` の形）を、1 日ごと・2 日ごと・月曜ごと・隔週の月曜ごと（各 16 本まで）の順に、ラベルが重ならない最も細かいものを図の幅で選ぶ（どれも収まらなければ月目盛り）。年をまたぐときは、新しい年の最初の目盛りに年が付く（`2027/1/4`）。`remaining` / `span` は `now` と `deadline` の両方があるときだけ書ける（片方だけなら throw）。文字は 14px 固定。`id` は `connect()` の端点と spotlight の対象になり、`reveal` は図全体に付く。例は `examples/timeline.ts`（ふつう）と `examples/timeline-crowded.ts`（日付が近い旗）。
 
 ### 数値の時間軸（`timeline({unit})`）
 

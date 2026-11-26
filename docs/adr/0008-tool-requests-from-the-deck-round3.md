@@ -56,7 +56,7 @@
 | 2 | `until: n`(段階 n で消える)、bars の `replaces: '<id>'`(同じ位置で入れ替わる) | #48, #54 |
 | 3 | `people(total, count \| [k1, k2], opts)`、`side` で数字を横に、`tone` に muted | #47 |
 | 4 | `image(src, {marks, labels, over, labelRole})`。文字は不透明な板の上のみ。`over` で絵の上に箱を重ねる | #50 |
-| 5 | `timeline({from, to, now, deadline, marks, span: 'fill'})`、`deadline.line: 'full'` | #49, #55 |
+| 5 | `timeline({from, to, now, deadline, marks, span: 'fill'})`、`deadline.line: 'full'`(2026-11-26: `now` / `deadline` / `from` / `to` は省ける。期限のない日付の並びは `marks` だけで描く) | #49, #55 |
 | 6 | `dots(values, {zones})` | #47 |
 | 7 | `diagram({canvas: 'slide'})`(既定 1280x720、最小文字 24px)。検査 `slide-min-text`、`slide-canvas-overflow` | #51 |
 | 8 | `diagram({sourceLine})`(図の最下行、左寄せ、14px) | #49 |

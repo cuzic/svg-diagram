@@ -4,7 +4,7 @@ import type {FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {LaidOutTimeline, NumericTimelineBand, TimelineBand, TimelineTone} from './types/timeline.ts';
 
 import {must} from './must.ts';
-import {MS_DAY, ticksOf, timelineDay} from './calendar-axis.ts';
+import {fineTickSets, MS_DAY, ticksOf, timelineDay} from './calendar-axis.ts';
 export {ticksOf, timelineDay} from './calendar-axis.ts';
 const FLAG_GAP = 6, STEM_MIN = 16, DOT = 8, TICK = 6, MAX_LEVELS = 5;
 const TONE_COLOR: Record<TimelineTone, 'accent' | 'danger' | 'muted'> = {accent: 'accent', danger: 'danger', muted: 'muted'};
@@ -26,8 +26,8 @@ interface Flag {label: string; at: string; tone: TimelineTone; bold: boolean; x:
 /** The flags in drawing order: now, the deadline, the marks. Flags on the same day are one flag (one stem): labels joined with '・', the deadline's look wins. */
 const flagsOf = (band: TimelineBand): Omit<Flag, 'x' | 'w' | 'left' | 'level'>[] => {
   const all: Omit<Flag, 'x' | 'w' | 'left' | 'level'>[] = [
-    {label: band.now.label ?? '現在', at: band.now.at, tone: 'accent', bold: true, big: false},
-    {label: band.deadline.label, at: band.deadline.at, tone: 'danger', bold: true, big: true},
+    ...(band.now ? [{label: band.now.label ?? '現在', at: band.now.at, tone: 'accent' as const, bold: true, big: false}] : []),
+    ...(band.deadline ? [{label: band.deadline.label, at: band.deadline.at, tone: 'danger' as const, bold: true, big: true}] : []),
     ...(band.marks ?? []).map(m => ({label: m.label, at: m.at, tone: m.tone ?? 'muted', bold: false, big: false})),
   ];
   const out: typeof all = [];
@@ -46,26 +46,35 @@ export function timelineTexts(band: TimelineBand | NumericTimelineBand, roles: R
   if ('unit' in band) return numericTexts(band, roles);
   const S = roles.note, out: [string, number, number, FontFamily][] = [];
   for (const f of flagsOf(band)) out.push([f.label, S, 700, 'sans'], [f.at, S, 400, 'sans']);
-  const from = timelineDay(band.from, 'from'), to = timelineDay(band.to, 'to');
-  for (const t of ticksOf(from, to)) out.push([t.label, S, 400, 'sans']);
+  const {from, to} = axisOf(band);
+  for (const t of [...fineTickSets(from, to).flat(), ...ticksOf(from, to)]) out.push([t.label, S, 400, 'sans']);
   const r = remainingLabel(band);
   if (r) out.push([r, S, 700, 'sans']);
   return out;
 }
-const remainingLabel = (band: TimelineBand): string => band.remaining === false ? '' : band.remaining ?? remainingText(band.now.at, band.deadline.at);
+const remainingLabel = (band: TimelineBand): string => !band.now || !band.deadline || band.remaining === false ? '' : band.remaining ?? remainingText(band.now.at, band.deadline.at);
+
+/** The axis in days. A missing `from` / `to` is the earliest / latest item (now, deadline, marks), padded by 8% of the items' span (at least 3 days) so the end flags do not sit on the axis ends. */
+export function axisOf(band: TimelineBand): {from: number; to: number; label: string} {
+  const items = [band.now?.at, band.deadline?.at, ...(band.marks ?? []).map(m => m.at)].filter((a): a is string => a !== undefined).map(a => timelineDay(a, 'at'));
+  const lo = Math.min(...items), hi = Math.max(...items), pad = Math.max(3, Math.ceil((hi - lo) * 0.08));
+  const from = band.from === undefined ? lo - pad : timelineDay(band.from, 'from'), to = band.to === undefined ? hi + pad : timelineDay(band.to, 'to');
+  const iso = (d: number): string => new Date(d * MS_DAY).toISOString().slice(0, 10);
+  return {from, to, label: `${band.from ?? iso(from)} - ${band.to ?? iso(to)}`};
+}
 
 export function layoutTimeline(band: TimelineBand | NumericTimelineBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutTimeline {
   if ('unit' in band) return layoutNumeric(band, x, y, w, widthOf, roles);
   const S = roles.note, LH = Math.round(S * 20 / 14), FLAG_H = 2 * LH;
-  const from = timelineDay(band.from, 'from'), to = timelineDay(band.to, 'to');
+  const {from, to, label: axisLabel} = axisOf(band);
   const plotL = x + 12, plotR = x + w - 12;
   if (plotR - plotL < 200) throw new Error('timeline(): the figure is too narrow (200px of axis at least)');
   const px = (at: string, what: string): number => {
     const day = timelineDay(at, what);
-    if (day < from || day > to) throw new Error(`timeline(): ${what} (${at}) is outside the axis (${band.from} - ${band.to})`);
+    if (day < from || day > to) throw new Error(`timeline(): ${what} (${at}) is outside the axis (${axisLabel})`);
     return plotL + (day - from) / (to - from) * (plotR - plotL);
   };
-  const full = band.deadline.line === 'full', dlAt = px(band.deadline.at, 'deadline.at');
+  const full = band.deadline?.line === 'full', dlAt = band.deadline ? px(band.deadline.at, 'deadline.at') : 0;
   const flags: Flag[] = flagsOf(band).map(f => {
     const fx = px(f.at, 'at');
     const fw = Math.max(textWidth(widthOf, f.label, S, 700), textWidth(widthOf, f.at, S, 400)) + 8;
@@ -109,14 +118,19 @@ export function layoutTimeline(band: TimelineBand | NumericTimelineBand, x: numb
     text(f.label, cx, boxTop + S + 1, 'middle', f.tone === 'muted' ? 'text' : f.tone, true, undefined, part);
     text(f.at, cx, boxTop + LH + S + 1, 'middle', 'muted', false, undefined, part);
   }
-  const nowX = px(band.now.at, 'now.at'), dlX = px(band.deadline.at, 'deadline.at');
-  out.span = {x1: Math.min(nowX, dlX), x2: Math.max(nowX, dlX), y: axisY, tone: nowX <= dlX ? 'accent' : 'danger', ...(fillSpan ? {fill: true} : {})};
+  const nowX = band.now ? px(band.now.at, 'now.at') : 0, dlX = dlAt;
+  if (band.now && band.deadline) out.span = {x1: Math.min(nowX, dlX), x2: Math.max(nowX, dlX), y: axisY, tone: nowX <= dlX ? 'accent' : 'danger', ...(fillSpan ? {fill: true} : {})};
   // tick labels: centred on their tick, kept inside the figure; a label the deadline line would cross moves to the line's side its tick is on
   // (and is left out, tick kept, if that lands on another label)
   const ty = axisY + TICK + S + 2 + tickDrop;
   const crosses = (left: number, tw: number): boolean => full && dlX >= left - 3 && dlX <= left + tw + 3;
   const placed: {label: string; left: number; tw: number; moved: boolean}[] = [];
-  for (const t of ticksOf(from, to)) {
+  // a short axis gets day-level ticks: the finest set whose labels sit apart at this width (else the month ticks, as ever)
+  const at = (t: {day: number; label: string}): {left: number; tw: number} => { const tw = textWidth(widthOf, t.label, S, 400); return {tw, left: Math.min(Math.max(plotL + (t.day - from) / (to - from) * (plotR - plotL) - tw / 2, x), x + w - tw)}; }; // as drawn below, end clamp included
+  const clash = (a: {left: number; tw: number}, b: {left: number; tw: number}): boolean => a.left < b.left + b.tw + 6 && b.left < a.left + a.tw + 6;
+  const apart = (set: {day: number; label: string}[]): boolean => set.every((t, i) => i === 0 || !clash(at(must(set[i - 1])), at(t)));
+  const ticks = fineTickSets(from, to).find(apart) ?? ticksOf(from, to);
+  for (const t of ticks) {
     const tx = plotL + (t.day - from) / (to - from) * (plotR - plotL);
     out.ticks.push({x: tx, y1: axisY, y2: axisY + TICK});
     const tw = textWidth(widthOf, t.label, S, 400);
@@ -124,14 +138,13 @@ export function layoutTimeline(band: TimelineBand | NumericTimelineBand, x: numb
     if (crosses(left, tw)) { left = tx >= dlX ? dlX + 6 : dlX - 6 - tw; moved = true; }
     placed.push({label: t.label, left, tw, moved});
   }
-  const clash = (a: {left: number; tw: number}, b: {left: number; tw: number}): boolean => a.left < b.left + b.tw + 6 && b.left < a.left + a.tw + 6;
   for (const p of placed) {
     if (p.moved && (p.left < x || p.left + p.tw > x + w || placed.some(o => o !== p && clash(p, o)))) continue;
     text(p.label, p.left, ty, 'start', 'muted', false, p.tw, TIMELINE_AXIS);
   }
   let bottom = axisY + TICK + S + 2 + 4 + tickDrop;
   const rem = remainingLabel(band);
-  if (rem) {
+  if (rem && out.span) {
     const by = bottom + 8;
     const part = partStep('remaining', 0, rem);
     if (out.span.x2 > out.span.x1) out.bracket = {x1: out.span.x1, x2: out.span.x2, y: by, tone: out.span.tone, part};
