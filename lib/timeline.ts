@@ -1,5 +1,4 @@
 import {splitAtoms, textWidth} from './atoms.ts';
-import {wrapAtoms} from './wrap.ts';
 import {partStep, TIMELINE_AXIS} from './parts.ts';
 import type {FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {LaidOutTimeline, NumericTimelineBand, TimelineBand, TimelineTone} from './types/timeline.ts';
@@ -9,6 +8,17 @@ import {fineTickSets, MS_DAY, ticksOf, timelineDay} from './calendar-axis.ts';
 export {ticksOf, timelineDay} from './calendar-axis.ts';
 const FLAG_GAP = 6, STEM_MIN = 16, DOT = 8, TICK = 6, MAX_LEVELS = 5;
 const TONE_COLOR: Record<TimelineTone, 'accent' | 'danger' | 'muted'> = {accent: 'accent', danger: 'danger', muted: 'muted'};
+
+function wrapLane(text: string, max: number, atomW: (a: string) => number): string[] {
+  const lines: string[] = [];
+  let line = '', w = 0;
+  for (const a of splitAtoms(text)) {
+    const aw = atomW(a);
+    if (line && w + aw > max && !/^[\s、。）」,.)]/.test(a)) { lines.push(line.trimEnd()); line = ''; w = 0; }
+    if (line || a.trim()) { line += a; w += aw; }
+  }
+  return line ? [...lines, line.trimEnd()] : lines;
+}
 
 /** "あと 1 年 3 か月" / "あと 45 日"; past the deadline: "期限を 2 か月 過ぎた". Whole months by calendar, days only under a month. */
 export function remainingText(from: string, to: string): string {
@@ -180,7 +190,7 @@ function numericTexts(band: NumericTimelineBand, roles: Roles): [string, number,
   const S = roles.note, out: [string, number, number, FontFamily][] = [];
   for (const e of band.events ?? []) out.push([e.label, S, 700, 'sans'], [`${fmt(e.at)}${band.unit}`, S, 400, 'sans']);
   for (const sp of band.spans ?? []) { const l = spanLabel(sp, band.unit); if (l) out.push([l, S, sp.dim ? 700 : 400, 'sans']); }
-  for (const l of band.lanes ?? []) out.push([l, S, 700, 'sans'], ...splitAtoms(l).map((a): [string, number, number, FontFamily] => [a, S, 700, 'sans']));
+  for (const l of band.lanes ?? []) out.push([l, S, 700, 'sans']);
   // layout also sizes the auto step by the `to` label, which is no tick when `to` is off the step grid: measure it too
   const ticks = new Set<number>([band.to, ...numericTicks(band.from, band.to, band.step, 40)]);
   for (const t of ticks) out.push([`${fmt(t)}${band.unit}`, S, 400, 'sans']);
@@ -190,9 +200,8 @@ function numericTexts(band: NumericTimelineBand, roles: Roles): [string, number,
 function layoutNumeric(band: NumericTimelineBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutTimeline {
   const S = roles.note, LH = Math.round(S * 20 / 14), FLAG_H = 2 * LH, ROW_PAD = 8, BAR_H = 24, BAR_ROW = BAR_H + 8, DIM_ROW = LH + 10;
   const unit = band.unit, lanes: (string | undefined)[] = band.lanes?.length ? band.lanes : [undefined];
-  // a long lane name wraps inside a column of at most 28% of the figure, so the axis keeps the rest
   const laneCap = Math.max(60, Math.floor((w - 24) * 0.28)), laneLines = new Map<string, string[]>();
-  for (const l of band.lanes ?? []) laneLines.set(l, textWidth(widthOf, l, S, 700) <= laneCap ? [l] : wrapAtoms(splitAtoms(l), {maxWidth: laneCap, atomWidth: a => widthOf(a, S, 700, 'sans'), mode: 'phrase'}));
+  for (const l of band.lanes ?? []) laneLines.set(l, wrapLane(l, laneCap, a => widthOf(a, S, 700, 'sans')));
   const laneW = band.lanes?.length ? Math.max(...[...laneLines.values()].flat().map(l => textWidth(widthOf, l, S, 700))) + 12 : 0;
   const plotL = x + 12 + laneW, plotR = x + w - 12;
   if (plotR - plotL < 200) throw new Error('timeline(): the figure is too narrow (200px of axis at least)');
@@ -276,11 +285,9 @@ function layoutNumeric(band: NumericTimelineBand, x: number, y: number, w: numbe
       rowTop += rh;
     }
     cursor = Math.max(rowTop, dotY + 6) + ROW_PAD;
-    if (name !== undefined) {
-      const ls = laneLines.get(name) ?? [name];
-      cursor = Math.max(cursor, top + ls.length * LH + ROW_PAD);
-      ls.forEach((ln, k) => text(ln, x + 12, (top + cursor) / 2 - (ls.length - 1) * LH / 2 + k * LH + S / 2 - 2, 'start', 'muted', true));
-    }
+    const ls = laneLines.get(name ?? '') ?? [];
+    cursor = Math.max(cursor, top + ls.length * LH + ROW_PAD);
+    ls.forEach((ln, k) => text(ln, x + 12, (top + cursor - (ls.length - 1) * LH) / 2 + k * LH + S / 2 - 2, 'start', 'muted', true));
     if (li < lanes.length - 1) must(out.guides).push({x1: x, x2: x + w, y: cursor});
   });
   const axisY = cursor + 4;
