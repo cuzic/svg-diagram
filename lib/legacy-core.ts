@@ -234,13 +234,14 @@ const legacyDiagramFindings: CoreFindings = (diagram, _stage, definitionOf) => {
     ...bands.filter(data => !worded.has(data)).map(data => [data, defOf(data)?.verify?.tones?.(data) ?? []] as const),
     ...diagram.laidOut.map(laid => [laid, definitionOf(laid)?.verify?.layoutTones?.(laid as never) ?? []] as const),
   ];
+  const marks = new Map(bands.flatMap(data => { const m = defOf(data)?.verify?.toneMarks?.(data); return m ? [[data, m] as const] : []; }));
   const tones = toneEnv(diagram.tones);
   const colorFindings = (side: LaidOutDiagram) => {
     const out: Finding[] = [];
     textContrast(side, tones, out);
     colourOnlyEmphasis(side, out);
     nonTextContrast(side, tones, out);
-    return [...out, ...grayToneFindings(side, tones, samples)];
+    return [...out, ...grayToneFindings(side, tones, samples, marks)];
   };
   const colors = diagram.appearance === 'auto'
     ? mergeSides(
