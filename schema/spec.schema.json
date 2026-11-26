@@ -7449,7 +7449,7 @@
         },
         "linkLabels": {
           "type": "boolean",
-          "description": "false: no values on the ribbons."
+          "description": "false: no values on the ribbons. values: false turns them off too (linkLabels: true does not bring them back)."
         },
         "values": {
           "type": "boolean",

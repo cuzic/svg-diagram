@@ -20,7 +20,7 @@ export interface SankeyOpts extends ChartOpts {
   unit?: string;
   /** Where the nodes with no outflow go: 'justify' (the last layer, default) or 'left' (where their longest path ends). */
   align?: 'justify' | 'left';
-  /** Print the value on each ribbon thick enough for it (default true). */
+  /** Print the value on each ribbon thick enough for it (default true). `values: false` turns it off too. */
   linkLabels?: boolean;
   /** false: names only, no value on a node or a ribbon (the shape of the flow; the widths and the alt text keep the values). Default true. */
   values?: boolean;

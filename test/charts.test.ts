@@ -401,6 +401,14 @@ test('sankey(): values: false leaves the names only on the nodes and no number o
   assert.throws(() => sankey(FLOW.nodes, FLOW.links, {values: 'no' as never}), /values/);
 });
 
+test('sankey(): values: false on a doc diagram without a title warns bars-values-hidden (the values then reach nobody); a title silences it', async () => {
+  const make = (extra: object, opts: object) => diagram({theme: 'blue', medium: 'doc', ...extra}).add(sankey(FLOW.nodes, FLOW.links, opts));
+  const rules = async (d: ReturnType<typeof make>) => (await checkDiagram(d)).verdict.findings.map(f => f.rule);
+  assert.ok((await rules(make({}, {values: false}))).includes('bars-values-hidden'));
+  assert.ok(!(await rules(make({title: '題名'}, {values: false}))).includes('bars-values-hidden'));
+  assert.ok(!(await rules(make({}, {}))).includes('bars-values-hidden'));
+});
+
 test('sankey(): a sink goes to the last layer (align: left keeps it where its path ends); a cycle, an unknown node, a duplicate link are errors', () => {
   const sp = (align: 'justify' | 'left') => layersOf(resolveSankey(['a', 'b', 'c', 'd'], [{from: 'a', to: 'b', value: 1}, {from: 'b', to: 'c', value: 1}, {from: 'a', to: 'd', value: 1}], {align}));
   assert.equal(sp('justify').get('d'), 2);
