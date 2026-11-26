@@ -8,12 +8,12 @@ import {fitFailure, isNoFit, type NoFit, widerThan} from './fit-width.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
 import {must} from './must.ts';
-import {stepBadgeGeom, tooTall} from './layout-util.ts';
+import {LADDER_SLIDE_ASPECT, stepBadgeGeom, tooTall} from './layout-util.ts';
 import type {Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {LaidOutStates, StatesBand} from './types/diagrams.ts';
 
 const MIN_BOX = 80, STEP = 8, TAIL = 4;
-const GAP_FLOOR = 20, LEAD_PAD = 12; // the least row gap, for a ladder without arrow words (with them the strip must hold the no chip: lh + 3); the space left of a numbered question's badge
+const GAP_FLOOR = 20, LEAD_PAD = 12; // the least row gap, for a ladder without arrow words: the arrowhead (12) + 8 (with words the strip must hold the no chip: lh + 3); the space left of a numbered question's badge
 const grid4 = (v: number): number => Math.ceil(v / 4) * 4;
 type Col = {lines: NodeLines[]; w: number};
 
@@ -99,7 +99,7 @@ export function layoutLadder(band: StatesBand, x: number, y: number, w: number, 
   const rowGap = (g: number): number => Math.max(g, needed);
   const stacked = (g: number): number => rise(0, must(heights[0])) + heights.reduce((t, rh) => t + rh + rowGap(g), 0) + must(qc.lines[n]).h;
   let rowG = Math.round(32 * sp);
-  while (tooTall(stacked(rowG), w) && rowG > Math.round(GAP_FLOOR * sp)) rowG = Math.max(Math.round(GAP_FLOOR * sp), rowG - 2);
+  while (tooTall(stacked(rowG), w) && rowG > GAP_FLOOR) rowG = Math.max(GAP_FLOOR, rowG - 2);
   const tops: number[] = [];
   let cy = y + rise(0, must(heights[0])); // the first yes chip rises above its row: the band starts above it
   for (const rh of heights) { tops.push(cy); cy += rh + rowGap(rowG); }
@@ -116,14 +116,17 @@ export function layoutLadder(band: StatesBand, x: number, y: number, w: number, 
   }
   place(2 * n, must(qc.lines[n]), qRect(n));
   out.h = qRect(n).y + must(qc.lines[n]).h - y;
-  // The band width at which every answer's `sub` is on one line (the narrowest, in 8px steps): what the `ladder-height-bound` finding names. Only worked out for a figure too tall for a slide.
-  if (!probe && tooTall(out.h, w) && band.states.some((s, i) => i % 2 === 1 && s.sub)) {
-    const oneLine = (m: number): boolean => {
+  // The width that draws this figure larger on a slide: lay it out at the other widths and score each by the text scale of a slide's figure room (min(room w / W, room h / H) with
+  // the room 0.47 as tall as wide; the diagram is the band + 40px margins). Named by `ladder-height-bound` only when it beats this width by 3 %. Only for a figure too tall for a slide.
+  if (!probe && tooTall(out.h, w)) {
+    const score = (bw: number, bh: number): number => Math.min(1 / (bw + 40), LADDER_SLIDE_ASPECT / (bh + 40)), now = score(w, out.h);
+    let top = {w, h: out.h, s: now};
+    for (let m = 380; m <= 900; m += 8) {
+      if (m === w) continue;
       const l = layoutLadder(band, x, y, m, widthOf, roles, env, true);
-      if (isNoFit(l)) return false;
-      return aIds.every(k => { const r = must(l.anchors[k]); return l.texts.filter(t => t.muted && t.x > r.x && t.x < r.x + r.w && t.y > r.y && t.y < r.y + r.h).length <= 1; });
-    };
-    for (let m = 320; m <= 900; m += 8) if (oneLine(m)) { out.oneLineW = m; break; }
+      if (!isNoFit(l) && score(m, l.h) > top.s) top = {w: m, h: l.h, s: score(m, l.h)};
+    }
+    if (top.w !== w && top.s >= now * 1.03) out.betterW = {w: top.w, fromH: out.h, toH: top.h, gain: top.s / now};
   }
   return out;
 }

@@ -127,26 +127,39 @@ test('tooTall: the diagram (the band and its 40px margins) against 0.47 of its w
   assert.equal(tooTall(200, 600), false);
 });
 
-const finding = async (width: number) => (await laid(decisionLadder(STEPS, END), {width})).verdict.findings.find(x => x.rule === 'ladder-height-bound');
 
-test('ladder-height-bound names the width at which every sub is on one line, and which way to go', async () => {
-  const wrapped = await laid(decisionLadder(STEPS, END), {width: 640});
-  const one = wrapped.t.oneLineW!;
-  assert.ok(one > 600 && one < 860, `${one}`);
-  const at = await laid(decisionLadder(STEPS, END), {width: one + 40});
-  assert.equal(at.t.texts.filter(x => x.muted).length, 2, 'one line each at the width it names');
-  const below = await laid(decisionLadder(STEPS, END), {width: one + 40 - 16});
-  assert.ok(below.t.texts.filter(x => x.muted).length > 2, 'wrapped narrower than the width it names');
-  // narrower: widen to it
-  assert.match((await finding(640))!.message, new RegExp(`diagram\\(\\{width: ${one + 40}\\}\\)に?広げる|diagram\\(\\{width: ${one + 40}\\}\\) に広げる`));
-  // wider (the slide's width binds): narrow to it, and the finding does not say that width is useless
-  const wide = (await finding(900))!.message;
-  assert.match(wide, new RegExp(`diagram\\(\\{width: ${one + 40}\\}\\) まで狭められる`));
-  assert.doesNotMatch(wide, /幅を変えても文字は大きくならない/);
-  // at the width itself nothing narrower or wider helps: the height binds
-  const here = (await finding(one + 40))!.message;
-  assert.match(here, /高さで大きさが決まり/);
-  assert.doesNotMatch(here, /に広げる|狭められる/);
+// the text scale a diagram of this band gets on a slide's figure room (0.47 as tall as wide), up to a common factor
+const scale = (t: LaidOutStates): number => Math.min(1 / (t.w + 40), 0.47 / (t.h + 40));
+const named = (msg: string): number | undefined => { const m = /diagram\(\{width: (\d+)\}\)/.exec(msg); return m ? Number(m[1]) : undefined; };
+
+test('ladder-height-bound names a width only when laying the figure out at it draws it larger (at least 3 %); else it says the height binds', async () => {
+  let said = 0;
+  for (const width of [420, 520, 640, 700, 776, 784, 792, 800, 830, 860, 880, 900]) {
+    const here = await laid(decisionLadder(STEPS, END), {width}), f = here.verdict.findings.find(x => x.rule === 'ladder-height-bound');
+    if (!f) continue;
+    const to = named(f.message);
+    if (to === undefined) { assert.match(f.message, /高さで大きさが決まり/, `${width}`); continue; }
+    said++;
+    const there = await laid(decisionLadder(STEPS, END), {width: to});
+    assert.ok(scale(there.t) >= scale(here.t) * 1.03 - 1e-9, `${width} -> ${to}: ${scale(there.t)} vs ${scale(here.t)}`);
+    assert.doesNotMatch(f.message, /幅を変えても/, 'no self-contradiction');
+  }
+  assert.ok(said > 0, 'the finding names a width for some of them');
+});
+
+test('ladder-height-bound: for random ladders the width it names really scores higher; and it is not named where no width helps', async () => {
+  let seed = 7;
+  const rnd = (n: number): number => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+  const text = (n: number, c: string): string => c.repeat(1 + rnd(n));
+  for (let k = 0; k < 8; k++) {
+    const steps = Array.from({length: 3 + rnd(5)}, () => ({q: text(14, '質問内容') + '？', yes: text(5, '答えの文'), ...(rnd(2) ? {sub: text(12, '補足の説明')} : {})}));
+    const width = 420 + 80 * rnd(7);
+    const here = await laid(decisionLadder(steps, END, {numbered: rnd(2) === 1}), {width}), f = here.verdict.findings.find(x => x.rule === 'ladder-height-bound');
+    const to = f && named(f.message);
+    if (to === undefined) continue;
+    const there = await laid(decisionLadder(steps, END, {numbered: here.t.badges !== undefined}), {width: to});
+    assert.ok(scale(there.t) >= scale(here.t) * 1.03 - 1e-9, `case ${k}: ${width} -> ${to}`);
+  }
 });
 
 test('the gap floor: with arrow words the label height (25px), without them 20px', async () => {
@@ -154,6 +167,9 @@ test('the gap floor: with arrow words the label height (25px), without them 20px
   assert.equal(gaps(bare.t, QS)[0], 20);
   const worded = await laid(decisionLadder(STEPS, END), {width: 640});
   assert.equal(gaps(worded.t, QS)[0], 25);
+  // compact does not multiply the floor: the arrow keeps its head (12) and 8 more
+  const compact = await laid(decisionLadder(STEPS, END, {yes: '', no: ''}), {width: 640, density: 'compact'});
+  assert.equal(gaps(compact.t, QS)[0], 20);
 });
 
 test('PPTX: a numbered question and its badge are one group, so they move together', async () => {

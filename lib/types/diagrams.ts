@@ -481,8 +481,8 @@ export interface LaidOutStates extends Rect, Dimmed {
   reveal?: number;
   until?: number;
   nodes: (Rect & {tone: EmphasisTone; final?: boolean; circle?: boolean; shape?: 'diamond' | 'pill'})[];
-  /** decisionLadder(): the narrowest band width at which every answer's `sub` is on one line; set only for a figure too tall for a slide that has a `sub` (what `ladder-height-bound` names). */
-  oneLineW?: number;
+  /** decisionLadder(), a figure too tall for a slide: the band width that draws it at least 3 % larger on a slide's figure room, with the heights and the gain (what `ladder-height-bound` names). */
+  betterW?: {w: number; fromH: number; toH: number; gain: number};
   /** The step badges of a numbered decisionLadder(): the circle's centre and radius, the number and its size (as box({step}) draws it). */
   badges?: {cx: number; cy: number; r: number; size: number; label: string}[];
   initial?: {x: number; y: number; r: number};

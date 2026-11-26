@@ -9,13 +9,11 @@ export function flowchartFindings(b: LaidOutStates): Finding[] {
   if (!b.nodes) return out;
   // a decisionLadder() taller than a 16:9 slide allows even with its row gaps packed: the slide draws it by its height, so a wider figure does not give larger text (ADR 0083 U4)
   if (b.arrange === 'ladder' && tooTall(b.h, b.w)) {
-    const now = `高さ ${Math.round(b.h + 40)}px が幅 ${Math.round(b.w + 40)}px の ${((b.h + 40) / (b.w + 40)).toFixed(2)} 倍（${LADDER_SLIDE_ASPECT} 倍まで）`, base = b.oneLineW ?? 0, one = b.oneLineW === undefined ? undefined : base + 40;
-    // narrower than the one-line width: the answers wrap and the figure is taller than it need be; wider: the figure is wider than the slide's height allows (the width binds)
-    const advice = one === undefined || (b.w >= base && b.w - base <= 16)
-      ? '16:9 のスライドでは高さで大きさが決まり、幅を変えても文字は大きくならない。段を減らす・sub（答えの 2 行目）を短くする'
-      : b.w > base
-        ? `答えの sub が 1 行に収まる幅は diagram({width: ${one}}) まで狭められる。スライドでは幅で大きさが決まっているので、狭めると文字が大きくなる（${one} より狭くすると sub が折り返す）`
-        : `答えの sub が折り返して、高さが増えている。diagram({width: ${one}}) に広げると sub が 1 行になって高さが減り、スライドで文字が大きくなる。ほかに、段を減らす・sub を短くする`;
+    const now = `高さ ${Math.round(b.h + 40)}px / 幅 ${Math.round(b.w + 40)}px = ${((b.h + 40) / (b.w + 40)).toFixed(2)}（${LADDER_SLIDE_ASPECT} まで）`, better = b.betterW;
+    // the width is named only when laying the figure out at it draws it larger on a slide (its text scale, ADR 0083 U4); else the height is what binds
+    const advice = better
+      ? `diagram({width: ${better.w + 40}}) にすると高さが ${Math.round(better.fromH + 40)}px から ${Math.round(better.toH + 40)}px になり、スライドで文字が約 ${Math.round((better.gain - 1) * 100)}% 大きくなる。段か sub を減らしても大きくなる`
+      : '高さで大きさが決まり、幅を変えても文字は大きくならない。段か sub を減らす';
     out.push({...at(b), rule: 'ladder-height-bound', severity: 'info', message: `decisionLadder(): ${now}。${advice}`});
   }
   b.nodes.forEach((n, i) => {
@@ -31,6 +29,6 @@ export function flowchartFindings(b: LaidOutStates): Finding[] {
 }
 
 export const flowchartRules = /* @__PURE__ */ Object.freeze({
-  'ladder-height-bound': {doc: 'decisionLadder() の高さが幅の 0.47 倍を超え、16:9 のスライドより縦長（高さが幅の 0.47 倍を超える）。答えの sub が 1 行に収まる幅を示し、高さで決まるときは段・sub を減らす', scope: 'band'},
+  'ladder-height-bound': {doc: 'decisionLadder() が 16:9 のスライドより縦長（高さが幅の 0.47 倍超）。示した幅にするか、段・sub を減らす', scope: 'band'},
   'flowchart-decision-edges': {doc: '判断（flowchart のひし形）から出る矢印が 2 本未満、または 3 本以上、またはラベル（Yes / No など）がない', scope: 'band'},
 } as const);
