@@ -18,9 +18,7 @@ export const DEFAULT_SELF = 'me';
 /** The corner radius of a bubble of this height. */
 export const bubbleRadius = (h: number): number => Math.min(BUBBLE_R, h / 2);
 
-/** The message box: a rounded field with the placeholder, and a send button. */
 const INPUT_PAD = 16;
-export const inputRoom = (w: number): number => w - INPUT_PAD - 2 * SEND_R - 16;
 
 export function layoutChat(band: ChatBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutChat {
   const sheet = band.sheet;
@@ -30,7 +28,7 @@ export function layoutChat(band: ChatBand, x: number, y: number, w: number, widt
   // the inner width of a bubble is at most the column less the padding
   const innerCap = column - 2 * padX;
   const nameH = ceil4(met.slotFont + 6), bubbleHeight = (n: number): number => ceil4(n * lineH + 2 * padY);
-  const bx = x + snap4(Math.max(0, w - bandW) / 2), by = y;
+  const bx = snap4(x + Math.max(0, w - bandW) / 2), by = y; // the band's left edge is on the 4px grid, wherever the diagram puts x (canvas: 'slide')
   const left = bx + CHAT_MARGIN, right = bx + bandW - CHAT_MARGIN, bubbleLeft = left + AVATAR_D + AVATAR_GAP;
   const findings: ComicFinding[] = [];
   const noSelf = band.self === undefined && Object.keys(sheet.cast).length > 0 && !Object.hasOwn(sheet.cast, DEFAULT_SELF);
@@ -74,6 +72,8 @@ export function layoutChat(band: ChatBand, x: number, y: number, w: number, widt
       avatars.push({id: m.id, who, name: member.name, cx: left + AVATAR_D / 2, cy: cy + AVATAR_D / 2, r: AVATAR_D / 2, nameX: bubbleLeft, nameY: cy + nameH - 6,
         look: ch ? {kind: 'asset', asset: ch.id} : {kind: 'face', hue: member.face?.hue ?? defaultHue(sheet.cast, who), hair: member.face?.hair ?? 'short'}});
       texts.push({x: bubbleLeft, y: cy + nameH - 6, size: met.slotFont, text: member.name});
+      const nameW = textWidth((atom, size) => comicAtomWidth(atom, widthOf, size), member.name, met.slotFont, 400);
+      if (nameW > right - bubbleLeft) add('chat-name-wide', m.id, `the name "${member.name}" is ${f1(nameW)}px wide, but ${right - bubbleLeft}px are left beside the face (shorten the name, use a smaller fontSize, or widen the band with width)`);
     }
 
     checkDialogueSlots(m, m.id, parts, seenSlots, add);
@@ -114,9 +114,7 @@ export function layoutChat(band: ChatBand, x: number, y: number, w: number, widt
   if (band.input !== undefined) {
     cy += (first ? 0 : INPUT_GAP);
     const iw = bandW - 2 * CHAT_MARGIN;
-    const textW = textWidth((atom, size) => comicAtomWidth(atom, widthOf, size), band.input, INPUT_FONT, 400);
-    if (textW > inputRoom(iw)) add('chat-input-wide', 'input', `the placeholder of the message box is ${f1(textW)}px wide, but the box has ${inputRoom(iw)}px (shorten it)`);
-    input = {x: left, y: cy, w: iw, h: INPUT_H, text: band.input, textX: left + INPUT_PAD, textY: f1(cy + INPUT_H / 2), send: {cx: left + iw - 8 - SEND_R, cy: f1(cy + INPUT_H / 2), r: SEND_R}};
+    input = {x: left, y: cy, w: iw, h: INPUT_H, text: band.input, textX: left + INPUT_PAD, textY: f1(cy + INPUT_H / 2 + INPUT_FONT * 0.35), send: {cx: left + iw - 8 - SEND_R, cy: f1(cy + INPUT_H / 2), r: SEND_R}};
     texts.push({x: input.textX, y: input.textY, size: INPUT_FONT, text: band.input});
     cy += INPUT_H;
   }

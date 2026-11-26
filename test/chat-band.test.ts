@@ -140,7 +140,7 @@ test('a comic worksheet gives its dialogue in panel order, with ids panel.line, 
   assert.deepEqual(plain.anchors.map(a => a.id).filter(id => !id.includes('.')), ['day', 'what', 'prep', 'change', 'wish'], 'every blank is an anchor');
 });
 
-test('the message box is drawn at the bottom for input: <text> or true; a placeholder too wide for it is a problem', () => {
+test('the message box is drawn at the bottom for input: <text> or true (its text has a baseline, no dominant-baseline)', () => {
   const none = lay(NOTICE), withBox = lay(NOTICE, {input: '指示を入力'}), stock = lay(NOTICE, {input: true});
   assert.equal(none.input, undefined);
   assert.equal(withBox.input?.text, '指示を入力');
@@ -149,8 +149,6 @@ test('the message box is drawn at the bottom for input: <text> or true; a placeh
   const last = withBox.bubbles.at(-1)!;
   assert.ok(withBox.input!.y >= last.y + last.h, 'below the last bubble');
   assert.deepEqual(withBox.findings, []);
-  const wide = layoutChat(chat(NOTICE, {input: 'W'.repeat(20)}), 0, 0, 0, (t, size) => [...t].length * size * 2);
-  assert.deepEqual(wide.findings.map(f => f.rule), ['chat-input-wide']);
   assert.throws(() => chat(NOTICE, {input: ''}), /input is true or the placeholder/);
   assert.throws(() => chat(NOTICE, {input: 'a\nb'}), /one line/);
   assert.throws(() => chat(NOTICE, {input: 'あ'.repeat(21)}), /at most 20/);
@@ -221,9 +219,9 @@ test('the pieces of chat(): the bubble outline, the blank checks and the shared 
   assert.match(bubblePath({...box, tail: 'left'}), /L92 14L100 14/);
   assert.match(bubblePath({...box, tail: 'right'}), /L188 14L180 24/);
   assert.doesNotMatch(bubblePath(box), /L\d+ 14L/);
-  // chatMeasure asks only for the Latin runs of the text (full-width atoms are 1 em and never measured), and the message box's text at its own size
+  // chatMeasure asks only for the Latin runs of the text (full-width atoms are 1 em and never measured), each with its characters, and the speakers' names
   const data = chat({...NOTICE, dialogue: [{id: 'x', who: 'me', kind: 'say', tpl: 'API{event}です', slots: {event: {max: 2, prompt: '行事'}}}]}, {input: 'Ask'});
-  assert.deepEqual(chatMeasure(data).map(([text, size]) => [text, size]), [['API', 18], ['Ask', 16]]);
+  assert.deepEqual(chatMeasure(data).map(([text, size]) => [text, size]), [['API', 18], ['A', 18], ['P', 18], ['I', 18]], 'a word and each of its characters');
   // slotInfo and checkDialogueSlots (shared with the comic): 4 em without a definition; a blank defined twice is reported
   assert.deepEqual(slotInfo(NOTICE.dialogue[0]!, 'none'), {max: 4, def: undefined});
   const seen = new Set(['event']), found: string[] = [];
@@ -256,4 +254,15 @@ test('fontSize: the blanks are the same size in the chat as in the comic at the 
   assert.equal(lay(SAMPLE).fontSize, undefined, 'the default leaves it out');
   assert.ok(lay(NOTICE, {fontSize: 28}).bubbles[0]!.h > lay(NOTICE).bubbles[0]!.h);
   assert.throws(() => chat(NOTICE, {fontSize: 30}), /fontSize must be a whole number from 14 to 28/);
+});
+
+test('the band is on the 4px grid wherever the diagram puts it (canvas: slide)', () => {
+  const laid = layoutChat(chat(NOTICE, {input: true}), 402, 0, 476, widthOf);
+  assert.equal(laid.x % 4, 0);
+  assert.ok(laid.bubbles.every(b => b.x % 4 === 0));
+  assert.equal(laid.input!.x % 4, 0);
+});
+
+test('a width that is not a number says so', () => {
+  assert.throws(() => chat(NOTICE, {width: Number.NaN}), /got NaN/);
 });

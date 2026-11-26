@@ -50,5 +50,6 @@ diagram({title: '例', width: 520, legend: false}).add(chat({
 - `width`(480〜880、4 の倍数。既定 480)で帯の幅を広げられる。列と 70% の折り返し幅が比例して広がるので、スライドに長いやり取りを入れるときは 800 前後にすると背が低くなる。
 - 台詞の `\n` は改行、`\n\n` は空行(貼り付けた指示の段落に使う)。`self` を省くと `cast` の `me` が右になる。`me` が無いと `chat-self-missing`。穴の大きさ・状態・値はマンガと同じ。穴の検査もマンガと同じ規則名(`comic-slot-*`)で、話し手が `cast` にないときは `chat-speaker-unknown`。
 - 台詞の `id` と穴の `id` は同じにできない(接続の端として同じ名前になるため。投げるときに、どちらを直すか書く)。
+- 名前が顔の横に残る幅より広いと `chat-name-wide`(問題)。短くするか、`fontSize` を下げるか、`width` を広げる。`canvas: 'slide'` では名前と穴の案内が 24px に届かず `slide-min-text` が出る(`accept` で許す)。デッキ(PowerPoint)ではチャットは 1 枚の絵で、小さい文字の警告は出ないので、`check` で確かめる。
 - `separators: true` でコマの境に細い線(`sheet` がコマを持つとき)。`input: '案内'`(20 字まで。`true` なら「メッセージを入力」)で、下にメッセージ欄を描く。時刻や既読は出さない。
 - 値を入れて描くときは `renderChat(sheet, {measure, values, ...})`(`svg-diagram/browser`。実験的)。選択入口は `svg-diagram/bands/chat`。例は `examples/chat-draft.ts`、`chat-sheet.ts`。JSON の spec ではまだ使えない。

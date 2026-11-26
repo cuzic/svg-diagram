@@ -331,6 +331,21 @@
           "minLength": 1,
           "description": "マンガ(comic)・チャット(chat)のふきだしで、穴の後ろのひらがなの連なり(3 字以下)が穴から切り離されている(助詞が次の行に回る、連なりの途中で割れる)。穴と一緒の行に収まるように言い換える（許容する理由を書く）"
         },
+        "chat-self-missing": {
+          "type": "string",
+          "minLength": 1,
+          "description": "チャット(chat)で `self` を省いたのに `cast` に `me` が無く、全員が左に並ぶ。chat(sheet, {self: '<castのキー>'}) で右に置く人を指定する（許容する理由を書く）"
+        },
+        "chat-speaker-unknown": {
+          "type": "string",
+          "minLength": 1,
+          "description": "チャット(chat)の台詞の話し手(who)が `cast` にない。cast に足すか、who を直す（許容する理由を書く）"
+        },
+        "chat-name-wide": {
+          "type": "string",
+          "minLength": 1,
+          "description": "チャット(chat)の話し手の名前が、顔の横に残る幅より広く、枠の外に出る。名前を短くする、fontSize を小さくする、または width で帯を広げる（許容する理由を書く）"
+        },
         "comic-value-invalid": {
           "type": "string",
           "minLength": 1,

@@ -18,7 +18,7 @@ import {boxLikeRules} from './verify-box-like.ts';
 import {stateMatrixRules} from './state-matrix-rules.ts';
 import {captionRules} from './verify-caption.ts';
 import {densityRules} from './verify-density.ts';
-import {comicRuleDocs} from './comic/findings.ts';
+import {chatRuleDocs, comicRuleDocs} from './comic/findings.ts';
 import {findingAcceptanceHint} from './finding-rules.ts';
 import {tableRules} from './table-rules.ts';
 import type {RuleId} from './types/core.ts';
@@ -94,6 +94,9 @@ export const RULE_DOCS = {
   'comic-bubble-wide': comicRuleDocs['comic-bubble-wide'].doc,
   'comic-orphan-line': comicRuleDocs['comic-orphan-line'].doc,
   'comic-follower-split': comicRuleDocs['comic-follower-split'].doc,
+  'chat-self-missing': chatRuleDocs['chat-self-missing'].doc,
+  'chat-speaker-unknown': chatRuleDocs['chat-speaker-unknown'].doc,
+  'chat-name-wide': chatRuleDocs['chat-name-wide'].doc,
   'comic-value-invalid': comicRuleDocs['comic-value-invalid'].doc,
   'comic-values-unknown': comicRuleDocs['comic-values-unknown'].doc,
   'slot-overflow': comicRuleDocs['slot-overflow'].doc,
@@ -219,6 +222,9 @@ export const RULE_LOCATION = {
   'comic-bubble-wide': comicRuleDocs['comic-bubble-wide'].scope,
   'comic-orphan-line': comicRuleDocs['comic-orphan-line'].scope,
   'comic-follower-split': comicRuleDocs['comic-follower-split'].scope,
+  'chat-self-missing': chatRuleDocs['chat-self-missing'].scope,
+  'chat-speaker-unknown': chatRuleDocs['chat-speaker-unknown'].scope,
+  'chat-name-wide': chatRuleDocs['chat-name-wide'].scope,
   'comic-value-invalid': comicRuleDocs['comic-value-invalid'].scope,
   'comic-values-unknown': comicRuleDocs['comic-values-unknown'].scope,
   'slot-overflow': comicRuleDocs['slot-overflow'].scope,

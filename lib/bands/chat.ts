@@ -4,7 +4,7 @@ import {texts} from '../band-text-sizes.ts';
 import {renderChatBand} from '../chat/emit.ts';
 import {layoutChat} from '../chat/layout.ts';
 import {chatMeasure} from '../chat/measure.ts';
-import {comicAcceptHint, comicAdvice, comicProblems, comicRuleDocs} from '../comic/findings.ts';
+import {chatRuleDocs, comicAcceptHint, comicAdvice, comicProblems, comicRuleDocs} from '../comic/findings.ts';
 import {parseTemplate, slotIdsOf} from '../comic/template.ts';
 import {chat as build} from '../dsl/chat.ts';
 import {appendPlacedBand} from '../layout-placed.ts';
@@ -35,7 +35,7 @@ const definition = {
   nameNodes: laid => ({...laid, nodeIds: true}),
   nodeIds: 'self',
   rectsQualified: true,
-  rules: comicRuleDocs,
+  rules: {...comicRuleDocs, ...chatRuleDocs},
   verify: {
     rects: chatRects,
     layoutFindings: comicAdvice,

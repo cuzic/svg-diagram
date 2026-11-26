@@ -62,7 +62,7 @@ export function chat(input: ChatInput, opts: ChatOpts = {}): ChatBand {
     if (typeof opts.self !== 'string' || !Object.hasOwn(sheet.cast, opts.self)) throw new Error(`chat(): self ${JSON.stringify(opts.self)} is not a key of cast (the speaker drawn on the right)`);
   }
   if (opts.width !== undefined && (!Number.isInteger(opts.width) || opts.width < CHAT_W || opts.width > CHAT_W_MAX || opts.width % 4 !== 0)) {
-    throw new Error(`chat(): width is a whole number from ${CHAT_W} to ${CHAT_W_MAX} in steps of 4 (got ${JSON.stringify(opts.width)})`);
+    throw new Error(`chat(): width is a whole number from ${CHAT_W} to ${CHAT_W_MAX} in steps of 4 (got ${String(opts.width)})`);
   }
   if (opts.fontSize !== undefined && (!Number.isInteger(opts.fontSize) || opts.fontSize < FONT_SIZE_MIN || opts.fontSize > FONT_SIZE_MAX)) throw new Error(`chat(): fontSize must be a whole number from ${FONT_SIZE_MIN} to ${FONT_SIZE_MAX} (got ${String(opts.fontSize)})`);
   let text: string | undefined;

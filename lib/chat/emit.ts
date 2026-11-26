@@ -64,7 +64,7 @@ function bubbleSvg(b: ChatLaidBubble, blank: 'prompt' | 'line', node: (id: strin
 function inputSvg(i: ChatLaidInput): string {
   const {cx, cy, r} = i.send;
   return `<g data-input="message"><rect x="${i.x}" y="${i.y}" width="${i.w}" height="${i.h}" rx="${i.h / 2}" fill="${COLOR.paper}" stroke="${COLOR.prompt}" stroke-width="2"/>`
-    + `<text x="${i.textX}" y="${i.textY}" dominant-baseline="central" font-size="${INPUT_FONT}" fill="${COLOR.prompt}">${escapeXml(i.text)}</text>`
+    + `<text x="${i.textX}" y="${i.textY}" font-size="${INPUT_FONT}" fill="${COLOR.prompt}">${escapeXml(i.text)}</text>`
     + `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${COLOR.ink}"/><path d="M${f1(cx - 5)} ${f1(cy + 2)}L${cx} ${f1(cy - 4)}L${f1(cx + 5)} ${f1(cy + 2)}" fill="none" stroke="${COLOR.paper}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>`;
 }
 

@@ -11,8 +11,15 @@ export const comicRuleDocs = {
   'slot-overflow': {scope: 'band', doc: 'マンガの穴の文字が 14px でも収まらず、穴の矩形で切れる。穴の値や飛ばしの文言を短くする'},
 } as const;
 
+/** The rules of chat()'s own problems (its shared rules are comic's, named for both bands). */
+export const chatRuleDocs = {
+  'chat-self-missing': {scope: 'band', doc: 'チャット(chat)で `self` を省いたのに `cast` に `me` が無く、全員が左に並ぶ。chat(sheet, {self: \'<castのキー>\'}) で右に置く人を指定する'},
+  'chat-speaker-unknown': {scope: 'band', doc: 'チャット(chat)の台詞の話し手(who)が `cast` にない。cast に足すか、who を直す'},
+  'chat-name-wide': {scope: 'band', doc: 'チャット(chat)の話し手の名前が、顔の横に残る幅より広く、枠の外に出る。名前を短くする、fontSize を小さくする、または width で帯を広げる'},
+} as const;
+
 export function comicAcceptHint(rule: string): string | undefined {
-  return Object.hasOwn(comicRuleDocs, rule) ? findingAcceptanceHint(rule) : undefined;
+  return Object.hasOwn(comicRuleDocs, rule) || Object.hasOwn(chatRuleDocs, rule) ? findingAcceptanceHint(rule) : undefined;
 }
 
 /** Fold layout diagnostics into the diagram verdict. Filled values are checked by renderComic. */
