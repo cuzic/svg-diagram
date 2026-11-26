@@ -26,6 +26,7 @@ export const specPartLoaders: Readonly<Record<string, () => Promise<SelectedPart
   'cycle': () => import('./spec-parts/selective/cycle.ts').then(m => m.cyclePart),
   'dependency-network': () => import('./spec-parts/selective/dependency-network.ts').then(m => m.dependencyNetworkPart),
   'fault-tree': () => import('./spec-parts/selective/fault-tree.ts').then(m => m.faultTreePart),
+  'decision-ladder': () => import('./spec-parts/selective/decision-ladder.ts').then(m => m.decisionLadderPart),
   'flowchart': () => import('./spec-parts/selective/flowchart.ts').then(m => m.flowchartPart),
   'fmea': () => import('./spec-parts/selective/fmea.ts').then(m => m.fmeaPart),
   'funnel': () => import('./spec-parts/selective/funnel.ts').then(m => m.funnelPart),

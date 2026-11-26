@@ -537,6 +537,27 @@ flowchart(
 - ひし形は同じ文でも箱の 2〜3 倍の高さになる。判断が多い流れで縦に長くなるときは、`dir: 'right'` にするか、図を分ける（`aspect-tall` が知らせる）。レーン（担当）が要る業務フローは `bpmn`。
 - 検査: 判断から出る矢印が 2 本未満・3 本以上・ラベルなし（情報 `flowchart-decision-edges`）。ほかは `stateDiagram` と同じ（`text-mid-word-break`・`edge-crossings` など）。例は `examples/flowchart.ts`、設計は ADR 0041。
 
+### 判断のはしご（`decisionLadder`）
+
+```ts
+diagram({theme: 'blue', title: '来館者の受け付け', width: 640}).add(
+  decisionLadder(
+    [
+      {q: '貸出票は書いてある？', yes: '窓口で受け付ける'},
+      {q: '返却期限は守れる？', yes: '貸出の手続きに進む'},
+      {q: '次回の入荷を待てる？', yes: '入荷の連絡を登録する', sub: '7 日間有効'},
+    ],
+    '後日の来館をお願いする',
+  ),
+)
+```
+
+- 判断が **1 本の鎖**(最初に「はい」になった質問が答えを決める)のときの図。質問を左の列に縦に積み、「はい」は右の答えの箱へ、「いいえ」は真下の次の質問へ進み、最後の「いいえ」は最後の箱で終わる。`flowchart` は同じ形が斜めの階段になり、16:9 で 7〜8pt まで縮む。「いいえ」が別の列へ分かれる・戻る流れは `flowchart`。
+- 段 `{q, yes, sub?, tone?, yesLabel?, noLabel?}`（`sub` と `tone` は答えの箱）。**最後の箱（第 2 引数）は必須**で、文字か `{label, sub?, tone?}`。選択肢は `yes` / `no`（矢印の言葉。既定 `はい` / `いいえ`。`''` で言葉なし。段の `yesLabel` / `noLabel` が優先）、`question: 'box' | 'diamond'`（既定は角の丸い箱。ひし形は行が高くなり、5 段で 9pt ほどまで縮む）、`maxNodeW`、`id`、`scope`、`reveal` / `until`。`focus` / `dir` / `returns` は無い（常に 2 列）。
+- 座標は書かない。2 列は図の幅の中央に置かれ、矢印はすべて 2 点の直線。anchor は質問 `q1`〜`qN`、答え `a1`〜`aN`、最後の箱 `otherwise`（`connect()` から指せる。同じ図に 2 つ置くときは `scope` を付ける）。
+- **幅は `diagram({width: 640})` が目安**: 既定の 900px だと図が 470px ほどで、スライドに載せたときの文字が 14pt にとどまる。640 なら 17pt。`maxNodeW`（既定 360）は折り返しの幅で、箱の幅の上限ではない（折り返せない語があると、その分だけ広くなる）。2 列が図の幅に入らないときは、直し方（図を広げる・文を短くする）を言って止まる。
+- JSON の spec は `{type: 'decisionLadder', steps, otherwise, yes?, no?, question?}`（`svg-diagram/spec/parts/decision-ladder`）。例は `examples/decision-ladder.ts`、設計は ADR 0083。
+
 ### TOC の思考プロセス（`causeTree` / `cloud`）
 
 Goldratt の制約理論（TOC）の図は、箱の形より**矢印の意味**が約束事になっている。十分原因（「Xが成り立てばYが起きる」）の現状・未来現実・移行ツリーと、必要条件（「Yのためには X が必要」）の前提条件ツリー・クラウドは、同じ箱と矢印で描いても読み方が違うので、図の見出しか凡例で書く。
