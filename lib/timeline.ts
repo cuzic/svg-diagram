@@ -180,7 +180,9 @@ function numericTexts(band: NumericTimelineBand, roles: Roles): [string, number,
   for (const e of band.events ?? []) out.push([e.label, S, 700, 'sans'], [`${fmt(e.at)}${band.unit}`, S, 400, 'sans']);
   for (const sp of band.spans ?? []) { const l = spanLabel(sp, band.unit); if (l) out.push([l, S, sp.dim ? 700 : 400, 'sans']); }
   for (const l of band.lanes ?? []) out.push([l, S, 700, 'sans']);
-  for (const t of numericTicks(band.from, band.to, band.step, 40)) out.push([`${fmt(t)}${band.unit}`, S, 400, 'sans']);
+  // layout also sizes the auto step by the `to` label, which is no tick when `to` is off the step grid: measure it too
+  const ticks = new Set<number>([band.to, ...numericTicks(band.from, band.to, band.step, 40)]);
+  for (const t of ticks) out.push([`${fmt(t)}${band.unit}`, S, 400, 'sans']);
   return out;
 }
 

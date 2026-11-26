@@ -1,7 +1,7 @@
 // Where everything goes on a 16:9 deck slide (ADR 0055, ADR 0056 D2): the heading and lead from the top, the source and callouts from the
 // bottom, the figure scaled into what is left; a cover centred (ADR 0066). One calculation for the PowerPoint writer (lib/pptx/deck.ts) and the slide SVG
 // (lib/present/slide-svg.ts), so a slide shown by `serve` and the same slide in the .pptx sit the same. Pure: the widths come in as a function.
-import {wrapText} from './wrap.ts';
+import {wrapBalanced, wrapText} from './wrap.ts';
 
 /** The slide, in px at 96 dpi: 13.333 × 7.5 in, PowerPoint's 16:9. */
 export const SLIDE_W = 1280, SLIDE_H = 720;
@@ -77,6 +77,11 @@ function wrapped(text: string, size: number, width: number, w: TextWidth, bold: 
   return wrapText(text, {maxWidth: width, atomWidth: a => w(a, size, bold), mode: 'phrase'});
 }
 
+/** A title wrapped to `width` px with its lines alike in length (no stub on the last line); `\n` forces a break. */
+function wrappedTitle(text: string, size: number, width: number, w: TextWidth, bold: boolean): string[] {
+  return wrapBalanced(text, {maxWidth: width, atomWidth: a => w(a, size, bold), mode: 'phrase'});
+}
+
 /** A callout's text split into lines, each line's runs: the label's characters plain, the rest bold. */
 function calloutLines(c: DeckCalloutIn, width: number, w: TextWidth): Run[][] {
   const st = STYLE.callout, label = c.label ?? '', all = label + c.text;
@@ -116,7 +121,7 @@ function planDeckLayoutInner(s: DeckTextIn, figure: {w: number; h: number} | und
   const top: TextBlock[] = [], bottom: Block[][] = [];
   let y = TOP;
   if (s.title) {
-    const st = STYLE.title, lines = wrapped(s.title, st.size, width, w, st.bold);
+    const st = STYLE.title, lines = wrappedTitle(s.title, st.size, width, w, st.bold);
     top.push(textBlock('title', MARGIN_X, y, width, st.size, lines.map(t => [{text: t, bold: st.bold, color: st.color}])));
     y += lines.length * Math.round(st.size * LINE) + 6;
   }
@@ -189,7 +194,7 @@ function planCover(s: DeckTextIn, w: TextWidth): DeckLayout {
   type Item = {name: string; h: number; gap: number; text?: {lines: string[]; size: number; pitch: number; bold: boolean; color: string}; rule?: true};
   const text = (name: string, value: string | undefined, st: {size: number; bold: boolean; color: string; gap: number}, pitch = Math.round(st.size * LINE)): Item[] => {
     if (!value) return [];
-    const lines = wrapped(value, st.size, COVER.width, w, st.bold);
+    const lines = (name === 'title' ? wrappedTitle : wrapped)(value, st.size, COVER.width, w, st.bold);
     return [{name, h: lines.length * pitch, gap: st.gap, text: {lines, size: st.size, pitch, bold: st.bold, color: st.color}}];
   };
   const stack = (size: number): Item[] => [
