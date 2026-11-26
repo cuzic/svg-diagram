@@ -44,7 +44,7 @@ export function defineMindmapPart<Result>(builder: (root: never, opts: never) =>
       root: treeItem(MAX_TREE_DEPTH, branchStyle),
       layout: {...oneOf('radial', 'right', 'left', 'down', 'up', 'org', 'list', 'brace', 'fishbone', 'timeline'), description: 'How the branches are laid out (default radial).'},
       edges: {enum: ['elbow', 'curve', 'straight', false], description: 'How a branch line is drawn (default elbow); false for none.'},
-      maxNodeW: MAX_NODE_WIDTH,
+      maxNodeW: {oneOf: [MAX_NODE_WIDTH, oneOf('auto')], description: "px (120-400), or 'auto' to find the widest that fits (an info note)."},
     }, ['type', 'root']),
     example: {type: 'mindmap', root: {label: '在庫管理アプリ', tone: 'accent', children: [{label: '目的', children: [{label: '棚卸しの時間を半分に'}, {label: '欠品の防止'}]}, {label: '機能', children: [{label: 'バーコード読み取り', tags: ['採用'], edge: {tone: 'accent'}}, {label: '発注点アラート', edge: {tone: 'danger', line: 'dashed'}, tags: [{text: '見送り', tone: 'danger'}]}]}]}},
     check(part, at, issues) {

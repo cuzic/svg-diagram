@@ -484,7 +484,7 @@
         "auto-fit-applied": {
           "type": "string",
           "minLength": 1,
-          "description": "幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・flowchart・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: 'auto': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する（許容する理由を書く）"
+          "description": "幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・flowchart・classDiagram・tree・mindmap)をレイアウトが自動で変えた（dir を省略: warn、dir: 'auto': info。dir の無い fta・bowtie・mindmap は maxNodeW を省略: warn、maxNodeW: 'auto': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する（許容する理由を書く）"
         },
         "cause-line-scale-dropped": {
           "type": "string",

@@ -46,8 +46,10 @@ export interface TreeOpts extends RevealOpts, ScopeOpts {
    *  It decides every node's tone: a tone written on a node is replaced. A band node keeps its own look. */
   focus?: string | readonly string[];
 }
-export interface TreeBand extends Omit<TreeOpts, 'edges' | 'focus'> {
+export interface TreeBand extends Omit<TreeOpts, 'edges' | 'focus' | 'maxNodeW'> {
   type: 'tree';
+  /** A number, or (mindmap() only) 'auto': the widest node width that fits the figure is looked for (ADR 0019 D2). */
+  maxNodeW?: number | 'auto';
   root: TreeItem;
   /** mindmap(): the root in the middle, children split to both sides (the same band, laid out by layoutBalanced). */
   balanced?: boolean;
@@ -73,7 +75,9 @@ export interface MindmapOpts extends RevealOpts, ScopeOpts {
   edges?: 'elbow' | 'curve' | 'straight' | false;
   /** Pin a child of the root (by its id) to a side; the others are balanced by height. */
   sides?: Record<string, 'left' | 'right'>;
-  maxNodeW?: number;
+  /** The widest a node grows before its text wraps (default 200px). Left out, the nodes are narrowed (to 110) when the figure is wider than the diagram (a warning);
+   *  'auto' looks for the widest width from 260 down to 100 that fits and says so as a note; a number is never narrowed (a figure that does not fit is an error). */
+  maxNodeW?: number | 'auto';
   id?: string;
   /** "You are here": see TreeOpts.focus (the focused nodes filled, their branch and the path to the root accent, the rest muted). */
   focus?: string | readonly string[];
@@ -446,6 +450,8 @@ export interface FitApplied {
 export interface TreeNodeText extends Dimmed {text: string; x: number; y: number; size: number; bold: boolean; muted: boolean; /** ADR 0054: the part it is grouped in */ part?: string}
 export interface LaidOutTree extends Rect, Dimmed {
   type: 'tree';
+  /** A mindmap(): it has no `dir`, so the auto-fit finding names maxNodeW only. */
+  mindmap?: boolean | undefined;
   /** What the layout changed on its own to fit the width (none: the figure is as written). */
   fitApplied?: FitApplied[];
   id?: string;
