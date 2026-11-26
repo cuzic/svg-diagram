@@ -20,10 +20,12 @@ export interface SankeyOpts extends ChartOpts {
   unit?: string;
   /** Where the nodes with no outflow go: 'justify' (the last layer, default) or 'left' (where their longest path ends). */
   align?: 'justify' | 'left';
-  /** Print the value on each ribbon thick enough for it (default true). */
+  /** Print the value on each ribbon thick enough for it (default true). `values: false` turns it off too. */
   linkLabels?: boolean;
+  /** false: names only, no value on a node or a ribbon (the shape of the flow; the widths and the alt text keep the values). Default true. */
+  values?: boolean;
 }
-export interface SankeySpec {nodes: {id: string; label: string; tone: ChartTone; icon?: {name: string; glyph: IconGlyph}}[]; links: {from: string; to: string; value: number; tone: 'accent' | 'danger' | 'muted'}[]; unit: string; align: 'justify' | 'left'; linkLabels: boolean}
+export interface SankeySpec {nodes: {id: string; label: string; tone: ChartTone; icon?: {name: string; glyph: IconGlyph}}[]; links: {from: string; to: string; value: number; tone: 'accent' | 'danger' | 'muted'}[]; unit: string; align: 'justify' | 'left'; linkLabels: boolean; values: boolean}
 
 export function resolveSankey(nodes: readonly (SankeyNode | string)[], links: readonly SankeyLink[], opts: SankeyOpts): SankeySpec {
   if (!Array.isArray(nodes) || nodes.length < 2) fail('sankey', 'needs at least two nodes');
@@ -48,7 +50,8 @@ export function resolveSankey(nodes: readonly (SankeyNode | string)[], links: re
   });
   // a node no link touches carries no flow: it would have no height, and the scale would be worked out from its zero flow
   for (const n of ns) if (!ls.some(l => l.from === n.id || l.to === n.id)) fail('sankey', `node "${n.id}" has no link (leave it out, or link it)`);
-  const spec: SankeySpec = {nodes: ns, links: ls, unit: opts.unit ?? '', align: opts.align ?? 'justify', linkLabels: opts.linkLabels !== false};
+  if (opts.values !== undefined && typeof opts.values !== 'boolean') fail('sankey', `values must be true or false (got ${String(opts.values)})`);
+  const spec: SankeySpec = {nodes: ns, links: ls, unit: opts.unit ?? '', align: opts.align ?? 'justify', linkLabels: opts.linkLabels !== false, values: opts.values !== false};
   layersOf(spec); // a cycle is an error now, not at layout
   return spec;
 }
@@ -77,8 +80,11 @@ export function sankeyAlt(s: SankeySpec): string {
 }
 export function sankeyTexts(s: SankeySpec): [string, number][] {
   const out: [string, number][] = [];
-  for (const n of s.nodes) out.push([n.label, 400], [n.label, 700], [val(flowOf(s, n.id), s), 700], [`${n.label} ${val(flowOf(s, n.id), s)}`, 400], [`${n.label} ${val(flowOf(s, n.id), s)}`, 700]);
-  for (const l of s.links) out.push([val(l.value, s), 400], [val(l.value, s), 700]);
+  for (const n of s.nodes) {
+    out.push([n.label, 400], [n.label, 700]);
+    if (s.values) out.push([val(flowOf(s, n.id), s), 700], [`${n.label} ${val(flowOf(s, n.id), s)}`, 400], [`${n.label} ${val(flowOf(s, n.id), s)}`, 700]);
+  }
+  if (s.values) for (const l of s.links) out.push([val(l.value, s), 400], [val(l.value, s), 700]);
   return out;
 }
 
@@ -106,8 +112,9 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
     }
   }
   // geometry: node width, layer pitch, label room on the right of the last layer
+  const fullOf = (id: string) => s.values ? `${must(s.nodes.find(n => n.id === id)).label} ${val(flowOf(s, id), s)}` : must(s.nodes.find(n => n.id === id)).label;
   const nodeW = 14, iconW = c.lineH() + 4, iconOf = (id: string) => must(s.nodes.find(n => n.id === id)).icon ? iconW : 0, nameOf = (id: string) => must(s.nodes.find(n => n.id === id));
-  const lastNatural = Math.max(...must(cols[L - 1]).map(id => c.tw(`${nameOf(id).label} ${val(flowOf(s, id), s)}`, true) + iconOf(id)));
+  const lastNatural = Math.max(...must(cols[L - 1]).map(id => c.tw(fullOf(id), true) + iconOf(id)));
   const rightPad = Math.min(lastNatural, g.w * 0.24) + 14, leftPad = 4;
   const plotL = g.x + leftPad, plotR = g.x + g.w - rightPad;
   const step = L > 1 ? (plotR - nodeW - plotL) / (L - 1) : 0;
@@ -116,8 +123,8 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
   // a node's label: name (wrapped) over the value, or on one line when it fits
   const labels = new Map<string, string[]>();
   for (const n of s.nodes) {
-    const li = must(layer.get(n.id)), full = `${n.label} ${val(flowOf(s, n.id), s)}`, w = labelW(li) - iconOf(n.id);
-    const one = c.tw(full, true) <= w ? [full] : [...c.wrap(n.label, w, true), val(flowOf(s, n.id), s)];
+    const li = must(layer.get(n.id)), full = fullOf(n.id), w = labelW(li) - iconOf(n.id);
+    const one = c.tw(full, true) <= w ? [full] : [...c.wrap(n.label, w, true), ...(s.values ? [val(flowOf(s, n.id), s)] : [])];
     for (const l of one) if (c.tw(l, true) > w + 1) fail('sankey', `the label "${l}" does not fit between the layers (shorten it, or raise width)`);
     labels.set(n.id, one);
   }
@@ -163,7 +170,7 @@ export function layoutSankey(s: SankeySpec, g: ChartGeom): LaidOutChartPart {
     void li;
   });
   // the value on a ribbon, in the middle of its run, when it is thick enough and there is room
-  if (s.linkLabels) for (const r of ribbons) {
+  if (s.linkLabels && s.values) for (const r of ribbons) {
     const text = val(r.l.value, s), cy = (r.y0 + r.y1) / 2 + r.t / 2;
     // a value that is the whole of either end is already on that node's label
     if (Math.abs(flowOf(s, r.l.from) - r.l.value) < 1e-9 || Math.abs(flowOf(s, r.l.to) - r.l.value) < 1e-9) continue;
