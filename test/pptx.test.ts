@@ -34,8 +34,8 @@ import {loadDiagram} from '../lib/load-source.ts';
 import {renderDiagram} from '../lib/dsl/render.ts';
 import {closeMeasurer} from '../lib/measure.ts';
 import {xmlProblems} from '../lib/xml-check.ts';
-import {unzipEntry} from './helpers/pptx/unzip.ts';
-import {hasXmllint, hasXsd, slideSchemaProblems} from './helpers/pptx/xsd.ts';
+import {unzipEntry, unzipNames} from './helpers/pptx/unzip.ts';
+import {download, packageSchemaProblems, schemaCheckSkipped, slideSchemaProblems} from './helpers/pptx/xsd.ts';
 
 register(new URL('../lib/resolve-hook.ts', import.meta.url));
 
@@ -99,9 +99,19 @@ test('the zip writer\'s own crc32 is zlib\'s, and an entry is stored when deflat
   assert.deepEqual([...zip.subarray(31, 34)], [1, 2, 3]);
 });
 
-test('the schema check rejects a slide with a wrong element', {skip: !(hasXmllint() && hasXsd())}, () => {
+test('the schema check rejects a slide with a wrong element', {skip: schemaCheckSkipped()}, () => {
   const slide = '<?xml version="1.0"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/><p:sp><p:nvSpPr><p:cNvPr id="2" name="x"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:prstGeom prst="notAShape"><a:avLst/></a:prstGeom></p:spPr></p:sp></p:spTree></p:cSld></p:sld>';
   assert.ok(slideSchemaProblems(slide).length > 0);
+});
+
+test('the schema download reports an HTTP error as one, after a second try', async () => {
+  let calls = 0;
+  const failing = (async () => { calls++; return new Response('blocked', {status: 403, statusText: 'Forbidden'}); }) as typeof fetch;
+  await assert.rejects(download('https://example.invalid/x.zip', failing), /HTTP 403 Forbidden/);
+  assert.equal(calls, 2);
+  let n = 0;
+  const flaky = (async () => (++n === 1 ? new Response('', {status: 503}) : new Response(new Uint8Array([7, 8])))) as typeof fetch;
+  assert.deepEqual([...await download('https://example.invalid/x.zip', flaky)], [7, 8]);
 });
 
 test('every band type is either native (a function) or an image', () => {
@@ -131,7 +141,8 @@ test('example PPTX files have sound slide relationships', async t => {
     const ids = [...xml.matchAll(/<p:cNvPr id="(\d+)"/g)].map(m => m[1]!);
     assert.equal(new Set(ids).size, ids.length);
     for (const m of xml.matchAll(/<a:(?:stCxn|endCxn) id="(\d+)"/g)) assert.ok(ids.includes(m[1]!));
-    if (hasXmllint() && hasXsd()) assert.deepEqual(slideSchemaProblems(xml), []);
+    // every part the schemas cover, not only the slide: presentation.xml had its notes master list after the slide list (pml.xsd's order is the other way)
+    if (!schemaCheckSkipped()) assert.deepEqual(packageSchemaProblems(unzipNames(Buffer.from(a)).map(name => ({name, text: unzipEntry(a, name).toString()}))), []);
     try {
       execFileSync('xmllint', ['--noout', '-'], {input: xml, stdio: ['pipe', 'ignore', 'pipe']});
     } catch (error) {

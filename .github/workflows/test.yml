@@ -4,8 +4,25 @@ on:
     branches: [main]
   pull_request:
 jobs:
+  # the ECMA-376 transitional schemas (test/helpers/pptx/xsd.ts, SHA-256 pinned there), downloaded once per key and saved to the cache here,
+  # so the three test shards restore them instead of each downloading (only one job can save a key)
+  ooxml-xsd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/ooxml-xsd
+          key: ooxml-xsd-${{ hashFiles('test/helpers/pptx/xsd.ts') }}
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: node -e "import('./test/helpers/pptx/xsd.ts').then(m => m.fetchXsd())"
   test:
     name: test (${{ matrix.shard }}/3)
+    needs: ooxml-xsd
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -36,9 +53,9 @@ jobs:
           )
           echo "SVG_DIAGRAM_JA_FONTS=$d" >> "$GITHUB_ENV"
       - run: pnpm install --frozen-lockfile
-      # the ECMA-376 transitional schemas (test/helpers/pptx/xsd.ts, SHA-256 pinned there): with them and xmllint, the PPTX schema checks run
-      # instead of skipping (test/pptx-deck.test.ts fails under CI without them)
-      - uses: actions/cache@v4
+      # the schemas the ooxml-xsd job cached: with them and xmllint the PPTX schema checks run; under CI they fail rather than skip without them
+      # (test/helpers/pptx/xsd.ts schemaCheckSkipped). Downloaded here only if the cache could not be restored.
+      - uses: actions/cache/restore@v4
         with:
           path: .cache/ooxml-xsd
           key: ooxml-xsd-${{ hashFiles('test/helpers/pptx/xsd.ts') }}

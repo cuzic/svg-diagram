@@ -16,7 +16,7 @@ import {EMU} from '../lib/pptx/xml.ts';
 import {xmlProblems} from '../lib/xml-check.ts';
 import {realEngine} from './helpers/text-engine.ts';
 import {unzipEntry, unzipNames} from './helpers/pptx/unzip.ts';
-import {hasXmllint, hasXsd, slideSchemaProblems} from './helpers/pptx/xsd.ts';
+import {packageSchemaProblems, schemaCheckSkipped} from './helpers/pptx/xsd.ts';
 
 test.after(() => closeMeasurer());
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -89,7 +89,7 @@ test('a deck is one file of 16:9 slides with notes, every shape on its slide and
 
 // Every PresentationML / DrawingML part of the package, not only the slides: the notes pages broke pml.xsd (xml:space on <a:t>) while every slide passed.
 // CI installs xmllint and the schemas (.github/workflows/test.yml), so there the check never skips.
-test('every part of a deck validates against pml.xsd: slides, notes pages, masters, layouts, theme, presentation', {skip: !process.env['CI'] && !(hasXmllint() && hasXsd())}, async () => {
+test('every part of a deck validates against its schema: slides, notes pages, masters, layouts, theme, presentation (pml.xsd), docProps/app.xml', {skip: schemaCheckSkipped()}, async () => {
   const deck = {title: 'デッキ', slides: [
     ...DECK.slides,
     {title: '長い脚注', lead: '本文。', source: '出典: ' + '資料の名前と年と頁。'.repeat(30), notes: '  先頭に空白\n\t字下げ\n\n末尾  '},
@@ -97,9 +97,9 @@ test('every part of a deck validates against pml.xsd: slides, notes pages, maste
   const r = await renderDeckPptxEdge(deck, realEngine(), {rasterize: () => PNG});
   assert.deepEqual(r.issues, []);
   const zip = Buffer.from(r.pptx as Uint8Array);
-  const parts = unzipNames(zip).filter(n => n.startsWith('ppt/') && n.endsWith('.xml'));
-  assert.ok(parts.includes('ppt/notesSlides/notesSlide4.xml') && parts.includes('ppt/presentation.xml'), parts.join(', '));
-  for (const name of parts) assert.deepEqual(slideSchemaProblems(unzipEntry(zip, name).toString()), [], name);
+  const names = unzipNames(zip);
+  assert.ok(names.includes('ppt/notesSlides/notesSlide4.xml') && names.includes('ppt/presentation.xml') && names.includes('docProps/app.xml'), names.join(', '));
+  assert.deepEqual(packageSchemaProblems(names.map(name => ({name, text: unzipEntry(zip, name).toString()}))), []);
 });
 
 test('the same deck gives the same bytes', async () => {

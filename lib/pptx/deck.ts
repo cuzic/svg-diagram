@@ -193,7 +193,7 @@ export function deckEntries(slides: readonly PlannedSlide[], pngs: readonly (rea
     if (name === 'ppt/presentation.xml') {
       x = once(x, /<p:sldSz[^>]*\/>/, `<p:sldSz cx="${emu(SLIDE_W)}" cy="${emu(SLIDE_H)}"/>`, 'p:sldSz');
       x = once(x, /<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/, '', 'p:sldIdLst');
-      // the schema's order is sldMasterIdLst, notesMasterIdLst, sldIdLst (the template has the slide list first, which pml.xsd rejects)
+      // the schema's order is sldMasterIdLst, notesMasterIdLst, sldIdLst: the deck's slide list goes right after the notes master list
       x = once(x, /(<p:notesMasterIdLst>[\s\S]*?<\/p:notesMasterIdLst>)/, `$1<p:sldIdLst>${slides.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${100 + i}"/>`).join('')}</p:sldIdLst>`, 'p:notesMasterIdLst');
     } else if (name === 'ppt/_rels/presentation.xml.rels') {
       x = once(x, new RegExp(`<Relationship Id="rId\\d+" Type="${SLIDE_REL.replace(/[./]/g, '\\$&')}" Target="slides/slide1.xml"/>`), '', 'the slide relationship');
