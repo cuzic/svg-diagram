@@ -26,6 +26,7 @@ export function defineDecisionLadderPart<Result>(builder: (steps: never, otherwi
       yes: word("The word on the arrows that go right to an answer (default 'はい'; an empty text puts none)."),
       no: word("The word on the arrows that go down to the next question (default 'いいえ'; an empty text puts none)."),
       question: {...oneOf('box', 'diamond'), description: "The shape of a question: 'box' (default, rounded) or 'diamond'."},
+      numbered: {type: 'boolean', description: "true numbers the questions 1..N with the step badge of a box at the left of each (answers and the final box are not numbered). Not with question: 'diamond'. Default false."},
     }, ['type', 'steps', 'otherwise']),
     example: {type: 'decisionLadder', steps: [{q: '貸出票は書いてある？', yes: '窓口で受け付ける'}, {q: '館内で読むだけ？', yes: '閲覧席へ案内する', sub: '2 時間まで'}], otherwise: '後日の来館をお願いする'},
     check() {},

@@ -3,8 +3,9 @@ import type {ToneEnv} from './tokens.ts';
 import type {Theme} from './types/core.ts';
 import type {LaidOutStates} from './types/diagrams.ts';
 import {iconSvg} from './icon-svg.ts';
-import {snap4, emojiSpan, lineAttrs, resolveBoxStyle} from './emit-common.ts';
+import {snap4, escapeXml, emojiSpan, lineAttrs, resolveBoxStyle} from './emit-common.ts';
 import {frameGeometry, renderBoxRect} from './emit-box-frame.ts';
+import {badgeSvg} from './badge.ts';
 import {DOUBLE_INSET} from './cause-roles.ts';
 
 import {must} from './must.ts';
@@ -52,6 +53,7 @@ export function renderStates(b: LaidOutStates, day: Theme, tones: ToneEnv): stri
     if (t.muted) return n && toneStyle(tones, n.tone).fill === 'soft' ? PALETTE.text : PALETTE.muted; // muted on a soft fill is 4.48:1, under 4.5
     return colorOf(toneStyle(tones, n?.tone).text, day);
   };
+  for (const k of b.badges ?? []) out.push(badgeSvg({cx: k.cx, cy: k.cy, r: k.r, w: 2 * k.r, shape: 'circle', label: k.label, aria: `質問 ${k.label}`, size: k.size, fill: b.dim ? PALETTE.muted : PALETTE[day].accent, snap: snap4, esc: escapeXml}));
   for (const t of b.texts) out.push(`<text x="${Math.round(t.x)}" y="${Math.round(t.y)}" text-anchor="middle" font-size="${t.size}"${t.bold ? ' font-weight="700"' : ''} fill="${ink(t)}">${emojiSpan(t.text)}</text>`);
   for (const ic of b.icons) out.push(iconSvg({glyph: ic.glyph, name: ic.name, x: ic.x, y: ic.y, size: ic.size, color: b.dim ? PALETTE.muted : colorOf(toneStyle(tones, must(b.nodes[ic.node]).tone).text, day), dim: b.dim, labelled: true}));
   for (const l of b.labels) {

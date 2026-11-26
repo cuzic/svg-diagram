@@ -8,6 +8,13 @@ import type {Diagram} from './types/core.ts';
 import type {Config} from './types/project.ts';
 import type {RenderResult} from './types/verdicts.ts';
 
+/** A figure drawn as a deck slide's figure is sized to its slot, not to a document's text column: `doc-width` does not apply to it. */
+function forSlide(r: RenderResult): RenderResult {
+  const v = r.verdict;
+  if (!v.findings.some(f => f.rule === 'doc-width')) return r;
+  return {...r, verdict: {...v, findings: v.findings.filter(f => f.rule !== 'doc-width'), warnings: v.warnings.filter(w => !w.startsWith('[doc-width] '))}};
+}
+
 /**
  * A figure drawn (a .ts source from `source`, else the spec `spec`), or the problems with it, each with its place: slide i's figure, or
  * with `column` the figure of its column j. With `columnPx` (the column's width), a spec that gives no width of its own is laid out at the
@@ -19,12 +26,12 @@ export async function renderDeckFigure(i: number, spec: unknown, source: string 
     try {
       if (!source) {
         const selected = await renderDeckSpec(s, cfg, wide);
-        if (selected) return {ok: true, result: selected};
+        if (selected) return {ok: true, result: forSlide(selected)};
       }
       const {renderDiagram} = await import('./dsl/render.ts');
       const d: Diagram = source ? await (await import('./load-source.ts')).loadDiagram(source, cfg, opts)
         : applyConfig(widenDiagram((await import('./spec.ts')).specToDiagram(s), wide), cfg);
-      return {ok: true, result: await renderDiagram(d, {name: `slide${i + 1}${j === undefined ? '' : `-${j + 1}`}.svg`, budget: 'cacheOnly'})};
+      return {ok: true, result: forSlide(await renderDiagram(d, {name: `slide${i + 1}${j === undefined ? '' : `-${j + 1}`}.svg`, budget: 'cacheOnly'}))};
     } catch (e) {
       if (e instanceof SpecError) return {ok: false, errors: e.issues.map(x => `${at(x.path)}: ${x.message}`), why: e.issues[0]?.message ?? ''};
       return {ok: false, errors: [formatBuildError(source ?? at(''), e)], why: e instanceof Error ? e.message : String(e)};

@@ -112,3 +112,8 @@ PR は項目ごとに分ける。各 PR は `tsc`、全体テスト、`golden`(`
 1. D1: 文書単位の `toc-role-indistinct`(`check --docs` 側)は**後続**にする。
 2. D3: config のキーは `keepWords` に揃え、`diagram({keepWords})` が config の値に勝つ。ただし config が読まれるのは CLI の経路だけなので、書籍のビルドがどちらの経路(CLI か、API の `renderSource`)かを、実測のときに確かめる。
 3. D5-2: 事故の図は (2) で拾えることを確認した。ほかの図で (1)(2) のどちらでも拾えないものが出たら、warn の条件は広げず、並びを問わない info を足す(3 巡目の推奨)。
+
+## 追記(2026-11-26): `gray-tone-collision` と `legend-missing` を、色以外の手がかりがあるとき弱める
+- `gray-tone-collision`: 箱ごとの `dashed` を読み、片方のトーンの箱がすべて破線・もう片方がすべて実線の組は出さない。輪郭が塗りと同じ色になる `solid` / `solid-danger` は、破線にしても縁が実線に見えるので数えない。箱の `tag` は読まない(`canvas` が領域名を入れるので、トーンの説明にならない)。
+- `legend-missing` / `legend-incomplete`: 2 本以上の破線・点線の `connect()` がすべて同じ `label` を持てば、その線種は凡例なしでも数える対象から外す。1 本だけ、label が違う(値のラベル)、1 本でも label なし、のときは従来どおり。`legend: 'auto'` が足す項目は変えない。
+- 見ていない手がかり: `icon` の違い、グラフの系列の印や直接ラベル(これらを数える規則は今は無い)。
