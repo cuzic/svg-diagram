@@ -1522,7 +1522,8 @@ try {
     assert.equal(result.ok, true, label);
     assert.match(result.svg, /<text[^>]*>Review<\/text>/, label);
     const bytes = Buffer.byteLength(code);
-    assert.ok(bytes <= 119500, `${label}: ${bytes} bytes exceeds 119500`);
+    // 119500 -> 119700: the Node selective renderSpec takes idPrefix / inline (ADR 0012 D2), which brings the id rewriter (lib/svg-ids.ts) into this bundle
+    assert.ok(bytes <= 119700, `${label}: ${bytes} bytes exceeds 119700`);
     console.log(`${label}: ${bytes} bytes`);
   }
 
