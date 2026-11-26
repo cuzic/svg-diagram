@@ -1,6 +1,6 @@
 // The layout of a comic() band (ADR 0074 D1 / D2): panels on a grid, the people at fixed places in each, the bubbles over their heads. A pure
 // function of the data and a width function: the values of the blanks do not come in (they are drawn on top, ADR 0074 D5).
-import {BADGE_OVERHANG, GUTTER, HEAD_FROM_BOTTOM, HEAD_KEEP, HEAD_R, MARGIN, PANEL_W, PANEL_W_2X2, ROW_FALLBACK_W, HEAD_GAP, SIDE_KEEP, SLOT_MAX, STACK_GAP, STAGE_X, TAIL_CLEAR, TAIL_HALF, TAIL_MIN, TAIL_STOP, bandWidth, f1, metricsOf} from './constants.ts';
+import {BADGE_OVERHANG, GUTTER, HEAD_FROM_BOTTOM, HEAD_KEEP, HEAD_R, MARGIN, PANEL_W, PANEL_W_2X2, ROW_FALLBACK_W, ROW_PANEL_MIN, HEAD_GAP, SIDE_KEEP, SLOT_MAX, STACK_GAP, STAGE_X, TAIL_CLEAR, TAIL_HALF, TAIL_MIN, TAIL_STOP, bandWidth, f1, metricsOf} from './constants.ts';
 import {ceil4} from '../connect-rules.ts';
 import {snap4} from '../emit-common.ts';
 import {rectOverlap} from '../verify-base.ts';
@@ -23,14 +23,18 @@ export const DEFAULT_COLUMN_ASPECT: ComicAspect = '6:5';
 const RATIO: Record<ComicAspect, number> = {'7:5': 5 / 7, '6:5': 5 / 6, '1:1': 1, '3:4': 4 / 3};
 
 export const aspectOf = (layout: ComicLayoutName, aspect: ComicAspect | undefined): ComicAspect => aspect ?? (isRow(layout) ? '3:4' : layout === '2x2' ? '1:1' : DEFAULT_COLUMN_ASPECT);
+/** What a row panel would get of the band width `bandW` (the slide canvas's 1212 when it is not known): floor((bandW - margins - gutters) / columns) on the 4px grid. */
+const rowShare = (layout: ComicLayoutName, bandW: number | undefined): number => {
+  const {cols} = LAYOUT_GRID[layout];
+  return Math.floor(((bandW !== undefined && bandW > 0 ? bandW : ROW_FALLBACK_W) - 2 * MARGIN - (cols - 1) * GUTTER) / cols / 4) * 4;
+};
 /**
  * The size of one panel: 420 wide in a column (360 in a 2x2), the height from the aspect on the 4px grid. In a row (2x1 / 3x1 / 4x1) the panels share
  * the width `bandW` the diagram gives the band (the slide canvas's 1212 when it is not known): floor((bandW - margins - gutters) / columns) on the 4px grid, at most 420.
  */
 export function panelSize(layout: ComicLayoutName, aspect: ComicAspect | undefined, bandW?: number): {w: number; h: number} {
   const {cols} = LAYOUT_GRID[layout];
-  const share = Math.floor(((bandW !== undefined && bandW > 0 ? bandW : ROW_FALLBACK_W) - 2 * MARGIN - (cols - 1) * GUTTER) / cols / 4) * 4;
-  const w = isRow(layout) ? Math.max(4, Math.min(PANEL_W, share)) : cols === 2 ? PANEL_W_2X2 : PANEL_W;
+  const w = isRow(layout) ? Math.min(PANEL_W, Math.max(ROW_PANEL_MIN, rowShare(layout, bandW))) : cols === 2 ? PANEL_W_2X2 : PANEL_W;
   return {w, h: snap4(w * RATIO[aspectOf(layout, aspect)])};
 }
 /** The band over the heads that the bubbles stack in: from ZONE_TOP to HEAD_KEEP above the head circle, as distances from the panel's top. */
@@ -64,6 +68,8 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
   const findings: ComicFinding[] = [];
   const add = (rule: ComicRule, where: string, message: string, severity: ComicFinding['severity'] = 'problem'): void => { findings.push({rule, severity, where, message}); };
   const atomWidth = (atom: string): number => comicAtomWidth(atom, widthOf, fontSize);
+  // a row panel is never narrower than ROW_PANEL_MIN (two people and a short line); a band that cannot give it that is drawn at that width and reported once
+  if (row && rowShare(sheet.layout, w) < ROW_PANEL_MIN) add('comic-band-narrow', 'comic', `layout ${sheet.layout} needs a diagram at least ${bandWidth(cols, ROW_PANEL_MIN) + 40}px wide (${ROW_PANEL_MIN}px panels), but the band gets ${w}px: use diagram({width: ${bandWidth(cols, ROW_PANEL_MIN) + 40}}) or more, or fewer columns (a 2x2 or a column of panels)`);
   if (sheet.panels.length !== cols * rows) add('comic-panel-count', 'comic', `layout ${sheet.layout} has ${cols * rows} panels, but panels has ${sheet.panels.length} (add or remove panels, or change layout)`);
 
   const panels: ComicLaidPanel[] = [], bubbles: ComicLaidBubble[] = [], anchors: Anchor[] = [], texts: ComicText[] = [];
@@ -122,7 +128,7 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
       const want = dlg.kind === 'narration' ? px + m.narrationLeft + bw / 2 : speaker ? speaker.cx : px + PW / 2;
       const left = snap4(Math.min(Math.max(want - bw / 2, px + SIDE_KEEP), px + PW - SIDE_KEEP - bw));
       // stacked under every earlier bubble it overlaps sideways, or that lies to its right (side by side only when the earlier ones are all to its left)
-      const under = placed.filter(q => (q.x < left + bw + STACK_GAP && left < q.x + q.w + STACK_GAP) || (!row && left < q.x));
+      const under = placed.filter(q => (q.x < left + bw + STACK_GAP && left < q.x + q.w + STACK_GAP) || left < q.x);
       const top = Math.max(py + zone.top, ...under.map(q => q.y + q.h + STACK_GAP));
       const rect = {x: left, y: top, w: bw, h: bh};
       placed.push({...rect, lines: R.lines.length});

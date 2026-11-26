@@ -18,6 +18,8 @@ export const PANEL_W = 420;
 export const PANEL_W_2X2 = 360;
 /** The band width a row layout (2x1 / 3x1 / 4x1) is sized for when the width is not known: the content width of canvas: 'slide' (1280 less its padding). The panels share the width the diagram gives the band. */
 export const ROW_FALLBACK_W = 1212;
+/** The narrowest a row panel is drawn: two heads (stage x at least HEAD_R + 4, 4px apart) and a one-line bubble fit in it. */
+export const ROW_PANEL_MIN = 200;
 /** The people of a row panel keep their heads this far from each other (and at least HEAD_R + 4 from the side). */
 export const HEAD_GAP = 4;
 export const GUTTER = 16;

@@ -142,13 +142,18 @@ const exchange = (a: string, b: string, order: 'ab' | 'ba' = 'ab'): ComicWorkshe
   return {...sheet('4x1', 4), panels: Array.from({length: 4}, (_, i) => panel(`p${i + 1}`, order === 'ab' ? [first, second] : [second, first]))};
 };
 
-test('two speakers in one row panel: short lines sit side by side at every fontSize, in both orders, with no findings', () => {
-  for (const fontSize of [14, 18, 22, 24, 26, 28]) for (const order of ['ab', 'ba'] as const) {
-    const l = lay(exchange('はい。', 'うん。', order), {fontSize});
-    assert.deepEqual(l.findings, [], `${fontSize} ${order}`);
-    const [x, y] = l.bubbles.slice(0, 2);
+test('two speakers in one row panel: short lines sit side by side when the earlier bubble is on the left (ADR 0074 D2), and stack when the earlier one is on the right', () => {
+  for (const fontSize of [14, 18, 22, 24, 26, 28]) {
+    const ab = lay(exchange('はい。', 'うん。', 'ab'), {fontSize});
+    assert.deepEqual(ab.findings, [], `${fontSize} ab`);
+    const [x, y] = ab.bubbles.slice(0, 2);
     assert.equal(x!.y, y!.y, 'side by side: the same top');
-    assert.ok(x!.x + x!.w < y!.x || y!.x + y!.w < x!.x);
+    assert.ok(x!.x + x!.w < y!.x, 'the first is on the left');
+    // the right speaker first: the reply (on the left) is under it, so it is read second
+    const ba = lay(exchange('はい。', 'うん。', 'ba'), {fontSize});
+    assert.deepEqual(ba.findings, [], `${fontSize} ba`);
+    const [first, reply] = ba.bubbles.slice(0, 2);
+    assert.ok(first!.x > reply!.x && reply!.y > first!.y, `${fontSize}: the reply is below`);
   }
 });
 
@@ -232,4 +237,37 @@ test('blank: "line" draws no prompt, so the prompt size is not among the sizes t
   const s = {...sheet('4x1', 4, withBlank), blank: 'line' as const, numbering: false};
   assert.deepEqual([...new Set(lay(s, {fontSize: 24}).texts.map(t => t.size))], [24]);
   assert.ok(lay({...s, blank: 'prompt'}, {fontSize: 24}).texts.some(t => t.size === 19));
+});
+
+test('a row layout in a narrow diagram: panels keep their minimum width and one problem names the width needed (no broken panels, no negative budget)', async () => {
+  for (const width of [480, 360]) {
+    const w = width - 40;
+    for (const [layout, n] of [['4x1', 4], ['3x1', 3]] as const) {
+      const l = lay(exchange('はい。', 'うん。'), {}, w);
+      const row = layout === '4x1' ? l : lay({...exchange('はい。', 'うん。'), layout, panels: exchange('はい。', 'うん。').panels.slice(0, n)}, {}, w);
+      assert.equal(row.findings.filter(f => f.rule === 'comic-band-narrow').length, 1, `${layout} ${width}`);
+      assert.match(row.findings.find(f => f.rule === 'comic-band-narrow')!.message, new RegExp(`width: ${32 + n * 200 + (n - 1) * 16 + 40}`));
+      assert.ok(row.panels.every(p => p.w === 200));
+      for (const p of row.panels) {
+        const [a, b] = p.heads;
+        assert.ok(b!.cx - a!.cx >= 2 * 36 + 4 && a!.cx - 36 >= p.x && b!.cx + 36 <= p.x + p.w, `${layout} ${width}: ${p.id}`);
+      }
+      assert.ok(row.findings.every(f => !/-\d/.test(f.message)), 'no negative number in a message');
+    }
+    const problems = (await checkDiagram(diagram({theme: 'blue', legend: false, width} as never).add(comic(sheet('4x1', 4))))).verdict.problems;
+    assert.ok(problems.some(p => /comic-band-narrow/.test(p)), `${width}: ${problems.join('|')}`);
+  }
+  // wide enough: no such finding
+  assert.equal(lay(sheet('4x1', 4), {}, 900).findings.filter(f => f.rule === 'comic-band-narrow').length, 0);
+  await closeMeasurer();
+});
+
+test('a narration keeps clear of the number badge at every fontSize (its left edge scales with the badge)', () => {
+  const narr = (): ComicDialogue => ({id: 'd1', kind: 'narration', tpl: 'ある日。'});
+  for (const [fontSize, left] of [[18, 20], [28, 32]] as const) {
+    const l = lay(sheet('4x1', 4, narr), {fontSize});
+    const b = l.bubbles[0]!;
+    assert.equal(b.x - l.panels[0]!.x, left, `${fontSize}`);
+    assert.ok(b.x - l.panels[0]!.x >= metricsOf(fontSize).badge - 8, 'clear of the badge');
+  }
 });

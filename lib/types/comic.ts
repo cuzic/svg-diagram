@@ -93,7 +93,7 @@ export interface ComicBand extends Omit<ComicOpts, 'characters'> {
 }
 
 export type ComicRule =
-  | 'comic-speaker-unknown' | 'comic-at-collision' | 'comic-panel-count' | 'comic-slots-per-panel' | 'comic-slot-duplicate' | 'comic-slot-undefined'
+  | 'comic-speaker-unknown' | 'comic-at-collision' | 'comic-panel-count' | 'comic-band-narrow' | 'comic-slots-per-panel' | 'comic-slot-duplicate' | 'comic-slot-undefined'
   | 'comic-slot-max' | 'comic-slot-prompt' | 'comic-bubble-covers-face' | 'comic-tail-off-speaker' | 'comic-tail-crosses-bubble' | 'comic-bubble-zone' | 'comic-text-budget'
   | 'comic-asset-missing' | 'comic-bubble-wide' | 'comic-orphan-line' | 'comic-follower-split'
   | 'comic-value-invalid' | 'comic-values-unknown' | 'slot-overflow';
