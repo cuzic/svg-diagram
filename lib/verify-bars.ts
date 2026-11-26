@@ -56,10 +56,11 @@ export function thinBarFindings({laidOut}: Partial<Pick<LaidOutDiagram, 'laidOut
 
 export function hiddenBarsTitleFindings(
   d: Pick<DiagramData, 'medium' | 'bands'>, title: () => string, walk: (bands: Band[]) => readonly Band[], stage?: number,
+  hides: (band: Band) => boolean = band => band.type === 'bars' && barsValuesHidden(band),
 ): Finding[] {
   if (d.medium !== 'doc' || title()) return [];
-  return walk(d.bands).some(band => band.type === 'bars' && visibleAt(band, stage) && barsValuesHidden(band))
-    ? [{rule: 'bars-values-hidden', severity: 'warn', message: '値を隠した bars があるが、図に題名がなく <desc> も出ない。diagram({title}) を指定する（値の列は自動で <desc> に入る）'}]
+  return walk(d.bands).some(band => hides(band) && visibleAt(band, stage))
+    ? [{rule: 'bars-values-hidden', severity: 'warn', message: '値を隠した bars / sankey があるが、図に題名がなく <desc> も出ない。diagram({title}) を指定する（値の列は自動で <desc> に入る）'}]
     : [];
 }
 
