@@ -53,7 +53,7 @@ function treeBand(root: TreeItem, opts: TreeOpts, who: string): TreeBand {
   if (!root || typeof root !== 'object' || typeof root.label !== 'string') throw new Error('tree(root) needs a root node: {label: "...", children: [...]}');
   if (opts.focus !== undefined) root = focusTree(root, opts.focus, who);
   if (opts.dir !== undefined && opts.dir !== 'down' && opts.dir !== 'right' && opts.dir !== 'auto') throw new Error(`${who}: dir must be 'down', 'right' or 'auto' (got ${String(opts.dir)})`);
-  if (opts.maxNodeW !== undefined && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`${who}: maxNodeW must be a number >= 80 (got ${opts.maxNodeW})`);
+  if (opts.maxNodeW !== undefined && !(who === 'mindmap()' && (opts.maxNodeW as unknown) === 'auto') && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`${who}: maxNodeW must be a number >= 80${who === 'mindmap()' ? " or 'auto'" : ''} (got ${opts.maxNodeW})`);
   const ids: (string | undefined)[] = [];
   if (opts.edges !== undefined && opts.edges !== false) throw new Error(`${who}: edges can only be false (no lines); got ${String(opts.edges)}`);
   const usedBands = new Set<object>();
@@ -105,7 +105,7 @@ export function mindmap(root: TreeItem, opts: MindmapOpts = {}): TreeBand {
   const layouts = ['radial', 'right', 'left', 'down', 'up', 'org', 'list', 'brace', 'fishbone', 'timeline'];
   if (opts.layout !== undefined && !layouts.includes(opts.layout)) throw new Error(`mindmap(): layout must be ${layouts.join(' | ')} (got ${String(opts.layout)})`);
   if (opts.edges !== undefined && opts.edges !== false && !['elbow', 'curve', 'straight'].includes(opts.edges)) throw new Error(`mindmap(): edges must be elbow | curve | straight | false (got ${String(opts.edges)})`);
-  const band = treeBand(opts.focus === undefined ? root : focusTree(root, opts.focus, 'mindmap()'), {...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...revealOf(opts)}, 'mindmap()');
+  const band = treeBand(opts.focus === undefined ? root : focusTree(root, opts.focus, 'mindmap()'), {...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW as number}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.scope === undefined ? {} : {scope: opts.scope}), ...revealOf(opts)}, 'mindmap()');
   if (opts.edges === false) for (const n of treeItems(root)) if (n.from !== undefined) throw new Error(`mindmap(): "${n.label}": from draws a line, and edges: false draws none`);
   const edged = treeItems(root).filter(n => n.edge !== undefined);
   const noEdgeLayout = ['brace', 'fishbone', 'timeline'].find(l => l === opts.layout);
