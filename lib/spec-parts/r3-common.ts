@@ -88,15 +88,16 @@ export function checkTimeline(part: Json, at: string, issues: SpecIssue[]): void
     });
     return;
   }
-  for (const k of ['now', 'deadline'] as const) if (part[k] === undefined) issues.push({path: `${at}.${k}`, message: `is required for a date axis (${k === 'now' ? "{at: '2026-10'}: today, always written out" : "{at: '2027-03', label: 'サポート終了'}"})`});
+  if (part['now'] === undefined && part['deadline'] === undefined && items(part, 'marks').length === 0) issues.push({path: `${at}.marks`, message: 'needs at least one of now, deadline or marks'});
+  if (part['now'] === undefined || part['deadline'] === undefined) for (const k of ['span', 'remaining'] as const) if (part[k] !== undefined && part[k] !== false) issues.push({path: `${at}.${k}`, message: `needs both now and deadline; add the missing one or drop ${k}`});
   const days: Record<string, number | null> = {};
-  for (const k of ['from', 'to'] as const) { days[k] = tlDay(part[k]); if (days[k] === null) issues.push({path: `${at}.${k}`, message: `${JSON.stringify(part[k])} is not a real date written 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD'`}); }
+  for (const k of ['from', 'to'] as const) { days[k] = part[k] === undefined ? null : tlDay(part[k]); if (part[k] !== undefined && days[k] === null) issues.push({path: `${at}.${k}`, message: `${JSON.stringify(part[k])} is not a real date written 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD'`}); }
   const from = days['from'], to = days['to'];
   if (from != null && to != null && !(from < to)) { issues.push({path: `${at}.to`, message: `must be after from (${String(part['from'])})`}); return; }
   const onAxis = (v: unknown, path: string) => {
     const d = tlDay(v);
     if (d === null) issues.push({path, message: `${JSON.stringify(v)} is not a real date written 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD'`});
-    else if ((from != null && d < from) || (to != null && d > to)) issues.push({path, message: `${String(v)} is outside the axis (${String(part['from'])} to ${String(part['to'])})`});
+    else if ((from != null && d < from) || (to != null && d > to)) issues.push({path, message: `${String(v)} is outside the axis (${String(part['from'] ?? 'the first date')} to ${String(part['to'] ?? 'the last date')})`});
   };
   for (const k of ['now', 'deadline'] as const) { const v = part[k] as Json | undefined; if (v) onAxis(v['at'], `${at}.${k}.at`); }
   items(part, 'marks').forEach((m, i) => onAxis(m['at'], `${at}.marks[${i}].at`));
