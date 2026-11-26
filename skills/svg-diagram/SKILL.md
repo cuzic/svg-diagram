@@ -66,6 +66,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 | `versus(left, right, {shared})` | 左右の対比。各側は `{title, children, tone, id}` |
 | `stat(value, label, {source, confidence})` | 大きな数字。数字の出典は `source` / `confidence` |
 | `spacer(h)` | 縦の余白 |
+| `chevron(steps, {rows, perRow})` | 横の矢羽根が多いとき（16:9 のスライドに 7 つ以上など）の折り返し。`rows: 2`（段数）か `perRow: 4`（1 段の数）。`rows: 'auto'` は文字が折れない最少の段数。段の間に続きの矢印がつく。縦・`loopBack` とは併用不可。`rows` と `perRow` も同時に書けない |
 | `focus`（項目を持つ図の option） | 図の中の「今ここ」: `mindmap(root, {focus: 'id'})` / `stateDiagram(..., {focus: 'id'})` / `chevron(steps, {focus: 2})`。その項目を塗り、関係する項目を強調色、ほかを薄くする。`spotlight` は図全体が単位（README「図の中の「今ここ」」） |
 
 接続線・凡例・トーンの使い分けなどは、README の該当節。`raw()` で SVG を手書きする前に、まず部品を探す。
@@ -100,7 +101,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 | ワイヤーフレーム・画面遷移図・画面仕様（`wireframe` / `screens` / `stateMatrix`） | `references/wireframe.md` |
 | 免疫マップ（Immunity to Change）の面談を図にする（マップ・検証の表・自己調整のループ・蒸発雲。専用部品は無い） | `references/immunity.md` |
 | 絵記号（アイコン）を入れる | `references/icons.md` |
-| 穴(空欄)のあるマンガ(`comic()`。台詞のテンプレートと、コマ・ふきだしの置き方) | `references/comic.md` |
+| 穴(空欄)のあるマンガ(`comic()`。台詞のテンプレートと、コマ・ふきだしの置き方)、チャット画面(`chat()`) | `references/comic.md` |
 | クラウド・ネットワークの構成図（`node` / `group` / VPC） | `references/cloud.md` |
 | ビルド・検査・目視・文書との整合・渡し方の細かい指定、`draft` / `appearance` / `canvas` の最小文字など | `references/workflow.md` |
 

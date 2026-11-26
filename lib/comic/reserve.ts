@@ -20,7 +20,7 @@ function glued(count: number, ch: string, unitW: number, next: string | undefine
 }
 
 /** The atoms of a template: a blank is one atom of `max` full-width characters (4 when it has no definition), the hiragana after it glued as `glued` says. */
-export function templateAtoms(parts: readonly TemplatePart[], maxOf: (id: string) => number, atomWidth: (atom: string) => number, font: number = FONT): ReserveAtom[] {
+export function templateAtoms(parts: readonly TemplatePart[], maxOf: (id: string) => number, atomWidth: (atom: string) => number, font: number = FONT, breakAt = Infinity): ReserveAtom[] {
   const atoms: ReserveAtom[] = [];
   let afterSlot = false, bound = 0, unitW = 0;
   for (const p of parts) {
@@ -34,6 +34,8 @@ export function templateAtoms(parts: readonly TemplatePart[], maxOf: (id: string
     for (const [k, a] of as.entries()) {
       const glue = afterSlot && isHiragana(a) && glued(bound, a, unitW, as[k + 1], font);
       if (glue) { bound++; unitW += font; } else afterSlot = false;
+      // chat(): a word wider than a bubble can be is broken per character, so no bubble leaves its column
+      if (atomWidth(a) > breakAt) { for (const ch of a) atoms.push({text: ch, w: atomWidth(ch)}); continue; }
       atoms.push({text: a, w: atomWidth(a), ...(glue ? {glue: true} : {})});
     }
   }
@@ -41,8 +43,8 @@ export function templateAtoms(parts: readonly TemplatePart[], maxOf: (id: string
 }
 
 /** Wraps the atoms into the bubble's lines, widening the inner width when a blank and its hiragana are wider than 9 characters, and once or twice to cure an orphan last line. */
-/** `cap`: wrap at this width (a row panel's: never wider than the panel lets a bubble be; no widening for an orphan). `shrink`: the text block is as wide as its widest line, not the 9 em floor. Both are for the row layouts only. */
-export interface ReserveOpts {cap?: number; shrink?: boolean}
+/** `cap`: wrap at this width (a row panel's: never wider than the panel lets a bubble be; no widening for an orphan). `shrink`: the text block is as wide as its widest line, not the 9 em floor. `breakAt`: see `templateAtoms`. `cap` and `shrink` are for the row layouts and chat(). */
+export interface ReserveOpts {cap?: number; shrink?: boolean; /** a word wider than this is broken per character (chat) */ breakAt?: number}
 export function reserveAtoms(atoms: readonly ReserveAtom[], font: number = FONT, opts: ReserveOpts = {}): Reserved {
   const innerMax = 9 * font;
   let unit = 0, widest = 0;
@@ -80,4 +82,4 @@ function followerSplit(lines: readonly ReservedLine[]): boolean {
   return false;
 }
 
-export const reserveDialogue = (parts: readonly TemplatePart[], maxOf: (id: string) => number, atomWidth: (atom: string) => number, font: number = FONT, opts: ReserveOpts = {}): Reserved => reserveAtoms(templateAtoms(parts, maxOf, atomWidth, font), font, opts);
+export const reserveDialogue = (parts: readonly TemplatePart[], maxOf: (id: string) => number, atomWidth: (atom: string) => number, font: number = FONT, opts: ReserveOpts = {}): Reserved => reserveAtoms(templateAtoms(parts, maxOf, atomWidth, font, opts.breakAt), font, opts);

@@ -26,7 +26,7 @@ export const BAND_HANDLERS = {
   curve: 'image', plane: 'image', quadrant: quadrantPptx, wordart: 'image', chevron: flowPptx, funnel: flowPptx, cycle: flowPptx,
   venn: flowPptx, concentric: flowPptx, emblem: flowPptx, valueChain: flowPptx, bars: 'image', chart: 'image', image: 'image', people: 'image', dots: 'image', math: 'image',
   timeline: timelinePptx, tree: treePptx, states: statesPptx, cause: causePptx, cloud: 'image', gantt: 'image', classes: 'image', bpmn: 'image',
-  fta: 'image', status: 'image', bowtie: 'image', comic: 'image',
+  fta: 'image', status: 'image', bowtie: 'image', comic: 'image', chat: 'image',
 } satisfies {[T in LaidOutType]: PptxAdapter<LaidOutOf<T>> | 'image'};
 
 export function bandXml(band: LaidOutBand, ctx: Ctx, index: number): string {

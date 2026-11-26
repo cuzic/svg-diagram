@@ -114,6 +114,7 @@ export const calls = {
   whyWhyTree: () => dsl.whyWhyTree('A', [{why: 'B'}]),
   bowtie: () => dsl.bowtie({top: 'A', threats: [item], consequences: [item]}),
   comic: () => dsl.comic({version: 1, title: 'A', layout: '1x2', cast: {}, panels: []}),
+  chat: () => dsl.chat({version: 1, title: 'A', cast: {}, dialogue: []}),
   arrowDiagram: () => dsl.arrowDiagram([{from: 1, to: 2, name: 'A', days: 1}]),
   affinity: () => dsl.affinity([{title: 'A', cards: ['A']}]),
   pdpc: () => dsl.pdpc([item], []),

@@ -1,10 +1,10 @@
 // ADR 0074 D4 / D5: slot values belong to the render, never to the worksheet layout.
 import {splitAtoms, textWidth} from '../atoms.ts';
 import {MIN_FONT_SIZE} from '../tokens.ts';
-import type {ComicFinding, ComicLaidSlot, ComicSlotDef, ComicWorksheet, LaidOutComic, Values} from '../types/comic.ts';
+import type {ComicDialogue, ComicFinding, ComicLaidSlot, ComicSlotDef, ComicWorksheet, LaidOutComic, Values} from '../types/comic.ts';
 import type {FontWeight, MeasureRequest, WidthOf} from '../types/core.ts';
 import {FONT, f1} from './constants.ts';
-import {slotMax} from './layout.ts';
+import {slotMax} from './slot-check.ts';
 import {comicAtomWidth, isFullWidth} from './width.ts';
 
 export type ValueTable = Readonly<Partial<Values>>;
@@ -37,7 +37,7 @@ export function slotFontSize(slot: ComicLaidSlot, value: {text: string; weight: 
 }
 
 /** Both sizes are requested up front so rendering and verification can be synchronous. */
-export function* valueAtoms(laid: LaidOutComic, values: ValueTable): Iterable<Required<MeasureRequest>> {
+export function* valueAtoms(laid: {fontSize?: number; bubbles: readonly {slots: readonly ComicLaidSlot[]}[]}, values: ValueTable): Iterable<Required<MeasureRequest>> {
   for (const {slots} of laid.bubbles) for (const slot of slots) {
     const value = slotValue(slot, values);
     if (!value) continue;
@@ -57,9 +57,14 @@ function invalidReason(value: string, def: ComicSlotDef): string | undefined {
 }
 
 export function valueFindings(sheet: ComicWorksheet, laid: LaidOutComic, values: ValueTable, widthOf = noMeasure): ComicFinding[] {
+  return dialogueValueFindings(sheet.panels.flatMap(p => p.dialogue), laid, values, widthOf);
+}
+
+/** The value checks over any list of dialogue (chat() has no panels) and the laid-out bubbles that hold the blanks. */
+export function dialogueValueFindings(dialogue: readonly ComicDialogue[], laid: {bubbles: readonly {slots: readonly ComicLaidSlot[]}[]}, values: ValueTable, widthOf = noMeasure): ComicFinding[] {
   const defs = new Map<string, ComicSlotDef>();
-  for (const panel of sheet.panels) for (const dialogue of panel.dialogue) {
-    for (const [id, def] of Object.entries(dialogue.slots ?? {})) if (!defs.has(id)) defs.set(id, def);
+  for (const d of dialogue) {
+    for (const [id, def] of Object.entries(d.slots ?? {})) if (!defs.has(id)) defs.set(id, def);
   }
   const findings: ComicFinding[] = [];
   for (const [where, value] of Object.entries(values)) {
