@@ -152,6 +152,7 @@ export const bpmn = located(diagrams.bpmn);
 export const classDiagram = located(diagrams.classDiagram);
 export const stateDiagram = located(diagrams.stateDiagram);
 export const flowchart = located(diagrams.flowchart);
+export const decisionLadder = located(diagrams.decisionLadder);
 export const causeTree = located(diagrams.causeTree);
 export const whyWhyTree = located(diagrams.whyWhyTree);
 export const bowtie = located(diagrams.bowtie);

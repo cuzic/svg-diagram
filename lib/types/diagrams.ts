@@ -122,6 +122,29 @@ export interface FlowNode {
 /** An arrow of a flowchart: the same as a state diagram's transition (`label` is Yes / No on an arrow that leaves a decision). */
 export type FlowEdge = Transition;
 export interface FlowchartOpts extends Omit<StatesOpts, 'initial'> {}
+/** A step of a decision ladder: the question, the answer its "yes" leads to (a box to the right; `sub` and `tone` are the box's), and the words on its two arrows when they differ from the figure's. */
+export interface LadderStep {
+  q: string;
+  yes: string;
+  sub?: string;
+  tone?: EmphasisTone;
+  /** The word on this step's "yes" arrow (default: the figure's `yes`). */
+  yesLabel?: string;
+  /** The word on this step's "no" arrow (default: the figure's `no`). */
+  noLabel?: string;
+}
+/** Where the last "no" ends: a text, or a box with a second line and a tone. */
+export type LadderEnd = string | {label: string; sub?: string; tone?: EmphasisTone};
+export interface LadderOpts extends RevealOpts, ScopeOpts {
+  /** The word on the arrow that goes right to the answer (default 'はい'). An empty text puts no word on it. */
+  yes?: string;
+  /** The word on the arrow that goes down to the next question (default 'いいえ'). An empty text puts no word on it. */
+  no?: string;
+  /** The shape of a question: 'box' (default: a rounded box, one line of text sets the row height) or 'diamond'. */
+  question?: 'box' | 'diamond';
+  maxNodeW?: number;
+  id?: string;
+}
 export interface StatesOpts extends RevealOpts, ScopeOpts, FocusOpts {
   /** 'right' (default): the flow runs left to right. 'down': top to bottom.
    *  'auto' (and leaving it out) lets the layout narrow the states and turn to the other direction when the figure is wider than the diagram
@@ -144,6 +167,8 @@ export interface StatesBand extends Omit<StatesOpts, 'focus'> {
   flavor?: 'flowchart';
   /** Internal: the direction a figure starts from when `dir` is left out (a flowchart runs down). Not an explicit `dir`. */
   defaultDir?: 'down';
+  /** Internal: made by decisionLadder() (ADR 0083): the fixed two-column placement, questions down the left and each answer on its row. */
+  arrange?: 'ladder';
   states: StateItem[];
   transitions: Transition[];
 }
@@ -436,6 +461,8 @@ export interface LaidOutStates extends Rect, Dimmed {
   type: 'states';
   /** A flowchart(): its messages say flowchart / node / arrow. */
   flavor?: 'flowchart';
+  /** A decisionLadder(): its messages say decisionLadder(). */
+  arrange?: 'ladder';
   /** `density: 'compact'` was asked for, but the compact figure had more wrong in it, so this band is drawn at the normal gaps (ADR 0036 D6). */
   densityRestored?: boolean;
   /** What the layout changed on its own to fit the width (none: the figure is as written). */
