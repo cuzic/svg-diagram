@@ -4875,7 +4875,8 @@
                 "auto"
               ]
             }
-          ]
+          ],
+          "description": "px (120-400), or 'auto' to find the widest that fits (an info note)."
         }
       },
       "required": [

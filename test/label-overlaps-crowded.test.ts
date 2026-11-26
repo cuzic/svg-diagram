@@ -70,5 +70,17 @@ for (const w of [754, 900]) {
     assert.equal(b.labels.length, 2);
     assert.deepEqual(stacked(b.labels), []);
     assert.ok(!verdict.problems.some(p => /overlaps label/.test(String(p))), JSON.stringify(verdict.problems));
+    // not asserted: in lanes this narrow one chip may still sit on a task box; `check` reports it (see the PR description)
   });
 }
+
+// m3: when no spot is free, a spot outside the figure costs more than one inside. A very crowded flowchart (24 labelled arrows, 10 states, narrow):
+// the arrows are invented; the count is what the layout gives with the cost (6 labels run outside without it).
+test('flowchart: a very crowded figure keeps as many labels inside the figure as it can (C6b)', async () => {
+  const edges = [['0', '1', 'はい'], ['1', '2', '戻る再提'], ['2', '3', '留連絡確認依頼報告戻る再提出完'], ['3', '4', '報告戻る再提'], ['4', '5', '差戻し保留連絡確認依頼報告戻る再提出完了不可'], ['5', '6', '頼報告戻る再'], ['6', '7', '承認差戻し保留連絡確認依'], ['7', '8', '再提出完了不可'], ['8', '9', 'はい'], ['1', '5', '認依頼報'], ['4', '7', '認依頼報告戻る再提'], ['2', '9', 'いいえ'], ['8', '0', 'いいえ', 'd'], ['3', '6', '戻し保留連絡確認依頼報告戻る再提出完了不可可能あ'], ['1', '6', '認差戻し保'], ['8', '2', '確認依頼報告戻る', 'd'], ['6', '1', '保留連絡確認依', 'd'], ['3', '9', '絡確認依頼報告戻る再提出完了不可可能'], ['7', '5', '依頼報告戻る再提出完了', 'd'], ['6', '2', '告戻る再提', 'd'], ['3', '0', '認差戻し保留連絡確認依頼報告戻る再提出完', 'd'], ['2', '9', '告戻る再提出'], ['0', '9', '戻し保留連絡確認依頼報告戻る再'], ['6', '1', '頼報告戻る', 'd']] as [string, string, string, string?][];
+  const nodes = Array.from({length: 10}, (_, k) => ({id: `n${k}`, label: `手順${k}`, ...(k === 0 || k === 9 ? {kind: 'terminator' as const} : k === 3 ? {kind: 'decision' as const} : {})}));
+  const fe = edges.map(([a, b, label, d]) => ({from: `n${a}`, to: `n${b}`, label, ...(d ? {line: 'dashed' as const} : {})}));
+  const {verdict} = await checkDiagram(diagram({theme: 'blue', width: 619}).add(flowchart(nodes, fe, {dir: 'down'} as never)));
+  const outside = verdict.problems.filter(p => /runs outside the figure/.test(String(p))).length;
+  assert.ok(outside <= 5, `${outside} labels run outside the figure`);
+});
