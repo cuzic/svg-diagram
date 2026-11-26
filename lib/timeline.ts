@@ -47,7 +47,7 @@ export function timelineTexts(band: TimelineBand | NumericTimelineBand, roles: R
   const S = roles.note, out: [string, number, number, FontFamily][] = [];
   for (const f of flagsOf(band)) out.push([f.label, S, 700, 'sans'], [f.at, S, 400, 'sans']);
   const {from, to} = axisOf(band);
-  for (const t of ticksOf(from, to)) out.push([t.label, S, 400, 'sans']);
+  for (const t of ticksOf(from, to, true)) out.push([t.label, S, 400, 'sans']);
   const r = remainingLabel(band);
   if (r) out.push([r, S, 700, 'sans']);
   return out;
@@ -125,7 +125,7 @@ export function layoutTimeline(band: TimelineBand | NumericTimelineBand, x: numb
   const ty = axisY + TICK + S + 2 + tickDrop;
   const crosses = (left: number, tw: number): boolean => full && dlX >= left - 3 && dlX <= left + tw + 3;
   const placed: {label: string; left: number; tw: number; moved: boolean}[] = [];
-  for (const t of ticksOf(from, to)) {
+  for (const t of ticksOf(from, to, true)) {
     const tx = plotL + (t.day - from) / (to - from) * (plotR - plotL);
     out.ticks.push({x: tx, y1: axisY, y2: axisY + TICK});
     const tw = textWidth(widthOf, t.label, S, 400);

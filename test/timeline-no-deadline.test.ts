@@ -12,6 +12,7 @@ import {renderDeck} from '../lib/present/render-deck.ts';
 import {installResolveHook} from '../lib/resolve-hook.ts';
 import {specToDiagram, validateSpec} from '../lib/spec.ts';
 import type {Diagram} from '../lib/types/index.ts';
+import {TIMELINE_AXIS} from '../lib/parts.ts';
 import {JA_FONTS} from './helpers/text-engine.ts';
 
 installResolveHook();
@@ -98,4 +99,47 @@ test('a deck slide with a timeline without now and deadline goes through renderD
 test('relative points are already expressible in the number form (days from today, value written after the label)', async () => {
   const t = tl((await checkDiagram(fig(timeline({unit: '日', from: 0, to: 35, events: [{at: 1, label: '最初'}, {at: 7, label: '次'}, {at: 30, label: '最後'}]})))).laidOut);
   assert.ok(t.texts.some(x => x.text === '7日'));
+});
+
+test('M1: remaining / span without both now and deadline are rejected (DSL and spec), not silently dropped', () => {
+  assert.throws(() => timeline({marks: MARKS, remaining: 'あと3日'}), /remaining needs both now and deadline/);
+  assert.throws(() => timeline({marks: MARKS, span: 'fill'}), /span needs both now and deadline/);
+  assert.throws(() => timeline({now: {at: '2026-11-26'}, marks: MARKS, remaining: 'x'}), /remaining needs both/);
+  assert.doesNotThrow(() => timeline({marks: MARKS, remaining: false}));
+  const paths = (p: object) => validateSpec({version: 1, title: 't', parts: [{type: 'timeline', ...p}]} as never).map(i => i.path);
+  assert.deepEqual(paths({marks: MARKS, remaining: 'x'}), ['parts[0].remaining']);
+  assert.deepEqual(paths({marks: MARKS, span: 'fill'}), ['parts[0].span']);
+  assert.deepEqual(paths({marks: MARKS, remaining: false}), []);
+});
+
+test('m1: the spec message for an omitted axis end does not print undefined', () => {
+  const m = (p: object) => validateSpec({version: 1, title: 't', parts: [{type: 'timeline', marks: MARKS, ...p}]} as never).map(i => i.message).join('\n');
+  assert.doesNotMatch(m({from: '2026-12'}), /undefined/);
+  assert.match(m({from: '2026-12'}), /the last date/);
+  assert.doesNotMatch(m({to: '2026-11'}), /undefined/);
+});
+
+test('m2: short date axes get weekly (under ~2 months) or daily (up to 10 days) ticks, longer ones keep month ticks', async () => {
+  const ticks = async (marks: {at: string; label: string}[]) => tl((await checkDiagram(fig(timeline({marks})))).laidOut).texts.filter(x => x.part === TIMELINE_AXIS).map(x => x.text);
+  const weekly = await ticks(MARKS.slice(0, 3)); // 11/27 - 12/20: Mondays
+  assert.deepEqual(weekly, ['11/30', '12/7', '12/14', '12/21'].filter(t => weekly.includes(t)));
+  assert.ok(weekly.includes('12/7') && weekly.includes('12/14'), weekly.join());
+  const daily = await ticks([{at: '2026-11-27', label: '試作'}, {at: '2026-12-01', label: '確認'}]); // 4 days + padding: a tick a day
+  assert.ok(daily.includes('11/30') && daily.includes('12/1') && daily.includes('11/28'), daily.join());
+  const long = await ticks([{at: '2026-01-10', label: 'a'}, {at: '2026-06-10', label: 'b'}]); // months, as before
+  assert.ok(long.length > 0 && long.every(t => /^\d{4}(\/\d+)?$/.test(t)), long.join());
+});
+
+test('m2: a deck slide with a one-week timeline draws daily ticks through renderDeck', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tl-short-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'fig.ts'), `import {diagram, timeline} from 'svg-diagram';\nexport default () => diagram({theme: 'blue', title: '直近', legend: false}).add(timeline({marks: [{at: '2026-11-27', label: '明日'}, {at: '2026-12-01', label: '来週'}]}));\n`);
+    fs.writeFileSync(path.join(dir, 'deck.json'), JSON.stringify({slides: [{title: '直近', figure: 'fig.ts'}]}));
+    const got = loadDeck(path.join(dir, 'deck.json'));
+    assert.ok(got.ok, JSON.stringify(got));
+    const r = await renderDeck(got.loaded, cfg);
+    assert.deepEqual(r.errors, []);
+    const svg = r.slides[0]?.svg ?? '';
+    assert.ok((svg.match(/V84"/g) ?? []).length >= 9, 'a tick a day over the ten-day axis (text is glyph paths in a deck)');
+  } finally { fs.rmSync(dir, {recursive: true, force: true}); }
 });
