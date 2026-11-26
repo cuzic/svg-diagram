@@ -94,7 +94,8 @@ export type ComicRule =
   | 'comic-speaker-unknown' | 'comic-at-collision' | 'comic-panel-count' | 'comic-slots-per-panel' | 'comic-slot-duplicate' | 'comic-slot-undefined'
   | 'comic-slot-max' | 'comic-slot-prompt' | 'comic-bubble-covers-face' | 'comic-tail-off-speaker' | 'comic-tail-crosses-bubble' | 'comic-bubble-zone' | 'comic-text-budget'
   | 'comic-asset-missing' | 'comic-bubble-wide' | 'comic-orphan-line' | 'comic-follower-split'
-  | 'comic-value-invalid' | 'comic-values-unknown' | 'slot-overflow';
+  | 'comic-value-invalid' | 'comic-values-unknown' | 'slot-overflow'
+  | 'chat-speaker-unknown' | 'chat-input-wide';
 /** Layout findings feed the verdict or lint. Value findings are returned separately by renderComic. */
 export interface ComicFinding {rule: ComicRule; severity: 'problem' | 'advice'; where: string; message: string}
 

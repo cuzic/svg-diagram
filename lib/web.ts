@@ -62,3 +62,5 @@ export async function renderInBrowser(input: Diagram | DiagramData, opts: {measu
 
 export {renderComic} from './comic/render.ts';
 export type {ComicRender} from './comic/render.ts';
+export {renderChat} from './chat/render.ts';
+export type {ChatRender} from './chat/render.ts';

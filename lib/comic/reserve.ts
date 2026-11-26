@@ -14,13 +14,13 @@ export interface Reserved {lines: ReservedLine[]; /** the width of the text bloc
 /** The hiragana after a blank that are bound to it: a particle, and any other up to two characters while the unit still fits the inner width (`fit2q`). */
 const PARTICLES: ReadonlySet<string> = new Set([...'はがをにでのともへや']);
 const FOLLOWER_RUN = 3;
-function glued(count: number, ch: string, unitW: number, next?: string): boolean {
+function glued(count: number, ch: string, unitW: number, innerMax: number, next?: string): boolean {
   // で is not a particle in です (the copula): the break after the blank is the natural one there
-  return count < 2 && (unitW + FONT <= INNER_MAX || (count === 0 && PARTICLES.has(ch) && !(ch === 'で' && next === 'す')));
+  return count < 2 && (unitW + FONT <= innerMax || (count === 0 && PARTICLES.has(ch) && !(ch === 'で' && next === 'す')));
 }
 
 /** The atoms of a template: a blank is one atom of `max` full-width characters (4 when it has no definition), the hiragana after it glued as `glued` says. */
-export function templateAtoms(parts: readonly TemplatePart[], maxOf: (id: string) => number, atomWidth: (atom: string) => number): ReserveAtom[] {
+export function templateAtoms(parts: readonly TemplatePart[], maxOf: (id: string) => number, atomWidth: (atom: string) => number, innerMax = INNER_MAX): ReserveAtom[] {
   const atoms: ReserveAtom[] = [];
   let afterSlot = false, bound = 0, unitW = 0;
   for (const p of parts) {
@@ -32,7 +32,7 @@ export function templateAtoms(parts: readonly TemplatePart[], maxOf: (id: string
     }
     const as = splitAtoms(p.lit);
     for (const [k, a] of as.entries()) {
-      const glue = afterSlot && isHiragana(a) && glued(bound, a, unitW, as[k + 1]);
+      const glue = afterSlot && isHiragana(a) && glued(bound, a, unitW, innerMax, as[k + 1]);
       if (glue) { bound++; unitW += FONT; } else afterSlot = false;
       atoms.push({text: a, w: atomWidth(a), ...(glue ? {glue: true} : {})});
     }
@@ -41,22 +41,22 @@ export function templateAtoms(parts: readonly TemplatePart[], maxOf: (id: string
 }
 
 /** Wraps the atoms into the bubble's lines, widening the inner width when a blank and its hiragana are wider than 9 characters, and once or twice to cure an orphan last line. */
-export function reserveAtoms(atoms: readonly ReserveAtom[]): Reserved {
+export function reserveAtoms(atoms: readonly ReserveAtom[], innerMax = INNER_MAX, cap = Infinity): Reserved {
   let unit = 0, widest = 0;
   for (const a of atoms) { unit = a.slot ? a.w : a.glue ? unit + a.w : 0; widest = Math.max(widest, unit); }
   const wrap = (width: number): ReservedLine[] => wrapStyledAtoms([...atoms], {maxWidth: width, atomWidth: a => a.w, mode: 'bunsetsu'}).map(l => ({atoms: l, w: l.reduce((n, a) => n + a.w, 0)}));
-  const base = Math.max(INNER_MAX, widest);
+  const base = Math.min(cap, Math.max(innerMax, widest)); // chat() caps the inner width at its column; comic() has no cap
   let inner = base, lines = wrap(base);
   const orphan = (ls: ReservedLine[]): boolean => ls.length > 1 && (ls[ls.length - 1]?.w ?? Infinity) <= 2 * FONT;
   for (const extra of [FONT, 2 * FONT]) {
-    if (!orphan(lines) || base + extra > INNER_MAX + 2 * FONT) break; // never widen past the bubble-wide threshold
+    if (!orphan(lines) || base + extra > Math.min(cap, innerMax + 2 * FONT)) break; // never widen past the bubble-wide threshold
     const t = wrap(base + extra);
     if (t.length < lines.length || !orphan(t)) { lines = t; inner = base + extra; }
   }
   const notes: WrapNote[] = [];
   if (orphan(lines)) notes.push('orphan-line');
   const widthMax = Math.max(0, ...lines.map(l => l.w));
-  if (widthMax > INNER_MAX + 2 * FONT) notes.push('bubble-wide');
+  if (widthMax > innerMax + 2 * FONT) notes.push('bubble-wide');
   if (followerSplit(lines)) notes.push('follower-split');
   return {lines, inner: Math.max(inner, widthMax), notes};
 }
@@ -77,4 +77,6 @@ function followerSplit(lines: readonly ReservedLine[]): boolean {
   return false;
 }
 
-export const reserveDialogue = (parts: readonly TemplatePart[], maxOf: (id: string) => number, atomWidth: (atom: string) => number): Reserved => reserveAtoms(templateAtoms(parts, maxOf, atomWidth));
+/** `innerMax` is the inner width a bubble wraps at (comic: nine full-width characters; chat: 70% of its column, ADR 0074 D7); `cap` the most it may widen to. */
+export const reserveDialogue = (parts: readonly TemplatePart[], maxOf: (id: string) => number, atomWidth: (atom: string) => number, innerMax = INNER_MAX, cap = Infinity): Reserved =>
+  reserveAtoms(templateAtoms(parts, maxOf, atomWidth, innerMax), innerMax, cap);

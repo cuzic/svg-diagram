@@ -1,5 +1,5 @@
 import {at, findingAcceptanceHint} from '../finding-rules.ts';
-import type {LaidOutComic} from '../types/comic.ts';
+import type {ComicFinding} from '../types/comic.ts';
 import type {Finding} from '../types/verdicts.ts';
 
 export const comicRuleDocs = {
@@ -16,13 +16,13 @@ export function comicAcceptHint(rule: string): string | undefined {
 }
 
 /** Fold layout diagnostics into the diagram verdict. Filled values are checked by renderComic. */
-export function comicProblems(band: LaidOutComic) {
+export function comicProblems(band: {findings: readonly ComicFinding[]}, label = 'comic') {
   return band.findings.filter(f => f.severity === 'problem').map(f => ({
-    rule: f.rule, severity: 'problem' as const, message: `comic: ${f.message} [${f.rule}]`,
+    rule: f.rule, severity: 'problem' as const, message: `${label}: ${f.message} [${f.rule}]`,
   }));
 }
 
-export function comicAdvice(band: LaidOutComic): Finding[] {
+export function comicAdvice(band: {findings: readonly ComicFinding[]}): Finding[] {
   return band.findings.filter(f => f.severity === 'advice').map(f => ({
     ...at(band), rule: f.rule, severity: 'warn', message: f.message,
   }));

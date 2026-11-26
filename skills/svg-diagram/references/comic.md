@@ -27,3 +27,26 @@ diagram({title: '例', width: 480, legend: false}).add(comic({
 - 頭の円より上に絵がある素材では、全表情を通して絵が最も上に達する y を素材の座標で `anchors.top` に指定する。`box[1]` 以上、`head.cy - head.r` 以下の値を指定する。省略時は頭の円の上端を使う。確かめる範囲は、コマに写した絵の上端から頭の円の上端まで、箱の幅いっぱい。絵が箱より狭いと横のふきだしでも `comic-bubble-zone` が出るので、箱を絵に合わせて切る。
 - 表情には図形・グループ・グラデーション・クリップパスの SVG 断片を使う。紙色とインク色は十六進表記で指定する(`currentColor` は使えない)。
 - `license.spdx` と `license.author` は空でない文字列にする。`license.url` は `http://` または `https://` に続けて空白を含まない文字を 1 字以上書く。ライセンスに不備があると `comic-license-missing` で止まる。素材や表情が見つからない場合は `comic-asset-missing` を報告し、内蔵の顔を描く。
+
+## チャット画面（`chat()`）
+
+同じ台詞を、チャットアプリのような縦の画面にする(ADR 0074 D7)。スライドに「指示を貼る → AI の下書きが返る」のような画面を描くときは、箱とグループで真似ずに `chat()` を使う。
+
+```ts
+import {chat, diagram} from 'svg-diagram';
+diagram({title: '例', width: 520, legend: false}).add(chat({
+  version: 1, title: '案内文の下書き',
+  cast: {me: {name: '私'}, ai: {name: 'アシスタント'}},
+  dialogue: [
+    {id: 'ask', who: 'me', kind: 'say', tpl: '来週の{event}の案内文を作ってください。', slots: {event: {max: 6, prompt: '行事'}}},
+    {id: 'ok', who: 'ai', kind: 'say', tpl: '承知しました。下書きを作ります。'},
+  ],
+}, {input: '指示を入力'}));
+```
+
+- 入力は、マンガと同じ `sheet`(`panels` の台詞をコマの順につなぐ。吹き出しの id は `コマ.台詞`)か、`dialogue` の列(`cast` と台詞だけ。id は台詞の id)。座標や大きさは書かない。
+- `self`(既定 `'me'`)の台詞は右、ほかは左で、左には丸い顔(素材の `asset` ならその頭の部分。`chat(sheet, {characters})`)と名前が付く。同じ人が続けて話すときは最初の吹き出しにだけ付く。`kind: 'narration'`(`who` なし)は中央に置く。
+- 吹き出しの幅は、列(400px)の 70% で折り返した最長の行で決まり、列を超えない。広すぎる語は `comic-bubble-wide`(助言)。穴の大きさ・状態・値はマンガと同じ。穴の検査もマンガと同じ規則名(`comic-slot-*`)で、話し手が `cast` にないときは `chat-speaker-unknown`。
+- 台詞の `id` と穴の `id` は同じにできない(接続の端として同じ名前になるため)。
+- `separators: true` でコマの境に細い線(`sheet` がコマを持つとき)。`input: '案内'`(20 字まで。`true` なら「メッセージを入力」)で、下にメッセージ欄を描く。時刻や既読は出さない。
+- 値を入れて描くときは `renderChat(sheet, {measure, values, ...})`(`svg-diagram/browser`。実験的)。選択入口は `svg-diagram/bands/chat`。例は `examples/chat-draft.ts`、`chat-sheet.ts`。JSON の spec ではまだ使えない。

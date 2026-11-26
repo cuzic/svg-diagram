@@ -128,7 +128,7 @@
   "lib/wordart-vertical.ts": {"count": 6, "reason": "Builds the character sets for vertical text layout."},
   "lib/wordart.ts": {"count": 1, "reason": "Derives role names from the role table."},
   "lib/wrap.ts": {"count": 3, "reason": "Builds character sets for line breaking."},
-  "lint-svg.ts": {"count": 395, "reason": "Runs the lint CLI and reports or fixes SVG findings."},
+  "lint-svg.ts": {"count": 396, "reason": "Runs the lint CLI and reports or fixes SVG findings."},
   "manage-icons.ts": {"count": 229, "reason": "Runs the icons CLI and manages project icon data."},
   "markdown-diagram.ts": {"count": 68, "reason": "Runs the Markdown CLI and writes Markdown and diagram outputs."},
   "notes-diagram.ts": {"count": 26, "reason": "Runs the notes CLI and prints wireframe notes."},

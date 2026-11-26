@@ -1,6 +1,6 @@
 # ADR 0074: 穴(空欄)のあるマンガの部品 — `comic()`(コマ)、`bubble()`(ふきだし)、キャラクター、穴(slot)、Artifact との受け渡し、`chat()`
 
-- 状態: 承認(Accepted。2026-11-22。レビュー 3 回で収束。Q1〜Q10 は決める人がすべて推奨どおりに決定。下の「決定済み」。一部実装済み。U1(`comic()` と台詞 1 つの `speechBubble()`)、U2(顔と素材の形)、U3a(穴の値・値の検査・幾何の地図・最初の `renderComic`・穴への接続)は実装した(`lib/comic/`。下の各実装メモ)。U2 は PR #442 の round 1 と round 2 の素材検査、および補足仕様の `anchors.top` の公開型を反映。レビューの反映: 1 回目 Blocker 1・Major 7、2 回目 Major 2(穴の後ろのひらがなの結び方、値に依存する検査と `verdict` の関係)、3 回目 Major 1(`update` の差分の基準))
+- 状態: 承認(Accepted。2026-11-22。レビュー 3 回で収束。Q1〜Q10 は決める人がすべて推奨どおりに決定。下の「決定済み」。一部実装済み。U1(`comic()` と台詞 1 つの `speechBubble()`)、U2(顔と素材の形)、U3a(穴の値・値の検査・幾何の地図・最初の `renderComic`・穴への接続)、U5(`chat()` と `renderChat`。`lib/chat/`。下の U5 の実装メモ)は実装した(`lib/comic/`。下の各実装メモ)。U2 は PR #442 の round 1 と round 2 の素材検査、および補足仕様の `anchors.top` の公開型を反映。レビューの反映: 1 回目 Blocker 1・Major 7、2 回目 Major 2(穴の後ろのひらがなの結び方、値に依存する検査と `verdict` の関係)、3 回目 Major 1(`update` の差分の基準))
 - 日付: 2026-11-22
 - 基点: `main`(eec05f8c、PR #431 まで)
 - 関連: ADR 0045(`svg-diagram/browser`、測定を外から渡す)、ADR 0057(spec の `canvas`)、ADR 0071(JSON Schema をパッケージに入れる)、ADR 0034(`data-node`)、ADR 0050(組み合わせられる帯)、ADR 0012(id のスコープ)、ADR 0009(縦書き)、ADR 0007(Ports)
@@ -289,6 +289,7 @@ type Values = Record<string, string | null>;   // 値は別(状態)。無い = �
 - 見た目: 角丸の吹き出し(しっぽは小さく、片側のみ)、左側の人物は顔(同じ素材の頭の部分を丸く切る)と名前。時刻や既読は出さない。
 - 大きさ: D2 と同じ規則(`lib/comic/` の共有の関数 `reserveDialogue`)。内側の幅は、列の 70% と、いちばん広い穴の塊のうち大きい方(ただし列の幅まで)。穴の状態の描き方、値は共有なので、マンガに入れた値がそのままチャットにも出る。
 - コマの区切り(`separators: true` で細い線)は任意。
+- 入力欄(U5 で足した拡張。D7 の本来の範囲外): `input: '<案内>' | true` で、下にメッセージ欄を描く(U5 の実装メモ)。
 
 ### U1 の実装メモ(2026-11-22。実装で決めたことと、ADR の字面からの違い)
 
@@ -325,6 +326,17 @@ type Values = Record<string, string | null>;   // 値は別(状態)。無い = �
 - コマ・ふきだし・穴を接続のアンカーと `data-node` に使う。地図の鍵に帯の `scope` を付け、頭の矩形と口・頭の点を持つ。値のクリップ ID は仕様どおり `slot-clip-<穴の id>`。同じ穴の id のある複数のマンガを 1 つの SVG に入れる場合には重複しうる。
 - 穴への接続では、その穴を含むコマとふきだしを経路が通れる。別のコマと、端のコマ内にある別のふきだしに経路が重なると報告する(PR #452 の補足仕様)。
 - 縮小図は同じ配置から 1 コマを取り出し、番号札の分だけ各辺を 8px 広げ、穴は下線だけで描く。`update` と測定時間は U3b、`toClientRect` は U6(調整役が Issue #449 で確認)。
+
+### U5 の実装メモ(2026-11-26。`chat()` 実装済み)
+
+- 場所: `lib/chat/`(`layout.ts` 配置、`emit.ts` 描画、`measure.ts` 1 回目の測定、`render.ts` の `renderChat`、`constants.ts`)、`lib/dsl/chat.ts`(`chat()`)、`lib/bands/chat.ts`(帯の定義。ADR 0080 の形で、選択入口は `svg-diagram/bands/chat`)。`comic` と共有するのは `reserveDialogue`(`lib/comic/reserve.ts`。内側の幅の既定と上限を引数にした。`comic` の既定は変えていない)、`slot-check.ts`(穴の検査。`comic` の配置から移した)、`slot-svg.ts`(穴 1 つの描画。`emit.ts` から移した)、`slot-values.ts`(値と値の検査)、`defaultHue`(`face.ts`)。穴の大きさ・状態・値は同じ関数なので、同じ値は同じ文字で描かれ、値で配置は動かない(テストで確かめる)。
+- 入力: `ComicWorksheet`(コマの台詞を順につなぐ。吹き出しの id は `コマ.台詞`)か、`{version: 1, title, cast, dialogue}`(id は台詞の id)。右に置く話し手は帯の引数 `self`(既定 `'me'`。`cast` のキーでなければ投げる)。D7 は「`self: 'me'`」としか書かないので、入力のデータには持たせず引数にした。
+- 大きさ(D7 の「列の 70%」の読み方): 帯の幅 480px、余白 16px、顔の幅 40px + 隙間 8px を両側に空けるので、吹き出しの列は **400px**。内側の幅は、列の 70% = **280px**(`CHAT_INNER`)で折り返し、いちばん広い穴の塊(穴 + 結んだひらがな)のほうが広ければそれ、ただし列 − 余白 24px = 376px まで(`reserveAtoms` の `cap`)。吹き出しの幅は**折り返したあとの最長の行** + 余白 24px(4px の格子に切り上げ)で、短い台詞は短い吹き出しになる(`comic` は内側の幅を保つ)。語が列より広いときは `comic-bubble-wide`(助言)。行は左そろえ(`comic` は中央)。
+- 見た目: 自分は右・淡い青、相手は左・紙色。左の顔は、同じ素材の頭の円(`anchors.head`)を丸く切って 40px に縮める。内蔵の顔は頭と肩の上を円で切る(入れ子の `<svg viewBox>` で縮め、`transform` は使わない)。**顔と名前、しっぽは、同じ人の連続した台詞の最初の吹き出しにだけ**付ける(しっぽは外側の上の角に小さな三角)。ナレーションは中央の破線の枠でしっぽなし。`think` は破線、`shout` は太い枠。時刻・既読は出さない。コマの境の線(`separators: true`)は、台詞がコマを持つ(`ComicWorksheet` から作った)ときだけ。
+- 検査: 話し手が `cast` にない `chat-speaker-unknown`、メッセージ欄の案内が箱より広い `chat-input-wide`(どちらも問題)。穴の検査と、折り返しの助言(`comic-orphan-line` / `comic-follower-split` / `comic-bubble-wide`)は `comic` の規則名のまま(文言は「マンガ」)。穴の数の上限(1 コマ 2 個)は `chat` に無い。台詞の `id` が穴の `id` と同じだと、接続の端の id が重なるので帯の登録が投げる。重なりの検査の矩形は台詞ごとに 1 つ(`verify-chat-rects.ts`)。
+- **D7 に無い拡張(Q なし。最小)**: メッセージ欄 `input: '<案内>' | true`。帯の下に、角丸の入力欄(案内の文字、右に送信ボタン)を描く。案内は 1 行・20 字まで(`true` は「メッセージを入力」)。欄は配置の固定の大きさ(高さ 48px)で、値は入らない(`renderChat` の値は穴だけ)。
+- `renderChat(sheet, {measure, values, characters, self, separators, input, nodeIds})` を `svg-diagram/browser` に追加した(実験的。`renderComic` と同じ流れ。`geometry` は `bubbles` と `slots` だけ)。縮小図と `update` は無い。
+- 範囲外のまま: JSON の spec への部品(U4 で `comic` と一緒に決める。`comic` もまだ spec にない)、`connect()` の経路の検査(台詞の重なりの検査だけ)、アバターの表情の指定(常に `neutral`)。PowerPoint は `comic` と同じに 1 枚の絵。
 
 ## 代替案
 

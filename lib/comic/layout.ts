@@ -1,19 +1,22 @@
 // The layout of a comic() band (ADR 0074 D1 / D2): panels on a grid, the people at fixed places in each, the bubbles over their heads. A pure
 // function of the data and a width function: the values of the blanks do not come in (they are drawn on top, ADR 0074 D5).
-import {BADGE, FONT, GUTTER, HEAD_FROM_BOTTOM, HEAD_KEEP, HEAD_R, LINE_H, MARGIN, PAD_X, PAD_Y, PANEL_W, PANEL_W_2X2, NARRATION_LEFT, SIDE_KEEP, SLOT_FONT, SLOT_MAX, STACK_GAP, STAGE_X, TAIL_CLEAR, TAIL_HALF, TAIL_MIN, TAIL_STOP, ZONE_TOP, bandWidth, f1} from './constants.ts';
+import {BADGE, FONT, GUTTER, HEAD_FROM_BOTTOM, HEAD_KEEP, HEAD_R, LINE_H, MARGIN, PAD_X, PAD_Y, PANEL_W, PANEL_W_2X2, NARRATION_LEFT, SIDE_KEEP, SLOT_FONT, STACK_GAP, STAGE_X, TAIL_CLEAR, TAIL_HALF, TAIL_MIN, TAIL_STOP, ZONE_TOP, bandWidth, f1} from './constants.ts';
 import {ceil4} from '../connect-rules.ts';
 import {snap4} from '../emit-common.ts';
 import {rectOverlap} from '../verify-base.ts';
 import {comicAtomWidth} from './width.ts';
-import {fillTemplate, parseTemplate, slotIdsOf} from './template.ts';
+import {fillTemplate, parseTemplate} from './template.ts';
 import {balloonPath} from './balloon-path.ts';
 import {characterOverhang, mapPoint} from './character.ts';
+import {defaultHue} from './face.ts';
 import {reserveDialogue} from './reserve.ts';
+import {checkDialogueSlots, slotInfo} from './slot-check.ts';
 import type {Reserved} from './reserve.ts';
 import {checkBubbleFace, checkTail, tailCrosses} from './check.ts';
-import type {BubbleKind, ComicAspect, ComicAt, ComicBand, ComicFinding, ComicLaidBubble, ComicLaidHead, ComicLaidPanel, ComicLaidSlot, ComicLayoutName, ComicRule, ComicRun, ComicSlotDef, ComicText, ComicWorksheet, LaidOutComic} from '../types/comic.ts';
+import type {BubbleKind, ComicAspect, ComicAt, ComicBand, ComicFinding, ComicLaidBubble, ComicLaidHead, ComicLaidPanel, ComicLaidSlot, ComicLayoutName, ComicRule, ComicRun, ComicText, LaidOutComic} from '../types/comic.ts';
 import type {Anchor, Rect, WidthOf} from '../types/core.ts';
 
+export {slotMax} from './slot-check.ts';
 /** The panels of each named layout: columns x rows. */
 export const LAYOUT_GRID: Readonly<Record<ComicLayoutName, {cols: number; rows: number}>> = {'1x4': {cols: 1, rows: 4}, '2x2': {cols: 2, rows: 2}, '1x3': {cols: 1, rows: 3}, '1x2': {cols: 1, rows: 2}};
 /** The default shape of a panel in a column of panels (ADR 0074 Q10; see the measurement in the ADR). */
@@ -34,11 +37,7 @@ export const lineBudget = (panelH: number): number => { const z = zoneOf(panelH)
 export const bubbleHeight = (n: number): number => ceil4(n * LINE_H + 2 * PAD_Y);
 const MAX_BUBBLE_LINES = 3;
 
-interface SlotInfo {max: number; def: ComicSlotDef | undefined}
-export const slotMax = (def: ComicSlotDef | undefined): number | undefined => def?.max ?? (def?.choices?.length ? Math.max(...def.choices.map(c => [...c].length)) : undefined);
 
-/** A fixed hue by cast position, stepping around the colour wheel by approximately the golden angle. */
-const defaultHue = (cast: ComicWorksheet['cast'], who: string): number => (210 + 137 * Math.max(0, Object.keys(cast).indexOf(who))) % 360;
 
 const headX = (at: ComicAt, w: number): number => at === 'left' ? STAGE_X : at === 'right' ? w - STAGE_X : Math.floor(w / 2 / 4) * 4;
 
@@ -96,10 +95,7 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
     for (const dlg of p.dialogue) {
       const id = `${p.id}.${dlg.id}`;
       const parts = parseTemplate(dlg.tpl, `comic(): ${id}`);
-      const info = (sid: string): SlotInfo => {
-        const def = dlg.slots && Object.hasOwn(dlg.slots, sid) ? dlg.slots[sid] : undefined;
-        return {max: slotMax(def) ?? 4, def};
-      };
+      const info = (sid: string) => slotInfo(dlg, sid);
       const R = reserveDialogue(parts, sid => info(sid).max, atomWidth);
       const bw = ceil4(R.inner + 2 * PAD_X), bh = bubbleHeight(R.lines.length);
       const speaker = dlg.who === undefined ? undefined : heads.get(dlg.who);
@@ -123,25 +119,7 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
         add('comic-text-budget', id, `${id}: ${R.lines.length > MAX_BUBBLE_LINES ? `${R.lines.length} lines in one bubble (at most ${MAX_BUBBLE_LINES})` : `${stackLines} lines are stacked in ${p.id} (at most ${budget})`}; shorten the lines (blanks count at their widest)`);
       }
       for (const n of R.notes) add(`comic-${n}` as ComicRule, id, wrapNote(n, id, R), 'advice');
-      // blanks
-      for (const sid of slotIdsOf(parts)) {
-        const {def} = info(sid);
-        panelSlots.add(sid);
-        if (!def) add('comic-slot-undefined', id, `{${sid}} in ${id} has no definition in slots`);
-        if (seenSlots.has(sid)) add('comic-slot-duplicate', id, `blank id ${sid} is used twice (a blank id is unique in the whole worksheet)`);
-        seenSlots.add(sid);
-        if (def) {
-          const m = slotMax(def);
-          if (m === undefined || !Number.isInteger(m) || m < 1 || m > SLOT_MAX) add('comic-slot-max', id, `max of ${sid} is ${m ?? 'not given'}: use a whole number from 1 to ${SLOT_MAX}`);
-          else {
-            if (def.fallback !== undefined && [...def.fallback].length > m) add('comic-slot-max', id, `fallback of ${sid} has ${[...def.fallback].length} characters, more than its max ${m}`);
-            for (const c of def.choices ?? []) if ([...c].length > m) add('comic-slot-max', id, `choice "${c}" of ${sid} has ${[...c].length} characters, more than its max ${m}`);
-          }
-          const pl = [...(def.prompt ?? '')].length;
-          if (pl < 2 || pl > 4) add('comic-slot-prompt', id, `prompt of ${sid} has ${pl} characters (use 2 to 4)`);
-        }
-      }
-      for (const sid of Object.keys(dlg.slots ?? {})) if (!slotIdsOf(parts).includes(sid)) add('comic-slot-undefined', id, `slots has "${sid}", but tpl of ${id} has no {${sid}}`);
+      checkDialogueSlots(dlg, id, parts, seenSlots, add, panelSlots);
       // the text block: lines centred in the inner rectangle; a run of literal atoms is one <text>, a blank is a rectangle of its own
       const ih = R.lines.length * LINE_H, tx0 = left + (bw - R.inner) / 2, ty0 = top + (bh - ih) / 2;
       const runs: ComicRun[] = [], slots: ComicLaidSlot[] = [];

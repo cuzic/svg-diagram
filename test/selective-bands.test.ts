@@ -77,6 +77,7 @@ import {row} from '../lib/bands/row.ts';
 import {grid} from '../lib/bands/grid.ts';
 import {gantt} from '../lib/bands/gantt.ts';
 import {math} from '../lib/bands/math.ts';
+import {chatDefinition} from '../lib/bands/chat.ts';
 import {comicDefinition} from '../lib/bands/comic.ts';
 import {band, DEF, plain} from '../lib/band-def.ts';
 import type {BandDef} from '../lib/band-def.ts';
@@ -94,7 +95,7 @@ import {placedDefinitionOf} from '../lib/placed-definitions.ts';
 import {captionRects} from '../lib/verify-caption.ts';
 import {comicRects, comicSlotOwners} from '../lib/verify-comic-rects.ts';
 import {childRects, emblemRects, figureRects, overlappingFigureRects, ownRect, statusRects} from '../lib/verify-rects.ts';
-import {comic as legacyComic} from '../lib/web.ts';
+import {chat as legacyChat, comic as legacyComic} from '../lib/web.ts';
 import {sankey as legacySankey, heatmap as legacyHeatmap, radar as legacyRadar, waterfall as legacyWaterfall, swimlane as legacySwimlane, causeTree as legacyCauseTree, relationDiagram as legacyRelationDiagram, pdpc as legacyPdpc, tree as legacyTree, mindmap as legacyMindmap, stateDiagram as legacyStateDiagram, flowchart as legacyFlowchart, classDiagram as legacyClassDiagram, bpmn as legacyBpmn, cloud as legacyCloud, faultTree as legacyFaultTree, bowtie as legacyBowtie, wireframe as legacyWireframe, screens as legacyScreens, sequence as legacySequence, table as legacyTable, bars as legacyBars, rangeBars as legacyRangeBars, histogram as legacyHistogram, pareto as legacyPareto, plane as legacyPlane, quadrant as legacyQuadrant, legend as legacyLegend, wordart as legacyWordart, people as legacyPeople, dots as legacyDots, timeline as legacyTimeline, chevron as legacyChevron, cycle as legacyCycle, funnel as legacyFunnel, venn as legacyVenn, concentric as legacyConcentric, emblem as legacyEmblem, valueChain as legacyValueChain, curve as legacyCurve, pyramid as legacyPyramid, areas as legacyAreas, banner as legacyBanner, raw as legacyRaw, box as legacyBox, group as legacyGroup, caption as legacyCaption, spacer as legacySpacer, connect as legacyConnect, diagram, gantt as legacyGantt, grid as legacyGrid, renderInBrowser, row as legacyRow} from '../lib/web.ts';
 
 const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
@@ -989,6 +990,15 @@ test('selective comparison and network charts preserve legacy SVG and diagnostic
 
 const embeddedPixel = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
+function scopedChat() {
+  return band(chatDefinition, legacyChat({
+    version: 1, title: '手順', cast: {me: {name: '私'}, ai: {name: '案内'}}, dialogue: [
+      {id: 'ask', who: 'me', kind: 'say', tpl: '{slot}を確認', slots: {slot: {max: 2, prompt: '次'}}},
+      {id: 'answer', who: 'ai', kind: 'say', tpl: '了解です'},
+    ],
+  }, {id: 'sheet', scope: 'chat', input: true}));
+}
+
 function scopedComic() {
   return band(comicDefinition, legacyComic({
     version: 1, title: '手順', layout: '1x2', cast: {}, panels: [
@@ -1075,6 +1085,7 @@ test('every selective band type returns the legacy rectangles for the same place
     timeline: [timeline({from: '2026-01', to: '2026-06', now: {at: '2026-02'}, deadline: {at: '2026-06', label: '締切'}})],
     bowtie: [bowtie({top: '中断', threats: [{label: '故障'}], consequences: [{label: '遅延'}]})],
     comic: [scopedComic()],
+    chat: [scopedChat()],
     fta: [faultTree({label: '停止', gate: 'or', children: [{id: 'power', label: '電源', kind: 'basic'}, {label: '回線', kind: 'basic'}]})],
     tree: [tree({label: '親', children: [{label: '子', id: 'tip'}]})],
     states: [stateDiagram([{id: 'idle', label: '待機'}, {id: 'done', label: '完了'}], [{from: 'idle', to: 'done'}])],

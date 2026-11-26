@@ -3,13 +3,14 @@
 import {escapeAttr, escapeXml} from '../emit-common.ts';
 import {qualify, scopeOf} from '../scope-name.ts';
 import {balloonPath} from './balloon-path.ts';
-import {BADGE, BADGE_OVERHANG, COLOR, FONT, FRAME, SLOT_FONT, TAIL_HALF, f1} from './constants.ts';
+import {BADGE, BADGE_OVERHANG, COLOR, FONT, FRAME, SLOT_FONT, TAIL_HALF} from './constants.ts';
 import {characterSvg} from './character.ts';
 import {faceSvg} from './face.ts';
-import {slotFontSize, slotValue} from './slot-values.ts';
+import {slotSvg} from './slot-svg.ts';
+import {slotValue} from './slot-values.ts';
 import type {ValueTable} from './slot-values.ts';
 import {fillTemplate, parseTemplate} from './template.ts';
-import type {ComicLaidBubble, ComicLaidHead, ComicLaidPanel, ComicLaidSlot, LaidOutComic} from '../types/comic.ts';
+import type {ComicLaidBubble, ComicLaidHead, ComicLaidPanel, LaidOutComic} from '../types/comic.ts';
 import type {WidthOf} from '../types/core.ts';
 
 const tintOf = (p: ComicLaidPanel): string => p.tint === 'warm' ? COLOR.warm : p.tint === 'cool' ? COLOR.cool : COLOR.paper;
@@ -37,21 +38,6 @@ function panelSvg(p: ComicLaidPanel, characters: LaidOutComic['characters'], nam
   for (const h of p.heads) out.push(personSvg(h, p, characters, namespace, clipId));
   out.push('</g>');
   return out.join('');
-}
-
-function slotSvg(s: ComicLaidSlot, blank: 'prompt' | 'line', node: string, value: ReturnType<typeof slotValue>, widthOf?: WidthOf): string {
-  const group = `<g data-slot="${s.id}"${node}>`;
-  const cx = f1(s.x + s.w / 2);
-  if (value) {
-    const clip = `slot-clip-${s.id}`;
-    const size = slotFontSize(s, value, widthOf);
-    const filled = value.weight === 700;
-    return group + `<clipPath id="${clip}"><rect x="${s.x}" y="${f1(s.y - 4)}" width="${s.w}" height="${s.h + 8}"/></clipPath>`
-      + `<text x="${cx}" y="${f1(s.y + s.h / 2)}" text-anchor="middle" dominant-baseline="central" xml:space="preserve" font-size="${size}"${filled ? ' font-weight="700"' : ''} fill="${filled ? COLOR.filled : COLOR.prompt}" clip-path="url(#${clip})">${escapeXml(value.text)}</text></g>`;
-  }
-  const line = `<line x1="${s.x}" y1="${f1(s.y + s.h)}" x2="${f1(s.x + s.w)}" y2="${f1(s.y + s.h)}" stroke="${COLOR.prompt}" stroke-width="2" stroke-dasharray="2 3"/>`;
-  const prompt = blank === 'line' ? '' : `<text x="${cx}" y="${f1(s.y + s.h - 5)}" text-anchor="middle" font-size="${SLOT_FONT}" fill="${COLOR.prompt}">${escapeXml(s.prompt)}</text>`;
-  return group + line + prompt + '</g>';
 }
 
 /** The body and the tail are one closed path (lib/comic/balloon-path.ts). */

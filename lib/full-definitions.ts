@@ -19,6 +19,7 @@ import {classesDefinition} from './bands/classes.ts';
 import {cloudDefinition} from './bands/cloud.ts';
 import {clustermapDefinition} from './bands/clustermap.ts';
 import {comboDefinition} from './bands/combo.ts';
+import {chatDefinition} from './bands/chat.ts';
 import {comicDefinition} from './bands/comic.ts';
 import {compareDefinition} from './bands/compare.ts';
 import {concentricDefinition} from './bands/concentric.ts';
@@ -114,6 +115,7 @@ export const FULL_DEFINITIONS: FullDefinitions = {
   chevron: chevronDefinition,
   classes: classesDefinition,
   cloud: cloudDefinition,
+  chat: chatDefinition,
   comic: comicDefinition,
   concentric: concentricDefinition,
   connect: connectDefinition,
