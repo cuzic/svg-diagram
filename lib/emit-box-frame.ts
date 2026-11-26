@@ -20,15 +20,21 @@ export function renderBoxRect(band: BoxLike, day: Theme, tones: ToneEnv, default
 }
 
 // The stamp chip follows the bottom edge even when layout stretches the frame.
-export function stampGeometry(band: Rect, stampW: number): Rect {
-  return {x: snap4(band.x + band.w - 8 - stampW), y: snap4(band.y + band.h - 6 - 24), w: snap4(stampW), h: 24};
+export function stampGeometry(band: Rect, stampW: number, stampH = 24): Rect {
+  return {x: snap4(band.x + band.w - 8 - stampW), y: snap4(band.y + band.h - 6 - stampH), w: snap4(stampW), h: stampH};
 }
 
 
-export function renderStamp(band: Rect & {stamp?: string; stampW?: number}, roles: Roles): string {
+export function renderStamp(band: Rect & {stamp?: string; stampW?: number; stampLines?: string[]; stampH?: number}, roles: Roles): string {
   if (!band.stamp || band.stampW === undefined) return '';
-  const {x, y, w, h} = stampGeometry(band, band.stampW);
-  return `\n  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${PALETTE.bg}" stroke="${PALETTE.border}" stroke-width="1"/>\n  <text x="${snap4(band.x + band.w - 8 - band.stampW / 2)}" y="${y + 17}" font-size="${roles.note}" text-anchor="middle" fill="${PALETTE.muted}">${emojiSpan(band.stamp)}</text>`;
+  const {x, y, w, h} = stampGeometry(band, band.stampW, band.stampH);
+  const cx = snap4(band.x + band.w - 8 - band.stampW / 2);
+  if (band.stampLines) { // a stamp that was wrapped: one text line per row, the first at the one-line chip's baseline
+    const pitch = Math.round(roles.note * 1.4);
+    const rows = band.stampLines.map((l, i) => `\n  <text x="${cx}" y="${y + 17 + i * pitch}" font-size="${roles.note}" text-anchor="middle" fill="${PALETTE.muted}">${emojiSpan(l)}</text>`).join('');
+    return `\n  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${PALETTE.bg}" stroke="${PALETTE.border}" stroke-width="1"/>${rows}`;
+  }
+  return `\n  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${PALETTE.bg}" stroke="${PALETTE.border}" stroke-width="1"/>\n  <text x="${cx}" y="${y + 17}" font-size="${roles.note}" text-anchor="middle" fill="${PALETTE.muted}">${emojiSpan(band.stamp)}</text>`;
 }
 
 export function tagGeometry({x, y, w, h}: Rect): Rect {

@@ -11,6 +11,6 @@ export const bannerPptx: BandXml<LaidOutOf<'banner'>> = (banner, ctx) => {
   const text = textOf(banner);
   const main = boxXml(id, namedAs('box', text, banner.id), banner, ctx.ld.day, ctx.tones, ctx.fonts);
   if (!banner.stamp) return main;
-  const stamp = stampBadge(ctx, banner, banner.stamp);
+  const stamp = stampBadge(ctx, banner, banner.stamp, banner.stampLines);
   return groupXml(ctx.next(), namedAs('node', text, banner.id), banner, main + stamp);
 };

@@ -4,7 +4,7 @@ import type {Anchor, Dimmed, EmphasisTone, FocusOpts, Rect, RevealOpts, ScopeOpt
 
 /** `tone` 'solid' / 'solid-danger' fill the step (white text). */
 export interface FlowStep {label: string; sub?: string; id?: string; tone?: EmphasisTone}
-export interface ChevronOpts extends RevealOpts, ScopeOpts, FocusOpts {/** The arrows back to earlier steps, drawn under a horizontal chevron: `{from: 4, to: 2, label}` (1-based numbers or item ids). Several loops must nest. */ loopBack?: LoopBack | readonly LoopBack[]; id?: string; direction?: 'horizontal' | 'vertical'; first?: 'pentagon' | 'chevron'; gap?: number; current?: number; highlight?: number; width?: number}
+export interface ChevronOpts extends RevealOpts, ScopeOpts, FocusOpts {/** The arrows back to earlier steps, drawn under a horizontal chevron: `{from: 4, to: 2, label}` (1-based numbers or item ids). Several loops must nest. */ loopBack?: LoopBack | readonly LoopBack[]; id?: string; direction?: 'horizontal' | 'vertical'; first?: 'pentagon' | 'chevron'; gap?: number; current?: number; highlight?: number; width?: number; /** Wrap a horizontal chevron onto this many rows (ADR 0082); 'auto' is the fewest rows where no step's text wraps. Default 1. */ rows?: number | 'auto'; /** How many steps one row holds (ADR 0082). Not together with `rows`. */ perRow?: number}
 export interface FunnelStage {label: string; value?: number; id?: string; tone?: EmphasisTone}
 export interface FunnelOpts extends RevealOpts, ScopeOpts, FocusOpts {id?: string; scale?: 'value' | 'even'; showRate?: boolean; width?: number}
 /** A link of a cycle with `links` (ADR 0065): two steps (1-based number, id or label), two-way unless `direction: 'forward'`. */

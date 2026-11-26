@@ -1,7 +1,7 @@
 import {markPlacedSource} from './layout-ctx.ts';
 import {sourceOf} from './source-ref.ts';
 import type {LayoutCtx} from './layout-ctx.ts';
-import {groupTitleBand, snapGrid, stampChipW, STAMP_GAP, STAMP_H} from './layout-util.ts';
+import {groupTitleBand, fitStamp, snapGrid, STAMP_GAP} from './layout-util.ts';
 import {lineWidth} from './layout-text.ts';
 import type {GroupBand, LaidOutGroup} from './types/containers.ts';
 import type {CaptionBand} from './types/text-bands.ts';
@@ -61,9 +61,10 @@ export function layoutGroupAt(band: GroupBand, ctx: LayoutCtx, padX: number, cw:
   ctx.y = ctx.y - d.gap + gp;
   if (band.stamp) {
     frame.stamp = band.stamp;
-    frame.stampW = stampChipW(widthOf, band.stamp, roles);
-    if (frame.stampW > cw - 16) throw new Error(`stamp "${band.stamp}" is wider than its group (${Math.round(cw)}px): shorten it or widen the group`);
-    ctx.y += STAMP_H + STAMP_GAP;
+    const fit = fitStamp(widthOf, band.stamp, roles, cw - 16);
+    frame.stampW = fit.w;
+    if (fit.lines) { frame.stampLines = fit.lines; frame.stampH = fit.h; if (fit.over) frame.stampOver = fit.over; }
+    ctx.y += fit.h + STAMP_GAP;
   }
   frame.h = ctx.y - top0;
   frame.span = ctx.laidOut.length - at - 1; // its title and contents, nested groups and their contents included (ADR 0054 D5)

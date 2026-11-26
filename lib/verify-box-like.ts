@@ -6,10 +6,16 @@ import {luminance as lightLuminance, paintOf, PALETTE, runColorOf} from './token
 import type {ToneEnv} from './tokens.ts';
 import type {Appearance, EmphasisTone, Theme} from './types/core.ts';
 import type {LaidOutBanner, LaidOutBox, LaidOutCaption} from './types/text-bands.ts';
+import {stampTooWideMessage} from './layout-util.ts';
 import {CONTRAST_THRESHOLD, labelOf} from './verify-base.ts';
 
 export function nowrapProblems(b: LaidOutBox): string[] {
   return (b.nowrapOverflow ?? []).map(o => `stat: value "${o.value}" does not fit its box even at the smallest size (${o.min}px: needs ${Math.ceil(o.width)}px, the box has ${Math.floor(o.avail)}px).\n  fix: widen the box (span / flex / width), shorten the value, or put the unit in the label.`);
+}
+
+/** stamp-too-wide: a stamp that needs more than two lines, or has a word wider than its chip (it is drawn in full, the chip grown to fit). */
+export function stampProblems(b: {stamp?: string; stampOver?: {width: number; avail: number; lines: number}; w: number}): string[] {
+  return b.stamp && b.stampOver ? [stampTooWideMessage(b.stamp, b.w - 16, b.stampOver)] : [];
 }
 
 export function boxLikeContrastProblems(band: LaidOutBox | LaidOutBanner | LaidOutCaption, boxTone: EmphasisTone | null, theme: Theme, tones: ToneEnv, appearance?: Appearance): string[] {
