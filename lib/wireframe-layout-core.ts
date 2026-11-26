@@ -775,6 +775,8 @@ export const dialogRenderer: OverlayRenderer<WfDialog> = function drawDialog(o, 
   const dh = pad + 24 + (body.length ? 8 + body.length * lh(S) : 0) + (buttons.length ? 16 + 32 : 0) + pad;
   const at = o.at ?? 'center', edge = 16;
   if (!['center', 'top', 'bottom', 'left', 'right'].includes(at)) throw new Error(`wf.dialog(): at must be 'center', 'top', 'bottom', 'left' or 'right' (got "${String(at)}")`);
+  const room = at === 'center' ? 0 : edge; // a centred card only has to stay on the screen
+  if (dh > h - 2 * room || dw > w - 2 * room) throw new Error(`wf.dialog(): the card (${Math.round(dw)}x${Math.round(dh)}px) does not fit inside the screen (${Math.round(w)}x${Math.round(h)}px${room ? `, ${room}px margin` : ''}); shorten the body or the buttons, narrow the card with w, or make the screen taller (wireframe h)`);
   const dx = at === 'left' ? x + edge : at === 'right' ? x + w - dw - edge : x + (w - dw) / 2;
   const dy = at === 'top' ? y + edge : at === 'bottom' ? y + h - dh - edge : y + (h - dh) / 2;
   rect(ctx, x, y, w, h, {fill: 'text', op: 0.3});

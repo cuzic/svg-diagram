@@ -7,7 +7,7 @@ export function defineVennPart<Result>(builder: (sets: never, opts: never) => Re
     description: 'A Venn diagram of two or three sets: what each has, and what they share. Overlaps are named by the names of their sets.',
     schema: object({
       type: {const: 'venn'},
-      sets: list(object({name: text('The name of the set.', 20), label: text('What is only in this set.', 40), items: list(text('A short feature, drawn as a bullet under the set title.', 24), 4), tone: TEXT_TONE}, ['name']), 3, 2),
+      sets: list(object({name: text('The name of the set.', 20), label: text('What is only in this set.', 40), items: list(text('A short feature, drawn as a bullet under the set title.', 24), 4, 1), tone: TEXT_TONE}, ['name']), 3, 2),
       overlaps: list(object({sets: {type: 'array', items: text('A set name.', 20), minItems: 2, maxItems: 3}, label: text('What the sets share.', 40)}, ['sets', 'label']), 4),
       centre: text('What all the sets share.', 30),
       universe: text('The name of the whole, drawn as a frame.', 30),

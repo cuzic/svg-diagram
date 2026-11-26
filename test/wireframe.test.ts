@@ -108,11 +108,26 @@ test('dialog at: places the card off-centre, default stays centred, and content 
   const def = await run(), centre = await run('center');
   assert.deepEqual(frameOf(def), frameOf(centre), 'default is centre');
   const cx = frameOf(centre).x + frameOf(centre).w / 2, cy = frameOf(centre).y + frameOf(centre).h / 2;
+  const screen = (b: Screen) => b.prims.find((p): p is PrimRect => p.k === 'rect' && p.fill === 'text' && p.op === 0.3)!; // the dim layer = the area the card is placed in
   const top = frameOf(await run('top')), bottom = frameOf(await run('bottom')), left = frameOf(await run('left')), right = frameOf(await run('right'));
   assert.ok(top.y + top.h / 2 < cy && Math.abs(top.x + top.w / 2 - cx) < 1);
   assert.ok(bottom.y + bottom.h / 2 > cy && Math.abs(bottom.x + bottom.w / 2 - cx) < 1);
   assert.ok(left.x + left.w / 2 < cx && Math.abs(left.y + left.h / 2 - cy) < 1);
   assert.ok(right.x + right.w / 2 > cx && Math.abs(right.y + right.h / 2 - cy) < 1);
+  const sc = screen(await run('top')); 
+  assert.ok(sc, 'screen frame found');
+  assert.equal(left.x, sc.x + 16, 'left margin is 16px');
+  assert.equal(top.y, sc.y + 16, 'top margin is 16px');
+  assert.equal(right.x + right.w, sc.x + sc.w - 16, 'right margin is 16px');
+  assert.equal(bottom.y + bottom.h, sc.y + sc.h - 16, 'bottom margin is 16px');
   assert.ok(texts(await run('bottom')).includes('main-content'), 'the content the card does not cover is still drawn');
   await assert.rejects(() => layout(wireframe([wf.text('x')], {h: 200, overlays: [wf.dialog('t', {at: 'middle' as 'top'})]})), /at must be/);
+});
+
+test('dialog: a card taller than its screen is refused for every position, with a fix hint', async () => {
+  const tall = '長い本文です。'.repeat(20);
+  for (const at of [undefined, 'center', 'top', 'bottom', 'left', 'right'] as const) {
+    await assert.rejects(() => layout(wireframe([wf.text('main')], {h: 140, overlays: [wf.dialog('確認', {body: tall, buttons: [wf.btn('はい')], at})]})), /does not fit inside the screen.*(shorten|taller)/, String(at));
+  }
+  await assert.rejects(() => layout(wireframe([wf.text('main')], {h: 300, overlays: [wf.dialog('確認', {w: 2000, at: 'left'})]})), /does not fit inside the screen/);
 });

@@ -35,7 +35,7 @@ const bullet = (item: string) => `・${item}`;
 export function vennTexts(b: VennBand, roles: Roles): [string, number, number, FontFamily][] {
   const bold = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 700]] : [];
   const plain = (t: string | undefined): TextSpec[] => t ? [[t, roles.note, 400]] : [];
-  const specs = [...b.sets.flatMap(s => [...bold(s.label ?? s.name), ...(s.items ?? []).flatMap(i => plain(bullet(i)))]), ...b.overlaps.flatMap(o => bold(o.label)), ...bold(b.centre), ...plain(typeof b.universe === 'string' ? b.universe : undefined)];
+  const specs = [...b.sets.flatMap(s => [...bold(s.label ?? s.name), ...(s.items ?? []).flatMap(i => [...plain(bullet(i)), ...plain(i)])]), ...b.overlaps.flatMap(o => bold(o.label)), ...bold(b.centre), ...plain(typeof b.universe === 'string' ? b.universe : undefined)];
   return specs.map(([text, size, weight]) => [text, size, weight, 'sans']);
 }
 
@@ -61,16 +61,23 @@ export function layoutVenn(b: VennBand, out: LaidOutFlowShape, t: Texts, anchor:
     anchor(s.id, {x: px - r, y: py - r, w: 2 * r, h: 2 * r});
     const at: Pt = [px + dx / d * k * r, py + dy / d * k * r]; // in the part only this set covers
     if (!s.items?.length) { centred(s.label ?? s.name, at, .8 * r); return; }
-    // title (bold) above a short bullet list (left-aligned), the block centred on that spot
-    const title = t.wrap(s.label ?? s.name, .8 * r), rows = s.items.map(item => t.wrap(bullet(item), .8 * r, 400));
-    const gap = 4, H = title.h + gap + rows.reduce((a, q) => a + q.h, 0), listW = Math.max(...rows.map(q => q.w));
+    // title (bold) above a short bullet list (left-aligned, wrapped lines hang under the text, not the bullet), the block centred on that spot
+    const bw = t.width('・', 400), lh = t.lineH(), title = t.wrap(s.label ?? s.name, .8 * r), rows = s.items.map(item => t.wrap(item, Math.max(24, .8 * r - bw), 400));
+    const gap = 4, H = title.h + gap + rows.reduce((a, q) => a + q.lines.length * lh, 0), listW = bw + Math.max(...rows.map(q => q.w));
     const top = at[1] - H / 2, left = at[0] - listW / 2;
-    const boxes: [number, number, number, number][] = [[at[0] - title.w / 2, top, at[0] + title.w / 2, top + title.h]];
+    // every drawn line is checked on its own: [x0, y0, x1, y1]
+    const boxes: [number, number, number, number][] = title.lines.map((line, n) => { const lw = t.width(line, 700); return [at[0] - lw / 2, top + n * lh, at[0] + lw / 2, top + (n + 1) * lh]; });
     t.place(title, at[0], top);
     let y = top + title.h + gap;
-    for (const q of rows) { t.place(q, left, y, 'text', 'start'); boxes.push([left, y, left + q.w, y + q.h]); y += q.h; }
+    for (const q of rows) {
+      q.lines.forEach((line, n) => {
+        const text = n === 0 ? `・${line}` : line, x = n === 0 ? left : left + bw, lw = t.width(text, 400);
+        t.place({...q, text, lines: [text], h: lh, w: lw}, x, y, 'text', 'start');
+        boxes.push([x, y, x + lw, y + lh]); y += lh;
+      });
+    }
     const dist = (x: number, yy: number, c: Pt) => Math.hypot(x - c[0], yy - c[1]);
-    const fits = boxes.every(([x0, y0, x1, y1]) => [[x0, y0], [x1, y0], [x0, y1], [x1, y1]].every(([x, yy]) => dist(x!, yy!, [px, py]) <= r - 2 && pos.every((o, j) => j === i || dist(x!, yy!, o) >= r + 2)));
+    const fits = boxes.every(([x0, y0, x1, y1]) => ([[x0, y0], [x1, y0], [x0, y1], [x1, y1]] satisfies Pt[]).every(([x, yy]) => dist(x, yy, [px, py]) <= r - 2 && pos.every((o, j) => j === i || dist(x, yy, o) >= r + 2)));
     if (!fits) (out.misfits ??= []).push(s.name);
   });
   for (const o of b.overlaps) {

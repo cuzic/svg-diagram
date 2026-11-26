@@ -5734,7 +5734,7 @@
                   "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                   "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
                 },
-                "minItems": 0,
+                "minItems": 1,
                 "maxItems": 4
               },
               "tone": {

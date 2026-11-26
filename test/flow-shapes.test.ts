@@ -175,3 +175,25 @@ test('venn: items must be 1 to 4 non-empty strings', () => {
   assert.throws(() => venn([{name: 'A', items: ['a', 'b', 'c', 'd', 'e']}, {name: 'B'}]), /items/);
   assert.throws(() => venn([{name: 'A', items: [' ']}, {name: 'B'}]), /items/);
 });
+
+test('venn of three: items that stay in their own circle but cut into a neighbour are reported', () => {
+  const f = figure(venn([{name: '甲'}, {name: '乙', items: ['あ'.repeat(5), 'あ'.repeat(14), 'あ'.repeat(19)]}, {name: '丙'}]), 587);
+  const [c0, c1, c2] = f.primitives.filter(p => p.k === 'circle') as {cx: number; cy: number; r: number}[];
+  const corners = (t: Rect) => [[t.x, t.y], [t.x + t.w, t.y], [t.x, t.y + t.h], [t.x + t.w, t.y + t.h]] as const;
+  const items = f.texts.filter(t => t.text.includes('あ'));
+  assert.ok(items.every(t => corners(t).every(([x, y]) => Math.hypot(x - c1!.cx, y - c1!.cy) <= c1!.r - 2)), 'precondition: inside its own circle');
+  assert.ok(items.some(t => corners(t).some(([x, y]) => [c0!, c2!].some(c => Math.hypot(x - c.cx, y - c.cy) < c.r + 2))), 'precondition: cuts into a neighbour');
+  assert.deepEqual(f.misfits, ['乙']);
+});
+
+test('venn: a wrapped item hangs under its text, and every corner of every line stays in its own circle', () => {
+  const f = figure(venn([{name: 'A', items: ['あ'.repeat(18)]}, {name: 'B'}]), 892);
+  const lines = f.texts.filter(t => t.text.includes('あ'));
+  assert.ok(lines.length >= 2, 'the item wraps');
+  const bullet = must(lines[0]), next = must(lines[1]);
+  assert.ok(bullet.text.startsWith('・') && !next.text.startsWith('・'));
+  assert.ok(next.x > bullet.x + 1, 'continuation is indented past the bullet');
+  const [a] = f.primitives.filter(p => p.k === 'circle') as {cx: number; cy: number; r: number}[];
+  for (const t of lines) for (const [x, y] of [[t.x, t.y], [t.x + t.w, t.y], [t.x, t.y + t.h], [t.x + t.w, t.y + t.h]] as const) assert.ok(Math.hypot(x - a!.cx, y - a!.cy) <= a!.r);
+  assert.equal(f.misfits, undefined);
+});
