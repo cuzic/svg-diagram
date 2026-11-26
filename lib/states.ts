@@ -13,6 +13,7 @@ import type {FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {LaidOutStates, StatesBand} from './types/diagrams.ts';
 
 import {must} from './must.ts';
+import {layoutLadder} from './ladder.ts';
 export const STATE_ICON = 24;
 const ICON_H = STATE_ICON + 4; // an icon above the label: its size and a gap
 const ARROW = 14, GAP = 28, DOT = 8, LOOP = 26, LOOP_W = 12, CHIP_PAD = 6, INIT = '\u0000init';
@@ -59,6 +60,7 @@ function layoutStatesBandAt(band: StatesBand, x: number, y: number, w: number, w
     ids.add(s.id);
   }
   for (const t of band.transitions) for (const e of [t.from, t.to]) if (!ids.has(e)) throw new Error(`${words.who}: ${words.edge} ${t.from} -> ${t.to} names unknown ${words.node} "${e}"`);
+  if (band.arrange === 'ladder') return layoutLadder(band, x, y, w, widthOf, roles, env);
   if (band.initial !== undefined && !ids.has(band.initial)) throw new Error(`${words.who}: initial names unknown ${words.node} "${band.initial}"`);
 
 

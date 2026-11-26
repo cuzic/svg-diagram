@@ -144,6 +144,8 @@ export interface StatesBand extends Omit<StatesOpts, 'focus'> {
   flavor?: 'flowchart';
   /** Internal: the direction a figure starts from when `dir` is left out (a flowchart runs down). Not an explicit `dir`. */
   defaultDir?: 'down';
+  /** SPIKE: a decision ladder (fixed two-column placement). */
+  arrange?: 'ladder';
   states: StateItem[];
   transitions: Transition[];
 }

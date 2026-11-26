@@ -1,0 +1,16 @@
+decision ladder spike: 5 questions + final box, invented wording (library lending desk)
+fit = the whole SVG scaled into 1280x720 (scale = min(1280/W, 720/H)); text is 14px everywhere (body / note / chip)
+smallest text px = 14 * scale; pt = px * 0.75 (a 1280px-wide 16:9 slide is 13.33in = 960pt)
+
+figure                      size        scale  smallest text
+base-down (flowchart down)  940x1040    0.692   9.7px  7.3pt   diagonal staircase anyway
+base-right (flowchart right, width 1640; does not fit 900)
+                            1640x372    0.780  10.9px  8.2pt   diagonal staircase
+ladder-diamond              940x820     0.878  12.3px  9.2pt   diamonds make rows 100-128px tall
+ladder-box (default width)  940x436     1.362  19.1px 14.3pt   width-bound: content is ~470px of the 900px band
+ladder-box-w640             640x436     1.651  23.1px 17.3pt   diagram({width: 640})
+ladder-long (1 long question wraps to 2 lines, final has a sub)
+                            940x476     1.362  19.1px 14.3pt   the wrap leaves a 2-char last line (balance the wrap)
+
+lint --strict advisory on every figure with edge chips (flowchart too): "はい/いいえ overflows container by 4px" (existing, not ladder-specific)
+check-diagram --strict ladder-box.ts: pass

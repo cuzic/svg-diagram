@@ -70,3 +70,19 @@ export function flowchart(nodes: readonly FlowNode[], edges: readonly FlowEdge[]
   });
   return statesBandOf(items, edges, opts, 'flowchart');
 }
+
+/** SPIKE: a decision ladder. Each step's yes goes right to its answer, no goes down to the next question; the last no ends in `otherwise`. */
+export interface LadderStep {q: string; yes: string; sub?: string; tone?: StateItem['tone']}
+export function decisionLadder(steps: readonly LadderStep[], otherwise: string | {label: string; sub?: string; tone?: StateItem['tone']}, opts: {yes?: string; no?: string; question?: 'box' | 'diamond'; maxNodeW?: number; id?: string} = {}): StatesBand {
+  if (!steps.length) throw new Error('decisionLadder(): needs at least one step');
+  const yes = opts.yes ?? 'はい', no = opts.no ?? 'いいえ';
+  const items: StateItem[] = [], edges: Transition[] = [];
+  steps.forEach((s, i) => {
+    items.push({id: `q${i + 1}`, label: s.q, ...(opts.question === 'diamond' ? {shape: 'diamond' as const} : {})}, {id: `a${i + 1}`, label: s.yes, ...(s.sub ? {sub: s.sub} : {}), ...(s.tone ? {tone: s.tone} : {})});
+    edges.push({from: `q${i + 1}`, to: `a${i + 1}`, label: yes}, {from: `q${i + 1}`, to: i + 1 < steps.length ? `q${i + 2}` : 'otherwise', label: no});
+  });
+  const o = typeof otherwise === 'string' ? {label: otherwise} : otherwise;
+  items.push({id: 'otherwise', ...o});
+  const band = statesBandOf(items, edges, {...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(opts.id === undefined ? {} : {id: opts.id})}, 'flowchart');
+  return {...band, arrange: 'ladder'};
+}
