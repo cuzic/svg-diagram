@@ -1,9 +1,9 @@
 // The types of comic() (ADR 0074): the meaning-first data (templates and who stands where; no coordinates), and the laid-out band.
 import type {Anchor, Dimmed, Rect, RevealOpts, ScopeOpts} from './core.ts';
 
-export type ComicLayoutName = '1x4' | '2x2' | '1x3' | '1x2';
+export type ComicLayoutName = '1x4' | '2x2' | '1x3' | '1x2' | '2x1' | '3x1' | '4x1';
 /** The width : height of a panel. */
-export type ComicAspect = '7:5' | '6:5' | '1:1';
+export type ComicAspect = '7:5' | '6:5' | '1:1' | '3:4';
 export type ComicAt = 'left' | 'center' | 'right';
 export type ComicExpression = 'neutral' | 'smile' | 'laugh' | 'surprise' | 'worry' | 'angry' | 'think' | 'sad';
 export type BubbleKind = 'say' | 'think' | 'shout' | 'narration';
@@ -74,8 +74,10 @@ export interface ComicWorksheet {
 }
 export interface ComicOpts extends RevealOpts, ScopeOpts {
   id?: string;
-  /** The width : height of a panel (default: 6:5 for a column of panels, 1:1 for 2x2). */
+  /** The width : height of a panel (default: 6:5 for a column of panels, 1:1 for 2x2, 3:4 for a row of panels: 2x1 / 3x1 / 4x1). */
   aspect?: ComicAspect;
+  /** The size of the dialogue text in px, a whole number from 14 to 28 (default 18). The lines, the blanks and the bubbles grow with it. */
+  fontSize?: number;
   /** 'horizontal' only (ADR 0074 Q1: vertical text is the second version). */
   writing?: 'horizontal';
   /** 'ltr' only (a right-to-left reading order goes with vertical text). */
@@ -91,7 +93,7 @@ export interface ComicBand extends Omit<ComicOpts, 'characters'> {
 }
 
 export type ComicRule =
-  | 'comic-speaker-unknown' | 'comic-at-collision' | 'comic-panel-count' | 'comic-slots-per-panel' | 'comic-slot-duplicate' | 'comic-slot-undefined'
+  | 'comic-speaker-unknown' | 'comic-at-collision' | 'comic-panel-count' | 'comic-band-narrow' | 'comic-slots-per-panel' | 'comic-slot-duplicate' | 'comic-slot-undefined'
   | 'comic-slot-max' | 'comic-slot-prompt' | 'comic-bubble-covers-face' | 'comic-tail-off-speaker' | 'comic-tail-crosses-bubble' | 'comic-bubble-zone' | 'comic-text-budget'
   | 'comic-asset-missing' | 'comic-bubble-wide' | 'comic-orphan-line' | 'comic-follower-split'
   | 'comic-value-invalid' | 'comic-values-unknown' | 'slot-overflow';
@@ -158,4 +160,6 @@ export interface LaidOutComic extends Dimmed {
   findings: ComicFinding[];
   /** The characters of the cast's assets, loaded: the drawing needs their fragments. */
   characters: Record<string, ComicCharacter>;
+  /** The dialogue text size, only when it is not the default 18. */
+  fontSize?: number;
 }

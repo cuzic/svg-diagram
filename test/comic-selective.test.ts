@@ -38,7 +38,7 @@ for (const file of globSync('comic-*.ts', {cwd: fileURLToPath(examples)}).sort()
     assert.ok(source?.type === 'comic');
     assert.equal(input.bands.length, 1);
     const selected = await renderBands([band(comicDefinition, source)], {
-      ...drawOpts, width: input.width, title: input.title, theme: input.day,
+      ...drawOpts, width: input.canvas === undefined ? input.width : undefined, title: input.title, theme: input.day, accept: input.accept, ...(input.canvas === undefined ? {} : {canvas: input.canvas}),
     });
     const legacy = await renderInBrowser(input, {measure});
     assert.deepEqual(diagnostics(selected.verdict), diagnostics(legacy.verdict));
