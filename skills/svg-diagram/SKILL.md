@@ -66,6 +66,7 @@ SVG は生成物としてコミットし、Markdown からはそれを参照す�
 | `versus(left, right, {shared})` | 左右の対比。各側は `{title, children, tone, id}` |
 | `stat(value, label, {source, confidence})` | 大きな数字。数字の出典は `source` / `confidence` |
 | `spacer(h)` | 縦の余白 |
+| `chevron(steps, {rows, perRow})` | 横の矢羽根が多いとき（16:9 のスライドに 7 つ以上など）の折り返し。`rows: 2`（段数）か `perRow: 4`（1 段の数）。`rows: 'auto'` は文字が折れない最少の段数。段の間に続きの矢印がつく。縦・`loopBack` とは併用不可。`rows` と `perRow` も同時に書けない |
 | `focus`（項目を持つ図の option） | 図の中の「今ここ」: `mindmap(root, {focus: 'id'})` / `stateDiagram(..., {focus: 'id'})` / `chevron(steps, {focus: 2})`。その項目を塗り、関係する項目を強調色、ほかを薄くする。`spotlight` は図全体が単位（README「図の中の「今ここ」」） |
 
 接続線・凡例・トーンの使い分けなどは、README の該当節。`raw()` で SVG を手書きする前に、まず部品を探す。
