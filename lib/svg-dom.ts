@@ -146,11 +146,15 @@ export function parseTransform(value: string | undefined): Matrix {
 export interface Style {
   fill: string; stroke: string; strokeWidth: number; opacity: number; fillOpacity: number; strokeOpacity: number;
   fontSize: number; fontWeight: number; fontFamily: string; textAnchor: string; color: string;
+  /** Inherited stroke shape and paint order; absent until some element sets them. */
+  strokeLinejoin?: string; strokeLinecap?: string; strokeMiterlimit?: string; paintOrder?: string; strokeDasharray?: string; strokeDashoffset?: string;
 }
 const INITIAL: Style = {fill: 'black', stroke: 'none', strokeWidth: 1, opacity: 1, fillOpacity: 1, strokeOpacity: 1, fontSize: 16, fontWeight: 400, fontFamily: 'serif', textAnchor: 'start', color: 'black'};
 const PROPS: Record<string, keyof Style> = {
   'fill': 'fill', 'stroke': 'stroke', 'stroke-width': 'strokeWidth', 'opacity': 'opacity', 'fill-opacity': 'fillOpacity', 'stroke-opacity': 'strokeOpacity',
   'font-size': 'fontSize', 'font-weight': 'fontWeight', 'font-family': 'fontFamily', 'text-anchor': 'textAnchor', 'color': 'color',
+  'stroke-linejoin': 'strokeLinejoin', 'stroke-linecap': 'strokeLinecap', 'stroke-miterlimit': 'strokeMiterlimit', 'paint-order': 'paintOrder',
+  'stroke-dasharray': 'strokeDasharray', 'stroke-dashoffset': 'strokeDashoffset',
 };
 
 interface Rule {sel: (e: El) => boolean; specificity: number; order: number; decls: Record<string, string>}

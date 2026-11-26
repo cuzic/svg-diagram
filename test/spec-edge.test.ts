@@ -91,7 +91,20 @@ test('what outlines would not reproduce is reported, whichever way it was writte
 
 test('what outlines would not reproduce is reported, not silently lost', () => {
   assert.deepEqual(outlineText(wrap('<text x="0" y="10" writing-mode="tb">A</text>'), fake, fakeBox).unsupported, ['writing-mode']);
-  assert.deepEqual(outlineText(wrap('<text x="0" y="10" stroke="#fff">A</text>'), fake, fakeBox).unsupported, ['stroke']);
+  // a stroke is not lost: it moves to the glyphs (WordArt outlines on slides); a stroke drawn first is a pass of its own, under every fill
+  const first = outlineText(wrap('<text x="0" y="10" stroke="#fff" stroke-width="2" paint-order="stroke">AB</text>'), fake, fakeBox);
+  assert.deepEqual(first.unsupported, []);
+  assert.match(first.svg, /<g stroke="#fff" stroke-width="[\d.]+" fill="none"><use[^>]*\/><use[^>]*\/><\/g><use/);
+  const normal = outlineText(wrap('<text x="0" y="10" stroke="#fff" stroke-width="2">A</text>'), fake, fakeBox);
+  assert.match(normal.svg, /<g stroke="#fff" stroke-width="[\d.]+"><use/);
+  assert.doesNotMatch(normal.svg, /paint-order/);
+  // a stroke inherited from a group does not reach the fills as a hairline in font units
+  const inherited = outlineText(wrap('<g stroke="#fff" stroke-width="8" paint-order="stroke"><text x="0" y="10" font-size="20">AB</text></g>'), fake, fakeBox);
+  assert.match(inherited.svg, /<g fill="black" stroke="none" role="img"/);
+  // a dash would be read in font units: still an error
+  assert.deepEqual(outlineText(wrap('<text x="0" y="10" stroke="#fff" stroke-dasharray="6,4">A</text>'), fake, fakeBox).unsupported, ['stroke-dasharray']);
+  assert.deepEqual(outlineText(wrap('<g stroke="#fff" stroke-dasharray="6,4"><text x="0" y="10">A</text></g>'), fake, fakeBox).unsupported, ['stroke-dasharray']);
+  assert.deepEqual(outlineText(wrap('<g stroke-dasharray="6,4"><text x="0" y="10">A</text></g>'), fake, fakeBox).unsupported, [], 'a dash with no stroke draws nothing');
 });
 
 // a real engine: HarfBuzz over the fonts the layout measures with
