@@ -17,6 +17,7 @@ import {xmlProblems} from '../lib/xml-check.ts';
 import {realEngine} from './helpers/text-engine.ts';
 import {unzipEntry, unzipNames} from './helpers/pptx/unzip.ts';
 import {packageSchemaProblems, schemaCheckSkipped} from './helpers/pptx/xsd.ts';
+import {lineShapeProblems} from './helpers/pptx/lines.ts';
 
 test.after(() => closeMeasurer());
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -66,7 +67,7 @@ test('a deck is one file of 16:9 slides with notes, every shape on its slide and
   const pres = entry(pptx, 'ppt/presentation.xml');
   assert.match(pres, new RegExp(`<p:sldSz cx="${SLIDE_W * EMU}" cy="${SLIDE_H * EMU}"/>`));
   assert.equal(pres.match(/<p:sldId /g)?.length, 3);
-  assert.ok(pres.indexOf('<p:notesMasterIdLst>') < pres.indexOf('<p:sldIdLst>'), 'pml.xsd: the notes master list comes before the slide list');
+  assert.ok(pres.indexOf('<p:sldIdLst>') < pres.indexOf('<p:notesMasterIdLst>'), 'the slide list comes before the notes master list: PowerPoint does not open the schema\'s order (ADR 0055)');
   assert.match(entry(pptx, 'docProps/app.xml'), /<Slides>3<\/Slides>/);
   assert.match(entry(pptx, 'docProps/core.xml'), /<dc:title>デッキ<\/dc:title>/);
   assert.match(entry(pptx, 'ppt/notesSlides/notesSlide1.xml'), /<a:t>一行目<\/a:t><\/a:r><\/a:p><a:p><a:r><a:rPr lang="ja-JP" dirty="0"\/><a:t>二行目<\/a:t>/);
@@ -100,6 +101,25 @@ test('every part of a deck validates against its schema: slides, notes pages, ma
   const names = unzipNames(zip);
   assert.ok(names.includes('ppt/notesSlides/notesSlide4.xml') && names.includes('ppt/presentation.xml') && names.includes('docProps/app.xml'), names.join(', '));
   assert.deepEqual(packageSchemaProblems(names.map(name => ({name, text: unzipEntry(zip, name).toString()}))), []);
+});
+
+// What real PowerPoint refused (Microsoft 365 16.0.20326 and a user's PowerPoint; ADR 0055): presentation.xml in pml.xsd's order (the notes
+// master list before the slide list) once the deck has notes, and a connector (p:cxnSp) with a custom geometry, which a chevron wrapped
+// onto rows draws between its rows. The deck keeps PptxGenJS's order, and the wrap is PowerPoint's own bentConnector3.
+test('a deck with notes, a wrapped chevron and curved lines opens in PowerPoint: the slide list before the notes master list, no connector with a custom geometry', async () => {
+  const steps = Array.from({length: 12}, (_, i) => ({label: `段階 ${i + 1}`, sub: '説明の一文'}));
+  const deck = {title: 'デッキ', slides: [
+    {title: '折り返す矢羽', figure: {version: 1, title: '手順', parts: [{type: 'chevron', rows: 'auto', steps}]}, notes: '話すこと'},
+    {title: '枝', figure: figure('mindmap'), notes: '話すこと'},
+    {title: '年表', figure: figure('timeline'), notes: '話すこと'},
+  ]};
+  const r = await renderDeckPptxEdge(deck, realEngine(), {rasterize: () => PNG});
+  assert.deepEqual(r.issues, []);
+  const pptx = r.pptx as Uint8Array, pres = entry(pptx, 'ppt/presentation.xml');
+  assert.ok(pres.indexOf('</p:sldIdLst><p:notesMasterIdLst>') > 0, 'the slide list comes right before the notes master list');
+  const slides = [1, 2, 3].map(i => entry(pptx, `ppt/slides/slide${i}.xml`));
+  assert.deepEqual(slides.flatMap(lineShapeProblems), []);
+  assert.match(slides[0] ?? '', /<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="\d+" name="[^"]*"\/><p:cNvCxnSpPr\/><p:nvPr\/><\/p:nvCxnSpPr><p:spPr><a:xfrm rot="5400000"[^>]*>.*?<a:prstGeom prst="bentConnector3">/, 'the wrap between the rows is a bentConnector3');
 });
 
 test('the same deck gives the same bytes', async () => {

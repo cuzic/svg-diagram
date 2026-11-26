@@ -192,9 +192,9 @@ export function deckEntries(slides: readonly PlannedSlide[], pngs: readonly (rea
     let x = t;
     if (name === 'ppt/presentation.xml') {
       x = once(x, /<p:sldSz[^>]*\/>/, `<p:sldSz cx="${emu(SLIDE_W)}" cy="${emu(SLIDE_H)}"/>`, 'p:sldSz');
-      x = once(x, /<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/, '', 'p:sldIdLst');
-      // the schema's order is sldMasterIdLst, notesMasterIdLst, sldIdLst: the deck's slide list goes right after the notes master list
-      x = once(x, /(<p:notesMasterIdLst>[\s\S]*?<\/p:notesMasterIdLst>)/, `$1<p:sldIdLst>${slides.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${100 + i}"/>`).join('')}</p:sldIdLst>`, 'p:notesMasterIdLst');
+      // the slide list stays where the template has it, before the notes master list (ADR 0055): pml.xsd wants it after, but PowerPoint does
+      // not open a deck with notes in the schema's order (seen with Microsoft 365 PowerPoint 16.0.20326 and a user's PowerPoint), and opens this one
+      x = once(x, /<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>(?=<p:notesMasterIdLst>)/, `<p:sldIdLst>${slides.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${100 + i}"/>`).join('')}</p:sldIdLst>`, 'p:sldIdLst before p:notesMasterIdLst');
     } else if (name === 'ppt/_rels/presentation.xml.rels') {
       x = once(x, new RegExp(`<Relationship Id="rId\\d+" Type="${SLIDE_REL.replace(/[./]/g, '\\$&')}" Target="slides/slide1.xml"/>`), '', 'the slide relationship');
       x = once(x, '</Relationships>', slides.map((_, i) => `<Relationship Id="rId${100 + i}" Type="${SLIDE_REL}" Target="slides/slide${i + 1}.xml"/>`).join('') + '</Relationships>', 'Relationships');

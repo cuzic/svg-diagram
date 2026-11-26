@@ -37,4 +37,4 @@ const nameAttr = (name: string): string => attr([...name].filter(c => { const k 
 export const sp = (id: number, name: string, spPr: string, txBody: string): string =>
   `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${nameAttr(name)}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>${spPr}</p:spPr><p:txBody>${txBody}</p:txBody></p:sp>`;
 export const cxnSp = (id: number, name: string, glue: string | undefined, spPr: string): string =>
-  `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="${nameAttr(name)}"/>${glue === undefined ? '<p:cNvCxnSpPr/>' : `<p:cNvCxnSpPr>${glue}</p:cNvCxnSpPr>`}<p:nvPr/></p:nvCxnSpPr><p:spPr>${spPr}</p:spPr></p:cxnSp>`;
+  `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="${nameAttr(name)}"/>${!glue ? '<p:cNvCxnSpPr/>' : `<p:cNvCxnSpPr>${glue}</p:cNvCxnSpPr>`}<p:nvPr/></p:nvCxnSpPr><p:spPr>${spPr}</p:spPr></p:cxnSp>`;

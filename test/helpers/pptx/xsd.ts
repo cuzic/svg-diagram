@@ -54,10 +54,22 @@ export function slideSchemaProblems(slideXml: string): string[] { return schemaP
  * shared-documentPropertiesExtended.xsd. Not checked: `docProps/core.xml`, `[Content_Types].xml` and the `.rels` (their OPC schemas are in Part 2, not fetched).
  */
 export function packageSchemaProblems(parts: readonly {name: string; text: string}[]): string[] {
-  return parts.flatMap(({name, text}) => {
+  return parts.flatMap(({name, text: raw}) => {
+    const text = name === 'ppt/presentation.xml' ? schemaOrderOfPresentation(raw) : raw;
     const xsd = name === 'docProps/app.xml' ? 'shared-documentPropertiesExtended.xsd' : name.startsWith('ppt/') && name.endsWith('.xml') ? 'pml.xsd' : null;
     return xsd ? schemaProblems(text, xsd).map(p => `${name}: ${p}`) : [];
   });
+}
+
+/**
+ * presentation.xml with its slide list moved after the notes master list, the one deviation from pml.xsd the writer makes on purpose:
+ * PowerPoint does not open a deck with notes whose presentation.xml has pml.xsd's order (sldMasterIdLst, notesMasterIdLst, sldIdLst; error
+ * 0x80070570, seen with Microsoft 365 PowerPoint 16.0.20326 and a user's PowerPoint) and opens PptxGenJS's order (sldIdLst before notesMasterIdLst).
+ * xmllint and the Open XML SDK both accept the schema's order. Only that order is forgiven: anything else in the part is still checked as written.
+ */
+export function schemaOrderOfPresentation(xml: string): string {
+  const m = /(<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>)(<p:notesMasterIdLst>[\s\S]*?<\/p:notesMasterIdLst>)/.exec(xml);
+  return m ? xml.replace(m[0], (m[2] ?? '') + (m[1] ?? '')) : xml;
 }
 
 function schemaProblems(xml: string, xsd: string): string[] {

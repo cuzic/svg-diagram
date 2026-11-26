@@ -7,6 +7,7 @@ import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutConnect} from '../types/containers.ts';
 import type {ConnXfrm} from './geom.ts';
 import {emu, solidFill, arrowEnds, cxnSp} from './xml.ts';
+import {unglued} from './free-line.ts';
 
 export type {Glue} from './connector-geometry-xml.ts';
 
@@ -21,10 +22,8 @@ export function connectorXml(id: number, c: LaidOutConnect, x: ConnXfrm, day: La
   return cxnSp(id, namedAs('arrow', c.label ?? '', `${c.fromId} → ${c.toId}`), glueXml(start, end), `${cxnXfrm(x, true)}<a:prstGeom prst="${x.prst}"><a:avLst>${av}</a:avLst></a:prstGeom><a:ln w="${lineWidth(c)}"${cmpd}>${solidFill(textColorOf(tones, c.tone, day))}${dash}${arrowEnds(c.arrow, widthPx(c))}</a:ln>`);
 }
 
-/** The fallback for a route no connector preset fits (and for annotations): a polyline, not glued. */
+/** The fallback for a route no connector preset fits (and for annotations): a line, not glued (free-line.ts unglued decides its shape). */
 export function freeformXml(id: number, c: LaidOutConnect, day: LaidOutDiagram['day'], tones: ToneEnv): string {
-  const xs = c.points.map(p => p.x), ys = c.points.map(p => p.y);
-  const x = Math.min(...xs), y = Math.min(...ys), w = Math.max(1, Math.max(...xs) - x), h = Math.max(1, Math.max(...ys) - y);
-  const path = c.points.map((p, i) => `<a:${i === 0 ? 'moveTo' : 'lnTo'}><a:pt x="${emu(p.x - x)}" y="${emu(p.y - y)}"/></a:${i === 0 ? 'moveTo' : 'lnTo'}>`).join('');
-  return cxnSp(id, `freeform-${c.fromId}-${c.toId}`, undefined, `<a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm><a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="l" t="t" r="r" b="b"/><a:pathLst><a:path w="${emu(w)}" h="${emu(h)}">${path}</a:path></a:pathLst></a:custGeom><a:ln w="${lineWidth(c)}">${solidFill(textColorOf(tones, c.tone, day))}${arrowEnds(c.arrow, widthPx(c))}</a:ln>`);
+  const steps = c.points.map((p, i) => ({op: i ? 'L' as const : 'M' as const, pts: [p]}));
+  return unglued(id, `freeform-${c.fromId}-${c.toId}`, steps, `<a:ln w="${lineWidth(c)}">${solidFill(textColorOf(tones, c.tone, day))}${arrowEnds(c.arrow, widthPx(c))}</a:ln>`);
 }

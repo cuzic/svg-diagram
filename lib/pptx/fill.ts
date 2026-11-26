@@ -2,7 +2,7 @@
 // cell's caption in its cell. A text goes to the smallest shape whose outline holds its middle and whose box holds the whole line, when that
 // shape lies inside every other one holding it (a label in the overlap of two Venn circles belongs to neither, and stays a text box). A shape
 // keeps its texts only if boxTextXml can place every line at its anchor without wrapping it; otherwise they stay text boxes too.
-import type {PathStep} from './line-shapes.ts';
+import type {PathStep} from './free-line.ts';
 import type {Pt} from './geom.ts';
 import {boxTextWidth, boxTextXml, geomShapeXml, nameOf, outlineGeomXml, textLineXml, type Paint, type TextLine} from './prims.ts';
 import type {Fonts, Rect} from './xml.ts';
