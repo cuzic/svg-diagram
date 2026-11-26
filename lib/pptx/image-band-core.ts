@@ -1,4 +1,4 @@
-import {prefixSvgIds} from '../svg-ids.ts';
+import {prefixTagIds} from '../svg-ids.ts';
 import type {LaidOutDiagram, LaidOutBand} from '../types/index.ts';
 import type {Rect} from './xml.ts';
 
@@ -27,6 +27,6 @@ export function bandPicture(ld: LaidOutDiagram, band: LaidOutBand, index: number
   // with parts: the converter groups the shapes of one part (ADR 0054); a picture draws the same with or without the attributes
   let svg = emit({...ld, transparent: true, laidOut: [band], connects: []});
   svg = svg.replace(/width="[^"]+" height="[^"]+" viewBox="[^"]+"/, `width="${w}" height="${bh}" viewBox="${x} ${y} ${w} ${bh}"`);
-  svg = prefixSvgIds(svg, `pptx-band-${index}`);
+  svg = prefixTagIds(svg, `pptx-band-${index}`);
   return {picture: {svg, pngSvg: resvgMarkers(svg)}, rect: {x, y, w, h: bh}};
 }

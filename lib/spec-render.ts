@@ -9,6 +9,7 @@ import {finishNodeSpec, isInfrastructure, MAX_FIGURE_HEIGHT, nothing} from './sp
 import type {Config} from './types/project.ts';
 import type {Diagram} from './types/core.ts';
 import type {RenderResult} from './types/verdicts.ts';
+import {idPrefixProblem} from './svg-ids.ts';
 import type {EmbedOptions} from './svg-ids.ts';
 
 export type {RenderChecks} from './geometry-checks.ts';
@@ -32,6 +33,8 @@ export interface RenderSpecOptions extends EmbedOptions {
  * worker with a time limit.
  */
 export async function renderSpec(spec: unknown, opts: RenderSpecOptions = {}): Promise<RenderSpecResult> {
+  const badPrefix = opts.idPrefix === undefined ? null : idPrefixProblem(opts.idPrefix);
+  if (badPrefix) return nothing([{path: '', message: badPrefix}]);
   const config: Pick<Config, 'measure' | 'fonts'> = opts.config ?? {};
   let d: Diagram;
   try {

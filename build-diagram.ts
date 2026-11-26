@@ -47,7 +47,7 @@ const {MIN_FONT_SIZE} = await import('./lib/tokens.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
 const {depsSha256, depsOf} = await import('./lib/source-deps.ts');
 const {readProvenance, ownsOutput, sha256: sha} = await import('./lib/freshness.ts');
-const {prefixSvgIds, idPrefixFor, prepareForEmbedding} = await import('./lib/svg-ids.ts');
+const {prefixSvgIds, idPrefixFor, prepareForEmbedding, autoIdPrefix} = await import('./lib/svg-ids.ts');
 const {buildErrorSite, formatBuildError} = await import('./lib/error-format.ts');
 const config = loadConfig();
 
@@ -116,7 +116,7 @@ if (pngDir !== null && (!pngDir || pngDir.startsWith('--'))) { console.error('--
 if (scaleArg !== null && pngDir === null) { console.error('--scale is the PNG scale: use it with --png <dir>'); process.exit(2); }
 if (!(PNG_SCALE > 0)) { console.error(`--scale is a positive number (got ${scaleArg})`); process.exit(2); }
 if (args.includes('--today')) { try { if (!todayArg || todayArg.startsWith('--')) throw new Error('--today needs a date (YYYY-MM-DD)'); config._today = (await import('./lib/today.ts')).checkToday(todayArg, '--today'); } catch (e) { console.error(`✗ ${(e as Error).message}`); process.exit(2); } }
-if (idPrefixArg !== null && !/^[A-Za-z_][\w.-]*$/.test(idPrefixArg)) { console.error(`--id-prefix is a name usable in an id (letters, digits, _ . -; not starting with a digit) or "auto" (got ${idPrefixArg})`); process.exit(2); }
+if (idPrefixArg !== null && !/^[A-Za-z_][\w-]*$/.test(idPrefixArg)) { console.error(`--id-prefix is a name usable in an id (letters, digits, _ -; not starting with a digit) or "auto" (got ${idPrefixArg})`); process.exit(2); }
 if (outOverride && outDir) {
   console.error('use either --out or --out-dir, not both');
   process.exit(2);
@@ -245,7 +245,7 @@ try {
         const base = modules.length > 1 ? path.parse(modPath).name : null;
         for (const f of [outPath, ...result.revealPaths, ...(result.htmlPath ? [result.htmlPath] : [])]) {
           const text = fs.readFileSync(f, 'utf8');
-          const prefix = idPrefixArg === 'auto' ? `sd${sha(text).slice(0, 8)}` : idPrefixFor(idPrefixArg, base);
+          const prefix = idPrefixArg === 'auto' ? autoIdPrefix(text) : idPrefixFor(idPrefixArg, base);
           fs.writeFileSync(f, prefixSvgIds(text, prefix, {rootId: /<div id="(sd-[0-9a-f]+)" class="sd"/.exec(text)?.[1]})); // <metadata id="svg-diagram"> stays
         }
       }

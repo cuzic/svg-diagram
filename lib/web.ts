@@ -15,7 +15,7 @@ import {checkToday} from './today-auto.ts';
 import type {Diagram, DiagramData, MeasureRequest, Measured} from './types/core.ts';
 import type {LaidOutDiagram} from './types/index.ts';
 import type {Verdict} from './types/verdicts.ts';
-import {prepareForEmbedding} from './svg-ids.ts';
+import {normalizeIdPrefix, prepareForEmbedding} from './svg-ids.ts';
 import type {EmbedOptions} from './svg-ids.ts';
 
 export * from './dsl-pure.ts';
@@ -51,6 +51,7 @@ export const image = unsupported('image()', 'pictures are read from files by the
  * `today` ('YYYY-MM-DD'): the day a gantt({today: 'auto'}) draws; the library never reads the clock, so the page says which day it is.
  */
 export async function renderInBrowser(input: Diagram | DiagramData, opts: {measure: WebMeasurer; today?: string; nodeIds?: boolean} & EmbedOptions): Promise<WebRender> {
+  if (opts.idPrefix !== undefined) normalizeIdPrefix(opts.idPrefix);
   const d = detachData(opts.today === undefined ? input : {...input, today: checkToday(opts.today, 'renderInBrowser({today})')});
   if (d.slide || d.fill) throw new Error('renderInBrowser: diagram({slide, fill}) needs a measured slide, which the browser entry has not got');
   // The supplied engine runs in the page, without launching a separate browser.

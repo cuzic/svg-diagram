@@ -8,7 +8,7 @@ import type {RenderResult, CheckResult, SlideBudget} from '../types/verdicts.ts'
 import {walkAnyBands as walkBands} from '../full-definitions.ts';
 import {detachData} from './diagram.ts';
 import {throwAtDiagram} from '../source-ref.ts';
-import {prepareForEmbedding, prepareHtmlForEmbedding} from '../svg-ids.ts';
+import {normalizeIdPrefix, prepareForEmbedding, prepareHtmlForEmbedding} from '../svg-ids.ts';
 import type {EmbedOptions} from '../svg-ids.ts';
 
 /** detachData() plus the pictures image() left unread, read from the source's folder. */
@@ -35,6 +35,7 @@ export function renderWithStages(input: Diagram, opts: RenderOptions) {
 }
 
 async function render(input: Diagram, opts: RenderOptions) {
+  if (opts.idPrefix !== undefined) normalizeIdPrefix(opts.idPrefix); // before the layout, not after it
   const d = detach(input);
   const notes: string[] = [];
   let budget: SlideBudget | null = null;
