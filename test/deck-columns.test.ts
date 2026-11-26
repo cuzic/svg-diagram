@@ -177,7 +177,7 @@ test('ADR 0060 fillSearch: narrower while the width holds the figure back; stops
   const tall = await fillSearch({w: 572, h: 450}, 1.5, area());
   assert.ok(tall.ok && tall.width !== null && tall.width < 940 && tall.width >= 563, JSON.stringify(tall));
   assert.ok(tall.ok && tall.k > 572 / 940);
-  const flat = await fillSearch({w: 1168, h: 200}, 1.5, area());
+  const flat = await fillSearch({w: 940, h: 200}, 1.5, area());
   assert.ok(flat.ok && flat.width === null && flat.tried === 1, 'the height holds it back already: nothing narrower is tried');
   const broken = await fillSearch({w: 572, h: 2000}, 1.5, area(w => w < 700 ? ['text-mid-word-break'] : []));
   assert.ok(broken.ok && broken.width === 728, 'a narrower width that breaks words is not taken, and the search stops there');

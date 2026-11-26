@@ -2,7 +2,7 @@ import {applyConfig} from './config.ts';
 import {renderDeckSpec} from './deck-render-spec.ts';
 import {SpecError} from './spec-kit.ts';
 import {columnFallbackWarning, columnFigurePath, columnSpec, figurePath} from './deck-spec-core.ts';
-import {fillSearch, ruleIds, type DrawnFigure} from './deck-layout.ts';
+import {DOC_LAYOUT_WIDTH, fillSearch, widenDiagram, ruleIds, type DrawnFigure} from './deck-layout.ts';
 import {formatBuildError} from './error-format.ts';
 import type {Diagram} from './types/core.ts';
 import type {Config} from './types/project.ts';
@@ -22,15 +22,15 @@ function forSlide(r: RenderResult): RenderResult {
  */
 export async function renderDeckFigure(i: number, spec: unknown, source: string | undefined, cfg: Config, opts: {fresh?: boolean; column?: number; columnPx?: number; fill?: {box: {w: number; h: number}; cap: number}} = {}): Promise<{ok: true; result: RenderResult; fallback?: string} | {ok: false; errors: string[]}> {
   const j = opts.column, at = (p: string | null) => j === undefined ? figurePath(i, p) : columnFigurePath(i, j, p);
-  const draw = async (s: unknown): Promise<{ok: true; result: RenderResult} | {ok: false; errors: string[]; why: string}> => {
+  const draw = async (s: unknown, wide?: number): Promise<{ok: true; result: RenderResult} | {ok: false; errors: string[]; why: string}> => {
     try {
       if (!source) {
-        const selected = await renderDeckSpec(s, cfg);
+        const selected = await renderDeckSpec(s, cfg, wide);
         if (selected) return {ok: true, result: forSlide(selected)};
       }
       const {renderDiagram} = await import('./dsl/render.ts');
       const d: Diagram = source ? await (await import('./load-source.ts')).loadDiagram(source, cfg, opts)
-        : applyConfig((await import('./spec.ts')).specToDiagram(s), cfg);
+        : applyConfig(widenDiagram((await import('./spec.ts')).specToDiagram(s), wide), cfg);
       return {ok: true, result: forSlide(await renderDiagram(d, {name: `slide${i + 1}${j === undefined ? '' : `-${j + 1}`}.svg`, budget: 'cacheOnly'}))};
     } catch (e) {
       if (e instanceof SpecError) return {ok: false, errors: e.issues.map(x => `${at(x.path)}: ${x.message}`), why: e.issues[0]?.message ?? ''};
@@ -41,8 +41,9 @@ export async function renderDeckFigure(i: number, spec: unknown, source: string 
   if (opts.fill && !source && typeof spec === 'object' && spec !== null && !Array.isArray(spec) && (spec as {width?: unknown}).width === undefined) {
     let errors: string[] = [];
     const found = await fillSearch(opts.fill.box, opts.fill.cap, async width => {
-      const r = await draw(width === null ? spec : {...spec, width});
-      if (!r.ok) { if (width === null) errors = r.errors; return {ok: false, why: r.why}; }
+      const r = await (width === null ? draw(spec) : width > DOC_LAYOUT_WIDTH ? draw(spec, width) : draw({...spec, width}));
+      if (!r.ok) { if (width === null || width > DOC_LAYOUT_WIDTH) errors = r.errors; // the widest width tried names what the slide could not hold (B6)
+         return {ok: false, why: r.why}; }
       return {ok: true, w: Math.max(96, r.result.laidOut.width), h: Math.max(96, r.result.laidOut.canvasHeight), value: r.result, flags: ruleIds([...r.result.verdict.warnings, ...r.result.verdict.problems])};
     });
     if (!found.ok) return {ok: false, errors};
