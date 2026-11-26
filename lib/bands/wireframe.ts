@@ -1,4 +1,4 @@
-import {wireframeCalloutRules, wireframeCalloutVerification} from '../verify-wireframe-callouts.ts';
+import {dialogProblems, wireframeCalloutRules, wireframeCalloutVerification} from '../verify-wireframe-callouts.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {wireframe as build} from '../dsl/wireframe.ts';
@@ -20,7 +20,7 @@ const definition = {
   },
   emit: (laid, {theme}) => renderPrims(laid, theme),
   rules: wireframeCalloutRules,
-  verify: {rects: ownRect, ...wireframeCalloutVerification},
+  verify: {rects: ownRect, ...wireframeCalloutVerification, check: laid => dialogProblems(laid)},
 } satisfies BandDef<WireframeBand, LaidOutWireframe>;
 
 export function wireframe<const Id extends string = never>(root: WfRoot, opts?: WireframeOpts & {id?: Id}): WithBandDef<ReturnType<typeof build<Id>>, LaidOutWireframe> {

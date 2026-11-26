@@ -5724,6 +5724,19 @@
                 "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                 "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
               },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 24,
+                  "description": "A short feature, drawn as a bullet under the set title.",
+                  "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                  "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+                },
+                "minItems": 1,
+                "maxItems": 4
+              },
               "tone": {
                 "type": "string",
                 "enum": [
