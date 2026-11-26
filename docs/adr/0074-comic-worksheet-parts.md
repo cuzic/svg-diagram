@@ -1,6 +1,6 @@
 # ADR 0074: 穴(空欄)のあるマンガの部品 — `comic()`(コマ)、`bubble()`(ふきだし)、キャラクター、穴(slot)、Artifact との受け渡し、`chat()`
 
-- 状態: 承認(Accepted。2026-11-22。横並びの割り(`2x1` `3x1` `4x1`)と `fontSize` を 2026-11-26 に追補(下の「横並びの割りと文字の大きさの実装メモ」)。レビュー 3 回で収束。Q1〜Q10 は決める人がすべて推奨どおりに決定。下の「決定済み」。一部実装済み。U1(`comic()` と台詞 1 つの `speechBubble()`)、U2(顔と素材の形)、U3a(穴の値・値の検査・幾何の地図・最初の `renderComic`・穴への接続)は実装した(`lib/comic/`。下の各実装メモ)。U2 は PR #442 の round 1 と round 2 の素材検査、および補足仕様の `anchors.top` の公開型を反映。レビューの反映: 1 回目 Blocker 1・Major 7、2 回目 Major 2(穴の後ろのひらがなの結び方、値に依存する検査と `verdict` の関係)、3 回目 Major 1(`update` の差分の基準))
+- 状態: 承認(Accepted。2026-11-22。横並びの割り(`2x1` `3x1` `4x1`)と `fontSize` を 2026-11-26 に追補(下の「横並びの割りと文字の大きさの実装メモ」)。レビュー 3 回で収束。Q1〜Q10 は決める人がすべて推奨どおりに決定。下の「決定済み」。一部実装済み。U1(`comic()` と台詞 1 つの `speechBubble()`)、U2(顔と素材の形)、U5(`chat()` と `renderChat`。`lib/chat/`。下の U5 の実装メモ)、U3a(穴の値・値の検査・幾何の地図・最初の `renderComic`・穴への接続)は実装した(`lib/comic/`。下の各実装メモ)。U2 は PR #442 の round 1 と round 2 の素材検査、および補足仕様の `anchors.top` の公開型を反映。レビューの反映: 1 回目 Blocker 1・Major 7、2 回目 Major 2(穴の後ろのひらがなの結び方、値に依存する検査と `verdict` の関係)、3 回目 Major 1(`update` の差分の基準))
 - 日付: 2026-11-22
 - 基点: `main`(eec05f8c、PR #431 まで)
 - 関連: ADR 0045(`svg-diagram/browser`、測定を外から渡す)、ADR 0057(spec の `canvas`)、ADR 0071(JSON Schema をパッケージに入れる)、ADR 0034(`data-node`)、ADR 0050(組み合わせられる帯)、ADR 0012(id のスコープ)、ADR 0009(縦書き)、ADR 0007(Ports)
@@ -290,6 +290,7 @@ type Values = Record<string, string | null>;   // 値は別(状態)。無い = �
 - 見た目: 角丸の吹き出し(しっぽは小さく、片側のみ)、左側の人物は顔(同じ素材の頭の部分を丸く切る)と名前。時刻や既読は出さない。
 - 大きさ: D2 と同じ規則(`lib/comic/` の共有の関数 `reserveDialogue`)。内側の幅は、列の 70% と、いちばん広い穴の塊のうち大きい方(ただし列の幅まで)。穴の状態の描き方、値は共有なので、マンガに入れた値がそのままチャットにも出る。
 - コマの区切り(`separators: true` で細い線)は任意。
+- 入力欄(U5 で足した拡張。D7 の本来の範囲外): `input: '<案内>' | true` で、下にメッセージ欄を描く(U5 の実装メモ)。
 
 ### U1 の実装メモ(2026-11-22。実装で決めたことと、ADR の字面からの違い)
 
@@ -326,6 +327,21 @@ type Values = Record<string, string | null>;   // 値は別(状態)。無い = �
 - コマ・ふきだし・穴を接続のアンカーと `data-node` に使う。地図の鍵に帯の `scope` を付け、頭の矩形と口・頭の点を持つ。値のクリップ ID は仕様どおり `slot-clip-<穴の id>`。同じ穴の id のある複数のマンガを 1 つの SVG に入れる場合には重複しうる。
 - 穴への接続では、その穴を含むコマとふきだしを経路が通れる。別のコマと、端のコマ内にある別のふきだしに経路が重なると報告する(PR #452 の補足仕様)。
 - 縮小図は同じ配置から 1 コマを取り出し、番号札の分だけ各辺を 8px 広げ、穴は下線だけで描く。`update` と測定時間は U3b、`toClientRect` は U6(調整役が Issue #449 で確認)。
+
+### U5 の実装メモ(2026-11-26。`chat()` 実装済み)
+
+- 場所: `lib/chat/`(`layout.ts` 配置、`emit.ts` 描画、`measure.ts` 1 回目の測定、`render.ts` の `renderChat`、`constants.ts`)、`lib/dsl/chat.ts`(`chat()`)、`lib/bands/chat.ts`(帯の定義。ADR 0080 の形で、選択入口は `svg-diagram/bands/chat`)。`comic` と共有するのは `reserveDialogue`(`lib/comic/reserve.ts`。`font` と `{cap, shrink, breakAt}` の 1 つのオプションで、`comic` の横並びと共有する。`comic` の既定は変えていない)、`slot-check.ts`(穴の検査。`comic` の配置から移した)、`slot-svg.ts`(穴 1 つの描画。`emit.ts` から移した)、`slot-values.ts`(値と値の検査)、`defaultHue`(`face.ts`)。穴の大きさ・状態・値は同じ関数なので、同じ値は同じ文字で描かれ、値で配置は動かない(テストで確かめる)。
+- 入力: `ComicWorksheet`(コマの台詞を順につなぐ。吹き出しの id は `コマ.台詞`)か、`{version: 1, title, cast, dialogue}`(id は台詞の id)。右に置く話し手は帯の引数 `self`(既定 `'me'`。`cast` のキーでなければ投げる)。D7 は「`self: 'me'`」としか書かないので、入力のデータには持たせず引数にした。
+- 大きさ(D7 の「列の 70%」の読み方): 帯の幅 480px、余白 16px、顔の幅 40px + 隙間 8px を両側に空けるので、吹き出しの列は **400px**。内側の幅は、列の 70% = **280px**(`CHAT_INNER`)で折り返し、いちばん広い穴の塊(穴 + 結んだひらがな)のほうが広ければそれ、ただし列 − 余白まで(`breakAt`。穴の塊は 198px までなので届かない)。吹き出しの幅は**折り返したあとの最長の行** + 余白 24px(4px の格子に切り上げ)で、短い台詞は短い吹き出しになる(`comic` は内側の幅を保つ)。穴の塊が列より広いときは `comic-bubble-wide`(助言。語は 1 字ずつ折る)。行は左そろえ(`comic` は中央)。
+- **`width`(PR #473 のレビューで足した)**: `chat(sheet, {width})` は 480〜880(4 の倍数。既定 480)。列 = 幅 − 余白 32 − 顔の側 48、内側の幅 = 列の 70%(切り下げ)で、D7 の規則のまま。既定は 480 → 列 400 → 内側 280px(約 15 字)、800 → 列 720 → 内側 504px(約 28 字)で、長いやり取りの高さはおよそ半分になる(テストがある)。**既定の数(帯 480・余白 16・顔 40 + 隙間 8)は D7 の既定値として決めた。**
+- **`fontSize`(横並びの追補と合わせて統一)**: `chat(sheet, {fontSize})`(`renderChat` も)は `comic` と同じ整数 14〜28、既定 18。行の高さ・余白・穴・名前の字(`metricsOf` の値)が `comic` と同じ式で変わるので、**同じ `fontSize` なら穴は `comic` と同じ大きさ**(テストがある)。折り返しは `comic` の横並びと同じ `reserveDialogue(…, font, {cap, shrink})` を使い、chat の `cap` は列の 70%(内側の幅)、`breakAt` は列 − 余白。そのため、chat には孤立行を直す広げ直し(`cap` を決めたときは広げない。横並びと同じ)が無く、`comic-orphan-line` は助言として残る。顔(40px)と入力欄・間隔は `fontSize` で変わらない。
+- **スライド(`canvas: 'slide'`)・デッキで使うとき**: 帯の左端は 4px の格子に丸める。名前と穴の案内の字は `fontSize` の 14/18 倍(最大 21.8px)で、スライドの下限 24px には届かないので、`canvas: 'slide'` の `check` は `slide-min-text` を出す。必要なら `accept: {'slide-min-text': '理由'}` で許す(名前を消す・大きくする選択肢は今は足さない)。chat は PowerPoint では 1 枚の絵なので、デッキの「小さい文字」の警告(`figureMinPt`)は chat の字を見ない(`comic` も同じ。**Open question**)。長いやり取りは `width: 800` 前後で背を低くし、`check` で縮み方を確かめる。
+- 列より広い語(URL など)は、chat でだけ 1 字ずつ折る(`breakAt`)。吹き出しは列を超えない。穴の塊は 198px までなので折る対象にならない。台詞の `\n` は改行、`\n\n` は空行。`self` を省き `cast` に `me` が無いと `chat-self-missing`(問題。全員が左になる)。顔の SVG の id は台詞の id から作り、1 つの SVG に chat が複数あっても重ならない。
+- 見た目: 自分は右・淡い青、相手は左・紙色。左の顔は、同じ素材の頭の円(`anchors.head`)を丸く切って 40px に縮める。内蔵の顔は頭と肩の上を円で切る(入れ子の `<svg viewBox>` で縮め、`transform` は使わない)。**顔と名前、しっぽは、同じ人の連続した台詞の最初の吹き出しにだけ**付ける(しっぽは外側の上の角に小さな三角)。ナレーションは中央の破線の枠でしっぽなし。`think` は破線、`shout` は太い枠。時刻・既読は出さない。コマの境の線(`separators: true`)は、台詞がコマを持つ(`ComicWorksheet` から作った)ときだけ。
+- 検査(問題): 話し手が `cast` にない `chat-speaker-unknown`、`self` を省いて `cast` に `me` が無い `chat-self-missing`、名前が顔の横に残る幅より広い `chat-name-wide`(名前は 1 回目の測定で測る。短くするか `fontSize` を下げるか `width` を広げる)。3 つとも `check --explain` で引ける。メッセージ欄の案内は 20 字までで、幅の検査は無い。穴の検査と、折り返しの助言(`comic-orphan-line` / `comic-follower-split` / `comic-bubble-wide`)は `comic` の規則名のまま。穴の数の上限(1 コマ 2 個)は `chat` に無い。重なりの検査の矩形は台詞ごとに 1 つ(`verify-chat-rects.ts`)。
+- **D7 に無い拡張(Q なし。最小)**: メッセージ欄 `input: '<案内>' | true`。帯の下に、角丸の入力欄(案内の文字、右に送信ボタン)を描く。案内は 1 行・20 字まで(`true` は「メッセージを入力」)。欄は配置の固定の大きさ(高さ 48px)で、値は入らない(`renderChat` の値は穴だけ)。
+- `renderChat(sheet, {measure, values, characters, self, separators, input, nodeIds})` を `svg-diagram/browser` に追加した(実験的。`renderComic` と同じ流れ。`geometry` は `bubbles` と `slots` だけ)。縮小図と `update` は無い。
+- 範囲外のまま: JSON の spec への部品(U4 で `comic` と一緒に決める。`comic` もまだ spec にない)、`connect()` の経路の検査(台詞の重なりの検査だけ)、アバターの表情の指定(常に `neutral`)。PowerPoint は `comic` と同じに 1 枚の絵。
 
 ### 横並びの割りと文字の大きさの実装メモ(2026-11-26。追補。D1・D2 の決定は変えない)
 
