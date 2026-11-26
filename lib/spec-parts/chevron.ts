@@ -7,14 +7,23 @@ export function defineChevronPart<Result>(builder: (steps: never, opts: never) =
     description: 'Process steps as arrow shapes in a row (or a column): a sequence with no branches, such as the phases of a project. `current` marks the step in progress.',
     schema: object({
       type: {const: 'chevron'},
-      steps: flowSteps(2, 8),
+      steps: flowSteps(2, 12),
       direction: oneOf('horizontal', 'vertical'),
-      current: {type: 'integer', minimum: 1, maximum: 8, description: 'The step in progress, from 1.'},
+      rows: {oneOf: [{type: 'integer', minimum: 1, maximum: 4}, {type: 'string', enum: ['auto']}], description: "Wrap a horizontal chevron onto this many rows. 'auto': the fewest rows (at most 4, about 3+ steps per row) where no step's text wraps."},
+      perRow: {type: 'integer', minimum: 1, maximum: 8, description: 'How many steps one row holds (horizontal only). Not together with rows.'},
+      current: {type: 'integer', minimum: 1, maximum: 12, description: 'The step in progress, from 1.'},
     }, ['type', 'steps']),
     example: {type: 'chevron', steps: [{label: '計画', sub: '要件を確認'}, {label: '実装', sub: '小さく作る'}, {label: '検証', sub: '品質を確認'}, {label: '公開', sub: '利用を開始'}], current: 3},
     check(part, at, issues) {
-      const n = items(part, 'steps').length, c = part['current'];
+      const n = items(part, 'steps').length, c = part['current'], {rows, perRow} = part;
       if (typeof c === 'number' && c > n) issues.push({path: `${at}.current`, message: `is ${c}, but there are ${n} steps`});
+      const vertical = part['direction'] === 'vertical';
+      if (rows !== undefined && perRow !== undefined) { issues.push({path: `${at}.perRow`, message: 'is given together with rows; use either rows or perRow, not both'}); return; }
+      if (vertical && n > 8) { issues.push({path: `${at}.steps`, message: `has ${n} steps; a vertical chevron takes at most 8 steps: remove steps, or make it horizontal and wrap it with rows/perRow`}); return; }
+      if (vertical && rows !== undefined) issues.push({path: `${at}.rows`, message: "does not apply to direction 'vertical', which does not wrap; make it horizontal or remove rows"});
+      if (vertical && perRow !== undefined) issues.push({path: `${at}.perRow`, message: "does not apply to direction 'vertical', which does not wrap; make it horizontal or remove perRow"});
+      if (n <= 8 || vertical) return;
+      if (perRow === undefined && (rows === undefined || rows === 1)) issues.push({path: `${at}.steps`, message: `has ${n} steps; more than 8 in one row need rows (or 'auto') or perRow to wrap`});
     },
     build(part) {
       // the spec counts steps from 1 (as `steps` and loopBack do); chevron() takes a zero-based index
