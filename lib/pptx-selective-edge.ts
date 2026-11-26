@@ -28,7 +28,7 @@ export async function planSelectedFigureEdge(spec: unknown, engine: TextEngine, 
   if (issues.length) return {issues};
   const {width, canvasHeight} = prepared.placed;
   const {warnings, problems} = prepared.verdict;
-  return {plan, native, width: Math.max(96, width), height: Math.max(96, canvasHeight), findings: [...warnings, ...problems]};
+  return {plan, native, width: Math.max(96, width), height: Math.max(96, canvasHeight), findings: [...warnings, ...problems], problems};
 }
 
 /** Draw a spec using only the selected parts and PPTX adapters in a portable runtime. */

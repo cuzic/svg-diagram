@@ -44,9 +44,14 @@ export async function renderDeckFigure(i: number, spec: unknown, source: string 
   }
   const narrow = j !== undefined && !source && opts.columnPx !== undefined ? columnSpec(spec, opts.columnPx) : {spec, auto: null};
   const first = await draw(narrow.spec);
-  if (first.ok || narrow.auto === null) return first.ok ? first : {ok: false, errors: first.errors};
+  if (narrow.auto === null) return first.ok ? first : {ok: false, errors: first.errors};
+  // a problem that only the deck's own choice of width brings is like a spec error at that width: draw at the document's width and say so (ADR 0059 D3, never an error)
+  const firstProblem = first.ok ? first.result.verdict.problems[0] : undefined;
+  if (first.ok && firstProblem === undefined) return first;
   const wide = await draw(spec);
-  return wide.ok ? {...wide, fallback: columnFallbackWarning(narrow.auto, first.why)} : {ok: false, errors: wide.errors};
+  if (!wide.ok) return {ok: false, errors: wide.errors};
+  // both have problems: report the figure's own (at the width it would have without the column)
+  return {...wide, fallback: columnFallbackWarning(narrow.auto, first.ok ? firstProblem as string : first.why)};
 }
 
 /**
