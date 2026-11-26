@@ -87,3 +87,25 @@ test('layoutCompare(): needs a mark column and room for the note in every option
   assert.ok(part.items.some(i => i.k === 'text' && i.s === '△' && i.anchor === 'middle'));
   assert.throws(() => layoutCompare(resolveCompare(['r'], ['A', 'B', 'C', 'D'], [[null, null, null, null]]), {...geom, w: 300}), /do not fit/);
 });
+
+test('compare(): a long row header keeps its padding from the first column rule (C1)', () => {
+  // bold text is wider than regular text, as in a real font; the row headers are drawn bold
+  const widthOf = ((s: string, size: number, weight: number) => [...s].length * size * (weight >= 700 ? 0.62 : 0.55)) as unknown as ChartGeom['widthOf'];
+  const names = ['Cloud Native Platform', 'Managed Database Service'], cell = ['○', 'ok'] as const;
+  for (const w of [640, 800, 1000]) {
+    const part = layoutCompare(resolveCompare(names, ['A', 'B', 'C', 'D'], names.map(() => [cell, cell, cell, cell]), {corner: 'Axis'}), {...geom, w, widthOf});
+    const rules = part.items.flatMap(i => i.k === 'path' && !i.dash ? [...i.d.matchAll(/^M([\d.]+),[\d.]+ L([\d.]+),[\d.]+$/g)].filter(m => m[1] === m[2]).map(m => Number(m[1])) : []);
+    const ruleX = Math.min(...rules);
+    const heads = part.items.filter((i): i is Extract<typeof i, {k: 'text'}> => i.k === 'text' && i.anchor === 'start' && i.x < ruleX);
+    assert.ok(heads.length >= 3, 'corner and both row names');
+    for (const h of heads) {
+      const right = h.x + widthOf(h.s, h.size, h.bold ? 700 : 400, '' as never);
+      assert.ok(right + 8 <= ruleX + 0.5, `"${h.s}" ends at ${right}, rule at ${ruleX} (width ${w})`);
+    }
+  }
+});
+
+test('compare(): too many columns says how to fix it (C2)', () => {
+  const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+  assert.throws(() => resolveCompare(['r'], cols, [cols.map(() => null)]), /7 列は上限の 6 列を超えています.*行と列を入れ替え.*2 つの図に分けて/);
+});
