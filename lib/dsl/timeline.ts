@@ -18,25 +18,30 @@ export function buildTimeline(arg: TimelineOpts | NumericTimelineOpts): Timeline
   if (typeof arg?.from === 'number' || 'unit' in (arg ?? {})) return numericTimeline(arg as NumericTimelineOpts);
   const opts = arg as TimelineOpts;
   const day = (v: unknown, what: string): number => timelineDay(v as string, what);
-  const from = day(opts?.from, 'from'), to = day(opts?.to, 'to');
-  if (!(from < to)) throw new Error(`timeline(): from (${opts.from}) must be before to (${opts.to})`);
+  const given = (v: unknown): boolean => v !== undefined;
+  for (const [k, v] of [['now', opts.now], ['deadline', opts.deadline]] as const) if (v !== undefined && (!v || typeof v !== 'object')) throw new Error(`timeline(): ${k} must be {at: ...} (or left out)`);
+  if (!opts.now && !opts.deadline && !opts.marks?.length) throw new Error('timeline(): give at least one of now, deadline or marks (the axis is drawn from them when from / to are left out)');
+  // a missing end is the first / last item, so it can never put an item outside the axis
+  const lo = given(opts.from) ? day(opts.from, 'from') : -Infinity, hi = given(opts.to) ? day(opts.to, 'to') : Infinity;
+  if (!(lo < hi)) throw new Error(`timeline(): from (${opts.from}) must be before to (${opts.to})`);
+  const axisText = `${opts.from ?? 'the first item'} - ${opts.to ?? 'the last item'}`;
   for (const [k, v] of [['now', opts.now], ['deadline', opts.deadline]] as const) {
-    if (!v || typeof v !== 'object') throw new Error(`timeline(): ${k} is required (${k === 'now' ? "{at: '2026-10'}" : "{at: '2027-03', label: 'サポート終了'}"})`);
+    if (!v) continue;
     const t = day(v.at, `${k}.at`);
-    if (t < from || t > to) throw new Error(`timeline(): ${k}.at (${v.at}) is outside the axis (${opts.from} - ${opts.to})`);
+    if (t < lo || t > hi) throw new Error(`timeline(): ${k}.at (${v.at}) is outside the axis (${axisText})`);
   }
-  if (opts.deadline.line !== undefined && opts.deadline.line !== 'full') throw new Error(`timeline(): deadline.line must be 'full' (got ${String(opts.deadline.line)})`);
+  if (opts.deadline && opts.deadline.line !== undefined && opts.deadline.line !== 'full') throw new Error(`timeline(): deadline.line must be 'full' (got ${String(opts.deadline.line)})`);
   if (opts.span !== undefined && opts.span !== 'bar' && opts.span !== 'fill') throw new Error(`timeline(): span must be 'bar' or 'fill' (got ${String(opts.span)})`);
-  if (opts.now.label !== undefined && (typeof opts.now.label !== 'string' || !opts.now.label.trim())) throw new Error('timeline(): now.label must not be empty (leave it out for "現在")');
-  if (typeof opts.deadline.label !== 'string' || !opts.deadline.label.trim()) throw new Error('timeline(): deadline.label is required');
+  if (opts.now && opts.now.label !== undefined && (typeof opts.now.label !== 'string' || !opts.now.label.trim())) throw new Error('timeline(): now.label must not be empty (leave it out for "現在")');
+  if (opts.deadline && (typeof opts.deadline.label !== 'string' || !opts.deadline.label.trim())) throw new Error('timeline(): deadline.label is required');
   for (const [i, m] of (opts.marks ?? []).entries()) {
     const t = day(m.at, `marks[${i}].at`);
-    if (t < from || t > to) throw new Error(`timeline(): marks[${i}].at (${m.at}) is outside the axis (${opts.from} - ${opts.to})`);
+    if (t < lo || t > hi) throw new Error(`timeline(): marks[${i}].at (${m.at}) is outside the axis (${axisText})`);
     if (typeof m.label !== 'string' || !m.label.trim()) throw new Error(`timeline(): marks[${i}].label is required`);
     if (m.tone !== undefined && !['accent', 'danger', 'muted'].includes(m.tone)) throw new Error(`timeline(): marks[${i}].tone must be accent, danger or muted (got ${m.tone})`);
   }
   if (opts.remaining !== undefined && opts.remaining !== false && (typeof opts.remaining !== 'string' || !opts.remaining.trim())) throw new Error('timeline(): remaining must be a string or false');
-  return withHandle({type: 'timeline', from: opts.from, to: opts.to, now: opts.now, deadline: opts.deadline, ...(opts.span === undefined ? {} : {span: opts.span}), ...(opts.marks ? {marks: opts.marks} : {}), ...(opts.remaining === undefined ? {} : {remaining: opts.remaining}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)}, opts.id);
+  return withHandle({type: 'timeline', ...(opts.from === undefined ? {} : {from: opts.from}), ...(opts.to === undefined ? {} : {to: opts.to}), ...(opts.now === undefined ? {} : {now: opts.now}), ...(opts.deadline === undefined ? {} : {deadline: opts.deadline}), ...(opts.span === undefined ? {} : {span: opts.span}), ...(opts.marks ? {marks: opts.marks} : {}), ...(opts.remaining === undefined ? {} : {remaining: opts.remaining}), ...(opts.id === undefined ? {} : {id: opts.id}), ...revealOf(opts)}, opts.id);
 }
 function numericTimeline(o: NumericTimelineOpts): NumericTimelineBand {
   const num = (v: unknown, what: string): number => { if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`timeline(): ${what} must be a number (got ${JSON.stringify(v)})`); return v; };

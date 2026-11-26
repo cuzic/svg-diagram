@@ -88,9 +88,9 @@ export function checkTimeline(part: Json, at: string, issues: SpecIssue[]): void
     });
     return;
   }
-  for (const k of ['now', 'deadline'] as const) if (part[k] === undefined) issues.push({path: `${at}.${k}`, message: `is required for a date axis (${k === 'now' ? "{at: '2026-10'}: today, always written out" : "{at: '2027-03', label: 'サポート終了'}"})`});
+  if (part['now'] === undefined && part['deadline'] === undefined && items(part, 'marks').length === 0) issues.push({path: `${at}.marks`, message: "needs at least one date: now ({at: '2026-10'}), deadline ({at: '2027-03', label: 'サポート終了'}) or marks"});
   const days: Record<string, number | null> = {};
-  for (const k of ['from', 'to'] as const) { days[k] = tlDay(part[k]); if (days[k] === null) issues.push({path: `${at}.${k}`, message: `${JSON.stringify(part[k])} is not a real date written 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD'`}); }
+  for (const k of ['from', 'to'] as const) { days[k] = part[k] === undefined ? null : tlDay(part[k]); if (part[k] !== undefined && days[k] === null) issues.push({path: `${at}.${k}`, message: `${JSON.stringify(part[k])} is not a real date written 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD'`}); }
   const from = days['from'], to = days['to'];
   if (from != null && to != null && !(from < to)) { issues.push({path: `${at}.to`, message: `must be after from (${String(part['from'])})`}); return; }
   const onAxis = (v: unknown, path: string) => {
