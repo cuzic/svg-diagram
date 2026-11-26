@@ -41,15 +41,17 @@ export function templateAtoms(parts: readonly TemplatePart[], maxOf: (id: string
 }
 
 /** Wraps the atoms into the bubble's lines, widening the inner width when a blank and its hiragana are wider than 9 characters, and once or twice to cure an orphan last line. */
-export function reserveAtoms(atoms: readonly ReserveAtom[], font: number = FONT): Reserved {
+/** `cap`: wrap at this width (a row panel's: never wider than the panel lets a bubble be; no widening for an orphan). `shrink`: the text block is as wide as its widest line, not the 9 em floor. Both are for the row layouts only. */
+export interface ReserveOpts {cap?: number; shrink?: boolean}
+export function reserveAtoms(atoms: readonly ReserveAtom[], font: number = FONT, opts: ReserveOpts = {}): Reserved {
   const innerMax = 9 * font;
   let unit = 0, widest = 0;
   for (const a of atoms) { unit = a.slot ? a.w : a.glue ? unit + a.w : 0; widest = Math.max(widest, unit); }
   const wrap = (width: number): ReservedLine[] => wrapStyledAtoms([...atoms], {maxWidth: width, atomWidth: a => a.w, mode: 'bunsetsu'}).map(l => ({atoms: l, w: l.reduce((n, a) => n + a.w, 0)}));
-  const base = Math.max(innerMax, widest);
+  const base = Math.max(opts.cap ?? innerMax, widest);
   let inner = base, lines = wrap(base);
   const orphan = (ls: ReservedLine[]): boolean => ls.length > 1 && (ls[ls.length - 1]?.w ?? Infinity) <= 2 * font;
-  for (const extra of [font, 2 * font]) {
+  for (const extra of opts.cap === undefined ? [font, 2 * font] : []) {
     if (!orphan(lines) || base + extra > innerMax + 2 * font) break; // never widen past the bubble-wide threshold
     const t = wrap(base + extra);
     if (t.length < lines.length || !orphan(t)) { lines = t; inner = base + extra; }
@@ -59,7 +61,7 @@ export function reserveAtoms(atoms: readonly ReserveAtom[], font: number = FONT)
   const widthMax = Math.max(0, ...lines.map(l => l.w));
   if (widthMax > innerMax + 2 * font) notes.push('bubble-wide');
   if (followerSplit(lines)) notes.push('follower-split');
-  return {lines, inner: Math.max(inner, widthMax), notes};
+  return {lines, inner: opts.shrink ? widthMax : Math.max(inner, widthMax), notes};
 }
 
 /** A short run of hiragana after a blank (3 characters or fewer) that is cut from it: inside the run, or right after the blank before a particle. */
@@ -78,4 +80,4 @@ function followerSplit(lines: readonly ReservedLine[]): boolean {
   return false;
 }
 
-export const reserveDialogue = (parts: readonly TemplatePart[], maxOf: (id: string) => number, atomWidth: (atom: string) => number, font: number = FONT): Reserved => reserveAtoms(templateAtoms(parts, maxOf, atomWidth, font), font);
+export const reserveDialogue = (parts: readonly TemplatePart[], maxOf: (id: string) => number, atomWidth: (atom: string) => number, font: number = FONT, opts: ReserveOpts = {}): Reserved => reserveAtoms(templateAtoms(parts, maxOf, atomWidth, font), font, opts);
