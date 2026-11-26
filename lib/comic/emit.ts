@@ -3,7 +3,7 @@
 import {escapeAttr, escapeXml} from '../emit-common.ts';
 import {qualify, scopeOf} from '../scope-name.ts';
 import {balloonPath} from './balloon-path.ts';
-import {BADGE, BADGE_OVERHANG, COLOR, FONT, FRAME, SLOT_FONT, TAIL_HALF, f1} from './constants.ts';
+import {BADGE, BADGE_OVERHANG, COLOR, FONT, FRAME, SLOT_FONT, TAIL_HALF, f1, metricsOf} from './constants.ts';
 import {characterSvg} from './character.ts';
 import {faceSvg} from './face.ts';
 import {slotFontSize, slotValue} from './slot-values.ts';
@@ -39,18 +39,18 @@ function panelSvg(p: ComicLaidPanel, characters: LaidOutComic['characters'], nam
   return out.join('');
 }
 
-function slotSvg(s: ComicLaidSlot, blank: 'prompt' | 'line', node: string, value: ReturnType<typeof slotValue>, widthOf?: WidthOf): string {
+function slotSvg(s: ComicLaidSlot, blank: 'prompt' | 'line', node: string, value: ReturnType<typeof slotValue>, widthOf?: WidthOf, font: number = FONT): string {
   const group = `<g data-slot="${s.id}"${node}>`;
   const cx = f1(s.x + s.w / 2);
   if (value) {
     const clip = `slot-clip-${s.id}`;
-    const size = slotFontSize(s, value, widthOf);
+    const size = slotFontSize(s, value, widthOf, font);
     const filled = value.weight === 700;
     return group + `<clipPath id="${clip}"><rect x="${s.x}" y="${f1(s.y - 4)}" width="${s.w}" height="${s.h + 8}"/></clipPath>`
       + `<text x="${cx}" y="${f1(s.y + s.h / 2)}" text-anchor="middle" dominant-baseline="central" xml:space="preserve" font-size="${size}"${filled ? ' font-weight="700"' : ''} fill="${filled ? COLOR.filled : COLOR.prompt}" clip-path="url(#${clip})">${escapeXml(value.text)}</text></g>`;
   }
   const line = `<line x1="${s.x}" y1="${f1(s.y + s.h)}" x2="${f1(s.x + s.w)}" y2="${f1(s.y + s.h)}" stroke="${COLOR.prompt}" stroke-width="2" stroke-dasharray="2 3"/>`;
-  const prompt = blank === 'line' ? '' : `<text x="${cx}" y="${f1(s.y + s.h - 5)}" text-anchor="middle" font-size="${SLOT_FONT}" fill="${COLOR.prompt}">${escapeXml(s.prompt)}</text>`;
+  const prompt = blank === 'line' ? '' : `<text x="${cx}" y="${f1(s.y + s.h - 5)}" text-anchor="middle" font-size="${metricsOf(font).slotFont}" fill="${COLOR.prompt}">${escapeXml(s.prompt)}</text>`;
   return group + line + prompt + '</g>';
 }
 
@@ -61,16 +61,16 @@ function outlineSvg(b: ComicLaidBubble, node: string): string {
   return `<path d="${d}" fill="${COLOR.bubble}" stroke="${COLOR.ink}" stroke-width="${b.kind === 'shout' ? 3.5 : b.kind === 'narration' ? 2 : 2.5}" stroke-linejoin="round"${style}${node}/>`;
 }
 
-function bubbleSvg(b: ComicLaidBubble, blank: 'prompt' | 'line', node: (id: string) => string, values: ValueTable, widthOf?: WidthOf): string {
+function bubbleSvg(b: ComicLaidBubble, blank: 'prompt' | 'line', node: (id: string) => string, values: ValueTable, widthOf?: WidthOf, font: number = FONT): string {
   const texts = new Map<string, string>();
   const slots = b.slots.map(s => {
     const value = slotValue(s, values);
     if (value) texts.set(s.id, value.text);
-    return slotSvg(s, blank, node(s.id), value, widthOf);
+    return slotSvg(s, blank, node(s.id), value, widthOf, font);
   }).join('');
   const title = b.template && texts.size ? fillTemplate(parseTemplate(b.template), id => texts.get(id) ?? '＿＿') : b.title;
   return `<g data-bubble="${b.id}"><title>${escapeXml(title)}</title>${outlineSvg(b, node(b.id))}`
-    + b.runs.map(r => `<text x="${r.x}" y="${r.y}" font-size="${FONT}" fill="${COLOR.ink}">${escapeXml(r.text)}</text>`).join('') + slots + '</g>';
+    + b.runs.map(r => `<text x="${r.x}" y="${r.y}" font-size="${font}" fill="${COLOR.ink}">${escapeXml(r.text)}</text>`).join('') + slots + '</g>';
 }
 
 export function renderComicBand(b: LaidOutComic, values: ValueTable = {}, widthOf?: WidthOf): string {
@@ -78,5 +78,5 @@ export function renderComicBand(b: LaidOutComic, values: ValueTable = {}, widthO
   // A leading hyphen reserves the scoped namespace. Scope names can contain characters that are unsafe in url(#id).
   const namespace = scope ? `-${scope.split('').map(c => c.charCodeAt(0).toString(16)).join('_')}-` : '';
   const node = (id: string) => b.nodeIds ? ` data-node="${escapeAttr(qualify(scope, id))}"` : '';
-  return `<g data-comic="${b.layout}"><title>${escapeXml(b.title)}</title>${b.panels.map(p => panelSvg(p, b.characters, namespace, node(p.id))).join('')}${b.bubbles.map(x => bubbleSvg(x, b.blank, node, values, widthOf)).join('')}</g>`;
+  return `<g data-comic="${b.layout}"><title>${escapeXml(b.title)}</title>${b.panels.map(p => panelSvg(p, b.characters, namespace, node(p.id))).join('')}${b.bubbles.map(x => bubbleSvg(x, b.blank, node, values, widthOf, b.fontSize)).join('')}</g>`;
 }

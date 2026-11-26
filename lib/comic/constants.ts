@@ -16,6 +16,10 @@ export const HEAD_FROM_BOTTOM = 76;
 export const STAGE_X = 104;
 export const PANEL_W = 420;
 export const PANEL_W_2X2 = 360;
+/** The width of a panel in a row of panels (2x1 / 3x1 / 4x1): four of them are 1280px wide, the width of a 16:9 slide. */
+export const PANEL_W_ROW = 300;
+/** How far from the side the left and right people of a row panel stand (104 in the wider panels). */
+export const STAGE_X_ROW = 76;
 export const GUTTER = 16;
 export const MARGIN = 16;
 export const bandWidth = (cols: number, panelWidth: number): number => 2 * MARGIN + cols * panelWidth + (cols - 1) * GUTTER;
@@ -43,3 +47,13 @@ export const TAIL_TOLERANCE = 0.17;
 export const rgb = (hex: string): string => `rgb(${[1, 3, 5].map(i => Number.parseInt(hex.slice(i, i + 2), 16)).join(',')})`;
 export const COLOR = {ink: rgb(PALETTE.text), prompt: rgb(PALETTE.muted), filled: rgb(PALETTE.danger), paper: rgb(PALETTE.bg), warm: rgb(PALETTE.amber.soft), cool: rgb(PALETTE.blue.soft), bubble: rgb(PALETTE.bg), skin: rgb(PALETTE.amber.soft)} as const;
 export const f1 = (n: number): number => Math.round(n * 10) / 10;
+
+/** The dialogue text size range a comic accepts (px). */
+export const FONT_SIZE_MIN = 14;
+export const FONT_SIZE_MAX = 28;
+/** The sizes that follow the dialogue text size `font`: everything is the default's, scaled by font / 18 (the default's own numbers are kept as they are). */
+export interface ComicMetrics {font: number; lineH: number; padX: number; padY: number; inner: number; slotFont: number; baseline: number}
+export const metricsOf = (font: number = FONT): ComicMetrics => {
+  const k = font / FONT;
+  return {font, lineH: Math.round(LINE_H * k), padX: Math.round(PAD_X * k), padY: Math.round(PAD_Y * k), inner: SLOT_MAX * font, slotFont: Math.round(SLOT_FONT * k), baseline: Math.round(19 * k)};
+};

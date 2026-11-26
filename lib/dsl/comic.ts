@@ -2,16 +2,17 @@
 // them out (lib/comic/). The constructors throw on what cannot be drawn at all (an unknown layout, a malformed id or template); what a worksheet may
 // get wrong and still be drawn (a speaker not on the stage, too many lines) is a finding of the check, not an error here.
 import {COMIC_ID, parseTemplate} from '../comic/template.ts';
+import {FONT_SIZE_MAX, FONT_SIZE_MIN} from '../comic/constants.ts';
 import {EXPRESSIONS, loadCharacter} from '../comic/character.ts';
 import type {Declares, HandleOf} from '../strict.ts';
 import type {BubbleKind, ComicAspect, ComicAt, ComicBand, ComicDialogue, ComicOpts, ComicPanel, ComicSlotDef, ComicWorksheet} from '../types/comic.ts';
 import {revealOf, scopeOpt, withHandle} from './shared.ts';
 export type {BubbleKind, CharacterManifest, ComicAspect, ComicAt, ComicBand, ComicCast, ComicDialogue, ComicExpression, ComicFinding, ComicGeometry, ComicLayoutName, ComicOpts, ComicPanel, ComicSlotDef, ComicStage, ComicWorksheet, Values} from '../types/comic.ts';
 
-const LAYOUTS = ['1x4', '2x2', '1x3', '1x2'] as const;
+const LAYOUTS = ['1x4', '2x2', '1x3', '1x2', '2x1', '3x1', '4x1'] as const;
 const KINDS: readonly BubbleKind[] = ['say', 'think', 'shout', 'narration'];
 const ATS: readonly ComicAt[] = ['left', 'center', 'right'];
-const ASPECTS: readonly ComicAspect[] = ['7:5', '6:5', '1:1'];
+const ASPECTS: readonly ComicAspect[] = ['7:5', '6:5', '1:1', '3:4'];
 
 const assertId = (id: unknown, what: string): string => {
   if (typeof id !== 'string' || !COMIC_ID.test(id)) throw new Error(`${what}: id ${JSON.stringify(id)} must be letters, digits, _ and - (starting with a letter; no . : @ #)`);
@@ -84,6 +85,7 @@ export function comic(sheet: ComicWorksheet, opts: ComicOpts = {}): ComicBand {
   }
   if (!Array.isArray(sheet.panels)) throw new Error('comic(): panels is a list');
   if (opts.aspect !== undefined) oneOf(opts.aspect, ASPECTS, 'comic(): aspect');
+  if (opts.fontSize !== undefined && (!Number.isInteger(opts.fontSize) || opts.fontSize < FONT_SIZE_MIN || opts.fontSize > FONT_SIZE_MAX)) throw new Error(`comic(): fontSize must be a whole number from ${FONT_SIZE_MIN} to ${FONT_SIZE_MAX} (got ${String(opts.fontSize)})`);
   if (opts.writing !== undefined && opts.writing !== 'horizontal') throw new Error("comic(): writing: 'vertical' is not implemented yet (only 'horizontal')");
   if (opts.dir !== undefined && opts.dir !== 'ltr') throw new Error("comic(): dir: 'rtl' is not implemented yet (only 'ltr')");
   const panelIds = new Set<string>();
@@ -100,6 +102,6 @@ export function comic(sheet: ComicWorksheet, opts: ComicOpts = {}): ComicBand {
     if (character.id !== key) throw new Error(`comic(): characters のキー "${key}" を素材の id "${character.id}" に合わせてください`);
     return [key, character];
   }));
-  const band: ComicBand = {type: 'comic', sheet: copy, ...(Object.keys(characters).length ? {characters} : {}), ...(opts.aspect === undefined ? {} : {aspect: opts.aspect}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'comic()'), ...revealOf(opts)};
+  const band: ComicBand = {type: 'comic', sheet: copy, ...(Object.keys(characters).length ? {characters} : {}), ...(opts.aspect === undefined ? {} : {aspect: opts.aspect}), ...(opts.fontSize === undefined ? {} : {fontSize: opts.fontSize}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'comic()'), ...revealOf(opts)};
   return withHandle(band, opts.id);
 }
