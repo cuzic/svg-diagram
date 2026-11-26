@@ -1,6 +1,6 @@
 # ADR 0082: 横の `chevron` を 2 段以上に折り返す
 
-- 状態: **提案**（Opus レビュー round 1 の B1・M1〜M3・m1〜m7・n1〜n3 を反映。round 2 待ち）
+- 状態: **提案**（Opus レビュー round 1 の B1・M1〜M3・m1〜m7・n1〜n3、round 2 の M4・m8〜m10・n4〜n8 を反映。round 3 待ち）
 - 日付: 2026-11-26
 - 基点: `main`（v0.10.0 の後）
 - 関連: ADR 0029（D3 の矢羽根の幅、D4 の `loopBack`）、ADR 0049（帯のノードと `from`）、ADR 0051（`current` / `focus`）、ADR 0027 / 0054（PPTX）、ADR 0071（JSON Schema）、ADR 0080（帯の定義、D2b の `.type ===` ラチェット）
@@ -54,13 +54,14 @@ perRow?: number;
   - 段数が `r` より少なくなることがある（例: 5 つを `rows: 4` にすると `perRow` は 2、段数は 3）。その場合も throw しない。
 - **throw する指定**（エラー文は既存の `chevron(): …` の形。何が悪いかと直し方を 1 行で言う）:
   - `rows` と `perRow` を両方指定した。
-  - `rows` が 1 未満の整数、または `'auto'` 以外の値。
-  - `perRow` が 1 未満の整数。
+  - `rows` が 1 以上の整数でも `'auto'` でもない。`0`、`1.5`、`NaN`、`'foo'` などが該当する（m10）。
+  - `perRow` が 1 以上の整数でない。`0`、`1.5`、`NaN` などが該当する。
   - `direction: 'vertical'` と、`rows` か `perRow` を一緒に指定した。直し方: 「縦の chevron は折り返さない。横にして `rows` を使う」。
   - `loopBack` と、2 段以上になりうる指定を一緒に指定した（D5）。どの指定が該当するか:
     - `rows: 'auto'`
     - 2 以上の `rows`
     - `n` 未満の `perRow`
+    - step が 2 つしかなく、実際には必ず 1 段になる場合も throw する。配置の前には段数を決めないので、判定を単純にするため（n8）。
   - この組み合わせの判定は、配置の前に `chevronBand` で行う。`loopBack` の線は配置の前に作られるため（`lib/core.ts:159-169`）。
 - **1 段になる指定:** `rows: 1` と `perRow >= n`。どちらも、指定しないときと同じ出力になる（D8）。
   - `rows >= n` は 1 段にならない。`perRow` が 1 になり、n 段に積まれる。
@@ -85,12 +86,18 @@ perRow?: number;
 
 ### D3. `rows: 'auto'`
 
-- **段数の候補:** `r = 1, 2, …, maxR`。`maxR = max(1, min(4, ceil(n/2)))` で、1 段に 1 つだけの段が続く形は候補にしない。
-- **段数の決め方:** 各 `r` で、`perRow = ceil(n/r)` から D2 の `textW` を求める。**すべての step で、ラベルが 1 行、かつ `sub` が 1 行**に収まる最初の `r` を使う。測るのは `t.wrap(label, textW)` と `t.wrap(sub, textW, 400)`（M3）。
-  - `sub` も見る理由: 背景の困りごとは、ラベルより `sub` が 2〜3 行に折れることにある。試しでは、幅 940 に 7 つ並べると、5 字のラベルは 1 行に収まるのに、7 字の `sub` は 2 行に折れた。
-- **どの `r` でも収まらないとき:**
-  - 「最も行数の多い step の行数」が最小の `r` を選ぶ。同じなら小さい `r` を選ぶ。
-  - throw はしない。語が途中で割れていれば、既存の `text-mid-word-break` が知らせる。
+- **段数の候補:** `r = 1, 2, …, maxR`。
+  - `maxR = max(1, min(4, floor(n/3)))` にする。1 段にほぼ 3 つ以上並ぶ形だけを候補にする（m8）。
+  - 例: 7 つなら `maxR` は 2（4 + 3）。12 なら 4。5 つ以下なら 1 で、`'auto'` は折り返さない。
+- **「折れない」の定義:** `t.wrap(text, textW)` の行数が、文中の明示の `\n` で分けた行の数と同じであること（`lib/wrap.ts:80`）。
+  - 明示の `\n` を含むラベルも、それ以上に折れなければ「折れない」と数える。
+  - ラベルは `t.wrap(label, textW)` で、`sub` は `t.wrap(sub, textW, 400)` で測る。
+- **選び方:** 次の 3 段階で決め、各段階で条件を満たす最初の `r` を使う。`textW` は、各 `r` で `perRow = ceil(n/r)` から D2 の式で求める。
+  1. すべての step で、ラベルも `sub` も折れない `r`（M3）。
+  2. 1 が無ければ、すべての step で、ラベルが折れず、`sub` の余分な行が 1 行以下の `r`（m8）。「余分な行」は、明示の行を超えて折れた行。
+  3. 2 も無ければ、step ごとの「ラベルと `sub` を合わせた行数」の最大が最も小さい `r`。同じなら小さい `r` を選ぶ。throw はしない。語が途中で割れていれば、既存の `text-mid-word-break` が知らせる。
+- **`sub` も見る理由:** 背景の困りごとは、ラベルより `sub` が 2〜3 行に折れることにある。試しでは、幅 940 に 7 つ並べると、5 字のラベルは 1 行に収まるのに、7 字の `sub` は 2 行に折れた。
+- **試しの結果（round 2）:** 7 つ、5 字のラベル、8 字の `sub` で、幅 940・1200・スライドのいずれでも 2 段（4 + 3）を選んだ。
 - **計算の方法:** `t.wrap` は何度呼んでも出力に何も足さない（round 1 の試しで確認）。計算は `layoutChevron` の中で閉じる。
 - **出力:** `'auto'` で 1 段に決まったときは、指定しないときと同じ出力になる（D8）。
 - **既定値にはしない。** 既定にすると、今ある図の出力が変わるため。
@@ -110,7 +117,7 @@ perRow?: number;
 - **座標の丸め:** 4 点とも整数に丸める（`Math.round`）。
 - **描く順:** 線の primitive は、すべての矢羽根の後に積む。矢じりが次の段の枠の下に隠れないようにするため（m3）。
 - **線の描き方:** 既存の `{k: 'path', d, tone: 'text', arrow: true, thin: true}` の primitive を使う（`lib/flow-types.ts:66`）。
-  - 色は `text` にする。矢じりの marker `dsl-arrow` は `PALETTE.text` で塗られる（`lib/emit-svg-core.ts:49`）ので、線と矢じりの色が揃う（m2）。
+  - 色は `text` にする。矢じりの marker `dsl-arrow` は `PALETTE.text` で塗られる（`lib/emit-svg-core.ts:50`、n7）ので、線と矢じりの色が揃う（m2）。
   - SVG は `<path … fill="none" stroke=… stroke-width="1.5" marker-end="url(#dsl-arrow)">` になる（`lib/emit-flow-shape.ts:34`）。
   - 帯が暗くなるとき（spotlight）は、既存の分岐で `dsl-arrow-dim` になる。
   - PPTX は既存の `freeformPathXml` の線と矢じりになる（`lib/pptx/flow.ts` の path の分岐）。**新しい種類の primitive は足さない。**
@@ -131,7 +138,7 @@ perRow?: number;
 | 機能 | 折り返した chevron での扱い |
 |---|---|
 | `current` / `highlight` / `focus` / step の `tone` | 変えない。どの段の step にも効く。 |
-| `connect()` で step につなぐ | 変えない。アンカーは各矢羽根の矩形。重なりは既存の検査が見る。 |
+| `connect()` で step につなぐ | 変えない。アンカーは各矢羽根の矩形。矢羽根との重なりは既存の検査が見る。続きの線との交差は見ない（D4、n6）。 |
 | `loopBack`（ADR 0029 D4） | **2 段以上になりうる指定と一緒なら、`chevronBand` で throw する（D1、M2）。** `loop-under` の線は 2 つのアンカーのうち下の方の下を通る（`lib/layout-connect.ts:82-84`）。別の段の間で引くと、下の段の矢羽根を横切る。エラー文の直し方: 「`loopBack` を外すか、`rows` / `perRow` を外す」。 |
 | 木の帯ノードの `from`（ADR 0049） | **制限しない（M1）。** funnel の線は指した step の高さからではなく、親の帯の端（下向きの木なら下端、上向きなら上端）から出る（`lib/layout-tree.ts:105`、`:108`）。そのため、どの段の step を指しても何も横切らない。<br>残る問題は見た目だけ: 帯の端から遠い段の step を指すと、線が近い段の step の下（上）から出て、どの step から出ているかが紛れる。ここは README に書く。 |
 | `reveal` / `until` | 帯の単位のまま。変えない。 |
@@ -145,27 +152,33 @@ perRow?: number;
 
 - **`<path>`:** 続きの線 1 本につき 1 つ。
   - 属性は `d`、`fill="none"`、`stroke`（`#rrggbb`。`text` の色）、`stroke-width="1.5"`、`marker-end="url(#dsl-arrow)"`、暗くなる帯では `url(#dsl-arrow-dim)`。
-  - これらの属性と値は、どれも今の `cycle` などの帯が既に出しているもの。
+  - これらの属性と値は、どれも今の帯や connector が既に出しているもの。
+  - ただし、帯の中で「細い線（1.5）と矢じり」を組み合わせて出すのは新しい（n5）。許可リストは要素と属性の値で見るので、影響はない。
 - **新しい要素名と属性名:** なし。
 - **`<defs>` の矢じり:** 今の図で矢じりが使われていないときは、`<defs>` と `dsl-arrow` の marker が新しく出る。D4 の `svgDefs` hook が出させる。
 
 ### D7. JSON spec
 
-`lib/spec-parts/chevron.ts` を次のように変える。
+`lib/spec-parts/chevron.ts` を次のように変える。spec の description と issue のメッセージは、今ある spec の文に合わせて英語で書く（m9）。
 
 - **`steps`:** `flowSteps(2, 8)` を `flowSteps(2, 12)` にする。
-  - `check` で issue にする条件（m7）: steps が 9 つ以上で、`rows` も `perRow` もない。または `rows: 1`、または 9 以上の `perRow`。
-    - メッセージ: 「`rows` か `perRow` で折り返す」。
-    - 1 段に 9 つ以上並ぶと、矢羽根が狭すぎるため。
-    - `rows: 'auto'` は issue にしない（`maxR` まで折り返せるため）。
-- **`rows`:** 整数 1〜4 か `'auto'`。
-  - `spec-kit` の `oneOf` は文字列の列挙だけなので、`{anyOf: [{type: 'integer', minimum: 1, maximum: 4}, {const: 'auto'}]}` を手で書く（m7）。
-  - description: 「横の矢羽根を何段に折り返すか。'auto' はどの step の文字も折れない最少の段数」。
-- **`perRow`:** 整数 1〜12。
-- **`check` で issue にする組み合わせ:**
-  - `rows` と `perRow` を両方指定した。
-  - `rows` か `perRow` を `direction: 'vertical'` と一緒に指定した。
+- **`rows`:** 整数 1〜4 か `'auto'`（M4）。
+  - 書き方は、リポジトリで既に使っている形にする（pareto の `guide`、value chain の `margin`）: `{oneOf: [{type: 'integer', minimum: 1, maximum: 4}, {type: 'string', enum: ['auto']}]}`。
+  - `anyOf` と `const` は使わない。`JsonSchema` の型に `anyOf` が無く、spec の検査も `anyOf` を見ないため。
+  - テスト: `'foo'`、`9`、`1.5` が spec の検査で issue になること。
+  - description: `"Wrap a horizontal chevron onto this many rows. 'auto': the fewest rows (up to 4) where no step's text wraps."`
+- **`perRow`:** 整数 1〜8。1 段に 9 つ以上並べる指定は、schema の段階で断る。
 - **`current`:** `maximum` を 12 にする。
+- **`check` で issue にするもの:**
+
+  | 条件 | メッセージの中身 |
+  |---|---|
+  | `rows` と `perRow` を両方指定した | どちらか 1 つにする |
+  | `rows` か `perRow` を `direction: 'vertical'` と一緒に指定した | 縦は折り返さない。横にするか、`rows` / `perRow` を外す |
+  | `direction: 'vertical'` で、steps が 9 つ以上 | 縦の chevron は 8 つまで |
+  | 横で、steps が 9 つ以上、かつ `rows` も `perRow` もない（または `rows: 1`） | `rows`（`'auto'` も可）か `perRow` で折り返す |
+
+  - `rows: 'auto'` は issue にしない（m9）。
 - **`build`:** 変えない（`rows` と `perRow` はそのまま DSL に渡す）。
 - **生成物:** `pnpm schema` で作り直す。
 - **バンドルの予算:** 予算（`scripts/check-package-bundles.ts`）は増えるかもしれない。増えたら、実装の PR で、測った値と小さな余裕を決める人に見せて承認を得る（ADR 0080 D12）。
@@ -193,7 +206,7 @@ perRow?: number;
 
 | 単位 | 中身 | テスト |
 |---|---|---|
-| U1 | D1・D2・D4・D5・D8（DSL、レイアウト、続きの線、throw、エラー文、`mid-word` の文）。例 `examples/chevron-rows.ts`（7 つを `rows: 2`、`current` あり）。 | `test/chevron-rows.test.ts`。各段の `cellW` が同じこと、最後の段の左寄せ、線の 4 点の座標、throw の各ケース（`loopBack` との組み合わせを含む）、D8 のバイト同一、`current` / `tone` / `focus` が別の段で効くこと、`connect()` のアンカー、`svgDefs` で `<defs>` に marker が出ること、上の段を指す木の `from` が throw しないこと。 |
+| U1 | D1・D2・D4・D5・D8（DSL、レイアウト、続きの線、throw、エラー文、`mid-word` の文）。例 `examples/chevron-rows.ts`（7 つを `rows: 2`、`current` あり）。 | `test/chevron-rows.test.ts`。各段の `cellW` が同じこと、最後の段の左寄せ、線の 4 点の座標、throw の各ケース（`loopBack` との組み合わせを含む）、D8 のバイト同一、`current` / `tone` / `focus` が別の段で効くこと、`connect()` のアンカー、`svgDefs` で `<defs>` に marker が出ること、暗くなる帯で `dsl-arrow-dim` になること（n4）、上の段を指す木の `from` が throw しないこと。 |
 | U2 | D3（`'auto'`） | 狭い幅で 2 段に、広い幅で 1 段（今と同じ出力）に決まること。sub だけが折れる場合に段を増やすこと（M3）。`maxR` と、収まらないときの選び方。 |
 | U3 | D7（spec、schema、予算） | `test/spec*.test.ts` に、エラーの path と、12 個の steps の例を足す。 |
 | U4 | README の chevron の節、`skills/svg-diagram/references/*.md`、この ADR の状態の行 | — |
