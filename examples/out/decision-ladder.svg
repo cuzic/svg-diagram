@@ -1,75 +1,75 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="640" height="479" viewBox="0 0 640 479" role="img" aria-labelledby="svg-title">
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="444" viewBox="0 0 640 444" role="img" aria-labelledby="svg-title">
   <title id="svg-title">来館者の受け付け</title>
   <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/decision-ladder.ts","sourceSha256":"0e08435f19777ac44d796cf69eb785b497704a9080e553f6b8b720c0e784f120"}</metadata>
   <style>
     text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
     .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
   </style>
-  <rect x="0" y="0" width="640" height="479" fill="#ffffff"/>
+  <rect x="0" y="0" width="640" height="444" fill="#ffffff"/>
 
   <path d="M292,44 L356,44" fill="none" stroke="#22201b" stroke-width="2"/>
   <path d="M364,44 L352,52 L352,40 z" fill="#22201b"/>
-  <path d="M200,64 L200,84" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M200,96 L196,84 L204,84 z" fill="#22201b"/>
-  <path d="M292,112 L356,112" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M364,112 L352,120 L352,108 z" fill="#22201b"/>
-  <path d="M200,132 L200,152" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M200,164 L196,152 L204,152 z" fill="#22201b"/>
-  <path d="M292,180 L356,180" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M364,180 L352,188 L352,176 z" fill="#22201b"/>
-  <path d="M200,200 L200,220" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M200,232 L196,220 L204,220 z" fill="#22201b"/>
-  <path d="M292,248 L356,248" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M364,248 L352,256 L352,244 z" fill="#22201b"/>
-  <path d="M200,268 L200,300" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M200,308 L196,296 L204,296 z" fill="#22201b"/>
-  <path d="M292,328 L356,328" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M364,328 L352,332 L352,324 z" fill="#22201b"/>
-  <path d="M200,344 L200,376" fill="none" stroke="#22201b" stroke-width="2"/>
-  <path d="M200,388 L196,376 L204,376 z" fill="#22201b"/>
+  <path d="M200,64 L200,80" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M200,88 L196,76 L204,76 z" fill="#22201b"/>
+  <path d="M292,108 L356,108" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M364,108 L352,112 L352,100 z" fill="#22201b"/>
+  <path d="M200,124 L200,140" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M200,148 L196,136 L204,136 z" fill="#22201b"/>
+  <path d="M292,168 L356,168" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M364,168 L352,172 L352,164 z" fill="#22201b"/>
+  <path d="M200,184 L200,200" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M200,212 L196,200 L204,200 z" fill="#22201b"/>
+  <path d="M292,228 L356,228" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M364,228 L352,232 L352,224 z" fill="#22201b"/>
+  <path d="M200,248 L200,260" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M200,272 L196,260 L204,260 z" fill="#22201b"/>
+  <path d="M292,300 L356,300" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M364,300 L352,304 L352,296 z" fill="#22201b"/>
+  <path d="M200,328 L200,344" fill="none" stroke="#22201b" stroke-width="2"/>
+  <path d="M200,352 L196,340 L204,340 z" fill="#22201b"/>
   <rect x="108" y="28" width="184" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <rect x="364" y="28" width="168" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="108" y="96" width="184" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="364" y="96" width="168" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="108" y="164" width="184" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="364" y="164" width="168" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="108" y="232" width="184" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="364" y="232" width="168" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="108" y="308" width="184" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="364" y="300" width="168" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
-  <rect x="108" y="388" width="184" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="108" y="88" width="184" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="364" y="88" width="168" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="108" y="148" width="184" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="364" y="148" width="168" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="108" y="212" width="184" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="364" y="212" width="168" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="108" y="272" width="184" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="364" y="272" width="168" height="56" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
+  <rect x="108" y="352" width="184" height="36" rx="8" fill="#ffffff" stroke="#22201b" stroke-width="2.5"/>
   <text x="199" y="49" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">貸出票は書いてある？</text>
   <text x="449" y="49" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">窓口で受け付ける</text>
-  <text x="199" y="117" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">返却期限は守れる？</text>
-  <text x="449" y="117" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">貸出の手続きに進む</text>
-  <text x="199" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">予約の本はある？</text>
-  <text x="449" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">予約棚から取り出す</text>
-  <text x="199" y="253" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">館内で読むだけ？</text>
-  <text x="449" y="253" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">閲覧席へ案内する</text>
-  <text x="199" y="331" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">次回の入荷を待てる？</text>
-  <text x="449" y="321" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">入荷の連絡を登録する</text>
-  <text x="449" y="341" text-anchor="middle" font-size="14" fill="#6f6659">7 日間有効</text>
-  <text x="199" y="409" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">後日の来館をお願いする</text>
+  <text x="199" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">返却期限は守れる？</text>
+  <text x="449" y="110" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">貸出の手続きに進む</text>
+  <text x="199" y="171" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">予約の本はある？</text>
+  <text x="449" y="171" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">予約棚から取り出す</text>
+  <text x="199" y="232" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">館内で読むだけ？</text>
+  <text x="449" y="232" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">閲覧席へ案内する</text>
+  <text x="199" y="303" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">次回の入荷を待てる？</text>
+  <text x="449" y="293" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">入荷の連絡を登録する</text>
+  <text x="449" y="313" text-anchor="middle" font-size="14" fill="#6f6659">7 日間有効</text>
+  <text x="199" y="374" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">後日の来館をお願いする</text>
   <rect x="308" y="20" width="40" height="22" fill="#ffffff"/>
   <text x="328" y="36" text-anchor="middle" font-size="14" fill="#22201b">はい</text>
   <rect x="204" y="64" width="56" height="22" fill="#ffffff"/>
   <text x="232" y="80" text-anchor="middle" font-size="14" fill="#22201b">いいえ</text>
-  <rect x="308" y="88" width="40" height="22" fill="#ffffff"/>
-  <text x="328" y="104" text-anchor="middle" font-size="14" fill="#22201b">はい</text>
-  <rect x="204" y="132" width="56" height="22" fill="#ffffff"/>
-  <text x="232" y="148" text-anchor="middle" font-size="14" fill="#22201b">いいえ</text>
-  <rect x="308" y="156" width="40" height="22" fill="#ffffff"/>
-  <text x="328" y="172" text-anchor="middle" font-size="14" fill="#22201b">はい</text>
-  <rect x="204" y="200" width="56" height="22" fill="#ffffff"/>
-  <text x="232" y="216" text-anchor="middle" font-size="14" fill="#22201b">いいえ</text>
-  <rect x="308" y="224" width="40" height="22" fill="#ffffff"/>
-  <text x="328" y="240" text-anchor="middle" font-size="14" fill="#22201b">はい</text>
-  <rect x="204" y="268" width="56" height="22" fill="#ffffff"/>
-  <text x="232" y="284" text-anchor="middle" font-size="14" fill="#22201b">いいえ</text>
-  <rect x="308" y="304" width="40" height="22" fill="#ffffff"/>
-  <text x="328" y="320" text-anchor="middle" font-size="14" fill="#22201b">はい</text>
-  <rect x="204" y="348" width="56" height="22" fill="#ffffff"/>
-  <text x="232" y="364" text-anchor="middle" font-size="14" fill="#22201b">いいえ</text>
+  <rect x="308" y="80" width="40" height="22" fill="#ffffff"/>
+  <text x="328" y="96" text-anchor="middle" font-size="14" fill="#22201b">はい</text>
+  <rect x="204" y="128" width="56" height="22" fill="#ffffff"/>
+  <text x="232" y="144" text-anchor="middle" font-size="14" fill="#22201b">いいえ</text>
+  <rect x="308" y="144" width="40" height="22" fill="#ffffff"/>
+  <text x="328" y="160" text-anchor="middle" font-size="14" fill="#22201b">はい</text>
+  <rect x="204" y="188" width="56" height="22" fill="#ffffff"/>
+  <text x="232" y="204" text-anchor="middle" font-size="14" fill="#22201b">いいえ</text>
+  <rect x="308" y="204" width="40" height="22" fill="#ffffff"/>
+  <text x="328" y="220" text-anchor="middle" font-size="14" fill="#22201b">はい</text>
+  <rect x="204" y="248" width="56" height="22" fill="#ffffff"/>
+  <text x="232" y="264" text-anchor="middle" font-size="14" fill="#22201b">いいえ</text>
+  <rect x="308" y="276" width="40" height="22" fill="#ffffff"/>
+  <text x="328" y="292" text-anchor="middle" font-size="14" fill="#22201b">はい</text>
+  <rect x="204" y="328" width="56" height="22" fill="#ffffff"/>
+  <text x="232" y="344" text-anchor="middle" font-size="14" fill="#22201b">いいえ</text>
 
-  <text x="20" y="454" font-size="14" font-weight="400" fill="#6f6659">出典: 図書室の運用メモ(例)</text>
+  <text x="20" y="418" font-size="14" font-weight="400" fill="#6f6659">出典: 図書室の運用メモ(例)</text>
 </svg>

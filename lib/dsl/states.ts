@@ -27,7 +27,7 @@ function focusGraph(states: readonly StateItem[], transitions: readonly Transiti
   };
 }
 /** The band of stateDiagram() and flowchart(): the same checks, with the words of the one that was called. */
-function statesBandOf(states: readonly StateItem[], transitions: readonly Transition[], opts: StatesOpts, flavor?: 'flowchart', arrange?: 'ladder'): StatesBand {
+function statesBandOf(states: readonly StateItem[], transitions: readonly Transition[], opts: StatesOpts, flavor?: 'flowchart', arrange?: 'ladder', numbered?: boolean): StatesBand {
   const w = statesWords(flavor, arrange);
   // a flowchart goes back to a decision as often as forward: its return arrows take the lane outside the figure (inline they run through other nodes)
   const returns = opts.returns ?? (flavor === 'flowchart' && !arrange ? 'outer' : undefined);
@@ -43,7 +43,7 @@ function statesBandOf(states: readonly StateItem[], transitions: readonly Transi
   for (const t of transitions) { const s = states.find(x => x.id === t.from); if (t.from === t.to && (s?.shape === 'diamond' || s?.shape === 'pill')) throw new Error(`${w.who}: a ${s.shape} cannot loop to itself ("${t.from}": the loop leaves from the side of a rectangle)`); }
   for (const t of transitions) if (t.tone !== undefined && !['danger', 'accent', 'muted'].includes(t.tone)) throw new Error(`${w.who}: ${w.edge} ${t.from} -> ${t.to} has tone ${String(t.tone)} (use danger, accent or muted)`);
   if (opts.focus !== undefined) ({states, transitions} = focusGraph(states, transitions, opts.focus, w.who));
-  const band: StatesBand = {type: 'states', ...(flavor ? {flavor} : {}), states: states.map(s => s.icon === undefined ? s : {...s, iconGlyph: resolveIcon(s.icon, w.who + ' ' + w.node + ' "' + s.id + '" icon')}), transitions: [...transitions], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.initial === undefined ? {} : {initial: opts.initial}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(returns === undefined ? {} : {returns}), ...(flavor === 'flowchart' && opts.dir === undefined && !arrange ? {defaultDir: 'down' as const} : {}), ...(arrange ? {arrange} : {}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, w.who), ...revealOf(opts)};
+  const band: StatesBand = {type: 'states', ...(flavor ? {flavor} : {}), states: states.map(s => s.icon === undefined ? s : {...s, iconGlyph: resolveIcon(s.icon, w.who + ' ' + w.node + ' "' + s.id + '" icon')}), transitions: [...transitions], ...(opts.dir === undefined ? {} : {dir: opts.dir}), ...(opts.initial === undefined ? {} : {initial: opts.initial}), ...(opts.maxNodeW === undefined ? {} : {maxNodeW: opts.maxNodeW}), ...(returns === undefined ? {} : {returns}), ...(flavor === 'flowchart' && opts.dir === undefined && !arrange ? {defaultDir: 'down' as const} : {}), ...(arrange ? {arrange} : {}), ...(numbered ? {numbered: true as const} : {}), ...(opts.straighten === undefined ? {} : {straighten: opts.straighten}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, w.who), ...revealOf(opts)};
   if (opts.focus !== undefined && band.initial !== undefined) band.initialTone = resolveFocus(opts.focus, states.map(x => x.id), w.who).has(states.findIndex(x => x.id === band.initial)) ? 'accent' : 'muted';
   return withAnchors(withHandle(band, opts.id), states.map(s => s.id));
 }
@@ -72,7 +72,7 @@ export function flowchart(nodes: readonly FlowNode[], edges: readonly FlowEdge[]
 }
 
 type LadderIds<N extends number> = `q${N}` | `a${N}` | 'otherwise';
-const LADDER_STEP_KEYS = ['q', 'yes', 'sub', 'tone', 'yesLabel', 'noLabel'], LADDER_END_KEYS = ['label', 'sub', 'tone'], LADDER_OPT_KEYS = ['yes', 'no', 'question', 'maxNodeW', 'id', 'scope', 'reveal', 'until'];
+const LADDER_STEP_KEYS = ['q', 'yes', 'sub', 'tone', 'yesLabel', 'noLabel'], LADDER_END_KEYS = ['label', 'sub', 'tone'], LADDER_OPT_KEYS = ['yes', 'no', 'question', 'numbered', 'maxNodeW', 'id', 'scope', 'reveal', 'until'];
 /**
  * A decision ladder (ADR 0083): yes/no questions stacked down the left; each "yes" goes right to its answer, each "no" goes straight down to the next question,
  * and the last "no" ends in the final box. It is placed as two fixed columns (no layers, no staircase), so five questions fit a 16:9 slide in readable text.
@@ -95,6 +95,8 @@ export function decisionLadder(steps: readonly LadderStep[], otherwise: LadderEn
   text(end.label, '`otherwise`'); if (end.sub !== undefined) text(end.sub, '`otherwise` sub', true);
   only(opts, LADDER_OPT_KEYS, 'the options', ': the ladder is always two columns, the questions down the left, so dir / focus / returns do not apply');
   if (opts.question !== undefined && opts.question !== 'box' && opts.question !== 'diamond') bad(`question must be 'box' or 'diamond' (got ${String(opts.question)})`);
+  if (opts.numbered !== undefined && typeof opts.numbered !== 'boolean') bad(`numbered must be true or false (got ${String(opts.numbered)})`);
+  if (opts.numbered && opts.question === 'diamond') bad("numbered needs question: 'box' (the badge sits at the left of a box; a diamond has no room for it)");
   const words = [opts.yes ?? 'はい', opts.no ?? 'いいえ'].map((v, k) => text(v, ['yes', 'no'][k] as string, true));
   const items: StateItem[] = [], edges: Transition[] = [];
   const arrow = (from: string, to: string, label: string): Transition => ({from, to, ...(label ? {label} : {})});
@@ -107,6 +109,6 @@ export function decisionLadder(steps: readonly LadderStep[], otherwise: LadderEn
     edges.push(arrow(id('q'), id('a'), st.yesLabel ?? words[0] as string), arrow(id('q'), i + 1 < steps.length ? `q${i + 2}` : 'otherwise', st.noLabel ?? words[1] as string));
   });
   items.push({id: 'otherwise', label: end.label, ...(end.sub ? {sub: end.sub} : {}), ...(end.tone ? {tone: end.tone} : {})});
-  const {question: _question, yes: _yes, no: _no, ...rest} = opts;
-  return statesBandOf(items, edges, rest, 'flowchart', 'ladder');
+  const {question: _question, yes: _yes, no: _no, numbered: _numbered, ...rest} = opts;
+  return statesBandOf(items, edges, rest, 'flowchart', 'ladder', opts.numbered === true);
 }

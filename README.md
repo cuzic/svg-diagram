@@ -552,15 +552,16 @@ diagram({theme: 'blue', title: '来館者の受け付け', width: 640}).add(
       {q: '次回の入荷を待てる？', yes: '入荷の連絡を登録する', sub: '7 日間有効'},
     ],
     '後日の来館をお願いする',
+    {numbered: true}, // 質問に 1〜N の番号（任意）
   ),
 )
 ```
 
 - 判断が **1 本の鎖**(最初に「はい」になった質問が答えを決める)のときの図。質問を左の列に縦に積み、「はい」は右の答えの箱へ、「いいえ」は真下の次の質問へ進み、最後の「いいえ」は最後の箱で終わる。`flowchart` は同じ形が斜めの階段になり、16:9 で 7〜8pt まで縮む。「いいえ」が別の列へ分かれる・戻る流れは `flowchart`。
-- 段 `{q, yes, sub?, tone?, yesLabel?, noLabel?}`（`sub` と `tone` は答えの箱）。**最後の箱（第 2 引数）は必須**で、文字か `{label, sub?, tone?}`。選択肢は `yes` / `no`（矢印の言葉。既定 `はい` / `いいえ`。`''` で言葉なし。段の `yesLabel` / `noLabel` が優先）、`question: 'box' | 'diamond'`（既定は角の丸い箱。ひし形は行が高くなり、5 段で 9pt ほどまで縮む）、`maxNodeW`、`id`、`scope`、`reveal` / `until`。`focus` / `dir` / `returns` は無い（常に 2 列）。
+- 段 `{q, yes, sub?, tone?, yesLabel?, noLabel?}`（`sub` と `tone` は答えの箱）。**最後の箱（第 2 引数）は必須**で、文字か `{label, sub?, tone?}`。選択肢は `yes` / `no`（矢印の言葉。既定 `はい` / `いいえ`。`''` で言葉なし。段の `yesLabel` / `noLabel` が優先）、`question: 'box' | 'diamond'`（既定は角の丸い箱。ひし形は行が高くなり、5 段で 9pt ほどまで縮む）、`numbered: true`（質問に 1〜N の番号を付ける。`box({step})` と同じ丸いバッジが質問の箱の左に付く。答えと最後の箱には付かない。`question: 'diamond'` とは併用できない）、`maxNodeW`、`id`、`scope`、`reveal` / `until`。`focus` / `dir` / `returns` は無い（常に 2 列）。
 - 座標は書かない。2 列は図の幅の中央に置かれ、矢印はすべて 2 点の直線。anchor は質問 `q1`〜`qN`、答え `a1`〜`aN`、最後の箱 `otherwise`（`connect()` から指せる。同じ図に 2 つ置くときは `scope` を付ける）。
-- **幅は `diagram({width: 640})` が目安**: 既定の 900px だと図が 470px ほどで、スライドに載せたときの文字が 14pt にとどまる。640 なら 17pt。`maxNodeW`（既定 360）は折り返しの幅で、箱の幅の上限ではない（折り返せない語があると、その分だけ広くなる）。2 列が図の幅に入らないときは、直し方（図を広げる・文を短くする）を言って止まる。
-- JSON の spec は `{type: 'decisionLadder', steps, otherwise, yes?, no?, question?}`（`svg-diagram/spec/parts/decision-ladder`）。**1 つの spec に置けるのは 1 つ**（anchor `q1`… `a1`… `otherwise` は固定で、`scope` / `id` は無い）。2 つ以上は DSL で `scope` を付ける。例は `examples/decision-ladder.ts`、設計は ADR 0083。
+- **幅と高さ**: 行の高さは、質問の箱も答えの箱も同じ（答えの `sub` が 2 行でも、質問の箱は行の高さまで伸びる）ので、箱と箱の間隔はどの行でも同じ。答えの列は、横に余裕があれば `sub` が 1 行に収まる幅まで広がる（`maxNodeW` を書くとその幅で折り返す）。図が 16:9 のスライドより縦長になるときは、行の間（既定 32px）を詰める。下限は矢印の言葉のラベルの高さで、25px（`density: 'compact'` では 24px）。`yes` / `no` を空にした図は 20px（矢じり 12px + 8px。`compact` でも 20px）まで詰まる。それでも縦長（高さ + 余白 40px が幅 + 余白 40px の 0.47 倍を超える）なら、情報 `ladder-height-bound` を出す。メッセージは、幅を変えて図を組み直したとき、スライドの図の領域（幅の 0.47 倍の高さ）で文字の倍率が 3% 以上大きくなる幅があれば、その `diagram({width: N})` を示す（広げても狭めても、実際に大きくなる幅だけ）。なければ高さで決まるので、段を減らす・`sub` を短くする。`density: 'compact'` はほとんど効かない。2 列が図の幅に入らないときは、直し方（図を広げる・文を短くする）を言って止まる。
+- JSON の spec は `{type: 'decisionLadder', steps, otherwise, yes?, no?, question?, numbered?}`（`svg-diagram/spec/parts/decision-ladder`）。**1 つの spec に置けるのは 1 つ**（anchor `q1`… `a1`… `otherwise` は固定で、`scope` / `id` は無い）。2 つ以上は DSL で `scope` を付ける。例は `examples/decision-ladder.ts`、設計は ADR 0083。
 
 ### TOC の思考プロセス（`causeTree` / `cloud`）
 
