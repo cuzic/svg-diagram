@@ -198,8 +198,8 @@
           "source": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 300,
-            "description": "Where the facts come from, drawn small at the bottom.",
+            "maxLength": 800,
+            "description": "Where the facts come from, drawn small at the bottom (up to 800 characters). It wraps to more lines, and the figure gets less room; more than 12 lines is an error.",
             "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
             "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
           },

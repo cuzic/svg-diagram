@@ -3,7 +3,7 @@
 // here touches the disk or a process.
 import {capped, validateAgainst} from './spec-validation.ts';
 import {count, list, object, oneOf, SPEC_WIDTH, text, withoutSchemaField, type Json, type JsonSchema, type SpecIssue} from './spec-kit.ts';
-import {columnLayoutWidth} from './deck-layout.ts';
+import {columnLayoutWidth, SOURCE_MAX_CHARS, SOURCE_MAX_LINES} from './deck-layout.ts';
 
 /** Slides in one deck (ADR 0055 D1, raised from 30 to 300 on 2026-11-15: see the ADR for what the number rests on). */
 export const MAX_SLIDES = 300;
@@ -46,7 +46,7 @@ const slideShape = (figure: JsonSchema): JsonSchema => object({
     label: text('Plain words before the emphasised text, such as 「足す一文：」.', 60),
     text: text('The emphasised text, drawn bold in a tinted box near the bottom of the slide.', 300),
   }, ['text']), MAX_CALLOUTS), description: 'Up to three emphasised lines near the bottom of the slide. Not on a cover.'},
-  source: text('Where the facts come from, drawn small at the bottom.', 300),
+  source: text(`Where the facts come from, drawn small at the bottom (up to ${SOURCE_MAX_CHARS} characters). It wraps to more lines, and the figure gets less room; more than ${SOURCE_MAX_LINES} lines is an error.`, SOURCE_MAX_CHARS),
   notes: text('Speaker notes. Lines are separated by "\\n".', 5000),
 }, [], 'One 16:9 slide. Every field is optional, but a slide needs a title, a figure or columns. figure and columns do not go together. With "layout": "cover" it is a cover: title (required), lead, event, date, presenter, source and notes only.');
 

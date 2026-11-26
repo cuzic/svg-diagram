@@ -52,6 +52,7 @@ export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
   },
   verify: {
     tones: data => [data.tone ?? 'plain'],
+    toneMarks: data => ({dashed: data.dashed}),
     legendNotation: data => data,
     diagramFindings: boxDiagramFindings,
     rects: ownRect,

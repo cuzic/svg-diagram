@@ -74,7 +74,7 @@
         "legend-missing": {
           "type": "string",
           "minLength": 1,
-          "description": "使った記法（線種・トーン）の凡例がない（許容する理由を書く）"
+          "description": "使った記法（線種・トーン）の凡例がない（2 本以上の破線・点線が同じ label を共有していれば、その線種は数えない）（許容する理由を書く）"
         },
         "legend-incomplete": {
           "type": "string",
@@ -119,7 +119,7 @@
         "gray-tone-collision": {
           "type": "string",
           "minLength": 1,
-          "description": "使っている 2 つのトーンの塗りが、白黒（グレースケール）にすると見分けにくい（明度差 L* が 10 未満。破線などの形の手がかりがあれば除く）（許容する理由を書く）"
+          "description": "使っている 2 つのトーンの塗りが、白黒（グレースケール）にすると見分けにくい（明度差 L* が 10 未満。破線の有無（トーンの既定でも箱ごとの dashed でも）で見分けていれば除く）（許容する理由を書く）"
         },
         "rowheader-tone-collides": {
           "type": "string",
@@ -469,12 +469,17 @@
         "doc-width": {
           "type": "string",
           "minLength": 1,
-          "description": "図の幅が本文の表示幅（約 930px）を超え、文字が縮む（diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）（許容する理由を書く）"
+          "description": "文書の図の幅が本文の表示幅（約 930px）を超え、文字が縮む（canvas の図と slide + fill の図は対象外。デッキが描くときは出さないが、同じファイルの check / build は出す。diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）（許容する理由を書く）"
         },
         "flowchart-decision-edges": {
           "type": "string",
           "minLength": 1,
           "description": "判断（flowchart のひし形）から出る矢印が 2 本未満、または 3 本以上、またはラベル（Yes / No など）がない（許容する理由を書く）"
+        },
+        "ladder-height-bound": {
+          "type": "string",
+          "minLength": 1,
+          "description": "decisionLadder() が 16:9 のスライドより縦長（高さが幅の 0.47 倍超）。示した幅にするか、段・sub を減らす（許容する理由を書く）"
         },
         "auto-fit-applied": {
           "type": "string",

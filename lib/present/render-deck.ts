@@ -114,9 +114,9 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
   const box = (t: string, family: Parameters<typeof textBox>[1], size: number, weight: number) => textBox(t, family, size, weight, cfg.fonts);
   const pptxFonts = fontsOf(undefined);
   /** The smallest text of a figure scaled by k, counted as the .pptx counts it (ADR 0056 D2: the same warning on both). */
-  const smallText = (f: DrawnFigure, k: number): string | null => {
+  const smallText = (f: DrawnFigure, k: number, sourceLines: number): string | null => {
     const plan = planSlide(f.laidOut, pptxFonts), inner = /<\/p:grpSpPr>([\s\S]*)<\/p:spTree>/.exec(plan.xml)?.[1] ?? '';
-    return smallTextWarning({scale: k, minTextPt: minTextPt(placeShapes(inner, k, 0, 0))});
+    return smallTextWarning({scale: k, minTextPt: minTextPt(placeShapes(inner, k, 0, 0)), sourceLines});
   };
   const slides = shared.map((s, i): RenderedSlide | null => {
     const here = `slides[${i}]`;
@@ -127,13 +127,14 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
     const said: {at: string; text: string}[] = [...(f?.warnings ?? []).map(text => ({at: '.figure', text})),
       ...cols.flatMap((c, j) => (c?.warnings ?? []).map(text => ({at: `.columns[${j}].figure`, text})))];
     const layout = planDeckLayout(s, f, width, s.columns?.map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: cols[j] ?? undefined})), s.columnScale, fitOf(deck, s));
+    if (layout.sourceError) { errors.push(`${here}.source: ${layout.sourceError}`); return null; }
     if (layout.noRoom) { errors.push(`${here}: ${roomMessage(f !== undefined || cols.some(Boolean), s.layout === 'cover')}`); return null; }
     const crowded = layout.columns.flatMap((c, j) => c.noRoom ? [s.columns?.[j]?.text !== undefined
       ? `${here}.columns[${j}].text: the text does not fit the column: shorten it, or give the column a larger width`
       : `${here}.columns[${j}]: the heading, lead, callouts and source leave the column's figure no room: shorten them, or split the slide`] : []);
     if (crowded.length) { errors.push(...crowded); return null; }
-    if (f && layout.figure) { const w = smallText(f, layout.figure.k); if (w) said.push({at: '.figure', text: w}); }
-    layout.columns.forEach((c, j) => { const cf = cols[j]; if (cf && c.figure) { const w = smallText(cf, c.figure.k); if (w) said.push({at: `.columns[${j}].figure`, text: w}); } });
+    if (f && layout.figure) { const w = smallText(f, layout.figure.k, layout.sourceLines); if (w) said.push({at: '.figure', text: w}); }
+    layout.columns.forEach((c, j) => { const cf = cols[j]; if (cf && c.figure) { const w = smallText(cf, c.figure.k, layout.sourceLines); if (w) said.push({at: `.columns[${j}].figure`, text: w}); } });
     const out = slideSvg(layout, f ? {svg: f.svg} : undefined, font, box, cols.map(c => c ? {svg: c.svg} : undefined));
     for (const m of out.missing) errors.push(`${here}: no font has a glyph for 「${m.char}」 (in 「${m.text}」): name a font that has it in .svg-diagram.json "fonts"`);
     for (const u of out.unsupported) errors.push(`${here}: text drawn with ${u} cannot be outlined, so the slide would lose it: take it out of the figure${WORDART_HINT[u] ?? ''}`);

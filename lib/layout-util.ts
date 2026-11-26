@@ -233,3 +233,8 @@ export function gridChildGeometry(band: GridBand, contentWidth: number) {
   const cellWidth = (contentWidth - (cols - 1) * gap) / cols; // (the plain split, when the width cannot give every column a grid step)
   return {xs: grid ? grid.x : Array.from({length: cols}, (_, j) => j * (cellWidth + gap)), ws: grid ? grid.w : new Array<number>(cols).fill(cellWidth)};
 }
+
+/** decisionLadder() (ADR 0083 U4): the figure room of a 16:9 slide is about 0.47 to 0.5 of its width, so a figure whose diagram (the band and its 40px margins) is taller than that is drawn by its height:
+ *  a wider figure does not give larger text. The ladder packs its row gaps toward a floor until it is not, and the `ladder-height-bound` finding names what is left. */
+export const LADDER_SLIDE_ASPECT = 0.47;
+export const tooTall = (bandH: number, bandW: number): boolean => bandH + 40 > LADDER_SLIDE_ASPECT * (bandW + 40);
