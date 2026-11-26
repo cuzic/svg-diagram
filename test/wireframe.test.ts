@@ -3,6 +3,7 @@
 import test, {after} from 'node:test';
 import assert from 'node:assert/strict';
 import {diagram, wireframe, screens, wf, checkDiagram, closeMeasurer} from '../lib/dsl.ts';
+import {dialogProblems} from '../lib/verify-wireframe-callouts.ts';
 import type {Rect} from '../lib/types/core.ts';
 import type {Band} from '../lib/types/index.ts';
 import type {PrimRect, PrimText, Prim} from '../lib/types/wireframe-nodes.ts';
@@ -97,4 +98,86 @@ test('skeleton: body text becomes bars, titles stay text', async () => {
   const [band] = await layout(wireframe([wf.text('本文のテキスト'), wf.btn('保存')], {h: 160, skeleton: true}));
   assert.ok(!texts(band!).includes('本文のテキスト'));
   assert.ok(texts(band!).includes('保存'));
+});
+
+test('dialog at: places the card off-centre, default stays centred, and content outside the card stays drawn', async () => {
+  const frameOf = (b: Screen) => b.prims.find((p): p is PrimRect => p.k === 'rect' && p.stroke === 'text' && p.sw === 2.5 && p.r === 8)!;
+  const run = async (at?: 'center' | 'top' | 'bottom' | 'left' | 'right') => {
+    const [band] = await layout(wireframe([wf.text('main-content'), wf.text('x')], {h: 260, overlays: [wf.dialog('確認', {body: '内容', buttons: [wf.btn('はい')], at})]}));
+    return band!;
+  };
+  const def = await run(), centre = await run('center');
+  assert.deepEqual(frameOf(def), frameOf(centre), 'default is centre');
+  const cx = frameOf(centre).x + frameOf(centre).w / 2, cy = frameOf(centre).y + frameOf(centre).h / 2;
+  const screen = (b: Screen) => b.prims.find((p): p is PrimRect => p.k === 'rect' && p.fill === 'text' && p.op === 0.3)!; // the dim layer = the area the card is placed in
+  const top = frameOf(await run('top')), bottom = frameOf(await run('bottom')), left = frameOf(await run('left')), right = frameOf(await run('right'));
+  assert.ok(top.y + top.h / 2 < cy && Math.abs(top.x + top.w / 2 - cx) < 1);
+  assert.ok(bottom.y + bottom.h / 2 > cy && Math.abs(bottom.x + bottom.w / 2 - cx) < 1);
+  assert.ok(left.x + left.w / 2 < cx && Math.abs(left.y + left.h / 2 - cy) < 1);
+  assert.ok(right.x + right.w / 2 > cx && Math.abs(right.y + right.h / 2 - cy) < 1);
+  const sc = screen(await run('top')); 
+  assert.ok(sc, 'screen frame found');
+  assert.equal(left.x, sc.x + 16, 'left margin is 16px');
+  assert.equal(top.y, sc.y + 16, 'top margin is 16px');
+  assert.equal(right.x + right.w, sc.x + sc.w - 16, 'right margin is 16px');
+  assert.equal(bottom.y + bottom.h, sc.y + sc.h - 16, 'bottom margin is 16px');
+  assert.ok(texts(await run('bottom')).includes('main-content'), 'the content the card does not cover is still drawn');
+  await assert.rejects(() => layout(wireframe([wf.text('x')], {h: 200, overlays: [wf.dialog('t', {at: 'middle' as 'top'})]})), /at must be/);
+});
+
+test('dialog: a card bigger than its screen is drawn pinned to the top-left and reported as wf-dialog-too-big; one that only misses the margin is not', async () => {
+  const check = async (h: number, dialog: ReturnType<typeof wf.dialog>) => {
+    const d = diagram({theme: 'blue'});
+    d.add(wireframe([wf.text('main')], {h, overlays: [dialog]}));
+    const r = await checkDiagram(d);
+    return {band: r.laidOut.laidOut[0] as Screen, problems: r.verdict.problems};
+  };
+  const card = (b: Screen) => b.prims.find((p): p is PrimRect => p.k === 'rect' && p.stroke === 'text' && p.sw === 2.5 && p.r === 8)!;
+  const dim = (b: Screen) => b.prims.find((p): p is PrimRect => p.k === 'rect' && p.fill === 'text' && p.op === 0.3)!;
+  const tall = '長い本文です。'.repeat(20);
+  for (const at of [undefined, 'center', 'top', 'bottom', 'left', 'right'] as const) {
+    const {band, problems} = await check(140, wf.dialog('確認', {body: tall, buttons: [wf.btn('はい')], at}));
+    assert.ok(problems.some(p => /does not fit inside the screen.*(shorten|taller)/.test(p)), String(at));
+    assert.ok(card(band).x >= dim(band).x && card(band).x + card(band).w <= dim(band).x + dim(band).w, `${at}: a card that is only too tall stays inside horizontally`);
+    assert.equal(card(band).y, dim(band).y, `${at}: pinned to the top edge (title visible)`);
+  }
+  const wide = await check(300, wf.dialog('確認', {w: 2000, at: 'right'}));
+  assert.ok(wide.problems.some(p => /does not fit/.test(p)));
+  assert.equal(card(wide.band).x, dim(wide.band).x, 'a card wider than the screen is pinned to the left edge');
+  // fits the screen: no problem
+  const {band, problems} = await check(140, wf.dialog('確認', {body: '本文', at: 'top'}));
+  assert.deepEqual(problems, []);
+  assert.ok(card(band).y >= dim(band).y && card(band).y + card(band).h <= dim(band).y + dim(band).h);
+  const snug = await check(card(band).h + 6, wf.dialog('確認', {body: '本文', at: 'top'}));
+  assert.deepEqual(snug.problems, []);
+  assert.ok(card(snug.band).y >= dim(snug.band).y && card(snug.band).y + card(snug.band).h <= dim(snug.band).y + dim(snug.band).h, 'margin shrinks, card stays inside');
+  assert.ok(dim(snug.band).h - card(snug.band).h < 32, 'the margin really was smaller than 16px on both sides');
+  await assert.rejects(() => layout(wireframe([wf.text('x')], {h: 200, overlays: [wf.dialog('t', {at: 'middle' as 'top'})]})), /at must be/);
+});
+
+test('dialogProblems turns the layout\'s dialog messages into wf-dialog-too-big problems', () => {
+  assert.deepEqual(dialogProblems({}), []);
+  assert.deepEqual(dialogProblems({problems: ['m']}), [{rule: 'wf-dialog-too-big', severity: 'problem', message: 'm'}]);
+});
+
+test('dialog: the screens band reports wf-dialog-too-big and names the screen; a card nearly as wide as the screen shrinks its side margin', async () => {
+  const d = diagram({theme: 'blue'});
+  d.add(screens([{title: '画面A', root: [wf.text('a')], h: 200}, {title: '画面B', root: [wf.text('b')], h: 120, overlays: [wf.dialog('確認', {body: '長い本文です。'.repeat(20), at: 'top'})]}]));
+  const r = await checkDiagram(d);
+  const mine = r.verdict.problems.filter(p => /does not fit inside the screen/.test(p));
+  assert.equal(mine.length, 1, r.verdict.problems.join('; '));
+  assert.match(mine[0]!, /画面B/);
+  assert.doesNotMatch(mine[0]!, /画面A/);
+
+  const run = async (w?: number) => {
+    const dd = diagram({theme: 'blue'});
+    dd.add(wireframe([wf.text('x')], {h: 300, overlays: [wf.dialog('確認', {w, at: 'left'})]}));
+    return (await checkDiagram(dd)).laidOut.laidOut[0] as Screen;
+  };
+  const dimOf = (b: Screen) => b.prims.find((p): p is PrimRect => p.k === 'rect' && p.fill === 'text' && p.op === 0.3)!;
+  const area = dimOf(await run());
+  const near = await run(area.w - 10);
+  const card = near.prims.find((p): p is PrimRect => p.k === 'rect' && p.stroke === 'text' && p.sw === 2.5 && p.r === 8)!;
+  assert.equal(card.x - dimOf(near).x, 5, 'the 16px margin shrinks to what is left (5px each side)');
+  assert.ok(card.x + card.w <= dimOf(near).x + dimOf(near).w);
 });

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="436" viewBox="0 0 940 436" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">二つの案の特徴</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/venn-features.ts","sourceSha256":"eedf6717552ce0845b4176023e83be6dc200383dd96c1addebddb2db9fa47aed"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="436" fill="#ffffff"/>
+
+  <circle cx="360" cy="220" r="190" fill="#1d5fa8" fill-opacity="0.22" stroke="#1d5fa8" stroke-width="2"/>
+  <circle cx="580" cy="220" r="190" fill="#b91c1c" fill-opacity="0.22" stroke="#b91c1c" stroke-width="2" stroke-dasharray="7,5"/>
+  <text x="280.2" y="204.7" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">案 A</text>
+  <text x="238.2" y="227.6" font-size="14" font-weight="400" fill="#22201b">・導入が早い</text>
+  <text x="238.2" y="246.5" font-size="14" font-weight="400" fill="#22201b">・費用が低い</text>
+  <text x="659.8" y="204.7" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">案 B</text>
+  <text x="610.8" y="227.6" font-size="14" font-weight="400" fill="#22201b">・拡張しやすい</text>
+  <text x="610.8" y="246.5" font-size="14" font-weight="400" fill="#22201b">・保守が楽</text>
+  <text x="470" y="225.6" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">共通</text>
+</svg>

@@ -63,6 +63,8 @@ export function calloutNoteFindings(b: WireframeBand): Finding[] {
   return out;
 }
 
+export const dialogProblems = (laid: {problems?: string[]}) => (laid.problems ?? []).map(message => ({rule: 'wf-dialog-too-big', severity: 'problem' as const, message}));
+
 export const wireframeCalloutVerification = {
   findings: calloutNoteFindings,
   layoutFindings: calloutOrderFindings,

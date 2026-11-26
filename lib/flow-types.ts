@@ -16,7 +16,7 @@ export interface CycleOpts extends RevealOpts, ScopeOpts, FocusOpts {
   /** ADR 0065: a frame round the figure, and its name (the five-part model's 「状況・環境」). */
   frame?: string;
 }
-export interface VennSet {name: string; label?: string; id?: string; tone?: TextTone}
+export interface VennSet {name: string; label?: string; /** Short bullet lines drawn under the set's title, inside the part only this set covers. */ items?: readonly string[]; id?: string; tone?: TextTone}
 export interface VennOverlap {sets: readonly string[]; label: string}
 export interface VennOpts extends RevealOpts, ScopeOpts {id?: string; overlaps?: readonly VennOverlap[]; centre?: string; universe?: string | boolean; width?: number}
 export interface ConcentricRing {label: string; description?: string; id?: string; tone?: TextTone}
@@ -64,4 +64,4 @@ export type FlowPrimitive =
   | ({k: 'circle'; cx: number; cy: number; r: number; tone: TextTone; opacity?: number; dash?: string; /** Drawn as a box of this tone (filled, outlined) instead of a tinted ring. */ fill?: EmphasisTone; node?: string; dataNode?: string; /** ADR 0054 */ part?: string} & Dimmed)
   | ({k: 'rect'; x: number; y: number; w: number; h: number; tone: TextTone} & Dimmed)
   | ({k: 'path'; d: string; tone: TextTone; arrow?: boolean; thin?: boolean; /** Drawn as a box of this tone (filled, outlined) instead of a line; `box` is the extent of what is drawn. */ fill?: EmphasisTone; box?: Rect; node?: string; dataNode?: string; /** ADR 0054 */ part?: string} & Dimmed);
-export interface LaidOutFlowShape extends Rect, Dimmed {type: FlowShapeBand['type']; id?: string; reveal?: number; until?: number; primitives: FlowPrimitive[]; texts: FlowText[]; anchors: Anchor[]; labelBoxes: (Rect & {label: string})[]; /** emblem: the bounding box of each shape that has an id (the checks' obstacle, which may be larger than its anchor). */ bounds?: Anchor[]; /** concentric with sectors (ADR 0065): the marks whose label could only be placed across a line */ crossings?: string[]}
+export interface LaidOutFlowShape extends Rect, Dimmed {type: FlowShapeBand['type']; id?: string; reveal?: number; until?: number; primitives: FlowPrimitive[]; texts: FlowText[]; anchors: Anchor[]; labelBoxes: (Rect & {label: string})[]; /** emblem: the bounding box of each shape that has an id (the checks' obstacle, which may be larger than its anchor). */ bounds?: Anchor[]; /** concentric with sectors (ADR 0065): the marks whose label could only be placed across a line */ crossings?: string[]; /** venn: sets whose title and items do not fit inside the part only that set covers */ misfits?: string[]}

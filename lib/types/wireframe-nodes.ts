@@ -241,7 +241,7 @@ export interface WfRadio extends WfRadioOpts {t: 'radio'; label: string}
 export interface WfSliderOpts extends WfCommon {/** 0..1 */ value?: number; display?: string}
 export interface WfSlider extends WfSliderOpts {t: 'slider'; label: string}
 // ---- overlays (wireframe({overlays}) / a screens() item's `overlays`) ----
-export interface WfDialogOpts extends WfCommon {body?: string; buttons?: WfBtn[]}
+export interface WfDialogOpts extends WfCommon {body?: string; buttons?: WfBtn[]; /** Where the card sits on the screen (default `'center'`); the rest of the screen is still dimmed. */ at?: 'center' | 'top' | 'bottom' | 'left' | 'right'}
 export interface WfDialog extends WfDialogOpts {t: 'dialog'; title: string}
 export interface WfToastOpts extends WfCommon {tone?: WfTone}
 export interface WfToast extends WfToastOpts {t: 'toast'; text: string}
@@ -365,6 +365,8 @@ export interface WfCtx {
   callouts: WfCallout[];
   /** Every callout drawn so far (kept on the laid-out band for the wf-callout-order rule). */
   all: WfCallout[];
+  /** Problems found while drawing (a dialog card bigger than its screen), reported by the band's check as `wf-dialog-too-big`. */
+  problems: string[];
   /** Which marks ('new' / 'changed') were used, for the marks legend. */
   used: Set<WfMark>;
 }
