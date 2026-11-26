@@ -3,6 +3,7 @@ import type {Glue} from './connector-geometry-xml.ts';
 // diamond, ellipse or pill whose text area is the whole box), each transition an arrow connector glued to the two nodes, a transition's
 // label a text box on a white chip, the start dot an ellipse. Moving a node drags its arrows along. A dimmed band, or one whose nodes
 // carry icons (not drawn as shapes yet), stays a picture.
+import {INK_MID, badgeTextKey} from '../badge.ts';
 import {PALETTE, colorOf, isSolidTone, toneStyle, type ToneEnv} from '../tokens.ts';
 import type {LaidOutDiagram} from '../types/index.ts';
 import type {LaidOutStates} from '../types/diagrams.ts';
@@ -65,6 +66,12 @@ export function statesXml(b: LaidOutStates, ld: LaidOutDiagram, tones: ToneEnv, 
       // an end state: its box and inner frame are one part (ADR 0054)
       out.push(groupXml(next(), namedAs('state', text, dslId), rect, shape + frame));
     }
+  }
+  // the step badges of a numbered decisionLadder(): a circle in the accent with the number in white, as box({step}) draws it
+  for (const k of b.badges ?? []) {
+    const r = {x: k.cx - k.r, y: k.cy - k.r, w: 2 * k.r, h: 2 * k.r}, fill = PALETTE[day].accent;
+    const line = {text: k.label, x: k.cx, y: k.cy + k.size * INK_MID, anchor: 'middle' as const, size: k.size, bold: true, color: PALETTE[badgeTextKey(fill)]};
+    out.push(geomShapeXml(next(), namedAs('step', k.label), r, roundGeomXml('ellipse', r.w, r.h), {fill}, boxTextXml(r, [line], fonts)));
   }
   // a label: its white chip holds its text, one shape (ADR 0054)
   // (a word the measure says does not fit the chip stays a text box over it, as before, so it is never lost)

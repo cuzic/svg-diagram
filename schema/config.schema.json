@@ -476,6 +476,11 @@
           "minLength": 1,
           "description": "判断（flowchart のひし形）から出る矢印が 2 本未満、または 3 本以上、またはラベル（Yes / No など）がない（許容する理由を書く）"
         },
+        "ladder-height-bound": {
+          "type": "string",
+          "minLength": 1,
+          "description": "decisionLadder() の高さが幅の 0.47 倍を超え、16:9 のスライドでは高さで大きさが決まる（幅を広げても文字は大きくならない。段・sub を減らす、density: compact）（許容する理由を書く）"
+        },
         "auto-fit-applied": {
           "type": "string",
           "minLength": 1,

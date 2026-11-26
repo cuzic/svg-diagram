@@ -1,4 +1,5 @@
 import {at} from './finding-rules.ts';
+import {LADDER_SLIDE_ASPECT, tooTall} from './layout-util.ts';
 import type {LaidOutStates} from './types/diagrams.ts';
 import type {Finding} from './types/verdicts.ts';
 
@@ -6,6 +7,8 @@ import type {Finding} from './types/verdicts.ts';
 export function flowchartFindings(b: LaidOutStates): Finding[] {
   const out: Finding[] = [];
   if (!b.nodes) return out;
+  // a decisionLadder() taller than a 16:9 slide allows even with its row gaps packed: the slide draws it by its height, so a wider figure does not give larger text (ADR 0083 U4)
+  if (b.arrange === 'ladder' && tooTall(b.h, b.w)) out.push({...at(b), rule: 'ladder-height-bound', severity: 'info', message: `decisionLadder(): 高さ ${Math.round(b.h + 40)}px が幅 ${Math.round(b.w + 40)}px の ${((b.h + 40) / (b.w + 40)).toFixed(2)} 倍（${LADDER_SLIDE_ASPECT} 倍まで）。16:9 のスライドでは高さで大きさが決まり、幅を広げても文字は大きくならない（答えの sub が折り返しているときは、幅を広げて 1 行にすると高さが減る）。大きくするには、段を減らす・sub を短くする・diagram({density: 'compact'}) で間隔を詰める`});
   b.nodes.forEach((n, i) => {
     const id = b.anchors[i]?.id;
     if (n.shape !== 'diamond' || id === undefined) return;
@@ -19,5 +22,6 @@ export function flowchartFindings(b: LaidOutStates): Finding[] {
 }
 
 export const flowchartRules = /* @__PURE__ */ Object.freeze({
+  'ladder-height-bound': {doc: 'decisionLadder() の高さが幅の 0.47 倍を超え、16:9 のスライドでは高さで大きさが決まる（幅を広げても文字は大きくならない。段・sub を減らす、density: compact）', scope: 'band'},
   'flowchart-decision-edges': {doc: '判断（flowchart のひし形）から出る矢印が 2 本未満、または 3 本以上、またはラベル（Yes / No など）がない', scope: 'band'},
 } as const);

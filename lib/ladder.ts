@@ -8,10 +8,12 @@ import {fitFailure, type NoFit, widerThan} from './fit-width.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
 import {must} from './must.ts';
+import {stepBadgeGeom, tooTall} from './layout-util.ts';
 import type {Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {LaidOutStates, StatesBand} from './types/diagrams.ts';
 
 const MIN_BOX = 80, STEP = 8, TAIL = 4;
+const GAP_FLOOR = 20, LEAD_PAD = 12; // the least row gap (a chip's own height is the other floor); the space left of a numbered question's badge
 const grid4 = (v: number): number => Math.ceil(v / 4) * 4;
 type Col = {lines: NodeLines[]; w: number};
 
@@ -27,7 +29,15 @@ export function layoutLadder(band: StatesBand, x: number, y: number, w: number, 
   // The strip between two rows holds the no chip (at the top of it) and the next row's yes chip, which rises above that row's top when the row is short:
   // the strip is as tall as both, so the two chips never meet (a row of one line of text rises 7px).
   const rise = (i: number, rowH: number): number => i < n && chipW(2 * i) ? Math.max(0, lh + 3 - rowH / 2) : 0;
-  const measure = (i: number, max: number): NodeLines => { const s = state(i); return s.shape === 'diamond' ? diamondLines(s.label, s.sub, max, 0, widthOf, roles, env.wrap, env.keepWords) : measureNode(s.label, s.sub, max, widthOf, roles, env.wrap, env.keepWords); };
+  // numbered: each question (not the final box) carries the step badge of box({step}) at its left; its text is wrapped in what is left of it
+  const badge = stepBadgeGeom(roles), lead = band.numbered ? LEAD_PAD + 2 * badge.r : 0, numberedAt = (i: number): boolean => !!band.numbered && i % 2 === 0 && i < 2 * n;
+  const measure = (i: number, max: number): NodeLines => {
+    const s = state(i);
+    if (s.shape === 'diamond') return diamondLines(s.label, s.sub, max, 0, widthOf, roles, env.wrap, env.keepWords);
+    if (!numberedAt(i)) return measureNode(s.label, s.sub, max, widthOf, roles, env.wrap, env.keepWords);
+    const l = measureNode(s.label, s.sub, Math.max(MIN_BOX - lead, max - lead), widthOf, roles, env.wrap, env.keepWords);
+    return {...l, w: l.w + lead};
+  };
   const column = (ids: number[], max: number): Col => { const lines = ids.map(i => measure(i, max)), wd = Math.max(...lines.map(l => l.w)); return {lines, w: Math.max(Math.ceil(wd), Math.min(grid4(wd), max))}; };
   const rowHs = (q: Col, a: Col): number[] => rows.map(i => grid4(Math.max(must(q.lines[i]).h, must(a.lines[i]).h)));
   const total = (q: Col, a: Col): number => rowHs(q, a).reduce((s, v) => s + v, 0) + must(q.lines[n]).h;
@@ -38,7 +48,8 @@ export function layoutLadder(band: StatesBand, x: number, y: number, w: number, 
   const cands = widths.flatMap(m => {
     const q = column(qIds, m), gap = gapFor(q.w), room = w + 0.5 - q.w - gap;
     if (room < MIN_BOX) return [];
-    for (let am = Math.min(cap, Math.floor(room)); ; am -= STEP) {
+    // an answer may be as wide as the room: its second line (`sub`) stays on one line when it can (an explicit maxNodeW still caps it)
+    for (let am = Math.min(band.maxNodeW ?? Infinity, Math.floor(room)); ; am -= STEP) {
       const a = column(aIds, Math.max(am, MIN_BOX));
       if (a.w <= room) return [{q, a, gap, h: total(q, a), ok: q.lines.every(l => l.label.length < 2 || [...must(l.label.at(-1))].length >= TAIL)}];
       if (am <= MIN_BOX) return [];
@@ -60,10 +71,12 @@ export function layoutLadder(band: StatesBand, x: number, y: number, w: number, 
   };
   // box i of the states, laid out as `l` in rect r
   const place = (i: number, l: NodeLines, r: {x: number; y: number; w: number; h: number}) => {
-    const s = state(i), textH = l.label.length * Math.round(roles.body * 1.4) + l.sub.length * Math.round(roles.note * 1.4);
+    const s = state(i), textH = l.label.length * Math.round(roles.body * 1.4) + l.sub.length * Math.round(roles.note * 1.4), ind = numberedAt(i) ? lead : 0;
     out.nodes.push({...r, tone: s.tone ?? 'plain', ...(s.shape === 'diamond' ? {shape: 'diamond' as const} : {})});
     out.anchors.push({id: s.id, ...r});
-    out.texts.push(...nodeRuns({x: r.x, y: s.shape === 'diamond' ? r.y + (r.h - textH) / 2 - 8 : r.y, w: r.w}, l, roles));
+    // a box as tall as its row holds its text in the middle (a box as tall as its text: no shift)
+    out.texts.push(...nodeRuns({x: r.x + ind, y: s.shape === 'diamond' ? r.y + (r.h - textH) / 2 - 8 : r.y + (r.h - l.h) / 2, w: r.w - ind}, l, roles));
+    if (ind) (out.badges ??= []).push({cx: r.x + LEAD_PAD + badge.r, cy: r.y + r.h / 2, r: badge.r, size: badge.size, label: String(i / 2 + 1)});
     out.labelBoxes.push({label: s.label, ...r});
     return r;
   };
@@ -77,16 +90,27 @@ export function layoutLadder(band: StatesBand, x: number, y: number, w: number, 
     out.labelBoxes.push({label: t.label, ...box});
   };
   // every row's rect first (the "no" arrow of a row ends at the next one)
+  // The gap between two rows is 32 (scaled by the figure's spacing), and no less than the no chip and the next yes chip need. A figure taller than a 16:9 slide
+  // allows (LADDER_SLIDE_ASPECT) packs the gaps toward GAP_FLOOR first: the slide then draws it larger, as its height is what holds it back.
+  // The gap is one value for every row (even spacing). The no chip hangs right of the arrow in the question column and the next yes chip sits between the columns: when they
+  // are side by side, the strip needs only the no chip's height; when they are not, the yes chip's rise above its row (a short row) is added, for the tallest of them.
+  const noRight = qc.w / 2 + 6 + noW, yesLeft = qc.w + gap / 2 - yesW / 2, clear = noW === 0 || yesW === 0 || noRight + 2 <= yesLeft;
+  const needed = lh + Math.round(3 * sp) + (clear ? 0 : Math.max(0, ...heights.map((_h, i) => rise(i + 1, heights[i + 1] ?? 0))));
+  const rowGap = (g: number): number => Math.max(g, needed);
+  const stacked = (g: number): number => rise(0, must(heights[0])) + heights.reduce((t, rh) => t + rh + rowGap(g), 0) + must(qc.lines[n]).h;
+  let rowG = Math.round(32 * sp);
+  while (tooTall(stacked(rowG), w) && rowG > Math.round(GAP_FLOOR * sp)) rowG = Math.max(Math.round(GAP_FLOOR * sp), rowG - 2);
   const tops: number[] = [];
   let cy = y + rise(0, must(heights[0])); // the first yes chip rises above its row: the band starts above it
-  for (const [i, rh] of heights.entries()) { tops.push(cy); cy += rh + Math.max(Math.round(32 * sp), lh + Math.round(3 * sp) + rise(i + 1, heights[i + 1] ?? 0)); }
+  for (const rh of heights) { tops.push(cy); cy += rh + rowGap(rowG); }
+  // a question box is as tall as its row (as the answer is), so the gap between two boxes is the row gap in both columns, whatever an answer's second line adds; a diamond keeps its own height
   const qRect = (i: number) => {
-    const l = must(qc.lines[i]), top = must(tops[i] ?? cy), rh = i < n ? must(heights[i]) : l.h, qw = diamond ? l.w : qc.w;
-    return {x: x0 + (qc.w - qw) / 2, y: top + (rh - l.h) / 2, w: qw, h: l.h};
+    const l = must(qc.lines[i]), top = must(tops[i] ?? cy), rh = i < n ? must(heights[i]) : l.h, qw = diamond ? l.w : qc.w, h = diamond || i === n ? l.h : rh;
+    return {x: x0 + (qc.w - qw) / 2, y: top + (rh - h) / 2, w: qw, h};
   };
   for (const i of rows) {
     const rh = must(heights[i]), top = must(tops[i]), mid = top + rh / 2, al = must(ac.lines[i]);
-    const qr = place(2 * i, must(qc.lines[i]), qRect(i)), ar = place(2 * i + 1, al, {x: ax, y: top + (rh - al.h) / 2, w: ac.w, h: al.h}), next = qRect(i + 1);
+    const qr = place(2 * i, must(qc.lines[i]), qRect(i)), ar = place(2 * i + 1, al, {x: ax, y: top, w: ac.w, h: rh}), next = qRect(i + 1);
     arrow(2 * i, 2 * i, 2 * i + 1, {x: qr.x + qr.w, y: mid}, {x: ar.x, y: mid}, cw => (qr.x + qr.w + ar.x) / 2 - cw / 2, mid - lh / 2 - 3); // the yes chip: centred over the arrow, just above it
     arrow(2 * i + 1, 2 * i, 2 * i + 2, {x: cx, y: qr.y + qr.h}, {x: cx, y: next.y}, () => cx + 6, qr.y + qr.h + 2 + lh / 2); // the no chip: right of the arrow, at the top of it
   }
