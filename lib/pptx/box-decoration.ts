@@ -16,9 +16,9 @@ export function boxBadge(ctx: Ctx, tone: TextBox['tone'], text: string, rect: Re
   }), ctx.ld.day, ctx.tones, ctx.fonts);
 }
 
-export function stampBadge(ctx: Ctx, box: Rect & {stampW?: number; tone?: TextBox['tone']}, stamp: string): string {
-  const width = box.stampW ?? 64;
+export function stampBadge(ctx: Ctx, box: Rect & {stampW?: number; stampH?: number; tone?: TextBox['tone']}, stamp: string): string {
+  const width = box.stampW ?? 64, extra = (box.stampH ?? 24) - 24; // a wrapped stamp's chip is taller by the lines it adds
   return boxBadge(ctx, box.tone, stamp, {
-    x: box.x + box.w - width - 8, y: box.y + box.h - 22, w: width, h: 18,
+    x: box.x + box.w - width - 8, y: box.y + box.h - 22 - extra, w: width, h: 18 + extra,
   }, namedAs('stamp', stamp));
 }

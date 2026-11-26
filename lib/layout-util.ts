@@ -2,6 +2,8 @@
 // box padding, icon / step-badge sizes, the row() / grid() width distribution and the group title caption. No text metrics, no state.
 
 import {textWidth} from './atoms.ts';
+import {must} from './must.ts';
+import {wrapText} from './wrap.ts';
 import type {GroupBand, RowBand, GridBand} from './types/containers.ts';
 import type {Roles, WidthOf, Rect} from './types/core.ts';
 import type {CaptionBand} from './types/text-bands.ts';
@@ -61,6 +63,32 @@ export const CANVAS_MIN_REGION_W = 96;
 export const STAMP_H = 24, STAMP_GAP = 6;
 const STAMP_PAD_X = 6; // the stamp chip and the strip reserved for it under the content
 export const stampChipW = (widthOf: WidthOf, text: string, roles: Roles): number => textWidth(widthOf, text, roles.note, 400) + 2 * STAMP_PAD_X;
+/** The line pitch of a two-line stamp chip (the same 1.4 em as any wrapped text). */
+export const stampLineH = (roles: Roles): number => Math.round(roles.note * LINE_HEIGHT_EM);
+/** What a laid-out stamp carries beyond `stamp` / `stampW`, only when it is not the plain one-line chip (so a fitting stamp is unchanged). */
+export interface StampFit {w: number; h: number; lines?: string[]; over?: {width: number; avail: number}}
+/**
+ * The chip for `text` in `avail` px (the frame's width less its 8px margins): one line when it fits (24px high, as ever); else wrapped to at most two
+ * lines (the chip grows by one line; `note` is already the smallest text, so it is never shrunk); else two lines at the full width with `over` set
+ * (the text spills out of the chip: stamp-too-wide). The figure is always drawn.
+ */
+export function fitStamp(widthOf: WidthOf, text: string, roles: Roles, avail: number): StampFit {
+  const one = stampChipW(widthOf, text, roles);
+  if (one <= avail) return {w: one, h: STAMP_H};
+  const maxWidth = avail - 2 * STAMP_PAD_X;
+  const atomWidth = (a: string) => widthOf(a, roles.note, 400, 'sans');
+  const wrapped = wrapText(text, {maxWidth, atomWidth, mode: 'phrase'});
+  const h = STAMP_H + stampLineH(roles);
+  const widths = wrapped.map(l => textWidth(widthOf, l, roles.note, 400)); // measured per wrapped line: the atoms are the text's own, never a re-joined string
+  const widest = Math.max(...widths);
+  if (wrapped.length <= 2 && widest <= maxWidth) return {w: widest + 2 * STAMP_PAD_X, h, lines: wrapped};
+  const lines = wrapped.length <= 2 ? wrapped : [must(wrapped[0]), wrapped.slice(1).join(' ')];
+  const need = wrapped.length <= 2 ? widest : Math.max(must(widths[0]), widths.slice(1).reduce((a, b) => a + b, 0)); // the second row of a long stamp holds everything after the first
+  return {w: avail, h, lines, over: {width: need, avail: maxWidth}};
+}
+/** The verify message for a stamp that does not fit even in two lines. */
+export const stampTooWideMessage = (text: string, avail: number, over: {width: number; avail: number}): string =>
+  `stamp「${text}」が枠(幅 ${Math.round(avail + 16)}px)に収まらない(2 行にしても幅 ${Math.ceil(over.width)}px 必要で、チップに使えるのは ${Math.floor(over.avail)}px)。stamp を短くするか、枠を広げる(span / flex / width)`;
 export const LEGEND_SWATCH_W = 36, LEGEND_ITEM_GAP = 28, LEGEND_ROW_H = 24;
 
 // group() title is laid out as a left-aligned bold caption inside the frame.

@@ -1,7 +1,7 @@
 import {textWidth} from './atoms.ts';
 import type {LayoutCtx, Placed} from './layout-ctx.ts';
 import {layoutBoxContent, lineWidth} from './layout-text.ts';
-import {BOX_PAD_X, BOX_PAD_Y, ICON_H, STAMP_GAP, STAMP_H, TAG_H, TAG_PAD_X, TOP_ICON_GAP, TOP_ICON_SIZE, snapGrid, stampChipW, topIcon} from './layout-util.ts';
+import {BOX_PAD_X, BOX_PAD_Y, ICON_H, STAMP_GAP, TAG_H, TAG_PAD_X, TOP_ICON_GAP, TOP_ICON_SIZE, fitStamp, snapGrid, topIcon} from './layout-util.ts';
 import {must} from './must.ts';
 import {TAG_SIZE} from './tokens.ts';
 import type {Roles, WidthOf, WrapMode} from './types/core.ts';
@@ -23,11 +23,12 @@ export function layoutBoxLike<B extends CaptionBand | BoxBand | BannerBand>(
   const wrappedRuns = shift ? content.wrappedRuns.map(r => ({...r, lineYs: r.lineYs.map(y => y + shift)})) : content.wrappedRuns;
   const textHeight = leftIcon ? Math.max(content.textHeight, ICON_H) : content.textHeight + topShift;
   const stamp = isBoxLike ? chrome.stamp : undefined;
-  const stampW = stamp ? stampChipW(widthOf, stamp, roles) : undefined;
-  if (stampW !== undefined && stampW > w - 16) throw new Error(`stamp "${stamp}" is wider than its box (${Math.round(w)}px): shorten it or widen the box`);
-  const h = (isBoxLike ? textHeight + 2 * (chrome.padY ?? BOX_PAD_Y) : textHeight) + (stamp ? STAMP_H + STAMP_GAP : 0);
+  const fit = stamp ? fitStamp(widthOf, stamp, roles, w - 16) : undefined;
+  const stampW = fit?.w;
+  const h = (isBoxLike ? textHeight + 2 * (chrome.padY ?? BOX_PAD_Y) : textHeight) + (fit ? fit.h + STAMP_GAP : 0);
   const placed = {...band, x, y, w, h, wrappedRuns} as unknown as Placed<B>; // spreading a generic loses the intersection
   if (stampW !== undefined) (placed as Placed<B> & {stampW?: number}).stampW = stampW;
+  if (fit?.lines) Object.assign(placed, {stampLines: fit.lines, stampH: fit.h}, fit.over ? {stampOver: fit.over} : {});
   // a centred / right-aligned title: the step badge sits just before its first line, so emit needs that line's width
   if (band.type === 'box' && band.step != null && band.title && (band.align ?? (topIcon(band) ? 'center' : 'left')) !== 'left') (placed as Placed<B> & {titleW?: number}).titleW = lineWidth(widthOf, must(wrappedRuns[0]), 0);
   if (band.type === 'box') {

@@ -17,7 +17,7 @@ import {styledAtoms, textRuns} from '../layout-text.ts';
 import type {BoxInput} from '../strict.ts';
 import {TAG_SIZE} from '../tokens.ts';
 import type {BoxBand, LaidOutBox} from '../types/text-bands.ts';
-import {boxLikeContrastProblems, boxSizeFindings, nowrapProblems, statFitFindings} from '../verify-box-like.ts';
+import {boxLikeContrastProblems, boxSizeFindings, nowrapProblems, stampProblems, statFitFindings} from '../verify-box-like.ts';
 import {ownRect} from '../verify-rects.ts';
 
 const selectedBoxSizeFindings: DiagramFindings = ({bands}) => boxSizeFindings(walkDefinedBands(bands));
@@ -55,7 +55,7 @@ export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
     legendNotation: data => data,
     diagramFindings: boxDiagramFindings,
     rects: ownRect,
-    check: laid => nowrapProblems(laid).map(message => ({rule: 'nowrap', severity: 'problem', message})),
+    check: laid => [...nowrapProblems(laid).map(message => ({rule: 'nowrap', severity: 'problem' as const, message})), ...stampProblems(laid).map(message => ({rule: 'stamp-too-wide', severity: 'problem' as const, message}))],
     contrast: (laid, {theme, tones, appearance}) => boxLikeContrastProblems(laid, laid.tone ?? 'plain', theme, tones, appearance),
   },
 };

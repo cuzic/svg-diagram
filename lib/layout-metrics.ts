@@ -164,15 +164,15 @@ function textBottom(b: LaidOutBox): number {
 
 function unusedSpace(laidOut: LaidOutBand[], out: LayoutMetric[]): void {
   const pics = backdrops(laidOut);
-  const judge = (name: string, raw: Rect, contentBottom: number, stamped: boolean): void => {
+  const judge = (name: string, raw: Rect, contentBottom: number, stampExtra: number | false): void => {
     const frame = snapped(raw), h = frame.h; // as drawn
-    const free = bottom(frame) - Math.max(contentBottom, stamped ? bottom(frame) - STAMP_STRIP : 0);
+    const free = bottom(frame) - Math.max(contentBottom, stampExtra !== false ? bottom(frame) - STAMP_STRIP - stampExtra : 0);
     if (free >= UNUSED_MIN_PX && free >= UNUSED_MIN_RATIO * h) out.push({...at(raw), rule: 'layout-unused-space', message: `${name}（${where(frame)}）の下に ${Math.round(free)}px（${Math.round(100 * free / h)}%）の空き。中身を縦に寄せるか、枠の高さを内容に合わせる`, data: {band: name, measured: Math.round(free), threshold: UNUSED_MIN_PX, fix: '行の高さを揃えた結果の空き: 兄弟と同じ量の内容にするか、枠を分ける'}});
   };
   const judgeBox = (b: LaidOutBox): void => {
     // no frame drawn, no text (an icon only) or a picture's annotation: there is no content to measure the room against
     if (b.frame === false || !hasText(b) || pics.some(p => inside(b, p))) return;
-    judge(`「${boxName(b)}」`, b, textBottom(b), !!b.stampW);
+    judge(`「${boxName(b)}」`, b, textBottom(b), b.stampW === undefined ? false : (b.stampH ?? 24) - 24);
   };
   laidOut.forEach((b, i) => {
     if (b.type === 'box') judgeBox(b);
@@ -181,7 +181,7 @@ function unusedSpace(laidOut: LaidOutBand[], out: LayoutMetric[]): void {
       // what sits inside the frame: every later band that lies within it
       const within = laidOut.slice(i + 1).map(extentOf).filter((r): r is Rect => r !== null && inside(r, b));
       if (!within.length) return;
-      judge(b.id ? `group「${b.id}」` : 'group', b, Math.max(...within.map(bottom)), !!b.stamp);
+      judge(b.id ? `group「${b.id}」` : 'group', b, Math.max(...within.map(bottom)), b.stamp ? (b.stampH ?? 24) - 24 : false);
     }
   });
 }

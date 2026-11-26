@@ -1,6 +1,7 @@
 import {layoutBoxLike} from '../layout-box-like.ts';
 import {groupItems} from '../inventory-boxes.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
+import {stampProblems} from '../verify-box-like.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {group as buildGroup} from '../dsl/group.ts';
@@ -28,7 +29,8 @@ export const groupDefinition: BandDef<GroupBand, LaidOutGroup> = {
   measure(data, {atoms, roles}) {
     if (data.stamp) atoms(data.stamp, roles.note, 400);
   },
-  verify: {rects: () => [], targets: () => [], diagramFindings: frameLayoutFindings},
+  verify: {rects: () => [], targets: laid => laid.stampOver ? [laid] : [], // a group's contents are its targets; its own frame only when its stamp needs checking (stamp-too-wide)
+    diagramFindings: frameLayoutFindings, check: laid => stampProblems(laid).map(message => ({rule: 'stamp-too-wide', severity: 'problem' as const, message}))},
   emit: (laid, env) => renderGroup(laid, env.theme, env.tones, env.roles),
   locations: {drawsFrame: laid => laid.frame !== false},
 };

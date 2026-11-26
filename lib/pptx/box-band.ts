@@ -10,7 +10,7 @@ import type {Ctx} from './adapter.ts';
 import {boxBadge, stampBadge, textOf} from './box-decoration.ts';
 
 /** A box or banner, with the parts a box may carry beside its frame. */
-type BoxLike = TextBox & Pick<LaidOutOf<'box'>, 'id' | 'tag' | 'tagBox' | 'stamp' | 'stampW' | 'step' | 'icon'>;
+type BoxLike = TextBox & Pick<LaidOutOf<'box'>, 'id' | 'tag' | 'tagBox' | 'stamp' | 'stampW' | 'stampH' | 'step' | 'icon'>;
 
 export const boxPptx = (b: BoxLike, ctx: Ctx): string => {
   const id = ctx.next();
