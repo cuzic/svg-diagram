@@ -12,7 +12,7 @@ export function flowchartFindings(b: LaidOutStates): Finding[] {
     const now = `高さ ${Math.round(b.h + 40)}px / 幅 ${Math.round(b.w + 40)}px = ${((b.h + 40) / (b.w + 40)).toFixed(2)}（${LADDER_SLIDE_ASPECT} まで）`, better = b.betterW;
     // the width is named only when laying the figure out at it draws it larger on a slide (its text scale, ADR 0083 U4); else the height is what binds
     const advice = better
-      ? `diagram({width: ${better.w + 40}}) にすると高さが ${Math.round(better.fromH + 40)}px から ${Math.round(better.toH + 40)}px になり、スライドで文字が約 ${Math.round((better.gain - 1) * 100)}% 大きくなる。段か sub を減らしても大きくなる`
+      ? `diagram({width: ${better.w + 40}}) にすると高さが ${Math.round(better.fromH + 40)}px から ${Math.round(better.toH + 40)}px になり、スライドで文字が最大で約 ${Math.round((better.gain - 1) * 100)}% 大きくなる。段か sub を減らしても大きくなる`
       : '高さで大きさが決まり、幅を変えても文字は大きくならない。段か sub を減らす';
     out.push({...at(b), rule: 'ladder-height-bound', severity: 'info', message: `decisionLadder(): ${now}。${advice}`});
   }

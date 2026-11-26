@@ -120,12 +120,23 @@ export function layoutLadder(band: StatesBand, x: number, y: number, w: number, 
   // the room 0.47 as tall as wide; the diagram is the band + 40px margins). Named by `ladder-height-bound` only when it beats this width by 3 %. Only for a figure too tall for a slide.
   if (!probe && tooTall(out.h, w)) {
     const score = (bw: number, bh: number): number => Math.min(1 / (bw + 40), LADDER_SLIDE_ASPECT / (bh + 40)), now = score(w, out.h);
-    let top = {w, h: out.h, s: now};
-    for (let m = 380; m <= 900; m += 8) {
-      if (m === w) continue;
+    let top = {w, h: out.h, s: now}, probes = 0;
+    const at = (m: number): void => {
+      if (m === w || m < 380 || m > 900) return;
+      probes++;
       const l = layoutLadder(band, x, y, m, widthOf, roles, env, true);
       if (!isNoFit(l) && score(m, l.h) > top.s) top = {w: m, h: l.h, s: score(m, l.h)};
+    };
+    // A wider figure is never taller, so the widest one gives the least height there is: when even that cannot beat this width by 3 %, nothing can (one layout; a diamond ladder, whose height
+    // does not depend on the width, ends here). Else a coarse pass (32px), then the 8px steps around its best.
+    const widest = layoutLadder(band, x, y, 900, widthOf, roles, env, true);
+    probes++;
+    if (!isNoFit(widest) && LADDER_SLIDE_ASPECT / (widest.h + 40) >= now * 1.03) {
+      for (let m = 380; m <= 900 && 1 / (m + 40) > top.s; m += 32) at(m); // a wider figure cannot beat the best so far once its width alone caps the scale below it
+      const c = top.w;
+      for (let m = c - 24; m <= c + 24 && 1 / (m + 40) > top.s; m += 8) at(m);
     }
+    out.searched = probes;
     if (top.w !== w && top.s >= now * 1.03) out.betterW = {w: top.w, fromH: out.h, toH: top.h, gain: top.s / now};
   }
   return out;

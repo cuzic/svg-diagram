@@ -183,3 +183,15 @@ test('PPTX: a numbered question and its badge are one group, so they move togeth
   assert.equal(groups.length, 2);
   for (const g of groups) assert.match(g, /<a:t>利用者カードは持っている？|<a:t>返却の期限は過ぎていない？/);
 });
+
+test('the width search is cheap: a handful of re-layouts, one for a figure no width helps, and none for a figure that is not too tall', async () => {
+  const tall = await laid(decisionLadder(STEPS, END), {width: 640});
+  assert.ok(tall.t.searched! <= 30, `${tall.t.searched}`);
+  assert.ok(tall.t.betterW, 'still finds the width');
+  const bound = await laid(decisionLadder(STEPS, END), {width: 900});
+  assert.equal(bound.t.searched, 1, 'the widest layout cannot do better: one re-layout');
+  const diamonds = await laid(decisionLadder(STEPS, END, {question: 'diamond'}), {width: 640});
+  assert.ok(diamonds.t.searched! <= 30, `${diamonds.t.searched}`);
+  const short = await laid(decisionLadder(STEPS.slice(0, 2), END), {width: 900});
+  assert.equal(short.t.searched, undefined);
+});
