@@ -3,7 +3,6 @@ import {finishNodeSpec, isInfrastructure, MAX_FIGURE_HEIGHT, nothing} from './sp
 import {layoutIssue} from './spec-result.ts';
 import {prepareVerifiedSpecRender, SpecError} from './spec-selective.ts';
 import type {FontSpecs} from './types/project.ts';
-import {idPrefixProblem} from './svg-ids.ts';
 import type {EmbedOptions} from './svg-ids.ts';
 
 export {MAX_FIGURE_HEIGHT} from './spec-node-result.ts';
@@ -12,8 +11,6 @@ export {partCatalog, specSchemaFor, validateSpec} from './spec-selective.ts';
 
 /** Render and verify registered spec parts using the Node font backend. */
 export async function renderSpec(spec: unknown, options: Parameters<typeof prepareVerifiedSpecRender>[1] & {fonts?: FontSpecs; maxHeight?: number} & EmbedOptions) {
-  const badPrefix = options.idPrefix === undefined ? null : idPrefixProblem(options.idPrefix);
-  if (badPrefix) return nothing([{path: '', message: badPrefix}]);
   let draw: ReturnType<typeof prepareVerifiedSpecRender>;
   try { draw = prepareVerifiedSpecRender(spec, options); }
   catch (error) {

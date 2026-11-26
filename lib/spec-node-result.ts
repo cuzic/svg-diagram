@@ -4,7 +4,7 @@ import type {RenderSpecResult} from './spec-result.ts';
 import type {SpecIssue} from './spec-kit.ts';
 import type {FontSpecs} from './types/project.ts';
 import type {RenderResult} from './types/verdicts.ts';
-import {prepareForEmbedding} from './svg-ids.ts';
+import {idPrefixProblem, prepareForEmbedding} from './svg-ids.ts';
 import type {EmbedOptions} from './svg-ids.ts';
 
 /** The tallest figure renderSpec() returns by default. */
@@ -20,6 +20,8 @@ export const nothing = (issues: SpecIssue[]): RenderSpecResult => ({ok: false, s
 export const isInfrastructure = (e: unknown): boolean => e instanceof Error && (typeof (e as NodeJS.ErrnoException).code === 'string' || /^measure:|font file|Chromium|playwright/i.test(e.message));
 
 export function finishNodeSpec(spec: unknown, r: Pick<RenderResult, 'width' | 'height' | 'svg' | 'verdict' | 'xml'>, maxHeight: number, fonts?: FontSpecs, embed: EmbedOptions = {}): RenderSpecResult {
+  const badPrefix = embed.idPrefix === undefined ? null : idPrefixProblem(embed.idPrefix); // the selective Node entry checks it here, after the layout (its bundle has no room for an earlier check)
+  if (badPrefix) return nothing([{path: '', message: badPrefix}]);
   if (r.height > maxHeight) return nothing([{path: '', message: `the figure is ${r.height}px tall; the limit is ${maxHeight}px. Use fewer steps or parts, or shorter text`}]);
   const {problems, findings} = locateVerdict(spec, r.verdict);
   for (const message of r.xml) problems.push({path: locateMessage(spec, message), message, severity: 'problem'});

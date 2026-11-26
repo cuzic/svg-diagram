@@ -94,6 +94,14 @@ test('build --inline: the SVG has a viewBox and no width / height; with --id-pre
   assert.match(fs.readFileSync(inl, 'utf8'), /<title id="z-svg-title"/);
 });
 
+test('build --id-prefix: fig1- and fig1 give the same ids (as for the API)', () => {
+  const a = path.join(proj, 'idp-dash.svg'), b = path.join(proj, 'idp-nodash.svg');
+  assert.equal(node(proj, BUILD, 'src/flow.ts', '--out', a, '--no-lint', '--id-prefix', 'fig1-').status, 0);
+  assert.equal(node(proj, BUILD, 'src/flow.ts', '--out', b, '--no-lint', '--id-prefix', 'fig1').status, 0);
+  assert.match(fs.readFileSync(a, 'utf8'), /<title id="fig1-svg-title"/);
+  assert.equal(fs.readFileSync(a, 'utf8'), fs.readFileSync(b, 'utf8'));
+});
+
 test('build --id-prefix: several sources get <p>-<basename>; auto is a content hash; a bad prefix is a usage error', () => {
   const dir = path.join(proj, 'idp-multi');
   const r = node(proj, BUILD, 'src/flow.ts', 'src/legacy.mjs', '--out-dir', dir, '--no-lint', '--id-prefix', 'p');

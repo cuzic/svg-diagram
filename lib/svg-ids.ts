@@ -11,7 +11,8 @@ const KEEP_TAG = 'metadata';
 /** The prefix a source gets: one source `p`, several `p-<basename>`; both are made safe to sit in an id. */
 export function idPrefixFor(prefix: string, basename: string | null): string {
   const safe = (s: string) => s.replace(/[^\w-]+/g, '-');
-  return basename === null ? safe(prefix) : `${safe(prefix)}-${safe(basename)}`;
+  const p = safe(prefix).replace(/-+$/, ''); // `fig1-` and `fig1` are the same prefix, as for the API
+  return basename === null ? p : `${p}-${safe(basename)}`;
 }
 
 /** What the two rewriters share: the ids of the markup (not `<metadata>`'s), their new names, and `url(#id)` in a text. */
@@ -35,7 +36,9 @@ export function prefixTagIds(markup: string, prefix: string, rootId?: string): s
   const {ids, rename, ref, urls} = scoped(markup, prefix, rootId);
   if (ids.size === 0) return markup;
   return markup.replace(/<([A-Za-z][\w:-]*)\b([^>]*)>/g, (all, name: string, attrs: string) => name === KEEP_TAG ? all :
-    `<${name}${urls(attrs.replace(/(\sid=")([^"]+)/, (_m, a: string, id: string) => a + rename(id)))
+    `<${name}${attrs.replace(/(\sid=")([^"]+)/, (_m, a: string, id: string) => a + rename(id))
+      // url(#id) only where an attribute takes a reference: never in aria-label or any other text
+      .replace(/\s(?:fill|stroke|clip-path|mask|filter|style|marker-\w+)="[^"]*"/g, urls)
       .replace(/((?:xlink:)?href=")#([^"]*)/g, (_m, a: string, id: string) => `${a}#${ref(id)}`)
       .replace(/(\saria-(?:labelledby|describedby)=")([^"]*)/g, (_m, a: string, v: string) => a + v.split(/\s+/).map(ref).join(' '))}>`);
 }
@@ -74,8 +77,7 @@ export const autoIdPrefix = (text: string): string => `sd${hash8(text)}`;
 
 /** Why `prefix` cannot be an id prefix, or null when it can ('auto' is fine: it is resolved per figure). */
 export function idPrefixProblem(prefix: string): string | null {
-  const name = prefix.replace(/-+$/, '');
-  return PREFIX_NAME.test(name) ? null : `idPrefix "${prefix}": use letters, digits, _ -, not starting with a digit (e.g. "fig1-")`;
+  return typeof prefix === 'string' && PREFIX_NAME.test(prefix.replace(/-+$/, '')) ? null : `idPrefix "${prefix}": use letters, digits, _ -, not starting with a digit (e.g. "fig1-")`;
 }
 
 /** The prefix as `prefixSvgIds` takes it: `fig1` and `fig1-` are the same prefix. Throws for a text that cannot start an id. */
