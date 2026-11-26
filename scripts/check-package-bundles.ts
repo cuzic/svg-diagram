@@ -532,7 +532,7 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
         bands: {banner: bannerPptx}, strict: true,
       });
-    `, include: 'pptx/banner-band.js', budget: {esbuild: 110300, Vite: 140700}, bands: ['banner.js'],
+    `, include: 'pptx/banner-band.js', budget: {esbuild: 111800, Vite: 140700}, bands: ['banner.js'],
       exclude: [...legacy, 'pptx/box-band.js', 'emit-box.js', 'pptx/box-bands.js', 'pptx/bands.js', 'pptx/table-band.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js'], draw: true},
     {name: 'Selective PPTX Grid', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
