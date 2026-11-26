@@ -36,7 +36,7 @@ const bannerRuns: TextRunsOf<BandOf<'banner'>> = (band, roles) => {
 const boxRuns: TextRunsOf<BandOf<'box'>> = (band, roles) => {
   const runs: TextRun[] = [];
   const iconIndent = band.icon && !topIcon(band) ? {indent: ICON_INDENT} : {}; // (spread, so a box without an icon gets no new field)
-  if (band.title) runs.push(withSpans({text: band.title, size: roles.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: (band.step != null ? stepIndent(roles) : 0) + (band.icon && !topIcon(band) ? ICON_INDENT : 0)}, band.spans?.title));
+  if (band.title) runs.push(withSpans({text: band.title, size: roles.title, weight: 700, mono: !!band.titleMono, tone: band.titleTone, indent: (band.step != null && !(band as {stepAbove?: boolean}).stepAbove ? stepIndent(roles) : 0) + (band.icon && !topIcon(band) ? ICON_INDENT : 0)}, band.spans?.title));
   if (band.body) runs.push(withSpans({text: band.body, size: roles.body, weight: 400, mono: !!band.bodyMono, tone: band.bodyTone, ...iconIndent}, band.spans?.body));
   if (band.lines) for (const l of band.lines) {
     const line: Exclude<typeof l, string> = typeof l === 'string' ? {text: l} : l;

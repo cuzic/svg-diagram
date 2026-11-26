@@ -1,11 +1,22 @@
 import {textWidth} from './atoms.ts';
 import type {LayoutCtx, Placed} from './layout-ctx.ts';
 import {layoutBoxContent, lineWidth} from './layout-text.ts';
-import {BOX_PAD_X, BOX_PAD_Y, ICON_H, STAMP_GAP, TAG_H, TAG_PAD_X, TOP_ICON_GAP, TOP_ICON_SIZE, fitStamp, snapGrid, topIcon} from './layout-util.ts';
+import {BOX_PAD_X, BOX_PAD_Y, ICON_H, STAMP_GAP, TAG_H, TAG_PAD_X, TOP_ICON_GAP, TOP_ICON_SIZE, fitStamp, snapGrid, stepBadgeGeom, topIcon} from './layout-util.ts';
 import {must} from './must.ts';
 import {TAG_SIZE} from './tokens.ts';
 import type {Roles, WidthOf, WrapMode} from './types/core.ts';
 import type {BannerBand, BoxBand, BoxChrome, CaptionBand, LaidOutBox} from './types/text-bands.ts';
+
+/** A numbered box whose title the badge's indent breaks into fragments (a line of 2 characters or fewer) where the title alone would wrap into fewer lines.
+ *  A title that wraps into whole pieces beside the badge keeps it there, as does a box with an icon. */
+function badgeAbove(band: BoxBand, wrapWidth: number, widthOf: WidthOf, roles: Roles, wrap: WrapMode): boolean {
+  if (band.step == null || !band.title || band.icon) return false;
+  const lines = (b: BoxBand) => must(layoutBoxContent(b, wrapWidth, widthOf, roles, wrap).wrappedRuns[0]).lines;
+  const beside = lines(band);
+  if (beside.length < 2) return false;
+  const alone = lines({...band, step: undefined});
+  return alone.length < beside.length && beside.some(l => [...l.trim()].length <= 2);
+}
 
 export function layoutBoxLike<B extends CaptionBand | BoxBand | BannerBand>(
   band: B, x: number, y0: number, w: number, isBoxLike: boolean, widthOf: WidthOf, roles: Roles, wrap: WrapMode,
@@ -13,9 +24,11 @@ export function layoutBoxLike<B extends CaptionBand | BoxBand | BannerBand>(
   const y = snapGrid(y0); // the top sits on the grid, so its text (y + padY + line offset) is always the same distance below the frame the emitter draws
   const chrome = band as BoxChrome; // caption has no padX / padY / tag / id: they read as undefined (its `tone` is a TextTone, unused here)
   const wrapWidth = isBoxLike ? w - 2 * (chrome.padX ?? BOX_PAD_X) : w;
-  const content = layoutBoxContent(band, wrapWidth, widthOf, roles, wrap);
+  // a step badge beside a short title can leave the title too little room (it wraps in fragments, "XX / X"): the badge then takes its own line above
+  const stepAbove = 'step' in band && badgeAbove(band as BoxBand, wrapWidth, widthOf, roles, wrap);
+  const content = layoutBoxContent(stepAbove ? {...band, stepAbove: true} as typeof band : band, wrapWidth, widthOf, roles, wrap);
   // an icon above the text pushes every line down by its own height; a left icon only sets a minimum height
-  const topShift = band.type === 'box' && topIcon(band) ? ((band as BoxBand).iconSize ?? TOP_ICON_SIZE) + TOP_ICON_GAP : 0;
+  const topShift = (band.type === 'box' && topIcon(band) ? ((band as BoxBand).iconSize ?? TOP_ICON_SIZE) + TOP_ICON_GAP : 0) + (stepAbove ? 2 * stepBadgeGeom(roles).r + TOP_ICON_GAP : 0);
   // a left icon is taller than a line or two of text: the text is centred beside it, not hung from the top with the room left below
   const leftIcon = band.type === 'box' && !!band.icon && !topShift;
   const centre = leftIcon && content.textHeight < ICON_H ? Math.round((ICON_H - content.textHeight) / 2) : 0;
@@ -26,7 +39,7 @@ export function layoutBoxLike<B extends CaptionBand | BoxBand | BannerBand>(
   const fit = stamp ? fitStamp(widthOf, stamp, roles, w - 16) : undefined;
   const stampW = fit?.w;
   const h = (isBoxLike ? textHeight + 2 * (chrome.padY ?? BOX_PAD_Y) : textHeight) + (fit ? fit.h + STAMP_GAP : 0);
-  const placed = {...band, x, y, w, h, wrappedRuns} as unknown as Placed<B>; // spreading a generic loses the intersection
+  const placed = {...band, x, y, w, h, wrappedRuns, ...(stepAbove ? {stepAbove: true} : {})} as unknown as Placed<B>; // spreading a generic loses the intersection
   if (stampW !== undefined) (placed as Placed<B> & {stampW?: number}).stampW = stampW;
   if (fit?.lines) Object.assign(placed, {stampLines: fit.lines, stampH: fit.h}, fit.over ? {stampOver: fit.over} : {});
   // a centred / right-aligned title: the step badge sits just before its first line, so emit needs that line's width
