@@ -203,7 +203,7 @@
             ],
             "enumDescriptions": [
               "A flowchart: steps, decisions (a diamond holding the question) and start / end pills joined by arrows. Use for a process with branches or loops. Put Yes / No on the edges that leave a decision. When the decisions form one chain (the first yes decides), use decisionLadder: it is smaller and stays readable on a slide.",
-              "A decision ladder: yes/no questions stacked down the left; each yes goes right to its answer, each no goes down to the next question, and the last no ends in the final box. Use it when the decisions form ONE chain (the first question that is yes decides) and the figure must stay small and readable on a 16:9 slide; use flowchart when a no branches elsewhere or the flow loops. Anchors: q1..qN (questions), a1..aN (answers), otherwise (the final box).",
+              "A decision ladder: yes/no questions stacked down the left; each yes goes right to its answer, each no goes down to the next question, and the last no ends in the final box. Use it when the decisions form ONE chain (the first question that is yes decides) and the figure must stay small and readable on a 16:9 slide; use flowchart when a no branches elsewhere or the flow loops. Anchors: q1..qN (questions), a1..aN (answers), otherwise (the final box); these ids are fixed, so a spec holds one decisionLadder (and no other part may use them).",
               "A Theory of Constraints logic tree or another cause-and-effect diagram: boxes joined by arrows from cause to effect. Set `tree`: 'crt' for a Current Reality Tree (undesirable effects as role ude at the top, root causes as role root at the bottom), 'frt' for a Future Reality Tree (changes as role injection, results as role de, facts nobody controls as role precondition), 'prt' for a Prerequisite Tree, 'tt' for a Transition Tree, 'nbr' for a Negative Branch. Give a link an array as `from` when the causes are only sufficient together (AND). Saying `tree` also turns on the checks for that kind of tree.",
               "A Theory of Constraints conflict cloud (evaporating cloud): the common objective A, the needs B and C, and the conflicting wants D and D2. B needs D, C needs D2. List the assumptions behind an arrow, and the injection that makes one false.",
               "Porter's value chain: support activities across the top and primary activities along the bottom, with a margin arrow at the right end.",
@@ -1313,7 +1313,7 @@
           },
           {
             "label": "decisionLadder",
-            "description": "A decision ladder: yes/no questions stacked down the left; each yes goes right to its answer, each no goes down to the next question, and the last no ends in the final box. Use it when the decisions form ONE chain (the first question that is yes decides) and the figure must stay small and readable on a 16:9 slide; use flowchart when a no branches elsewhere or the flow loops. Anchors: q1..qN (questions), a1..aN (answers), otherwise (the final box).",
+            "description": "A decision ladder: yes/no questions stacked down the left; each yes goes right to its answer, each no goes down to the next question, and the last no ends in the final box. Use it when the decisions form ONE chain (the first question that is yes decides) and the figure must stay small and readable on a 16:9 slide; use flowchart when a no branches elsewhere or the flow loops. Anchors: q1..qN (questions), a1..aN (answers), otherwise (the final box); these ids are fixed, so a spec holds one decisionLadder (and no other part may use them).",
             "body": {
               "type": "decisionLadder",
               "steps": [
@@ -3757,11 +3757,8 @@
               },
               "sub": {
                 "type": "string",
-                "minLength": 1,
                 "maxLength": 60,
-                "description": "A second, muted line in the answer box.",
-                "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
-                "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+                "description": "A second, muted line in the answer box."
               },
               "tone": {
                 "type": "string",
@@ -3820,11 +3817,8 @@
                 },
                 "sub": {
                   "type": "string",
-                  "minLength": 1,
                   "maxLength": 60,
-                  "description": "A second, muted line.",
-                  "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
-                  "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+                  "description": "A second, muted line."
                 },
                 "tone": {
                   "type": "string",
@@ -3874,7 +3868,7 @@
         "otherwise"
       ],
       "additionalProperties": false,
-      "description": "A decision ladder: yes/no questions stacked down the left; each yes goes right to its answer, each no goes down to the next question, and the last no ends in the final box. Use it when the decisions form ONE chain (the first question that is yes decides) and the figure must stay small and readable on a 16:9 slide; use flowchart when a no branches elsewhere or the flow loops. Anchors: q1..qN (questions), a1..aN (answers), otherwise (the final box)."
+      "description": "A decision ladder: yes/no questions stacked down the left; each yes goes right to its answer, each no goes down to the next question, and the last no ends in the final box. Use it when the decisions form ONE chain (the first question that is yes decides) and the figure must stay small and readable on a 16:9 slide; use flowchart when a no branches elsewhere or the flow loops. Anchors: q1..qN (questions), a1..aN (answers), otherwise (the final box); these ids are fixed, so a spec holds one decisionLadder (and no other part may use them)."
     },
     "part.causeTree": {
       "type": "object",

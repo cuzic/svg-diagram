@@ -43,9 +43,18 @@ test('the part is in the catalog, its example validates, and its anchors are q1.
   const p = partCatalog().find(x => x.type === 'decisionLadder');
   assert.ok(p);
   assert.deepEqual(validateSpec({version: 1, title: 't', parts: [p.example]}), []);
+  assert.deepEqual(validateSpec(spec({steps: [{q: 'a?', yes: 'b', sub: ''}], otherwise: {label: 'c', sub: ''}})), [], "sub: '' is accepted as the DSL does");
   assert.match(partCatalog().find(x => x.type === 'flowchart')!.description, /decisionLadder/);
   const two = validateSpec({version: 1, title: 't', parts: [{type: 'decisionLadder', steps: STEPS, otherwise: 'x'}, {type: 'decisionLadder', steps: STEPS, otherwise: 'y'}]});
-  assert.ok(two.some(i => /q1|a1|otherwise/.test(i.message)), JSON.stringify(two));
+  const ids = ['q1', 'a1', 'q2', 'a2', 'q3', 'a3', 'otherwise'];
+  assert.deepEqual(two.map(i => i.path).sort(), [...ids.slice(0, 6).map((_, k) => `parts[1].steps[${Math.floor(k / 2)}]`), 'parts[1].otherwise'].sort(), JSON.stringify(two));
+  assert.deepEqual(two.map(i => /"(\w+)"/.exec(i.message)![1]).sort(), [...ids].sort());
+  assert.ok(two.every(i => /one ladder|holds one/.test(i.message)), 'the message says a spec holds one ladder');
+  for (const id of ['a1', 'otherwise', 'q2']) {
+    const clash = validateSpec({version: 1, title: 't', parts: [{type: 'flowchart', nodes: [{id, label: 'x'}], edges: []}, {type: 'decisionLadder', steps: STEPS, otherwise: 'x'}]});
+    assert.equal(clash.length, 1, `${id}: ${JSON.stringify(clash)}`);
+    assert.match(clash[0]!.message, new RegExp(`"${id}" is already used in parts\\[0\\]`));
+  }
   assert.ok(JSON.stringify(specSchema).includes('decisionLadder'));
 });
 
