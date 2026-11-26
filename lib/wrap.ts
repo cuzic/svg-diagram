@@ -172,3 +172,21 @@ export function wrapAtoms(atoms: string[], {maxWidth, atomWidth, mode}: WrapOpti
 export function wrapText(text: string, opts: WrapOptions): string[] {
   return wrapAtoms(splitAtoms(text), opts);
 }
+
+// wrapBalanced(text, opts) -> like wrapText, but a title that needs 2+ lines is broken so the lines come out alike in length:
+// the narrowest line width that still gives the same number of lines as the greedy wrap (which fills each line and leaves only
+// a stub on the last). Every legal break and the kinsoku rules are the wrapper's own; an explicit \n is kept, and each paragraph
+// between them is balanced on its own. One-line text comes back as wrapText gives it.
+export function wrapBalanced(text: string, opts: WrapOptions): string[] {
+  return text.split('\n').flatMap(part => {
+    const greedy = wrapText(part, opts);
+    if (greedy.length < 2) return greedy;
+    const widest = (lines: string[]) => Math.max(...lines.map(l => splitAtoms(l).reduce((n, a) => n + opts.atomWidth(a), 0)));
+    let lo = 0, hi = opts.maxWidth, best = greedy; // `hi` always wraps into greedy.length lines or fewer
+    for (let k = 0; k < 24 && hi - lo > 0.25; k++) {
+      const mid = (lo + hi) / 2, lines = wrapText(part, {...opts, maxWidth: mid});
+      if (lines.length <= greedy.length && widest(lines) <= opts.maxWidth) { hi = mid; best = lines; } else lo = mid;
+    }
+    return best;
+  });
+}
