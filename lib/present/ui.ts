@@ -136,12 +136,12 @@ body{background:#111;color:#eee;font-family:system-ui,-apple-system,'Hiragino Sa
 body.viewer{overflow:hidden}
 button,.nav a{font:inherit;background:#333;color:#fff;border:0;border-radius:6px;padding:4px 10px;cursor:pointer;text-decoration:none}
 button:focus-visible,.nav a:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}
-.stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+.stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;touch-action:none;overflow:hidden}
 .zbox{position:relative;overflow:hidden;touch-action:none}
 .stage .zbox{width:100vw;max-height:100vh;aspect-ratio:16/9}
 @media (min-aspect-ratio:16/9){.stage .zbox{width:auto;height:100vh}}
 .zbox img{display:block;width:100%;height:100%;background:#fff;transition:opacity .18s;transform-origin:0 0;user-select:none;-webkit-user-drag:none}
-body.zoomed .zbox{cursor:grab}body.zoomed.panning .zbox{cursor:grabbing}
+body.zoomed .zbox{cursor:grab}body.zoomed .stage .zbox{overflow:visible}body.zoomed.panning .zbox{cursor:grabbing}
 .zctl{display:inline-flex;gap:4px;margin-left:12px}.zctl button{font-size:15px;padding:6px 10px}
 img.fading{opacity:.15}
 @media (prefers-reduced-motion:reduce){.zbox img{transition:none}}
@@ -154,8 +154,8 @@ img.fading{opacity:.15}
 #spotbtn[aria-pressed=true]{background:#7c3aed}
 .laser{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:#ef4444;box-shadow:0 0 12px 4px #ef4444aa;pointer-events:none;z-index:4}
 .progress{position:fixed;left:0;right:0;bottom:0;height:3px;background:#0004;z-index:3}.progress div{height:100%;width:0;background:#60a5fa;transition:width .2s}
-.nav{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:6px;align-items:center;background:#000c;padding:6px 8px;border-radius:10px;z-index:6;opacity:0;transition:opacity .2s;font-size:14px;max-width:calc(100vw - 16px);flex-wrap:wrap;justify-content:center}
-.nav.show,.nav:focus-within{opacity:1}
+.nav{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:6px;align-items:center;background:#000c;padding:6px 8px;border-radius:10px;z-index:6;opacity:0;pointer-events:none;transition:opacity .2s;font-size:14px;max-width:calc(100vw - 16px);flex-wrap:wrap;justify-content:center}
+.nav.show,.nav:focus-within{opacity:1;pointer-events:auto}
 .nav .pos{min-width:64px;text-align:center;font-variant-numeric:tabular-nums}
 .follow{background:#1d4ed8}.follow.off{background:#b45309}
 .status{position:fixed;right:12px;top:12px;padding:4px 10px;border-radius:12px;background:#b45309;color:#fff;font-size:13px;z-index:7}
@@ -257,8 +257,10 @@ function draw() {
 
 // --- zoom ------------------------------------------------------------------------------------------------------------------------
 var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
+// the frame's exact size (offsetWidth / offsetHeight round to whole pixels, and the error grows with every step of a gesture)
+var frame = function () { return $('slide').parentNode.getBoundingClientRect(); };
 function applyZoom() {
-  var img = $('slide'), z = zoom.z, w = img.offsetWidth, h = img.offsetHeight;
+  var img = $('slide'), z = zoom.z, f = frame(), w = f.width, h = f.height;
   zoom.x = clamp(zoom.x, 0.5 / z, 1 - 0.5 / z); zoom.y = clamp(zoom.y, 0.5 / z, 1 - 0.5 / z);
   img.style.transform = z === 1 ? '' : 'translate(' + (w / 2 - z * zoom.x * w) + 'px,' + (h / 2 - z * zoom.y * h) + 'px) scale(' + z + ')';
   document.body.classList.toggle('zoomed', z > 1);
@@ -280,13 +282,14 @@ function setZoom(z, x, y, own) {
 }
 /** Zoom by factor keeping the point under (cx, cy) on the screen where it is (the middle of the slide without a point). */
 function zoomBy(factor, cx, cy) {
-  var r = $('slide').getBoundingClientRect(), box = $('stage').getBoundingClientRect(), w = $('slide').offsetWidth, h = $('slide').offsetHeight;
+  // the frame the slide is zoomed in (the viewer's stage is the whole window, the frame a 16:9 strip in it on a phone held upright)
+  var r = $('slide').getBoundingClientRect(), box = frame(), w = box.width, h = box.height;
   if (cx === undefined) { cx = box.left + box.width / 2; cy = box.top + box.height / 2; }
   var px = (cx - r.left) / r.width, py = (cy - r.top) / r.height, z2 = clamp(zoom.z * factor, 1, MAX_ZOOM);
   var sx = (cx - box.left) - w / 2, sy = (cy - box.top) - h / 2;
   setZoom(z2, px - sx / (z2 * w), py - sy / (z2 * h), true);
 }
-function panBy(dx, dy) { if (zoom.z <= 1) return; var w = $('slide').offsetWidth, h = $('slide').offsetHeight; setZoom(zoom.z, zoom.x - dx / (zoom.z * w), zoom.y - dy / (zoom.z * h), true); }
+function panBy(dx, dy) { if (zoom.z <= 1) return; var f = frame(), w = f.width, h = f.height; setZoom(zoom.z, zoom.x - dx / (zoom.z * w), zoom.y - dy / (zoom.z * h), true); }
 function resetZoom() { setZoom(1, 0.5, 0.5, true); }
 
 function showLaser() {
@@ -480,21 +483,28 @@ document.addEventListener('keydown', function (e) {
 });
 var sx = null, sy = null, pinch = null, panFrom = null, tapAt = 0;
 var dist = function (t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); };
+var mid = function (t) { return {x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2}; };
 $('stage').addEventListener('touchstart', function (e) {
-  if (e.touches.length === 2) { pinch = {d: dist(e.touches), z: zoom.z}; sx = null; panFrom = null; return; }
+  if (e.touches.length === 2) { pinch = {d: dist(e.touches), m: mid(e.touches)}; sx = null; panFrom = null; return; }
   sx = e.touches[0].clientX; sy = e.touches[0].clientY; panFrom = zoom.z > 1 ? {x: sx, y: sy} : null;
 }, {passive: true});
 $('stage').addEventListener('touchmove', function (e) {
   if (pinch && e.touches.length === 2) {
-    var t = e.touches, mx = (t[0].clientX + t[1].clientX) / 2, my = (t[0].clientY + t[1].clientY) / 2;
-    zoomBy(pinch.z * dist(t) / pinch.d / zoom.z, mx, my);
+    // the fingers apart or together zoom around the point between them; both moving together slide the view with them
+    var d = dist(e.touches), m = mid(e.touches);
+    if (pinch.d > 0) zoomBy(d / pinch.d, m.x, m.y);
+    panBy(m.x - pinch.m.x, m.y - pinch.m.y);
+    pinch = {d: d, m: m};
   } else if (panFrom && e.touches.length === 1) {
     var x = e.touches[0].clientX, y = e.touches[0].clientY;
     panBy(x - panFrom.x, y - panFrom.y); panFrom = {x: x, y: y};
   }
 }, {passive: true});
 $('stage').addEventListener('touchend', function (e) {
-  if (pinch) { if (e.touches.length < 2) pinch = null; return; }
+  if (pinch) {
+    if (e.touches.length < 2) { pinch = null; panFrom = e.touches.length === 1 && zoom.z > 1 ? {x: e.touches[0].clientX, y: e.touches[0].clientY} : null; }
+    return;
+  }
   if (sx === null) return;
   var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy, wasPan = !!panFrom; sx = null; panFrom = null;
   if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
@@ -507,6 +517,8 @@ $('stage').addEventListener('touchend', function (e) {
   }
   if (!wasPan && zoom.z === 1 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) step(dx < 0 ? 1 : -1);
 }, {passive: true});
+// Safari zooms the page on its own gesture events, whatever touch-action says
+$('stage').addEventListener('gesturestart', function (e) { e.preventDefault(); });
 var wheelAt = 0;
 $('stage').addEventListener('wheel', function (e) {
   // ctrl + wheel (a trackpad's pinch comes as this too) zooms at the pointer; when zoomed, the wheel pans; else it turns the slides
