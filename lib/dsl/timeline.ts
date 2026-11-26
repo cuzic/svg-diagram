@@ -20,7 +20,7 @@ export function buildTimeline(arg: TimelineOpts | NumericTimelineOpts): Timeline
   const day = (v: unknown, what: string): number => timelineDay(v as string, what);
   const given = (v: unknown): boolean => v !== undefined;
   for (const [k, v] of [['now', opts.now], ['deadline', opts.deadline]] as const) if (v !== undefined && (!v || typeof v !== 'object')) throw new Error(`timeline(): ${k} must be {at: ...} (or left out)`);
-  if (!opts.now && !opts.deadline && !opts.marks?.length) throw new Error('timeline(): give at least one of now, deadline or marks (the axis is drawn from them when from / to are left out)');
+  if (!opts.now && !opts.deadline && !opts.marks?.length) throw new Error('timeline(): give at least one of now, deadline or marks (the axis is drawn from them)');
   // a missing end is the first / last item, so it can never put an item outside the axis
   const lo = given(opts.from) ? day(opts.from, 'from') : -Infinity, hi = given(opts.to) ? day(opts.to, 'to') : Infinity;
   if (!(lo < hi)) throw new Error(`timeline(): from (${opts.from}) must be before to (${opts.to})`);
@@ -31,7 +31,7 @@ export function buildTimeline(arg: TimelineOpts | NumericTimelineOpts): Timeline
     if (t < lo || t > hi) throw new Error(`timeline(): ${k}.at (${v.at}) is outside the axis (${axisText})`);
   }
   if (opts.deadline && opts.deadline.line !== undefined && opts.deadline.line !== 'full') throw new Error(`timeline(): deadline.line must be 'full' (got ${String(opts.deadline.line)})`);
-  if ((!opts.now || !opts.deadline) && (opts.span !== undefined || (opts.remaining !== undefined && opts.remaining !== false))) throw new Error(`timeline(): ${opts.span !== undefined ? 'span' : 'remaining'} needs both now and deadline (it is the span between them); add the missing one or leave ${opts.span !== undefined ? 'span' : 'remaining'} out`);
+  if ((!opts.now || !opts.deadline) && (opts.span !== undefined || (opts.remaining !== undefined && opts.remaining !== false))) throw new Error(`timeline(): ${opts.span !== undefined ? 'span' : 'remaining'} needs both now and deadline; add the missing one or drop it`);
   if (opts.span !== undefined && opts.span !== 'bar' && opts.span !== 'fill') throw new Error(`timeline(): span must be 'bar' or 'fill' (got ${String(opts.span)})`);
   if (opts.now && opts.now.label !== undefined && (typeof opts.now.label !== 'string' || !opts.now.label.trim())) throw new Error('timeline(): now.label must not be empty (leave it out for "現在")');
   if (opts.deadline && (typeof opts.deadline.label !== 'string' || !opts.deadline.label.trim())) throw new Error('timeline(): deadline.label is required');

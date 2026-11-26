@@ -4,7 +4,7 @@ import type {FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {LaidOutTimeline, NumericTimelineBand, TimelineBand, TimelineTone} from './types/timeline.ts';
 
 import {must} from './must.ts';
-import {MS_DAY, ticksOf, timelineDay} from './calendar-axis.ts';
+import {fineTickSets, MS_DAY, ticksOf, timelineDay} from './calendar-axis.ts';
 export {ticksOf, timelineDay} from './calendar-axis.ts';
 const FLAG_GAP = 6, STEM_MIN = 16, DOT = 8, TICK = 6, MAX_LEVELS = 5;
 const TONE_COLOR: Record<TimelineTone, 'accent' | 'danger' | 'muted'> = {accent: 'accent', danger: 'danger', muted: 'muted'};
@@ -47,7 +47,7 @@ export function timelineTexts(band: TimelineBand | NumericTimelineBand, roles: R
   const S = roles.note, out: [string, number, number, FontFamily][] = [];
   for (const f of flagsOf(band)) out.push([f.label, S, 700, 'sans'], [f.at, S, 400, 'sans']);
   const {from, to} = axisOf(band);
-  for (const t of ticksOf(from, to, true)) out.push([t.label, S, 400, 'sans']);
+  for (const t of [...fineTickSets(from, to).flat(), ...ticksOf(from, to)]) out.push([t.label, S, 400, 'sans']);
   const r = remainingLabel(band);
   if (r) out.push([r, S, 700, 'sans']);
   return out;
@@ -125,7 +125,11 @@ export function layoutTimeline(band: TimelineBand | NumericTimelineBand, x: numb
   const ty = axisY + TICK + S + 2 + tickDrop;
   const crosses = (left: number, tw: number): boolean => full && dlX >= left - 3 && dlX <= left + tw + 3;
   const placed: {label: string; left: number; tw: number; moved: boolean}[] = [];
-  for (const t of ticksOf(from, to, true)) {
+  // a short axis gets day-level ticks: the finest set whose labels sit apart at this width (else the month ticks, as ever)
+  const tx0 = (day: number): number => plotL + (day - from) / (to - from) * (plotR - plotL);
+  const apart = (set: {day: number; label: string}[]): boolean => set.every((t, i) => i === 0 || tx0(must(set[i - 1]).day) + textWidth(widthOf, must(set[i - 1]).label, S, 400) / 2 + 8 <= tx0(t.day) - textWidth(widthOf, t.label, S, 400) / 2);
+  const ticks = fineTickSets(from, to).find(apart) ?? ticksOf(from, to);
+  for (const t of ticks) {
     const tx = plotL + (t.day - from) / (to - from) * (plotR - plotL);
     out.ticks.push({x: tx, y1: axisY, y2: axisY + TICK});
     const tw = textWidth(widthOf, t.label, S, 400);

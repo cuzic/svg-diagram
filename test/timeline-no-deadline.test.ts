@@ -5,13 +5,14 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {loadDeck} from '../lib/deck-load.ts';
-import {checkDiagram, closeMeasurer, diagram, renderDiagram, timeline} from '../lib/dsl.ts';
+import {areas, box, checkDiagram, closeMeasurer, diagram, renderDiagram, timeline} from '../lib/dsl.ts';
 import type {LaidOutTimeline} from '../lib/dsl.ts';
 import {configureMeasure} from '../lib/measure.ts';
 import {renderDeck} from '../lib/present/render-deck.ts';
 import {installResolveHook} from '../lib/resolve-hook.ts';
 import {specToDiagram, validateSpec} from '../lib/spec.ts';
 import type {Diagram} from '../lib/types/index.ts';
+import {fineTickSets} from '../lib/calendar-axis.ts';
 import {TIMELINE_AXIS} from '../lib/parts.ts';
 import {JA_FONTS} from './helpers/text-engine.ts';
 
@@ -119,15 +120,40 @@ test('m1: the spec message for an omitted axis end does not print undefined', ()
   assert.doesNotMatch(m({to: '2026-11'}), /undefined/);
 });
 
-test('m2: short date axes get weekly (under ~2 months) or daily (up to 10 days) ticks, longer ones keep month ticks', async () => {
+test('m2: short date axes get day-level ticks chosen by fit; 2 months and longer keep month ticks', async () => {
   const ticks = async (marks: {at: string; label: string}[]) => tl((await checkDiagram(fig(timeline({marks})))).laidOut).texts.filter(x => x.part === TIMELINE_AXIS).map(x => x.text);
-  const weekly = await ticks(MARKS.slice(0, 3)); // 11/27 - 12/20: Mondays
-  assert.deepEqual(weekly, ['11/30', '12/7', '12/14', '12/21'].filter(t => weekly.includes(t)));
-  assert.ok(weekly.includes('12/7') && weekly.includes('12/14'), weekly.join());
+  const month = /^\d{4}(\/\d+)?$/;
+  const two = await ticks(MARKS.slice(0, 3)); // 11/24 - 12/23: a 2-day step (31 daily ticks would be too many)
+  assert.ok(two.includes('11/27') && two.includes('11/29') && !two.includes('11/28'), two.join());
   const daily = await ticks([{at: '2026-11-27', label: '試作'}, {at: '2026-12-01', label: '確認'}]); // 4 days + padding: a tick a day
   assert.ok(daily.includes('11/30') && daily.includes('12/1') && daily.includes('11/28'), daily.join());
+  const weekly = await ticks([{at: '2026-11-27', label: 'a'}, {at: '2027-01-12', label: 'b'}]); // 46 days: Mondays (or every other), year on the first tick of the new year
+  assert.ok(weekly.every(t => !month.test(t)) && weekly.some(t => /^2027\/1\/\d+$/.test(t)), weekly.join());
   const long = await ticks([{at: '2026-01-10', label: 'a'}, {at: '2026-06-10', label: 'b'}]); // months, as before
-  assert.ok(long.length > 0 && long.every(t => /^\d{4}(\/\d+)?$/.test(t)), long.join());
+  assert.ok(long.length > 0 && long.every(t => month.test(t)), long.join());
+});
+
+test('m2: the 2-month cutoff and the sets', () => {
+  assert.ok(fineTickSets(0, 60).length > 0);
+  assert.equal(fineTickSets(0, 61).length, 0);
+  const s10 = fineTickSets(20000, 20010);
+  assert.equal(s10[0]?.length, 11); // every day
+  assert.ok(s10.every((set, i) => i === 0 || set.length < (s10[i - 1]?.length ?? 0)));
+  assert.ok(fineTickSets(20000, 20013)[0]?.length === 14, 'a 13-day axis still has a daily set to pick'); 
+  for (const set of fineTickSets(20000, 20050).slice(2)) assert.ok(set.every(t => ((t.day % 7) + 7) % 7 === 4)); // Mondays
+});
+
+test('M2: a short axis never fails check where it passed before: narrow figures pick a coarser step', async () => {
+  const t = timeline({from: '2026-12-01', to: '2026-12-11', now: {at: '2026-12-02'}, deadline: {at: '2026-12-09', label: '締切'}});
+  for (const [cols, width] of [['a b', 940], ['a b c', 940], ['a b c', 1280]] as const) {
+    const ids = cols.split(' ');
+    const d = diagram({theme: 'blue', title: 't', width, legend: false}).add(areas(cols, Object.fromEntries(ids.map((k, i) => [k, i === 0 ? timeline({from: '2026-12-01', to: '2026-12-11', now: {at: '2026-12-02'}, deadline: {at: '2026-12-09', label: '締切'}}) : box({title: 'x'})]))) as never);
+    const r = await checkDiagram(d);
+    assert.ok(r.verdict.ok, `${cols} @${width}: ${r.verdict.problems.join('\n')}`);
+  }
+  const narrow = await checkDiagram(diagram({theme: 'blue', title: 't', width: 400, legend: false}).add(timeline({marks: [{at: '2026-12-01', label: 'a'}, {at: '2026-12-09', label: 'b'}]}) as never));
+  assert.ok(narrow.verdict.ok, narrow.verdict.problems.join('\n'));
+  assert.ok(t);
 });
 
 test('m2: a deck slide with a one-week timeline draws daily ticks through renderDeck', async () => {

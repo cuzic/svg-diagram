@@ -13,17 +13,7 @@ export function timelineDay(at: string, what: string): number {
 }
 
 /** Ticks on the axis: a step of whole months (1, 3, 6, 12, 24, 60) that leaves at most ~8 of them; each tick is a month that is a multiple of the step. */
-export function ticksOf(from: number, to: number, fine = false): {day: number; label: string}[] {
-  // fine (the date timeline): under ~10 days a tick a day, under ~2 months a tick a Monday, labelled 'm/d'
-  if (fine && to - from < 61) {
-    const daily = to - from <= 10, out: {day: number; label: string}[] = [];
-    for (let day = Math.ceil(from); day <= to; day++) {
-      if (!daily && ((day % 7) + 7) % 7 !== 4) continue; // day 0 (1970-01-01) is a Thursday, so Mondays are 4 mod 7
-      const d = new Date(day * MS_DAY);
-      out.push({day, label: `${d.getUTCMonth() + 1}/${d.getUTCDate()}`});
-    }
-    return out;
-  }
+export function ticksOf(from: number, to: number): {day: number; label: string}[] {
   const a = new Date(from * MS_DAY), months = Math.max(1, (to - from) / 30.4375);
   const step = [1, 3, 6, 12, 24, 60, 120].find(s => months / s <= 8) ?? 120;
   const out: {day: number; label: string}[] = [];
@@ -36,4 +26,22 @@ export function ticksOf(from: number, to: number, fine = false): {day: number; l
     if (++m > 11) { m = 0; y++; }
   }
   return out;
+}
+
+/** Day-level tick sets for an axis under 2 months, finest first (every day, 2 days, Monday, every other Monday; at most 16 ticks each), labelled 'm/d'; the first tick of a new year carries the year. */
+export function fineTickSets(from: number, to: number): {day: number; label: string}[][] {
+  if (to - from >= 61) return [];
+  const sets: {day: number; label: string}[][] = [];
+  for (const [m, r] of [[1, 0], [2, 0], [7, 4], [14, 4]] as const) { // day 0 (1970-01-01) is a Thursday: Mondays are 4 mod 7
+    const days: number[] = [];
+    for (let d = Math.ceil(from); d <= to; d++) if (((d - r) % m + m) % m === 0) days.push(d);
+    if (days.length > 16 || !days.length) continue;
+    let year = -1;
+    sets.push(days.map(day => {
+      const d = new Date(day * MS_DAY), y = d.getUTCFullYear(), label = `${year >= 0 && y !== year ? `${y}/` : ''}${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+      year = y;
+      return {day, label};
+    }));
+  }
+  return sets;
 }

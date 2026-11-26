@@ -88,8 +88,8 @@ export function checkTimeline(part: Json, at: string, issues: SpecIssue[]): void
     });
     return;
   }
-  if (part['now'] === undefined && part['deadline'] === undefined && items(part, 'marks').length === 0) issues.push({path: `${at}.marks`, message: "needs at least one date: now ({at: '2026-10'}), deadline ({at: '2027-03', label: 'サポート終了'}) or marks"});
-  if (part['now'] === undefined || part['deadline'] === undefined) for (const k of ['span', 'remaining'] as const) if (part[k] !== undefined && part[k] !== false) issues.push({path: `${at}.${k}`, message: `needs both now and deadline (it is the span between them); add the missing one or leave ${k} out`});
+  if (part['now'] === undefined && part['deadline'] === undefined && items(part, 'marks').length === 0) issues.push({path: `${at}.marks`, message: 'needs at least one of now, deadline or marks'});
+  if (part['now'] === undefined || part['deadline'] === undefined) for (const k of ['span', 'remaining'] as const) if (part[k] !== undefined && part[k] !== false) issues.push({path: `${at}.${k}`, message: `needs both now and deadline; add the missing one or drop ${k}`});
   const days: Record<string, number | null> = {};
   for (const k of ['from', 'to'] as const) { days[k] = part[k] === undefined ? null : tlDay(part[k]); if (part[k] !== undefined && days[k] === null) issues.push({path: `${at}.${k}`, message: `${JSON.stringify(part[k])} is not a real date written 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD'`}); }
   const from = days['from'], to = days['to'];
