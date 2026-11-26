@@ -145,6 +145,55 @@ test('a chevron current counts from 1, as its schema says: current k marks the k
   }
 });
 
+const chevronSteps = (n: number) => Array.from({length: n}, (_, i) => ({label: `工程${i + 1}`}));
+const chevronIssues = (extra: object, n = 4) => validateSpec(spec({type: 'chevron', steps: chevronSteps(n), ...extra}));
+
+test('a chevron spec takes rows (1-4 or auto) and perRow (1-8); bad values are issues (ADR 0082 D7)', () => {
+  assert.deepEqual(chevronIssues({rows: 'auto'}), []);
+  assert.deepEqual(chevronIssues({rows: 2}), []);
+  assert.deepEqual(chevronIssues({perRow: 2}), []);
+  for (const rows of ['foo', 9, 1.5, 0]) assert.deepEqual(pathsOf(spec({type: 'chevron', steps: chevronSteps(4), rows})), ['parts[0].rows'], `rows: ${String(rows)}`);
+  for (const perRow of [9, 0, 1.5]) assert.deepEqual(pathsOf(spec({type: 'chevron', steps: chevronSteps(4), perRow})), ['parts[0].perRow'], `perRow: ${perRow}`);
+  assert.deepEqual(pathsOf(spec({type: 'chevron', steps: chevronSteps(13)})), ['parts[0].steps']);
+  assert.deepEqual(chevronIssues({rows: 3, current: 12}, 12), [], 'current may reach 12');
+  assert.deepEqual(pathsOf(spec({type: 'chevron', steps: chevronSteps(12), rows: 3, current: 13})), ['parts[0].current']);
+});
+
+test('a chevron spec check table: rows with perRow, vertical with rows/perRow, 9+ steps (ADR 0082 D7)', () => {
+  const at = (extra: object, n: number) => chevronIssues(extra, n);
+  const both = at({rows: 2, perRow: 3}, 4);
+  assert.deepEqual(both.map(i => i.path), ['parts[0].perRow']);
+  assert.match(both[0]!.message, /rows.*perRow|perRow.*rows/);
+  assert.deepEqual(at({rows: 2, perRow: 3}, 10).map(i => i.path), ['parts[0].perRow'], 'n9: both given, no extra 9+ issue');
+  assert.deepEqual(at({direction: 'vertical', rows: 2}, 4).map(i => i.path), ['parts[0].rows']);
+  assert.deepEqual(at({direction: 'vertical', perRow: 2}, 4).map(i => i.path), ['parts[0].perRow']);
+  const v9 = at({direction: 'vertical'}, 9);
+  assert.deepEqual(v9.map(i => i.path), ['parts[0].steps']);
+  assert.match(v9[0]!.message, /vertical chevron takes at most 8/);
+  assert.doesNotMatch(v9[0]!.message, /more than 8 in one row/);
+  for (const extra of [{rows: 2}, {perRow: 2}]) assert.deepEqual(at({direction: 'vertical', ...extra}, 9).map(i => i.message), [v9[0]!.message], 'm2: one steps issue only');
+  assert.deepEqual(at({direction: 'vertical', rows: 2, perRow: 2}, 4).map(i => i.path), ['parts[0].perRow'], 'm1: both given stops further issues');
+  assert.deepEqual(at({direction: 'vertical'}, 8), []);
+  const h9 = at({}, 9);
+  assert.deepEqual(h9.map(i => i.path), ['parts[0].steps']);
+  assert.match(h9[0]!.message, /more than 8 in one row/);
+  assert.doesNotMatch(h9[0]!.message, /vertical/);
+  assert.deepEqual(at({rows: 1}, 9).map(i => i.path), ['parts[0].steps']);
+  assert.deepEqual(at({rows: 2}, 9), []);
+  assert.deepEqual(at({rows: 'auto'}, 9), []);
+  assert.deepEqual(at({perRow: 5}, 9), []);
+});
+
+test('a chevron spec with rows / perRow draws what the DSL draws; 12 steps on 3 rows render', async () => {
+  const steps = chevronSteps(12);
+  for (const opts of [{rows: 3}, {perRow: 4}, {rows: 'auto'}, {rows: 2, current: 5}] as const) {
+    const {current, ...dslOpts} = opts as {rows?: number | 'auto'; current?: number};
+    const dsl = diagram({theme: 'blue', title: '例'}).add(pure.chevron(steps, {...dslOpts, ...(current ? {current: current - 1} : {})}));
+    assert.equal(await svgOf(specToDiagram(spec({type: 'chevron', steps, ...opts}))), await svgOf(dsl as unknown as Diagram), JSON.stringify(opts));
+  }
+  assert.deepEqual(chevronIssues({rows: 3}, 12), []);
+});
+
 test('a swimlane row counts from 1, as its schema says: row 1 is the top sub-row of the lane', async () => {
   const lanes = [{id: 'a', label: '人'}, {id: 'b', label: '係'}];
   const stepsOf = (base: number) => [{id: 's', lane: 'a', title: '申請する', col: 1, row: base}, {id: 't', lane: 'a', title: '並行の作業', col: 1, row: base + 1}, {id: 'u', lane: 'b', title: '確認する', col: 2, row: base}];
