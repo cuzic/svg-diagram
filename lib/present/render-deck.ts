@@ -78,7 +78,7 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
     const r = await renderDeckFigure(i, spec, source, cfg, fit === 'fill' && room ? {fresh: opts.fresh, column: j, fill: {box: room, cap: maxScale(fit)}} : {fresh: opts.fresh, column: j, columnPx});
     if (!r.ok) { errors.push(...r.errors); return null; }
     const lo = r.result.laidOut;
-    return {svg: r.result.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: [...(r.fallback ? [r.fallback] : []), ...r.result.verdict.warnings]};
+    return {svg: r.result.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: [...(r.fallback ? [r.fallback] : []), ...r.result.verdict.problems, ...r.result.verdict.warnings]};
   };
   // the columns' shares chosen from what they hold where they are left to choice (ADR 0061)
   const shares: (number[] | undefined)[] = deck.slides.map(() => undefined);
@@ -95,7 +95,7 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
     return chosen.figures.map(f => {
       if (!f) return undefined;
       const lo = f.value.laidOut;
-      return {svg: f.value.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: f.value.verdict.warnings};
+      return {svg: f.value.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: [...f.value.verdict.problems, ...f.value.verdict.warnings]};
     });
   }));
   const shared = deck.slides.map((s, i) => ({...s, columns: s.columns && sharedColumns(s.columns, shares[i])}));

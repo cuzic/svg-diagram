@@ -24,7 +24,9 @@ function personSvg(h: ComicLaidHead, p: ComicLaidPanel, characters: LaidOutComic
     if (svg) return `<g data-head="${h.id}" clip-path="url(#${clipId})">${svg}</g>`;
   }
   const face = look.kind === 'face' ? look : {hue: 210, hair: 'short' as const};
-  return `<g data-head="${h.id}">${faceSvg(h, face.hue, face.hair, p.y + p.h, prefix)}</g>`;
+  // the shoulders are 112px wide: a person standing closer than 56px to a side of a narrow (row) panel is clipped to it, as an asset is
+  const wide = h.cx - 56 < p.x || h.cx + 56 > p.x + p.w;
+  return `<g data-head="${h.id}"${wide ? ` clip-path="url(#${clipId})"` : ''}>${faceSvg(h, face.hue, face.hair, p.y + p.h, prefix)}</g>`;
 }
 
 function panelSvg(p: ComicLaidPanel, characters: LaidOutComic['characters'], namespace: string, node: string, font: number = FONT): string {
