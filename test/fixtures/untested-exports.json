@@ -332,7 +332,6 @@
   "layout-util:gridChildGeometry",
   "layout-util:groupTitleBand",
   "layout-util:snapGrid",
-  "layout-util:stampChipW",
   "layout-util:topIcon",
   "layout-wireframes:placeScreenGrid",
   "layout-wireframes:placeStateMatrix",

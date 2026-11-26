@@ -1,6 +1,7 @@
 import {layoutBoxLike} from '../layout-box-like.ts';
 import {groupItems} from '../inventory-boxes.ts';
 import {frameLayoutFindings} from '../layout-metrics.ts';
+import {stampProblems} from '../verify-box-like.ts';
 import {band, DEF} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {group as buildGroup} from '../dsl/group.ts';
@@ -26,9 +27,10 @@ export const groupDefinition: BandDef<GroupBand, LaidOutGroup> = {
   stackWidth: (data, width) => width - 2 * (data.pad ?? 16),
   generated: data => data.title ? [band(captionDefinition, groupTitleBand(data))] : [],
   measure(data, {atoms, roles}) {
-    if (data.stamp) atoms(data.stamp, roles.note, 400);
+    if (data.stamp) { atoms(data.stamp, roles.note, 400); atoms([...data.stamp].join(' '), roles.note, 400); } // and each character: a word wider than the chip is broken per character
   },
-  verify: {rects: () => [], targets: () => [], diagramFindings: frameLayoutFindings},
+  verify: {rects: () => [], targets: laid => laid.stampOver ? [laid] : [], // a group's contents are its targets; its own frame only when its stamp needs checking (stamp-too-wide)
+    diagramFindings: frameLayoutFindings, check: laid => stampProblems(laid).map(message => ({rule: 'stamp-too-wide', severity: 'problem' as const, message}))},
   emit: (laid, env) => renderGroup(laid, env.theme, env.tones, env.roles),
   locations: {drawsFrame: laid => laid.frame !== false},
 };

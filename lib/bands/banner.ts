@@ -9,7 +9,7 @@ import {layoutBoxLike, layoutBoxLikeBand} from '../layout-box-like.ts';
 import {styledAtoms, textRuns} from '../layout-text.ts';
 import {fillTextSize} from '../slide-fill-text.ts';
 import type {BannerBand, BannerOpts, LaidOutBanner} from '../types/text-bands.ts';
-import {boxLikeContrastProblems} from '../verify-box-like.ts';
+import {boxLikeContrastProblems, stampProblems} from '../verify-box-like.ts';
 
 export const bannerDefinition: BandDef<BannerBand, LaidOutBanner> = {
   type: 'banner',
@@ -23,14 +23,14 @@ export const bannerDefinition: BandDef<BannerBand, LaidOutBanner> = {
   layoutBoxLike,
   layout: layoutBoxLikeBand,
   measure(data, {atoms, roles}) {
-    if (data.stamp) atoms(data.stamp, roles.note, 400);
+    if (data.stamp) { atoms(data.stamp, roles.note, 400); atoms([...data.stamp].join(' '), roles.note, 400); } // and each character: a word wider than the chip is broken per character
     for (const run of textRuns(data, roles)) {
       for (const {text, weight} of styledAtoms(run)) atoms(text, run.size, weight, run.mono ? 'mono' : 'sans');
     }
   },
   emit: (laid, env) => renderBanner(laid, env.theme, env.tones, env.roles),
   locations: {drawsFrame: () => true},
-  verify: {contrast: (laid, {theme, tones, appearance}) => boxLikeContrastProblems(laid, laid.tone ?? 'accent', theme, tones, appearance)},
+  verify: {check: laid => stampProblems(laid).map(message => ({rule: 'stamp-too-wide', severity: 'problem' as const, message})), contrast: (laid, {theme, tones, appearance}) => boxLikeContrastProblems(laid, laid.tone ?? 'accent', theme, tones, appearance)},
 };
 
 export function banner<const Id extends string = never>(opts: BannerOpts & {id?: Id}): WithBandDef<ReturnType<typeof buildBanner<Id>>, LaidOutBanner> {

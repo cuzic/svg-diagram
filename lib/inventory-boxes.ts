@@ -43,7 +43,7 @@ function boxChrome(band: LaidOutBox | LaidOutBanner | LaidOutGroup, owner: strin
     items.push({kind: 'frame', owner, poly: [{x, y}, {x: x + w, y}, {x: x + w, y: y + h}, {x, y: y + h}]});
   }
   if (band.type === 'box' && band.tagBox) items.push({kind: 'badge', owner, what: 'tag', rect: tagGeometry(band.tagBox)});
-  if (band.stampW !== undefined) items.push({kind: 'badge', owner, what: 'stamp', rect: stampGeometry(band, band.stampW)});
+  if (band.stampW !== undefined) items.push({kind: 'badge', owner, what: 'stamp', rect: stampGeometry(band, band.stampW, band.stampH)});
   return items;
 }
 

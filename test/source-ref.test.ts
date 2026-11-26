@@ -218,13 +218,6 @@ test('band errors carry the source of the part that failed', async () => {
   await checkError(invalidConnect, diagram({theme: 'blue'}).add(box({id: 'a', title: 'A', reveal: 3}), box({id: 'b', title: 'B'}), invalidConnect), /until 2 must be later than its reveal 3/);
 });
 
-test('layout handler tags a too-wide stamp error with the inner group source', async () => {
-  const tooWide = group([box({title: 'Stamped'})], {stamp: 'wide stamp '.repeat(10).trim()});
-  const outer = group([tooWide]);
-  mark(outer);
-  await checkError(tooWide, diagram({theme: 'blue', width: 300}).add(outer), /stamp .* is wider than its group/);
-});
-
 test('layout handler tags a duplicate anchor error with the second box source', async () => {
   const first = box({id: 'duplicate', title: 'First'}), second = box({id: 'duplicate', title: 'Second'});
   const duplicates = group([first, second]);
