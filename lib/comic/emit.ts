@@ -14,6 +14,8 @@ import type {WidthOf} from '../types/core.ts';
 
 const tintOf = (p: ComicLaidPanel): string => p.tint === 'warm' ? COLOR.warm : p.tint === 'cool' ? COLOR.cool : COLOR.paper;
 
+const shouldersOut = (h: ComicLaidHead, p: ComicLaidPanel): boolean => h.cx - 56 < p.x || h.cx + 56 > p.x + p.w;
+
 function personSvg(h: ComicLaidHead, p: ComicLaidPanel, characters: LaidOutComic['characters'], namespace: string, clipId: string): string {
   // Dots are reserved in comic ids. Escaping hyphens keeps the two components distinct when joined.
   const prefix = `ch-${namespace}${p.id.replaceAll('-', '.')}-${h.who.replaceAll('-', '.')}`;
@@ -24,16 +26,15 @@ function personSvg(h: ComicLaidHead, p: ComicLaidPanel, characters: LaidOutComic
     if (svg) return `<g data-head="${h.id}" clip-path="url(#${clipId})">${svg}</g>`;
   }
   const face = look.kind === 'face' ? look : {hue: 210, hair: 'short' as const};
-  // the shoulders are 112px wide: a person standing closer than 56px to a side of a narrow (row) panel is clipped to the panel's inner edge (the frame's
-  // stroke stays whole: its inner half is inside the panel rectangle)
-  const wide = h.cx - 56 < p.x || h.cx + 56 > p.x + p.w, inset = FRAME / 2;
-  const inner = wide ? `<clipPath id="${clipId}-in"><rect x="${p.x + inset}" y="${p.y + inset}" width="${p.w - FRAME}" height="${p.h - FRAME}"/></clipPath>` : '';
-  return `<g data-head="${h.id}"${wide ? ` clip-path="url(#${clipId}-in)"` : ''}>${inner}${faceSvg(h, face.hue, face.hair, p.y + p.h, prefix)}</g>`;
+  // the shoulders are 112px wide: a person standing closer than 56px to a side of a narrow (row) panel is clipped to the panel's inner edge (see panelSvg)
+  return `<g data-head="${h.id}"${shouldersOut(h, p) ? ` clip-path="url(#${clipId}-in)"` : ''}>${faceSvg(h, face.hue, face.hair, p.y + p.h, prefix)}</g>`;
 }
 
 function panelSvg(p: ComicLaidPanel, characters: LaidOutComic['characters'], namespace: string, node: string, font: number = FONT): string {
   const clipId = `pc-${namespace}${p.id}`;
-  const out = [`<g data-panel="${p.id}"><clipPath id="${clipId}"><rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}"/></clipPath><rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" fill="${tintOf(p)}" stroke="${COLOR.ink}" stroke-width="${FRAME}"${node}/>`];
+  // the inner edge of the frame's stroke (its inner half is inside the panel rectangle): one clip for the panel's built-in people whose shoulders leave it
+  const inner = p.heads.some(h => shouldersOut(h, p)) ? `<clipPath id="${clipId}-in"><rect x="${p.x + FRAME / 2}" y="${p.y + FRAME / 2}" width="${p.w - FRAME}" height="${p.h - FRAME}"/></clipPath>` : '';
+  const out = [`<g data-panel="${p.id}"><clipPath id="${clipId}"><rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}"/></clipPath>${inner}<rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" fill="${tintOf(p)}" stroke="${COLOR.ink}" stroke-width="${FRAME}"${node}/>`];
   if (p.label !== undefined) {
     const x = p.x - BADGE_OVERHANG, y = p.y - BADGE_OVERHANG;
     const m = metricsOf(font);

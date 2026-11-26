@@ -58,6 +58,8 @@ test('a person at the panel\'s left edge in a row is clipped to the panel (the s
   const faces = [...svg.matchAll(/<g data-head="(p\d)\.(me|col)"([^>]*)>/g)];
   assert.equal(faces.length, 8);
   for (const m of faces) assert.match(m[3]!, /clip-path="url\(#pc-p\d-in\)"/, `${m[1]}.${m[2]}`);
+  const ids = [...svg.matchAll(/ id="([^"]+)"/g)].map(m => m[1]);
+  assert.equal(new Set(ids).size, ids.length, 'every id is unique (two clipped people in one panel share one clip)');
   // the clip is the panel's inner edge: half a frame stroke (1.5px) in from the panel rectangle
   const p1 = layoutComic(comic(crowded(), {fontSize: 22}), 0, 0, 940, widthOf).panels[0]!;
   assert.ok(svg.includes(`<clipPath id="pc-p1-in"><rect x="${p1.x + 1.5}" y="${p1.y + 1.5}" width="${p1.w - 3}" height="${p1.h - 3}"/>`));
