@@ -7450,6 +7450,10 @@
         "linkLabels": {
           "type": "boolean",
           "description": "false: no values on the ribbons."
+        },
+        "values": {
+          "type": "boolean",
+          "description": "false: names only, no values on the nodes or the ribbons (the widths still follow the values)."
         }
       },
       "required": [

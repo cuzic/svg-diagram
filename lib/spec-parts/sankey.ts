@@ -20,6 +20,7 @@ export function defineSankeyPart<Result>(builder: (nodes: never, links: never, o
       unit: unit(),
       align: {...oneOf('justify', 'left'), description: 'justify (default): the end nodes all on the right. left: each where its path ends.'},
       linkLabels: {type: 'boolean', description: 'false: no values on the ribbons.'},
+      values: {type: 'boolean', description: 'false: names only, no values on the nodes or the ribbons (the widths still follow the values).'},
     }, ['type', 'nodes', 'links']),
     example: {type: 'sankey', unit: '千人', nodes: [{id: 'ad', label: '広告'}, {id: 'seo', label: '検索'}, {id: 'visit', label: '訪問'}, {id: 'buy', label: '購入', tone: 'accent'}, {id: 'leave', label: '離脱', tone: 'muted'}], links: [{from: 'ad', to: 'visit', value: 60}, {from: 'seo', to: 'visit', value: 40}, {from: 'visit', to: 'buy', value: 15}, {from: 'visit', to: 'leave', value: 85, tone: 'muted'}]},
     check(part, at, issues) {

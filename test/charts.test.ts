@@ -382,6 +382,25 @@ test('sankey(): layers come from the longest path, node heights are proportional
   assert.ok(chart.alt.includes('a → c 30人'));
 });
 
+test('sankey(): values: false leaves the names only on the nodes and no number on the ribbons; the widths and the alt keep the values', async () => {
+  const wide = {unit: '人'};
+  const withV = await chartOf(sankey(FLOW.nodes, FLOW.links, wide));
+  const {chart, problems} = await chartOf(sankey(FLOW.nodes, FLOW.links, {...wide, values: false}));
+  assert.deepEqual(problems, []);
+  for (const n of FLOW.nodes) assert.ok(texts(chart).includes(n), n);
+  assert.ok(!texts(chart).some(t => /\d/.test(t)), 'no number is drawn');
+  assert.equal(chart.items.filter(i => i.k === 'path' && i.fill !== 'none' && i.op === 0.22).length, 4);
+  near(solid(chart, 'c').h / solid(chart, 'a').h, 50 / 30, 0.02);
+  assert.ok(chart.alt.includes('a → c 30人'), 'the alt text still carries the values');
+  // the room kept on the right for the last layer's labels shrinks without the values
+  assert.ok(solid(chart, 'd').x > solid(withV.chart, 'd').x, 'last layer moves right');
+  // a ribbon that is neither end's whole flow carries its own number; values: false drops it too
+  const mid = {nodes: ['p', 'q', 'x', 'y'], links: [{from: 'p', to: 'x', value: 300}, {from: 'p', to: 'y', value: 200}, {from: 'q', to: 'x', value: 100}]};
+  assert.ok(texts((await chartOf(sankey(mid.nodes, mid.links))).chart).includes('300'), 'precondition: the ribbon number is drawn by default');
+  assert.ok(!texts((await chartOf(sankey(mid.nodes, mid.links, {values: false}))).chart).some(t => /\d/.test(t)));
+  assert.throws(() => sankey(FLOW.nodes, FLOW.links, {values: 'no' as never}), /values/);
+});
+
 test('sankey(): a sink goes to the last layer (align: left keeps it where its path ends); a cycle, an unknown node, a duplicate link are errors', () => {
   const sp = (align: 'justify' | 'left') => layersOf(resolveSankey(['a', 'b', 'c', 'd'], [{from: 'a', to: 'b', value: 1}, {from: 'b', to: 'c', value: 1}, {from: 'a', to: 'd', value: 1}], {align}));
   assert.equal(sp('justify').get('d'), 2);

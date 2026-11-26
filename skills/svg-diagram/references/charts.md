@@ -12,7 +12,7 @@
 | 折れ線・戦略キャンバス・バーンダウン | `lines(series, {x, y, target, annotate})` / `strategyCanvas(factors, series)` / `burndown({total, days, actual})` / `burnup({scope, days, done})` | 系列名は線の右端。`ideal: true` が計画線 |
 | 積み上げ・100%・マリメッコ | `stackedBars(columns, {percent})` / `mekko(columns)` | `{label, parts: [{label, value}]}`。マリメッコは幅が合計、高さが構成比 |
 | ツリーマップ | `treemap(tree)` | 葉 `{label, value}`、グループ `{label, children}` |
-| サンキー | `sankey(nodes, links)` | ノード（文字列か `{id, label}`）と `{from, to, value}`。層・並び・太さは自動 |
+| サンキー | `sankey(nodes, links)` | ノード（文字列か `{id, label}`）と `{from, to, value}`。層・並び・太さは自動。`values: false` でノードとリボンの数字を出さない（形だけ見せる） |
 | トルネード | `tornado(items, {base})` | `{label, low, high}`（その入力が低い・高いときの結果）。幅の大きい順 |
 | 回帰・残差 | `regplot({x, y, group}, {order, stats, lowess})` / `residplot({x, y})` | 生の値。直線（`order: 2` で曲線）と 95% 信頼帯、R² は自動。`lowess: true` は局所回帰の曲線 |
 | パネル分割 | `...facet({名前: 値}, (名前, 値, _i, axes) => 図(値, {...axes}), {cols, share})` | 軸は既定で全パネル共通（`axes` を図の opts に展開）。`share: 'none'` で個別 |
