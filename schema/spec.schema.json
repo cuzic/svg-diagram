@@ -11853,7 +11853,8 @@
             "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
           },
           "minItems": 1,
-          "maxItems": 6
+          "maxItems": 6,
+          "description": "The options, at most 6. With more, put the options as rows and the criteria as columns (when there are at most 6 of them), or split into two figures."
         },
         "cells": {
           "type": "array",

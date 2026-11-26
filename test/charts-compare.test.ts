@@ -3,6 +3,7 @@ import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
 import {checkDiagram, closeMeasurer, compare, diagram} from '../lib/dsl.ts';
 import {compareAlt, compareTexts, layoutCompare, resolveCompare} from '../lib/charts-compare.ts';
+import {comparePart} from '../lib/spec-parts/selective/compare.ts';
 import {compareBand} from '../lib/charts-dsl.ts';
 import {layoutRatingTable} from '../lib/charts-rating-table.ts';
 import type {ChartGeom} from '../lib/charts-base.ts';
@@ -107,5 +108,30 @@ test('compare(): a long row header keeps its padding from the first column rule 
 
 test('compare(): too many columns says how to fix it (C2)', () => {
   const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
-  assert.throws(() => resolveCompare(['r'], cols, [cols.map(() => null)]), /7 列は上限の 6 列を超えています.*行と列を入れ替え.*2 つの図に分けて/);
+  assert.throws(() => resolveCompare(['r'], cols, [cols.map(() => null)]), /7 columns is over the limit of 6.*transpose.*split into two figures/);
+});
+
+test('compare(): more than 6 columns and rows advises only splitting (m2)', () => {
+  const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'], rows = ['1', '2', '3', '4', '5', '6', '7'];
+  assert.throws(() => resolveCompare(rows, cols, rows.map(() => cols.map(() => null))), (e: Error) => /split into two figures/.test(e.message) && !/transpose/.test(e.message));
+});
+
+test('compare(): the spec schema tells how to fix too many columns (m2)', () => {
+  const cols = (comparePart.schema as {properties: {cols: {description: string}}}).properties.cols;
+  assert.match(cols.description, /transpose|as rows/);
+});
+
+test('compare(): narrow figures still draw a long single-word row name, and column heads keep their padding (M1, m1)', () => {
+  const widthOf = ((s: string, size: number, weight: number) => [...s].length * size * (weight >= 700 ? 0.62 : 0.55)) as unknown as ChartGeom['widthOf'];
+  const cell = ['○', 'ok'] as const, rows = ['Internationalizations', 'Telecommunications Infrastructure'];
+  for (const w of [640, 720]) {
+    const part = layoutCompare(resolveCompare(rows, ['Alpha', 'Beta', 'Gamma', 'Delta'], rows.map(() => [cell, cell, cell, cell])), {...geom, w, widthOf});
+    const rules = part.items.flatMap(i => i.k === 'path' && !i.dash ? [...i.d.matchAll(/^M([\d.]+),[\d.]+ L([\d.]+),[\d.]+$/g)].filter(m => m[1] === m[2]).map(m => Number(m[1])) : []).sort((a, b) => a - b);
+    const ruleX = rules[0]!;
+    for (const h of part.items.filter((i): i is Extract<typeof i, {k: 'text'}> => i.k === 'text' && i.anchor === 'start' && i.x < ruleX)) assert.ok(h.x + widthOf(h.s, h.size, h.bold ? 700 : 400, '' as never) + 8 <= ruleX + 0.5, `"${h.s}" at width ${w}`);
+    for (const h of part.items.filter((i): i is Extract<typeof i, {k: 'text'}> => i.k === 'text' && i.anchor === 'middle' && i.s === 'Alpha')) {
+      const half = widthOf(h.s, h.size, 700, '' as never) / 2, colW = rules[1]! - rules[0]!;
+      assert.ok(colW / 2 - half >= 8 - 0.5, `column head padding at width ${w}`);
+    }
+  }
 });

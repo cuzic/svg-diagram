@@ -35,10 +35,13 @@ export function layoutRatingTable<T>(t: RatingTable<T>, look: RatingLook<T>, g: 
     for (let w = wrapW; w > 0; w -= S / 2) { const ls = c.wrap(s, w, bold); if (ls.every(l => c.tw(l, bold) <= limit + 0.5)) return ls; }
     return fail(who, `${what} is too long for ${Math.round(limit)}px (shorten it, or raise width)`);
   };
-  const rowW = Math.min(Math.max(...t.rows.map(r => c.tw(r, true)), t.corner ? c.tw(t.corner) : 0) + 16, g.w * (t.ruled ? 0.24 : 0.38));
+  // The header column may not be narrower than the widest unbreakable piece of a name (plus the 8px padding each side), even above the cap.
+  const atomW = (v: string, bold: boolean) => Math.max(...c.wrap(v, 1, bold).map(l => c.tw(l, bold)));
+  const floorW = Math.max(...t.rows.map(r => atomW(r, true)), t.corner ? atomW(t.corner, false) : 0) + 16;
+  const rowW = Math.max(floorW, Math.min(Math.max(...t.rows.map(r => c.tw(r, true)), t.corner ? c.tw(t.corner) : 0) + 16, g.w * (t.ruled ? 0.24 : 0.38)));
   const colW = (g.w - rowW) / t.cols.length, noteW = colW - ratingW - 16;
   if (t.ruled ? noteW < S * 4 : colW < ratingW) fail(who, `${t.cols.length} columns do not fit in ${Math.round(g.w)}px (raise width, or use fewer columns)`);
-  const heads = t.cols.map(k => fit(k, colW - 8, colW - 4, boldHead(k), `the column name "${k}"`));
+  const heads = t.cols.map(k => fit(k, colW - (t.ruled ? 16 : 8), colW - (t.ruled ? 16 : 4), boldHead(k), `the column name "${k}"`));
   const names = t.rows.map(r => fit(r, rowW - 16, rowW - 16, true, `the row name "${r}"`));
   const corner = t.corner ? fit(t.corner, rowW - 16, rowW - 16, false, 'the corner text') : [];
   const notes = t.cells.map(r => r.map(cell => t.ruled && cell?.note ? fit(cell.note, noteW, noteW, false, `the note "${cell.note}"`) : []));

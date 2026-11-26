@@ -21,8 +21,8 @@ export interface CompareSpec {rows: string[]; cols: string[]; cells: ({mark: Cel
 export function resolveCompare(rows: readonly string[], cols: readonly string[], cells: readonly (readonly CompareCell[])[], opts: CompareOpts = {}): CompareSpec {
   if (!Array.isArray(rows) || rows.length === 0) fail('compare', 'needs at least one row');
   if (!Array.isArray(cols) || cols.length === 0) fail('compare', 'needs at least one column');
-  if (cols.length > 6) fail('compare', `${cols.length} 列は上限の 6 列を超えています(各セルに一文が入るため)。選択肢を行・基準を列にして行と列を入れ替えるか、2 つの図に分けてください`);
-  if (rows.length > 12) fail('compare', `${rows.length} 行は上限の 12 行を超えています(各セルに一文が入るため)。2 つの図に分けてください`);
+  if (cols.length > 6) fail('compare', `${cols.length} columns is over the limit of 6 (every cell holds a sentence): ${rows.length <= 6 ? 'put the options as rows and the criteria as columns (transpose), or split into two figures' : 'split into two figures'}`);
+  if (rows.length > 12) fail('compare', `${rows.length} rows is over the limit of 12 (every cell holds a sentence): split into two figures`);
   rows.forEach((r, i) => checkText('compare', `row ${i + 1}`, r));
   cols.forEach((k, j) => checkText('compare', `column ${j + 1}`, k));
   if (new Set(rows).size !== rows.length || new Set(cols).size !== cols.length) fail('compare', 'row names and column names must each be unique');
