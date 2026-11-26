@@ -5004,7 +5004,7 @@
               ]
             }
           ],
-          "description": "Wrap a horizontal chevron onto this many rows. 'auto': the fewest rows (up to 4) where no step's text wraps."
+          "description": "Wrap a horizontal chevron onto this many rows. 'auto': the fewest rows (at most 4, about 3+ steps per row) where no step's text wraps."
         },
         "perRow": {
           "type": "integer",
