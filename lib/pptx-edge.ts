@@ -10,6 +10,7 @@ import {planSlide, fontsOf} from './pptx/slide.ts';
 import {packageEntries} from './pptx/package.ts';
 import {noPptx, outlinePptxPictures, zipPackage, type PptxEdgeOptions, type PptxEdgeResult, type FigurePlan} from './pptx-edge-core.ts';
 import type {Diagram} from './types/core.ts';
+import {widenDiagram} from './deck-layout.ts';
 
 export {zipPackage, type PptxEdgeOptions, type PptxEdgeResult, type FigurePlan} from './pptx-edge-core.ts';
 
@@ -17,9 +18,9 @@ export type {TextEngine} from './spec-edge.ts';
 export {TextEngineError} from './spec-edge.ts';
 
 /** The spec as a slide plan, or the issues that stop it (with their places in the spec). Throws TextEngineError as renderPptxEdge does. */
-export async function planFigureEdge(spec: unknown, engine: TextEngine, opts: {font?: string; maxHeight?: number} = {}): Promise<FigurePlan | {issues: SpecIssue[]}> {
+export async function planFigureEdge(spec: unknown, engine: TextEngine, opts: {font?: string; maxHeight?: number} = {}, width?: number): Promise<FigurePlan | {issues: SpecIssue[]}> {
   let d: Diagram;
-  try { d = specToDiagram(spec); }
+  try { d = widenDiagram(specToDiagram(spec), width); }
   catch (e) {
     if (e instanceof SpecError) return {issues: [...e.issues]};
     throw e;

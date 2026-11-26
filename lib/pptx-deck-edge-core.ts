@@ -4,7 +4,7 @@
 import {capped} from './spec-validation.ts';
 import type {SpecIssue} from './spec-kit.ts';
 import {autoColumns, columnFallbackWarning, columnFigurePath, columnSpec, figurePath, figureProblemMessages, fitOf, sharedColumns, type DeckSpec} from './deck-spec-core.ts';
-import {chooseColumns, columnWidths, figureRooms, fillSearch, maxScale, ruleIds, type FigureFit} from './deck-layout.ts';
+import {DOC_LAYOUT_WIDTH, chooseColumns, columnWidths, figureRooms, fillSearch, maxScale, ruleIds, type FigureFit} from './deck-layout.ts';
 import {guardedEngine, type TextEngine} from './spec-edge-core.ts';
 import {zipPackage, type FigurePlan, type PptxEdgeOptions} from './pptx-edge-core.ts';
 import {deckEntries, minTextPt, placeShapes, planDeckSlide, slideIssues, type DeckFigure, type PlannedSlide, type TextWidth} from './pptx/deck.ts';
@@ -39,7 +39,8 @@ const none = (issues: SpecIssue[]): DeckEdgeResult => ({pptx: null, issues: capp
  */
 export async function renderDeckPptxEdgeWith(input: unknown, givenEngine: TextEngine, opts: PptxEdgeOptions, services: {
   validate(input: unknown): SpecIssue[];
-  plan(spec: unknown, engine: TextEngine): Promise<FigurePlan | {issues: SpecIssue[]}>;
+  /** `width`: a layout width past the spec's own 940 (a wide room, B6). */
+  plan(spec: unknown, engine: TextEngine, width?: number): Promise<FigurePlan | {issues: SpecIssue[]}>;
 }): Promise<DeckEdgeResult> {
   const pngScale = opts.pngScale ?? 2;
   if (!(Number.isFinite(pngScale) && pngScale > 0)) throw new Error(`pngScale must be a positive number (got ${String(pngScale)})`);
@@ -57,8 +58,8 @@ export async function renderDeckPptxEdgeWith(input: unknown, givenEngine: TextEn
     if (fit === 'fill' && room && typeof spec === 'object' && spec !== null && !Array.isArray(spec) && (spec as {width?: unknown}).width === undefined) {
       let firstIssues: SpecIssue[] = [];
       const found = await fillSearch(room, maxScale(fit), async w => {
-        const f = await services.plan(w === null ? spec : {...spec, width: w}, engine);
-        if ('issues' in f) { if (w === null) firstIssues = f.issues; return {ok: false, why: f.issues[0]?.message ?? ''}; }
+        const f = await (w === null ? services.plan(spec, engine) : w > DOC_LAYOUT_WIDTH ? services.plan(spec, engine, w) : services.plan({...spec, width: w}, engine));
+        if ('issues' in f) { if (w === null || w > DOC_LAYOUT_WIDTH) firstIssues = f.issues; return {ok: false, why: f.issues[0]?.message ?? ''}; }
         return {ok: true, w: f.width, h: f.height, value: f, flags: ruleIds(f.findings)};
       });
       if (!found.ok) { issues.push(...firstIssues.map(x => ({path: place(x.path), message: x.message}))); return undefined; }
