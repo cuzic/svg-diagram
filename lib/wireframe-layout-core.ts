@@ -828,7 +828,9 @@ function layoutScreen(item: WfScreen, ctx: WfCtx, x: number, y: number, w: numbe
   if (frame === 'screen') rect(ctx, x, y0, w, H, {r: 4, fill: 'bg', stroke: 'text', sw: 2.5});
   else if (frame === 'light') rect(ctx, x, y0, w, H, {r: 8, fill: 'bg', stroke: 'border', sw: 2});
   place(rootOf(item), x + inset, y0 + inset, w - 2 * inset, H - 2 * inset, ctx);
+  const known = ctx.problems.length;
   for (const o of kidsOf(item.overlays)) drawOverlay(o, ctx, x + inset, y0 + inset, w - 2 * inset, H - 2 * inset);
+  if (item.title) for (let i = known; i < ctx.problems.length; i++) ctx.problems[i] = `「${item.title}」: ${ctx.problems[i]}`; // name the screen
   flushCallouts(ctx);
   return {frame: {x, y: y0, w, h: H}, top: y, bottom: y0 + H};
 }

@@ -159,3 +159,25 @@ test('dialogProblems turns the layout\'s dialog messages into wf-dialog-too-big 
   assert.deepEqual(dialogProblems({}), []);
   assert.deepEqual(dialogProblems({problems: ['m']}), [{rule: 'wf-dialog-too-big', severity: 'problem', message: 'm'}]);
 });
+
+test('dialog: the screens band reports wf-dialog-too-big and names the screen; a card nearly as wide as the screen shrinks its side margin', async () => {
+  const d = diagram({theme: 'blue'});
+  d.add(screens([{title: '画面A', root: [wf.text('a')], h: 200}, {title: '画面B', root: [wf.text('b')], h: 120, overlays: [wf.dialog('確認', {body: '長い本文です。'.repeat(20), at: 'top'})]}]));
+  const r = await checkDiagram(d);
+  const mine = r.verdict.problems.filter(p => /does not fit inside the screen/.test(p));
+  assert.equal(mine.length, 1, r.verdict.problems.join('; '));
+  assert.match(mine[0]!, /画面B/);
+  assert.doesNotMatch(mine[0]!, /画面A/);
+
+  const run = async (w?: number) => {
+    const dd = diagram({theme: 'blue'});
+    dd.add(wireframe([wf.text('x')], {h: 300, overlays: [wf.dialog('確認', {w, at: 'left'})]}));
+    return (await checkDiagram(dd)).laidOut.laidOut[0] as Screen;
+  };
+  const dimOf = (b: Screen) => b.prims.find((p): p is PrimRect => p.k === 'rect' && p.fill === 'text' && p.op === 0.3)!;
+  const area = dimOf(await run());
+  const near = await run(area.w - 10);
+  const card = near.prims.find((p): p is PrimRect => p.k === 'rect' && p.stroke === 'text' && p.sw === 2.5 && p.r === 8)!;
+  assert.equal(card.x - dimOf(near).x, 5, 'the 16px margin shrinks to what is left (5px each side)');
+  assert.ok(card.x + card.w <= dimOf(near).x + dimOf(near).w);
+});
