@@ -40,6 +40,7 @@
  "controlChart",
  "curve",
  "cycle",
+ "decisionLadder",
  "dependencyNetwork",
  "diagram",
  "displot",

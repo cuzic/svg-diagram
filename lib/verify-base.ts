@@ -74,8 +74,8 @@ export const outsideBox = (r: Rect, fig: Rect): boolean => outsideX(r, fig) || r
  * What the check finds wrong in a laid-out state diagram: a transition through a state it does not touch, a label chip outside the figure, on a state, on another arrow or on another chip.
  * The check (verify-handlers.ts) and the layout (states.ts: `density: 'compact'` falls back to the normal gaps when this finds more) use the same list.
  */
-export function statesProblems(band: Rect & {flavor?: 'flowchart'; edges: readonly {from: string; to: string; points: readonly Pt[]}[]; anchors: readonly (Rect & {id: string})[]; labels: readonly (Rect & {text: string; edge: number})[]}): string[] {
-  const w = statesWords(band.flavor);
+export function statesProblems(band: Rect & {flavor?: 'flowchart'; arrange?: 'ladder'; edges: readonly {from: string; to: string; points: readonly Pt[]}[]; anchors: readonly (Rect & {id: string})[]; labels: readonly (Rect & {text: string; edge: number})[]}): string[] {
+  const w = statesWords(band.flavor, band.arrange);
   const problems = routesThroughNodes(band.edges, band.anchors, (e, n) => `${w.prefix}: ${w.edge} ${e.from} -> ${e.to} runs through ${w.node} "${n.id}" (reorder the ${w.node}s, or change dir)`);
   for (const [i, l] of band.labels.entries()) {
     if (outsideX(l, band)) problems.push(`${w.prefix}: label "${l.text}" runs outside the figure (shorten it or widen the figure)`);

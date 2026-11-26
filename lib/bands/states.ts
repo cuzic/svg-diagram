@@ -6,12 +6,12 @@ import {flowchartFindings} from '../verify-flowchart.ts';
 import {textsAndLabels} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
-import {flowchart as buildFlowchart, stateDiagram as buildStateDiagram} from '../dsl/states.ts';
+import {decisionLadder as buildLadder, flowchart as buildFlowchart, stateDiagram as buildStateDiagram} from '../dsl/states.ts';
 import {renderStates} from '../emit-states.ts';
 import {snapGrid} from '../layout-util.ts';
 import {scopeOf} from '../scope-name.ts';
 import {layoutStatesBand, statesTexts} from '../states.ts';
-import type {FlowEdge, FlowNode, FlowchartOpts, LaidOutStates, StateItem, StatesBand, StatesOpts, Transition} from '../types/diagrams.ts';
+import type {FlowEdge, FlowNode, FlowchartOpts, LadderEnd, LadderOpts, LadderStep, LaidOutStates, StateItem, StatesBand, StatesOpts, Transition} from '../types/diagrams.ts';
 import {statesProblems} from '../verify-base.ts';
 import {anchorRects} from '../verify-rects.ts';
 
@@ -52,5 +52,12 @@ export function flowchart<const N extends readonly FlowNode[], const Id extends 
   nodes: N, edges: readonly FlowEdge[], opts?: FlowchartOpts & {id?: Id},
 ): WithBandDef<ReturnType<typeof buildFlowchart<N, Id>>, LaidOutStates> {
   const data = buildFlowchart<N, Id>(nodes, edges, opts);
+  return band<typeof data, LaidOutStates>(statesDefinition, data);
+}
+
+export function decisionLadder<const Id extends string = never>(
+  steps: readonly LadderStep[], otherwise: LadderEnd, opts?: LadderOpts & {id?: Id},
+): WithBandDef<ReturnType<typeof buildLadder<Id>>, LaidOutStates> {
+  const data = buildLadder<Id>(steps, otherwise, opts);
   return band<typeof data, LaidOutStates>(statesDefinition, data);
 }

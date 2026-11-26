@@ -109,6 +109,7 @@ export const calls = {
   classDiagram: () => dsl.classDiagram([item], []),
   stateDiagram: () => dsl.stateDiagram([item], []),
   flowchart: () => dsl.flowchart([item], []),
+  decisionLadder: () => dsl.decisionLadder([{q: 'A', yes: 'B'}], 'C'),
   causeTree: () => dsl.causeTree([item], []),
   whyWhyTree: () => dsl.whyWhyTree('A', [{why: 'B'}]),
   bowtie: () => dsl.bowtie({top: 'A', threats: [item], consequences: [item]}),

@@ -12,7 +12,7 @@ import {caption} from './text-bands.ts';
 export {tree, mindmap} from './tree.ts';
 export {bpmn} from './bpmn.ts';
 export {classDiagram} from './classes.ts';
-export {flowchart, stateDiagram} from './states.ts';
+export {decisionLadder, flowchart, stateDiagram} from './states.ts';
 export {causeTree, pdpc, relationDiagram, transitionUnits} from './cause.ts';
 export type {PdpcNode, PdpcLink, RelationNode, RelationOpts, TransitionUnit} from './cause.ts';
 export interface WhyWhyTreeOpts extends Pick<CauseOpts, 'id' | 'maxNodeW' | 'reveal' | 'until' | 'scope'> {
