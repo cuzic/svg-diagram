@@ -1,7 +1,6 @@
 # ADR 0082: 横の `chevron` を 2 段以上に折り返す
 
-- 実装状況: U1・U2 は実装済み（PR #474）。U3（JSON spec）は別の PR。U4（README と skill の文書）は docs/chevron-rows の PR。
-- 状態: **承認**（Opus レビュー round 1 の B1・M1〜M3・m1〜m7・n1〜n3、round 2 の M4・m8〜m10・n4〜n8、round 3 の m11・m12・n9・n10 を反映。round 3 で Blocker・Major なし（収束））。依頼はオーナー了承済み
+- 状態: **実装済み**（U1・U2 は PR #474、U3（JSON spec）は PR #477、U4（文書）は PR #476。Opus レビュー round 1 の B1・M1〜M3・m1〜m7・n1〜n3、round 2 の M4・m8〜m10・n4〜n8、round 3 の m11・m12・n9・n10 を反映。round 3 で Blocker・Major なし（収束））。依頼はオーナー了承済み
 - 日付: 2026-11-26
 - 基点: `main`（v0.10.0 の後）
 - 関連: ADR 0029（D3 の矢羽根の幅、D4 の `loopBack`）、ADR 0049（帯のノードと `from`）、ADR 0051（`current` / `focus`）、ADR 0027 / 0054（PPTX）、ADR 0071（JSON Schema）、ADR 0080（帯の定義、D2b の `.type ===` ラチェット）
@@ -176,14 +175,15 @@ perRow?: number;
   - 書き方は、リポジトリで既に使っている形にする（pareto の `guide`、value chain の `margin`）: `{oneOf: [{type: 'integer', minimum: 1, maximum: 4}, {type: 'string', enum: ['auto']}]}`。
   - `anyOf` と `const` は使わない。`JsonSchema` の型に `anyOf` が無く、spec の検査も `anyOf` を見ないため。
   - テスト: `'foo'`、`9`、`1.5` が spec の検査で issue になること。
-  - description: `"Wrap a horizontal chevron onto this many rows. 'auto': the fewest rows (up to 4) where no step's text wraps."`
+  - description: `"Wrap a horizontal chevron onto this many rows. 'auto': the fewest rows (at most 4, about 3+ steps per row) where no step's text wraps."`（PR #477 の n2 で D3 に合わせた）
+  - 縦で 9 つ以上のときは、`rows` / `perRow` があっても steps の issue だけを出す（PR #477 の m2）。
 - **`perRow`:** 整数 1〜8。1 段に 9 つ以上並べる指定は、schema の段階で断る。
 - **`current`:** `maximum` を 12 にする。
 - **`check` で issue にするもの:**
 
   | 条件 | メッセージの中身 |
   |---|---|
-  | `rows` と `perRow` を両方指定した | どちらか 1 つにする（このときは、下の「9 つ以上」の issue は出さない。n9） |
+  | `rows` と `perRow` を両方指定した | どちらか 1 つにする。issue の path は `perRow`（このときは、下の「9 つ以上」の issue は出さない。n9） |
   | `rows` か `perRow` を `direction: 'vertical'` と一緒に指定した | 縦は折り返さない。横にするか、`rows` / `perRow` を外す |
   | `direction: 'vertical'` で、steps が 9 つ以上 | 縦の chevron は 8 つまで |
   | 横で、steps が 9 つ以上、かつ `rows` も `perRow` もない（または `rows: 1`） | `rows`（`'auto'` も可）か `perRow` で折り返す |
