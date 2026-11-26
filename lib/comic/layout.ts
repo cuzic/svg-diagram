@@ -155,13 +155,15 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
     // Two speakers in a row panel: the half-width wrap is for bubbles that sit side by side. When that leaves a bubble past the band over the heads (the
     // stacked ones get tall and narrow), try the full-width wrap for some of the bubbles, the fewest first, and keep the first set that fits.
     if (row && twoSpeakers && !noRoom && prep.length <= 8) {
-      // how many mistakes a set of wraps leaves in the panel: a bubble past the band / the budget, a tail behind another speaker's bubble or off its speaker
-      const overs = (Rs: Reserved[]): number => {
+      // what a set of wraps leaves wrong in the panel: the mistakes (a bubble past the band / the budget, a tail behind another speaker's bubble or off its speaker)
+      // and the area of the bubbles outside the panel and the band over the heads
+      const overs = (Rs: Reserved[]): {n: number; area: number} => {
         const pl: typeof placed = [], laid: {who?: string; rect: Rect; tail: ComicLaidBubble['tail']; speaker?: ComicLaidHead}[] = [];
-        let n = 0;
+        let n = 0, area = 0;
         Rs.forEach((R, k) => {
-          const q = placeAt(k, R, pl), {dlg} = prep[k] as (typeof prep)[number];
+          const q = placeAt(k, R, pl), {dlg} = prep[k] as (typeof prep)[number], r = q.rect;
           if (q.over) n++;
+          area += r.w * (Math.max(0, r.y + r.h - (py + zone.bottom)) + Math.max(0, py + zone.top - r.y)) + r.h * (Math.max(0, px - r.x) + Math.max(0, r.x + r.w - (px + PW)));
           pl.push({...q.rect, lines: R.lines.length});
           laid.push({...(dlg.who === undefined ? {} : {who: dlg.who}), rect: q.rect, tail: q.speaker && dlg.kind !== 'narration' ? tailOf({...q.rect, kind: dlg.kind}, q.speaker) : undefined, ...(q.speaker ? {speaker: q.speaker} : {})});
         });
@@ -172,17 +174,18 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
           if (hit.length) n++;
           else checkTail({tail: b.tail, id: ''} as ComicLaidBubble, b.speaker, () => { n++; });
         }
-        return n;
+        return {n, area};
       };
       let best = overs(narrowRs);
-      if (best > 0) {
+      if (best.n > 0) {
         const wideRs = prep.map((_, k) => reserveAt(k, undefined));
         const pop = (v: number): number => v.toString(2).replaceAll('0', '').length;
         const masks = Array.from({length: (1 << prep.length) - 1}, (_, i) => i + 1).sort((a, b) => pop(a) - pop(b) || a - b);
         for (const mask of masks) {
-          if (best === 0) break;
-          const cand = narrowRs.map((r, k) => mask >> k & 1 ? wideRs[k] as Reserved : r), n = overs(cand);
-          if (n < best) { best = n; reserved = cand; }
+          if (best.n === 0) break;
+          const cand = narrowRs.map((r, k) => mask >> k & 1 ? wideRs[k] as Reserved : r), c = overs(cand);
+          // a clean set wins; when none is clean, the least overflow (then the fewest mistakes), so the worst drawing is not the one kept
+          if (c.n === 0 || (best.n > 0 && (c.area < best.area || (c.area === best.area && c.n < best.n)))) { best = c; reserved = cand; }
         }
       }
     }

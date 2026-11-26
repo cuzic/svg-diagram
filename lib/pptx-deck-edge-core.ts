@@ -3,7 +3,7 @@
 // fallback) and scaled onto its slide with the heading, lead, callouts, source and notes (lib/pptx/deck.ts).
 import {capped} from './spec-validation.ts';
 import type {SpecIssue} from './spec-kit.ts';
-import {autoColumns, columnFallbackWarning, columnFigurePath, columnSpec, figurePath, fitOf, sharedColumns, type DeckSpec} from './deck-spec-core.ts';
+import {autoColumns, columnFallbackWarning, columnFigurePath, columnSpec, figurePath, figureProblemMessage, fitOf, sharedColumns, type DeckSpec} from './deck-spec-core.ts';
 import {chooseColumns, columnWidths, figureRooms, fillSearch, maxScale, ruleIds, type FigureFit} from './deck-layout.ts';
 import {guardedEngine, type TextEngine} from './spec-edge-core.ts';
 import {zipPackage, type FigurePlan, type PptxEdgeOptions} from './pptx-edge-core.ts';
@@ -64,6 +64,7 @@ export async function renderDeckPptxEdgeWith(input: unknown, givenEngine: TextEn
       if (!found.ok) { issues.push(...firstIssues.map(x => ({path: place(x.path), message: x.message}))); return undefined; }
       if (j !== undefined && found.width === null && found.narrower) fallbacks.push({path: place(''), message: columnFallbackWarning(found.narrower.width, found.narrower.why)});
       const f = found.value;
+      if (f.problems.length) { issues.push(...f.problems.map(p => ({path: place(''), message: figureProblemMessage(p)}))); return undefined; }
       return {plan: f.plan, w: f.width, h: f.height, native: f.native};
     }
     // a column's figure is laid out at the column's width when it gives none; when it does not fit there, at the document's (ADR 0059)
@@ -75,6 +76,7 @@ export async function renderDeckPptxEdgeWith(input: unknown, givenEngine: TextEn
       f = wide;
     }
     if ('issues' in f) { issues.push(...f.issues.map(x => ({path: j === undefined ? figurePath(i, x.path) : columnFigurePath(i, j, x.path), message: x.message}))); return undefined; }
+    if (f.problems.length) { issues.push(...f.problems.map(p => ({path: place(''), message: figureProblemMessage(p)}))); return undefined; }
     return {plan: f.plan, w: f.width, h: f.height, native: f.native};
   };
   const figures: (DeckFigure & {native: number} | undefined)[] = [], columnFigures: (DeckFigure & {native: number} | undefined)[][] = [], shares: (number[] | undefined)[] = [];
@@ -93,6 +95,8 @@ export async function renderDeckPptxEdgeWith(input: unknown, givenEngine: TextEn
         return {ok: true, w: f.width, h: f.height, value: f, flags: ruleIds(f.findings), minPt: minTextPt(placeShapes(inner, 1, 0, 0))};
       });
       if (!chosen.ok) { if (!issues.length) issues.push({path: `slides[${i}].columns`, message: chosen.why}); figures.push(undefined); columnFigures.push([]); shares.push(undefined); continue; }
+      const bad = chosen.figures.flatMap((f, j) => f ? f.value.problems.map(p => ({path: columnFigurePath(i, j, ''), message: figureProblemMessage(p)})) : []);
+      if (bad.length) { issues.push(...bad); figures.push(undefined); columnFigures.push([]); shares.push(undefined); continue; }
       figures.push(undefined);
       columnFigures.push(chosen.figures.map(f => f ? {plan: f.value.plan, w: f.value.width, h: f.value.height, native: f.value.native} : undefined));
       shares.push(chosen.shares);

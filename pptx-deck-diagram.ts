@@ -9,7 +9,7 @@ import {installResolveHook} from './lib/resolve-hook.ts';
 import {loadConfig} from './lib/config.ts';
 import {chooseColumns, columnWidths, figureRooms, maxScale, type FigureFit} from './lib/deck-layout.ts';
 import {closeMeasurer, configureMeasure, measureAll, splitAtoms, textWidth} from './lib/measure.ts';
-import {autoColumns, columnFigurePath, figurePath, fitOf, sharedColumns} from './lib/deck-spec-core.ts';
+import {autoColumns, columnFigurePath, figurePath, figureProblemErrors, fitOf, sharedColumns} from './lib/deck-spec-core.ts';
 import {figureKey} from './lib/deck-file.ts';
 import {loadDeckSelective} from './lib/deck-load-selective.ts';
 import {drawColumnFigure, renderDeckFigure} from './lib/deck-render-figure.ts';
@@ -61,6 +61,7 @@ try {
     const r = await renderDeckFigure(i, spec, source, cfg, fit === 'fill' && room ? {column: j, fill: {box: room, cap: maxScale(fit)}} : {column: j, columnPx});
     if (!r.ok) { errors.push(...r.errors); return undefined; }
     const place = j === undefined ? figurePath(i, '') : columnFigurePath(i, j, '');
+    if (r.result.verdict.problems.length) { errors.push(...figureProblemErrors(j === undefined ? figurePath(i, null) : columnFigurePath(i, j, null), r.result.verdict.problems)); return undefined; }
     for (const warning of [...(r.fallback ? [r.fallback] : []), ...r.result.verdict.warnings]) console.error(`⚠ ${place}: ${warning}`);
     return {plan: planSlide(r.result.laidOut, fonts), w: Math.max(96, r.result.laidOut.width), h: Math.max(96, r.result.laidOut.canvasHeight)};
   };
@@ -78,6 +79,8 @@ try {
         return d;
       });
       if (!chosen.ok) { errors.push(...failures.flat(), ...(failures.length ? [] : [`slides[${i}].columns: ${chosen.why}`])); figures.push(undefined); columnFigures.push([]); shares.push(undefined); continue; }
+      const bad = chosen.figures.flatMap((f, j) => f ? figureProblemErrors(columnFigurePath(i, j, null), f.value.verdict.problems) : []);
+      if (bad.length) { errors.push(...bad); figures.push(undefined); columnFigures.push([]); shares.push(undefined); continue; }
       chosen.figures.forEach((f, j) => { if (f) for (const warning of f.value.verdict.warnings) console.error(`⚠ ${columnFigurePath(i, j, '')}: ${warning}`); });
       figures.push(undefined);
       columnFigures.push(chosen.figures.map(f => f ? asDeckFigure(f.value) : undefined));

@@ -64,6 +64,13 @@ const NOTES_BREAKS = /\r\n|\r|\n/g;
 /** Where a figure's issue is in the deck: `slides[i].figure` and then the spec's own path ('' is the whole figure). */
 export const figurePath = (i: number, path: string | null): string => `slides[${i}].figure${path ? `.${path}` : ''}`;
 
+/**
+ * A figure's problems (its verdict's `problems`) as a deck's errors, one each, at the figure's place (ADR 0056 D2): the ones `build` and `check` stop at.
+ * The message of a problem already names its rule `[rule-id]` and the fix. `accept` does not reach problems (ADR 0024: it takes the ids of lint rules), here as in `check`.
+ */
+export const figureProblemMessage = (p: string): string => `${p} → the deck is not written until the figure is fixed (a problem, not a warning: \`check\` stops at it too)`;
+export const figureProblemErrors = (place: string, problems: readonly string[]): string[] => problems.map(p => `${place}: ${figureProblemMessage(p)}`);
+
 /** Where a column figure's issue is: `slides[i].columns[j].figure` and then the spec's own path. */
 export const columnFigurePath = (i: number, j: number, path: string | null): string => `slides[${i}].columns[${j}].figure${path ? `.${path}` : ''}`;
 

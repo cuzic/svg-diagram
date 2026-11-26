@@ -2,7 +2,7 @@
 // with the same measuring, everything placed by lib/deck-layout.ts and outlined with the project's font files (lib/font-metrics.ts).
 import {createHash} from 'node:crypto';
 import {chooseColumns, columnWidths, deckTexts, figureRooms, maxScale, planDeckLayout, roomMessage, smallTextWarning, type FigureFit, type TextWidth} from '../deck-layout.ts';
-import {autoColumns, fitOf, sharedColumns} from '../deck-spec-core.ts';
+import {autoColumns, columnFigurePath, figurePath, figureProblemErrors, fitOf, sharedColumns} from '../deck-spec-core.ts';
 import {figureKey, hasSource, type LoadedDeck} from '../deck-file.ts';
 import {drawColumnFigure, renderDeckFigure} from '../deck-render-figure.ts';
 import {figureMinPt} from '../pptx/deck-figure.ts';
@@ -77,8 +77,9 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
     if (spec === undefined && !source) return undefined;
     const r = await renderDeckFigure(i, spec, source, cfg, fit === 'fill' && room ? {fresh: opts.fresh, column: j, fill: {box: room, cap: maxScale(fit)}} : {fresh: opts.fresh, column: j, columnPx});
     if (!r.ok) { errors.push(...r.errors); return null; }
+    if (r.result.verdict.problems.length) { errors.push(...figureProblemErrors(j === undefined ? figurePath(i, null) : columnFigurePath(i, j, null), r.result.verdict.problems)); return null; }
     const lo = r.result.laidOut;
-    return {svg: r.result.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: [...(r.fallback ? [r.fallback] : []), ...r.result.verdict.problems, ...r.result.verdict.warnings]};
+    return {svg: r.result.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: [...(r.fallback ? [r.fallback] : []), ...r.result.verdict.warnings]};
   };
   // the columns' shares chosen from what they hold where they are left to choice (ADR 0061)
   const shares: (number[] | undefined)[] = deck.slides.map(() => undefined);
@@ -92,10 +93,12 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
     });
     if (!chosen.ok) { errors.push(...failures.flat(), ...(failures.length ? [] : [`slides[${i}].columns: ${chosen.why}`])); return null; }
     shares[i] = chosen.shares;
+    const bad = chosen.figures.flatMap((f, j) => f ? figureProblemErrors(columnFigurePath(i, j, null), f.value.verdict.problems) : []);
+    if (bad.length) { errors.push(...bad); return null; }
     return chosen.figures.map(f => {
       if (!f) return undefined;
       const lo = f.value.laidOut;
-      return {svg: f.value.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: [...f.value.verdict.problems, ...f.value.verdict.warnings]};
+      return {svg: f.value.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: f.value.verdict.warnings};
     });
   }));
   const shared = deck.slides.map((s, i) => ({...s, columns: s.columns && sharedColumns(s.columns, shares[i])}));

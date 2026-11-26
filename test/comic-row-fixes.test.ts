@@ -45,11 +45,22 @@ test('what cannot fit at any wrap is reported, never drawn past the panel withou
   assert.ok(l.findings.some(f => f.severity === 'problem' && (f.rule === 'comic-bubble-zone' || f.rule === 'comic-text-budget')));
 });
 
+test('when no wrap fits, the set with the least overflow is kept (not the 7-line, 2-character-wide stack), and the problem is reported', () => {
+  const long = {...crowded(), panels: crowded().panels.map(pn => ({...pn, dialogue: [dlg('n0', undefined, 'narration', '第1場 朝の様子'), dlg('d1', 'me', 'say', '明日は午前に書類を出します'), dlg('d2', 'col', 'think', '私は後から整えよう')]}))};
+  const l = layoutComic(comic(long, {fontSize: 22}), 0, 0, 940, widthOf); // 204px panels: nothing fits
+  assert.ok(l.findings.some(f => f.severity === 'problem' && f.rule === 'comic-bubble-zone'));
+  const say = l.bubbles.find(b => b.id === 'p1.d1')!;
+  assert.ok(say.lines.length <= 3 && say.w >= 6 * 22, `${say.lines.length} lines, ${say.w}px`);
+});
+
 test('a person at the panel\'s left edge in a row is clipped to the panel (the shoulders are wider than the head\'s distance to the side)', () => {
   const svg = renderComicBand(layoutComic(comic(crowded(), {fontSize: 22}), 0, 0, 940, widthOf)); // 204px panels
   const faces = [...svg.matchAll(/<g data-head="(p\d)\.(me|col)"([^>]*)>/g)];
   assert.equal(faces.length, 8);
-  for (const m of faces) assert.match(m[3]!, /clip-path="url\(#pc-/, `${m[1]}.${m[2]}`);
+  for (const m of faces) assert.match(m[3]!, /clip-path="url\(#pc-p\d-in\)"/, `${m[1]}.${m[2]}`);
+  // the clip is the panel's inner edge: half a frame stroke (1.5px) in from the panel rectangle
+  const p1 = layoutComic(comic(crowded(), {fontSize: 22}), 0, 0, 940, widthOf).panels[0]!;
+  assert.ok(svg.includes(`<clipPath id="pc-p1-in"><rect x="${p1.x + 1.5}" y="${p1.y + 1.5}" width="${p1.w - 3}" height="${p1.h - 3}"/>`));
   // in a column the shoulders are inside the panel: the output is as before
   const col = renderComicBand(layoutComic(comic({...crowded('1x4'), panels: crowded('1x4').panels.slice(0, 4)}, {}), 0, 0, 0, widthOf));
   assert.doesNotMatch(col, /<g data-head="[^"]*" clip-path/);
