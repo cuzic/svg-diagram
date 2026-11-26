@@ -135,3 +135,22 @@ test('compare(): narrow figures still draw a long single-word row name, and colu
     }
   }
 });
+
+test('compare(): a long single-word column head still draws in a 6-column table, with 8px padding when it fits (round 2 M1)', () => {
+  const widthOf = ((s: string, size: number, weight: number) => [...s].length * size * (weight >= 700 ? 0.62 : 0.55)) as unknown as ChartGeom['widthOf'];
+  const cell = ['○', 'ok'] as const, cols = ['Observability', 'B', 'C', 'D', 'E', 'F'];
+  for (const w of [800, 960]) {
+    const part = layoutCompare(resolveCompare(['Cost', 'Price'], cols, [cols.map(() => cell), cols.map(() => cell)]), {...geom, w, widthOf});
+    const rules = part.items.flatMap(i => i.k === 'path' && !i.dash ? [...i.d.matchAll(/^M([\d.]+),[\d.]+ L([\d.]+),[\d.]+$/g)].filter(m => m[1] === m[2]).map(m => Number(m[1])) : []).sort((a, b) => a - b);
+    const head = part.items.find((i): i is Extract<typeof i, {k: 'text'}> => i.k === 'text' && i.s === 'Observability')!;
+    const gap = (rules[1]! - rules[0]!) / 2 - widthOf(head.s, head.size, 700, '' as never) / 2;
+    assert.ok(gap >= 2 - 0.5, `the head stays inside its column at width ${w} (gap ${gap})`);
+    const short = part.items.find((i): i is Extract<typeof i, {k: 'text'}> => i.k === 'text' && i.s === 'B')!;
+    assert.ok((rules[1]! - rules[0]!) / 2 - widthOf('B', short.size, 700, '' as never) / 2 >= 8);
+  }
+});
+
+test('compare(): more than 12 columns advises only splitting, as a transpose would exceed 12 rows (round 2 m2)', () => {
+  const cols = Array.from({length: 13}, (_, i) => `c${i}`);
+  assert.throws(() => resolveCompare(['a', 'b', 'c'], cols, [0, 1, 2].map(() => cols.map(() => null))), (e: Error) => /split into two figures/.test(e.message) && !/transpose/.test(e.message));
+});

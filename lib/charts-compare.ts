@@ -21,7 +21,7 @@ export interface CompareSpec {rows: string[]; cols: string[]; cells: ({mark: Cel
 export function resolveCompare(rows: readonly string[], cols: readonly string[], cells: readonly (readonly CompareCell[])[], opts: CompareOpts = {}): CompareSpec {
   if (!Array.isArray(rows) || rows.length === 0) fail('compare', 'needs at least one row');
   if (!Array.isArray(cols) || cols.length === 0) fail('compare', 'needs at least one column');
-  if (cols.length > 6) fail('compare', `${cols.length} columns is over the limit of 6 (every cell holds a sentence): ${rows.length <= 6 ? 'put the options as rows and the criteria as columns (transpose), or split into two figures' : 'split into two figures'}`);
+  if (cols.length > 6) fail('compare', `${cols.length} columns is over the limit of 6 (every cell holds a sentence): ${rows.length <= 6 && cols.length <= 12 ? 'put the options as rows and the criteria as columns (transpose), or split into two figures' : 'split into two figures'}`);
   if (rows.length > 12) fail('compare', `${rows.length} rows is over the limit of 12 (every cell holds a sentence): split into two figures`);
   rows.forEach((r, i) => checkText('compare', `row ${i + 1}`, r));
   cols.forEach((k, j) => checkText('compare', `column ${j + 1}`, k));
