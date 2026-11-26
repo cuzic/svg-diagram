@@ -100,11 +100,11 @@ test('a long title steps down to 48 px, then 40 px; a cover that does not fit is
   assert.equal(url.noRoom, true);
 });
 
-test('a slide that is not a cover is planned as before: the .pptx XML of ordinary slides is the same bytes as on main (960d16b8)', () => {
+test('a slide that is not a cover is planned as before: the .pptx XML of ordinary slides is the same bytes as on main (960d16b8), except the source box is wrap="none" (PR #491)', () => {
   const w: TextWidth = (t, size, bold) => [...t].length * size * (bold ? 1.05 : 1);
   const xml = [planDeckSlide({title: '見出しの文', lead: 'リードの文。'.repeat(8), callouts: [{label: '足す一文：', text: '強調の文'}], source: '出典: 例', notes: 'n'}, fontsOf(), w).xml,
     planDeckSlide({title: 'T', columns: [{caption: '左', text: '・一\n・二'}, {text: '右の文'}]}, fontsOf(), w).xml].join('\n');
-  assert.equal(createHash('sha256').update(xml).digest('hex'), '08ee29a69818899ae2f9b2de72be2bced51f6312f3c4267d15a25e3f83cf20d9');
+  assert.equal(createHash('sha256').update(xml).digest('hex'), '4e134f94f70392157ccac6645f69654db90878b80362f298528201ac7896797d');
 });
 
 test('deckTexts lists every text a cover measures, at every size and weight it is measured at', () => {
