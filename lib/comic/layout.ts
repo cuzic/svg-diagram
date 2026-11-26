@@ -1,6 +1,6 @@
 // The layout of a comic() band (ADR 0074 D1 / D2): panels on a grid, the people at fixed places in each, the bubbles over their heads. A pure
 // function of the data and a width function: the values of the blanks do not come in (they are drawn on top, ADR 0074 D5).
-import {BADGE, FONT, GUTTER, HEAD_FROM_BOTTOM, HEAD_KEEP, HEAD_R, LINE_H, MARGIN, PAD_X, PAD_Y, PANEL_W, PANEL_W_2X2, NARRATION_LEFT, SIDE_KEEP, SLOT_FONT, STACK_GAP, STAGE_X, TAIL_CLEAR, TAIL_HALF, TAIL_MIN, TAIL_STOP, ZONE_TOP, bandWidth, f1} from './constants.ts';
+import {BADGE_OVERHANG, GUTTER, HEAD_FROM_BOTTOM, HEAD_KEEP, HEAD_R, MARGIN, PANEL_W, PANEL_W_2X2, ROW_FALLBACK_W, ROW_PANEL_MIN, ROW_CENTER_MIN, HEAD_GAP, SIDE_KEEP, STACK_GAP, STAGE_X, TAIL_CLEAR, TAIL_HALF, TAIL_MIN, TAIL_STOP, bandWidth, f1, metricsOf} from './constants.ts';
 import {ceil4} from '../connect-rules.ts';
 import {snap4} from '../emit-common.ts';
 import {rectOverlap} from '../verify-base.ts';
@@ -18,40 +18,66 @@ import type {Anchor, Rect, WidthOf} from '../types/core.ts';
 
 export {slotMax} from './slot-check.ts';
 /** The panels of each named layout: columns x rows. */
-export const LAYOUT_GRID: Readonly<Record<ComicLayoutName, {cols: number; rows: number}>> = {'1x4': {cols: 1, rows: 4}, '2x2': {cols: 2, rows: 2}, '1x3': {cols: 1, rows: 3}, '1x2': {cols: 1, rows: 2}};
+export const LAYOUT_GRID: Readonly<Record<ComicLayoutName, {cols: number; rows: number}>> = {'1x4': {cols: 1, rows: 4}, '2x2': {cols: 2, rows: 2}, '1x3': {cols: 1, rows: 3}, '1x2': {cols: 1, rows: 2}, '2x1': {cols: 2, rows: 1}, '3x1': {cols: 3, rows: 1}, '4x1': {cols: 4, rows: 1}};
+/** A row of panels side by side (2x1 / 3x1 / 4x1): narrower, taller panels. */
+const isRow = (layout: ComicLayoutName): boolean => LAYOUT_GRID[layout].rows === 1;
 /** The default shape of a panel in a column of panels (ADR 0074 Q10; see the measurement in the ADR). */
 export const DEFAULT_COLUMN_ASPECT: ComicAspect = '6:5';
-const RATIO: Record<ComicAspect, number> = {'7:5': 5 / 7, '6:5': 5 / 6, '1:1': 1};
+const RATIO: Record<ComicAspect, number> = {'7:5': 5 / 7, '6:5': 5 / 6, '1:1': 1, '3:4': 4 / 3};
 
-export const aspectOf = (layout: ComicLayoutName, aspect: ComicAspect | undefined): ComicAspect => aspect ?? (layout === '2x2' ? '1:1' : DEFAULT_COLUMN_ASPECT);
-/** The size of one panel: 420 wide in a column (360 in a 2x2), the height from the aspect on the 4px grid. */
-export function panelSize(layout: ComicLayoutName, aspect: ComicAspect | undefined): {w: number; h: number} {
-  const w = LAYOUT_GRID[layout].cols === 2 ? PANEL_W_2X2 : PANEL_W;
+export const aspectOf = (layout: ComicLayoutName, aspect: ComicAspect | undefined): ComicAspect => aspect ?? (isRow(layout) ? '3:4' : layout === '2x2' ? '1:1' : DEFAULT_COLUMN_ASPECT);
+/** What a row panel would get of the band width `bandW` (the slide canvas's 1212 when it is not known): floor((bandW - margins - gutters) / columns) on the 4px grid. */
+const rowShare = (layout: ComicLayoutName, bandW: number | undefined): number => {
+  const {cols} = LAYOUT_GRID[layout];
+  return Math.floor(((bandW !== undefined && bandW > 0 ? bandW : ROW_FALLBACK_W) - 2 * MARGIN - (cols - 1) * GUTTER) / cols / 4) * 4;
+};
+/**
+ * The size of one panel: 420 wide in a column (360 in a 2x2), the height from the aspect on the 4px grid. In a row (2x1 / 3x1 / 4x1) the panels share
+ * the width `bandW` the diagram gives the band (the slide canvas's 1212 when it is not known): floor((bandW - margins - gutters) / columns) on the 4px grid, at most 420.
+ */
+export function panelSize(layout: ComicLayoutName, aspect: ComicAspect | undefined, bandW?: number): {w: number; h: number} {
+  const {cols} = LAYOUT_GRID[layout];
+  const w = isRow(layout) ? Math.min(PANEL_W, Math.max(ROW_PANEL_MIN, rowShare(layout, bandW))) : cols === 2 ? PANEL_W_2X2 : PANEL_W;
   return {w, h: snap4(w * RATIO[aspectOf(layout, aspect)])};
 }
 /** The band over the heads that the bubbles stack in: from ZONE_TOP to HEAD_KEEP above the head circle, as distances from the panel's top. */
-export const zoneOf = (panelH: number): {top: number; bottom: number} => ({top: ZONE_TOP, bottom: panelH - HEAD_FROM_BOTTOM - HEAD_R - HEAD_KEEP});
+export const zoneOf = (panelH: number, font?: number): {top: number; bottom: number} => ({top: metricsOf(font).zoneTop, bottom: panelH - HEAD_FROM_BOTTOM - HEAD_R - HEAD_KEEP});
 /** The most lines two stacked bubbles may have together: what the zone holds (4 at 7:5, 6 at 6:5). */
-export const lineBudget = (panelH: number): number => { const z = zoneOf(panelH); return Math.floor((z.bottom - z.top - STACK_GAP - 2 * 2 * PAD_Y) / LINE_H); };
+export const lineBudget = (panelH: number, font?: number): number => { const z = zoneOf(panelH, font), m = metricsOf(font); return Math.floor((z.bottom - z.top - STACK_GAP - 2 * 2 * m.padY) / m.lineH); };
 /** The height of a bubble of `n` lines. */
-export const bubbleHeight = (n: number): number => ceil4(n * LINE_H + 2 * PAD_Y);
+export const bubbleHeight = (n: number, font?: number): number => { const m = metricsOf(font); return ceil4(n * m.lineH + 2 * m.padY); };
 const MAX_BUBBLE_LINES = 3;
 
 
 
-const headX = (at: ComicAt, w: number): number => at === 'left' ? STAGE_X : at === 'right' ? w - STAGE_X : Math.floor(w / 2 / 4) * 4;
+const headX = (at: ComicAt, w: number, stageX: number): number => at === 'left' ? stageX : at === 'right' ? w - stageX : Math.floor(w / 2 / 4) * 4;
 
 export function layoutComic(band: ComicBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutComic {
   const sheet = band.sheet;
   const {cols, rows} = LAYOUT_GRID[sheet.layout];
   const aspect = aspectOf(sheet.layout, band.aspect);
-  const {w: PW, h: PH} = panelSize(sheet.layout, band.aspect);
-  const zone = zoneOf(PH), budget = lineBudget(PH);
-  const W = bandWidth(cols, PW), H = 2 * MARGIN + rows * PH + (rows - 1) * GUTTER;
-  const bx = x + snap4(Math.max(0, w - W) / 2), by = y;
+  const {w: PW, h: PH} = panelSize(sheet.layout, band.aspect, w);
+  const fontSize = band.fontSize ?? metricsOf().font, m = metricsOf(fontSize);
+  const row = isRow(sheet.layout);
+  // a row panel keeps three heads HEAD_GAP apart (never past the side by more than the head's own radius); the wider panels keep 104
+  const stageX = row ? Math.min(STAGE_X, Math.max(HEAD_R + 4, Math.floor((PW / 2 - 2 * HEAD_R - HEAD_GAP) / 4) * 4)) : STAGE_X;
+  const zone = zoneOf(PH, fontSize), budget = lineBudget(PH, fontSize);
+  const W = bandWidth(cols, PW);
+  const bx0 = x + snap4(Math.max(0, w - W) / 2);
+  // a row band sits on the 4px grid whatever the padding or the bands above it (a canvas's scaled padding is not a multiple of 4): left edge down, top edge down
+  const bx = row ? Math.floor(bx0 / 4) * 4 : bx0, by = row ? Math.ceil(y / 4) * 4 : y;
+  const H = 2 * MARGIN + rows * PH + (rows - 1) * GUTTER + (by - y);
   const findings: ComicFinding[] = [];
   const add = (rule: ComicRule, where: string, message: string, severity: ComicFinding['severity'] = 'problem'): void => { findings.push({rule, severity, where, message}); };
-  const atomWidth = (atom: string): number => comicAtomWidth(atom, widthOf);
+  const atomWidth = (atom: string): number => comicAtomWidth(atom, widthOf, fontSize);
+  // a row panel is never narrower than ROW_PANEL_MIN (two people and a short line); a band that cannot give it that is drawn at that width and reported once
+  const needW = bandWidth(cols, ROW_PANEL_MIN) + 2 * x; // the diagram's width: the band plus the padding on both sides (x is the band's left edge)
+  if (row && rowShare(sheet.layout, w) < ROW_PANEL_MIN) add('comic-band-narrow', 'comic', `layout ${sheet.layout} needs a diagram at least ${needW}px wide (${ROW_PANEL_MIN}px panels), but the band gets ${w}px: use diagram({width: ${needW}}) or more, or fewer columns (a 2x2 or a column of panels)`);
+  // a row panel narrower than 232px cannot keep three heads apart (left / centre / right at 40px from the sides)
+  if (row && PW < ROW_CENTER_MIN && sheet.panels.some(p => p.stage.some(s => s.at === 'center'))) add('comic-band-narrow', 'comic', `a person stands at center, but the ${PW}px panels of ${sheet.layout} are narrower than ${ROW_CENTER_MIN}px, so the heads overlap: use two people (left and right), fewer columns, or a wider diagram (${bandWidth(cols, ROW_CENTER_MIN) + 2 * x}px or more)`);
+  // an aspect too short for any bubble at this width and fontSize: one message, not one per bubble
+  const noRoom = budget < 1 && sheet.panels.some(p => p.dialogue.length > 0);
+  if (noRoom) add('comic-text-budget', 'comic', `the ${PH}px panels leave no room for a bubble at fontSize ${fontSize} (the band over the heads is ${zone.bottom - zone.top}px): choose a taller aspect (aspect: '3:4'), fewer columns or a smaller fontSize`);
   if (sheet.panels.length !== cols * rows) add('comic-panel-count', 'comic', `layout ${sheet.layout} has ${cols * rows} panels, but panels has ${sheet.panels.length} (add or remove panels, or change layout)`);
 
   const panels: ComicLaidPanel[] = [], bubbles: ComicLaidBubble[] = [], anchors: Anchor[] = [], texts: ComicText[] = [];
@@ -65,7 +91,7 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
       if (taken.has(s.at)) add('comic-at-collision', p.id, `two people stand at ${s.at} in ${p.id} (use left / center / right once each)`);
       taken.add(s.at);
       if (heads.has(s.who)) continue;
-      const cx = px + headX(s.at, PW);
+      const cx = px + headX(s.at, PW, stageX);
       const cast = sheet.cast[s.who], asset = cast?.asset;
       const ch = asset !== undefined && band.characters && Object.hasOwn(band.characters, asset) ? band.characters[asset] : undefined;
       const head: ComicLaidHead = {
@@ -87,21 +113,24 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
     const label = sheet.numbering === false ? undefined : sheet.labels?.[pi] ?? String(pi + 1);
     panels.push({id: p.id, x: px, y: py, w: PW, h: PH, ...(label === undefined ? {} : {label}), tint: p.bg?.tint ?? 'plain', heads: [...heads.values()]});
     anchors.push({id: p.id, x: px, y: py, w: PW, h: PH});
-    if (label !== undefined) texts.push({x: px - 8 + BADGE / 2, y: py - 8 + 17, size: SLOT_FONT, text: label});
+    if (label !== undefined) texts.push({x: px - BADGE_OVERHANG + m.badge / 2, y: py - BADGE_OVERHANG + m.badgeBase, size: m.badgeText, text: label});
 
     const placed: {x: number; y: number; w: number; h: number; lines: number}[] = [];
     const panelSlots = new Set<string>(), skipChecks = new Set<string>();
     let budgetReported = false;
+    const twoSpeakers = new Set(p.dialogue.filter(d => d.kind !== 'narration' && d.who !== undefined).map(d => d.who)).size > 1;
+    const alone = Math.floor((PW - 2 * SIDE_KEEP) / 4) * 4, sideBySide = Math.floor((PW - 2 * SIDE_KEEP - STACK_GAP) / 2 / 4) * 4;
     for (const dlg of p.dialogue) {
       const id = `${p.id}.${dlg.id}`;
       const parts = parseTemplate(dlg.tpl, `comic(): ${id}`);
       const info = (sid: string) => slotInfo(dlg, sid);
-      const R = reserveDialogue(parts, sid => info(sid).max, atomWidth);
-      const bw = ceil4(R.inner + 2 * PAD_X), bh = bubbleHeight(R.lines.length);
+      // a row panel wraps its text to what fits (never wider than the panel; half of it when two people speak, so their bubbles can sit side by side) and the bubble is as wide as the text
+      const R = reserveDialogue(parts, sid => info(sid).max, atomWidth, fontSize, row ? {cap: Math.min(9 * fontSize, (twoSpeakers ? sideBySide : alone) - 2 * m.padX), shrink: true} : {});
+      const bw = ceil4(R.inner + 2 * m.padX), bh = bubbleHeight(R.lines.length, fontSize);
       const speaker = dlg.who === undefined ? undefined : heads.get(dlg.who);
       if (!speaker && dlg.kind !== 'narration') add('comic-speaker-unknown', id, `${dlg.who ?? '(no who)'} is not on the stage of ${p.id}${dlg.who !== undefined && !(dlg.who in sheet.cast) ? ' and not in cast' : ''} (add them to stage, or fix who)`);
       // the bubble's x: over the speaker's head, kept inside the panel; a narration sits in the corner
-      const want = dlg.kind === 'narration' ? px + NARRATION_LEFT + bw / 2 : speaker ? speaker.cx : px + PW / 2;
+      const want = dlg.kind === 'narration' ? px + m.narrationLeft + bw / 2 : speaker ? speaker.cx : px + PW / 2;
       const left = snap4(Math.min(Math.max(want - bw / 2, px + SIDE_KEEP), px + PW - SIDE_KEEP - bw));
       // stacked under every earlier bubble it overlaps sideways, or that lies to its right (side by side only when the earlier ones are all to its left)
       const under = placed.filter(q => (q.x < left + bw + STACK_GAP && left < q.x + q.w + STACK_GAP) || left < q.x);
@@ -111,17 +140,18 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
       // the root causes first; the face and tail checks of a bubble that overflowed are its consequences, so they do not run (one mistake, one report)
       const pastZone = top + bh > py + zone.bottom;
       const overhang = pastZone ? undefined : overhangs.find(({bounds}) => rectOverlap(rect, bounds, 0));
-      if (pastZone) add('comic-bubble-zone', id, `${id}: the stack ends ${top + bh - py}px from the top of the panel, but the band over the heads ends at ${zone.bottom}px (fewer or shorter lines: at most ${budget} lines in all)`);
+      if (bw > PW - 2 * SIDE_KEEP) add('comic-bubble-zone', id, `${id}: the bubble is ${bw}px wide, wider than the panel allows (${PW - 2 * SIDE_KEEP}px): ${row ? `use a smaller fontSize (now ${fontSize}), fewer columns (wider panels), a wider diagram, or a shorter blank` : 'shorten the blank or the text, or use a smaller fontSize'}`);
+      if (pastZone && !noRoom) add('comic-bubble-zone', id, `${id}: the stack ends ${top + bh - py}px from the top of the panel, but the band over the heads ends at ${zone.bottom}px (fewer or shorter lines: at most ${budget} lines in all)`);
       else if (overhang) add('comic-bubble-zone', id, `${id} が ${overhang.id} の素材の上部に重なります。台詞を短くするか、人物や素材の絵の位置を調整してください`);
       const stackLines = R.lines.length + under.reduce((n, q) => n + q.lines, 0);
-      if (!budgetReported && (stackLines > budget || R.lines.length > MAX_BUBBLE_LINES)) {
+      if (!noRoom && !budgetReported && (stackLines > budget || R.lines.length > MAX_BUBBLE_LINES)) {
         budgetReported = true;
         add('comic-text-budget', id, `${id}: ${R.lines.length > MAX_BUBBLE_LINES ? `${R.lines.length} lines in one bubble (at most ${MAX_BUBBLE_LINES})` : `${stackLines} lines are stacked in ${p.id} (at most ${budget})`}; shorten the lines (blanks count at their widest)`);
       }
       for (const n of R.notes) add(`comic-${n}` as ComicRule, id, wrapNote(n, id, R), 'advice');
       checkDialogueSlots(dlg, id, parts, seenSlots, add, panelSlots);
       // the text block: lines centred in the inner rectangle; a run of literal atoms is one <text>, a blank is a rectangle of its own
-      const ih = R.lines.length * LINE_H, tx0 = left + (bw - R.inner) / 2, ty0 = top + (bh - ih) / 2;
+      const ih = R.lines.length * m.lineH, tx0 = left + (bw - R.inner) / 2, ty0 = top + (bh - ih) / 2;
       const runs: ComicRun[] = [], slots: ComicLaidSlot[] = [];
       R.lines.forEach((l, i) => {
         let ax = tx0 + (R.inner - l.w) / 2, open = false;
@@ -129,15 +159,15 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
           if (a.slot) {
             open = false;
             const def = info(a.slot).def;
-            slots.push({id: a.slot, x: f1(ax), y: f1(ty0 + i * LINE_H + 2), w: a.w, h: LINE_H - 4, max: info(a.slot).max, prompt: def?.prompt ?? '', fallback: def?.fallback ?? '…',
+            slots.push({id: a.slot, x: f1(ax), y: f1(ty0 + i * m.lineH + 2), w: a.w, h: m.lineH - 4, max: info(a.slot).max, prompt: def?.prompt ?? '', fallback: def?.fallback ?? '…',
               ...(def === undefined ? {defined: false} : {})});
           } else if (open) (runs[runs.length - 1] as ComicRun).text += a.text;
-          else { open = true; runs.push({x: f1(ax), y: f1(ty0 + i * LINE_H + 19), text: a.text}); }
+          else { open = true; runs.push({x: f1(ax), y: f1(ty0 + i * m.lineH + m.baseline), text: a.text}); }
           ax += a.w;
         }
       });
-      for (const r of runs) texts.push({x: r.x, y: r.y, size: FONT, text: r.text});
-      for (const s of slots) texts.push({x: f1(s.x + s.w / 2), y: f1(s.y + s.h - 5), size: SLOT_FONT, text: s.prompt});
+      for (const r of runs) texts.push({x: r.x, y: r.y, size: m.font, text: r.text});
+      if (sheet.blank !== 'line') for (const s of slots) texts.push({x: f1(s.x + s.w / 2), y: f1(s.y + s.h - 5), size: m.slotFont, text: s.prompt});
       const bubble: ComicLaidBubble = {id, panel: p.id, kind: dlg.kind, ...(dlg.who === undefined ? {} : {who: dlg.who}), ...rect, lines: R.lines.map(l => l.atoms.map(a => a.text).join('')), runs, slots, title: fillTemplate(parts, () => '＿＿'),
         ...(slots.length ? {template: dlg.tpl} : {})};
       const tail = speaker && dlg.kind !== 'narration' ? tailOf(bubble, speaker) : undefined;
@@ -156,7 +186,7 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
       if (hit.some(o => o.who === b.who)) { delete b.tail; continue; }
       const speaker = b.who === undefined ? undefined : heads.get(b.who);
       if (skipChecks.has(b.id) || !speaker) continue;
-      if (hit.length) add('comic-tail-crosses-bubble', b.id, `the tail of ${b.id} runs behind ${hit.map(o => o.id).join(', ')} (put the speakers' bubbles in an order that keeps their tails apart, or merge the lines of one speaker)`);
+      if (hit.length) add('comic-tail-crosses-bubble', b.id, `the tail of ${b.id} runs behind ${hit.map(o => o.id).join(', ')} (put the speakers' bubbles in an order that keeps their tails apart, or merge the lines of one speaker${row ? `; in a row panel two speakers' bubbles sit side by side only when each line is short (about ${Math.floor((sideBySide - 2 * m.padX) / fontSize)} full-width characters at fontSize ${fontSize}): shorten a line, or give the panel one bubble` : ''})`);
       checkTail(b, speaker, add);
     }
     if (panelSlots.size > 2) add('comic-slots-per-panel', p.id, `${p.id} has ${panelSlots.size} blanks (at most 2 in a panel: the reader fills them in one glance)`);
@@ -169,7 +199,7 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
     anchors.push({id, x, y, w, h});
   }
   return {type: 'comic', ...(band.id === undefined ? {} : {id: band.id}), ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until}),
-    x: bx, y: by, w: W, h: H, title: sheet.title, layout: sheet.layout, aspect, blank: sheet.blank ?? 'prompt', panels, bubbles, anchors, texts, findings, characters: {...band.characters}};
+    x: bx, y: by, w: W, h: H, title: sheet.title, layout: sheet.layout, aspect, blank: sheet.blank ?? 'prompt', ...(band.fontSize === undefined || band.fontSize === metricsOf().font ? {} : {fontSize: band.fontSize}), panels, bubbles, anchors, texts, findings, characters: {...band.characters}};
 }
 
 const wrapNote = (n: 'orphan-line' | 'bubble-wide' | 'follower-split', id: string, r: Reserved): string => n === 'orphan-line' ? `${id}: the last line is two characters or fewer ("${r.lines.at(-1)?.atoms.map(a => a.text).join('') ?? ''}"); lengthen it or merge it into the line before`

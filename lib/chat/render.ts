@@ -26,6 +26,7 @@ export async function renderChat(sheet: ChatInput, opts: {
   characters?: Record<string, CharacterManifest>;
   self?: ChatOpts['self'];
   width?: ChatOpts['width'];
+  fontSize?: ChatOpts['fontSize'];
   separators?: boolean;
   input?: ChatOpts['input'];
   nodeIds?: boolean;
@@ -34,7 +35,7 @@ export async function renderChat(sheet: ChatInput, opts: {
   const {measure, nodeIds} = opts;
   const values = {...opts.values};
   const band = chat(sheet, {
-    ...(opts.characters === undefined ? {} : {characters: opts.characters}), ...(opts.self === undefined ? {} : {self: opts.self}), ...(opts.width === undefined ? {} : {width: opts.width}),
+    ...(opts.characters === undefined ? {} : {characters: opts.characters}), ...(opts.self === undefined ? {} : {self: opts.self}), ...(opts.width === undefined ? {} : {width: opts.width}), ...(opts.fontSize === undefined ? {} : {fontSize: opts.fontSize}),
     ...(opts.separators === undefined ? {} : {separators: opts.separators}), ...(opts.input === undefined ? {} : {input: opts.input}),
   });
   const pad = 20;

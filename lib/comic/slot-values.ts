@@ -29,21 +29,21 @@ export function slotValue(slot: ComicLaidSlot, values: ValueTable): {text: strin
 const valueWidth = ({text, weight}: {text: string; weight: FontWeight}, size: number, widthOf: WidthOf): number =>
   textWidth((atom, size) => comicAtomWidth(atom, widthOf, size, weight), text, size, weight);
 
-export function slotFontSize(slot: ComicLaidSlot, value: {text: string; weight: FontWeight}, widthOf = noMeasure): number {
-  const w18 = valueWidth(value, FONT, widthOf);
-  if (w18 <= slot.w) return FONT;
+export function slotFontSize(slot: ComicLaidSlot, value: {text: string; weight: FontWeight}, widthOf = noMeasure, font: number = FONT): number {
+  const w18 = valueWidth(value, font, widthOf);
+  if (w18 <= slot.w) return font;
   if (valueWidth(value, MIN_FONT_SIZE, widthOf) > slot.w) return MIN_FONT_SIZE;
-  return Math.max(MIN_FONT_SIZE, f1(FONT * slot.w / w18));
+  return Math.max(MIN_FONT_SIZE, f1(font * slot.w / w18));
 }
 
 /** Both sizes are requested up front so rendering and verification can be synchronous. */
-export function* valueAtoms(laid: {bubbles: readonly {slots: readonly ComicLaidSlot[]}[]}, values: ValueTable): Iterable<Required<MeasureRequest>> {
+export function* valueAtoms(laid: {fontSize?: number; bubbles: readonly {slots: readonly ComicLaidSlot[]}[]}, values: ValueTable): Iterable<Required<MeasureRequest>> {
   for (const {slots} of laid.bubbles) for (const slot of slots) {
     const value = slotValue(slot, values);
     if (!value) continue;
     for (const text of splitAtoms(value.text)) {
       if (isFullWidth(text)) continue;
-      for (const size of [FONT, MIN_FONT_SIZE]) yield {text, size, weight: value.weight, font: 'sans'};
+      for (const size of [laid.fontSize ?? FONT, MIN_FONT_SIZE]) yield {text, size, weight: value.weight, font: 'sans'};
     }
   }
 }

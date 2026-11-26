@@ -41,12 +41,13 @@ export async function renderComic(sheet: ComicWorksheet, opts: {
   values?: Values;
   characters?: Record<string, CharacterManifest>;
   aspect?: ComicAspect;
+  fontSize?: number;
   nodeIds?: boolean;
 }): Promise<ComicRender> {
   if (typeof opts?.measure !== 'function') throw new Error('renderComic: opts.measure に文字幅の測定関数を渡してください');
-  const {measure, characters, aspect, nodeIds} = opts;
+  const {measure, characters, aspect, fontSize, nodeIds} = opts;
   const values = {...opts.values};
-  const band = comic(sheet, {...(characters === undefined ? {} : {characters}), ...(aspect === undefined ? {} : {aspect})});
+  const band = comic(sheet, {...(characters === undefined ? {} : {characters}), ...(aspect === undefined ? {} : {aspect}), ...(fontSize === undefined ? {} : {fontSize})});
   // The comic band fills diagram()'s content width, inside the default 20px padding on each side.
   const pad = 20;
   const width = bandWidth(LAYOUT_GRID[band.sheet.layout].cols, panelSize(band.sheet.layout, aspect).w) + 2 * pad;

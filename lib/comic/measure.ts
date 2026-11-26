@@ -10,7 +10,7 @@ import type {FontFamily} from '../types/core.ts';
 export function comicMeasure(band: ComicBand): [string, number, number, FontFamily][] {
   const out: [string, number, number, FontFamily][] = [];
   for (const p of band.sheet.panels) for (const d of p.dialogue) {
-    for (const part of parseTemplate(d.tpl)) if ('lit' in part) for (const a of splitAtoms(part.lit)) if (!isFullWidth(a)) out.push([a, FONT, 400, 'sans']);
+    for (const part of parseTemplate(d.tpl)) if ('lit' in part) for (const a of splitAtoms(part.lit)) if (!isFullWidth(a)) out.push([a, band.fontSize ?? FONT, 400, 'sans']);
   }
   return out;
 }

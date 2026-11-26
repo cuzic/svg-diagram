@@ -245,3 +245,15 @@ test('the pieces of chat(): the bubble outline, the blank checks and the shared 
   assert.deepEqual(dialogueValueFindings(NOTICE.dialogue, laid, {}), []);
   assert.match(slotSvg(laid.bubbles[0]!.slots[0]!, 'prompt', '', undefined), /行事/);
 });
+
+test('fontSize: the blanks are the same size in the chat as in the comic at the same fontSize; the lines and the bubbles grow with it', () => {
+  for (const fontSize of [14, 24, 28]) {
+    const inComic = Object.fromEntries(layoutComic(comic(SAMPLE, {fontSize}), 0, 0, 0, widthOf).bubbles.flatMap(b => b.slots.map(s => [s.id, [s.w, s.h, s.max]])));
+    const inChat = lay(SAMPLE, {fontSize});
+    assert.deepEqual(Object.fromEntries(inChat.bubbles.flatMap(b => b.slots.map(s => [s.id, [s.w, s.h, s.max]]))), inComic, `fontSize ${fontSize}`);
+    assert.equal(inChat.fontSize, fontSize);
+  }
+  assert.equal(lay(SAMPLE).fontSize, undefined, 'the default leaves it out');
+  assert.ok(lay(NOTICE, {fontSize: 28}).bubbles[0]!.h > lay(NOTICE).bubbles[0]!.h);
+  assert.throws(() => chat(NOTICE, {fontSize: 30}), /fontSize must be a whole number from 14 to 28/);
+});

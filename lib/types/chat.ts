@@ -16,6 +16,8 @@ export interface ChatOpts extends RevealOpts, ScopeOpts {
   id?: string;
   /** The band's width in px, 480 (default) to 880 in steps of 4. The column and the 70% wrap width scale with it (D7). */
   width?: number;
+  /** The size of the dialogue text in px, a whole number from 14 to 28 (default 18): the same as comic()'s, so a blank is the same size in both. */
+  fontSize?: number;
   /** The cast key whose lines are on the right (default 'me'). */
   self?: string;
   /** A thin line between the panels of a worksheet (default off; a dialogue list has no panels). */
@@ -67,6 +69,8 @@ export interface LaidOutChat extends Dimmed {
   id?: string; reveal?: number; until?: number;
   x: number; y: number; w: number; h: number;
   title: string;
+  /** Left out at the default 18. */
+  fontSize?: number;
   blank: 'prompt' | 'line';
   /** The bubbles' column: the width a bubble may take, from its edge. */
   column: number;

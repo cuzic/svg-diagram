@@ -8,9 +8,10 @@ import type {FontFamily} from '../types/core.ts';
 import {INPUT_FONT} from './constants.ts';
 
 export function chatMeasure(band: ChatBand): [string, number, number, FontFamily][] {
+  const font = band.fontSize ?? FONT;
   const out: [string, number, number, FontFamily][] = [];
   for (const d of band.sheet.dialogue) {
-    for (const part of parseTemplate(d.tpl)) if ('lit' in part) for (const a of splitAtoms(part.lit)) if (!isFullWidth(a)) out.push([a, FONT, 400, 'sans']);
+    for (const part of parseTemplate(d.tpl)) if ('lit' in part) for (const a of splitAtoms(part.lit)) if (!isFullWidth(a)) out.push([a, font, 400, 'sans']);
   }
   if (band.input !== undefined) for (const a of splitAtoms(band.input)) if (!isFullWidth(a)) out.push([a, INPUT_FONT, 400, 'sans']);
   return out;

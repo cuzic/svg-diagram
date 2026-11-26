@@ -1,6 +1,7 @@
 // chat() (ADR 0074 D7): the dialogue of a comic worksheet (or a dialogue list with a cast) as a chat screen. The data holds no coordinates and no sizes.
 import {COMIC_ID} from '../comic/template.ts';
 import {CHAT_W, CHAT_W_MAX} from '../chat/constants.ts';
+import {FONT_SIZE_MAX, FONT_SIZE_MIN} from '../comic/constants.ts';
 import {loadCharacter} from '../comic/character.ts';
 import type {Declares, HandleOf} from '../strict.ts';
 import type {ChatBand, ChatInput, ChatMessage, ChatOpts, ChatSheet} from '../types/chat.ts';
@@ -63,6 +64,7 @@ export function chat(input: ChatInput, opts: ChatOpts = {}): ChatBand {
   if (opts.width !== undefined && (!Number.isInteger(opts.width) || opts.width < CHAT_W || opts.width > CHAT_W_MAX || opts.width % 4 !== 0)) {
     throw new Error(`chat(): width is a whole number from ${CHAT_W} to ${CHAT_W_MAX} in steps of 4 (got ${JSON.stringify(opts.width)})`);
   }
+  if (opts.fontSize !== undefined && (!Number.isInteger(opts.fontSize) || opts.fontSize < FONT_SIZE_MIN || opts.fontSize > FONT_SIZE_MAX)) throw new Error(`chat(): fontSize must be a whole number from ${FONT_SIZE_MIN} to ${FONT_SIZE_MAX} (got ${String(opts.fontSize)})`);
   let text: string | undefined;
   if (opts.input !== undefined) {
     text = opts.input === true ? CHAT_INPUT_DEFAULT : opts.input;
@@ -75,7 +77,7 @@ export function chat(input: ChatInput, opts: ChatOpts = {}): ChatBand {
     return [key, character];
   }));
   const band: ChatBand = {type: 'chat', sheet, ...(Object.keys(characters).length ? {characters} : {}),
-    ...(opts.self === undefined ? {} : {self: opts.self}), ...(opts.width === undefined ? {} : {width: opts.width}), ...(opts.separators === undefined ? {} : {separators: opts.separators}),
+    ...(opts.self === undefined ? {} : {self: opts.self}), ...(opts.width === undefined ? {} : {width: opts.width}), ...(opts.fontSize === undefined ? {} : {fontSize: opts.fontSize}), ...(opts.separators === undefined ? {} : {separators: opts.separators}),
     ...(text === undefined ? {} : {input: text}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'chat()'), ...revealOf(opts)};
   return withHandle(band, opts.id);
 }

@@ -3,7 +3,7 @@
 import {textWidth} from '../atoms.ts';
 import {ceil4} from '../connect-rules.ts';
 import {snap4} from '../emit-common.ts';
-import {FONT, LINE_H, PAD_X, PAD_Y, SLOT_FONT, f1} from '../comic/constants.ts';
+import {FONT, f1, metricsOf} from '../comic/constants.ts';
 import {defaultHue} from '../comic/face.ts';
 import {reserveDialogue} from '../comic/reserve.ts';
 import {checkDialogueSlots, slotInfo} from '../comic/slot-check.ts';
@@ -12,10 +12,9 @@ import {comicAtomWidth} from '../comic/width.ts';
 import type {ChatBand, ChatLaidAvatar, ChatLaidBubble, ChatLaidInput, LaidOutChat} from '../types/chat.ts';
 import type {ComicFinding, ComicLaidSlot, ComicRule, ComicRun, ComicText} from '../types/comic.ts';
 import type {Anchor, WidthOf} from '../types/core.ts';
-import {chatDims, AVATAR_D, AVATAR_GAP, BUBBLE_R, CHAT_MARGIN, CHAT_W, GAP_RUN, GAP_SAME, GAP_SEPARATOR, INPUT_FONT, INPUT_GAP, INPUT_H, NAME_FONT, NAME_H, SEND_R} from './constants.ts';
+import {chatDims, AVATAR_D, AVATAR_GAP, BUBBLE_R, CHAT_MARGIN, CHAT_W, GAP_RUN, GAP_SAME, GAP_SEPARATOR, INPUT_FONT, INPUT_GAP, INPUT_H, SEND_R} from './constants.ts';
 
 export const DEFAULT_SELF = 'me';
-const bubbleHeight = (n: number): number => ceil4(n * LINE_H + 2 * PAD_Y);
 /** The corner radius of a bubble of this height. */
 export const bubbleRadius = (h: number): number => Math.min(BUBBLE_R, h / 2);
 
@@ -26,15 +25,17 @@ export const inputRoom = (w: number): number => w - INPUT_PAD - 2 * SEND_R - 16;
 export function layoutChat(band: ChatBand, x: number, y: number, w: number, widthOf: WidthOf): LaidOutChat {
   const sheet = band.sheet;
   const self = band.self ?? DEFAULT_SELF;
+  const font = band.fontSize ?? FONT, met = metricsOf(font), {lineH, padX, padY} = met;
   const {w: bandW, column, inner} = chatDims(band.width ?? CHAT_W);
   // the inner width of a bubble is at most the column less the padding
-  const innerCap = column - 2 * PAD_X;
+  const innerCap = column - 2 * padX;
+  const nameH = ceil4(met.slotFont + 6), bubbleHeight = (n: number): number => ceil4(n * lineH + 2 * padY);
   const bx = x + snap4(Math.max(0, w - bandW) / 2), by = y;
   const left = bx + CHAT_MARGIN, right = bx + bandW - CHAT_MARGIN, bubbleLeft = left + AVATAR_D + AVATAR_GAP;
   const findings: ComicFinding[] = [];
   const noSelf = band.self === undefined && Object.keys(sheet.cast).length > 0 && !Object.hasOwn(sheet.cast, DEFAULT_SELF);
   const add = (rule: ComicRule, where: string, message: string, severity: ComicFinding['severity'] = 'problem'): void => { findings.push({rule, severity, where, message}); };
-  const atomWidth = (atom: string): number => comicAtomWidth(atom, widthOf);
+  const atomWidth = (atom: string): number => comicAtomWidth(atom, widthOf, font);
   const bubbles: ChatLaidBubble[] = [], avatars: ChatLaidAvatar[] = [], anchors: Anchor[] = [], texts: ComicText[] = [], separators: LaidOutChat['separators'] = [];
   const seenSlots = new Set<string>(), anchoredSlots = new Set<string>();
   if (noSelf) add('chat-self-missing', 'chat', `cast has no "${DEFAULT_SELF}", so every message is on the left (pass chat(sheet, {self: '<cast key>'}) for the speaker on the right)`);
@@ -58,11 +59,11 @@ export function layoutChat(band: ChatBand, x: number, y: number, w: number, widt
     }
     first = false;
 
-    const R = reserveDialogue(parts, sid => slotInfo(m, sid).max, atomWidth, inner, innerCap, innerCap);
+    const R = reserveDialogue(parts, sid => slotInfo(m, sid).max, atomWidth, font, {cap: inner, shrink: true, breakAt: innerCap});
     const widest = Math.max(0, ...R.lines.map(l => l.w));
-    const bw = ceil4(widest + 2 * PAD_X), bh = bubbleHeight(R.lines.length);
+    const bw = ceil4(widest + 2 * padX), bh = bubbleHeight(R.lines.length);
     const showFace = run && !narration && !mine && member !== undefined;
-    const top = cy + (showFace ? NAME_H : 0);
+    const top = cy + (showFace ? nameH : 0);
     const bxl = narration ? snap4(bx + (bandW - bw) / 2) : mine ? right - bw : bubbleLeft;
     const rect = {x: bxl, y: top, w: bw, h: bh};
 
@@ -70,9 +71,9 @@ export function layoutChat(band: ChatBand, x: number, y: number, w: number, widt
       const asset = member.asset;
       const ch = asset !== undefined && band.characters && Object.hasOwn(band.characters, asset) ? band.characters[asset] : undefined;
       if (asset !== undefined && !ch) add('comic-asset-missing', m.id, `${m.id} の素材 "${asset}" がありません。chat(sheet, {characters}) に素材を渡すか、cast の asset を外してください`);
-      avatars.push({id: m.id, who, name: member.name, cx: left + AVATAR_D / 2, cy: cy + AVATAR_D / 2, r: AVATAR_D / 2, nameX: bubbleLeft, nameY: cy + 14,
+      avatars.push({id: m.id, who, name: member.name, cx: left + AVATAR_D / 2, cy: cy + AVATAR_D / 2, r: AVATAR_D / 2, nameX: bubbleLeft, nameY: cy + nameH - 6,
         look: ch ? {kind: 'asset', asset: ch.id} : {kind: 'face', hue: member.face?.hue ?? defaultHue(sheet.cast, who), hair: member.face?.hair ?? 'short'}});
-      texts.push({x: bubbleLeft, y: cy + 14, size: NAME_FONT, text: member.name});
+      texts.push({x: bubbleLeft, y: cy + nameH - 6, size: met.slotFont, text: member.name});
     }
 
     checkDialogueSlots(m, m.id, parts, seenSlots, add);
@@ -83,7 +84,7 @@ export function layoutChat(band: ChatBand, x: number, y: number, w: number, widt
     }
 
     // the text block: lines from the left of the inner rectangle; a run of literal atoms is one <text>, a blank is a rectangle of its own
-    const ih = R.lines.length * LINE_H, tx0 = bxl + PAD_X, ty0 = top + (bh - ih) / 2;
+    const ih = R.lines.length * lineH, tx0 = bxl + padX, ty0 = top + (bh - ih) / 2;
     const runs: ComicRun[] = [], slots: ComicLaidSlot[] = [];
     R.lines.forEach((l, i) => {
       let ax = tx0, open = false;
@@ -91,14 +92,14 @@ export function layoutChat(band: ChatBand, x: number, y: number, w: number, widt
         if (a.slot) {
           open = false;
           const {def, max} = slotInfo(m, a.slot);
-          slots.push({id: a.slot, x: f1(ax), y: f1(ty0 + i * LINE_H + 2), w: a.w, h: LINE_H - 4, max, prompt: def?.prompt ?? '', fallback: def?.fallback ?? '…', ...(def === undefined ? {defined: false as const} : {})});
+          slots.push({id: a.slot, x: f1(ax), y: f1(ty0 + i * lineH + 2), w: a.w, h: lineH - 4, max, prompt: def?.prompt ?? '', fallback: def?.fallback ?? '…', ...(def === undefined ? {defined: false as const} : {})});
         } else if (open) (runs[runs.length - 1] as ComicRun).text += a.text;
-        else { open = true; runs.push({x: f1(ax), y: f1(ty0 + i * LINE_H + 19), text: a.text}); }
+        else { open = true; runs.push({x: f1(ax), y: f1(ty0 + i * lineH + met.baseline), text: a.text}); }
         ax += a.w;
       }
     });
-    for (const r of runs) texts.push({x: r.x, y: r.y, size: FONT, text: r.text});
-    for (const s of slots) texts.push({x: f1(s.x + s.w / 2), y: f1(s.y + s.h - 5), size: SLOT_FONT, text: s.prompt});
+    for (const r of runs) texts.push({x: r.x, y: r.y, size: font, text: r.text});
+    for (const s of slots) texts.push({x: f1(s.x + s.w / 2), y: f1(s.y + s.h - 5), size: met.slotFont, text: s.prompt});
     bubbles.push({id: m.id, ...(m.panel === undefined ? {} : {panel: m.panel}), kind: m.kind, ...(m.who === undefined ? {} : {who: m.who}), mine, ...rect,
       lines: R.lines.map(l => l.atoms.map(a => a.text).join('')), runs, slots, ...(run && !narration ? {tail: mine ? 'right' as const : 'left' as const} : {}),
       title: fillTemplate(parts, () => '＿＿'), ...(slots.length ? {template: m.tpl} : {})});
@@ -121,5 +122,5 @@ export function layoutChat(band: ChatBand, x: number, y: number, w: number, widt
   }
   const H = cy + CHAT_MARGIN - by;
   return {type: 'chat', ...(band.id === undefined ? {} : {id: band.id}), ...(band.reveal === undefined ? {} : {reveal: band.reveal}), ...(band.until === undefined ? {} : {until: band.until}),
-    x: bx, y: by, w: bandW, h: H, title: sheet.title, blank: sheet.blank ?? 'prompt', column: column, bubbles, avatars, separators, ...(input ? {input} : {}), anchors, texts, findings, characters: {...band.characters}};
+    x: bx, y: by, w: bandW, h: H, title: sheet.title, ...(font === FONT ? {} : {fontSize: font}), blank: sheet.blank ?? 'prompt', column: column, bubbles, avatars, separators, ...(input ? {input} : {}), anchors, texts, findings, characters: {...band.characters}};
 }

@@ -1,6 +1,6 @@
 # ADR 0074: 穴(空欄)のあるマンガの部品 — `comic()`(コマ)、`bubble()`(ふきだし)、キャラクター、穴(slot)、Artifact との受け渡し、`chat()`
 
-- 状態: 承認(Accepted。2026-11-22。レビュー 3 回で収束。Q1〜Q10 は決める人がすべて推奨どおりに決定。下の「決定済み」。一部実装済み。U1(`comic()` と台詞 1 つの `speechBubble()`)、U2(顔と素材の形)、U3a(穴の値・値の検査・幾何の地図・最初の `renderComic`・穴への接続)、U5(`chat()` と `renderChat`。`lib/chat/`。下の U5 の実装メモ)は実装した(`lib/comic/`。下の各実装メモ)。U2 は PR #442 の round 1 と round 2 の素材検査、および補足仕様の `anchors.top` の公開型を反映。レビューの反映: 1 回目 Blocker 1・Major 7、2 回目 Major 2(穴の後ろのひらがなの結び方、値に依存する検査と `verdict` の関係)、3 回目 Major 1(`update` の差分の基準))
+- 状態: 承認(Accepted。2026-11-22。横並びの割り(`2x1` `3x1` `4x1`)と `fontSize` を 2026-11-26 に追補(下の「横並びの割りと文字の大きさの実装メモ」)。レビュー 3 回で収束。Q1〜Q10 は決める人がすべて推奨どおりに決定。下の「決定済み」。一部実装済み。U1(`comic()` と台詞 1 つの `speechBubble()`)、U2(顔と素材の形)、U5(`chat()` と `renderChat`。`lib/chat/`。下の U5 の実装メモ)、U3a(穴の値・値の検査・幾何の地図・最初の `renderComic`・穴への接続)は実装した(`lib/comic/`。下の各実装メモ)。U2 は PR #442 の round 1 と round 2 の素材検査、および補足仕様の `anchors.top` の公開型を反映。レビューの反映: 1 回目 Blocker 1・Major 7、2 回目 Major 2(穴の後ろのひらがなの結び方、値に依存する検査と `verdict` の関係)、3 回目 Major 1(`update` の差分の基準))
 - 日付: 2026-11-22
 - 基点: `main`(eec05f8c、PR #431 まで)
 - 関連: ADR 0045(`svg-diagram/browser`、測定を外から渡す)、ADR 0057(spec の `canvas`)、ADR 0071(JSON Schema をパッケージに入れる)、ADR 0034(`data-node`)、ADR 0050(組み合わせられる帯)、ADR 0012(id のスコープ)、ADR 0009(縦書き)、ADR 0007(Ports)
@@ -229,7 +229,7 @@ r.thumbnail('p1', {width: 160});                       // 1 コマの縮小図
 interface ComicWorksheet {
   version: 1;
   title: string;
-  layout: '1x4' | '2x2' | '1x3' | '1x2';
+  layout: '1x4' | '2x2' | '1x3' | '1x2' | '2x1' | '3x1' | '4x1';
   cast: Record<string, Cast>;          // 人物。id → 素材か顔のパラメータ
   panels: ComicPanel[];                // layout の数と一致
   numbering?: boolean; labels?: string[]; blank?: 'prompt' | 'line';
@@ -269,6 +269,7 @@ type Values = Record<string, string | null>;   // 値は別(状態)。無い = �
 | `comic-id-collision` | 問題 | id の文法違反、またはほかの帯の id と衝突 |
 | `comic-bubble-covers-face` 試 | 問題 | ふきだしが頭の円(+ 4px)と重なる |
 | `comic-tail-off-speaker` 試 | 問題 | しっぽの向きが口への向きから 10° を超えてずれる |
+| `comic-band-narrow` | 問題 | 横並びのコマが最小幅(200px)に足りない、または中央に人が立つコマが 232px 未満(U1 の後の追補。必要な `diagram({width})` を示す) |
 | `comic-bubble-zone` | 問題 | ふきだしが頭の上の帯に積みきれない |
 | `comic-bubble-side` / `comic-reading-order` | 助言 | `anchor` の上書きが `bubbleSides` や読む順に反する |
 | `comic-bubble-wide` 試 / `comic-orphan-line` 試 / `comic-follower-split` 試 | 助言 | D2 の行分け |
@@ -329,16 +330,29 @@ type Values = Record<string, string | null>;   // 値は別(状態)。無い = �
 
 ### U5 の実装メモ(2026-11-26。`chat()` 実装済み)
 
-- 場所: `lib/chat/`(`layout.ts` 配置、`emit.ts` 描画、`measure.ts` 1 回目の測定、`render.ts` の `renderChat`、`constants.ts`)、`lib/dsl/chat.ts`(`chat()`)、`lib/bands/chat.ts`(帯の定義。ADR 0080 の形で、選択入口は `svg-diagram/bands/chat`)。`comic` と共有するのは `reserveDialogue`(`lib/comic/reserve.ts`。内側の幅の既定と上限を引数にした。`comic` の既定は変えていない)、`slot-check.ts`(穴の検査。`comic` の配置から移した)、`slot-svg.ts`(穴 1 つの描画。`emit.ts` から移した)、`slot-values.ts`(値と値の検査)、`defaultHue`(`face.ts`)。穴の大きさ・状態・値は同じ関数なので、同じ値は同じ文字で描かれ、値で配置は動かない(テストで確かめる)。
+- 場所: `lib/chat/`(`layout.ts` 配置、`emit.ts` 描画、`measure.ts` 1 回目の測定、`render.ts` の `renderChat`、`constants.ts`)、`lib/dsl/chat.ts`(`chat()`)、`lib/bands/chat.ts`(帯の定義。ADR 0080 の形で、選択入口は `svg-diagram/bands/chat`)。`comic` と共有するのは `reserveDialogue`(`lib/comic/reserve.ts`。`font` と `{cap, shrink, breakAt}` の 1 つのオプションで、`comic` の横並びと共有する。`comic` の既定は変えていない)、`slot-check.ts`(穴の検査。`comic` の配置から移した)、`slot-svg.ts`(穴 1 つの描画。`emit.ts` から移した)、`slot-values.ts`(値と値の検査)、`defaultHue`(`face.ts`)。穴の大きさ・状態・値は同じ関数なので、同じ値は同じ文字で描かれ、値で配置は動かない(テストで確かめる)。
 - 入力: `ComicWorksheet`(コマの台詞を順につなぐ。吹き出しの id は `コマ.台詞`)か、`{version: 1, title, cast, dialogue}`(id は台詞の id)。右に置く話し手は帯の引数 `self`(既定 `'me'`。`cast` のキーでなければ投げる)。D7 は「`self: 'me'`」としか書かないので、入力のデータには持たせず引数にした。
-- 大きさ(D7 の「列の 70%」の読み方): 帯の幅 480px、余白 16px、顔の幅 40px + 隙間 8px を両側に空けるので、吹き出しの列は **400px**。内側の幅は、列の 70% = **280px**(`CHAT_INNER`)で折り返し、いちばん広い穴の塊(穴 + 結んだひらがな)のほうが広ければそれ、ただし列 − 余白 24px = 376px まで(`reserveAtoms` の `cap`)。吹き出しの幅は**折り返したあとの最長の行** + 余白 24px(4px の格子に切り上げ)で、短い台詞は短い吹き出しになる(`comic` は内側の幅を保つ)。穴の塊が列より広いときは `comic-bubble-wide`(助言。語は 1 字ずつ折る)。行は左そろえ(`comic` は中央)。
+- 大きさ(D7 の「列の 70%」の読み方): 帯の幅 480px、余白 16px、顔の幅 40px + 隙間 8px を両側に空けるので、吹き出しの列は **400px**。内側の幅は、列の 70% = **280px**(`CHAT_INNER`)で折り返し、いちばん広い穴の塊(穴 + 結んだひらがな)のほうが広ければそれ、ただし列 − 余白まで(`breakAt`。穴の塊は 198px までなので届かない)。吹き出しの幅は**折り返したあとの最長の行** + 余白 24px(4px の格子に切り上げ)で、短い台詞は短い吹き出しになる(`comic` は内側の幅を保つ)。穴の塊が列より広いときは `comic-bubble-wide`(助言。語は 1 字ずつ折る)。行は左そろえ(`comic` は中央)。
 - **`width`(PR #473 のレビューで足した)**: `chat(sheet, {width})` は 480〜880(4 の倍数。既定 480)。列 = 幅 − 余白 32 − 顔の側 48、内側の幅 = 列の 70%(切り下げ)で、D7 の規則のまま。既定は 480 → 列 400 → 内側 280px(約 15 字)、800 → 列 720 → 内側 504px(約 28 字)で、長いやり取りの高さはおよそ半分になる(テストがある)。**既定の数(帯 480・余白 16・顔 40 + 隙間 8)は D7 の既定値として決めた。**
+- **`fontSize`(横並びの追補と合わせて統一)**: `chat(sheet, {fontSize})`(`renderChat` も)は `comic` と同じ整数 14〜28、既定 18。行の高さ・余白・穴・名前の字(`metricsOf` の値)が `comic` と同じ式で変わるので、**同じ `fontSize` なら穴は `comic` と同じ大きさ**(テストがある)。折り返しは `comic` の横並びと同じ `reserveDialogue(…, font, {cap, shrink})` を使い、chat の `cap` は列の 70%(内側の幅)、`breakAt` は列 − 余白。そのため、chat には孤立行を直す広げ直し(`cap` を決めたときは広げない。横並びと同じ)が無く、`comic-orphan-line` は助言として残る。顔(40px)と入力欄・間隔は `fontSize` で変わらない。
 - 列より広い語(URL など)は、chat でだけ 1 字ずつ折る(`breakAt`)。吹き出しは列を超えない。穴の塊は 198px までなので折る対象にならない。台詞の `\n` は改行、`\n\n` は空行。`self` を省き `cast` に `me` が無いと `chat-self-missing`(問題。全員が左になる)。顔の SVG の id は台詞の id から作り、1 つの SVG に chat が複数あっても重ならない。
 - 見た目: 自分は右・淡い青、相手は左・紙色。左の顔は、同じ素材の頭の円(`anchors.head`)を丸く切って 40px に縮める。内蔵の顔は頭と肩の上を円で切る(入れ子の `<svg viewBox>` で縮め、`transform` は使わない)。**顔と名前、しっぽは、同じ人の連続した台詞の最初の吹き出しにだけ**付ける(しっぽは外側の上の角に小さな三角)。ナレーションは中央の破線の枠でしっぽなし。`think` は破線、`shout` は太い枠。時刻・既読は出さない。コマの境の線(`separators: true`)は、台詞がコマを持つ(`ComicWorksheet` から作った)ときだけ。
 - 検査: 話し手が `cast` にない `chat-speaker-unknown`、メッセージ欄の案内が箱より広い `chat-input-wide`(どちらも問題)。穴の検査と、折り返しの助言(`comic-orphan-line` / `comic-follower-split` / `comic-bubble-wide`)は `comic` の規則名のまま(文言は「マンガ」)。穴の数の上限(1 コマ 2 個)は `chat` に無い。台詞の `id` が穴の `id` と同じだと、接続の端の id が重なるので帯の登録が投げる。重なりの検査の矩形は台詞ごとに 1 つ(`verify-chat-rects.ts`)。
 - **D7 に無い拡張(Q なし。最小)**: メッセージ欄 `input: '<案内>' | true`。帯の下に、角丸の入力欄(案内の文字、右に送信ボタン)を描く。案内は 1 行・20 字まで(`true` は「メッセージを入力」)。欄は配置の固定の大きさ(高さ 48px)で、値は入らない(`renderChat` の値は穴だけ)。
 - `renderChat(sheet, {measure, values, characters, self, separators, input, nodeIds})` を `svg-diagram/browser` に追加した(実験的。`renderComic` と同じ流れ。`geometry` は `bubbles` と `slots` だけ)。縮小図と `update` は無い。
 - 範囲外のまま: JSON の spec への部品(U4 で `comic` と一緒に決める。`comic` もまだ spec にない)、`connect()` の経路の検査(台詞の重なりの検査だけ)、アバターの表情の指定(常に `neutral`)。PowerPoint は `comic` と同じに 1 枚の絵。
+
+### 横並びの割りと文字の大きさの実装メモ(2026-11-26。追補。D1・D2 の決定は変えない)
+
+- **割りの追加**: `2x1` / `3x1` / `4x1`(列 × 行 = 列の数 × 1)。コマは左から右へ並び、番号も読む順も左から右。名前付きの割りに足しただけで、`span` は持たない(D1 の選択肢 B のまま)。
+- **コマの幅は図の幅から決まる**: 横並びのコマは、帯に渡された幅 `w`(図の幅から左右の余白を除いたもの)を列で分ける。`floor((w - 2 × 16 - 16 × (列 - 1)) / 列)` を 4px の格子に切り下げ、420px を上限にする。幅が分からないとき(`renderComic` の寸法決め、`panelSize` の既定)は `canvas: 'slide'` の中身の幅 1212px を使う。`canvas: 'slide'` では 4×1 が 280px、3×1 が 380px、2×1 が 420px で、帯はちょうど収まる。`slide: true`(900px)では 4×1 が 204px になる。横並びのコマは 200px を下回らない(頭 2 つ(間 4px)と短い 1 行が入る幅)。図の幅がそれに足りないときは 200px で描き、`comic-band-narrow`(問題)が 1 回、必要な `diagram({width})`(4×1 は 920px 以上、3×1 は 704px 以上)か列を減らすことを知らせる。縦の列と 2×2 は従来どおり固定の 420px / 360px。コマが狭すぎてふきだしが入らないときは、ふきだしごとに `comic-bubble-zone` が「`fontSize` を小さく、列を減らす(コマを広く)、図を広く、穴を短く」と知らせる。
+- **コマの高さ**: 既定の縦横比は新しい `'3:4'`(幅 280px のとき高さ 372px。2 つのふきだしを積む行数 `lineBudget` が 18px の文字で 7 行取れる)。`aspect` を明示すれば従来の `'7:5'` `'6:5'` `'1:1'` も使える。
+- **人物の位置**: 左と右の人物は、コマの端から `min(104, 幅 / 2 - 76)`px(下限 40px)に立てる。3 人(左・中・右)の頭の円(半径 36px)の間は、コマが 232px 以上のとき 4px 以上空く(280px のコマで 64 / 140 / 216px)。232px 未満(`slide: true` の 4×1 の 204px など)で中央に立つ人がいると、頭が重なるので `comic-band-narrow` で知らせる(2 人にする・列を減らす・図を広くする)。縦の列・2×2 の位置(104px)は変えていない。
+- **ふきだし(横並びだけ)**: 文字を折り返す幅は、コマに入る幅(`コマの幅 - 2 × 8px - 2 × 余白`)までにする。1 つのコマで 2 人が話すときは、ふきだしを横に並べて置けるように半分の幅までにする。ふきだしの幅は 9 字の下限を持たず、折り返した文字の幅(穴は最大の字数で数えた幅)に合わせる。値に依存しないので、値を入れても動かない(D2)。D2 の読む順の規則は縦の列・2×2 と同じ(先のふきだしがすべて自分より左にあるときだけ横に並べ、右から左の順なら 2 つ目は 1 つ目の下)。それでも 2 人のしっぽが交わるとき(行が長い、穴がある)は、`comic-tail-crosses-bubble` が「1 行を短く、またはコマのふきだしを 1 つに」と知らせる。
+- **文字の大きさ**: `comic(sheet, {fontSize})`(`renderComic` も同じ名前)。整数で 14〜28、既定は 18。ふきだしの文字、行の高さ(26px × `fontSize` / 18)、ふきだしの余白、穴の高さ・案内の文字、全角 9 字の内側の幅(9 × `fontSize`)、`comic-bubble-wide` のしきい(11 字)、番号札(24px の箱と 14px の字)、ふきだしの置き始め(`zoneTop`)と地の文の左(`narrationLeft`)がすべて `fontSize` / 18 倍になる。穴は今までどおり最大の字数 × 1 em で数えるので、値を入れても動かない(D2 の幅の規則: 全角の原子は 1 em のまま測らない)。人物の大きさは変えない。
+- 既定(18)のときは数も出力も変わらない(`LaidOutComic.fontSize` は既定でないときだけ付く。縦の列と 2×2 の golden は変わらない)。
+- **スライドの文字の下限(24px)**: `canvas: 'slide'` の下限を満たすには、ふきだしの文字(`fontSize`)が 24 以上で、番号札の字と穴の案内(どちらも 14 × `fontSize` / 18)が出ていないことが要る。この 2 つは `fontSize` が最大の 28 でも 22px なので、**番号札(`numbering: false`)と案内(`blank: 'line'`、下線だけ)を出さない**。`blank: 'line'` では案内の字を、描かないので文字の大きさの検査にも入れない。免除は設けない。
+- 例: `examples/comic-row.ts`(4×1、`fontSize: 24`、`canvas: 'slide'`、`numbering: false`、`blank: 'line'`)。
 
 ## 代替案
 
