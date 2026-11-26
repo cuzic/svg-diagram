@@ -29,10 +29,10 @@ export function registerRowSlots(ctx: Pick<LayoutCtx, 'anchors' | 'areaIds' | 'c
 }
 
 /** A step box of a steps() row whose title the badge's indent breaks into a 1-character piece where the title alone wraps into fewer lines
- *  (a title that wraps into whole pieces beside the badge keeps it there, as does a box with an icon). */
+ *  (a title that wraps into whole pieces beside the badge keeps it there). */
 function badgeAbove(c: RowBand['children'][number], w: number, ctx: LayoutCtx): boolean {
   const b = c as BoxBand, lines = (x: BoxBand) => layoutBoxContent(x, w - 2 * (b.padX ?? BOX_PAD_X), ctx.widthOf, ctx.roles, ctx.wrap).wrappedRuns[0]?.lines ?? [];
-  if (b.step == null || !b.title || b.icon) return false;
+  if (b.step == null || !b.title) return false;
   const beside = lines(b);
   return beside.length > 1 && lines({...b, step: undefined}).length < beside.length && beside.some(l => [...l.trim()].length <= 1);
 }
@@ -41,10 +41,11 @@ export function layoutRow(band: RowBand, ctx: LayoutCtx, padX: number, cw: numbe
   const {d} = ctx, top = snapGrid(ctx.y); // the row sits on the grid; the cursor moves on from where it was
   const rowGap = ctx.gapForLabels(band, cw);
   const {widths, xOffsets} = rowChildGeometry({...band, gap: rowGap}, cw);
-  // a steps() row: when one numbered box needs its badge above the title, every badge of the row goes above (the titles stay on one baseline)
-  const above = band.children.some((c, i) => (c as {stepRow?: boolean}).stepRow && badgeAbove(c, must(widths[i]), ctx));
+  // a steps() row: when one numbered box needs its badge above the title, every badge of the row goes above (the titles stay on one baseline).
+  // A row with an icon box keeps every badge beside its title: moving the icon down with it is not done, and a mix would put the badges at two heights.
+  const above = !band.children.some(c => (c as BoxBand).icon) && band.children.some((c, i) => (c as {stepRow?: boolean}).stepRow && badgeAbove(c, must(widths[i]), ctx));
   const placedChildren = band.children.map((child, i) => {
-    if (!above || !(child as {stepRow?: boolean}).stepRow || (child as BoxBand).icon) return ctx.placeBoxLike(child, padX + must(xOffsets[i]), top, must(widths[i]), true);
+    if (!above || !(child as {stepRow?: boolean}).stepRow ) return ctx.placeBoxLike(child, padX + must(xOffsets[i]), top, must(widths[i]), true);
     // the badge on a line of its own: the title is laid out without the badge's indent (as a box without a step), then the title and the box move down by the badge's height
     const p = ctx.placeBoxLike({...child, step: undefined}, padX + must(xOffsets[i]), top, must(widths[i]), true), shift = 2 * stepBadgeGeom(ctx.roles).r + TOP_ICON_GAP;
     Object.assign(p, {step: (child as BoxBand).step, stepAbove: true});

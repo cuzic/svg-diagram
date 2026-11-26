@@ -86,6 +86,17 @@ test('a step box with an icon keeps its badge beside the title; a plain box({ste
   assert.ok((pr.children as LaidOutBox[]).every(b => !b.stepAbove));
 });
 
+test('a steps row where only some items have an icon never mixes badge positions (620-940px)', async () => {
+  const items = ['下見', '見積作成手順書', '契約', '発注準備中', '納品確認報告書'].map((title, i) => ({title, ...(i % 2 === 0 ? {icon: 'shield' as const} : {})}));
+  for (let width = 620; width <= 940; width += 20) {
+    const r = await checkDiagram(diagram({theme: 'blue', title: 't', width}).add(steps(items, {numbered: true})));
+    const rowBand = r.laidOut.laidOut.find(b => b.type === 'row');
+    assert.ok(rowBand && 'children' in rowBand);
+    const kids = rowBand.children as LaidOutBox[];
+    assert.ok(kids.every(b => !b.stepAbove), `${width}px: ${kids.map(b => b.stepAbove ? 'A' : '-').join('')}`);
+  }
+});
+
 test('a badge above a centred or right-aligned title sits on its alignment, clear of the title', () => {
   const base = {x: 100, y: 50, w: 160, padX: 16, padY: 14, wrappedRuns: [{lineYs: [60], size: 17}], stepAbove: true} as never as LaidOutBox;
   const c = stepBadgeAt({...base, align: 'center'}), l = stepBadgeAt({...base, align: 'left'}), r = stepBadgeAt({...base, align: 'right'});
