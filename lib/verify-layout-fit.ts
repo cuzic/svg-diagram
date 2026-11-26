@@ -12,7 +12,7 @@ const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'class
 export function layoutFitFindings(b: LaidOutBand): Finding[] {
   if ((b.type !== 'cause' && b.type !== 'states' && b.type !== 'classes' && b.type !== 'tree' && b.type !== 'fta' && b.type !== 'bowtie') || !b.fitApplied?.length) return [];
   const what = b.fitApplied.map(describeApplied).join('、'), auto = b.fitApplied.every(a => a.mode === 'auto');
-  const noDir = b.type === 'fta' || b.type === 'bowtie'; // a fault tree and a bow-tie have no `dir`
+  const noDir = b.type === 'fta' || b.type === 'bowtie' || ('mindmap' in b && b.mindmap); // a fault tree, a bow-tie and a mind map have no `dir`
   const knobs = noDir ? 'maxNodeW' : 'dir / maxNodeW', say = noDir ? "maxNodeW: 'auto'" : "dir: 'auto'";
   return [{...at(b), rule: 'auto-fit-applied', severity: auto ? 'info' : 'warn', message: auto
     ? `${b.type === 'states' && b.flavor === 'flowchart' ? 'flowchart()' : FIT_WHO[b.type]}: ${knobs} を 'auto' にしたため、幅に収まるようレイアウトが変えた: ${what}`

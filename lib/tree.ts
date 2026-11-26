@@ -162,9 +162,10 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
   const explicitDir = !band.balanced && band.dir !== undefined && band.dir !== 'auto';
   const start: 'down' | 'right' = band.dir === 'right' ? 'right' : 'down';
   const balancedHint = band.balanced ? (['org', 'timeline', 'fishbone', 'down', 'up'].includes(band.layout ?? 'radial') ? "layout: 'list', 'right' or 'left'" : 'fewer branches') : undefined;
+  const autoWidth = band.maxNodeW === 'auto';
   const fitted = fitLayout({
     who: band.balanced ? 'mindmap()' : 'tree()', w, start, keepWords: env.keepWords, ...(band.balanced ? {noDir: true} : {}), ...(band.balanced ? {axisKept: `another layout (a mindmap keeps its layout: '${band.layout ?? 'radial'}')`} : {alt: start === 'down' ? 'right' as const : 'down' as const}),
-    explicitDir, mode: band.dir === 'auto' ? 'auto' : 'omitted', ...(band.maxNodeW === undefined ? {} : {maxNodeW: band.maxNodeW}),
+    explicitDir, mode: autoWidth || band.dir === 'auto' ? 'auto' : 'omitted', autoWidth, ...(band.maxNodeW === undefined ? {} : {maxNodeW: band.maxNodeW as number}),
     build: attemptWith, best: band.dir === 'auto' && !band.balanced, ...(heightBudget === undefined ? {} : {heightBudget}),
     ...(items.some(n => n.tags?.length) ? {tagsHint: true} : {}),
     ...(balancedHint ? {fix: `write ${balancedHint}${balancedHint.startsWith('layout') ? '' : ', or a wider figure'}`} : {}),
@@ -174,7 +175,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
   const out: LaidOutTree = {
     type: 'tree', id: band.id, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), x, y, w, h: tree.h,
     nodes: [], edges: [], texts: [], anchors: [], labelBoxes: [],
-    ...(fitApplied.length ? {fitApplied} : {}),
+    ...(fitApplied.length ? {fitApplied} : {}), mindmap: band.balanced,
   };
   const parentOf = new Map<TreeItem, number>(items.flatMap((n, i) => (n.children ?? []).map(c => [c, i] as const)));
   for (const n of items) {
