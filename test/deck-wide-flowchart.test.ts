@@ -12,8 +12,12 @@ import {renderDeck} from '../lib/present/render-deck.ts';
 import {renderSpec} from '../lib/spec-render.ts';
 import {renderDeckPptxEdgeWith} from '../lib/pptx-deck-edge-core.ts';
 import {planFigureEdge} from '../lib/pptx-edge.ts';
+import {renderDeckPptxEdge} from '../lib/pptx-deck-selective-edge.ts';
+import {renderPptxEdge as renderSelectedPptxEdge} from '../lib/pptx-selective-edge.ts';
+import {flowchartPart} from '../lib/spec-parts/selective/flowchart.ts';
+import {statesPptx} from '../lib/pptx/states-band.ts';
 import {validateDeck} from '../lib/deck-spec.ts';
-import {fillSearch, wideWidths, widenDiagram} from '../lib/deck-layout.ts';
+import {fillSearch, figureRooms, wideWidths, widenDiagram} from '../lib/deck-layout.ts';
 import {closeMeasurer} from '../lib/dsl.ts';
 import type {Config} from '../lib/types/project.ts';
 import {JA_FONTS, realEngine} from './helpers/text-engine.ts';
@@ -104,4 +108,46 @@ test('widenDiagram: raises the width and the doc-width threshold together; nothi
   assert.deepEqual(d, {width: 940, maxWidth: 940});
   assert.deepEqual(widenDiagram({width: 940}, 1100), {width: 1100, maxWidth: 1100});
   assert.equal(widenDiagram({width: 940, maxWidth: 1400}, 1100).maxWidth, 1400);
+});
+
+const selectiveOpts = {parts: [flowchartPart], bands: {states: statesPptx}, rasterize: () => new Uint8Array([0])};
+
+test('the published deck edge (pptx/deck/edge) takes the wide layout, and a spec\'s own width is not overridden (M1, M2)', async () => {
+  const r = await renderDeckPptxEdge({slides: [{title: '手順の流れ', figure: figure('right')}]}, realEngine(), selectiveOpts);
+  assert.deepEqual(r.issues, []);
+  assert.ok(r.pptx);
+  assert.ok(Math.abs((r.slides[0]?.scale ?? 0) - 1.106) < 0.01, `${r.slides[0]?.scale}`);
+  // a figure's own width 600 is a width of its own: it still errors as on main, with or without a `width` in the caller's options
+  const own = {...figure('right'), width: 600};
+  for (const extra of [{}, {width: 1200}]) {
+    const bad = await renderDeckPptxEdge({fit: 'width', slides: [{title: '手順の流れ', figure: own}]}, realEngine(), {...selectiveOpts, ...extra});
+    assert.ok(bad.issues.some(i => /does not fit/.test(i.message)), JSON.stringify(bad.issues));
+  }
+});
+
+test('pptx/edge: a caller\'s `width` option does not widen a figure (it is not an option)', async () => {
+  const r = await renderSelectedPptxEdge(figure('right'), realEngine(), {...selectiveOpts, width: 1200} as typeof selectiveOpts);
+  assert.ok(r.issues.some(i => /does not fit/.test(i.message)), JSON.stringify(r.issues));
+});
+
+test('when every width fails, the error names the widest tried (m1)', async () => {
+  const wide = ['資料の受け取り作業', '内容の確認と整理', '担当者への連絡', '作業の実施と記録', '結果の取りまとめ', '追加の確認作業', '最後の取りまとめ'];
+  const spec = {version: 1, title: 'f', showTitle: false, parts: [{type: 'flowchart', dir: 'right', nodes: wide.map((label, i) => ({id: `n${i}`, label})), edges: wide.slice(1).map((_, i) => ({from: `n${i}`, to: `n${i + 1}`}))}]};
+  const file = path.join(tmp, 'toowide.json');
+  fs.writeFileSync(file, JSON.stringify({slides: [{title: '手順', figure: spec}]}));
+  const r = loadDeck(file);
+  assert.ok(r.ok);
+  const out = await renderDeck(r.loaded, cfg);
+  assert.match(out.errors.join('\n'), /does not fit 1[01]\d\dpx/);
+});
+
+test('fillSearch (m2): the wider widths after a failure are compared, and tried counts them', async () => {
+  // 1056 draws but is height-bound; 1168 is flatter
+  const r = await fillSearch({w: 1168, h: 100}, 1.5, async w => w === null ? {ok: false, why: 'no'} : {ok: true, w, h: w === 1056 ? 200 : 100, value: w, flags: []});
+  assert.ok(r.ok && r.width === 1168 && r.tried === 3, JSON.stringify(r));
+});
+
+test('a column room is under the document width (n1)', () => {
+  const room = figureRooms({title: 'x', columns: [{figure: undefined, width: 3} as never, {text: 'a', width: 1}]}, (t, size) => t.length * size).columns;
+  for (const c of room) if (c) assert.ok(c.w <= 940, `${c.w}`);
 });

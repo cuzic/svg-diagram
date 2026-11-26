@@ -59,7 +59,7 @@ export async function renderDeckPptxEdgeWith(input: unknown, givenEngine: TextEn
       let firstIssues: SpecIssue[] = [];
       const found = await fillSearch(room, maxScale(fit), async w => {
         const f = await (w === null ? services.plan(spec, engine) : w > DOC_LAYOUT_WIDTH ? services.plan(spec, engine, w) : services.plan({...spec, width: w}, engine));
-        if ('issues' in f) { if (w === null) firstIssues = f.issues; return {ok: false, why: f.issues[0]?.message ?? ''}; }
+        if ('issues' in f) { if (w === null || w > DOC_LAYOUT_WIDTH) firstIssues = f.issues; return {ok: false, why: f.issues[0]?.message ?? ''}; }
         return {ok: true, w: f.width, h: f.height, value: f, flags: ruleIds(f.findings)};
       });
       if (!found.ok) { issues.push(...firstIssues.map(x => ({path: place(x.path), message: x.message}))); return undefined; }

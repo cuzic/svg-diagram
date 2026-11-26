@@ -42,7 +42,8 @@ export async function renderDeckFigure(i: number, spec: unknown, source: string 
     let errors: string[] = [];
     const found = await fillSearch(opts.fill.box, opts.fill.cap, async width => {
       const r = await (width === null ? draw(spec) : width > DOC_LAYOUT_WIDTH ? draw(spec, width) : draw({...spec, width}));
-      if (!r.ok) { if (width === null) errors = r.errors; return {ok: false, why: r.why}; }
+      if (!r.ok) { if (width === null || width > DOC_LAYOUT_WIDTH) errors = r.errors; // the widest width tried names what the slide could not hold (B6)
+         return {ok: false, why: r.why}; }
       return {ok: true, w: Math.max(96, r.result.laidOut.width), h: Math.max(96, r.result.laidOut.canvasHeight), value: r.result, flags: ruleIds([...r.result.verdict.warnings, ...r.result.verdict.problems])};
     });
     if (!found.ok) return {ok: false, errors};

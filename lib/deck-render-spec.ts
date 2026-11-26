@@ -23,7 +23,7 @@ export async function renderDeckSpec(spec: unknown, cfg: Config, width?: number)
         ? import('./bands/legend.ts').then(m => m.autoLegend) : undefined,
     ]);
     const measure = measureSettingsOf(cfg);
-    const draw = prepareSpecLayout(spec, {parts, captions, autoLegend, project: cfg, ...(width === undefined ? {} : {width})});
+    const draw = prepareSpecLayout(spec, {parts, captions, autoLegend, project: cfg}, width);
     const {placed, emit, verdict} = await draw({measureBatch: requests => measureAll(requests, measure)});
     const laidOut = applyConfig({...placed, legend: doc.legend, measure, fontScale: 1,
       showTitle: doc.showTitle === true, sourceLine: typeof doc.sourceLine === 'string' ? doc.sourceLine : undefined}, cfg);

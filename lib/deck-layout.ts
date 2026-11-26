@@ -355,11 +355,17 @@ export async function fillSearch<T>(box: {w: number; h: number}, cap: number, dr
   const wide = wideWidths(box.w);
   // a figure that does not fit the document's 940 (a flowchart in one row) may fit a slide room wider than that (B6)
   if (!first.ok) {
+    let found: FillResult<T> | null = null, tried = 1;
     for (const width of wide) {
       const d = await draw(width);
-      if (d.ok) return {ok: true, value: d.value, width, k: scale(d), tried: 2, narrower: null};
+      tried++;
+      if (!d.ok) continue;
+      const k = scale(d);
+      if (!found || k > found.k * 1.01) found = {ok: true, value: d.value, width, k, tried, narrower: null};
+      // a wider width is only worth trying while the height is not what holds this one back
+      if (!heightBound(d) || k >= cap) break;
     }
-    return first;
+    return found ? {...found, tried} : first;
   }
   let best: FillResult<T> = {ok: true, value: first.value, width: null, k: scale(first), tried: 1, narrower: null};
   if (best.k >= cap) return best;
@@ -447,7 +453,8 @@ export async function chooseColumns<T>(s: DeckTextIn & {columns: readonly {capti
         continue;
       }
       let pt: number | null | undefined;
-      const fit = await fillSearch(place.box, cap, async width => { const d = await drawn(j, width); if (d.ok) pt = d.minPt; return d; });
+      // a column's room is under 940 (at most 858), so no wide layout is tried here: the callers build `{...spec, width}`, which a width past 940 would break
+      const fit = await fillSearch(place.box, cap, async width => { if (width !== null && width > DOC_LAYOUT_WIDTH) return {ok: false as const, why: 'a column is narrower than the document width'}; const d = await drawn(j, width); if (d.ok) pt = d.minPt; return d; });
       if (!fit.ok) { failed = true; lastWhy = fit.why; break; }
       // the minPt of the width chosen: drawn again from the memo
       const chosen = await drawn(j, fit.width);
