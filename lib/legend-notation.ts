@@ -58,12 +58,14 @@ export function usedNotation(bands: Band[], dimmed = new Set<Band>(), withCause 
   return usedBandNotation(all, dimmed, wordedCanvasBands(all), withCause);
 }
 
-function usedBandNotation(all: readonly Band[], dimmed: ReadonlySet<Band>, worded: ReadonlySet<Band>, withCause = false): Set<string> {
+// `itemWords` (the legend check only, not legend: 'auto'): a dashed / dotted line that carries a label of its own says in words what it is, so its style needs no legend entry
+// (every such line has to; one bare line keeps the entry needed). A box's `tag` is not read: a canvas puts its region name there, which does not explain a tone
+function usedBandNotation(all: readonly Band[], dimmed: ReadonlySet<Band>, worded: ReadonlySet<Band>, withCause = false, itemWords = false): Set<string> {
   const used = new Set<string>(), lines = new Set<string>();
   for (const b of all) {
     if (dimmed.has(b) || worded.has(b)) continue;
     if (b.type === 'connect') {
-      lines.add(b.line ?? 'solid');
+      if (!(itemWords && b.label && b.line !== undefined && b.line !== 'solid')) lines.add(b.line ?? 'solid');
       if (b.arrow === 'both') used.add('arrow:both');
       if (b.weight) used.add(`weight:${b.weight}`);
     } else if (b.type === 'box' && b.tone && b.tone !== 'plain') used.add(`tone:${b.tone}`);
@@ -153,7 +155,7 @@ export function missingLegendItems(bands: Band[], custom?: Partial<Record<string
 
 /** Check notation gathered from the participating bands in source order. */
 export function legendFindings(all: readonly LegendNotationBand[], worded: ReadonlySet<Band>, custom?: Partial<Record<string, string>>, dim = new Set<Band>()): Finding[] {
-  const used = usedBandNotation(all, dim, worded), have = listedNotation(all);
+  const used = usedBandNotation(all, dim, worded, false, true), have = listedNotation(all);
   if (!used.size) return [];
   const missing = [...used].filter(k => !have.has(k));
   if (!missing.length) return [];

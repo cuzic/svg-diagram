@@ -8,9 +8,10 @@ import type {DiagramData} from './types/core.ts';
 import type {Band, LaidOutDiagram} from './types/index.ts';
 import type {Finding, LintTarget} from './types/verdicts.ts';
 
-export function documentWidthFindings(d: Pick<DiagramData, 'medium' | 'canvas' | 'width' | 'maxWidth'>): Finding[] {
+export function documentWidthFindings(d: Pick<DiagramData, 'medium' | 'canvas' | 'slide' | 'width' | 'maxWidth'>): Finding[] {
   const limit = d.maxWidth ?? 940;
-  return d.medium === 'doc' && !d.canvas && d.width > limit ? [{rule: 'doc-width', severity: 'warn', message: `幅 ${d.width}px。本文の表示幅（約 930px）に縮められ、文字が小さくなる（${limit}px 以下にする）`}] : [];
+  // a slide figure (a canvas, or one placed on a slide) is sized to its slot, not to the text column of a document
+  return d.medium === 'doc' && !d.canvas && !d.slide && d.width > limit ? [{rule: 'doc-width', severity: 'warn', message: `幅 ${d.width}px。本文の表示幅（約 930px）に縮められ、文字が小さくなる（${limit}px 以下にする）`}] : [];
 }
 
 export function wrapFallbackFindings(d: Pick<LaidOutDiagram, 'wrapFellBack'>): Finding[] {
