@@ -20,6 +20,8 @@ export const PANEL_W_2X2 = 360;
 export const ROW_FALLBACK_W = 1212;
 /** The narrowest a row panel is drawn: two heads (stage x at least HEAD_R + 4, 4px apart) and a one-line bubble fit in it. */
 export const ROW_PANEL_MIN = 200;
+/** Left, centre and right heads keep apart in a row panel this wide or wider (stage x of 40 at the narrowest: 2 x 40 + 2 x 72 + 2 x 4). */
+export const ROW_CENTER_MIN = 232;
 /** The people of a row panel keep their heads this far from each other (and at least HEAD_R + 4 from the side). */
 export const HEAD_GAP = 4;
 export const GUTTER = 16;

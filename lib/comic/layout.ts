@@ -1,6 +1,6 @@
 // The layout of a comic() band (ADR 0074 D1 / D2): panels on a grid, the people at fixed places in each, the bubbles over their heads. A pure
 // function of the data and a width function: the values of the blanks do not come in (they are drawn on top, ADR 0074 D5).
-import {BADGE_OVERHANG, GUTTER, HEAD_FROM_BOTTOM, HEAD_KEEP, HEAD_R, MARGIN, PANEL_W, PANEL_W_2X2, ROW_FALLBACK_W, ROW_PANEL_MIN, HEAD_GAP, SIDE_KEEP, SLOT_MAX, STACK_GAP, STAGE_X, TAIL_CLEAR, TAIL_HALF, TAIL_MIN, TAIL_STOP, bandWidth, f1, metricsOf} from './constants.ts';
+import {BADGE_OVERHANG, GUTTER, HEAD_FROM_BOTTOM, HEAD_KEEP, HEAD_R, MARGIN, PANEL_W, PANEL_W_2X2, ROW_FALLBACK_W, ROW_PANEL_MIN, ROW_CENTER_MIN, HEAD_GAP, SIDE_KEEP, SLOT_MAX, STACK_GAP, STAGE_X, TAIL_CLEAR, TAIL_HALF, TAIL_MIN, TAIL_STOP, bandWidth, f1, metricsOf} from './constants.ts';
 import {ceil4} from '../connect-rules.ts';
 import {snap4} from '../emit-common.ts';
 import {rectOverlap} from '../verify-base.ts';
@@ -69,7 +69,13 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
   const add = (rule: ComicRule, where: string, message: string, severity: ComicFinding['severity'] = 'problem'): void => { findings.push({rule, severity, where, message}); };
   const atomWidth = (atom: string): number => comicAtomWidth(atom, widthOf, fontSize);
   // a row panel is never narrower than ROW_PANEL_MIN (two people and a short line); a band that cannot give it that is drawn at that width and reported once
-  if (row && rowShare(sheet.layout, w) < ROW_PANEL_MIN) add('comic-band-narrow', 'comic', `layout ${sheet.layout} needs a diagram at least ${bandWidth(cols, ROW_PANEL_MIN) + 40}px wide (${ROW_PANEL_MIN}px panels), but the band gets ${w}px: use diagram({width: ${bandWidth(cols, ROW_PANEL_MIN) + 40}}) or more, or fewer columns (a 2x2 or a column of panels)`);
+  const needW = bandWidth(cols, ROW_PANEL_MIN) + 2 * x; // the diagram's width: the band plus the padding on both sides (x is the band's left edge)
+  if (row && rowShare(sheet.layout, w) < ROW_PANEL_MIN) add('comic-band-narrow', 'comic', `layout ${sheet.layout} needs a diagram at least ${needW}px wide (${ROW_PANEL_MIN}px panels), but the band gets ${w}px: use diagram({width: ${needW}}) or more, or fewer columns (a 2x2 or a column of panels)`);
+  // a row panel narrower than 232px cannot keep three heads apart (left / centre / right at 40px from the sides)
+  if (row && PW < ROW_CENTER_MIN && sheet.panels.some(p => p.stage.some(s => s.at === 'center'))) add('comic-band-narrow', 'comic', `a person stands at center, but the ${PW}px panels of ${sheet.layout} are narrower than ${ROW_CENTER_MIN}px, so the heads overlap: use two people (left and right), fewer columns, or a wider diagram (${bandWidth(cols, ROW_CENTER_MIN) + 2 * x}px or more)`);
+  // an aspect too short for any bubble at this width and fontSize: one message, not one per bubble
+  const noRoom = budget < 1 && sheet.panels.some(p => p.dialogue.length > 0);
+  if (noRoom) add('comic-text-budget', 'comic', `the ${PH}px panels leave no room for a bubble at fontSize ${fontSize} (the band over the heads is ${zone.bottom - zone.top}px): choose a taller aspect (aspect: '3:4'), fewer columns or a smaller fontSize`);
   if (sheet.panels.length !== cols * rows) add('comic-panel-count', 'comic', `layout ${sheet.layout} has ${cols * rows} panels, but panels has ${sheet.panels.length} (add or remove panels, or change layout)`);
 
   const panels: ComicLaidPanel[] = [], bubbles: ComicLaidBubble[] = [], anchors: Anchor[] = [], texts: ComicText[] = [];
@@ -136,10 +142,10 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
       const pastZone = top + bh > py + zone.bottom;
       const overhang = pastZone ? undefined : overhangs.find(({bounds}) => rectOverlap(rect, bounds, 0));
       if (bw > PW - 2 * SIDE_KEEP) add('comic-bubble-zone', id, `${id}: the bubble is ${bw}px wide, wider than the panel allows (${PW - 2 * SIDE_KEEP}px): ${row ? `use a smaller fontSize (now ${fontSize}), fewer columns (wider panels), a wider diagram, or a shorter blank` : 'shorten the blank or the text, or use a smaller fontSize'}`);
-      if (pastZone) add('comic-bubble-zone', id, `${id}: the stack ends ${top + bh - py}px from the top of the panel, but the band over the heads ends at ${zone.bottom}px (fewer or shorter lines: at most ${budget} lines in all)`);
+      if (pastZone && !noRoom) add('comic-bubble-zone', id, `${id}: the stack ends ${top + bh - py}px from the top of the panel, but the band over the heads ends at ${zone.bottom}px (fewer or shorter lines: at most ${budget} lines in all)`);
       else if (overhang) add('comic-bubble-zone', id, `${id} が ${overhang.id} の素材の上部に重なります。台詞を短くするか、人物や素材の絵の位置を調整してください`);
       const stackLines = R.lines.length + under.reduce((n, q) => n + q.lines, 0);
-      if (!budgetReported && (stackLines > budget || R.lines.length > MAX_BUBBLE_LINES)) {
+      if (!noRoom && !budgetReported && (stackLines > budget || R.lines.length > MAX_BUBBLE_LINES)) {
         budgetReported = true;
         add('comic-text-budget', id, `${id}: ${R.lines.length > MAX_BUBBLE_LINES ? `${R.lines.length} lines in one bubble (at most ${MAX_BUBBLE_LINES})` : `${stackLines} lines are stacked in ${p.id} (at most ${budget})`}; shorten the lines (blanks count at their widest)`);
       }

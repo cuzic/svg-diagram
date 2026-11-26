@@ -246,7 +246,7 @@ test('a row layout in a narrow diagram: panels keep their minimum width and one 
       const l = lay(exchange('はい。', 'うん。'), {}, w);
       const row = layout === '4x1' ? l : lay({...exchange('はい。', 'うん。'), layout, panels: exchange('はい。', 'うん。').panels.slice(0, n)}, {}, w);
       assert.equal(row.findings.filter(f => f.rule === 'comic-band-narrow').length, 1, `${layout} ${width}`);
-      assert.match(row.findings.find(f => f.rule === 'comic-band-narrow')!.message, new RegExp(`width: ${32 + n * 200 + (n - 1) * 16 + 40}`));
+      assert.match(row.findings.find(f => f.rule === 'comic-band-narrow')!.message, new RegExp(`width: ${32 + n * 200 + (n - 1) * 16}\\b`));
       assert.ok(row.panels.every(p => p.w === 200));
       for (const p of row.panels) {
         const [a, b] = p.heads;
@@ -255,7 +255,7 @@ test('a row layout in a narrow diagram: panels keep their minimum width and one 
       assert.ok(row.findings.every(f => !/-\d/.test(f.message)), 'no negative number in a message');
     }
     const problems = (await checkDiagram(diagram({theme: 'blue', legend: false, width} as never).add(comic(sheet('4x1', 4))))).verdict.problems;
-    assert.ok(problems.some(p => /comic-band-narrow/.test(p)), `${width}: ${problems.join('|')}`);
+    assert.ok(problems.some(p => /comic-band-narrow/.test(p) && /width: 920\b/.test(p)), `${width}: ${problems.join('|')}`);
   }
   // wide enough: no such finding
   assert.equal(lay(sheet('4x1', 4), {}, 900).findings.filter(f => f.rule === 'comic-band-narrow').length, 0);
@@ -269,5 +269,32 @@ test('a narration keeps clear of the number badge at every fontSize (its left ed
     const b = l.bubbles[0]!;
     assert.equal(b.x - l.panels[0]!.x, left, `${fontSize}`);
     assert.ok(b.x - l.panels[0]!.x >= metricsOf(fontSize).badge - 8, 'clear of the badge');
+  }
+});
+
+test('three people in a row panel narrower than 232px: one problem (heads would overlap); 232px and wider: none', () => {
+  const three = (layout: ComicLayoutName, n: number): ComicWorksheet => ({...sheet(layout, n), panels: Array.from({length: n}, (_, i) => ({id: `p${i + 1}`, stage: (['left', 'center', 'right'] as const).map((at, k) => ({who: k === 1 ? 'col' : 'me', at, expression: 'neutral' as const})), dialogue: []}))});
+  const narrow = lay(three('4x1', 4), {}, 900);
+  const f = narrow.findings.filter(x => x.rule === 'comic-band-narrow');
+  assert.equal(f.length, 1);
+  assert.match(f[0]!.message, /center.*232px.*two people.*fewer columns.*wider diagram \(\d+px or more\)/);
+  assert.equal(lay(three('4x1', 4), {}, 1212).findings.length, 0); // 280px panels
+  assert.equal(lay(sheet('4x1', 4), {}, 900).findings.length, 0); // left / right only
+});
+
+test('the suggested diagram width follows the band\'s own padding (x), not a constant', () => {
+  const l = layoutComic(comic(sheet('4x1', 4), {}), 30, 0, 300, widthOf);
+  assert.match(l.findings.find(f => f.rule === 'comic-band-narrow')!.message, /width: 940/); // 880 + 2 x 30
+});
+
+test('an aspect too short for any bubble in a row: one actionable message, never a count below 1', () => {
+  for (const aspect of ['7:5', '6:5'] as const) for (const fontSize of [18, 28]) for (const w of [900, 1212]) {
+    const s = sheet('4x1', 4, () => ({id: 'd1', who: 'me', kind: 'say', tpl: 'はい。'}));
+    const l = layoutComic(comic(s, {aspect, fontSize}), 0, 0, w, widthOf);
+    const budget = l.findings.filter(f => f.rule === 'comic-text-budget' || f.rule === 'comic-bubble-zone');
+    if (lineBudget(l.panels[0]!.h, fontSize) >= 1) continue;
+    assert.equal(budget.length, 1, `${aspect} ${fontSize} ${w}`);
+    assert.match(budget[0]!.message, /taller aspect.*3:4.*fewer columns.*smaller fontSize/);
+    assert.doesNotMatch(budget[0]!.message, /at most -?\d/);
   }
 });
