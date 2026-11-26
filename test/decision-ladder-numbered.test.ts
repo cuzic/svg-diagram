@@ -76,12 +76,10 @@ test('even spacing: the gap between two boxes is the same down the questions, do
 });
 
 test('a wide answer column keeps a long sub on one line when the figure is wide enough, and wraps it when it is not', async () => {
-  const subLines = (t: LaidOutStates) => t.texts.filter(x => x.muted && x.text.includes('延長')).length + t.texts.filter(x => x.muted && x.text.includes('詳しい')).length;
   const wide = await laid(decisionLadder(STEPS, END), {width: 900}), narrow = await laid(decisionLadder(STEPS, END), {width: 640});
   assert.equal(wide.t.texts.filter(x => x.muted).length, 2, 'one line each');
   assert.ok(narrow.t.texts.filter(x => x.muted).length > 2, 'wrapped at 640');
   assert.ok(wide.t.h < narrow.t.h, `${wide.t.h} < ${narrow.t.h}`);
-  assert.ok(subLines(wide.t) >= 0);
   // an explicit maxNodeW still caps the answers
   const capped = await laid(decisionLadder(STEPS, END, {maxNodeW: 240}), {width: 900});
   assert.ok(rect(capped.t, 'a2').w <= 240 + 8);
@@ -103,8 +101,8 @@ test('ladder-height-bound: said when the figure is still too tall for a 16:9 sli
   const f = tall.verdict.findings.find(x => x.rule === 'ladder-height-bound');
   assert.ok(f, 'the finding');
   assert.equal(f.severity, 'info');
-  assert.match(f.message, /高さで大きさが決まり/);
-  assert.match(f.message, /density: 'compact'/);
+  assert.match(f.message, /高さで大きさが決まり|diagram\(\{width: \d+\}\)/);
+  assert.doesNotMatch(f.message, /compact/);
   const ok = await laid(decisionLadder(STEPS.slice(0, 3), END), {width: 900});
   assert.ok(!ok.verdict.findings.some(x => x.rule === 'ladder-height-bound'));
 });
@@ -127,4 +125,45 @@ test('tooTall: the diagram (the band and its 40px margins) against 0.47 of its w
   assert.equal(tooTall(384, 860), true);
   assert.equal(tooTall(368, 600), true);
   assert.equal(tooTall(200, 600), false);
+});
+
+const finding = async (width: number) => (await laid(decisionLadder(STEPS, END), {width})).verdict.findings.find(x => x.rule === 'ladder-height-bound');
+
+test('ladder-height-bound names the width at which every sub is on one line, and which way to go', async () => {
+  const wrapped = await laid(decisionLadder(STEPS, END), {width: 640});
+  const one = wrapped.t.oneLineW!;
+  assert.ok(one > 600 && one < 860, `${one}`);
+  const at = await laid(decisionLadder(STEPS, END), {width: one + 40});
+  assert.equal(at.t.texts.filter(x => x.muted).length, 2, 'one line each at the width it names');
+  const below = await laid(decisionLadder(STEPS, END), {width: one + 40 - 16});
+  assert.ok(below.t.texts.filter(x => x.muted).length > 2, 'wrapped narrower than the width it names');
+  // narrower: widen to it
+  assert.match((await finding(640))!.message, new RegExp(`diagram\\(\\{width: ${one + 40}\\}\\)に?広げる|diagram\\(\\{width: ${one + 40}\\}\\) に広げる`));
+  // wider (the slide's width binds): narrow to it, and the finding does not say that width is useless
+  const wide = (await finding(900))!.message;
+  assert.match(wide, new RegExp(`diagram\\(\\{width: ${one + 40}\\}\\) まで狭められる`));
+  assert.doesNotMatch(wide, /幅を変えても文字は大きくならない/);
+  // at the width itself nothing narrower or wider helps: the height binds
+  const here = (await finding(one + 40))!.message;
+  assert.match(here, /高さで大きさが決まり/);
+  assert.doesNotMatch(here, /に広げる|狭められる/);
+});
+
+test('the gap floor: with arrow words the label height (25px), without them 20px', async () => {
+  const bare = await laid(decisionLadder(STEPS, END, {yes: '', no: ''}), {width: 640});
+  assert.equal(gaps(bare.t, QS)[0], 20);
+  const worded = await laid(decisionLadder(STEPS, END), {width: 640});
+  assert.equal(gaps(worded.t, QS)[0], 25);
+});
+
+test('PPTX: a numbered question and its badge are one group, so they move together', async () => {
+  const {prepareBands} = await import('../lib/core.ts');
+  const {planPreparedPptx} = await import('../lib/pptx/selective.ts');
+  const {statesPptx} = await import('../lib/pptx/states-band.ts');
+  const {decisionLadder: ladderBand} = await import('../lib/bands/states.ts');
+  const opts = {measure: ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size}), title: '受付'};
+  const xml = planPreparedPptx(await prepareBands([ladderBand(STEPS.slice(0, 2), END, {numbered: true})], opts), {...opts, bands: {states: statesPptx}, strict: true}).plan.xml;
+  const groups = [...xml.matchAll(/<p:grpSp>(?:(?!<p:grpSp>)[\s\S])*?<\/p:grpSp>/g)].map(m => m[0]).filter(g => /name="[^"]*step/.test(g));
+  assert.equal(groups.length, 2);
+  for (const g of groups) assert.match(g, /<a:t>利用者カードは持っている？|<a:t>返却の期限は過ぎていない？/);
 });

@@ -479,7 +479,7 @@
         "ladder-height-bound": {
           "type": "string",
           "minLength": 1,
-          "description": "decisionLadder() の高さが幅の 0.47 倍を超え、16:9 のスライドでは高さで大きさが決まる（幅を広げても文字は大きくならない。段・sub を減らす、density: compact）（許容する理由を書く）"
+          "description": "decisionLadder() の高さが幅の 0.47 倍を超え、16:9 のスライドより縦長（高さが幅の 0.47 倍を超える）。答えの sub が 1 行に収まる幅を示し、高さで決まるときは段・sub を減らす（許容する理由を書く）"
         },
         "auto-fit-applied": {
           "type": "string",

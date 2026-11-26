@@ -4,7 +4,7 @@
 // The states are q1 a1 q2 a2 ... qN aN otherwise and the arrows yes1 no1 yes2 no2 ... (what decisionLadder() writes).
 import {textWidth} from './atoms.ts';
 import {diamondLines} from './flow-nodes.ts';
-import {fitFailure, type NoFit, widerThan} from './fit-width.ts';
+import {fitFailure, isNoFit, type NoFit, widerThan} from './fit-width.ts';
 import {measureNode, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
 import {must} from './must.ts';
@@ -13,11 +13,11 @@ import type {Roles, WidthOf, WrapEnv} from './types/core.ts';
 import type {LaidOutStates, StatesBand} from './types/diagrams.ts';
 
 const MIN_BOX = 80, STEP = 8, TAIL = 4;
-const GAP_FLOOR = 20, LEAD_PAD = 12; // the least row gap (a chip's own height is the other floor); the space left of a numbered question's badge
+const GAP_FLOOR = 20, LEAD_PAD = 12; // the least row gap, for a ladder without arrow words (with them the strip must hold the no chip: lh + 3); the space left of a numbered question's badge
 const grid4 = (v: number): number => Math.ceil(v / 4) * 4;
 type Col = {lines: NodeLines[]; w: number};
 
-export function layoutLadder(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv): LaidOutStates | NoFit {
+export function layoutLadder(band: StatesBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, probe = false): LaidOutStates | NoFit {
   const S = roles.note, sp = env.space ?? 1, n = (band.states.length - 1) / 2, cap = band.maxNodeW ?? 360, lh = S + 8; // lh: a chip's height
   const rows = Array.from({length: n}, (_, i) => i), qIds = [...rows.map(i => 2 * i), 2 * n], aIds = rows.map(i => 2 * i + 1);
   const state = (i: number) => must(band.states[i]);
@@ -95,7 +95,7 @@ export function layoutLadder(band: StatesBand, x: number, y: number, w: number, 
   // The gap is one value for every row (even spacing). The no chip hangs right of the arrow in the question column and the next yes chip sits between the columns: when they
   // are side by side, the strip needs only the no chip's height; when they are not, the yes chip's rise above its row (a short row) is added, for the tallest of them.
   const noRight = qc.w / 2 + 6 + noW, yesLeft = qc.w + gap / 2 - yesW / 2, clear = noW === 0 || yesW === 0 || noRight + 2 <= yesLeft;
-  const needed = lh + Math.round(3 * sp) + (clear ? 0 : Math.max(0, ...heights.map((_h, i) => rise(i + 1, heights[i + 1] ?? 0))));
+  const needed = (noW ? lh + Math.round(3 * sp) : 0) + (clear ? 0 : Math.max(0, ...heights.map((_h, i) => rise(i + 1, heights[i + 1] ?? 0))));
   const rowGap = (g: number): number => Math.max(g, needed);
   const stacked = (g: number): number => rise(0, must(heights[0])) + heights.reduce((t, rh) => t + rh + rowGap(g), 0) + must(qc.lines[n]).h;
   let rowG = Math.round(32 * sp);
@@ -116,5 +116,14 @@ export function layoutLadder(band: StatesBand, x: number, y: number, w: number, 
   }
   place(2 * n, must(qc.lines[n]), qRect(n));
   out.h = qRect(n).y + must(qc.lines[n]).h - y;
+  // The band width at which every answer's `sub` is on one line (the narrowest, in 8px steps): what the `ladder-height-bound` finding names. Only worked out for a figure too tall for a slide.
+  if (!probe && tooTall(out.h, w) && band.states.some((s, i) => i % 2 === 1 && s.sub)) {
+    const oneLine = (m: number): boolean => {
+      const l = layoutLadder(band, x, y, m, widthOf, roles, env, true);
+      if (isNoFit(l)) return false;
+      return aIds.every(k => { const r = must(l.anchors[k]); return l.texts.filter(t => t.muted && t.x > r.x && t.x < r.x + r.w && t.y > r.y && t.y < r.y + r.h).length <= 1; });
+    };
+    for (let m = 320; m <= 900; m += 8) if (oneLine(m)) { out.oneLineW = m; break; }
+  }
   return out;
 }

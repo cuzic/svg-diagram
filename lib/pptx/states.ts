@@ -56,7 +56,15 @@ export function statesXml(b: LaidOutStates, ld: LaidOutDiagram, tones: ToneEnv, 
     const runs = nodeRunsOf(n, b.texts, tones), text = linesText(runs.flatMap(r => r.lines));
     const box: TextBox = {...rect, tone: n.tone, padX: PAD_X, padY: PAD_Y, align: 'center', wrappedRuns: runs};
     const shape = boxXml(id, namedAs('box', text, dslId), box, day, tones, fonts, geomOf(n));
-    if (!n.final) out.push(shape);
+    // the step badge of a numbered decisionLadder() question: a circle in the accent with the number in white, as box({step}) draws it, grouped with its question
+    const k = (b.badges ?? []).find(m => m.cx > n.x && m.cx < n.x + n.w && m.cy > n.y && m.cy < n.y + n.h);
+    const badge = k ? (() => {
+      const r = {x: k.cx - k.r, y: k.cy - k.r, w: 2 * k.r, h: 2 * k.r}, fill = PALETTE[day].accent;
+      const line = {text: k.label, x: k.cx, y: k.cy + k.size * INK_MID, anchor: 'middle' as const, size: k.size, bold: true, color: PALETTE[badgeTextKey(fill)]};
+      return geomShapeXml(next(), namedAs('step', k.label), r, roundGeomXml('ellipse', r.w, r.h), {fill}, boxTextXml(r, [line], fonts));
+    })() : '';
+    if (badge) out.push(groupXml(next(), namedAs('node', text, dslId), rect, shape + badge));
+    else if (!n.final) out.push(shape);
     else {
       // the inner outline of an end state; on a solid fill it is drawn in the text colour (white), as the svg draws it
       const inner = {x: n.x + 4, y: n.y + 4, w: n.w - 8, h: n.h - 8};
@@ -66,12 +74,6 @@ export function statesXml(b: LaidOutStates, ld: LaidOutDiagram, tones: ToneEnv, 
       // an end state: its box and inner frame are one part (ADR 0054)
       out.push(groupXml(next(), namedAs('state', text, dslId), rect, shape + frame));
     }
-  }
-  // the step badges of a numbered decisionLadder(): a circle in the accent with the number in white, as box({step}) draws it
-  for (const k of b.badges ?? []) {
-    const r = {x: k.cx - k.r, y: k.cy - k.r, w: 2 * k.r, h: 2 * k.r}, fill = PALETTE[day].accent;
-    const line = {text: k.label, x: k.cx, y: k.cy + k.size * INK_MID, anchor: 'middle' as const, size: k.size, bold: true, color: PALETTE[badgeTextKey(fill)]};
-    out.push(geomShapeXml(next(), namedAs('step', k.label), r, roundGeomXml('ellipse', r.w, r.h), {fill}, boxTextXml(r, [line], fonts)));
   }
   // a label: its white chip holds its text, one shape (ADR 0054)
   // (a word the measure says does not fit the chip stays a text box over it, as before, so it is never lost)
