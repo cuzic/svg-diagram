@@ -3,7 +3,7 @@
 // runs wherever a font can be handed in.
 import {SLIDE_H, SLIDE_W, type Block, type DeckLayout, type TextBlock} from '../deck-layout.ts';
 import {stripAutoBlock} from '../appearance-auto.ts';
-import {prefixSvgIds} from '../svg-ids.ts';
+import {prefixTagIds} from '../svg-ids.ts';
 import {outlineText, type OutlineFont} from '../svg-outline.ts';
 import type {TextBoxFn} from '../svg-geom.ts';
 
@@ -74,7 +74,7 @@ export function slideSvg(layout: DeckLayout, figure: SlideFigure | undefined, fo
   // two figures on one page would share ids (their markers, their titles): each column's get a prefix of their own (ADR 0012)
   const cols = layout.columns.map((c, j) => {
     const f = columns[j];
-    return (f && c.figure ? placedFigure(prefixSvgIds(f.svg, `c${j + 1}`), c.figure) : '') + [...(c.caption ? [c.caption] : []), ...c.text].map(b => blockSvg(b, box)).join('');
+    return (f && c.figure ? placedFigure(prefixTagIds(f.svg, `c${j + 1}`), c.figure) : '') + [...(c.caption ? [c.caption] : []), ...c.text].map(b => blockSvg(b, box)).join('');
   }).join('');
   const raw = `<svg xmlns="http://www.w3.org/2000/svg" width="${SLIDE_W}" height="${SLIDE_H}" viewBox="0 0 ${SLIDE_W} ${SLIDE_H}"><rect width="${SLIDE_W}" height="${SLIDE_H}" fill="#ffffff"/>${top}${fig}${cols}${bottom}</svg>`;
   const o = outlineText(raw, font, box, {liveEmoji: true});

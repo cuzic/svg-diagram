@@ -47,7 +47,7 @@ const {MIN_FONT_SIZE} = await import('./lib/tokens.ts');
 const {loadDiagram} = await import('./lib/load-source.ts');
 const {depsSha256, depsOf} = await import('./lib/source-deps.ts');
 const {readProvenance, ownsOutput, sha256: sha} = await import('./lib/freshness.ts');
-const {prefixSvgIds, idPrefixFor} = await import('./lib/svg-ids.ts');
+const {prefixSvgIds, idPrefixFor, prepareForEmbedding, autoIdPrefix} = await import('./lib/svg-ids.ts');
 const {buildErrorSite, formatBuildError} = await import('./lib/error-format.ts');
 const config = loadConfig();
 
@@ -80,6 +80,7 @@ const locationsDir = argValue('--locations-dir');
 const pngDir = argValue('--png'); // also write <name>.png (the rasters of lib/raster.ts) here
 const scaleArg = argValue('--scale');
 const PNG_SCALE = scaleArg === null ? 2 : Number(scaleArg);
+const INLINE = args.includes('--inline'); // for pasting into a page: the written SVG has no width/height (viewBox only) and no <?xml?> line
 const idPrefixArg = argValue('--id-prefix'); // ADR 0012 D2: prefix every id of the written SVG / HTML (`auto`: a hash of the content)
 const FIT = args.includes('--fit');
 const NO_LINT = args.includes('--no-lint'); // iteration: skip the lint pass (check/CI or a final build runs it)
@@ -89,7 +90,7 @@ const TRANSPARENT = args.includes('--transparent'); // no page-colour background
 const NO_SOURCE_LINE = args.includes('--no-source-line'); // ADR 0023 D11: draw without diagram({sourceLine}) (recorded in <metadata> as noSourceLine)
 const STALE = args.includes('--stale'); // skip diagrams whose SVG already matches this source, tool version and project config
 const valueFlags = ['--out', '--out-dir', '--locations', '--locations-dir', '--png', '--scale', '--id-prefix', '--today'];
-const boolFlags = ['--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent', '--no-source-line'];
+const boolFlags = ['--fit', '--stale', '--no-lint', '--html', '--dark', '--transparent', '--no-source-line', '--inline'];
 const modules = args.filter((a, i) => !valueFlags.includes(a) && !boolFlags.includes(a) && !valueFlags.includes(args[i - 1] ?? ''));
 
 if (locationsFile !== null && (!locationsFile || locationsFile.startsWith('--'))) { console.error('--locations に出力ファイルを指定してください（--locations FILE）'); process.exit(2); }
@@ -104,7 +105,7 @@ if (locationsFile !== null && locationsDir !== null) {
 }
 
 if (modules.length === 0) {
-  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--locations FILE | --locations-dir DIR] [--png <dir> [--scale N]] [--stale] [--no-lint] [--fit] [--html] [--dark] [--transparent] [--no-source-line] [--id-prefix <p|auto>] [--today YYYY-MM-DD]');
+  console.error('Usage: svg-diagram build <diagram-source.ts>... [--out <file> | --out-dir <dir>] [--locations FILE | --locations-dir DIR] [--png <dir> [--scale N]] [--stale] [--no-lint] [--fit] [--html] [--dark] [--transparent] [--no-source-line] [--id-prefix <p|auto>] [--inline] [--today YYYY-MM-DD]');
   process.exit(2);
 }
 if (outOverride && modules.length > 1) {
@@ -115,7 +116,7 @@ if (pngDir !== null && (!pngDir || pngDir.startsWith('--'))) { console.error('--
 if (scaleArg !== null && pngDir === null) { console.error('--scale is the PNG scale: use it with --png <dir>'); process.exit(2); }
 if (!(PNG_SCALE > 0)) { console.error(`--scale is a positive number (got ${scaleArg})`); process.exit(2); }
 if (args.includes('--today')) { try { if (!todayArg || todayArg.startsWith('--')) throw new Error('--today needs a date (YYYY-MM-DD)'); config._today = (await import('./lib/today.ts')).checkToday(todayArg, '--today'); } catch (e) { console.error(`✗ ${(e as Error).message}`); process.exit(2); } }
-if (idPrefixArg !== null && !/^[A-Za-z_][\w.-]*$/.test(idPrefixArg)) { console.error(`--id-prefix is a name usable in an id (letters, digits, _ . -; not starting with a digit) or "auto" (got ${idPrefixArg})`); process.exit(2); }
+if (idPrefixArg !== null && !/^[A-Za-z_][\w-]*$/.test(idPrefixArg)) { console.error(`--id-prefix is a name usable in an id (letters, digits, _ -; not starting with a digit) or "auto" (got ${idPrefixArg})`); process.exit(2); }
 if (outOverride && outDir) {
   console.error('use either --out or --out-dir, not both');
   process.exit(2);
@@ -204,7 +205,7 @@ try {
     const pngPath = pngDir && path.join(pngDir, path.parse(outPath).name + '.png');
     const pngCurrent = () => !pngPath || (fs.existsSync(pngPath) && fs.statSync(pngPath).mtimeMs >= fs.statSync(outPath).mtimeMs);
     let skipSvg = false;
-    if (STALE && idPrefixArg === null && !FIT && !DARK && !TRANSPARENT && fs.existsSync(outPath) && pngCurrent()) { // --png: a missing or older PNG is not up to date either
+    if (STALE && idPrefixArg === null && !INLINE && !FIT && !DARK && !TRANSPARENT && fs.existsSync(outPath) && pngCurrent()) { // --png: a missing or older PNG is not up to date either
       const meta = readProvenance(outPath);
       if (meta && matchesBuildProvenance({...meta, tool: meta.toolVersion}, provenance)) {
         skipSvg = true;
@@ -244,10 +245,11 @@ try {
         const base = modules.length > 1 ? path.parse(modPath).name : null;
         for (const f of [outPath, ...result.revealPaths, ...(result.htmlPath ? [result.htmlPath] : [])]) {
           const text = fs.readFileSync(f, 'utf8');
-          const prefix = idPrefixArg === 'auto' ? `sd${sha(text).slice(0, 8)}` : idPrefixFor(idPrefixArg, base);
+          const prefix = idPrefixArg === 'auto' ? autoIdPrefix(text) : idPrefixFor(idPrefixArg, base);
           fs.writeFileSync(f, prefixSvgIds(text, prefix, {rootId: /<div id="(sd-[0-9a-f]+)" class="sd"/.exec(text)?.[1]})); // <metadata id="svg-diagram"> stays
         }
       }
+      if (INLINE) for (const f of [outPath, ...result.revealPaths]) fs.writeFileSync(f, prepareForEmbedding(fs.readFileSync(f, 'utf8'), {inline: true}));
       if (locationsPath) writeLocations(result.laidOut, provenance);
       written.push(outPath, ...result.revealPaths);
       if (result.htmlPath) console.log(`✓ ${result.htmlPath}`);

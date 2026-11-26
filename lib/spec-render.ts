@@ -9,6 +9,8 @@ import {finishNodeSpec, isInfrastructure, MAX_FIGURE_HEIGHT, nothing} from './sp
 import type {Config} from './types/project.ts';
 import type {Diagram} from './types/core.ts';
 import type {RenderResult} from './types/verdicts.ts';
+import {idPrefixProblem} from './svg-ids.ts';
+import type {EmbedOptions} from './svg-ids.ts';
 
 export type {RenderChecks} from './geometry-checks.ts';
 export {lintRendering, MAX_FIGURE_HEIGHT} from './spec-node-result.ts';
@@ -16,7 +18,7 @@ export {MAX_PNG_PIXELS, svgToPng} from './png.ts';
 export {lintMessages};
 export type {RenderSpecResult};
 
-export interface RenderSpecOptions {
+export interface RenderSpecOptions extends EmbedOptions {
   /** Which fonts text is measured with. Default: the font lookup of this machine. */
   config?: Pick<Config, 'measure' | 'fonts'>;
   /** The name used in messages (default 'diagram.svg'). */
@@ -31,6 +33,8 @@ export interface RenderSpecOptions {
  * worker with a time limit.
  */
 export async function renderSpec(spec: unknown, opts: RenderSpecOptions = {}): Promise<RenderSpecResult> {
+  const badPrefix = opts.idPrefix === undefined ? null : idPrefixProblem(opts.idPrefix);
+  if (badPrefix) return nothing([{path: '', message: badPrefix}]);
   const config: Pick<Config, 'measure' | 'fonts'> = opts.config ?? {};
   let d: Diagram;
   try {
@@ -46,5 +50,5 @@ export async function renderSpec(spec: unknown, opts: RenderSpecOptions = {}): P
     if (isInfrastructure(e)) throw e;
     return nothing([layoutIssue(spec, e)]);
   }
-  return finishNodeSpec(spec, r, opts.maxHeight ?? MAX_FIGURE_HEIGHT, config.fonts);
+  return finishNodeSpec(spec, r, opts.maxHeight ?? MAX_FIGURE_HEIGHT, config.fonts, {idPrefix: opts.idPrefix, inline: opts.inline});
 }
