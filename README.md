@@ -197,7 +197,7 @@ CLI では `svg-diagram spec 比較.json --part table > 比較.svg` で描画で
 
 状態表示には `createWireframe(renderers, {states: widgetStates})`、方向や視野付きのロボットマーカーには `createWireframe(renderers, {robotMarkers})` を使います。`widgetStates` と `robotMarkers` は `svg-diagram/wireframe/renderers` から必要なものを import します。
 
-`wf.dialog(title, {body, buttons, at})` の `at`（`'center'`（既定）/ `'top'` / `'bottom'` / `'left'` / `'right'`）で、カードを画面の端（16px の余白）に寄せられる（暗幕は全面のまま。カードが覆わない所は描かれる）。カードが画面に収まらないとき（本文が長い・画面が低い・`w` が広い）は throw し、直し方（本文を短く・`w` を狭く・`h` を高く）を示す。
+`wf.dialog(title, {body, buttons, at})` の `at`（`'center'`（既定）/ `'top'` / `'bottom'` / `'left'` / `'right'`）で、カードを画面の端（16px の余白）に寄せられる（暗幕は全面のまま。カードが覆わない所は描かれる）。端の余白は、それだけが原因ならカードが収まるまで縮む。カードが画面より大きいとき（本文が長い・画面が低い・`w` が広い）は、左上（題が見える位置）に寄せて描き、`check` が problem `wf-dialog-too-big` で直し方（本文を短く・`w` を狭く・`h` を高く）を示す（`at` が不正なときだけ throw）。
 
 ダイアログは `{dialog: dialogRenderer}`、トーストは `{toast: toastRenderer}` を `createWireframe` のオプションに渡します。ダイアログにボタンを置く場合は `btnRenderer` も部品に登録します。基本描画の一括入口 `bands/wireframe/basic` には両方が含まれます。
 

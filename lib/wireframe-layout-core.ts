@@ -102,7 +102,7 @@ function decoration<K extends keyof WireframeDecorations>(ctx: WfCtx, key: K, fe
 }
 
 function mkCtx(runtime: WireframeRuntime, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode, skeleton?: boolean): RuntimeCtx {
-  return {runtime, widthOf, tones, wrap, skeleton: !!skeleton, prims: [], callouts: [], all: [], used: new Set<WfMark>()};
+  return {runtime, widthOf, tones, wrap, skeleton: !!skeleton, prims: [], callouts: [], all: [], problems: [], used: new Set<WfMark>()};
 }
 const tw = (ctx: WfCtx, s: string | number, size: number, weight: number): number => textWidth(ctx.widthOf, String(s), size, weight);
 // Katakana runs stay in one piece (ドラッグ must not break as ドラッ/グ); widths are summed per character.
@@ -775,10 +775,11 @@ export const dialogRenderer: OverlayRenderer<WfDialog> = function drawDialog(o, 
   const dh = pad + 24 + (body.length ? 8 + body.length * lh(S) : 0) + (buttons.length ? 16 + 32 : 0) + pad;
   const at = o.at ?? 'center', edge = 16;
   if (!['center', 'top', 'bottom', 'left', 'right'].includes(at)) throw new Error(`wf.dialog(): at must be 'center', 'top', 'bottom', 'left' or 'right' (got "${String(at)}")`);
-  const room = at === 'center' ? 0 : edge; // a centred card only has to stay on the screen
-  if (dh > h - 2 * room || dw > w - 2 * room) throw new Error(`wf.dialog(): the card (${Math.round(dw)}x${Math.round(dh)}px) does not fit inside the screen (${Math.round(w)}x${Math.round(h)}px${room ? `, ${room}px margin` : ''}); shorten the body or the buttons, narrow the card with w, or make the screen taller (wireframe h)`);
-  const dx = at === 'left' ? x + edge : at === 'right' ? x + w - dw - edge : x + (w - dw) / 2;
-  const dy = at === 'top' ? y + edge : at === 'bottom' ? y + h - dh - edge : y + (h - dh) / 2;
+  // The card stays on its screen: the edge margin shrinks when that alone would push it out; a card bigger than the screen is pinned to the top-left (title visible) and reported (wf-dialog-too-big)
+  if (dh > h || dw > w) ctx.problems.push(`wf.dialog(): the card (${Math.round(dw)}x${Math.round(dh)}px) does not fit inside the screen (${Math.round(w)}x${Math.round(h)}px); shorten the body or the buttons, narrow the card with w, or make the screen taller (wireframe h)`);
+  const mx = Math.min(edge, Math.max(0, (w - dw) / 2)), my = Math.min(edge, Math.max(0, (h - dh) / 2));
+  const dx = Math.max(x, at === 'left' ? x + mx : at === 'right' ? x + w - dw - mx : x + (w - dw) / 2);
+  const dy = Math.max(y, at === 'top' ? y + my : at === 'bottom' ? y + h - dh - my : y + (h - dh) / 2);
   rect(ctx, x, y, w, h, {fill: 'text', op: 0.3});
   hideUnder(ctx, dx, dy, dw, dh);
   rect(ctx, dx, dy, dw, dh, {r: 8, fill: 'bg', stroke: 'text', sw: 2.5});
@@ -907,7 +908,7 @@ export function layoutWireframeWith(runtime: WireframeRuntime, band: WireframeBa
   let bottom = scr.bottom;
   if (hasNotes) bottom = Math.max(bottom, scr.frame.y + drawNotes(ctx, must(band.notes), x + sw + gap, scr.frame.y, noteW));
   bottom += drawMarksLegend(ctx, band.marks, x, bottom + 4) ? 32 : 0;
-  return {type: 'wireframe', id: band.id, title: band.title, x, y, w, h: bottom - y, prims: ctx.prims, callouts: ctx.all, anchors: band.id ? [{id: band.id, ...scr.frame}] : []};
+  return {type: 'wireframe', id: band.id, title: band.title, x, y, w, h: bottom - y, prims: ctx.prims, callouts: ctx.all, ...(ctx.problems.length ? {problems: ctx.problems} : {}), anchors: band.id ? [{id: band.id, ...scr.frame}] : []};
 }
 
 export function layoutStateMatrixWith(runtime: WireframeRuntime, band: ScreensBand, x: number, y: number, w: number, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode): LaidOutScreens {
@@ -945,7 +946,7 @@ export function layoutScreenGridWith(runtime: WireframeRuntime, band: ScreensBan
   }
   let bottom = cy - rowGap;
   bottom += drawMarksLegend(ctx, band.marks, x, bottom + 4) ? 32 : 0;
-  return {type: 'screens', id: band.id, title: band.items[0]?.title, x, y, w, h: bottom - y, prims: ctx.prims, anchors};
+  return {type: 'screens', id: band.id, title: band.items[0]?.title, x, y, w, h: bottom - y, prims: ctx.prims, ...(ctx.problems.length ? {problems: ctx.problems} : {}), anchors};
 }
 
 export function layoutScreensWith(runtime: WireframeRuntime, band: ScreensBand, x: number, y: number, w: number, widthOf: WidthOf, tones: ToneEnv, wrap: WrapMode): LaidOutScreens {

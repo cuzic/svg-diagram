@@ -365,6 +365,8 @@ export interface WfCtx {
   callouts: WfCallout[];
   /** Every callout drawn so far (kept on the laid-out band for the wf-callout-order rule). */
   all: WfCallout[];
+  /** Problems found while drawing (a dialog card bigger than its screen), reported by the band's check as `wf-dialog-too-big`. */
+  problems: string[];
   /** Which marks ('new' / 'changed') were used, for the marks legend. */
   used: Set<WfMark>;
 }

@@ -197,3 +197,9 @@ test('venn: a wrapped item hangs under its text, and every corner of every line 
   for (const t of lines) for (const [x, y] of [[t.x, t.y], [t.x + t.w, t.y], [t.x, t.y + t.h], [t.x + t.w, t.y + t.h]] as const) assert.ok(Math.hypot(x - a!.cx, y - a!.cy) <= a!.r);
   assert.equal(f.misfits, undefined);
 });
+
+test('venn: wrapped item lines are checked one by one, so a short last line does not reject a figure that fits', () => {
+  const f = figure(venn([{name: '甲', items: ['とても長い特徴の説明がここに入る']}, {name: '乙'}, {name: '丙'}]), 640);
+  assert.ok(f.texts.filter(t => t.text.includes('特徴') || t.text.includes('入る')).length >= 2, 'the item wraps');
+  assert.equal(f.misfits, undefined);
+});

@@ -3,6 +3,7 @@
 import test, {after} from 'node:test';
 import assert from 'node:assert/strict';
 import {diagram, wireframe, screens, wf, checkDiagram, closeMeasurer} from '../lib/dsl.ts';
+import {dialogProblems} from '../lib/verify-wireframe-callouts.ts';
 import type {Rect} from '../lib/types/core.ts';
 import type {Band} from '../lib/types/index.ts';
 import type {PrimRect, PrimText, Prim} from '../lib/types/wireframe-nodes.ts';
@@ -124,10 +125,37 @@ test('dialog at: places the card off-centre, default stays centred, and content 
   await assert.rejects(() => layout(wireframe([wf.text('x')], {h: 200, overlays: [wf.dialog('t', {at: 'middle' as 'top'})]})), /at must be/);
 });
 
-test('dialog: a card taller than its screen is refused for every position, with a fix hint', async () => {
+test('dialog: a card bigger than its screen is drawn pinned to the top-left and reported as wf-dialog-too-big; one that only misses the margin is not', async () => {
+  const check = async (h: number, dialog: ReturnType<typeof wf.dialog>) => {
+    const d = diagram({theme: 'blue'});
+    d.add(wireframe([wf.text('main')], {h, overlays: [dialog]}));
+    const r = await checkDiagram(d);
+    return {band: r.laidOut.laidOut[0] as Screen, problems: r.verdict.problems};
+  };
+  const card = (b: Screen) => b.prims.find((p): p is PrimRect => p.k === 'rect' && p.stroke === 'text' && p.sw === 2.5 && p.r === 8)!;
+  const dim = (b: Screen) => b.prims.find((p): p is PrimRect => p.k === 'rect' && p.fill === 'text' && p.op === 0.3)!;
   const tall = '長い本文です。'.repeat(20);
   for (const at of [undefined, 'center', 'top', 'bottom', 'left', 'right'] as const) {
-    await assert.rejects(() => layout(wireframe([wf.text('main')], {h: 140, overlays: [wf.dialog('確認', {body: tall, buttons: [wf.btn('はい')], at})]})), /does not fit inside the screen.*(shorten|taller)/, String(at));
+    const {band, problems} = await check(140, wf.dialog('確認', {body: tall, buttons: [wf.btn('はい')], at}));
+    assert.ok(problems.some(p => /does not fit inside the screen.*(shorten|taller)/.test(p)), String(at));
+    assert.ok(card(band).x >= dim(band).x && card(band).x + card(band).w <= dim(band).x + dim(band).w, `${at}: a card that is only too tall stays inside horizontally`);
+    assert.equal(card(band).y, dim(band).y, `${at}: pinned to the top edge (title visible)`);
   }
-  await assert.rejects(() => layout(wireframe([wf.text('main')], {h: 300, overlays: [wf.dialog('確認', {w: 2000, at: 'left'})]})), /does not fit inside the screen/);
+  const wide = await check(300, wf.dialog('確認', {w: 2000, at: 'right'}));
+  assert.ok(wide.problems.some(p => /does not fit/.test(p)));
+  assert.equal(card(wide.band).x, dim(wide.band).x, 'a card wider than the screen is pinned to the left edge');
+  // fits the screen: no problem
+  const {band, problems} = await check(140, wf.dialog('確認', {body: '本文', at: 'top'}));
+  assert.deepEqual(problems, []);
+  assert.ok(card(band).y >= dim(band).y && card(band).y + card(band).h <= dim(band).y + dim(band).h);
+  const snug = await check(card(band).h + 6, wf.dialog('確認', {body: '本文', at: 'top'}));
+  assert.deepEqual(snug.problems, []);
+  assert.ok(card(snug.band).y >= dim(snug.band).y && card(snug.band).y + card(snug.band).h <= dim(snug.band).y + dim(snug.band).h, 'margin shrinks, card stays inside');
+  assert.ok(dim(snug.band).h - card(snug.band).h < 32, 'the margin really was smaller than 16px on both sides');
+  await assert.rejects(() => layout(wireframe([wf.text('x')], {h: 200, overlays: [wf.dialog('t', {at: 'middle' as 'top'})]})), /at must be/);
+});
+
+test('dialogProblems turns the layout\'s dialog messages into wf-dialog-too-big problems', () => {
+  assert.deepEqual(dialogProblems({}), []);
+  assert.deepEqual(dialogProblems({problems: ['m']}), [{rule: 'wf-dialog-too-big', severity: 'problem', message: 'm'}]);
 });
