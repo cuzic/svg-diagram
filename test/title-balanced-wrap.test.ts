@@ -65,3 +65,27 @@ test('PPTX: the cover title text boxes carry the balanced lines', () => {
   const m = p.xml.match(/<a:t>([^<]*)<\/a:t>/g)?.map(x => x.replace(/<\/?a:t>/g, '')) ?? [];
   assert.deepEqual(m.filter(x => x.length > 0 && TITLE20.includes(x)).map(l => [...l].length), [10, 10]);
 });
+
+const em = {atomWidth: (a: string) => [...a].length, mode: 'phrase' as const};
+
+test('M1: the balanced width never goes under a katakana or kanji run, or a colon break the greedy wrap kept', () => {
+  const kata = 'コミュニケーションプラットフォーム移行プロジェクトの振り返り';
+  assert.deepEqual(wrapBalanced(kata, {...em, maxWidth: 24}), ['コミュニケーションプラットフォーム', '移行プロジェクトの振り返り']);
+  const kanji = '国立研究開発法人情報通信研究機構との共同研究成果';
+  const k = wrapBalanced(kanji, {...em, maxWidth: 22});
+  assert.ok(k[0]?.startsWith('国立研究開発法人情報通信研究機構'), k.join('|'));
+  const colon = wrapBalanced('はじめに：オブザーバビリティプラットフォーム', {...em, maxWidth: 14});
+  assert.ok(colon.every(l => !/オブザーバビ$/.test(l)), colon.join('|'));
+  assert.deepEqual(wrapBalanced(TITLE20, {...em, maxWidth: 18}).map(l => [...l].length), [10, 10], 'hiragana still balances');
+});
+
+test('m1: a blank line written with \\n\\n is kept', () => {
+  assert.deepEqual(wrapBalanced('第一部\n\n図で伝える', {...em, maxWidth: 20}), ['第一部', '', '図で伝える']);
+});
+
+test('m2: a break after a clause mark is preferred when the lines are nearly as even', () => {
+  const t = 'あたらしい設計の考え方、そしてその運用の話をします';
+  const got = wrapBalanced(t, {...em, maxWidth: 24});
+  assert.equal(got.join(''), t);
+  assert.ok(got[0]?.endsWith('、'), got.join('|'));
+});
