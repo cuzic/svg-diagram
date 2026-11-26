@@ -15,7 +15,8 @@ import {planSlide, fontsOf} from '../lib/pptx/slide.ts';
 import {EMU} from '../lib/pptx/xml.ts';
 import {xmlProblems} from '../lib/xml-check.ts';
 import {realEngine} from './helpers/text-engine.ts';
-import {unzipEntry} from './helpers/pptx/unzip.ts';
+import {unzipEntry, unzipNames} from './helpers/pptx/unzip.ts';
+import {hasXmllint, hasXsd, slideSchemaProblems} from './helpers/pptx/xsd.ts';
 
 test.after(() => closeMeasurer());
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -68,7 +69,7 @@ test('a deck is one file of 16:9 slides with notes, every shape on its slide and
   assert.ok(pres.indexOf('<p:notesMasterIdLst>') < pres.indexOf('<p:sldIdLst>'), 'pml.xsd: the notes master list comes before the slide list');
   assert.match(entry(pptx, 'docProps/app.xml'), /<Slides>3<\/Slides>/);
   assert.match(entry(pptx, 'docProps/core.xml'), /<dc:title>デッキ<\/dc:title>/);
-  assert.match(entry(pptx, 'ppt/notesSlides/notesSlide1.xml'), /<a:t xml:space="preserve">一行目<\/a:t><\/a:r><\/a:p><a:p><a:r><a:rPr lang="ja-JP" dirty="0"\/><a:t xml:space="preserve">二行目<\/a:t>/);
+  assert.match(entry(pptx, 'ppt/notesSlides/notesSlide1.xml'), /<a:t>一行目<\/a:t><\/a:r><\/a:p><a:p><a:r><a:rPr lang="ja-JP" dirty="0"\/><a:t>二行目<\/a:t>/);
   for (let i = 1; i <= 3; i++) {
     const xml = entry(pptx, `ppt/slides/slide${i}.xml`);
     assert.deepEqual(xmlProblems(xml), [], `slide ${i}`);
@@ -84,6 +85,21 @@ test('a deck is one file of 16:9 slides with notes, every shape on its slide and
   }
   assert.match(entry(pptx, 'ppt/slides/slide2.xml'), /<a:t>「短い見本を 3 つ作って。」<\/a:t>/);
   assert.deepEqual(r.slides.map(s => s.scale === null), [false, false, true]);
+});
+
+// Every PresentationML / DrawingML part of the package, not only the slides: the notes pages broke pml.xsd (xml:space on <a:t>) while every slide passed.
+// CI installs xmllint and the schemas (.github/workflows/test.yml), so there the check never skips.
+test('every part of a deck validates against pml.xsd: slides, notes pages, masters, layouts, theme, presentation', {skip: !process.env['CI'] && !(hasXmllint() && hasXsd())}, async () => {
+  const deck = {title: 'デッキ', slides: [
+    ...DECK.slides,
+    {title: '長い脚注', lead: '本文。', source: '出典: ' + '資料の名前と年と頁。'.repeat(30), notes: '  先頭に空白\n\t字下げ\n\n末尾  '},
+  ]};
+  const r = await renderDeckPptxEdge(deck, realEngine(), {rasterize: () => PNG});
+  assert.deepEqual(r.issues, []);
+  const zip = Buffer.from(r.pptx as Uint8Array);
+  const parts = unzipNames(zip).filter(n => n.startsWith('ppt/') && n.endsWith('.xml'));
+  assert.ok(parts.includes('ppt/notesSlides/notesSlide4.xml') && parts.includes('ppt/presentation.xml'), parts.join(', '));
+  for (const name of parts) assert.deepEqual(slideSchemaProblems(unzipEntry(zip, name).toString()), [], name);
 });
 
 test('the same deck gives the same bytes', async () => {
@@ -152,7 +168,7 @@ test('a slide without a figure whose text runs into its callouts is refused, and
   assert.equal(crowded.noRoom, true);
   assert.equal(planDeckSlide({title: 't', lead: 'short'}, fontsOf(), width).noRoom, false);
   const r = await renderDeckPptxEdge({slides: [{title: 'a', notes: '\n一\n\n\t二\n'}]}, realEngine(), {rasterize: () => PNG});
-  assert.match(entry(r.pptx as Uint8Array, 'ppt/notesSlides/notesSlide1.xml'), /<a:t xml:space="preserve">一<\/a:t><\/a:r><\/a:p><a:p><a:endParaRPr lang="ja-JP" dirty="0"\/><\/a:p><a:p><a:r><a:rPr lang="ja-JP" dirty="0"\/><a:t xml:space="preserve">    二<\/a:t>/);
+  assert.match(entry(r.pptx as Uint8Array, 'ppt/notesSlides/notesSlide1.xml'), /<a:t>一<\/a:t><\/a:r><\/a:p><a:p><a:endParaRPr lang="ja-JP" dirty="0"\/><\/a:p><a:p><a:r><a:rPr lang="ja-JP" dirty="0"\/><a:t>    二<\/a:t>/);
 });
 
 test('a changed template stops the deck instead of making a broken file', () => {

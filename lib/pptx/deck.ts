@@ -158,13 +158,16 @@ const IMAGE_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relatio
 const SLIDE_CT = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml';
 const NOTES_CT = 'application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml';
 
-/** The notes page: one paragraph per line, blank lines kept as empty paragraphs (a break between thoughts), the leading and trailing blank lines dropped. */
+/**
+ * The notes page: one paragraph per line, blank lines kept as empty paragraphs (a break between thoughts), the leading and trailing blank lines dropped.
+ * `<a:t>` takes no attributes (pml.xsd; unlike WordprocessingML's w:t, no xml:space): DrawingML keeps a run's spaces as they are, so an indent survives without it.
+ */
 function notesXml(template: string, notes: string): string {
   const lines = notes.replace(/\t/g, '    ').split(/\r\n|\r|\n/).map(l => l.trimEnd());
   while (lines.length && !lines[0]) lines.shift();
   while (lines.length && !lines[lines.length - 1]) lines.pop();
   const empty = '<a:p><a:endParaRPr lang="ja-JP" dirty="0"/></a:p>';
-  const paras = lines.length ? lines.map(l => l ? `<a:p><a:r><a:rPr lang="ja-JP" dirty="0"/><a:t xml:space="preserve">${escapeXml(l)}</a:t></a:r></a:p>` : empty).join('') : empty;
+  const paras = lines.length ? lines.map(l => l ? `<a:p><a:r><a:rPr lang="ja-JP" dirty="0"/><a:t>${escapeXml(l)}</a:t></a:r></a:p>` : empty).join('') : empty;
   return once(template, /(<p:ph type="body" idx="1"\/>[\s\S]*?<a:lstStyle\/>)[\s\S]*?(<\/p:txBody>)/, (_m, a: string, b: string) => a + paras + b, 'the notes body');
 }
 
