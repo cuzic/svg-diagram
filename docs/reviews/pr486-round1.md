@@ -37,7 +37,7 @@ n/a (round 1)
 
 ### m2 (Minor): `tree()` rejects `'auto'` with a message that offers `'auto'`
 - Evidence (ran): `tree(root, {maxNodeW: 'auto'})` throws `tree(): maxNodeW must be >= 80 or 'auto' (got auto)` (`lib/dsl/tree.ts:56`).
-- Fix: only mention `'auto'` when `who === 'mindmap()'`. For `tree()`, keep "must be a number >= 80". The test at `test/mindmap-auto-width.test.ts:40` only checks for `/maxNodeW/`.
+- Fix: only mention `'auto'` when `who === 'mindmap()'`. For `tree()`, keep "must be a number >= 80". The test named "…and tree() never takes it" (`test/mindmap-auto-width.test.ts:38`) never calls `tree()`: both asserts call `mindmap()`. Add a `tree(…, {maxNodeW: 'auto'})` assert.
 
 ### n1 (nit): `lib/tree.ts:168` passes `'auto'` into the plan's `maxNodeW` (`band.maxNodeW as number`)
 - Every current read of `plan.maxNodeW` in `lib/fit-width.ts` is guarded by `autoWidth`, so the output is correct today. `lib/toc.ts:466` drops `'auto'` before passing it; do the same here so a later read of `plan.maxNodeW` cannot see a string.
