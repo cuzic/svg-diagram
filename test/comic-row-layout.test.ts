@@ -298,3 +298,13 @@ test('an aspect too short for any bubble in a row: one actionable message, never
     assert.doesNotMatch(budget[0]!.message, /at most -?\d/);
   }
 });
+
+test('a row band sits on the 4px grid whatever the padding and the bands above it (CI coordinate-grid); the band height covers the shift', () => {
+  const l = layoutComic(comic(sheet('4x1', 4, withBlank), {fontSize: 24}), 34, 37, 1212, widthOf);
+  for (const p of l.panels) for (const n of [p.x, p.y, p.w, p.h]) assert.equal(n % 4, 0);
+  assert.ok(l.x % 4 === 0 && l.y % 4 === 0 && l.y >= 37 && l.x <= 34 + 6);
+  assert.equal(l.h, 32 + l.panels[0]!.h + (l.y - 37));
+  for (const b of l.bubbles) for (const n of [b.x, b.w, b.h]) assert.equal(n % 4, 0);
+  // a column is placed where it is told, as before
+  assert.equal(layoutComic(comic(sheet('1x4', 4), {}), 34, 37, 0, widthOf).y, 37);
+});

@@ -63,8 +63,11 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
   // a row panel keeps three heads HEAD_GAP apart (never past the side by more than the head's own radius); the wider panels keep 104
   const stageX = row ? Math.min(STAGE_X, Math.max(HEAD_R + 4, Math.floor((PW / 2 - 2 * HEAD_R - HEAD_GAP) / 4) * 4)) : STAGE_X;
   const zone = zoneOf(PH, fontSize), budget = lineBudget(PH, fontSize);
-  const W = bandWidth(cols, PW), H = 2 * MARGIN + rows * PH + (rows - 1) * GUTTER;
-  const bx = x + snap4(Math.max(0, w - W) / 2), by = y;
+  const W = bandWidth(cols, PW);
+  const bx0 = x + snap4(Math.max(0, w - W) / 2);
+  // a row band sits on the 4px grid whatever the padding or the bands above it (a canvas's scaled padding is not a multiple of 4): left edge down, top edge down
+  const bx = row ? Math.floor(bx0 / 4) * 4 : bx0, by = row ? Math.ceil(y / 4) * 4 : y;
+  const H = 2 * MARGIN + rows * PH + (rows - 1) * GUTTER + (by - y);
   const findings: ComicFinding[] = [];
   const add = (rule: ComicRule, where: string, message: string, severity: ComicFinding['severity'] = 'problem'): void => { findings.push({rule, severity, where, message}); };
   const atomWidth = (atom: string): number => comicAtomWidth(atom, widthOf, fontSize);
