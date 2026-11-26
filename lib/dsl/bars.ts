@@ -72,7 +72,8 @@ export function bars(data: readonly BarDatum[], opts: BarsOpts = {}): BarsBand {
   if (opts.barRatio !== undefined && !(opts.barRatio > 0 && opts.barRatio <= 1)) throw new Error(`bars(): barRatio must be a number > 0 and <= 1 (got ${opts.barRatio})`);
   if (opts.barRatio !== undefined && opts.stack) throw new Error('bars(): barRatio does not apply to stack');
   const stack = !!opts.stack;
-  const overlay = (['lines', 'vlines', 'curve', 'cumulative', 'edges'] as const).filter(k => opts[k] !== undefined);
+  // `lines` also works on horizontal bars (vertical lines at a value); the other overlays need vertical bars
+  const overlay = (['lines', 'vlines', 'curve', 'cumulative', 'edges'] as const).filter(k => opts[k] !== undefined && !(k === 'lines' && opts.dir !== 'v' && !stack));
   if (overlay.length && (opts.dir !== 'v' || stack)) throw new Error(`bars(): ${overlay.join(' / ')} need vertical bars that are not stacked (dir: 'v')`);
   const extent = stack ? data.reduce((n, d) => n + barSpan(d).hi, 0) : Math.max(...data.map(d => barSpan(d).hi));
   const max = opts.max ?? extent;

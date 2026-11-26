@@ -5,13 +5,13 @@ import type {PartDef} from '../spec-kit.ts';
 export function defineBarsPart<Result>(builder: (data: never, opts: never) => Result): PartDef<Result> {
   return {
     type: 'bars',
-    description: 'A bar chart: one bar per label, such as sales by month or votes by option. Values are 0 or more. dir v (columns) suits a few short labels or a time order; h (rows, the default) suits long labels or a ranking. Reference lines (a target, an average) need dir v.',
+    description: 'A bar chart: one bar per label, such as sales by month or votes by option. Values are 0 or more. dir v (columns) suits a few short labels or a time order; h (rows, the default) suits long labels or a ranking. Reference lines (a target, an average) work with both: horizontal across columns (dir v), vertical across rows (dir h).',
     schema: object({
       type: {const: 'bars'},
       data: list(object({label: text('What the bar is.', 30), value: {...AMOUNT, description: 'The value, 0 or more.'}, tone: {...BAR_TONE, description: 'A colour to single the bar out (danger is red).'}}, ['label', 'value']), 30, 1),
       unit: UNIT,
       dir: DIR('the bars'),
-      lines: {...list(object({at: {...AMOUNT, description: 'The value the line is drawn at.'}, label: text('The name of the line, such as 目標.', 20), tone: CHART_TONE, dashed: {type: 'boolean', description: 'Default true.'}}, ['at']), 4), description: 'Horizontal reference lines across vertical bars (dir v only).'},
+      lines: {...list(object({at: {...AMOUNT, description: 'The value the line is drawn at.'}, label: text('The name of the line, such as 目標.', 20), tone: CHART_TONE, dashed: {type: 'boolean', description: 'Default true.'}}, ['at']), 4), description: 'Reference lines at a value: horizontal across columns (dir v), vertical across rows (dir h).'},
       grid: {type: 'boolean', description: 'true: lines across the plot at each tick.'},
       decimals: {type: 'integer', minimum: 0, maximum: 3, description: 'Decimals of the value labels (default: whole numbers as given, others to 3 significant digits).'},
     }, ['type', 'data']),
@@ -22,7 +22,6 @@ export function defineBarsPart<Result>(builder: (data: never, opts: never) => Re
       const values = data.map(d => d['value'] as number);
       if (values.length && values.every(v => v === 0)) issues.push({path: `${at}.data`, message: 'every value is 0: there is nothing to draw'});
       const lines = items(part, 'lines');
-      if (lines.length && part['dir'] !== 'v') issues.push({path: `${at}.lines`, message: "reference lines are drawn across vertical bars: add dir: 'v'"});
       const max = Math.max(0, ...values);
       lines.forEach((l, i) => { if ((l['at'] as number) > max) issues.push({path: `${at}.lines[${i}].at`, message: `is ${String(l['at'])}, above the tallest bar (${max}): the axis ends there`}); });
     },

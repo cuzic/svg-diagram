@@ -189,7 +189,22 @@ export function layoutBars(band: BarsBand, x: number, y: number, w: number, widt
   return band.dir === 'v' ? layoutVertical(band, x, y, w, widthOf, roles, geom) : layoutHorizontal(band, x, y, w, widthOf, roles);
 }
 
-function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBars {
+/** Where the labels of the vertical reference lines of horizontal bars go: centred on their line (beside it near an end of the figure), on the lowest row above the bars where they clear each other. */
+function hlineLabels(band: BarsBand, plotL: number, plotW: number, x: number, w: number, S: number, widthOf: WidthOf): ({x: number; anchor: 'start' | 'middle' | 'end'; row: number} | undefined)[] {
+  const placed: {x1: number; x2: number; row: number}[] = [];
+  return (band.lines ?? []).map(l => {
+    if (!l.label) return undefined;
+    const lx = plotL + l.at / band.max * plotW, tw = textWidth(widthOf, l.label, S, 700);
+    const anchor = lx - tw / 2 < x + 2 ? 'start' : lx + tw / 2 > x + w - 2 ? 'end' : 'middle';
+    const px = anchor === 'start' ? lx + 4 : anchor === 'end' ? lx - 4 : lx, x1 = anchor === 'start' ? px : anchor === 'end' ? px - tw : px - tw / 2;
+    let row = 0;
+    while (placed.some(p => p.row === row && x1 < p.x2 + 6 && p.x1 < x1 + tw + 6)) row++;
+    placed.push({x1, x2: x1 + tw, row});
+    return {x: px, anchor: anchor as 'start' | 'middle' | 'end', row};
+  });
+}
+
+function layoutHorizontal(band: BarsBand, x: number, y0: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBars {
   const f = flags(band), S = sizeOf(band, roles), BARH = barH(band, S);
   const {slots, count} = slotsOf(band.data);
   const rows = band.stack ? 1 : count;
@@ -209,9 +224,12 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
   const outsideH = hasOutside ? S + 6 : 0;
   const needH = rows * bh + Math.max(0, rows - 1) * gp + (f.axis ? tickH + 8 : 0) + outsideH;
   if (band.height !== undefined && band.height < needH) throw new Error(`bars(): height ${band.height} is too small for its content (need at least ${needH})`);
-  const h = band.height ?? needH;
-  const out: LaidOutBars = {type: 'bars', id: band.id, x, y, w, h, dir: 'h', stack: band.stack, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), bars: [], ticks: [], texts: [], labelBoxes: [], anchors: []};
+  // the labels of the reference lines stand on rows above the bars
+  const lineAt = hlineLabels(band, plotL, plotW, x, w, S, widthOf), lineRows = lineAt.reduce((n, a) => a ? Math.max(n, a.row + 1) : n, 0), top = lineRows ? lineRows * (S + 4) + 4 : 0, y = y0 + top;
+  const h = (band.height ?? needH) + top;
+  const out: LaidOutBars = {type: 'bars', id: band.id, x, y: y0, w, h, dir: 'h', stack: band.stack, reveal: band.reveal, ...(band.until === undefined ? {} : {until: band.until}), bars: [], ticks: [], texts: [], labelBoxes: [], anchors: []};
   const axisY = y + rows * bh + Math.max(0, rows - 1) * gp;
+  const lx = (band.lines ?? []).map(l => plotL + l.at / band.max * plotW);
   for (const t of ticks) {
     const tx = plotL + t.at / band.max * plotW;
     // one line (tick + grid) as before; without grid only the short tick; the zero line is the baseline
@@ -237,11 +255,29 @@ function layoutHorizontal(band: BarsBand, x: number, y: number, w: number, width
     const bar = out.bars.length - 1;
     if (f.showCats) putText(out, S, d.label, plotL - 8, by + bh / 2 + S * .36, 'end', 'text', widthOf, false, undefined, bar);
     if (!f.showValues) return;
-    const text = valueText(d, band), tw = textWidth(widthOf, text, S, 700);
-    if (bw >= tw + 12) putText(out, S, text, x0 + bw - 6, by + bh / 2 + S * .36, 'end', 'bg', widthOf, true, r.fill, bar);
-    else putText(out, S, text, x0 + bw + 6, by + bh / 2 + S * .36, 'start', r.fill, widthOf, true, undefined, bar);
+    const text = valueText(d, band), tw = textWidth(widthOf, text, S, 700), ty = by + bh / 2 + S * .36;
+    // a vertical reference line must not cut the value: inside at the end, inside at the start, beside the bar, then beside the bar right of the line
+    const cuts = (lo: number): boolean => lx.some(v => v > lo - 3 && v < lo + tw + 3);
+    const roomOut = (lo: number): boolean => lo + tw <= x + w - 2;
+    const inside = bw >= tw + 12 ? [x0 + bw - 6 - tw, x0 + 6].find(lo => !cuts(lo)) : undefined;
+    if (inside !== undefined) putText(out, S, text, inside + tw, ty, 'end', 'bg', widthOf, true, r.fill, bar);
+    else {
+      const beside = [x0 + bw + 6, ...lx.filter(v => v > x0 + bw + 6 - 3).map(v => v + 5)].find(lo => !cuts(lo) && roomOut(lo)) ?? x0 + bw + 6;
+      putText(out, S, text, beside, ty, 'start', r.fill, widthOf, true, undefined, bar);
+    }
   });
   if (f.axis) out.ticks.push({x1: plotL, y1: axisY, x2: plotR, y2: axisY});
+  if (band.lines?.length) {
+    const ink: BarsInk = {lines: [], polylines: [], dots: []};
+    for (const [i, l] of band.lines.entries()) {
+      const px = lx[i] as number, fill = LINE_TONE[l.tone ?? 'danger'], at = lineAt[i], part = partStep('line', {index: `h${l.at}`}, l.label ?? '');
+      ink.lines.push({x1: px, y1: y - 4, x2: px, y2: axisY, fill, dashed: l.dashed !== false, part});
+      // a label on a higher row is reached by a leader
+      if (at && at.row > 0) ink.lines.push({x1: px, y1: y - 4 - at.row * (S + 4), x2: px, y2: y - 4, fill, dashed: l.dashed !== false, soft: true, part});
+      if (l.label && at) putText(out, S, l.label, at.x, y - 8 - at.row * (S + 4), at.anchor, fill, widthOf, true, undefined, undefined, part);
+    }
+    out.ink = ink;
+  }
   return out;
 }
 

@@ -44,7 +44,7 @@ export interface BarsOpts extends RevealOpts, ScopeOpts {
   barRatio?: number;
   /** Leave out the value label of a bar that is 0 (a histogram's empty classes). */
   hideZero?: boolean;
-  /** Vertical bars only: horizontal reference lines (a target, a mean, a limit) at a value of the bars' axis. */
+  /** Reference lines (a target, a mean, a limit) at a value of the bars' axis: horizontal across vertical bars, vertical across horizontal bars (not stacked). */
   lines?: BarsLine[];
   /** Vertical bars only: vertical reference lines at a position along the bars (in bar slots: 0 is the left edge of the first bar, 1 the edge between the first and the second). A histogram's specification limits and mean. */
   vlines?: BarsLine[];
