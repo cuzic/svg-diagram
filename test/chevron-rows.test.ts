@@ -92,13 +92,23 @@ test('current / tone / focus act on a step in any row', () => {
   assert.deepEqual(polys(f).map(p => p.tone), ['plain', 'plain', 'plain', 'plain', 'plain', 'accent', 'plain']);
   const g = figure([...steps(6), {label: '手順G', tone: 'solid'}], {rows: 2});
   assert.equal(must(polys(g)[6]).tone, 'solid');
-  const h = chevronBand(steps(7), {rows: 2, focus: 5});
-  assert.equal(h.steps.length, 7);
+  // focus: 5 marks the fifth step (the first of the second row): filled, white text; the others are muted
+  const h = figure(steps(7, '説明'), {rows: 2, focus: 5});
+  assert.deepEqual(polys(h).map(p => p.tone), ['muted', 'muted', 'muted', 'muted', 'solid', 'muted', 'muted']);
+  assert.deepEqual(h.texts.map(x => x.tone), ['text', 'muted', 'text', 'muted', 'text', 'muted', 'text', 'muted', 'bg', 'bg', 'text', 'muted', 'text', 'muted']);
 });
 
 test('connect() reaches a step of the second row; its anchor is the arrow rectangle', async () => {
   const r = await checkDiagram(diagram({theme: 'blue'}).add(chevron([{id: 's0', label: '手順A'}, {id: 's1', label: '手順B'}, {id: 's2', label: '手順C'}, {id: 's3', label: '手順D'}, {id: 's4', label: '手順E'}], {rows: 2}), box({id: 'memo', title: '補足'})).connect('s4:bottom', 'memo:top'));
   assert.equal(r.laidOut.connects.length, 1);
+  const band = must(r.laidOut.laidOut.find(x => x.type === 'chevron')) as LaidOutFlowShape, memo = must(r.laidOut.laidOut.find(x => x.type === 'box'));
+  const s4 = must(band.anchors.find(x => x.id === 's4')), s0 = must(band.anchors.find(x => x.id === 's0'));
+  assert.ok(s4.y > s0.y, 's4 stands on the second row');
+  const c = must(r.laidOut.connects[0]);
+  // the line leaves the middle of the bottom edge of the s4 rectangle and reaches the top of memo
+  assert.equal(c.from.x, s4.x + s4.w / 2);
+  assert.equal(c.from.y, s4.y + s4.h);
+  assert.equal(c.to.y, memo.y);
 });
 
 test('a tree node band with from pointing at a step of the upper row does not throw', async () => {
@@ -158,9 +168,53 @@ test("'auto': at most 8 steps stand in a row, and 5 steps or fewer never wrap", 
   assert.equal(rowCount(figure(steps(12), {rows: 'auto'}, 4000)), 2);
 });
 
-test("'auto': an explicit newline in a label is not an extra line", () => {
-  const f = figure([{id: 'a', label: '手順\nA'}, {id: 'b', label: '手順B'}, {id: 'c', label: '手順C'}], {rows: 'auto'}, 892);
-  assert.equal(rowCount(f), 1);
+// ---- U2, real text measurement (ADR 0082 D3 n10): every case below measures with the repo's own measurer ----
+const sub8 = '八文字の説明です', sub12 = '十二文字の説明の文です。', sub16 = '十六文字の長めの説明の文章です。';
+const label5 = (i: number) => `手順${String.fromCharCode(65 + i)}です`;
+const real = async (st: readonly FlowStep[], canvas: {width?: number; canvas?: 'slide'}) => {
+  const r = await checkDiagram(diagram({theme: 'blue', ...canvas}).add(chevron(st, {rows: 'auto'})));
+  const band = must(r.laidOut.laidOut.find(x => x.type === 'chevron')) as LaidOutFlowShape;
+  const ys = [...new Set(band.anchors.map(a => a.y))];
+  return ys.map(y => band.anchors.filter(a => a.y === y).length);
+};
+const seven = (sub: string): FlowStep[] => Array.from({length: 7}, (_, i) => ({id: `s${i}`, label: label5(i), sub}));
+const many = (n: number, sub: string, label = '手順'): FlowStep[] => Array.from({length: n}, (_, i) => ({id: `s${i}`, label: `${label}${String.fromCharCode(65 + i)}`, sub}));
+const text = (n: number) => Array.from('説明の文章がここに入りますので少し長めにしておきます。次の手順へ進む前に確認してください。').slice(0, n).join('');
+
+test("'auto' (real widths, ADR table): 7 steps, 5-character labels, a sub that wraps in one row takes 2 rows (4 + 3)", async () => {
+  for (const [name, sub, canvas] of [
+    ['8 / 940', sub8, {width: 940}], ['8 / 1200', sub8, {width: 1200}], ['8 / slide', sub8, {canvas: 'slide' as const}],
+    ['12 / 940', sub12, {width: 940}], ['12 / slide (measured)', sub12, {canvas: 'slide' as const}],
+    ['16 / 940', sub16, {width: 940}], ['16 / slide', sub16, {canvas: 'slide' as const}],
+  ] as const) assert.deepEqual(await real(seven(sub), canvas), [4, 3], name);
+});
+
+test("'auto' (real widths): a width where nothing wraps stays on one row; stage 1 asks for more rows when only the sub wraps", async () => {
+  assert.deepEqual(await real(many(7, '説明'), {width: 1200}), [7]);
+  assert.deepEqual(await real(many(12, text(4)), {width: 900}), [6, 6], 'n = 12: 6 + 6 is the fewest rows where no sub wraps (stage 1)');
+  assert.deepEqual(await real(many(12, text(8)), {width: 900}), [4, 4, 4], 'stage 1 skips 2 rows and takes 3');
+  assert.deepEqual(await real(many(12, text(12)), {width: 1100}), [4, 4, 4]);
+});
+
+test("'auto' (real widths): stage 2 takes the first count whose subs wrap by one line at most, even where another count has fewer lines", async () => {
+  // step a: a sub of three lines, the first wraps in one row (extra 1); step b: a sub that wraps by one line at every count
+  const st: FlowStep[] = [{id: 'a', label: '手順A', sub: `${text(8)}\n確認\n完了`}, {id: 'b', label: '手順B', sub: text(20)}, ...Array.from({length: 5}, (_, i) => ({id: `c${i}`, label: '手順C', sub: '説明'}))];
+  assert.deepEqual(await real(st, {width: 1300}), [4, 3]);
+  // a trailing newline in every label leaves one line fewer than the paragraphs: `max(0, ...)` keeps it from counting as an extra line below zero
+  assert.deepEqual(await real(st.map(x => ({...x, label: `${x.label}\n`})), {width: 1300}), [4, 3]);
+});
+
+test("'auto' (real widths): stage 3 falls back to the fewest lines; equal lines take the smaller row count", async () => {
+  assert.deepEqual(await real(many(12, text(40)), {width: 1000}), [4, 4, 4]);
+});
+
+test("'auto': an explicit newline is not an extra line, and a trailing newline is not a negative one (6 or more steps)", async () => {
+  const nl = Array.from({length: 7}, (_, i) => ({id: `s${i}`, label: '手順\n' + String.fromCharCode(65 + i)}));
+  assert.deepEqual(await real(nl, {width: 1200}), [7], 'a label of two explicit lines stays on one row');
+  const trail = Array.from({length: 7}, (_, i) => ({id: `s${i}`, label: `手順${String.fromCharCode(65 + i)}\n`}));
+  assert.deepEqual(await real(trail, {width: 1200}), [7], 'a trailing newline does not count against the label');
+  const subNl = Array.from({length: 7}, (_, i) => ({id: `s${i}`, label: '手順', sub: '説明\n詳細'}));
+  assert.deepEqual(await real(subNl, {width: 1200}), [7]);
 });
 
 test("'auto' with loopBack throws", () => {
