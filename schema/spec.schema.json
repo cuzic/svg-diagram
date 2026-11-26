@@ -4862,10 +4862,20 @@
           "description": "How a branch line is drawn (default elbow); false for none."
         },
         "maxNodeW": {
-          "type": "integer",
-          "minimum": 120,
-          "maximum": 400,
-          "description": "The widest a box may grow, in px."
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 120,
+              "maximum": 400,
+              "description": "The widest a box may grow, in px."
+            },
+            {
+              "type": "string",
+              "enum": [
+                "auto"
+              ]
+            }
+          ]
         }
       },
       "required": [

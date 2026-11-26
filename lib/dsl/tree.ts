@@ -53,7 +53,7 @@ function treeBand(root: TreeItem, opts: TreeOpts, who: string): TreeBand {
   if (!root || typeof root !== 'object' || typeof root.label !== 'string') throw new Error('tree(root) needs a root node: {label: "...", children: [...]}');
   if (opts.focus !== undefined) root = focusTree(root, opts.focus, who);
   if (opts.dir !== undefined && opts.dir !== 'down' && opts.dir !== 'right' && opts.dir !== 'auto') throw new Error(`${who}: dir must be 'down', 'right' or 'auto' (got ${String(opts.dir)})`);
-  if (opts.maxNodeW !== undefined && !(who === 'mindmap()' && (opts.maxNodeW as unknown) === 'auto') && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`${who}: maxNodeW must be >= 80 or 'auto' (got ${opts.maxNodeW})`);
+  if (opts.maxNodeW !== undefined && !(who === 'mindmap()' && (opts.maxNodeW as unknown) === 'auto') && !(opts.maxNodeW >= 80 && Number.isFinite(opts.maxNodeW))) throw new Error(`${who}: maxNodeW must be a number >= 80${who === 'mindmap()' ? " or 'auto'" : ''} (got ${opts.maxNodeW})`);
   const ids: (string | undefined)[] = [];
   if (opts.edges !== undefined && opts.edges !== false) throw new Error(`${who}: edges can only be false (no lines); got ${String(opts.edges)}`);
   const usedBands = new Set<object>();

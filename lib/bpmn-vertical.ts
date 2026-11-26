@@ -233,7 +233,7 @@ export function layoutBpmnVertical(band: BpmnBand, x: number, y: number, w: numb
   // how many things a chip at `b` would run into (0: free): the figure's edges, the other chips, the nodes, their names, the flows
   // (outside the figure weighs most: a chip that must touch something touches something inside)
   const clash = (b: Box): number => 100 * (Number(b.x < x0 + 2) + Number(b.x + b.w > x0 + width - 2) + Number(b.y < y + headH) + Number(b.y + b.h > y + height - 2))
-    + out.labels.filter(o => overlap(b, o)).length + [...rect.values()].filter(r => overlap(b, r, 2)).length + [...sideBox.values()].filter(r => overlap(b, r)).length
+    + 4 * out.labels.filter(o => overlap(b, o)).length + [...rect.values()].filter(r => overlap(b, r, 2)).length + [...sideBox.values()].filter(r => overlap(b, r)).length
     + placed.filter(g => hits(g, b, 1)).length;
   /** The best spot for a flow's condition beside `pts` (and at `extra`: an edge the chip sits above (d −1) or below (d 1), moved
    *  sideways inside the figure), and what it runs into there. */

@@ -54,3 +54,21 @@ test('bpmn: ten labelled arrows in a dense flow keep their labels apart (C6b)', 
   assert.deepEqual(stacked(b.labels), []);
   assert.deepEqual(verdict.problems, []);
 });
+
+// C6a: in a vertical BPMN, the two exits of one gateway with long conditions in narrow lanes were put on each other (invented wording).
+const vertical = (w: number) => {
+  const vl = [{id: 'a', label: '申請者'}, {id: 'b', label: '審査'}, {id: 'c', label: '経理'}, {id: 'd', label: '部長'}];
+  const vn = [{id: 'st', lane: 'a', kind: 'start' as const, label: '開始'}, {id: 't0', lane: 'd', label: '内容を見る'}, {id: 'g0', lane: 'd', kind: 'and' as const, label: '判定'},
+    {id: 't1', lane: 'c', label: '支払いの手続きをする'}, {id: 't2', lane: 'd', label: '決裁する'}, {id: 'en', lane: 'a', kind: 'end' as const, label: '終了'}];
+  const vf = [{from: 'st', to: 't0'}, {from: 't0', to: 'g0'}, {from: 'g0', to: 't1', label: '上限以内の場合'}, {from: 'g0', to: 't2', label: '上限を超える場合'}, {from: 't1', to: 'en'}];
+  return diagram({theme: 'blue', width: w}).add(bpmn(vl, vn, vf, {dir: 'v'} as never));
+};
+for (const w of [754, 900]) {
+  test(`bpmn dir 'v': two long conditions of one gateway do not stack at width ${w} (C6a)`, async () => {
+    const {laidOut, verdict} = await checkDiagram(vertical(w));
+    const b = laidOut.laidOut.find(x => x.type === 'bpmn') as LaidOutBpmn;
+    assert.equal(b.labels.length, 2);
+    assert.deepEqual(stacked(b.labels), []);
+    assert.ok(!verdict.problems.some(p => /overlaps label/.test(String(p))), JSON.stringify(verdict.problems));
+  });
+}

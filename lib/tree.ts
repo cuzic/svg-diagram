@@ -165,7 +165,7 @@ export function layoutTreeBand(band: TreeBand, x: number, y: number, w: number, 
   const autoWidth = band.maxNodeW === 'auto';
   const fitted = fitLayout({
     who: band.balanced ? 'mindmap()' : 'tree()', w, start, keepWords: env.keepWords, ...(band.balanced ? {noDir: true} : {}), ...(band.balanced ? {axisKept: `another layout (a mindmap keeps its layout: '${band.layout ?? 'radial'}')`} : {alt: start === 'down' ? 'right' as const : 'down' as const}),
-    explicitDir, mode: autoWidth || band.dir === 'auto' ? 'auto' : 'omitted', autoWidth, ...(band.maxNodeW === undefined ? {} : {maxNodeW: band.maxNodeW as number}),
+    explicitDir, mode: autoWidth || band.dir === 'auto' ? 'auto' : 'omitted', autoWidth, ...(band.maxNodeW === undefined || autoWidth ? {} : {maxNodeW: band.maxNodeW as number}),
     build: attemptWith, best: band.dir === 'auto' && !band.balanced, ...(heightBudget === undefined ? {} : {heightBudget}),
     ...(items.some(n => n.tags?.length) ? {tagsHint: true} : {}),
     ...(balancedHint ? {fix: `write ${balancedHint}${balancedHint.startsWith('layout') ? '' : ', or a wider figure'}`} : {}),

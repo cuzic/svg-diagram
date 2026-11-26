@@ -4,7 +4,7 @@ import type {LaidOutBand} from './types/index.ts';
 import type {Finding} from './types/verdicts.ts';
 
 export const layoutFitRules = /* @__PURE__ */ Object.freeze({
-  'auto-fit-applied': {doc: '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・flowchart・classDiagram・tree)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する', scope: 'band'},
+  'auto-fit-applied': {doc: '幅に収まらないので、dir / maxNodeW を省略した図(causeTree・stateDiagram・flowchart・classDiagram・tree・mindmap)をレイアウトが自動で変えた（dir を省略: warn、dir: \'auto\': info。dir の無い fta・bowtie・mindmap は maxNodeW を省略: warn、maxNodeW: \'auto\': info）。明示した dir / maxNodeW は変えず、収まらなければ試した案つきで throw する', scope: 'band'},
 } as const);
 
 const FIT_WHO = {cause: 'causeTree()', states: 'stateDiagram()', classes: 'classDiagram()', tree: 'tree() / mindmap()', fta: 'faultTree()', bowtie: 'bowtie()'} as const;
