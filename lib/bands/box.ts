@@ -34,7 +34,7 @@ export const boxDefinition: BandDef<BoxBand, LaidOutBox> = {
   describe: data => data.title ? ['box', oneLine(data.title)] : undefined,
   measure(data, {atoms, roles}) {
     if (data.tag) atoms(data.tag, roles.tag ?? TAG_SIZE, 700);
-    if (data.stamp) atoms(data.stamp, roles.note, 400);
+    if (data.stamp) { atoms(data.stamp, roles.note, 400); atoms([...data.stamp].join(' '), roles.note, 400); } // and each character: a word wider than the chip is broken per character
     for (const run of textRuns(data, roles)) {
       const font = run.mono ? 'mono' : 'sans';
       for (let size = run.fit && run.nowrap ? run.fit.min : run.size; size <= run.size; size++) {

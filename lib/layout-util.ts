@@ -2,7 +2,7 @@
 // box padding, icon / step-badge sizes, the row() / grid() width distribution and the group title caption. No text metrics, no state.
 
 import {textWidth} from './atoms.ts';
-import {wrapText} from './wrap.ts';
+import {wrapAtoms, wrapText} from './wrap.ts';
 import type {GroupBand, RowBand, GridBand} from './types/containers.ts';
 import type {Roles, WidthOf, Rect} from './types/core.ts';
 import type {CaptionBand} from './types/text-bands.ts';
@@ -76,15 +76,22 @@ export function fitStamp(widthOf: WidthOf, text: string, roles: Roles, avail: nu
   if (one <= avail) return {w: one, h: STAMP_H};
   const maxWidth = avail - 2 * STAMP_PAD_X;
   const atomWidth = (a: string) => widthOf(a, roles.note, 400, 'sans');
-  const lines = wrapText(text, {maxWidth, atomWidth, mode: 'phrase'});
+  let lines = wrapText(text, {maxWidth, atomWidth, mode: 'phrase'});
+  const lineW = (l: string) => textWidth(widthOf, l, roles.note, 400);
+  let widest = Math.max(...lines.map(lineW)); // measured per wrapped line: the atoms are the text's own
+  if (widest > maxWidth) { // one word wider than the chip (a URL): break it per character, as the wrapper does for a long CJK run
+    lines = wrapAtoms([...text], {maxWidth, atomWidth, mode: 'char'});
+    widest = Math.max(...lines.map(l => [...l].reduce((sum, ch) => sum + atomWidth(ch), 0)));
+  }
   const h = STAMP_H + (lines.length - 1) * stampLineH(roles);
-  const widest = Math.max(...lines.map(l => textWidth(widthOf, l, roles.note, 400))); // measured per wrapped line: the atoms are the text's own
-  const wide = widest > maxWidth;
+  const wide = widest > maxWidth; // a single character wider than the chip: nothing left to break
   return {w: wide ? avail : widest + 2 * STAMP_PAD_X, h, lines, ...(wide || lines.length > 2 ? {over: {width: widest, avail: maxWidth, lines: lines.length}} : {})};
 }
-/** The verify message for a stamp that needs more than two lines, or has a word wider than the chip. */
+/** The verify message for a stamp that needs more than two lines (or has a character wider than its chip). */
 export const stampTooWideMessage = (text: string, avail: number, over: {width: number; avail: number; lines: number}): string =>
-  `stamp「${text}」が枠(幅 ${Math.round(avail + 16)}px)に収まらない(折り返すと ${over.lines} 行で、最長の行は ${Math.ceil(over.width)}px、チップに使えるのは ${Math.floor(over.avail)}px)。stamp を短くするか、枠を広げる(span / flex / width)`;
+  over.width > over.avail
+    ? `stamp「${text}」の 1 文字が ${Math.ceil(over.width)}px あり、枠(幅 ${Math.round(avail + 16)}px)のチップ(${Math.floor(over.avail)}px)に入らない。stamp を短くするか、枠を広げる(span / flex / width)`
+    : `stamp「${text}」が 2 行に収まらない(折り返すと ${over.lines} 行になる。枠の幅は ${Math.round(avail + 16)}px)。stamp を短くするか、枠を広げる(span / flex / width)`;
 export const LEGEND_SWATCH_W = 36, LEGEND_ITEM_GAP = 28, LEGEND_ROW_H = 24;
 
 // group() title is laid out as a left-aligned bold caption inside the frame.

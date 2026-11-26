@@ -23,7 +23,7 @@ export const bannerDefinition: BandDef<BannerBand, LaidOutBanner> = {
   layoutBoxLike,
   layout: layoutBoxLikeBand,
   measure(data, {atoms, roles}) {
-    if (data.stamp) atoms(data.stamp, roles.note, 400);
+    if (data.stamp) { atoms(data.stamp, roles.note, 400); atoms([...data.stamp].join(' '), roles.note, 400); } // and each character: a word wider than the chip is broken per character
     for (const run of textRuns(data, roles)) {
       for (const {text, weight} of styledAtoms(run)) atoms(text, run.size, weight, run.mono ? 'mono' : 'sans');
     }

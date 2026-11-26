@@ -27,7 +27,7 @@ export const groupDefinition: BandDef<GroupBand, LaidOutGroup> = {
   stackWidth: (data, width) => width - 2 * (data.pad ?? 16),
   generated: data => data.title ? [band(captionDefinition, groupTitleBand(data))] : [],
   measure(data, {atoms, roles}) {
-    if (data.stamp) atoms(data.stamp, roles.note, 400);
+    if (data.stamp) { atoms(data.stamp, roles.note, 400); atoms([...data.stamp].join(' '), roles.note, 400); } // and each character: a word wider than the chip is broken per character
   },
   verify: {rects: () => [], targets: laid => laid.stampOver ? [laid] : [], // a group's contents are its targets; its own frame only when its stamp needs checking (stamp-too-wide)
     diagramFindings: frameLayoutFindings, check: laid => stampProblems(laid).map(message => ({rule: 'stamp-too-wide', severity: 'problem' as const, message}))},

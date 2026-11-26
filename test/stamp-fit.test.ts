@@ -76,16 +76,27 @@ test('fitStamp: one line when it fits, two when wrapping helps, two with `over` 
   assert.deepEqual(stampProblems({stamp: 'x', w: 216}), []);
 });
 
-test('an unbreakable word: the chip is as high as its lines (one), and a too-wide word is reported', async () => {
+test('a word wider than the chip is broken per character: the chip grows to fit, reported only above two lines', async () => {
   const {fitStamp} = await import('../lib/layout-util.ts');
   const {measureAtoms} = await import('../lib/measure.ts');
   const {ROLES} = await import('../lib/tokens.ts');
   const word = 'averyveryverylongunbreakablepathname';
-  const m = await measureAtoms([word], {size: ROLES.note, weight: 400});
-  const fit = fitStamp(a => m.width(a), word, ROLES, 100);
-  assert.equal(fit.lines?.length, 1);
-  assert.equal(fit.h, 24);
-  assert.ok(fit.over);
+  const m = await measureAtoms([word, ...word], {size: ROLES.note, weight: 400});
+  const widthOf = (a: string) => m.width(a);
+  const two = fitStamp(widthOf, word, ROLES, 200);
+  assert.equal(two.lines?.join(''), word);
+  assert.equal(two.lines?.length, 2);
+  assert.equal(two.h, 44);
+  assert.equal(two.over, undefined);
+  assert.ok(two.w <= 200);
+  const many = fitStamp(widthOf, word, ROLES, 100);
+  assert.ok(many.lines!.length > 2 && many.over && many.w <= 100);
+  // through the diagram (every character is measured for it): drawn inside its box, reported
+  const r = await checkDiagram(mk().add(box({title: 'タイトル', stamp: word + word})));
+  const b = r.laidOut.laidOut.find((x): x is LaidOutBox => x.type === 'box')!;
+  assert.ok(b.stampW! <= b.w - 16 && b.stampLines!.length > 2);
+  assert.equal(r.verdict.problems.filter(p => /stamp/.test(p)).length, 1);
+  assert.match(r.verdict.problems.join(''), /2 行に収まらない\(折り返すと \d+ 行になる/);
 });
 
 test('layout-unused-space: a frame with a wrapped (taller) stamp is still not flagged for the room by its stamp', async () => {
@@ -104,6 +115,8 @@ test('PowerPoint: a wrapped stamp is a badge of its lines at the one-line size, 
   const size = (x: string) => [...x.matchAll(/sz="(\d+)"/g)].map(m => m[1]);
   const one = badge(await xmlOf('仮説')), wrapped = badge(await xmlOf(WRAPS));
   assert.deepEqual([...new Set(size(wrapped))], [...new Set(size(one))], 'the same font size as the one-line badge');
+  const pitch = Number(/<a:lnSpc><a:spcPts val="(\d+)"/.exec(wrapped)![1]) / 100, high = Number(/cy="(\d+)"/.exec(wrapped)![1]) / 12700;
+  assert.ok(Math.abs(pitch * 2 - high) < 2, 'the two lines fill the badge (centred), not hang from its top');
   assert.equal((wrapped.match(/<a:br>/g) ?? []).length, 1, 'the two wrapped lines are separate lines of the badge');
   assert.equal([...wrapped.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m => m[1]).join(''), WRAPS, 'every character kept');
 });
