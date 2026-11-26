@@ -43,7 +43,7 @@ test('text-mid-word-break: a chevron whose steps break a word is told how its fr
   const d = diagram({theme: 'blue'}).add(chevron(['スクリーンショット取得', 'コンテキスト切替', 'リフレッシュ待機', 'シャドウトラフィック', 'ケーススタディ', '完了'].map(label => ({label}))));
   const f = (await checkDiagram(d)).verdict.findings.find(x => x.rule === 'text-mid-word-break');
   assert.ok(f, 'six katakana steps in a row break a word');
-  assert.match(f!.message, /chevron: 矢羽根の幅は段数で決まる。`direction: 'vertical'`/);
+  assert.match(f!.message, /chevron: 矢羽根の幅は 1 段に並ぶ数で決まる。`rows` \/ `perRow` で 1 段の数を減らす（`'auto'` も使える）、`direction: 'vertical'`/);
 });
 
 test('midWordBreaksIn: a break between two katakana letters counts only where the author wrote nothing between them', () => {

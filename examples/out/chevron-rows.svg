@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="200" viewBox="0 0 940 200" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">手順の流れ</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"examples/chevron-rows.ts","sourceSha256":"17545e53c494dc6eea84438e43c96480029bfb1b304d4c13afdb4f6a9cb9de2d"}</metadata>
+  <defs>
+    <marker id="dsl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22201b"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="200" fill="#ffffff"/>
+
+  <polygon points="20,20 220,20 242,50 220,80 20,80" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <polygon points="246,20 446,20 468,50 446,80 246,80 268,50" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <polygon points="472,20 672,20 694,50 672,80 472,80 494,50" fill="#dbeeee" stroke="#1f6e73" stroke-width="3.5"/>
+  <polygon points="698,20 898,20 920,50 898,80 698,80 720,50" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <polygon points="20,120 220,120 242,150 220,180 20,180 42,150" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <polygon points="246,120 446,120 468,150 446,180 246,180 268,150" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <polygon points="472,120 672,120 694,150 672,180 472,180 494,150" fill="#ffffff" stroke="#22201b" stroke-width="2"/>
+  <path d="M809,80 L809,100 L131,100 L131,120" fill="none" stroke="#22201b" stroke-width="1.5" marker-end="url(#dsl-arrow)"/>
+  <text x="131" y="46.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手順A</text>
+  <text x="131" y="65.1" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">説明の文</text>
+  <text x="357" y="46.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手順B</text>
+  <text x="357" y="65.1" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">説明の文</text>
+  <text x="583" y="46.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手順C</text>
+  <text x="583" y="65.1" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">説明の文</text>
+  <text x="809" y="46.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手順D</text>
+  <text x="809" y="65.1" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">説明の文</text>
+  <text x="131" y="146.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手順E</text>
+  <text x="131" y="165.1" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">説明の文</text>
+  <text x="357" y="146.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手順F</text>
+  <text x="357" y="165.1" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">説明の文</text>
+  <text x="583" y="146.2" text-anchor="middle" font-size="14" font-weight="700" fill="#22201b">手順G</text>
+  <text x="583" y="165.1" text-anchor="middle" font-size="14" font-weight="400" fill="#6f6659">説明の文</text>
+</svg>

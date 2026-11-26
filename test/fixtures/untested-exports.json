@@ -230,7 +230,6 @@
   "finding-rules:analysisFindings",
   "fit-split:splitByHeight",
   "fit-split:splitWidest",
-  "flow-chevron:chevronBand",
   "flow-chevron:chevronTexts",
   "flow-chevron:layoutChevron",
   "flow-concentric:concentricTexts",
