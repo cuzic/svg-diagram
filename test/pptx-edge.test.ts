@@ -430,7 +430,7 @@ test('svgPathSteps: lines, curves and arcs become absolute steps; an arc ends wh
 
 test('pathShapeXml fills a closed outline, dashOfSvg tells dots from dashes, a tinted fill carries its alpha', async () => {
   const {pathShapeXml, dashOfSvg, presetXml} = await import('../lib/pptx/prims.ts');
-  const {pathXml} = await import('../lib/pptx/line-shapes.ts');
+  const {pathXml} = await import('../lib/pptx/free-line.ts');
   assert.match(pathShapeXml(2, 'p', [{op: 'M', pts: [{x: 0, y: 0}]}, {op: 'C', pts: [{x: 5, y: 0}, {x: 10, y: 5}, {x: 10, y: 10}]}, {op: 'Z', pts: []}], {fill: '#ff0000'}), /<a:cubicBezTo>(<a:pt [^>]+\/>){3}<\/a:cubicBezTo><a:close\/>[\s\S]*FF0000/);
   assert.equal(pathXml([{op: 'Z', pts: []}], () => ''), '<a:close/>');
   assert.deepEqual([dashOfSvg('2,4'), dashOfSvg('7,5'), dashOfSvg(undefined)], [{dotted: true}, {dashed: true}, {}]);

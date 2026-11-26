@@ -2,6 +2,7 @@ import {cxnXfrm, glueXml} from './connector-geometry-xml.ts';
 import type {Glue} from './connector-geometry-xml.ts';
 import type {ConnXfrm} from './geom.ts';
 import {emu, endSize, solidFill, arrowEnds, cxnSp} from './xml.ts';
+import {unglued, type PathStep} from './free-line.ts';
 
 /** A connector of a band's own lines (a tree's), in a colour and width of its own, with no arrowhead; glued where the ends are shapes. */
 export function connectorShapeXml(id: number, name: string, x: Omit<ConnXfrm, 'prst'> & {prst: string}, color: string, widthPx: number, start?: Glue, end?: Glue, opts: LineOpts = {}): string {
@@ -20,20 +21,11 @@ const endXml = (tag: 'headEnd' | 'tailEnd', t: EndType | undefined, widthPx: num
 const headsOf = (o: LineOpts, widthPx: number): string => o.ends ? endXml('headEnd', o.ends.start, widthPx, o.headPx?.start) + endXml('tailEnd', o.ends.end, widthPx, o.headPx?.end) : o.heads ? arrowEnds(o.heads, widthPx) : o.arrow ? arrowEnds('end', widthPx) : '';
 const dashOf = (o: LineOpts): string => o.dotted ? '<a:prstDash val="sysDot"/>' : o.dashed ? '<a:prstDash val="dash"/>' : '';
 
-/** One step of a freeform path: move, line, quadratic curve (control, end), cubic curve (two controls, end), or close. */
-export interface PathStep {op: 'M' | 'L' | 'Q' | 'C' | 'Z'; pts: {x: number; y: number}[]}
-
-/** An open freeform path (no fill), not glued: a brace, or a line no connector preset fits. */
+/**
+ * An open line, not glued: a brace, a bracket, a curve, or a line no glued connector was made for (free-line.ts unglued decides its shape:
+ * a straight segment or an orthogonal 3-segment elbow is a PowerPoint connector, anything else a freeform p:sp with a text body; ADR 0027).
+ */
 export function freeformPathXml(id: number, name: string, steps: readonly PathStep[], color: string, widthPx: number, opts: LineOpts = {}): string {
-  const all = steps.flatMap(s => s.pts);
-  const xs = all.map(p => p.x), ys = all.map(p => p.y);
-  const x = Math.min(...xs), y = Math.min(...ys), w = Math.max(1, Math.max(...xs) - x), h = Math.max(1, Math.max(...ys) - y);
-  const pt = (p: {x: number; y: number}) => `<a:pt x="${emu(p.x - x)}" y="${emu(p.y - y)}"/>`;
-  const path = pathXml(steps, pt);
-  return cxnSp(id, name, undefined, `<a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm><a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="l" t="t" r="r" b="b"/><a:pathLst><a:path w="${emu(w)}" h="${emu(h)}" fill="none">${path}</a:path></a:pathLst></a:custGeom><a:ln w="${emu(widthPx)}">${solidFill(color)}${dashOf(opts)}${headsOf(opts, widthPx)}</a:ln>`);
+  return unglued(id, name, steps, `<a:ln w="${emu(widthPx)}">${solidFill(color)}${dashOf(opts)}${headsOf(opts, widthPx)}</a:ln>`);
 }
 
-const TAG = {M: 'moveTo', L: 'lnTo', Q: 'quadBezTo', C: 'cubicBezTo'} as const;
-/** The DrawingML of a path's steps, its points mapped by `pt`. */
-export const pathXml = (steps: readonly PathStep[], pt: (p: {x: number; y: number}) => string): string =>
-  steps.map(s => s.op === 'Z' ? '<a:close/>' : `<a:${TAG[s.op]}>${s.pts.map(pt).join('')}</a:${TAG[s.op]}>`).join('');

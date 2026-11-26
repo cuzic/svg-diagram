@@ -2,7 +2,8 @@
 // polygon, a straight line. A band that draws with these (quadrant, flow shapes, ...) is native: every piece can be selected and edited.
 import {LINE_HEIGHT_EM} from '../layout-util.ts';
 import {fitConnector, type Pt} from './geom.ts';
-import {connectorShapeXml, freeformPathXml, pathXml, type LineOpts, type PathStep} from './line-shapes.ts';
+import {connectorShapeXml, freeformPathXml, type LineOpts} from './line-shapes.ts';
+import {pathXml, type PathStep} from './free-line.ts';
 import {emu, hex, solidFill, sp, xfrm, type Fonts, type Rect} from './xml.ts';
 import {runXml} from './text.ts';
 
