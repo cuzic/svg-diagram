@@ -18,9 +18,9 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-/** A static viewer (ADR 0067) of one slide on a 390 × 844 touch screen. */
-async function phone(): Promise<{page: Page; cdp: CDPSession; errors: string[]}> {
-  const context = await browser!.newContext({viewport: {width: 390, height: 844}, hasTouch: true, isMobile: true, deviceScaleFactor: 2});
+/** A static viewer (ADR 0067) of one slide on a touch screen (390 × 844: a phone held upright). */
+async function phone(viewport = {width: 390, height: 844}): Promise<{page: Page; cdp: CDPSession; errors: string[]}> {
+  const context = await browser!.newContext({viewport, hasTouch: true, isMobile: true, deviceScaleFactor: 2});
   const page = await context.newPage(), errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   const svg = fs.readFileSync(path.join(ROOT, 'examples/out/bars.svg'), 'utf8');
@@ -101,10 +101,45 @@ test('portrait phone: two fingers sliding together move the zoomed slide sideway
   await page.context().close();
 });
 
-test('the bar, while hidden, lets a touch through to the slide (an unseen button is not pressed)', async t => {
+test('the bar, while hidden: a tap there shows it and presses nothing; a tap after that presses the button', async t => {
   if (!browser) return t.skip(why);
   const {page} = await phone();
-  const box = await page.evaluate(() => { const r = document.getElementById('nav')!.getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; });
-  assert.equal(await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('nav') === null, [box.x, box.y]), true);
+  const zin = await page.evaluate(() => { const r = document.getElementById('zin')!.getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; });
+  await page.touchscreen.tap(zin.x, zin.y);
+  assert.equal((await state(page)).zoom, '100%', 'the unseen ＋ was not pressed');
+  assert.equal(await page.evaluate(() => document.getElementById('nav')!.classList.contains('show')), true, 'the tap showed the bar');
+  await page.waitForFunction(() => document.getElementById('nav')!.classList.contains('live'));
+  await page.touchscreen.tap(zin.x, zin.y);
+  assert.equal((await state(page)).zoom, '125%', 'the shown ＋ is pressed');
   await page.context().close();
+});
+
+test('portrait phone: a pinch whose fingers drift keeps the point it started on between them', async t => {
+  if (!browser) return t.skip(why);
+  const {page, cdp} = await phone();
+  const b = await page.evaluate(() => { const r = document.getElementById('slide')!.getBoundingClientRect(); return {left: r.left, top: r.top, width: r.width, height: r.height}; });
+  const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+  // apart and 40px to the right in only 4 moves: the point that was between the fingers is between them at the end
+  await twoFingers(cdp, [[cx - 30, cy], [cx + 30, cy]], [[cx - 50, cy], [cx + 130, cy]], 4);
+  const a = await page.evaluate(() => { const r = document.getElementById('slide')!.getBoundingClientRect(); return {left: r.left, width: r.width}; });
+  assert.ok(Math.abs((cx + 40 - a.left) / a.width - 0.5) * a.width < 2, `the middle of the slide is under the fingers (${(cx + 40 - a.left) / a.width})`);
+  await page.context().close();
+});
+
+test('landscape phone: a slow pinch on the black beside the slide zooms the slide, not the page', async t => {
+  if (!browser) return t.skip(why);
+  const {page, cdp} = await phone({width: 844, height: 390});
+  // a slow pinch: 30 moves of 2px, each under the 1% that snaps back to the whole slide
+  await twoFingers(cdp, [[40, 195], [804, 195]], [[10, 195], [834, 195]], 30);
+  const s = await state(page);
+  assert.equal(s.pageScale, 1);
+  assert.notEqual(s.zoom, '100%');
+  await page.context().close();
+});
+
+test("the viewer's laser and spotlight are over the whole stage, not inside the slide's frame (placed from the stage's corner)", () => {
+  const html = viewerPage('題', {role: 'viewer', transport: 'static', events: '', slides: 'slides.json'});
+  const zbox = /<div class="zbox" id="zbox">(.*?)<\/div>/.exec(html)?.[1] ?? '';
+  assert.ok(!zbox.includes('id="laser"') && !zbox.includes('id="spot"'));
+  assert.match(html, /<main class="stage" id="stage">.*id="laser".*<\/main>/);
 });

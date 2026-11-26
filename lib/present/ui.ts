@@ -67,7 +67,7 @@ const HELP = `<div id="help" class="help" hidden role="dialog" aria-label="シ�
  * a swipe, the wheel, the overview, a slide number); the bar shows where the presenter is and brings the viewer back there.
  */
 export function viewerPage(title: string, cfg: PageConfig, assets: PageAssets = SERVED): string {
-  return page(title, cfg, `<main class="stage" id="stage"><div class="zbox" id="zbox"><img id="slide" alt="" draggable="false"><div id="spot" class="spot" hidden></div><div id="laser" class="laser" hidden></div></div></main>`
+  return page(title, cfg, `<main class="stage" id="stage"><div class="zbox" id="zbox"><img id="slide" alt="" draggable="false"></div><div id="spot" class="spot" hidden></div><div id="laser" class="laser" hidden></div></main>`
     + `<div id="progress" class="progress"><div id="progressbar"></div></div>`
     + `<nav id="nav" class="nav" aria-label="スライドの操作">`
     + `<button id="prev" type="button" title="前 (←)" aria-label="前のスライド">‹</button><span id="pos" class="pos">-</span>`
@@ -153,14 +153,14 @@ img.fading{opacity:.15}
 .helpbox th{text-align:left;padding:10px 8px 4px;color:#fbbf24;font-weight:600}
 #spotbtn[aria-pressed=true]{background:#7c3aed}
 .laser{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:#ef4444;box-shadow:0 0 12px 4px #ef4444aa;pointer-events:none;z-index:4}
-.progress{position:fixed;left:0;right:0;bottom:0;height:3px;background:#0004;z-index:3}.progress div{height:100%;width:0;background:#60a5fa;transition:width .2s}
-.nav{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:6px;align-items:center;background:#000c;padding:6px 8px;border-radius:10px;z-index:6;opacity:0;pointer-events:none;transition:opacity .2s;font-size:14px;max-width:calc(100vw - 16px);flex-wrap:wrap;justify-content:center}
-.nav.show,.nav:focus-within{opacity:1;pointer-events:auto}
+.progress{position:fixed;left:0;right:0;bottom:0;height:3px;background:#0004;z-index:3;touch-action:none}.progress div{height:100%;width:0;background:#60a5fa;transition:width .2s}
+.nav{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:6px;align-items:center;background:#000c;padding:6px 8px;border-radius:10px;z-index:6;opacity:0;pointer-events:none;touch-action:none;transition:opacity .2s;font-size:14px;max-width:calc(100vw - 16px);flex-wrap:wrap;justify-content:center}
+.nav.show,.nav:focus-within{opacity:1}.nav.live,.nav:focus-within{pointer-events:auto}
 .nav .pos{min-width:64px;text-align:center;font-variant-numeric:tabular-nums}
 .follow{background:#1d4ed8}.follow.off{background:#b45309}
 .status{position:fixed;right:12px;top:12px;padding:4px 10px;border-radius:12px;background:#b45309;color:#fff;font-size:13px;z-index:7}
 .status.down{background:#b91c1c}
-.hint{position:fixed;left:50%;top:24px;transform:translateX(-50%);background:#000c;color:#fff;padding:8px 14px;border-radius:8px;font-size:14px;z-index:7}
+.hint{position:fixed;left:50%;top:24px;transform:translateX(-50%);background:#000c;color:#fff;padding:8px 14px;border-radius:8px;font-size:14px;z-index:7;touch-action:none}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 body.hide-cursor{cursor:none}
 .pgrid{display:grid;grid-template-columns:minmax(0,2fr) minmax(300px,1fr);gap:12px;height:100vh;padding:12px}
@@ -484,17 +484,20 @@ document.addEventListener('keydown', function (e) {
 var sx = null, sy = null, pinch = null, panFrom = null, tapAt = 0;
 var dist = function (t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); };
 var mid = function (t) { return {x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2}; };
+var pinchOf = function (t) { return {d: dist(t), z: zoom.z, m: mid(t)}; };
 $('stage').addEventListener('touchstart', function (e) {
-  if (e.touches.length === 2) { pinch = {d: dist(e.touches), m: mid(e.touches)}; sx = null; panFrom = null; return; }
+  if (e.touches.length >= 2) { pinch = pinchOf(e.touches); sx = null; panFrom = null; return; }
   sx = e.touches[0].clientX; sy = e.touches[0].clientY; panFrom = zoom.z > 1 ? {x: sx, y: sy} : null;
 }, {passive: true});
 $('stage').addEventListener('touchmove', function (e) {
-  if (pinch && e.touches.length === 2) {
+  if (pinch && e.touches.length >= 2) {
     // the fingers apart or together zoom around the point between them; both moving together slide the view with them
+    // the zoom is the zoom when the fingers landed times how far apart they are now (step by step, a slow pinch's steps are each
+    // under the 1% that snaps back to the whole slide, and it would never zoom)
     var d = dist(e.touches), m = mid(e.touches);
-    if (pinch.d > 0) zoomBy(d / pinch.d, m.x, m.y);
+    if (pinch.d > 0) zoomBy(pinch.z * d / pinch.d / zoom.z, pinch.m.x, pinch.m.y);
     panBy(m.x - pinch.m.x, m.y - pinch.m.y);
-    pinch = {d: d, m: m};
+    pinch.m = m;
   } else if (panFrom && e.touches.length === 1) {
     var x = e.touches[0].clientX, y = e.touches[0].clientY;
     panBy(x - panFrom.x, y - panFrom.y); panFrom = {x: x, y: y};
@@ -502,7 +505,8 @@ $('stage').addEventListener('touchmove', function (e) {
 }, {passive: true});
 $('stage').addEventListener('touchend', function (e) {
   if (pinch) {
-    if (e.touches.length < 2) { pinch = null; panFrom = e.touches.length === 1 && zoom.z > 1 ? {x: e.touches[0].clientX, y: e.touches[0].clientY} : null; }
+    if (e.touches.length >= 2) pinch = pinchOf(e.touches);
+    else { pinch = null; panFrom = e.touches.length === 1 && zoom.z > 1 ? {x: e.touches[0].clientX, y: e.touches[0].clientY} : null; }
     return;
   }
   if (sx === null) return;
@@ -517,8 +521,8 @@ $('stage').addEventListener('touchend', function (e) {
   }
   if (!wasPan && zoom.z === 1 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) step(dx < 0 ? 1 : -1);
 }, {passive: true});
-// Safari zooms the page on its own gesture events, whatever touch-action says
-$('stage').addEventListener('gesturestart', function (e) { e.preventDefault(); });
+// Safari zooms the page on its own gesture events, whatever touch-action says (the viewer: anywhere; the presenter: over the slide)
+(presenter ? $('stage') : document).addEventListener('gesturestart', function (e) { e.preventDefault(); });
 var wheelAt = 0;
 $('stage').addEventListener('wheel', function (e) {
   // ctrl + wheel (a trackpad's pinch comes as this too) zooms at the pointer; when zoomed, the wheel pans; else it turns the slides
@@ -541,8 +545,13 @@ $('next').onclick = function () { step(1); };
 window.addEventListener('resize', applyZoom);
 
 // --- the viewer's bar --------------------------------------------------------------------------------------------------------
-var navTimer = null;
-function showNav() { var n = $('nav'); if (!n) return; n.classList.add('show'); clearTimeout(navTimer); navTimer = setTimeout(function () { n.classList.remove('show'); }, 2500); }
+var navTimer = null, navLive = null;
+function showNav() {
+  var n = $('nav'); if (!n) return;
+  // the bar takes clicks a moment after it shows: the tap that shows it must not also press the (unseen) button under the finger
+  if (!n.classList.contains('show')) { n.classList.add('show'); clearTimeout(navLive); navLive = setTimeout(function () { n.classList.add('live'); }, 400); }
+  clearTimeout(navTimer); navTimer = setTimeout(function () { clearTimeout(navLive); n.classList.remove('show', 'live'); }, 2500);
+}
 if (!presenter) {
   $('ov').onclick = toggleOverview;
   $('fs').onclick = fullscreen;
