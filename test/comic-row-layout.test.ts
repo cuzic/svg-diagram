@@ -166,7 +166,7 @@ test('two speakers in one row panel: a two-line reply at 18 has no findings (the
 });
 
 test('when two speakers cannot sit side by side the finding names the limit', () => {
-  const l = lay(exchange('そうなんだ、知らなかった、本当に驚いたよ。', 'ええ、昨日決まったばかりなの、ごめんね。'), {fontSize: 18});
+  const l = lay(exchange('そうなんだ、知らなかった、本当に驚いたよ。', 'ええ、昨日決まったばかりなの、ごめんね。'), {fontSize: 26});
   const f = l.findings.filter(x => x.rule === 'comic-tail-crosses-bubble' || x.rule === 'comic-text-budget');
   assert.ok(f.length > 0);
   assert.ok(f.some(x => /side by side|one bubble|at most/.test(x.message)), JSON.stringify(f));

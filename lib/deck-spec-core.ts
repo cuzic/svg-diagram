@@ -64,6 +64,14 @@ const NOTES_BREAKS = /\r\n|\r|\n/g;
 /** Where a figure's issue is in the deck: `slides[i].figure` and then the spec's own path ('' is the whole figure). */
 export const figurePath = (i: number, path: string | null): string => `slides[${i}].figure${path ? `.${path}` : ''}`;
 
+/**
+ * A figure's problems (its verdict's `problems`: what `build` and `check` stop at) as a deck's messages (ADR 0056): one summary line, then each problem's own message
+ * (a problem may name its rule `[rule-id]`; not all do). `accept` does not reach problems (ADR 0024), here as in `check`.
+ */
+export const figureProblemMessages = (problems: readonly string[]): string[] => problems.length === 0 ? [] :
+  [`${problems.length} 個の問題があるので、このスライドを描かない(図を直す。\`svg-diagram check\` で同じ問題が見える)`, ...problems];
+export const figureProblemErrors = (place: string, problems: readonly string[]): string[] => figureProblemMessages(problems).map(m => `${place}: ${m}`);
+
 /** Where a column figure's issue is: `slides[i].columns[j].figure` and then the spec's own path. */
 export const columnFigurePath = (i: number, j: number, path: string | null): string => `slides[${i}].columns[${j}].figure${path ? `.${path}` : ''}`;
 

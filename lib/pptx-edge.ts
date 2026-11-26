@@ -35,7 +35,7 @@ export async function planFigureEdge(spec: unknown, engine: TextEngine, opts: {f
   const plan = planSlide(r.laidOut, fontsOf(opts.font));
   const missing = outlinePptxPictures(spec, plan, engine);
   if (missing.length) return {issues: missing};
-  return {plan, width: Math.max(96, r.laidOut.width), height: Math.max(96, r.laidOut.canvasHeight), native: r.laidOut.laidOut.length - plan.pictures.length, findings: [...r.verdict.warnings, ...r.verdict.problems]};
+  return {plan, width: Math.max(96, r.laidOut.width), height: Math.max(96, r.laidOut.canvasHeight), native: r.laidOut.laidOut.length - plan.pictures.length, findings: [...r.verdict.warnings, ...r.verdict.problems], problems: r.verdict.problems};
 }
 
 /**

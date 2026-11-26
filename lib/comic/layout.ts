@@ -120,30 +120,81 @@ export function layoutComic(band: ComicBand, x: number, y: number, w: number, wi
     let budgetReported = false;
     const twoSpeakers = new Set(p.dialogue.filter(d => d.kind !== 'narration' && d.who !== undefined).map(d => d.who)).size > 1;
     const alone = Math.floor((PW - 2 * SIDE_KEEP) / 4) * 4, sideBySide = Math.floor((PW - 2 * SIDE_KEEP - STACK_GAP) / 2 / 4) * 4;
-    for (const dlg of p.dialogue) {
+    const prep = p.dialogue.map(dlg => {
       const id = `${p.id}.${dlg.id}`;
       const parts = parseTemplate(dlg.tpl, `comic(): ${id}`);
       const info = (sid: string) => slotInfo(dlg, sid);
-      // a row panel wraps its text to what fits (never wider than the panel; half of it when two people speak, so their bubbles can sit side by side) and the bubble is as wide as the text
-      const R = reserveDialogue(parts, sid => info(sid).max, atomWidth, fontSize, row ? {cap: Math.min(9 * fontSize, (twoSpeakers ? sideBySide : alone) - 2 * m.padX), shrink: true} : {});
+      return {dlg, id, parts, info};
+    });
+    // a row panel wraps its text to what fits (never wider than the panel; half of it when two people speak, so their bubbles can sit side by side) and the bubble is as wide as the text
+    const reserveAt = (k: number, side: number | undefined): Reserved => {
+      const {parts, info} = prep[k] as (typeof prep)[number];
+      return reserveDialogue(parts, sid => info(sid).max, atomWidth, fontSize, row ? {cap: Math.min(9 * fontSize, (side ?? alone) - 2 * m.padX), shrink: true} : {});
+    };
+    // where bubble k goes, given the ones placed before it: over its speaker's head (a narration in the corner), stacked under every earlier bubble it overlaps
+    // sideways or that lies to its right (side by side only when the earlier ones are all to its left)
+    const placeAt = (k: number, R: Reserved, before: {x: number; y: number; w: number; h: number; lines: number}[]) => {
+      const {dlg} = prep[k] as (typeof prep)[number];
       const bw = ceil4(R.inner + 2 * m.padX), bh = bubbleHeight(R.lines.length, fontSize);
       const speaker = dlg.who === undefined ? undefined : heads.get(dlg.who);
-      if (!speaker && dlg.kind !== 'narration') add('comic-speaker-unknown', id, `${dlg.who ?? '(no who)'} is not on the stage of ${p.id}${dlg.who !== undefined && !(dlg.who in sheet.cast) ? ' and not in cast' : ''} (add them to stage, or fix who)`);
-      // the bubble's x: over the speaker's head, kept inside the panel; a narration sits in the corner
       const want = dlg.kind === 'narration' ? px + m.narrationLeft + bw / 2 : speaker ? speaker.cx : px + PW / 2;
       const left = snap4(Math.min(Math.max(want - bw / 2, px + SIDE_KEEP), px + PW - SIDE_KEEP - bw));
-      // stacked under every earlier bubble it overlaps sideways, or that lies to its right (side by side only when the earlier ones are all to its left)
-      const under = placed.filter(q => (q.x < left + bw + STACK_GAP && left < q.x + q.w + STACK_GAP) || left < q.x);
+      const under = before.filter(q => (q.x < left + bw + STACK_GAP && left < q.x + q.w + STACK_GAP) || left < q.x);
       const top = Math.max(py + zone.top, ...under.map(q => q.y + q.h + STACK_GAP));
       const rect = {x: left, y: top, w: bw, h: bh};
+      const stackLines = R.lines.length + under.reduce((n, q) => n + q.lines, 0);
+      const overhang = top + bh > py + zone.bottom ? undefined : overhangs.find(({bounds}) => rectOverlap(rect, bounds, 0));
+      return {bw, bh, speaker, left, top, rect, stackLines, overhang, over: top + bh > py + zone.bottom || overhang !== undefined || stackLines > budget || R.lines.length > MAX_BUBBLE_LINES || bw > PW - 2 * SIDE_KEEP};
+    };
+    const narrowRs = prep.map((_, k) => reserveAt(k, twoSpeakers ? sideBySide : undefined));
+    let reserved = narrowRs;
+    // Two speakers in a row panel: the half-width wrap is for bubbles that sit side by side. When that leaves a bubble past the band over the heads (the
+    // stacked ones get tall and narrow), try the full-width wrap for some of the bubbles, the fewest first, and keep the first set that fits.
+    if (row && twoSpeakers && !noRoom && prep.length <= 8) {
+      // what a set of wraps leaves wrong in the panel: the mistakes (a bubble past the band / the budget, a tail behind another speaker's bubble or off its speaker)
+      // and the area of the bubbles outside the panel and the band over the heads
+      const overs = (Rs: Reserved[]): {n: number; area: number} => {
+        const pl: typeof placed = [], laid: {who?: string; rect: Rect; tail: ComicLaidBubble['tail']; speaker?: ComicLaidHead}[] = [];
+        let n = 0, area = 0;
+        Rs.forEach((R, k) => {
+          const q = placeAt(k, R, pl), {dlg} = prep[k] as (typeof prep)[number], r = q.rect;
+          if (q.over) n++;
+          area += r.w * (Math.max(0, r.y + r.h - (py + zone.bottom)) + Math.max(0, py + zone.top - r.y)) + r.h * (Math.max(0, px - r.x) + Math.max(0, r.x + r.w - (px + PW)));
+          pl.push({...q.rect, lines: R.lines.length});
+          laid.push({...(dlg.who === undefined ? {} : {who: dlg.who}), rect: q.rect, tail: q.speaker && dlg.kind !== 'narration' ? tailOf({...q.rect, kind: dlg.kind}, q.speaker) : undefined, ...(q.speaker ? {speaker: q.speaker} : {})});
+        });
+        for (const b of laid) {
+          if (!b.tail || !b.speaker) continue;
+          const hit = laid.filter(o => o !== b && tailCrosses(b.tail as NonNullable<ComicLaidBubble['tail']>, o.rect));
+          if (hit.some(o => o.who === b.who)) continue;
+          if (hit.length) n++;
+          else checkTail({tail: b.tail, id: ''} as ComicLaidBubble, b.speaker, () => { n++; });
+        }
+        return {n, area};
+      };
+      let best = overs(narrowRs);
+      if (best.n > 0) {
+        const wideRs = prep.map((_, k) => reserveAt(k, undefined));
+        const pop = (v: number): number => v.toString(2).replaceAll('0', '').length;
+        const masks = Array.from({length: (1 << prep.length) - 1}, (_, i) => i + 1).sort((a, b) => pop(a) - pop(b) || a - b);
+        for (const mask of masks) {
+          if (best.n === 0) break;
+          const cand = narrowRs.map((r, k) => mask >> k & 1 ? wideRs[k] as Reserved : r), c = overs(cand);
+          // a clean set wins; when none is clean, the least overflow (then the fewest mistakes), so the worst drawing is not the one kept
+          if (c.n === 0 || (best.n > 0 && (c.area < best.area || (c.area === best.area && c.n < best.n)))) { best = c; reserved = cand; }
+        }
+      }
+    }
+    for (const [k, {dlg, id, parts, info}] of prep.entries()) {
+      const R = reserved[k] as Reserved;
+      const {bw, bh, speaker, left, top, rect, stackLines, overhang} = placeAt(k, R, placed);
+      if (!speaker && dlg.kind !== 'narration') add('comic-speaker-unknown', id, `${dlg.who ?? '(no who)'} is not on the stage of ${p.id}${dlg.who !== undefined && !(dlg.who in sheet.cast) ? ' and not in cast' : ''} (add them to stage, or fix who)`);
       placed.push({...rect, lines: R.lines.length});
       // the root causes first; the face and tail checks of a bubble that overflowed are its consequences, so they do not run (one mistake, one report)
       const pastZone = top + bh > py + zone.bottom;
-      const overhang = pastZone ? undefined : overhangs.find(({bounds}) => rectOverlap(rect, bounds, 0));
       if (bw > PW - 2 * SIDE_KEEP) add('comic-bubble-zone', id, `${id}: the bubble is ${bw}px wide, wider than the panel allows (${PW - 2 * SIDE_KEEP}px): ${row ? `use a smaller fontSize (now ${fontSize}), fewer columns (wider panels), a wider diagram, or a shorter blank` : 'shorten the blank or the text, or use a smaller fontSize'}`);
       if (pastZone && !noRoom) add('comic-bubble-zone', id, `${id}: the stack ends ${top + bh - py}px from the top of the panel, but the band over the heads ends at ${zone.bottom}px (fewer or shorter lines: at most ${budget} lines in all)`);
       else if (overhang) add('comic-bubble-zone', id, `${id} が ${overhang.id} の素材の上部に重なります。台詞を短くするか、人物や素材の絵の位置を調整してください`);
-      const stackLines = R.lines.length + under.reduce((n, q) => n + q.lines, 0);
       if (!noRoom && !budgetReported && (stackLines > budget || R.lines.length > MAX_BUBBLE_LINES)) {
         budgetReported = true;
         add('comic-text-budget', id, `${id}: ${R.lines.length > MAX_BUBBLE_LINES ? `${R.lines.length} lines in one bubble (at most ${MAX_BUBBLE_LINES})` : `${stackLines} lines are stacked in ${p.id} (at most ${budget})`}; shorten the lines (blanks count at their widest)`);
