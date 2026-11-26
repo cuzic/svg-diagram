@@ -20,7 +20,7 @@ function glued(count: number, ch: string, unitW: number, innerMax: number, next?
 }
 
 /** The atoms of a template: a blank is one atom of `max` full-width characters (4 when it has no definition), the hiragana after it glued as `glued` says. */
-export function templateAtoms(parts: readonly TemplatePart[], maxOf: (id: string) => number, atomWidth: (atom: string) => number, innerMax = INNER_MAX): ReserveAtom[] {
+export function templateAtoms(parts: readonly TemplatePart[], maxOf: (id: string) => number, atomWidth: (atom: string) => number, innerMax = INNER_MAX, breakAt = Infinity): ReserveAtom[] {
   const atoms: ReserveAtom[] = [];
   let afterSlot = false, bound = 0, unitW = 0;
   for (const p of parts) {
@@ -34,6 +34,8 @@ export function templateAtoms(parts: readonly TemplatePart[], maxOf: (id: string
     for (const [k, a] of as.entries()) {
       const glue = afterSlot && isHiragana(a) && glued(bound, a, unitW, innerMax, as[k + 1]);
       if (glue) { bound++; unitW += FONT; } else afterSlot = false;
+      // chat(): a word wider than a bubble can be is broken per character, so no bubble leaves its column
+      if (atomWidth(a) > breakAt) { for (const ch of a) atoms.push({text: ch, w: atomWidth(ch)}); continue; }
       atoms.push({text: a, w: atomWidth(a), ...(glue ? {glue: true} : {})});
     }
   }
@@ -78,5 +80,5 @@ function followerSplit(lines: readonly ReservedLine[]): boolean {
 }
 
 /** `innerMax` is the inner width a bubble wraps at (comic: nine full-width characters; chat: 70% of its column, ADR 0074 D7); `cap` the most it may widen to. */
-export const reserveDialogue = (parts: readonly TemplatePart[], maxOf: (id: string) => number, atomWidth: (atom: string) => number, innerMax = INNER_MAX, cap = Infinity): Reserved =>
-  reserveAtoms(templateAtoms(parts, maxOf, atomWidth, innerMax), innerMax, cap);
+export const reserveDialogue = (parts: readonly TemplatePart[], maxOf: (id: string) => number, atomWidth: (atom: string) => number, innerMax = INNER_MAX, cap = Infinity, breakAt = Infinity): Reserved =>
+  reserveAtoms(templateAtoms(parts, maxOf, atomWidth, innerMax, breakAt), innerMax, cap);

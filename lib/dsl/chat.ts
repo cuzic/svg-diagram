@@ -1,5 +1,6 @@
 // chat() (ADR 0074 D7): the dialogue of a comic worksheet (or a dialogue list with a cast) as a chat screen. The data holds no coordinates and no sizes.
 import {COMIC_ID} from '../comic/template.ts';
+import {CHAT_W, CHAT_W_MAX} from '../chat/constants.ts';
 import {loadCharacter} from '../comic/character.ts';
 import type {Declares, HandleOf} from '../strict.ts';
 import type {ChatBand, ChatInput, ChatMessage, ChatOpts, ChatSheet} from '../types/chat.ts';
@@ -37,6 +38,8 @@ function sheetOf(input: ChatInput): ChatSheet {
     ids.add(b.id);
     return b;
   });
+  const slotIds = new Set(dialogue.flatMap(d => Object.keys(d.slots ?? {})));
+  for (const d of dialogue) if (slotIds.has(d.id)) throw new Error(`chat(): the line id "${d.id}" is also a blank id (a line and a blank cannot share a name for connect()); rename the line or the blank`);
   for (const [k, c] of Object.entries(input.cast)) {
     if (!COMIC_ID.test(k)) throw new Error(`chat(): cast id ${JSON.stringify(k)} must be letters, digits, _ and - (starting with a letter; no . : @ #)`);
     if (c?.asset !== undefined && !COMIC_ID.test(c.asset)) throw new Error(`chat(): cast ${k}: asset id ${JSON.stringify(c.asset)} must be letters, digits, _ and -`);
@@ -57,6 +60,9 @@ export function chat(input: ChatInput, opts: ChatOpts = {}): ChatBand {
   if (opts.self !== undefined) {
     if (typeof opts.self !== 'string' || !Object.hasOwn(sheet.cast, opts.self)) throw new Error(`chat(): self ${JSON.stringify(opts.self)} is not a key of cast (the speaker drawn on the right)`);
   }
+  if (opts.width !== undefined && (!Number.isInteger(opts.width) || opts.width < CHAT_W || opts.width > CHAT_W_MAX || opts.width % 4 !== 0)) {
+    throw new Error(`chat(): width is a whole number from ${CHAT_W} to ${CHAT_W_MAX} in steps of 4 (got ${JSON.stringify(opts.width)})`);
+  }
   let text: string | undefined;
   if (opts.input !== undefined) {
     text = opts.input === true ? CHAT_INPUT_DEFAULT : opts.input;
@@ -69,7 +75,7 @@ export function chat(input: ChatInput, opts: ChatOpts = {}): ChatBand {
     return [key, character];
   }));
   const band: ChatBand = {type: 'chat', sheet, ...(Object.keys(characters).length ? {characters} : {}),
-    ...(opts.self === undefined ? {} : {self: opts.self}), ...(opts.separators === undefined ? {} : {separators: opts.separators}),
+    ...(opts.self === undefined ? {} : {self: opts.self}), ...(opts.width === undefined ? {} : {width: opts.width}), ...(opts.separators === undefined ? {} : {separators: opts.separators}),
     ...(text === undefined ? {} : {input: text}), ...(opts.id === undefined ? {} : {id: opts.id}), ...scopeOpt(opts, 'chat()'), ...revealOf(opts)};
   return withHandle(band, opts.id);
 }

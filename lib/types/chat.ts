@@ -14,6 +14,8 @@ export interface ChatSheet {
 }
 export interface ChatOpts extends RevealOpts, ScopeOpts {
   id?: string;
+  /** The band's width in px, 480 (default) to 880 in steps of 4. The column and the 70% wrap width scale with it (D7). */
+  width?: number;
   /** The cast key whose lines are on the right (default 'me'). */
   self?: string;
   /** A thin line between the panels of a worksheet (default off; a dialogue list has no panels). */

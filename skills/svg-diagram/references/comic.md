@@ -46,7 +46,9 @@ diagram({title: '例', width: 520, legend: false}).add(chat({
 
 - 入力は、マンガと同じ `sheet`(`panels` の台詞をコマの順につなぐ。吹き出しの id は `コマ.台詞`)か、`dialogue` の列(`cast` と台詞だけ。id は台詞の id)。座標や大きさは書かない。
 - `self`(既定 `'me'`)の台詞は右、ほかは左で、左には丸い顔(素材の `asset` ならその頭の部分。`chat(sheet, {characters})`)と名前が付く。同じ人が続けて話すときは最初の吹き出しにだけ付く。`kind: 'narration'`(`who` なし)は中央に置く。
-- 吹き出しの幅は、列(400px)の 70% で折り返した最長の行で決まり、列を超えない。広すぎる語は `comic-bubble-wide`(助言)。穴の大きさ・状態・値はマンガと同じ。穴の検査もマンガと同じ規則名(`comic-slot-*`)で、話し手が `cast` にないときは `chat-speaker-unknown`。
-- 台詞の `id` と穴の `id` は同じにできない(接続の端として同じ名前になるため)。
+- 吹き出しの幅は、列(既定 400px)の 70% で折り返した最長の行で決まり、列を超えない(URL など列より広い語は 1 字ずつ折る)。`comic-bubble-wide`(助言)は、穴とひらがなの塊が列を超えるとき。
+- `width`(480〜880、4 の倍数。既定 480)で帯の幅を広げられる。列と 70% の折り返し幅が比例して広がるので、スライドに長いやり取りを入れるときは 800 前後にすると背が低くなる。
+- 台詞の `\n` は改行、`\n\n` は空行(貼り付けた指示の段落に使う)。`self` を省くと `cast` の `me` が右になる。`me` が無いと `chat-self-missing`。穴の大きさ・状態・値はマンガと同じ。穴の検査もマンガと同じ規則名(`comic-slot-*`)で、話し手が `cast` にないときは `chat-speaker-unknown`。
+- 台詞の `id` と穴の `id` は同じにできない(接続の端として同じ名前になるため。投げるときに、どちらを直すか書く)。
 - `separators: true` でコマの境に細い線(`sheet` がコマを持つとき)。`input: '案内'`(20 字まで。`true` なら「メッセージを入力」)で、下にメッセージ欄を描く。時刻や既読は出さない。
 - 値を入れて描くときは `renderChat(sheet, {measure, values, ...})`(`svg-diagram/browser`。実験的)。選択入口は `svg-diagram/bands/chat`。例は `examples/chat-draft.ts`、`chat-sheet.ts`。JSON の spec ではまだ使えない。

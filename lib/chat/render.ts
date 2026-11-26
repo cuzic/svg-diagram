@@ -25,6 +25,7 @@ export async function renderChat(sheet: ChatInput, opts: {
   values?: Values;
   characters?: Record<string, CharacterManifest>;
   self?: ChatOpts['self'];
+  width?: ChatOpts['width'];
   separators?: boolean;
   input?: ChatOpts['input'];
   nodeIds?: boolean;
@@ -33,11 +34,11 @@ export async function renderChat(sheet: ChatInput, opts: {
   const {measure, nodeIds} = opts;
   const values = {...opts.values};
   const band = chat(sheet, {
-    ...(opts.characters === undefined ? {} : {characters: opts.characters}), ...(opts.self === undefined ? {} : {self: opts.self}),
+    ...(opts.characters === undefined ? {} : {characters: opts.characters}), ...(opts.self === undefined ? {} : {self: opts.self}), ...(opts.width === undefined ? {} : {width: opts.width}),
     ...(opts.separators === undefined ? {} : {separators: opts.separators}), ...(opts.input === undefined ? {} : {input: opts.input}),
   });
   const pad = 20;
-  const base = await renderInBrowser(diagram({theme: 'blue', title: band.sheet.title, legend: false, width: CHAT_W + 2 * pad, pad}).add(band),
+  const base = await renderInBrowser(diagram({theme: 'blue', title: band.sheet.title, legend: false, width: (band.width ?? CHAT_W) + 2 * pad, pad}).add(band),
     {measure, ...(nodeIds === undefined ? {} : {nodeIds})});
   const laid = base.laidOut.laidOut.find(isLaidOutChat);
   if (!laid) throw new Error('renderChat: 配置したチャットの帯が見つかりません。台詞を確認してください');

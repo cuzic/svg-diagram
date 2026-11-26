@@ -10,7 +10,9 @@ import {slotSvg} from '../lib/comic/slot-svg.ts';
 import {dialogueValueFindings} from '../lib/comic/slot-values.ts';
 import {parseTemplate} from '../lib/comic/template.ts';
 import {chatRects} from '../lib/verify-chat-rects.ts';
-import {CHAT_COLUMN, CHAT_INNER, CHAT_W} from '../lib/chat/constants.ts';
+import {chatDims, CHAT_W} from '../lib/chat/constants.ts';
+
+const {column: CHAT_COLUMN, inner: CHAT_INNER} = chatDims(CHAT_W);
 import {layoutComic} from '../lib/comic/layout.ts';
 import {chat} from '../lib/dsl/chat.ts';
 import {comic} from '../lib/dsl/comic.ts';
@@ -71,10 +73,55 @@ test('a bubble is as wide as its longest line: at most the column, and at most 7
   assert.equal(long.lines.join(''), '承知しました。いただいた内容から、参加者に向けた短い案内文の下書きを作ります。');
 });
 
-test('a word wider than the column cannot be wrapped: the bubble is wider than the column, and that is advice', () => {
-  const laid = lay({...NOTICE, dialogue: [{id: 'w', who: 'ai', kind: 'say', tpl: 'a'.repeat(40)}]});
-  assert.ok(laid.bubbles[0]!.w > CHAT_COLUMN);
-  assert.deepEqual(laid.findings.map(f => [f.rule, f.severity]), [['comic-bubble-wide', 'advice']]);
+test('a word wider than the column is broken per character: no bubble leaves its column (a pasted URL)', () => {
+  const url = 'https://example.com/very/long/path/to/the/meeting-minutes-2026-11-25-final-version.pdf';
+  const laid = lay({...NOTICE, dialogue: [{id: 'w', who: 'me', kind: 'say', tpl: `参考資料は${url}にあります。`}]});
+  const b = laid.bubbles[0]!;
+  assert.ok(b.w <= CHAT_COLUMN, `${b.w}px is within the ${CHAT_COLUMN}px column`);
+  assert.ok(b.x >= 16 + 40 + 8, 'and inside the frame');
+  assert.equal(b.lines.join(''), `参考資料は${url}にあります。`, 'no character is lost');
+  assert.deepEqual(laid.findings, []);
+});
+
+test('a hard line break (\\n) in a template breaks the line, and \\n\\n leaves an empty line', () => {
+  const laid = lay({...NOTICE, dialogue: [{id: 'w', who: 'me', kind: 'say', tpl: '次の文を要約してください。\n\n本文です。'}]});
+  assert.deepEqual(laid.bubbles[0]!.lines, ['次の文を要約してください。', '', '本文です。']);
+  assert.ok(laid.bubbles[0]!.runs.every(r => !r.text.includes('\n')));
+});
+
+test('two chat bands in one SVG draw their faces with distinct ids', async () => {
+  const a = chat(NOTICE, {id: 'one'}), b = chat({...NOTICE, dialogue: NOTICE.dialogue.map(d => ({...d, id: `b${d.id}`, slots: undefined, tpl: d.tpl.replace(/\{\w+\}/g, 'X')}))}, {id: 'two'});
+  const r = await renderBands([band(chatDefinition, a), band(chatDefinition, b)], {width: 560, measure});
+  const ids = [...r.svg.matchAll(/ id="([^"]+)"/g)].map(m => m[1]);
+  assert.equal(new Set(ids).size, ids.length, 'every id in the SVG is unique');
+  assert.equal([...r.svg.matchAll(/data-avatar=/g)].length, 2);
+});
+
+test('when self is omitted and the cast has no me, every message is on the left: a finding with the fix', () => {
+  const sheet = {...NOTICE, cast: {user: {name: '利用者'}, ai: {name: '案内係'}}, dialogue: [{id: 'x', who: 'user', kind: 'say' as const, tpl: 'こんにちは'}]};
+  assert.deepEqual(lay(sheet).findings.map(f => f.rule), ['chat-self-missing']);
+  assert.match(lay(sheet).findings[0]!.message, /self: '<cast key>'/);
+  assert.deepEqual(lay(sheet, {self: 'user'}).findings, []);
+  assert.deepEqual(lay({...NOTICE, cast: {}, dialogue: [{id: 'n', kind: 'narration', tpl: '静か'}]}).findings, [], 'a narration-only chat has no one to put on the right');
+});
+
+test('a line id that is also a blank id is rejected with the name to change', () => {
+  assert.throws(() => chat({...NOTICE, dialogue: [{id: 'day', who: 'me', kind: 'say', tpl: '{day}です', slots: {day: {max: 3, prompt: '曜日'}}}]}), /line id "day" is also a blank id.*rename/);
+});
+
+test('width scales the column and the 70% wrap width; 800px roughly halves the height of a long exchange', () => {
+  const long: ChatSheet = {...NOTICE, dialogue: [
+    {id: 'a', who: 'me', kind: 'say', tpl: '次の議事録を読んで、決まったことと残っている課題を分けて、担当者ごとに短く整理した一覧を作ってください。'.repeat(3)},
+    {id: 'b', who: 'ai', kind: 'say', tpl: '承知しました。決まったことは三つあります。一つ目は来月の公開日を二十日にすること、二つ目は確認の担当を決めること、三つ目は資料を先に共有することです。'.repeat(3)},
+  ]};
+  const narrow = lay(long), wide = lay(long, {width: 800});
+  assert.equal(wide.w, 800);
+  assert.equal(wide.column, 800 - 32 - 48);
+  assert.ok(wide.bubbles.every(b => b.w <= wide.column));
+  assert.ok(wide.h < narrow.h * 0.65, `${wide.h} vs ${narrow.h}`);
+  assert.throws(() => chat(NOTICE, {width: 400}), /width is a whole number from 480 to 880/);
+  assert.throws(() => chat(NOTICE, {width: 482}), /steps of 4/);
+  assert.equal(lay(NOTICE).w, 480, 'the default is unchanged');
 });
 
 test('a blank is the same size in the chat as in the comic, whatever the layout around it', () => {

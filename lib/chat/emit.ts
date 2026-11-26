@@ -30,8 +30,9 @@ export function bubblePath(b: Pick<ChatLaidBubble, 'x' | 'y' | 'w' | 'h' | 'tail
   return `M${f1(x + r)} ${y}H${f1(x1 - r)}A${r} ${r} 0 0 1 ${x1} ${f1(y + r)}${rightEdge}V${f1(y1 - r)}A${r} ${r} 0 0 1 ${f1(x1 - r)} ${y1}H${f1(x + r)}A${r} ${r} 0 0 1 ${x} ${f1(y1 - r)}${left}A${r} ${r} 0 0 1 ${f1(x + r)} ${y}Z`;
 }
 
-function avatarSvg(a: ChatLaidAvatar, index: number, characters: LaidOutChat['characters'], namespace: string): string {
-  const prefix = `av-${namespace}${index}`, clip = `${prefix}-c`;
+function avatarSvg(a: ChatLaidAvatar, characters: LaidOutChat['characters'], namespace: string): string {
+  // the message id is a unique anchor, so the ids stay unique across chats in one SVG (hex: ids may hold . and -)
+  const prefix = `av-${namespace}${[...a.id].map(c => c.charCodeAt(0).toString(16)).join('_')}`, clip = `${prefix}-c`;
   const look = a.look;
   const ch = look.kind === 'asset' ? characters[look.asset] : undefined;
   const inner = ch ? characterSvg(ch, 'neutral', HEAD_LOCAL, `${prefix}-`) : undefined;
@@ -75,7 +76,7 @@ export function renderChatBand(b: LaidOutChat, values: ValueTable = {}, widthOf?
   const frame = `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="12" fill="${COLOR.paper}" stroke="${COLOR.ink}" stroke-width="${FRAME}"/>`;
   const lines = b.separators.map(s => `<line x1="${s.x1}" y1="${s.y}" x2="${s.x2}" y2="${s.y}" stroke="${COLOR.prompt}" stroke-width="1"/>`).join('');
   return `<g data-chat="screen"><title>${escapeXml(b.title)}</title>${frame}${lines}`
-    + b.avatars.map((a, i) => avatarSvg(a, i, b.characters, namespace)).join('')
+    + b.avatars.map(a => avatarSvg(a, b.characters, namespace)).join('')
     + b.bubbles.map(x => bubbleSvg(x, b.blank, node, values, widthOf)).join('')
     + (b.input ? inputSvg(b.input) : '') + '</g>';
 }
