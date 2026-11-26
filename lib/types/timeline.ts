@@ -10,13 +10,13 @@ export interface TimelineMark {
   tone?: TimelineTone;
 }
 export interface TimelineOpts extends RevealOpts {
-  /** The axis runs from `from` to `to` (dates as 'YYYY' | 'YYYY-MM' | 'YYYY-MM-DD'). */
-  from: string;
-  to: string;
-  /** Today. Always written out (a build never reads the clock), so the same source draws the same SVG. */
-  now: {at: string; label?: string};
-  /** The marker the figure is about, drawn in the danger colour. The span from `now` to it is the remaining time. */
-  deadline: {at: string; label: string; /** 'full': a line through the whole height of the figure at the deadline (default: a short stem and a big dot). */ line?: 'full'};
+  /** The axis runs from `from` to `to` (dates as 'YYYY' | 'YYYY-MM' | 'YYYY-MM-DD'). Either may be left out: that end is then the earliest / latest item (now, deadline, marks) with a little padding. */
+  from?: string;
+  to?: string;
+  /** Today. Always written out (a build never reads the clock), so the same source draws the same SVG. Optional: without it there is no "now" marker (and no remaining span). */
+  now?: {at: string; label?: string};
+  /** The marker the figure is about, drawn in the danger colour. The span from `now` to it is the remaining time. Optional: without it there is no deadline marker (and no remaining span). */
+  deadline?: {at: string; label: string; /** 'full': a line through the whole height of the figure at the deadline (default: a short stem and a big dot). */ line?: 'full'};
   /** How the span from now to the deadline is drawn: 'bar' (default, a thick line on the axis) or 'fill' (a pale band above and below the axis). */
   span?: 'bar' | 'fill';
   /** Other dates on the axis (a release, a contract end). */

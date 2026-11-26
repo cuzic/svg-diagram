@@ -27,3 +27,21 @@ export function ticksOf(from: number, to: number): {day: number; label: string}[
   }
   return out;
 }
+
+/** Day-level tick sets for an axis under 2 months, finest first (every day, 2 days, Monday, every other Monday; at most 16 ticks each), labelled 'm/d'; the first tick of a new year carries the year. */
+export function fineTickSets(from: number, to: number): {day: number; label: string}[][] {
+  if (to - from >= 61) return [];
+  const sets: {day: number; label: string}[][] = [];
+  for (const [m, r] of [[1, 0], [2, 0], [7, 4], [14, 4]] as const) { // day 0 (1970-01-01) is a Thursday: Mondays are 4 mod 7
+    const days: number[] = [];
+    for (let d = Math.ceil(from); d <= to; d++) if (((d - r) % m + m) % m === 0) days.push(d);
+    if (days.length > 16 || !days.length) continue;
+    let year = -1;
+    sets.push(days.map(day => {
+      const d = new Date(day * MS_DAY), y = d.getUTCFullYear(), label = `${year >= 0 && y !== year ? `${y}/` : ''}${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+      year = y;
+      return {day, label};
+    }));
+  }
+  return sets;
+}
