@@ -89,3 +89,25 @@ test('m2: a break after a clause mark is preferred when the lines are nearly as 
   assert.equal(got.join(''), t);
   assert.ok(got[0]?.endsWith('、'), got.join('|'));
 });
+
+test('round 2 M1: the clause-mark split obeys kinsoku and keeps a number whole', () => {
+  const a = wrapBalanced('なぜ図で伝えるのか？」という問いから始める設計の話', {...em, maxWidth: 18.6});
+  assert.ok(a.every(l => !/^[」？]/.test(l)), a.join('|'));
+  const b = wrapBalanced('バージョン３．０の新しい描き方', {...em, maxWidth: 9.5});
+  assert.ok(!b.some(l => /３．$/.test(l) || /^０/.test(l)), b.join('|'));
+  const c = wrapBalanced('新機能３．５と移行の手引き', {...em, maxWidth: 8});
+  assert.ok(!c.some(l => /３．$/.test(l)), c.join('|'));
+  const d = wrapBalanced('はじめにお話しする内容の概要：：あとで補足する内容の一覧', {...em, maxWidth: 20});
+  assert.ok(d.every(l => !l.startsWith('：')), d.join('|'));
+});
+
+test('round 2 m1: a trailing \\n adds no empty last line', () => {
+  assert.deepEqual(wrapBalanced('題名の例\n', {...em, maxWidth: 20}), ['題名の例']);
+  assert.deepEqual(wrapBalanced('一\n\n二', {...em, maxWidth: 20}), ['一', '', '二']);
+});
+
+test('round 2 m2: a long English word does not widen the clause tolerance', () => {
+  const t = 'Observability 基盤の運用で学んだ教訓、次へ';
+  const got = wrapBalanced(t, {atomWidth: a => (/^[\x20-\x7e]+$/.test(a) ? 0.55 : 1) * [...a].length, mode: 'phrase', maxWidth: 20});
+  assert.ok((got.at(-1) ?? '').length >= 4, got.join('|'));
+});

@@ -180,8 +180,14 @@ export function wrapText(text: string, opts: WrapOptions): string[] {
 // clause mark (、。：…) is preferred. Every legal break and the kinsoku rules are the wrapper's own; an explicit \n is kept (blank
 // lines too), and each paragraph between them is balanced on its own. One-line text comes back as wrapText gives it.
 const CLAUSE_MARKS = '、。，．：；！？';
+const isDigit = (a: string | undefined): boolean => a !== undefined && /^[0-9０-９]$/.test(a);
+// A break after the clause mark `mark` is refused when the next atom cannot start a line (closing bracket, another mark), or the mark is a decimal / thousands sign between digits.
+const breakForbidden = (before: string | undefined, mark: string, next: string | undefined): boolean =>
+  next === undefined || CANNOT_START_LINE.has(next) || CLAUSE_MARKS.includes(next) || ((mark === '，' || mark === '．' || mark === ',' || mark === '.') && isDigit(before) && isDigit(next));
 export function wrapBalanced(text: string, opts: WrapOptions): string[] {
-  return text.split('\n').flatMap(part => {
+  const parts = text.split('\n');
+  if (parts.length > 1 && parts[parts.length - 1] === '') parts.pop(); // a trailing \n adds no empty last line
+  return parts.flatMap(part => {
     if (part === '') return [''];
     const greedy = wrapText(part, opts);
     if (greedy.length < 2) return greedy;
@@ -195,12 +201,13 @@ export function wrapBalanced(text: string, opts: WrapOptions): string[] {
     // two lines: a break right after a clause mark, when neither side is much wider than the balanced wrap's widest line
     if (best.length === 2 && CLAUSE_MARKS.includes(best[0]?.at(-1) ?? '')) return best;
     if (best.length === 2) {
-      const tol = 2 * Math.max(...atoms.map(a => opts.atomWidth(a))), limit = Math.min(opts.maxWidth, widest(best) + tol), at = (n: number) => atoms.slice(0, n).reduce((w, a) => w + opts.atomWidth(a), 0);
+      const tol = 2 * Math.max(0, ...atoms.filter(a => [...a].length === 1).map(a => opts.atomWidth(a))); // about two characters: a Latin word is one atom but not one character
+      const limit = Math.min(opts.maxWidth, widest(best) + tol), at = (n: number) => atoms.slice(0, n).reduce((w, a) => w + opts.atomWidth(a), 0);
       const total = at(atoms.length);
       let pick = -1, pickW = Infinity;
       atoms.forEach((a, n) => {
         const w = Math.max(at(n + 1), total - at(n + 1));
-        if (CLAUSE_MARKS.includes(a) && n + 1 < atoms.length && w <= limit && w < pickW) { pick = n + 1; pickW = w; }
+        if (CLAUSE_MARKS.includes(a) && n + 1 < atoms.length && !breakForbidden(atoms[n - 1], a, atoms[n + 1]) && w <= limit && w < pickW) { pick = n + 1; pickW = w; }
       });
       if (pick > 0) {
         const lines = [wrapText(atoms.slice(0, pick).join(''), opts), wrapText(atoms.slice(pick).join('').trimStart(), opts)];
