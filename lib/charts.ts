@@ -7,6 +7,8 @@ import {waterfallTexts, layoutWaterfall} from './charts-waterfall.ts';
 import type {WaterfallSpec} from './charts-waterfall.ts';
 import {tornadoTexts, layoutTornado} from './charts-tornado.ts';
 import type {TornadoSpec} from './charts-tornado.ts';
+import {forestTexts, layoutForest} from './charts-forest.ts';
+import type {ForestSpec} from './charts-forest.ts';
 import {heatmapTexts, layoutHeatmap} from './charts-heatmap.ts';
 import type {HeatmapSpec} from './charts-heatmap.ts';
 import {layoutStacked, stackedTexts} from './charts-stacked.ts';
@@ -75,6 +77,7 @@ export function chartTexts(band: ChartBand, roles: Roles): [string, number, numb
     switch (band.kind) {
       case 'waterfall': return waterfallTexts(band.spec as WaterfallSpec);
       case 'tornado': return tornadoTexts(band.spec as TornadoSpec);
+      case 'forest': return forestTexts(band.spec as ForestSpec);
       case 'heatmap': return heatmapTexts(band.spec as HeatmapSpec);
       case 'stacked': return stackedTexts(band.spec as StackedSpec);
       case 'radar': return radarTexts(band.spec as RadarSpec);
@@ -102,6 +105,7 @@ export function layoutChart(band: ChartBand, x: number, y: number, w: number, wi
     switch (band.kind) {
       case 'waterfall': return layoutWaterfall(band.spec as WaterfallSpec, g);
       case 'tornado': return layoutTornado(band.spec as TornadoSpec, g);
+      case 'forest': return layoutForest(band.spec as ForestSpec, g);
       case 'heatmap': return layoutHeatmap(band.spec as HeatmapSpec, g);
       case 'stacked': return layoutStacked(band.spec as StackedSpec, g);
       case 'radar': return layoutRadar(band.spec as RadarSpec, g);

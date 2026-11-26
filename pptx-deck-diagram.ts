@@ -110,4 +110,5 @@ try {
   fs.mkdirSync(path.dirname(path.resolve(out)), {recursive: true});
   fs.writeFileSync(out, zipStore(deckEntries(planned, pngs, deck.title)));
   console.log(`wrote ${out} (${planned.length} slides)`);
+  planned.forEach((p, i) => console.log(`slide ${i + 1}: figure ${figures[i]?.w}x${figures[i]?.h} scale ${p.scale?.toFixed(3)} minTextPt ${p.minTextPt?.toFixed(1)} pictures ${p.pictures.length}`));
 } finally { await closeMeasurer(); }

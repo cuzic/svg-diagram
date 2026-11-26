@@ -96,6 +96,7 @@ export const stackedBars = located(charts.stackedBars);
 export const mekko = located(charts.mekko);
 export const heatmap = located(charts.heatmap);
 export const tornado = located(charts.tornado);
+export {forest} from './bands/forest.ts';
 export const bubble = located(charts.bubble);
 export const butterfly = located(charts.butterfly);
 export const combo = located(charts.combo);

@@ -1,0 +1,27 @@
+{
+ "title": "forest spike",
+ "slides": [
+  {
+   "title": "会場ごとの修了のオッズ比(例・作り話)",
+   "figure": "forest-10.ts"
+  },
+  {
+   "title": "会場ごとの修了のオッズ比(例・作り話)",
+   "lead": "10 会場のうち 5 会場で区間が 1 を含まない。統合すると 1.29。",
+   "figure": "forest-10.ts"
+  },
+  {
+   "title": "会場ごとの修了のオッズ比(例・作り話)",
+   "fit": "width",
+   "figure": "forest-10.ts"
+  },
+  {
+   "title": "比べる: rangeBars で代用(今)",
+   "figure": "baseline-rangebars.ts"
+  },
+  {
+   "title": "行の多い場合(23 行・作り話)",
+   "figure": "forest-23.ts"
+  }
+ ]
+}
