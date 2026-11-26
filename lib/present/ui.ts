@@ -481,7 +481,7 @@ document.addEventListener('keydown', function (e) {
   else return;
   e.preventDefault();
 });
-var sx = null, sy = null, pinch = null, panFrom = null, tapAt = 0;
+var touchedAt = 0, sx = null, sy = null, pinch = null, panFrom = null, tapAt = 0;
 var dist = function (t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); };
 var mid = function (t) { return {x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2}; };
 var pinchOf = function (t) { return {d: dist(t), z: zoom.z, m: mid(t)}; };
@@ -495,7 +495,8 @@ $('stage').addEventListener('touchmove', function (e) {
     // the zoom is the zoom when the fingers landed times how far apart they are now (step by step, a slow pinch's steps are each
     // under the 1% that snaps back to the whole slide, and it would never zoom)
     var d = dist(e.touches), m = mid(e.touches);
-    if (pinch.d > 0) zoomBy(pinch.z * d / pinch.d / zoom.z, pinch.m.x, pinch.m.y);
+    // past the largest zoom or under the whole slide, the pinch starts again from here (closing the fingers then zooms out at once)
+    if (pinch.d > 0) { var want = pinch.z * d / pinch.d; zoomBy(want / zoom.z, pinch.m.x, pinch.m.y); if (want > MAX_ZOOM || want < 1) { pinch.z = zoom.z; pinch.d = d; } }
     panBy(m.x - pinch.m.x, m.y - pinch.m.y);
     pinch.m = m;
   } else if (panFrom && e.touches.length === 1) {
@@ -504,6 +505,7 @@ $('stage').addEventListener('touchmove', function (e) {
   }
 }, {passive: true});
 $('stage').addEventListener('touchend', function (e) {
+  touchedAt = Date.now();
   if (pinch) {
     if (e.touches.length >= 2) pinch = pinchOf(e.touches);
     else { pinch = null; panFrom = e.touches.length === 1 && zoom.z > 1 ? {x: e.touches[0].clientX, y: e.touches[0].clientY} : null; }
@@ -532,7 +534,8 @@ $('stage').addEventListener('wheel', function (e) {
   var now = Date.now(); if (now - wheelAt < 600) return; wheelAt = now;
   step((Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX) > 0 ? 1 : -1);
 }, {passive: false});
-$('stage').addEventListener('dblclick', function (e) { if (zoom.z > 1) resetZoom(); else zoomBy(2.5, e.clientX, e.clientY); });
+// (after a touch, the browser's own dblclick would undo the double tap's zoom)
+$('stage').addEventListener('dblclick', function (e) { if (Date.now() - touchedAt < 1000) return; if (zoom.z > 1) resetZoom(); else zoomBy(2.5, e.clientX, e.clientY); });
 var drag = null;
 $('stage').addEventListener('mousedown', function (e) { if (zoom.z > 1 && !lasering && e.button === 0) { drag = {x: e.clientX, y: e.clientY}; document.body.classList.add('panning'); e.preventDefault(); } });
 window.addEventListener('mousemove', function (e) { if (drag) { panBy(e.clientX - drag.x, e.clientY - drag.y); drag = {x: e.clientX, y: e.clientY}; } });
@@ -558,6 +561,8 @@ if (!presenter) {
   $('follow').onclick = backToPresenter;
   $('helpbtn').onclick = toggleHelp;
   document.addEventListener('mousemove', showNav);
+  // a mouse can click the bar at once (the delay is for a tap; iOS sends a mousemove after a tap, so not on mousemove)
+  document.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse') { showNav(); $('nav').classList.add('live'); } });
   showNav();
   if (innerHeight > innerWidth * 1.1 && !keep.get('sd-hint')) { $('hint').hidden = false; keep.set('sd-hint', '1'); setTimeout(function () { $('hint').hidden = true; }, 6000); }
 }
