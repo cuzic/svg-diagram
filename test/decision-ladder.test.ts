@@ -355,3 +355,52 @@ test('at the narrowest width that fits, the columns are the narrowest wraps (the
   const {t} = await laid(decisionLadder(one, '終', {maxNodeW: 250}), {width: narrowest}); // 250 is not 80 plus a multiple of the 8px step: the 80px wrap is its own candidate
   assert.ok(rect(t, 'q1').w <= 100 && rect(t, 'a1').w <= 100, `${rect(t, 'q1').w} ${rect(t, 'a1').w}`);
 });
+
+test('a narrow figure keeps the wider wrap: the 4px grid never rounds a column past what fits (548px, not 588px, at width 296)', async () => {
+  const q = '本人確認の書類を窓口で確認した？';
+  const steps = [1, 2, 3, 4].map(i => ({q, yes: i % 2 === 0 ? '延滞の窓口へ案内して手続きをする' : '受付'}));
+  const {t} = await laid(decisionLadder(steps, '終', {yes: '可', no: '該当しない'}), {width: 296});
+  assert.ok(t.h <= 548, `${t.h}`);
+});
+
+test('a row is as tall as its tallest box: an answer far taller than its question pushes the next row down, nothing overlaps', async () => {
+  const tallText = '答えの文がとても長くて何行にも折り返される説明である'.repeat(2);
+  const {t, verdict} = await laid(decisionLadder([{q: 'A?', yes: tallText, sub: '注の行'}, {q: 'B?', yes: tallText}, {q: 'C?', yes: 'z'}], 'Z'), {width: 480});
+  assert.deepEqual(verdict.problems, []);
+  assert.ok(rect(t, 'a1').h > 100, `${rect(t, 'a1').h}`);
+  for (const [a, next] of [['a1', 'a2'], ['a2', 'a3']] as const) assert.ok(rect(t, a).y + rect(t, a).h <= rect(t, next).y, `${a} ends above ${next}`);
+  assert.ok(rect(t, 'q2').y >= rect(t, 'a1').y + rect(t, 'a1').h - 1, 'the next question starts below the tall answer');
+});
+
+test('diamonds are as wide as their own text asks, not as wide as the column, and their text is centred in them', async () => {
+  const {t} = await laid(decisionLadder([{q: '短い？', yes: 'x'}, {q: '返却期限が過ぎた本が自宅にあり、かつ延滞の連絡も受けていないのは確かですか？', yes: 'y'}], END, {question: 'diamond'}));
+  assert.ok(rect(t, 'q1').w < rect(t, 'q2').w, `${rect(t, 'q1').w} < ${rect(t, 'q2').w}`);
+  for (const id of ['q1', 'q2']) {
+    const r = rect(t, id), runs = t.texts.filter(x => x.bold && x.x === r.x + r.w / 2 && x.y > r.y && x.y < r.y + r.h);
+    assert.ok(runs.length >= 1, id);
+    const mid = (Math.min(...runs.map(x => x.y - x.size)) + Math.max(...runs.map(x => x.y))) / 2;
+    assert.ok(Math.abs(mid - (r.y + r.h / 2)) < r.h / 4, `${id}: text centre ${mid} vs ${r.y + r.h / 2}`);
+  }
+});
+
+test('the input messages say what is wrong and what to write', () => {
+  const need = (f: () => unknown, ...re: RegExp[]) => assert.throws(f, (e: Error) => { for (const r of re) assert.match(e.message, r); return true; });
+  assert.doesNotThrow(() => decisionLadder([{q: 'a?', yes: 'b', sub: ''}], {label: 'c', sub: ''}));
+  need(() => decisionLadder(['abc' as never], END), /step 1/, /each step is \{q, yes/, /got abc/);
+  need(() => decisionLadder(STEPS, END, 'x' as never), /options must be an object/);
+  need(() => decisionLadder(STEPS, END, {dir: 'right'} as never), /'dir'/, /two columns/);
+  need(() => decisionLadder(STEPS, END, {focus: 'q1'} as never), /'focus'/, /two columns/);
+  need(() => decisionLadder(STEPS, END, {yes: 3 as never}), /yes must be text \(''/, /got 3/);
+  need(() => decisionLadder(STEPS, END, {question: 'circle' as never}), /got circle/);
+  need(() => decisionLadder([{q: 'a?', yes: 'b', yesLabel: 1 as never}], END), /step 1 yesLabel/, /got 1/);
+  need(() => decisionLadder([{q: 'a?', yes: 'b', foo: 1} as never], END), /'foo'/, /q, yes, sub, tone, yesLabel, noLabel/);
+});
+
+test('the no-fit message keeps the "not tried" line and a height that counts the row gaps', async () => {
+  await assert.rejects(() => checkDiagram(diagram({theme: 'blue', title: 't', width: 240}).add(decisionLadder(STEPS, END))), (e: Error) => {
+    assert.match(e.message, /not tried: the other direction/);
+    const h = Number(/(\d+)px tall/.exec(e.message)![1]);
+    assert.ok(h > 5 * 36 + 4 * 32, `${h}`);
+    return true;
+  });
+});

@@ -82,23 +82,27 @@ const LADDER_STEP_KEYS = ['q', 'yes', 'sub', 'tone', 'yesLabel', 'noLabel'], LAD
 export function decisionLadder<const Id extends string = never>(steps: readonly LadderStep[], otherwise: LadderEnd, opts?: LadderOpts & {id?: Id}): StatesBand & Declares<Id | LadderIds<number>> & HandleOf<Id> & AnchorsOf<LadderIds<number>>;
 export function decisionLadder(steps: readonly LadderStep[], otherwise: LadderEnd, opts: LadderOpts = {}): StatesBand {
   const bad = (m: string): never => { throw new Error(`decisionLadder(): ${m}`); };
-  // `blank`: '' is allowed (the words on the arrows)
-  const text = (v: unknown, of: string, blank = false): string => typeof v === 'string' && (blank || v.trim()) ? v : bad(`${of} must be text`);
-  const only = (o: object | null | undefined, ok: string[], of: string): void => { const x = Object.keys(o ?? bad(`${of} is missing`)).filter(k => !ok.includes(k)); if (x.length) bad(`${of} has no option ${x.map(k => `'${k}'`)} (${ok})`); };
+  // `blank`: '' is allowed (the words on the arrows, a second line)
+  const text = (v: unknown, of: string, blank = false): string => typeof v === 'string' && (blank || v.trim()) ? v : bad(`${of} must be ${blank ? "text ('' for none)" : 'text'} (got ${String(v)})`);
+  const only = (o: unknown, ok: string[], of: string, hint = ''): void => {
+    if (typeof o !== 'object' || o === null || Array.isArray(o)) bad(`${of} must be an object {${ok.join(', ')}} (got ${String(o)})`);
+    const x = Object.keys(o as object).filter(k => !ok.includes(k));
+    if (x.length) bad(`${of} has no option ${x.map(k => `'${k}'`).join(', ')} (${ok.join(', ')})${hint}`);
+  };
   if (!Array.isArray(steps) || !steps.length) bad('needs at least one step');
   const end = typeof otherwise === 'string' ? {label: otherwise} : otherwise;
   only(end, LADDER_END_KEYS, '`otherwise`');
-  text(end.label, '`otherwise`'); if (end.sub !== undefined) text(end.sub, '`otherwise` sub');
-  only(opts, LADDER_OPT_KEYS, 'options');
-  if (opts.question !== undefined && opts.question !== 'box' && opts.question !== 'diamond') bad(`question must be 'box' or 'diamond'`);
+  text(end.label, '`otherwise`'); if (end.sub !== undefined) text(end.sub, '`otherwise` sub', true);
+  only(opts, LADDER_OPT_KEYS, 'the options', ': the ladder is always two columns, the questions down the left, so dir / focus / returns do not apply');
+  if (opts.question !== undefined && opts.question !== 'box' && opts.question !== 'diamond') bad(`question must be 'box' or 'diamond' (got ${String(opts.question)})`);
   const words = [opts.yes ?? 'はい', opts.no ?? 'いいえ'].map((v, k) => text(v, ['yes', 'no'][k] as string, true));
   const items: StateItem[] = [], edges: Transition[] = [];
   const arrow = (from: string, to: string, label: string): Transition => ({from, to, ...(label ? {label} : {})});
   steps.forEach((st, i) => {
     const at = `step ${i + 1}`, id = (p: string) => `${p}${i + 1}`;
-    only(st, LADDER_STEP_KEYS, at);
+    only(st, LADDER_STEP_KEYS, `${at} (each step is {q, yes, ...}: the question and the answer its yes leads to)`);
     text(st.q, `${at} q`); text(st.yes, `${at} yes`);
-    for (const k of ['sub', 'yesLabel', 'noLabel'] as const) if (st[k] !== undefined) text(st[k], `${at} ${k}`, k !== 'sub');
+    for (const k of ['sub', 'yesLabel', 'noLabel'] as const) if (st[k] !== undefined) text(st[k], `${at} ${k}`, true);
     items.push({id: id('q'), label: st.q, ...(opts.question === 'diamond' ? {shape: 'diamond' as const} : {})}, {id: id('a'), label: st.yes, ...(st.sub ? {sub: st.sub} : {}), ...(st.tone ? {tone: st.tone} : {})});
     edges.push(arrow(id('q'), id('a'), st.yesLabel ?? words[0] as string), arrow(id('q'), i + 1 < steps.length ? `q${i + 2}` : 'otherwise', st.noLabel ?? words[1] as string));
   });

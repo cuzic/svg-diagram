@@ -28,9 +28,10 @@ export function layoutLadder(band: StatesBand, x: number, y: number, w: number, 
   // the strip is as tall as both, so the two chips never meet (a row of one line of text rises 7px).
   const rise = (i: number, rowH: number): number => i < n && chipW(2 * i) ? Math.max(0, lh + 3 - rowH / 2) : 0;
   const measure = (i: number, max: number): NodeLines => { const s = state(i); return s.shape === 'diamond' ? diamondLines(s.label, s.sub, max, 0, widthOf, roles, env.wrap, env.keepWords) : measureNode(s.label, s.sub, max, widthOf, roles, env.wrap, env.keepWords); };
-  const column = (ids: number[], max: number): Col => { const lines = ids.map(i => measure(i, max)); return {lines, w: grid4(Math.max(...lines.map(l => l.w)))}; };
+  const column = (ids: number[], max: number): Col => { const lines = ids.map(i => measure(i, max)), wd = Math.max(...lines.map(l => l.w)); return {lines, w: Math.max(Math.ceil(wd), Math.min(grid4(wd), max))}; };
   const rowHs = (q: Col, a: Col): number[] => rows.map(i => grid4(Math.max(must(q.lines[i]).h, must(a.lines[i]).h)));
   const total = (q: Col, a: Col): number => rowHs(q, a).reduce((s, v) => s + v, 0) + must(q.lines[n]).h;
+  const gaps = Math.max(0, n) * Math.round(32 * sp); // the row gaps (at least)
   // The question column's width is tried from the cap down on a fixed grid (so a wider figure only adds candidates), and the narrowest wrap last (when it does not fit, nothing does).
   // The answers take the widest wrap that fits beside it: a box may come out a few px wider than the width it was wrapped at, so narrower wraps are tried.
   const widths = [...Array.from({length: Math.ceil((cap - MIN_BOX) / STEP) + 1}, (_, k) => cap - k * STEP).filter(m => m >= MIN_BOX && m <= w - MIN_BOX - baseGap), MIN_BOX];
@@ -47,9 +48,9 @@ export function layoutLadder(band: StatesBand, x: number, y: number, w: number, 
   const best = cands.reduce<(typeof cands)[number] | undefined>((b, c) => !b || (c.h !== b.h ? c.h < b.h : c.ok !== b.ok ? c.ok : c.q.w < b.q.w) ? c : b, undefined);
   if (!best) {
     const q = column(qIds, MIN_BOX), a = column(aIds, MIN_BOX), need = q.w + gapFor(q.w) + a.w;
-    return {noFit: true, failure: () => fitFailure('decisionLadder()', w, [{label: `narrowest wrap (questions ${q.w}px, answers ${a.w}px)`, w: Math.ceil(need), h: total(q, a)}],
+    return {noFit: true, failure: () => fitFailure('decisionLadder()', w, [{label: `narrowest wrap (questions ${q.w}px, answers ${a.w}px)`, w: Math.ceil(need), h: total(q, a) + gaps}],
       // the band sits inside the diagram's 40px margins: the width to write is the one the figure needs plus them
-      `widen the figure (diagram({width: ${widerThan([{label: '', w: need, h: 0}], 40)}})) or shorten the text`)};
+      `widen the figure (diagram({width: ${widerThan([{label: '', w: need, h: 0}], 40)}})) or shorten the text`, ['the other direction (a ladder always has the questions down the left, the answers on their rows)'])};
   }
   const {q: qc, a: ac, gap} = best, heights = rowHs(qc, ac), diamond = state(0).shape === 'diamond';
   const x0 = x + Math.max(0, (w - qc.w - gap - ac.w) / 2), ax = x0 + qc.w + gap, cx = x0 + qc.w / 2;
