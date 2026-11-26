@@ -53,3 +53,30 @@ test('the lane column is capped: the axis keeps at least 60% of the figure and t
   assert.equal(lines.join('').replace(/\s/g, ''), NAMES.join('').replace(/\s/g, ''));
   assert.ok(lines.length >= 3, `lines: ${lines.join('|')}`);
 });
+
+// M1: the lane wrapper is the library's own (kinsoku, whole katakana / kanji words)
+const laneLines = async (name: string, width?: number): Promise<string[]> => {
+  const part = {type: 'timeline', unit: 'ms', from: 0, to: 700, lanes: [name, 'B'], events: [{at: 100, label: 'start', lane: name}]};
+  const d = specToDiagram({version: 1, title: 't', ...(width ? {width} : {}), parts: [part]});
+  const t = (await checkDiagram(d)).laidOut.laidOut.find((x): x is LaidOutTimeline => x.type === 'timeline')!;
+  return t.texts.filter(x => x.x === t.x + 12 && x.bold).map(x => x.text).filter(x => x !== 'B');
+};
+
+test('lane names: a katakana word stays whole, no line starts with a small kana, a long mark or a middle dot', async () => {
+  for (const [name, width] of [['デジタルトランスフォーメーション推進プロジェクト室', undefined], ['デジタルトランスフォーメーション推進プロジェクト室', 560], ['カスタマーサクセス・オペレーション推進グループ', 560]] as const) {
+    const lines = await laneLines(name, width);
+    assert.ok(lines.length >= 2, name);
+    assert.equal(lines.join(''), name);
+    for (const l of lines) assert.ok(!/^[ォーァィゥェ・]/.test(l), `a line starts with a forbidden character: ${l}`);
+  }
+});
+
+test('lane names: a katakana word that fits the column stays whole', async () => {
+  const lines = await laneLines('基盤整備のトランスフォーメーション推進チーム');
+  assert.ok(lines.length >= 2 && lines.some(l => l.includes('トランスフォーメーション')), lines.join('|'));
+});
+
+test('lane names: a kanji compound is not split where it can be avoided', async () => {
+  const lines = await laneLines('デジタルトランスフォーメーション推進プロジェクト室');
+  assert.ok(!lines.some((l, i) => l.endsWith('推') && lines[i + 1]?.startsWith('進')), lines.join('|'));
+});

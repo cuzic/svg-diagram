@@ -30,7 +30,7 @@ export interface BarsOpts extends RevealOpts, ScopeOpts {
   /** Horizontal bars only: how far the plot area starts from the figure's left edge and ends from its right edge, in px (default: what the labels need). Bars written with the same `plotInset` and the same `max` (or a chart's `domain`) draw the same value as the same length. Less than the labels need is an error that names the minimum. */
   plotInset?: readonly [left: number, right: number];
   stack?: boolean;
-  /** Figure height. Vertical bars default to 280; horizontal bars derive it from their count. */
+  /** Figure height. Vertical bars default to 280; horizontal bars derive it from their count. Horizontal bars with labelled `lines` add the rows of those labels above this height. */
   height?: number;
   /** Which labels to draw: both (default), the category labels only, or none. */
   labels?: 'all' | 'category' | 'none';

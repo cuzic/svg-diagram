@@ -1,4 +1,5 @@
-import {splitAtoms, textWidth} from './atoms.ts';
+import {textWidth} from './atoms.ts';
+import {wrapText} from './wrap.ts';
 import {partStep, TIMELINE_AXIS} from './parts.ts';
 import type {FontFamily, Roles, WidthOf} from './types/core.ts';
 import type {LaidOutTimeline, NumericTimelineBand, TimelineBand, TimelineTone} from './types/timeline.ts';
@@ -8,17 +9,6 @@ import {fineTickSets, MS_DAY, ticksOf, timelineDay} from './calendar-axis.ts';
 export {ticksOf, timelineDay} from './calendar-axis.ts';
 const FLAG_GAP = 6, STEM_MIN = 16, DOT = 8, TICK = 6, MAX_LEVELS = 5;
 const TONE_COLOR: Record<TimelineTone, 'accent' | 'danger' | 'muted'> = {accent: 'accent', danger: 'danger', muted: 'muted'};
-
-function wrapLane(text: string, max: number, atomW: (a: string) => number): string[] {
-  const lines: string[] = [];
-  let line = '', w = 0;
-  for (const a of splitAtoms(text)) {
-    const aw = atomW(a);
-    if (line && w + aw > max && !/^[\s、。）」,.)]/.test(a)) { lines.push(line.trimEnd()); line = ''; w = 0; }
-    if (line || a.trim()) { line += a; w += aw; }
-  }
-  return line ? [...lines, line.trimEnd()] : lines;
-}
 
 /** "あと 1 年 3 か月" / "あと 45 日"; past the deadline: "期限を 2 か月 過ぎた". Whole months by calendar, days only under a month. */
 export function remainingText(from: string, to: string): string {
@@ -201,7 +191,7 @@ function layoutNumeric(band: NumericTimelineBand, x: number, y: number, w: numbe
   const S = roles.note, LH = Math.round(S * 20 / 14), FLAG_H = 2 * LH, ROW_PAD = 8, BAR_H = 24, BAR_ROW = BAR_H + 8, DIM_ROW = LH + 10;
   const unit = band.unit, lanes: (string | undefined)[] = band.lanes?.length ? band.lanes : [undefined];
   const laneCap = Math.max(60, Math.floor((w - 24) * 0.28)), laneLines = new Map<string, string[]>();
-  for (const l of band.lanes ?? []) laneLines.set(l, wrapLane(l, laneCap, a => widthOf(a, S, 700, 'sans')));
+  for (const l of band.lanes ?? []) laneLines.set(l, wrapText(l, {maxWidth: laneCap, atomWidth: a => widthOf(a, S, 700, 'sans'), mode: 'phrase'}));
   const laneW = band.lanes?.length ? Math.max(...[...laneLines.values()].flat().map(l => textWidth(widthOf, l, S, 700))) + 12 : 0;
   const plotL = x + 12 + laneW, plotR = x + w - 12;
   if (plotR - plotL < 200) throw new Error('timeline(): the figure is too narrow (200px of axis at least)');

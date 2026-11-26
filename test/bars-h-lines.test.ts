@@ -34,11 +34,9 @@ test('a line that crosses a value label moves the label off the line', async () 
   assert.equal(b.ink!.lines.length, 2);
 });
 
-test('close line labels take separate rows; a label at the end of the axis stays inside the figure', async () => {
+test('close line labels clear each other (side by side or on separate rows); a label at the end of the axis stays inside the figure', async () => {
   const {b, verdict} = await laid({max: 100, lines: [{at: 50, label: 'First target'}, {at: 52, label: 'Second target'}, {at: 100, label: 'End of scale'}]});
   assert.deepEqual(verdict.problems, []);
-  const ys = new Set(b.labelBoxes.filter(x => /target|scale/.test(x.label)).map(x => x.y));
-  assert.ok(ys.size >= 2, 'more than one row');
   for (const x of b.labelBoxes) assert.ok(x.x >= b.x - 0.5 && x.x + x.w <= b.x + b.w + 0.5, x.label);
 });
 
@@ -54,4 +52,31 @@ test('spec: bars with lines and the default or explicit dir h are accepted and d
     const svg = (await renderDiagram(specToDiagram({version: 1, title: 't', parts: [part]}), {name: 't', budget: 'measure'})).svg;
     assert.match(svg, /Target/);
   }
+});
+
+// M2 / m2: a label on a higher row is reached by a leader; no leader may cross a label
+const crosses = (b: LaidOutBars): string[] => b.ink!.lines.filter(l => l.soft).flatMap(l => b.labelBoxes.filter(x => l.x1 > x.x && l.x1 < x.x + x.w && x.y < l.y2 && x.y + x.h > l.y1).map(x => x.label));
+
+const CLOSE = [{at: 50, label: 'First target long label'}, {at: 51, label: 'Second one here'}, {at: 52, label: 'C'}, {at: 53, label: 'Fourth label'}];
+const raised = (b: LaidOutBars, labels: string[]): number => { const ys = b.labelBoxes.filter(x => labels.includes(x.label)).map(x => x.y), low = Math.max(...ys); return ys.filter(y => y < low).length; };
+
+test('every label above row 0 has a leader down to its line, and no leader crosses a label (horizontal bars)', async () => {
+  for (const lines of [CLOSE.slice(0, 2), CLOSE.slice(0, 3), CLOSE]) {
+    const {b, verdict} = await laid({max: 100, lines});
+    assert.deepEqual(verdict.problems, []);
+    assert.deepEqual(crosses(b), []);
+    assert.equal(b.ink!.lines.filter(l => l.soft).length, raised(b, lines.map(l => l.label)));
+  }
+  const {b} = await laid({max: 100, lines: CLOSE});
+  assert.ok(raised(b, CLOSE.map(l => l.label)) >= 1, 'four close labels need more than one row');
+});
+
+test('the same holds for the labels of vlines on vertical bars', async () => {
+  const vl = CLOSE.map((l, k) => ({at: 1 + k * 0.05, label: l.label}));
+  const r = await checkDiagram(diagram({theme: 'blue', title: 't'}).add(bars(DATA, {dir: 'v', max: 100, vlines: vl})));
+  const b = r.laidOut.laidOut.find((x): x is LaidOutBars => x.type === 'bars')!;
+  assert.deepEqual(r.verdict.problems, []);
+  assert.deepEqual(crosses(b), []);
+  assert.equal(b.ink!.lines.filter(l => l.soft).length, raised(b, vl.map(l => l.label)));
+  assert.ok(raised(b, vl.map(l => l.label)) >= 1);
 });
