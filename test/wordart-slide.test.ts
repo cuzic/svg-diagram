@@ -96,3 +96,15 @@ test('a gradient wordart is drawn in the figure\'s own space, so the gradient ru
   assert.ok(Math.min(...ys) >= y1 - 12 && Math.max(...ys) <= y2 + 12, `${Math.min(...ys)}..${Math.max(...ys)} within ${y1}..${y2}`);
   assert.ok(Math.max(...ys) - Math.min(...ys) > (y2 - y1) * 0.4, 'and cover a good part of it');
 });
+
+test('the outline of gradient letters is in figure px, not divided by the glyph scale', async () => {
+  fs.writeFileSync(path.join(dir, 'gsticker.ts'), `import {diagram, wordart} from 'svg-diagram';\nexport default () => diagram({theme: 'blue', title: 'w'}).add(wordart('見出し', {style: 'sticker', gradient: {from: 'accent', to: 'text'}, size: 64}));\n`);
+  fs.writeFileSync(path.join(dir, 'deck4.json'), JSON.stringify({slides: [{figure: 'gsticker.ts'}]}));
+  const got = loadDeck(path.join(dir, 'deck4.json'));
+  assert.ok(got.ok);
+  const r = await renderDeck(got.loaded, cfg);
+  assert.deepEqual(r.errors, []);
+  const widths = [...(r.slides[0]?.svg ?? '').matchAll(/<g\b[^>]*\bstroke="(?!none)[^>]*\bstroke-width="([\d.]+)"[^>]*fill="none"><path/g)].map(m => Number(m[1]));
+  assert.ok(widths.length > 0, 'the letters are outlined');
+  assert.ok(widths.every(w => w > 0 && w < 20), `stroke widths in px: ${widths}`);
+});

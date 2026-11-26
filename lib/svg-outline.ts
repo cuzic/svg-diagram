@@ -73,11 +73,11 @@ function placedPath(d: string, k: number, tx: number, ty: number): string {
   return out;
 }
 
-function groupOpen(el: El, style: Style, label: string): string {
+function groupOpen(el: El, style: Style, label: string, inheritedStroke: boolean): string {
   const raw = (k: string) => el.attrs[k] === undefined ? '' : ` ${k}="${attr(el.attrs[k] as string)}"`;
   const fillOpacity = style.fillOpacity < 1 ? ` fill-opacity="${style.fillOpacity}"` : '';
   const opacity = style.opacity < 1 ? ` opacity="${style.opacity}"` : '';
-  return `<g fill="${attr(style.fill)}"${fillOpacity}${opacity}${raw('transform')}${OWN_ON_TEXT.map(raw).join('')} role="img" aria-label="${attr(label)}">`;
+  return `<g fill="${attr(style.fill)}"${inheritedStroke ? ' stroke="none"' : ''}${fillOpacity}${opacity}${raw('transform')}${OWN_ON_TEXT.map(raw).join('')} role="img" aria-label="${attr(label)}">`;
 }
 
 /** What `css` asks for that outlines do not reproduce. */
@@ -148,7 +148,7 @@ export function outlineText(svg: string, font: OutlineFont, measure: TextBoxFn, 
       uses += recoloured ? `<g fill="${attr(run.style.fill)}"${run.style.fillOpacity < 1 ? ` fill-opacity="${run.style.fillOpacity}"` : ''}>${fills}</g>` : fills;
     }
     uses = strokes + uses;
-    return `${groupOpen(text, styles.get(text) as Style, label)}${uses}</g>`;
+    return `${groupOpen(text, styles.get(text) as Style, label, !!text.parent && (styles.get(text.parent) as Style).stroke !== 'none')}${uses}</g>`;
   });
   let i = 0;
   const body = svg.replace(/<text\b[^>]*?(?:\/>|>[\s\S]*?<\/text>)/g, () => replacement[i++] as string)
