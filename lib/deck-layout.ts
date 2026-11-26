@@ -317,12 +317,29 @@ export function smallTextWarning(p: {scale: number | null; minTextPt: number | n
 /** The layout widths 'fill' tries (ADR 0060): the document's 940 and narrower, each about 12 % less, down to the spec's 320. */
 export const FILL_WIDTHS: readonly number[] = [827, 728, 640, 563, 496, 436, 384, 338];
 
+/** The widest a spec's own `width` goes (ADR 0059): the document's text column. A wider layout is only the deck's choice (`wideWidths`). */
+export const DOC_LAYOUT_WIDTH = 940;
+/**
+ * The layout widths wider than the document's 940 that 'fill' may try in a room `boxW` wide (B6): the same step (about 12 %) up, and the room's own
+ * width, never past it (a layout wider than its room is drawn smaller than 1:1, so its text shrinks). Empty when the room is no wider than 940.
+ */
+export function wideWidths(boxW: number): number[] {
+  const hi = Math.floor(boxW);
+  return [Math.round(DOC_LAYOUT_WIDTH / 0.89), hi].filter((w, i, all) => w > DOC_LAYOUT_WIDTH && w <= hi && all.indexOf(w) === i);
+}
+
+/** The diagram laid out at `width` (past the spec's own 940: a deck's wide room), its doc-width threshold raised with it; as it is when there is none. */
+export function widenDiagram<D extends {width: number; maxWidth?: number}>(d: D, width?: number): D {
+  if (width !== undefined) Object.assign(d, {width, maxWidth: Math.max(width, d.maxWidth ?? 0)});
+  return d;
+}
+
 /** A figure laid out at one width: its size, and the checks it raised (rule ids such as text-mid-word-break), or why it could not be. */
 export type Drawn<T> = {ok: true; w: number; h: number; value: T; flags: readonly string[]} | {ok: false; why: string};
 
 /** The rule ids of a verdict's findings (`[rule-id] …`). */
 export const ruleIds = (findings: readonly string[]): string[] => [...new Set(findings.map(f => /\[([a-z0-9-]+)\]/.exec(f)?.[1] ?? f))];
-export interface FillResult<T> {ok: true; value: T; /** The layout width chosen, or null for the figure as it is (940). */ width: number | null; k: number; tried: number; /** Why the first narrower width that failed failed. */ narrower: {width: number; why: string} | null}
+export interface FillResult<T> {ok: true; value: T; /** The layout width chosen (past 940 only for a wide room), or null for the figure as it is (940). */ width: number | null; k: number; tried: number; /** Why the first narrower width that failed failed. */ narrower: {width: number; why: string} | null}
 
 /**
  * The layout width that draws a figure largest in `box` (ADR 0060): the figure as it is first, then narrower widths while it is the width
@@ -335,9 +352,30 @@ export async function fillSearch<T>(box: {w: number; h: number}, cap: number, dr
   const scale = (d: {w: number; h: number}) => Math.min(box.w / d.w, box.h / d.h, cap);
   const heightBound = (d: {w: number; h: number}) => box.h / d.h <= box.w / d.w;
   const first = await draw(null);
-  if (!first.ok) return first;
+  const wide = wideWidths(box.w);
+  // a figure that does not fit the document's 940 (a flowchart in one row) may fit a slide room wider than that (B6)
+  if (!first.ok) {
+    for (const width of wide) {
+      const d = await draw(width);
+      if (d.ok) return {ok: true, value: d.value, width, k: scale(d), tried: 2, narrower: null};
+    }
+    return first;
+  }
   let best: FillResult<T> = {ok: true, value: first.value, width: null, k: scale(first), tried: 1, narrower: null};
-  if (heightBound(first) || best.k >= cap) return best;
+  if (best.k >= cap) return best;
+  if (heightBound(first)) {
+    // held back by its height: a wider layout is flatter, and its text (which does not change with the layout width) is drawn larger
+    for (const width of wide) {
+      if (width <= first.w) continue;
+      const d = await draw(width);
+      best.tried++;
+      if (!d.ok || d.flags.some(f => !first.flags.includes(f))) break;
+      const k = scale(d);
+      if (k > best.k * 1.01) best = {...best, value: d.value, width, k};
+      if (!heightBound(d) || k >= cap) break;
+    }
+    return best;
+  }
   for (const width of FILL_WIDTHS) {
     if (width >= first.w) continue;
     const d = await draw(width);

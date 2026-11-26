@@ -153,9 +153,12 @@ export function prepareVerifiedSpecRender(input: unknown, options: PrepareOption
 }
 
 /** @internal Provide the prepared geometry and SVG emitter to consumers such as the deck renderer. */
-export function prepareSpecLayout(input: unknown, options: PrepareOptions & {project?: SpecProject}) {
-  const {doc, bands, drawOptions} = prepareSpec(input, options);
-  const {wrap, keepWords, tones, maxWidth, accept, terms} = options.project ?? {};
+export function prepareSpecLayout(input: unknown, options: PrepareOptions & {project?: SpecProject; /** The layout width, past the spec's own 940 (a deck's wide room, B6). */ width?: number}) {
+  const {doc, bands, drawOptions: written} = prepareSpec(input, options);
+  const drawOptions = options.width === undefined ? written : {...written, width: options.width};
+  const {wrap, keepWords, tones, accept, terms} = options.project ?? {};
+  // a layout the deck widened is not "wider than the text column" (doc-width): the slide has the room
+  const maxWidth = options.width === undefined ? options.project?.maxWidth : Math.max(options.width, options.project?.maxWidth ?? 0);
   addLegend(bands, doc, options, options.project);
   return async (measurement: RenderOptions['measure'] | BatchMeasurement) => {
     const prepared = await prepareBands(bands, {
