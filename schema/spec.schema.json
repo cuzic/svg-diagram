@@ -210,7 +210,7 @@
               "A mind map: one root with branches, for organising a topic. `layout` also gives an org chart ('org'), an indented list ('list'), a brace map ('brace'), a fishbone cause-and-effect chart ('fishbone') and a timeline ('timeline').",
               "A matrix between two axes: 2x2 (or up to 4x4) cells, with items placed in a cell or at a coordinate, optionally as bubbles sized by a value. `preset` fills the axes and cells of a known framework: bcg (growth-share), ge (GE-McKinsey nine box), ansoff, nineBox (talent), impactEffort, risk (likelihood x impact), stakeholder (power x interest), positioning, eisenhower (urgent x important), actMatrix (ACT Matrix: five senses / inside x away / toward, with 気づいている自分 at the centre). The presets write their axes and cells in Japanese: with lang en, give x, y and cells (and centre) instead.",
               "Process steps as arrow shapes in a row (or a column): a sequence with no branches, such as the phases of a project. `current` marks the step in progress.",
-              "Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model.",
+              "Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model. When the figure is wide, a `steps` part with `loopBack` reads better than a ring.",
               "Layers stacked from a wide base to a narrow top, such as a hierarchy of needs or of priorities. The first layer is the base, the last the top.",
               "A state diagram: the states something goes through and the events that move it, such as an order or a ticket. `initial` draws the start dot; a final state has a double outline.",
               "A Gantt chart: tasks as bars on a calendar, grouped by sections, with milestones, progress and arrows from the tasks a task waits for. Dates are YYYY-MM-DD; give `today` to draw the line of today.",
@@ -220,7 +220,7 @@
               "A customer journey map: the stages across the top, and rows (lanes) such as actions, touchpoints, feelings and issues. The lane with id 'emotion' holds a number from -2 (bad) to 2 (good) per stage and is drawn as a curve of feelings.",
               "A RACI chart: who is Responsible, Accountable, Consulted and Informed for each task. Each task has exactly one A and at least one R. A cell can hold several letters, such as A/R.",
               "A why-why analysis (5 whys): the problem at the top, each answer to \"why?\" below the one it explains, root causes in a double frame, and what is done about each. Each answer should be a fact, not a person.",
-              "A swimlane: who does what over time. Lanes are the actors, columns are time. A step without `col` goes in the column after the step written before it, in any lane, so give `col` to line steps up; at most 8 columns. A label on a flow needs room: it fits on a flow that crosses both a lane and a column, but rarely between two touching steps.",
+              "A swimlane: who does what over time. Lanes are the actors, columns are time. A step without `col` goes in the column after the step written before it, in any lane, so give `col` to line steps up; at most 8 columns. A flow back to an earlier step of the same lane, to `id:bottom` or past a step in between, runs under the steps of that lane (the lane grows to hold them; `bend`, `bendOffset` or a start side other than bottom keeps the elbow). A label on a flow needs room: it fits on a flow that crosses both a lane and a column, but rarely between two touching steps.",
               "A sequence diagram: messages between participants in time order. A step is a message (from, to, label), a self call (self, label), a note (note, over) or a divider (divider).",
               "A bar chart: one bar per label, such as sales by month or votes by option. Values are 0 or more. dir v (columns) suits a few short labels or a time order; h (rows, the default) suits long labels or a ranking. Reference lines (a target, an average) work with both: horizontal across columns (dir v), vertical across rows (dir h).",
               "A line chart: how values change over categories in order (months, years, stages), one line per series, each named at its end. Up to 6 series (plus ideal/plan lines, drawn dashed). Values can be negative. Each series has one value per category.",
@@ -1538,7 +1538,7 @@
           },
           {
             "label": "cycle",
-            "description": "Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model.",
+            "description": "Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model. When the figure is wide, a `steps` part with `loopBack` reads better than a ring.",
             "body": {
               "type": "cycle",
               "steps": [
@@ -1855,7 +1855,7 @@
           },
           {
             "label": "swimlane",
-            "description": "A swimlane: who does what over time. Lanes are the actors, columns are time. A step without `col` goes in the column after the step written before it, in any lane, so give `col` to line steps up; at most 8 columns. A label on a flow needs room: it fits on a flow that crosses both a lane and a column, but rarely between two touching steps.",
+            "description": "A swimlane: who does what over time. Lanes are the actors, columns are time. A step without `col` goes in the column after the step written before it, in any lane, so give `col` to line steps up; at most 8 columns. A flow back to an earlier step of the same lane, to `id:bottom` or past a step in between, runs under the steps of that lane (the lane grows to hold them; `bend`, `bendOffset` or a start side other than bottom keeps the elbow). A label on a flow needs room: it fits on a flow that crosses both a lane and a column, but rarely between two touching steps.",
             "body": {
               "type": "swimlane",
               "lanes": [
@@ -5375,7 +5375,7 @@
         "steps"
       ],
       "additionalProperties": false,
-      "description": "Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model."
+      "description": "Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model. When the figure is wide, a `steps` part with `loopBack` reads better than a ring."
     },
     "part.pyramid": {
       "type": "object",
@@ -6735,7 +6735,7 @@
         "steps"
       ],
       "additionalProperties": false,
-      "description": "A swimlane: who does what over time. Lanes are the actors, columns are time. A step without `col` goes in the column after the step written before it, in any lane, so give `col` to line steps up; at most 8 columns. A label on a flow needs room: it fits on a flow that crosses both a lane and a column, but rarely between two touching steps."
+      "description": "A swimlane: who does what over time. Lanes are the actors, columns are time. A step without `col` goes in the column after the step written before it, in any lane, so give `col` to line steps up; at most 8 columns. A flow back to an earlier step of the same lane, to `id:bottom` or past a step in between, runs under the steps of that lane (the lane grows to hold them; `bend`, `bendOffset` or a start side other than bottom keeps the elbow). A label on a flow needs room: it fits on a flow that crosses both a lane and a column, but rarely between two touching steps."
     },
     "part.sequence": {
       "type": "object",
