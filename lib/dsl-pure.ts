@@ -96,6 +96,7 @@ export const stackedBars = located(charts.stackedBars);
 export const mekko = located(charts.mekko);
 export const heatmap = located(charts.heatmap);
 export const tornado = located(charts.tornado);
+export const forest = located(charts.forest);
 export const bubble = located(charts.bubble);
 export const butterfly = located(charts.butterfly);
 export const combo = located(charts.combo);
@@ -205,6 +206,7 @@ export type {PertTask, PertAnalysis, PertResult, CausalLink, CausalLoop, CausalP
 export {analyzeCriticalPath, analyzeCausalLoops} from './semnet-analysis.ts';
 export type {PertOpts, CausalNode, CausalOpts, CausalIntervention, DependencyNode, DependencyEdge, DependencyEdgeType, DependencyOpts, SemnetDirection} from './semnet.ts';
 export type {TornadoItem, TornadoOpts} from './charts-tornado.ts';
+export type {ForestHeading, ForestOpts, ForestRow, ForestStudy, ForestSummary} from './charts-forest.ts';
 export type {BubbleAxis, BubbleOpts, BubblePoint} from './charts-bubble.ts';
 export type {ButterflyOpts, ButterflyRow} from './charts-butterfly.ts';
 export type {ComboAxis, ComboOpts, ComboSeries} from './charts-combo.ts';
