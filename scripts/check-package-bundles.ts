@@ -179,7 +179,7 @@ try {
     ['strategy-canvas', {esbuild: 84000, Vite: 110000}],
     ['swimlane', {esbuild: 152000, Vite: 192000}],
     ['table', {esbuild: 80000, Vite: 100000}],
-    ['timeline', {esbuild: 78600, Vite: 102630}],
+    ['timeline', {esbuild: 79450, Vite: 103730}],
     ['tornado', {esbuild: 83000, Vite: 102000}],
     ['tree', {esbuild: 96050, Vite: 125130}],
     ['treemap', {esbuild: 80000, Vite: 100000}],

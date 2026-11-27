@@ -22,6 +22,31 @@ export function remainingText(from: string, to: string): string {
   return a < b ? `あと ${span}` : `期限を ${span} 過ぎた`;
 }
 
+/** Places flags one by one (in the given order), each at the first (left, level) that `fits` the flags placed so far: lefts outer, levels inner, as a greedy pass would.
+ *  When a flag fits nowhere, it backtracks into the flags placed before it (an earlier flag may take a higher level, so a later one finds room: the staggering).
+ *  Iterative (no call-stack depth); the step limit grows with the flag count, so a lane that fits greedily is always drawn. A greedy pass that succeeds gives the same result.
+ *  Returns undefined on success, else the flag it got stuck on deepest and whether the search gave up (limit) rather than finished (every level reset to -1). */
+export function stagger<F extends {left: number; level: number}>(order: F[], lefts: (f: F) => number[], fits: (f: F, k: number) => boolean, budget = 500000): {flag: F; gaveUp: boolean} | undefined {
+  const n = order.length, frames = order.map(f => ({f, c: lefts(f), t: 0})), limit = budget + 20 * n;
+  let steps = 0, deepest = 0, i = 0, gaveUp = false;
+  while (i >= 0 && i < n && !gaveUp) {
+    const fr = must(frames[i]);
+    let placed = false;
+    while (fr.t < fr.c.length * MAX_LEVELS) {
+      if (++steps > limit) { gaveUp = true; break; }
+      const t = fr.t++, left = fr.c[Math.floor(t / MAX_LEVELS)];
+      fr.f.left = must(left);
+      if (fits(fr.f, t % MAX_LEVELS)) { fr.f.level = t % MAX_LEVELS; placed = true; break; }
+    }
+    if (placed) { i++; deepest = Math.max(deepest, i); continue; }
+    fr.t = 0; fr.f.level = -1; i--;
+    if (i >= 0) must(frames[i]).f.level = -1;
+  }
+  if (i === n) return undefined;
+  for (const f of order) f.level = -1;
+  return {flag: must(order[Math.min(deepest, n - 1)]), gaveUp};
+}
+
 interface Flag {label: string; at: string; tone: TimelineTone; bold: boolean; x: number; w: number; left: number; level: number; big: boolean}
 
 /** The flags in drawing order: now, the deadline, the marks. Flags on the same day are one flag (one stem): labels joined with '・', the deadline's look wins. */
@@ -86,19 +111,16 @@ export function layoutTimeline(band: TimelineBand | NumericTimelineBand, x: numb
   const hits = (a: Flag, b: Flag): boolean => !(a.left + a.w + 6 <= b.left || b.left + b.w + 6 <= a.left);
   const inside = (f: Flag, at: number): boolean => at >= f.left - 4 && at <= f.left + f.w + 4;
   const clampLeft = (f: Flag, left: number): number => Math.min(Math.max(left, x), x + w - f.w);
-  for (const f of flags.toSorted((p, q) => q.x - p.x)) {
+  const order = flags.toSorted((p, q) => q.x - p.x);
+  const candidates = (f: Flag): number[] => {
     const isDl = full && f.big;
     // with a full deadline line no box may sit on it: the deadline's own label starts just right of it (or ends just left of it)
-    let lefts = isDl ? [clampLeft(f, f.x + 6), clampLeft(f, f.x - f.w - 6)] : [clampLeft(f, f.x - 4), f.left, clampLeft(f, f.x - f.w + 4)];
-    if (full) lefts = lefts.filter(l => isDl ? l + f.w <= f.x - 2 || l >= f.x + 2 : !(dlAt >= l - 4 && dlAt <= l + f.w + 4));
-    for (const left of lefts) {
-      for (let k = 0; k < MAX_LEVELS && f.level < 0; k++) {
-        f.left = left;
-        if (flags.every(o => o === f || o.level < 0 || (o.level === k ? !hits(f, o) : o.level < k ? !inside(o, f.x) : !inside(f, o.x)))) f.level = k;
-      }
-    }
-    if (f.level < 0) throw new Error(`timeline(): the labels near "${f.label}" do not fit above the axis; shorten them, drop a mark, or widen the figure`);
-  }
+    const lefts = isDl ? [clampLeft(f, f.x + 6), clampLeft(f, f.x - f.w - 6)] : [clampLeft(f, f.x - 4), f.left, clampLeft(f, f.x - f.w + 4)];
+    return full ? lefts.filter(l => isDl ? l + f.w <= f.x - 2 || l >= f.x + 2 : !(dlAt >= l - 4 && dlAt <= l + f.w + 4)) : lefts;
+  };
+  const cands = new Map(order.map(f => [f, candidates(f)]));
+  const stuck = stagger(order, f => must(cands.get(f)), (f, k) => flags.every(o => o === f || o.level < 0 || (o.level === k ? !hits(f, o) : o.level < k ? !inside(o, f.x) : !inside(f, o.x))));
+  if (stuck) throw new Error(stuck.gaveUp ? `timeline(): too many close labels near "${stuck.flag.label}" to arrange automatically (the search gave up); shorten them, drop a mark, or widen the figure` : `timeline(): the labels near "${stuck.flag.label}" do not fit above the axis, even staggered over ${MAX_LEVELS} rows; shorten them, drop a mark, or widen the figure`);
   const levels = Math.max(...flags.map(f => f.level)) + 1;
   const fillSpan = band.span === 'fill', tickDrop = fillSpan ? 4 : 0;
   const axisY = y + levels * (FLAG_H + FLAG_GAP) + STEM_MIN - FLAG_GAP;
@@ -220,15 +242,10 @@ function layoutNumeric(band: NumericTimelineBand, x: number, y: number, w: numbe
     const inside = (f: F, at: number): boolean => at >= f.left - 4 && at <= f.left + f.fw + 4;
     // right to left, each flag tries starting at its stem, centred on it, ending at it (a staircase of close flags), at the lowest level that works
     const clampLeft = (f: F, left: number): number => Math.min(Math.max(left, plotL), x + w - f.fw);
-    for (const f of flags.toSorted((p, q) => q.fx - p.fx)) {
-      for (const left of [clampLeft(f, f.fx - 4), f.left, clampLeft(f, f.fx - f.fw + 4)]) {
-        for (let k = 0; k < MAX_LEVELS && f.level < 0; k++) {
-          f.left = left;
-          if (flags.every(o => o === f || o.level < 0 || (o.level === k ? !hits(f, o) : o.level < k ? !inside(o, f.fx) : !inside(f, o.fx)))) f.level = k;
-        }
-      }
-      if (f.level < 0) throw new Error(`timeline(): the event labels near "${f.e.label}" do not fit above the lane; shorten them, spread the events over lanes, or widen the figure`);
-    }
+    // a flag that finds no room backtracks into the ones placed before it (they take a higher row), so close flags stagger instead of failing
+    const order = flags.toSorted((p, q) => q.fx - p.fx), cands = new Map(order.map(f => [f, [clampLeft(f, f.fx - 4), f.left, clampLeft(f, f.fx - f.fw + 4)]]));
+    const stuck = stagger(order, f => must(cands.get(f)), (f, k) => flags.every(o => o === f || o.level < 0 || (o.level === k ? !hits(f, o) : o.level < k ? !inside(o, f.fx) : !inside(f, o.fx))));
+    if (stuck) throw new Error(stuck.gaveUp ? `timeline(): too many close event labels near "${stuck.flag.e.label}" to arrange automatically (the search gave up); shorten them, spread the events over lanes, or widen the figure` : `timeline(): the event labels near "${stuck.flag.e.label}" do not fit above the lane, even staggered over ${MAX_LEVELS} rows; shorten them, spread the events over lanes, or widen the figure`);
     const levels = flags.length ? Math.max(...flags.map(f => f.level)) + 1 : 0;
     const dotY = top + ROW_PAD + (levels ? levels * (FLAG_H + FLAG_GAP) + STEM_MIN - FLAG_GAP : 6);
     if (flags.length) must(out.guides).push({x1: plotL, x2: plotR, y: dotY});
