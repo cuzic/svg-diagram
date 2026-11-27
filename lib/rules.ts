@@ -1,5 +1,6 @@
 // The rule catalog shared by check --explain, configuration and the schema.
 import {barsRules} from './verify-bars.ts';
+import {forestRules} from './forest-rules.ts';
 import {imageRules} from './verify-image.ts';
 import {swimlaneRules} from './swimlane-rules.ts';
 import {edgeBendRules} from './verify-edge-bends.ts';
@@ -125,6 +126,8 @@ export const RULE_DOCS = {
   'doc-width': '文書の図の幅が本文の表示幅（約 930px）を超え、文字が縮む（canvas の図と slide + fill の図は対象外。デッキが描くときは出さないが、同じファイルの check / build は出す。diagram({maxWidth}) で図ごとに閾値を変える。幅そのものは diagram({width})）',
   'flowchart-decision-edges': flowchartRules['flowchart-decision-edges'].doc,
   'ladder-height-bound': flowchartRules['ladder-height-bound'].doc,
+  'forest-clipped': forestRules['forest-clipped'].doc,
+  'forest-weight-partial': forestRules['forest-weight-partial'].doc,
   'auto-fit-applied': layoutFitRules['auto-fit-applied'].doc,
   'cause-line-scale-dropped': densityRules['cause-line-scale-dropped'].doc,
   'density-compact-restored': densityRules['density-compact-restored'].doc,
@@ -255,6 +258,8 @@ export const RULE_LOCATION = {
   'doc-width': 'diagram',
   'flowchart-decision-edges': flowchartRules['flowchart-decision-edges'].scope,
   'ladder-height-bound': flowchartRules['ladder-height-bound'].scope,
+  'forest-clipped': forestRules['forest-clipped'].scope,
+  'forest-weight-partial': forestRules['forest-weight-partial'].scope,
   'auto-fit-applied': layoutFitRules['auto-fit-applied'].scope,
   'cause-line-scale-dropped': densityRules['cause-line-scale-dropped'].scope,
   'density-compact-restored': densityRules['density-compact-restored'].scope,

@@ -10,7 +10,7 @@ import {niceNear} from './qc.ts';
 import type {IconGlyph} from './icon-store.ts';
 import type {ColorKey, Rect, RevealOpts, ScopeOpts, Roles, WidthOf, LabelRole, WrapMode} from './types/core.ts';
 
-export type ChartKind = 'waterfall' | 'radar' | 'heatmap' | 'stacked' | 'treemap' | 'sankey' | 'tornado' | 'bubble' | 'butterfly' | 'combo' | 'harvey' | 'compare' | 'catplot' | 'distplot' | 'multiplot' | 'regplot' | 'clustermap' | 'pert' | 'causal' | 'dependency';
+export type ChartKind = 'waterfall' | 'radar' | 'heatmap' | 'stacked' | 'treemap' | 'sankey' | 'tornado' | 'bubble' | 'butterfly' | 'combo' | 'harvey' | 'compare' | 'catplot' | 'distplot' | 'multiplot' | 'regplot' | 'clustermap' | 'pert' | 'causal' | 'dependency' | 'forest';
 export type ChartTone = 'accent' | 'danger' | 'muted' | 'text';
 /** Options every chart has. */
 export interface ChartOpts extends RevealOpts, ScopeOpts {
@@ -48,6 +48,8 @@ export interface LaidOutChartPart {
   edges?: {from: string; to: string; points: {x: number; y: number}[]}[];
   /** What the figure leaves out of its drawing (labels too small for their cell): listed in the description instead. */
   omitted: string[];
+  /** Findings (severity info) the layout noticed, such as an interval cut at the axis's end; the band's verify reports them. */
+  notes?: {rule: string; message: string}[];
   h: number;
 }
 

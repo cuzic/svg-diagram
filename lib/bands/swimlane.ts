@@ -11,6 +11,7 @@ import {swimlane as build} from '../dsl/swimlane.ts';
 import {renderSwimlane} from '../emit-swimlane.ts';
 import {layoutSwimlane} from '../layout-swimlane.ts';
 import {swimlaneFindings} from '../swimlane-rules.ts';
+import {CONNECT_LABEL_SIZE} from '../tokens.ts';
 import {checked} from '../reveal-visibility.ts';
 import type {AnchorsOf, FlowCheck, FlowIn, LaneCheck, StepCheck, StepIds, SwimlaneStepIn} from '../strict.ts';
 import type {ConnectBand, LaidOutConnect} from '../types/containers.ts';
@@ -96,6 +97,7 @@ const definition = {
     for (const phase of data.phases ?? []) atoms(phase.label, roles.note, 700);
     for (const boundary of data.boundaries ?? []) if (boundary.label) atoms(boundary.label, roles.note, 700);
     for (const step of data.steps) boxDefinition.measure?.(step, env);
+    for (const u of data.underFlows ?? []) if (u.label) atoms(u.label, roles.connectLabel ?? CONNECT_LABEL_SIZE, 400); // a connect band measures its own label; these are laid out inside the swimlane
   },
   revealElements(data, start, end) {
     // an auto figure's nodes carry no reveal timing of their own (the DSL refuses it); they register their ids like a bpmn figure's

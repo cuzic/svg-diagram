@@ -486,6 +486,16 @@
           "minLength": 1,
           "description": "decisionLadder() が 16:9 のスライドより縦長（高さが幅の 0.47 倍超）。示した幅にするか、段・sub を減らす（許容する理由を書く）"
         },
+        "forest-clipped": {
+          "type": "string",
+          "minLength": 1,
+          "description": "forest(): 区間が軸の端を越える行がある。研究の行は端で切って矢じりを付け、統合の行は端で平らに切る。全体を見せるなら domain を広げる（許容する理由を書く）"
+        },
+        "forest-weight-partial": {
+          "type": "string",
+          "minLength": 1,
+          "description": "forest(): 一部の行だけに weight がある。weight の無い行は 10px の四角で描く。全部の行に weight を付けるか、全部外す（許容する理由を書く）"
+        },
         "auto-fit-applied": {
           "type": "string",
           "minLength": 1,

@@ -41,7 +41,9 @@ export function edgeStats(connects: LaidOutConnect[]): {crossings: number; overl
     const near = (strokeOf(s.c) + strokeOf(t.c)) / 2 + 1;
     const share = s.c.fromId === t.c.fromId || s.c.toId === t.c.toId || s.c.fromId === t.c.toId || s.c.toId === t.c.fromId;
     if (horiz(s) && vert(t) || vert(s) && horiz(t)) continue;
-    if (!share && horiz(s) && horiz(t) && Math.abs(s.a.y - t.a.y) < near) {
+    // two ways back under a row (loop-under) that meet at one box still must not run on one line: a shared end excuses a line only when it is not their run
+    const runs = s.c.route === 'loop-under' && t.c.route === 'loop-under';
+    if ((!share || runs) && horiz(s) && horiz(t) && Math.abs(s.a.y - t.a.y) < near) {
       if (Math.min(hi(s.a.x, s.b.x), hi(t.a.x, t.b.x)) - Math.max(lo(s.a.x, s.b.x), lo(t.a.x, t.b.x)) > 12) overlaps++;
     } else if (!share && vert(s) && vert(t) && Math.abs(s.a.x - t.a.x) < near) {
       if (Math.min(hi(s.a.y, s.b.y), hi(t.a.y, t.b.y)) - Math.max(lo(s.a.y, s.b.y), lo(t.a.y, t.b.y)) > 12) overlaps++;

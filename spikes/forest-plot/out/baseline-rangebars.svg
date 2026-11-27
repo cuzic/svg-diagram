@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="564" viewBox="0 0 940 564" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">会場ごとの修了のオッズ比(例・作り話)</title>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"spikes/forest-plot/baseline-rangebars.ts","sourceSha256":"fc615d9898b39318fc5e2e18d447a6719c8523a512d39d480e744b3e149dbf8b","depsSha256":"1f4b5b16dac7e8626185afaaba6c629cd44cb180eef964f6c5326d27fab4738f"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="564" fill="#ffffff"/>
+
+  <path d="M97,20 L97,514" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M223,20 L223,514" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M348,20 L348,514" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M473,20 L473,514" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M598,20 L598,514" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M723,20 L723,514" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M97,508 L835,508" fill="none" stroke="#e0d6c5" stroke-width="2"/>
+  <path d="M250.04,20 H341.34 V48 H250.04 Z" fill="#1d5fa8"/>
+  <path d="M220.03,66 H316.33 V94 H220.03 Z" fill="#1d5fa8"/>
+  <path d="M173.75,112 H271.3 V140 H173.75 Z" fill="#1d5fa8"/>
+  <path d="M272.55,158 H412.62 V186 H272.55 Z" fill="#1d5fa8"/>
+  <path d="M241.29,204 H835.34 V232 H241.29 Z" fill="#1d5fa8"/>
+  <path d="M202.52,250 H283.81 V278 H202.52 Z" fill="#1d5fa8"/>
+  <path d="M148.74,296 H263.8 V324 H148.74 Z" fill="#1d5fa8"/>
+  <path d="M235.03,342 H320.08 V370 H235.03 Z" fill="#1d5fa8"/>
+  <path d="M185.01,388 H293.81 V416 H185.01 Z" fill="#1d5fa8"/>
+  <path d="M124.98,434 H270.05 V462 H124.98 Z" fill="#1d5fa8"/>
+  <path d="M237.54,480 H283.81 V508 H237.54 Z" fill="#1d5fa8"/>
+  <text x="97" y="530" text-anchor="middle" font-size="14" fill="#6f6659">0</text>
+  <text x="223" y="530" text-anchor="middle" font-size="14" fill="#6f6659">1</text>
+  <text x="348" y="530" text-anchor="middle" font-size="14" fill="#6f6659">2</text>
+  <text x="473" y="530" text-anchor="middle" font-size="14" fill="#6f6659">3</text>
+  <text x="598" y="530" text-anchor="middle" font-size="14" fill="#6f6659">4</text>
+  <text x="723" y="530" text-anchor="middle" font-size="14" fill="#6f6659">5</text>
+  <text x="89" y="39" text-anchor="end" font-size="14" fill="#22201b">会場 A</text>
+  <text x="335" y="39" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">1.22〜1.95</text>
+  <text x="89" y="85" text-anchor="end" font-size="14" fill="#22201b">会場 B</text>
+  <text x="310" y="85" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">0.98〜1.75</text>
+  <text x="89" y="131" text-anchor="end" font-size="14" fill="#22201b">会場 C</text>
+  <text x="265" y="131" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">0.61〜1.39</text>
+  <text x="89" y="177" text-anchor="end" font-size="14" fill="#22201b">会場 D</text>
+  <text x="407" y="177" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">1.40〜2.52</text>
+  <text x="89" y="223" text-anchor="end" font-size="14" fill="#22201b">会場 E</text>
+  <text x="829" y="223" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">1.15〜5.90</text>
+  <text x="89" y="269" text-anchor="end" font-size="14" fill="#22201b">会場 F</text>
+  <text x="290" y="269" font-size="14" font-weight="700" fill="#1d5fa8">0.84〜1.49</text>
+  <text x="89" y="315" text-anchor="end" font-size="14" fill="#22201b">会場 G</text>
+  <text x="258" y="315" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">0.41〜1.33</text>
+  <text x="89" y="361" text-anchor="end" font-size="14" fill="#22201b">会場 H</text>
+  <text x="314" y="361" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">1.10〜1.78</text>
+  <text x="89" y="407" text-anchor="end" font-size="14" fill="#22201b">会場 I</text>
+  <text x="288" y="407" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">0.70〜1.57</text>
+  <text x="89" y="453" text-anchor="end" font-size="14" fill="#22201b">会場 J</text>
+  <text x="264" y="453" text-anchor="end" font-size="14" font-weight="700" fill="#ffffff">0.22〜1.38</text>
+  <text x="89" y="499" text-anchor="end" font-size="14" fill="#22201b">全体(統合)</text>
+  <text x="290" y="499" font-size="14" font-weight="700" fill="#1d5fa8">1.12〜1.49</text>
+</svg>

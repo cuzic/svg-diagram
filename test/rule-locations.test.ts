@@ -331,6 +331,8 @@ const EXPECTED_SCOPE = {
   'doc-width': 'diagram',
   'flowchart-decision-edges': 'band',
   'ladder-height-bound': 'band',
+  'forest-clipped': 'band',
+  'forest-weight-partial': 'band',
   'auto-fit-applied': 'band',
   'cause-line-scale-dropped': 'band-grouped',
   'density-compact-restored': 'band-grouped',

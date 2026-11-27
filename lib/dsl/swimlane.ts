@@ -19,6 +19,9 @@ import {assertBoxTone, assertFontSize, revealOf, scopeOpt, TREE_TONES, withAncho
 //   opts.flows:  [{from, to, label?, chip?, line?, arrow?, bend?}]  — step ids, or 'id:side[@t]' to choose the side.
 //                Sides are picked from the lanes/columns: right->left across columns (the vertical leg sits
 //                just before the target, so it never crosses a box in between), bottom<->top within a column.
+//                A way back along ONE lane (same lane and row, to an earlier column) that ends on 'id:bottom' (the start side left out or ':bottom'), or that has no sides
+//                and passes a box in between, runs UNDER the row's boxes (route 'loop-under'): the lane grows for the line and its label, and ways back that overlap
+//                or nest each run at a depth of their own (the outer one deeper). An explicit start side other than bottom, or `bend` / `bendOffset`, keeps the elbow.
 //   opts.phases: [{label, from, to}]  — column groups named across the top (a stage, a sprint)
 //   opts.boundaries: [{after: laneId, label?} | {between: [laneId, laneId], label?}]  — a heavy dashed line across that lane boundary, named in a chip on the
 //                label column (a service blueprint's line of interaction / of visibility / of internal interaction). `between` throws when the two
@@ -45,6 +48,10 @@ function focusSwimlane(steps: SwimlaneStep[], opts: SwimlaneOpts): {steps: Swiml
     opts: {...opts, flows: flows.map(f => ({...f, tone: litLink(at(f.from), at(f.to), hit) ? 'accent' as const : 'muted' as const}))},
   };
 }
+// the ways back under a lane's boxes: the first runs UNDER_FIRST (UNDER_FIRST_LABELLED when one in its row has a label, so the chip clears the boxes) below the row's lowest box,
+// the next ones UNDER_STEP (UNDER_STEP_LABELLED) deeper each; the chip is 24px high, half of it below its line
+const UNDER_FIRST = 8, UNDER_FIRST_LABELLED = 14, UNDER_STEP = 10, UNDER_STEP_LABELLED = 28, UNDER_CHIP_HALF = 12, UNDER_MARGIN = 6;
+const underOffset = (labelled: boolean, level: number): number => (labelled ? UNDER_FIRST_LABELLED + level * UNDER_STEP_LABELLED : UNDER_FIRST + level * UNDER_STEP);
 export function swimlane<
   const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [], const Id extends string = never, const O extends object = object,
 >(lanes: L & LaneCheck<L, O>, steps: S & StepCheck<L, S>, opts?: O & Omit<SwimlaneOpts, 'flows' | 'id'> & {id?: Id; flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S> | Id> | ConnectBand)[] & AnchorsOf<StepIds<S> | Id>;
@@ -122,8 +129,15 @@ function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: Swimla
     const [fid, fside] = String(f.from).split(':'), [tid, tside] = String(f.to).split(':');
     const a = byId.get(fid), b = byId.get(tid);
     if (!a || !b) throw new Error(`swimlane(): flow ${f.from} -> ${f.to} refers to an unknown step id`);
-    let from = f.from, to = f.to, auto = false;
-    if (!fside && !tside) {
+    let from = f.from, to = f.to, auto = false, under = false;
+    // a way back along one lane, to the bottom of an earlier step (or past a step in between): run it under the lane's boxes, never through them
+    const sameRow = a.lane === b.lane && (a.row ?? 0) === (b.row ?? 0) && a.col > b.col + b.span - 1;
+    const blocked = sameRow && placed.some(o => o !== a && o !== b && o.lane === a.lane && (o.row ?? 0) === (a.row ?? 0) && o.col + o.span - 1 > b.col && o.col < a.col);
+    // an explicit bend / bendOffset is a request for the elbow: it keeps the old route
+    const plain = f.bend === undefined && f.bendOffset === undefined;
+    if (plain && (sameRow && tside === 'bottom' && (!fside || fside === 'bottom') || (sameRow && blocked && !fside && !tside))) {
+      under = true; from = `${fid}:bottom`; to = `${tid}:bottom`;
+    } else if (!fside && !tside) {
       auto = true;
       const la = must(laneIdx.get(a.lane)), lb = must(laneIdx.get(b.lane)); // every step's lane was checked against `laneIdx` above
       if (b.col > a.col + a.span - 1) { from = `${fid}:right`; to = `${tid}:left`; }
@@ -131,26 +145,53 @@ function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: Swimla
       else if (lb > la || (lb === la && (b.row ?? 0) > (a.row ?? 0))) { from = `${fid}:bottom`; to = `${tid}:top`; }
       else { from = `${fid}:top`; to = `${tid}:bottom`; }
     }
-    return {f, a, b, from, to, auto};
+    return {f, a, b, from, to, auto, under};
   });
-  const uses = new Map();
-  const note = (k: string) => uses.set(k, (uses.get(k) ?? 0) + 1);
-  for (const sp of specs) if (sp.auto) { note(sp.from); note(sp.to); }
-  const seen = new Map();
-  const spread = (ref: string): string => {
-    const n = uses.get(ref) ?? 1;
-    if (n < 2) return ref;
-    const k = seen.get(ref) ?? 0; seen.set(ref, k + 1);
-    return `${ref}@${((k + 1) / (n + 1)).toFixed(2)}`;
-  };
+  // each way back under a lane's boxes gets a depth of its own (the outer one of two that nest runs deeper; ones that only partly overlap differ too), so no two share a line or a label slot
+  type Spec = typeof specs[number];
+  const underAt = new Map<Spec, {group: string; level: number}>();
+  const groups = new Map<string, {lane: string; row: number; label: boolean; levels: number}>();
+  const reach = (sp: Spec): [number, number] => [sp.b.col + (sp.b.span - 1) / 2, sp.a.col + (sp.a.span - 1) / 2];
+  for (const sp of [...specs.filter(x => x.under)].sort((x, y) => (reach(x)[1] - reach(x)[0]) - (reach(y)[1] - reach(y)[0]))) {
+    const row = sp.a.row ?? 0, group = `${sp.a.lane}|${row}`, [lo, hi] = reach(sp);
+    let level = 0;
+    for (const [o, at] of underAt) if (at.group === group) { const [olo, ohi] = reach(o); if (lo < ohi && olo < hi) level = Math.max(level, at.level + 1); }
+    underAt.set(sp, {group, level});
+    const g = groups.get(group) ?? {lane: sp.a.lane, row, label: false, levels: 0};
+    g.label ||= !!sp.f.label; g.levels = Math.max(g.levels, level + 1);
+    groups.set(group, g);
+  }
+  // the ends that share a side of one step are spread along it. By the routes, not by the order written: along a bottom, the ends of ways back that leave to the left
+  // come first (the deeper one nearer the middle), then the ends that go straight down, then the ends of ways back that come in from the right (the deeper one nearer the middle too);
+  // so that nested and outer ways back from one box never cross, and two that meet at one box never share a run
+  const ends = new Map<string, {sp: Spec; role: 'from' | 'to'; g: number; depth: number}[]>();
+  for (const sp of specs) if (sp.auto || sp.under) for (const role of ['from', 'to'] as const) {
+    const list = ends.get(sp[role]) ?? [];
+    list.push({sp, role, g: !sp.under ? 1 : role === 'from' ? 0 : 2, depth: sp.under ? must(underAt.get(sp)).level : 0});
+    ends.set(sp[role], list);
+  }
+  const slotRef = new Map<Spec, {from: string; to: string}>(specs.map(sp => [sp, {from: sp.from, to: sp.to}]));
+  for (const [ref, list] of ends) {
+    if (list.length < 2) continue;
+    list.sort((x, y) => x.g - y.g || (x.g === 0 ? x.depth - y.depth : x.g === 2 ? y.depth - x.depth : 0));
+    list.forEach((e, k) => { must(slotRef.get(e.sp))[e.role] = `${ref}@${((k + 1) / (list.length + 1)).toFixed(2)}`; });
+  }
   const slot = new Map();
-  const flows = specs.map(({f, b, from, to, auto}) => {
-    if (auto) { from = spread(from); to = spread(to); }
+  const underFlows: NonNullable<SwimlaneTimedBand['underFlows']> = [];
+  const flows = specs.flatMap(sp => {
+    const {f, b, auto, under} = sp, ref = must(slotRef.get(sp));
+    if (under) {
+      const at = must(underAt.get(sp)), g = must(groups.get(at.group));
+      underFlows.push({from: ref.from, to: ref.to, ...(f.label === undefined ? {} : {label: f.label}), group: at.group, off: underOffset(g.label, at.level), moveLabel: f.labelAt === undefined});
+      return [Object.assign(connectBand(ref.from, ref.to, {route: 'loop-under', label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.5, line: f.line, arrow: f.arrow, tone: f.tone}, false), {under: underFlows.length})];
+    }
     const k = slot.get(b.col) ?? 0; slot.set(b.col, k + 1);
-    return connectBand(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone}, false);
+    return [connectBand(auto ? ref.from : sp.from, auto ? ref.to : sp.to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone}, false)];
   });
   if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`swimlane(): fit must be 'shrink' (got ${String(opts.fit)})`);
-  const block: SwimlaneTimedBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, ...(boundaries?.length ? {boundaries} : {}), labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...scopeOpt(opts, 'swimlane()'), ...revealOf(opts)};
+  // the room each row of a lane needs below its boxes for the ways back that run there
+  const underNeed = [...groups.values()].map(g => ({lane: g.lane, row: g.row, need: underOffset(g.label, g.levels - 1) + (g.label ? UNDER_CHIP_HALF : 0) + UNDER_MARGIN}));
+  const block: SwimlaneTimedBand = {type: 'swimlane', lanes, steps: placed, cols, ...(underNeed.length ? {underNeed, underFlows, otherFlows: flows.filter(c => !c.under).map(c => ({from: c.from, to: c.to, ...(c.label === undefined ? {} : {label: c.label})}))} : {}), phases: opts.phases, ...(boundaries?.length ? {boundaries} : {}), labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...scopeOpt(opts, 'swimlane()'), ...revealOf(opts)};
   return withAnchors([block, ...flows], placed.map(st => st.id));
 }
 

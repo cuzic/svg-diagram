@@ -12,7 +12,7 @@ import {TEMPLATE} from './template.ts';
 import {attr, emu, sp, type Fonts} from './xml.ts';
 
 // the layout is shared with the slide SVG of `serve` (ADR 0056 D2); these stay importable from here
-export {deckTexts, MAX_FIGURE_SCALE, MIN_TEXT_PT, roomMessage, SLIDE_H, SLIDE_W, smallTextWarning, type TextWidth} from '../deck-layout.ts';
+export {deckTexts, figurePartTypes, MAX_FIGURE_SCALE, MIN_FIGURE_TEXT_PX, MIN_TEXT_PT, roomMessage, SLIDE_H, SLIDE_W, smallTextWarning, type TextWidth} from '../deck-layout.ts';
 
 export interface DeckFigure {plan: SlidePlan; /** Its laid-out size, px. */ w: number; h: number}
 /** A column of a slide (ADR 0058): its figure (laid out) or its text. */
@@ -233,12 +233,12 @@ export function deckEntries(slides: readonly PlannedSlide[], pngs: readonly (rea
  * What stops a planned slide (no room), and what it is warned about (small text), each with its place: the slide's figure, or each column's
  * (ADR 0058). `kinds`: what each column holds.
  */
-export function slideIssues(p: PlannedSlide, i: number, hasFigure: boolean, kinds: readonly ('figure' | 'text')[] = []): {errors: {path: string; message: string}[]; warnings: {path: string; message: string}[]} {
+export function slideIssues(p: PlannedSlide, i: number, hasFigure: boolean, kinds: readonly ('figure' | 'text')[] = [], parts: {figure?: readonly string[]; columns?: readonly (readonly string[])[]} = {}): {errors: {path: string; message: string}[]; warnings: {path: string; message: string}[]} {
   const errors: {path: string; message: string}[] = [], warnings: {path: string; message: string}[] = [];
   if (p.sourceError) return {errors: [{path: `slides[${i}].source`, message: p.sourceError}], warnings};
   if (!kinds.length) {
     if (p.noRoom) errors.push({path: `slides[${i}]`, message: roomMessage(hasFigure, p.cover)});
-    else { const w = smallTextWarning(p); if (w) warnings.push({path: `slides[${i}].figure`, message: w}); }
+    else { const w = smallTextWarning({...p, parts: parts.figure}); if (w) warnings.push({path: `slides[${i}].figure`, message: w}); }
     return {errors, warnings};
   }
   (p.columns ?? []).forEach((c, j) => {
@@ -246,7 +246,7 @@ export function slideIssues(p: PlannedSlide, i: number, hasFigure: boolean, kind
     if (c.noRoom) errors.push(kinds[j] === 'text'
       ? {path: `${at}.text`, message: 'the text does not fit the column: shorten it, or give the column a larger width'}
       : {path: at, message: 'the heading, lead, callouts and source leave the column\'s figure no room: shorten them, or split the slide'});
-    else { const w = smallTextWarning({...c, sourceLines: p.sourceLines}); if (w) warnings.push({path: `${at}.figure`, message: w}); }
+    else { const w = smallTextWarning({...c, sourceLines: p.sourceLines, parts: parts.columns?.[j], column: true}); if (w) warnings.push({path: `${at}.figure`, message: w}); }
   });
   if (p.noRoom && !errors.length) errors.push({path: `slides[${i}]`, message: roomMessage(true)});
   return {errors, warnings};
