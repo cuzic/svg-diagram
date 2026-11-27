@@ -344,7 +344,7 @@ Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使�
 | treemap(tree, {unit, percent, strict}) | ツリーマップ（squarified）。面積 ∝ 値（グループの枠と見出しの分も補正し、グループの中でも外でも同じ比）。名前と値が入らない小さなセルは描かず `<desc>` に残る（`strict: true` はエラー） |
 | sankey(nodes, links, {unit, align, values}) | サンキー図。層に分け、ノードの高さとリボンの太さは値に比例（目盛りは図全体で一つ）、ノードの名前に値、重ならない。リンクのないノードはエラー |
 | tornado(items, {base, unit}) | トルネード図（感度分析）。基準値から低ケース・高ケースの棒、幅の大きい順 |
-| forest(rows, opts) | フォレストプロット。行ごとの点推定と区間、基準の線（既定 1、対数目盛）、右に数値の列。`{heading}` の見出しの行と `summary: true` の統合のひし形、`weight` で四角の大きさ。差は `{scale: 'linear', ref: 0}`（ADR 0084、spec の部品は U2） |
+| forest(rows, opts) | フォレストプロット。行ごとの点推定と区間、基準の線（既定 1、対数目盛）、右に数値の列。`{heading}` の見出しの行と `summary: true` の統合のひし形、`weight` で四角の大きさ。差は `{scale: 'linear', ref: 0}`（ADR 0084。spec の部品は `type: 'forest'`、`rows` に同じ形の行） |
 | bubble(points, {x, y, sizeTitle, sizeUnit}) | バブルチャート。x・y が数値軸、円の**面積**が 3 つ目の指標（凡例の円つき）。`x.line` / `y.line` で境目の破線。名前は円の中か横、軸は円がはみ出さないよう自動で広がる |
 | butterfly(rows, {leftLabel, rightLabel, unit}) | バタフライチャート。中央の項目名をはさんで、左右の群の棒を同じ目盛りで比べる。`sort: 'left'｜'right'` |
 | combo(categories, series, {y, y2}) | コンボチャート（棒 + 折れ線）。棒は左軸、折れ線は右軸（`axis: 'left'` で左）。値は単位つきで全部書き、入らないものは `<desc>` に残る |

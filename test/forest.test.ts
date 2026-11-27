@@ -88,7 +88,8 @@ test('forest(): the number column is fixed in form; a negative number changes th
   assert.equal(forestValueText({decimals: 2}, {estimate: 1.5432, low: 1.221, high: 1.9549}), '1.54 (1.22–1.95)');
   assert.equal(forestValueText({decimals: 1}, {estimate: -4.2, low: -7.9, high: -0.5}), '−4.2 (−7.9, −0.5)');
   assert.equal(forestValueText({decimals: 1}, {estimate: 0.3, low: -0.5, high: 1.2}), '0.3 (−0.5, 1.2)');
-  assert.equal(forestValueText({decimals: 1}, {estimate: 0, low: -0.04, high: 1.2}), '0.0 (0.0–1.2)', 'a rounded zero has no sign');
+  assert.equal(forestValueText({decimals: 1}, {estimate: 0, low: -0.04, high: 1.2}), '0.000 (−0.040, 1.200)', 'a value that would read 0.0 makes the whole cell two significant digits');
+  assert.equal(forestValueText({decimals: 1}, {estimate: 0, low: -0.0, high: 1.2}), '0.0 (0.0–1.2)', 'zero itself is not small, and has no sign');
   assert.equal(forestValueText({decimals: 0}, {estimate: 12, low: 8, high: 17}), '12 (8–17)');
   assert.equal(forestValueText({decimals: 1, comma: true}, {estimate: 12.3, low: 3.5, high: 21}), '12.3 (3.5, 21.0)', 'once any row is negative the whole column uses the comma');
   const {chart, verdict} = await chartOf(forest([study('差', -4.2, -7.9, -0.5), study('差 2', 1, -1, 3)], {scale: 'linear', ref: 0, decimals: 1}));
@@ -227,16 +228,50 @@ test('forest(): when every interval is on one side of ref the notes still fit (t
   assert.deepEqual(low.verdict.problems, []);
 });
 
-test('forest(): the reference line just inside an axis end still gets room beyond it; a log floor of 0.000001; small values keep two digits', () => {
-  const lin = forestScale(spec([study('a', 50, 5, 95)], {scale: 'linear', ref: 5})).ticks;
-  assert.ok(lin[0]! < 0, 'ref 5 is within one step of the 0 end: one more step below');
-  const far = forestScale(spec([study('a', 50, 5, 95)], {scale: 'linear', ref: 50})).ticks;
-  assert.equal(far[0], 0, 'ref in the middle: no extension');
-  const log = forestScale(spec([study('a', 5, 1.5, 60)], {ref: 1.5})).ticks;
-  assert.ok(log[0]! < 1.5 && log[0]! <= 1, `log 1-2-5 axis, ref 1.5: ${log}`);
-  assert.throws(() => forest([study('a', 1, 0.5, 2)], {domain: [1e-8, 4]}), /domain .* below 0.000001/);
-  assert.throws(() => forest([study('a', 1e-7, 1e-7, 2)], {ref: 1e-7}), /below 0.000001/);
-  assert.equal(forestValueText({decimals: 3}, {estimate: 0.0004, low: 0.0002, high: 0.0009}), '0.00040 (0.00020–0.001)');
-  assert.equal(forestValueText({decimals: 2}, {estimate: 1.5, low: 1.2, high: 1.9}), '1.50 (1.20–1.90)');
-  assert.equal(forestValueText({decimals: 2}, {estimate: 0, low: 0, high: 0}), '0.00 (0.00–0.00)');
+test('forest(): the reference line within a tick of an axis end gets room beyond it, on both sides of both scales (exact ticks)', () => {
+  const ticks = (rows: number[][], o: object) => forestScale(spec(rows.map((r, i) => study(`r${i}`, r[0]!, r[1]!, r[2]!)), o)).ticks;
+  const lin = {scale: 'linear'};
+  assert.deepEqual(ticks([[50, 5, 95]], {...lin, ref: 5}), [-20, 0, 20, 40, 60, 80, 100], 'linear, low side');
+  assert.deepEqual(ticks([[50, 5, 95]], {...lin, ref: 15}), [-20, 0, 20, 40, 60, 80, 100], 'linear: three quarters of a step in is still within a step');
+  assert.deepEqual(ticks([[50, 5, 95]], {...lin, ref: 20}), [0, 20, 40, 60, 80, 100], 'linear: exactly one tick in: no extension');
+  assert.deepEqual(ticks([[50, 5, 95]], {...lin, ref: 80}), [0, 20, 40, 60, 80, 100], 'linear: one tick in from the top: no extension');
+  assert.deepEqual(ticks([[50, 5, 95]], {...lin, ref: 85}), [0, 20, 40, 60, 80, 100, 120], 'linear, high side');
+  assert.deepEqual(ticks([[50, 5, 95]], {...lin, ref: 95}), [0, 20, 40, 60, 80, 100, 120], 'linear, high side, ref near the top');
+  assert.deepEqual(ticks([[-2, -3, -1]], {...lin, ref: 0}), [-3, -2.5, -2, -1.5, -1, -0.5, 0, 0.5], 'linear: every interval below ref 0');
+  assert.deepEqual(ticks([[5, 1.5, 60]], {ref: 1.5}), [0.5, 1, 2, 5, 10, 20, 50, 100], 'log 1-2-5, low side: ref 1.5 is inside the first step');
+  assert.deepEqual(ticks([[5, 1.5, 60]], {ref: 2}), [1, 2, 5, 10, 20, 50, 100], 'log 1-2-5: ref on the second tick: no extension');
+  assert.deepEqual(ticks([[5, 1.02, 39]], {ref: 40}), [1, 2, 5, 10, 20, 50, 100], 'log 1-2-5, high side: ref 40 is inside the last step');
+  assert.deepEqual(ticks([[5, 1.02, 39]], {ref: 20}), [1, 2, 5, 10, 20, 50], 'log 1-2-5: ref one tick from the top: no extension');
+});
+
+test('forest(): small values are written out with two significant digits per cell, never with an exponent, for decimals 0 to 3', () => {
+  const t = (decimals: number, estimate: number, low: number, high: number) => forestValueText({decimals}, {estimate, low, high});
+  assert.equal(t(0, 0.4, 0.2, 9), '0.40 (0.20–9.00)', 'decimals 0: 0.4 would read 0');
+  assert.equal(t(0, 3, 2, 9), '3 (2–9)', 'decimals 0: nothing small');
+  assert.equal(t(1, 0.04, 0.01, 0.2), '0.040 (0.010–0.200)');
+  assert.equal(t(2, 0.004, 0.001, 0.007), '0.0040 (0.0010–0.0070)', 'the default decimals: 0.004 would read 0.00');
+  assert.equal(t(2, 0.01, 0.003, 0.04), '0.0100 (0.0030–0.0400)', 'one small value in the cell sets the digits of the cell');
+  assert.equal(t(2, 0.0004999, 0.0005, 0.00049), '0.00050 (0.00050–0.00049)', 'both sides of the threshold in one cell: one format');
+  assert.equal(t(3, 0.0004, 0.0002, 0.0009), '0.00040 (0.00020–0.00090)');
+  assert.equal(t(3, 0.0005, 0.0006, 0.001), '0.001 (0.001–0.001)', 'exactly half of the last digit is not small');
+  assert.equal(t(2, 2e-8, 1e-8, 3e-8), '0.000000020 (0.000000010–0.000000030)', 'never an exponent');
+  assert.equal(t(2, 1.5, 1.2, 1.9), '1.50 (1.20–1.90)');
+  assert.equal(t(2, 0, 0, 0), '0.00 (0.00–0.00)');
+});
+
+test('forest(): ticks and signs are written out, with U+2212; a log ref has its own floor', async () => {
+  const sc = forestScale(spec([study('a', 2e-8, 1e-8, 3e-8)], {scale: 'linear', ref: 0}));
+  assert.ok(sc.ticks.length > 2);
+  const {chart, verdict} = await chartOf(forest([study('a', 2e-8, 1e-8, 3e-8)], {scale: 'linear', ref: 0}));
+  assert.deepEqual(verdict.problems, []);
+  assert.ok(!texts(chart).some(x => /e[−-]?\d/.test(x)), `no exponent: ${texts(chart)}`);
+  assert.ok(!texts(chart).some(x => x.includes('-')), 'every minus is U+2212');
+  const axisTexts = texts(chart).filter(x => /^[0.]+\d*$/.test(x));
+  assert.equal(new Set(axisTexts).size, axisTexts.length, `every tick reads differently: ${axisTexts}`);
+  const neg = await chartOf(forest([study('a', -2e-8, -3e-8, -1e-8)], {scale: 'linear', ref: 0}));
+  assert.ok(neg.chart.alt.includes('−') && !/-\d/.test(neg.chart.alt));
+  const low = await chartOf(forest([study('a', 1.5e-6, 1e-6, 3e-6)], {ref: 1e-6}));
+  assert.ok(!texts(low.chart).some(x => /e[−-]?\d/.test(x)));
+  assert.throws(() => forest([study('a', 1e-6, 1e-6, 3e-6)], {ref: 1e-7}), /ref 1e-7 is below 0.000001/);
+  assert.doesNotThrow(() => forest([study('a', 1e-6, 1e-6, 3e-6)], {ref: 1e-6}));
 });

@@ -120,23 +120,28 @@ export function forestScale(s: ForestSpec): ForestScale {
 }
 
 const MINUS = '−';
-const fixed = (v: number, d: number): string => {
-  const t = v !== 0 && Math.abs(v) < 5e-4 ? v.toPrecision(2) : v.toFixed(d); // below 0.0005 two significant digits, not 0.000
-  return /^-0(\.0+)?$/.test(t) ? t.slice(1) : t.replace('-', MINUS);
-};
-/** "1.54 (1.22–1.95)"; once any row of the figure is negative (`comma`) every row reads "−4.2 (−7.9, −0.5)" (a dash between two negatives cannot be read). */
+const noZero = (t: string): string => /^-0(\.0+)?$/.test(t) ? t.slice(1) : t;
+/** How many digits a cell needs: `decimals`, or more when a non-zero value is under half of the last digit (it would read 0.00): two significant digits of the smallest (never an exponent). */
+const cellDigits = (d: number, values: readonly number[]): number =>
+  values.reduce((n, v) => v !== 0 && Math.abs(v) < 0.5 * 10 ** -d ? Math.max(n, Math.min(20, Math.ceil(-Math.log10(Math.abs(v))) + 1)) : n, d);
+/** "1.54 (1.22–1.95)"; once any row of the figure is negative (`comma`) every row reads "−4.2 (−7.9, −0.5)" (a dash between two negatives cannot be read). One cell has one number of digits. */
 export function forestValueText(s: Pick<ForestSpec, 'decimals'> & {comma?: boolean}, r: {estimate: number; low: number; high: number}): string {
-  const e = fixed(r.estimate, s.decimals), lo = fixed(r.low, s.decimals), hi = fixed(r.high, s.decimals);
+  const n = cellDigits(s.decimals, [r.estimate, r.low, r.high]), f = (v: number) => noZero(v.toFixed(n)).replace(/-/g, MINUS);
+  const e = f(r.estimate), lo = f(r.low), hi = f(r.high);
   return `${e} (${lo}${s.comma || [e, lo, hi].some(t => t.startsWith(MINUS)) ? ', ' : '–'}${hi})`;
 }
-const tickText = (v: number) => (Math.abs(v) < 1e-3 && v !== 0 ? String(parseFloat(v.toPrecision(3))) : numText(parseFloat(v.toPrecision(3)))).replace('-', MINUS);
+/** A tick: three significant digits, written out (never an exponent), with the minus sign U+2212. */
+const tickText = (v: number) => {
+  const t = Math.abs(v) < 1e-3 && v !== 0 ? v.toFixed(Math.min(20, Math.ceil(-Math.log10(Math.abs(v))) + 2)).replace(/\.?0+$/, '') : numText(parseFloat(v.toPrecision(3)));
+  return t.replace(/-/g, MINUS);
+};
 /** The side of a study's square: 8 to 18px by the square root of its weight (10px without one). */
 export function forestSquare(weight: number | undefined, maxWeight: number): number {
   return weight === undefined ? 10 : 8 + 10 * Math.sqrt(weight / maxWeight);
 }
 
 export function forestAlt(s: ForestSpec): string {
-  return `フォレストプロット（基準 ${numText(s.ref)}）: ${s.rows.map(r => isHeading(r) ? `【${r.heading}】` : `${r.label} ${forestValueText(s, r)}`).join('、')}`;
+  return `フォレストプロット（基準 ${numText(s.ref).replace('-', MINUS)}）: ${s.rows.map(r => isHeading(r) ? `【${r.heading}】` : `${r.label} ${forestValueText(s, r)}`).join('、')}`;
 }
 export function forestTexts(s: ForestSpec): [string, number][] {
   const out: [string, number][] = [];

@@ -1,3 +1,4 @@
+import {isNum, positive} from './r2-common.ts';
 import {NUM, items, list, object, oneOf, text, withoutType} from '../spec-kit.ts';
 import type {PartDef} from '../spec-kit.ts';
 
@@ -14,7 +15,7 @@ export function defineForestPart<Result>(builder: (rows: never, opts: never) => 
         estimate: {...NUM, description: 'The point estimate (the square).'},
         low: {...NUM, description: 'The lower end of the interval.'},
         high: {...NUM, description: 'The upper end of the interval.'},
-        weight: {...NUM, minimum: 0, description: 'Optional, above 0: the size of the square follows the weight (its area is about proportional).'},
+        weight: {...NUM, minimum: 0, description: 'Optional, above 0 (0 is refused): the size of the square follows the weight (its area is about proportional).'},
         summary: {type: 'boolean', description: 'true: the pooled estimate, drawn as a diamond (no weight).'},
         id: text('Optional: the id a connector or a spotlight can point at.', 40),
       }, []), 40, 1),
@@ -46,6 +47,20 @@ export function defineForestPart<Result>(builder: (rows: never, opts: never) => 
         const [e, lo, hi] = [row['estimate'], row['low'], row['high']] as number[];
         if (typeof e === 'number' && typeof lo === 'number' && typeof hi === 'number' && !(lo <= e && e <= hi)) bad(i, 'low <= estimate <= high does not hold: swap low and high, or fix the estimate');
       });
+      const log = part['scale'] !== 'linear';
+      items(part, 'rows').forEach((row, i) => {
+        positive(row['weight'], `${at}.rows[${i}].weight`, 'a weight', issues);
+        if (log && isNum(row['low']) && row['low'] < 1e-6) issues.push({path: `${at}.rows[${i}].low`, message: `${row['low']} is below 0.000001: a log scale needs values of 0.000001 or more (for differences write scale: linear)`});
+      });
+      if (log && isNum(part['ref']) && part['ref'] < 1e-6) issues.push({path: `${at}.ref`, message: 'a log scale needs a ref of 0.000001 or more'});
+      const domain = part['domain'] as unknown[] | undefined;
+      if (domain && isNum(domain[0]) && isNum(domain[1])) {
+        if (!(domain[0] < domain[1])) issues.push({path: `${at}.domain`, message: 'must be [lo, hi] with lo < hi'});
+        else if (log && domain[0] < 1e-6) issues.push({path: `${at}.domain`, message: 'a log scale needs a domain starting at 0.000001 or more'});
+      }
+      if (part['values'] === false && part['valueHeader']) issues.push({path: `${at}.valueHeader`, message: 'the number column is off (values: false): remove valueHeader'});
+      const seen = new Set<unknown>();
+      items(part, 'rows').forEach((row, i) => { if (row['id'] !== undefined && seen.has(row['id'])) issues.push({path: `${at}.rows[${i}].id`, message: `the id "${String(row['id'])}" is used twice`}); seen.add(row['id']); });
       if (!items(part, 'rows').some(r => !('heading' in r))) issues.push({path: `${at}.rows`, message: 'needs at least one row with an estimate (every row is a heading)'});
     },
     build(part) {

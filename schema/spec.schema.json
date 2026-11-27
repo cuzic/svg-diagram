@@ -8262,7 +8262,7 @@
                 "type": "number",
                 "minimum": 0,
                 "maximum": 1000000000000,
-                "description": "Optional, above 0: the size of the square follows the weight (its area is about proportional)."
+                "description": "Optional, above 0 (0 is refused): the size of the square follows the weight (its area is about proportional)."
               },
               "summary": {
                 "type": "boolean",

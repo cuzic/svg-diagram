@@ -92,3 +92,18 @@ test('forest spec draws the same SVG as the DSL, and its mistakes are reported a
   assert.deepEqual(bad([{heading: 'H'}]), ['parts[0].rows']);
   assert.deepEqual(bad([{label: 'A', estimate: 1, low: 0.5, high: 2}]), []);
 });
+
+test('forest spec: each mistake of a row or an option is reported at its own field', () => {
+  const row = {label: 'A', estimate: 1, low: 0.5, high: 2};
+  const at = (rows: unknown[], extra: object = {}) => pathsOf(spec({type: 'forest', rows, ...extra}));
+  assert.deepEqual(at([{...row, weight: 0}]), ['parts[0].rows[0].weight']);
+  assert.deepEqual(at([{...row, weight: -2}]), ['parts[0].rows[0].weight']);
+  assert.deepEqual(at([{...row, low: 0, estimate: 0.5}]), ['parts[0].rows[0].low']);
+  assert.deepEqual(at([{...row, low: 1e-7}]), ['parts[0].rows[0].low']);
+  assert.deepEqual(at([row], {ref: 1e-7}), ['parts[0].ref']);
+  assert.deepEqual(at([row], {domain: [1e-8, 4]}), ['parts[0].domain']);
+  assert.deepEqual(at([row], {domain: [4, 1]}), ['parts[0].domain']);
+  assert.deepEqual(at([row], {values: false, valueHeader: 'OR'}), ['parts[0].valueHeader']);
+  assert.deepEqual(at([{...row, id: 'x'}, {...row, label: 'B', id: 'x'}]), ['parts[0].rows[1].id']);
+  assert.deepEqual(at([{...row, low: -1, estimate: 0}], {scale: 'linear', ref: 0}), []);
+});
