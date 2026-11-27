@@ -78,7 +78,7 @@ type Placed = LabelBox & {row: number; leader: boolean};
 /** The places a line's label may take, the preferred first: centred on the line, else beside it (right, then left), kept inside [lo, hi] when they can be. */
 function labelPlaces(lx: number, tw: number, lo: number, hi: number): LabelBox[] {
   const at = (anchor: Anchor): LabelBox => {
-    const x = anchor === 'start' ? lx + 4 : anchor === 'end' ? lx - 4 : lx, x1 = anchor === 'start' ? x : anchor === 'end' ? x - tw : x - tw / 2;
+    const x = lx + {start: 4, middle: 0, end: -4}[anchor], x1 = x - {start: 0, middle: tw / 2, end: tw}[anchor];
     return {x, anchor, x1, x2: x1 + tw, lx};
   };
   const all = (['middle', 'start', 'end'] as const).map(at), ok = all.filter(c => c.x1 >= lo && c.x2 <= hi);
@@ -117,8 +117,15 @@ function labelRows(boxes: (LabelBox[] | undefined)[], blocked: (b: LabelBox, row
     for (let row = 0; !got; row++) { const at = must(boxes[i]).find(c => !clash(c, row, false)); if (at) got = {...at, row, leader: true}; }
     placed.push(out[i] = got);
   }
-  for (const o of out) if (o) o.leader = !placed.some(p => p.row < o.row && o.lx > p.x1 - 3 && o.lx < p.x2 + 3);
+  for (const o of placed) o.leader = !placed.some(p => p.row < o.row && o.lx > p.x1 - 3 && o.lx < p.x2 + 3);
   return out;
+}
+
+/** A raised label gets a leader to its line, or is noted as `bare` when none can be kept clear. */
+function leaderOf(out: LaidOutBars, ink: BarsInk, at: Placed | undefined, x: number, y0: number, S: number, l: {label?: string; dashed?: boolean}, fill: ColorKey, part: string | undefined): void {
+  if (!at?.row) return;
+  if (!at.leader) out.bare = [...out.bare ?? [], l.label as string];
+  else ink.lines.push({x1: x, y1: y0 - at.row * (S + 4), x2: x, y2: y0, fill, dashed: l.dashed !== false, soft: true, part});
 }
 
 /**
@@ -128,8 +135,7 @@ function labelRows(boxes: (LabelBox[] | undefined)[], blocked: (b: LabelBox, row
 function vlineRows(band: BarsBand, plotL: number, plotR: number, plotT: number, S: number, widthOf: WidthOf, values: {x: number; y: number; w: number; h: number}[]): {rows: number; at: (Placed | undefined)[]} {
   const {count} = slotsOf(band.data), slot = (plotR - plotL) / count;
   const geo = (band.vlines ?? []).map(l => l.label ? labelPlaces(plotL + l.at * slot, textWidth(widthOf, l.label, S, 700), plotL + 2, plotR - 2) : undefined);
-  const rows = labelRows(geo, (b, row) => values.some(v => hitRect({x: b.x1 - 6, y: plotT - 8 - row * (S + 4) - S, w: b.x2 - b.x1 + 12, h: S + 4}, v)));
-  const at = rows;
+  const at = labelRows(geo, (b, row) => values.some(v => hitRect({x: b.x1 - 6, y: plotT - 8 - row * (S + 4) - S, w: b.x2 - b.x1 + 12, h: S + 4}, v)));
   return {rows: at.reduce((n, a) => a ? Math.max(n, a.row + 1) : n, 0), at};
 }
 
@@ -232,8 +238,7 @@ export function layoutBars(band: BarsBand, x: number, y: number, w: number, widt
 
 /** Where the labels of the vertical reference lines of horizontal bars go: centred on their line (beside it near an end of the figure), on the lowest row above the bars where they clear each other. */
 function hlineLabels(band: BarsBand, plotL: number, plotW: number, x: number, w: number, S: number, widthOf: WidthOf): (Placed | undefined)[] {
-  const geo = (band.lines ?? []).map(l => l.label ? labelPlaces(plotL + l.at / band.max * plotW, textWidth(widthOf, l.label, S, 700), x + 2, x + w - 2) : undefined);
-  return labelRows(geo);
+  return labelRows((band.lines ?? []).map(l => l.label ? labelPlaces(plotL + l.at / band.max * plotW, textWidth(widthOf, l.label, S, 700), x + 2, x + w - 2) : undefined));
 }
 
 function layoutHorizontal(band: BarsBand, x: number, y0: number, w: number, widthOf: WidthOf, roles: Roles): LaidOutBars {
@@ -305,7 +310,7 @@ function layoutHorizontal(band: BarsBand, x: number, y0: number, w: number, widt
       const px = lx[i] as number, fill = LINE_TONE[l.tone ?? 'danger'], at = lineAt[i], part = partStep('line', {index: `h${l.at}`}, l.label ?? '');
       ink.lines.push({x1: px, y1: y - 4, x2: px, y2: axisY, fill, dashed: l.dashed !== false, part});
       // a label on a higher row is reached by a leader
-      if (at && at.row > 0 && at.leader) ink.lines.push({x1: px, y1: y - 4 - at.row * (S + 4), x2: px, y2: y - 4, fill, dashed: l.dashed !== false, soft: true, part});
+      leaderOf(out, ink, at, px, y - 4, S, l, fill, part);
       if (l.label && at) putText(out, S, l.label, at.x, y - 8 - at.row * (S + 4), at.anchor, fill, widthOf, true, undefined, undefined, part);
     }
     out.ink = ink;
@@ -407,7 +412,7 @@ function overlays(out: LaidOutBars, band: BarsBand, g: {plotL: number; plotR: nu
     const lx = xOf(l.at), fill = LINE_TONE[l.tone ?? 'danger'], at = vrows.at[i], part = partStep('line', {index: `v${i}`}, l.label ?? '');
     ink.lines.push({x1: lx, y1: plotT - 4, x2: lx, y2: plotB, fill, dashed: l.dashed !== false, part});
     // a label on a higher row is reached by a leader (it may pass the labels of the rows below)
-    if (at && at.row > 0 && at.leader) ink.lines.push({x1: lx, y1: plotT - 4 - at.row * (S + 4), x2: lx, y2: plotT - 4, fill, dashed: l.dashed !== false, soft: true, part});
+    leaderOf(out, ink, at, lx, plotT - 4, S, l, fill, part);
     if (l.label && at) putText(out, S, l.label, at.x, plotT - 8 - at.row * (S + 4), at.anchor, fill, widthOf, true, undefined, undefined, part);
   }
   if (band.edges) band.edges.forEach((e, i) => { if (e) putText(out, S, e, xOf(i), plotB + S + underGap, 'middle', 'text', widthOf, false, undefined, undefined, PLANE_AXES); });

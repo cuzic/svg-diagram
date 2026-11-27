@@ -82,6 +82,8 @@ export interface LaidOutBars extends Rect, Dimmed {
   type: 'bars';
   /** Reference lines, the cumulative line and the curve of a bars() with those options. */
   ink?: BarsInk;
+  /** Reference-line labels raised without a leader (no way to keep the leaders clear): which line they name is unclear. */
+  bare?: string[];
   id?: string;
   dir: 'h' | 'v';
   stack: boolean;

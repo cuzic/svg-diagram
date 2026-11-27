@@ -86,7 +86,9 @@ test('two wide labels on close lines in a narrow figure: no leader runs through 
   const r = await checkDiagram(diagram({theme: 'blue', title: 't', width: 320}).add(bars(DATA, {max: 100, lines: [{at: 30, label: 'Upper limit long label'}, {at: 38, label: 'Lower limit long label'}]})));
   const b = r.laidOut.laidOut.find((x): x is LaidOutBars => x.type === 'bars')!;
   assert.deepEqual(crosses(b), []);
-  assert.deepEqual(r.verdict.problems, []);
+  // the raised label has no leader, so which line it names is unclear: check says so
+  assert.deepEqual(b.bare, ['Lower limit long label']);
+  assert.equal(r.verdict.problems.filter(p => /no leader/.test(p)).length, 1, JSON.stringify(r.verdict.problems));
 });
 
 test('seeded fuzz: lines / vlines of random closeness and width never get a leader through a label', async () => {
@@ -99,6 +101,7 @@ test('seeded fuzz: lines / vlines of random closeness and width never get a lead
     const opts = dir === 'h' ? {max: 100, lines: ls} : {dir: 'v' as const, max: 100, vlines: ls};
     const r = await checkDiagram(diagram({theme: 'blue', title: 't', width}).add(bars(DATA, {unit: '件', ...opts})));
     const b = r.laidOut.laidOut.find((x): x is LaidOutBars => x.type === 'bars')!;
+    assert.equal(r.verdict.problems.some(p => /no leader/.test(p)), (b.bare?.length ?? 0) > 0, `k=${k} unreported`);
     assert.deepEqual(crosses(b), [], `k=${k} ${dir} ${width} ${JSON.stringify(ls)}`);
   }
 });
