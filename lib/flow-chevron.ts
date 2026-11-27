@@ -76,6 +76,9 @@ export function layoutChevron(b: ChevronBand, out: LaidOutFlowShape, t: Texts, a
   // horizontal: the notch on the left and the point on the right each take `tip` of the width; vertical: the point takes the bottom
   const tip = vertical ? 16 : Math.min(TIP_MAX, cellW / 4), textW = vertical ? cellW - 24 : cellW - 2 * tip - 8;
   const blocks = b.steps.map(s => ({label: t.wrap(s.label, textW), sub: s.sub ? t.wrap(s.sub, textW, 400) : undefined}));
+  // a word wider than its arrow (rows / perRow given) would be drawn across the edges
+  const wide = b.rows === 'auto' || b.rows === b.perRow ? -1 : blocks.findIndex(k => Math.max(k.label.w, k.sub?.w ?? 0) > textW + 1);
+  if (wide >= 0) throw new Error(`chevron(): ${wide + 1} 番目の文字が矢羽根に収まらない。rows を増やす・perRow を減らす・文を短くする`);
   const textH = (k: typeof blocks[number]) => k.label.h + (k.sub?.h ?? 0);
   const cellH = Math.max(60, Math.max(...blocks.map(textH)) + 20 + (vertical ? tip : 0));
   out.h = vertical ? n * cellH + (n - 1) * b.gap : rows * cellH + (rows - 1) * ROW_GAP;

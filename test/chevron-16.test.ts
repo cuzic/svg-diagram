@@ -41,3 +41,20 @@ test('16 steps with rows: auto draw on a 16:9 slide without errors (Japanese and
     assert.ok(svg.includes(ja ? '工程16' : 'Stage 16'));
   }
 });
+
+test('16 long Latin steps with rows: 2 on a 16:9 slide are reported (a word wider than its arrow), rows: auto is not', async () => {
+  const words = ['Preparation', 'Implementation', 'Stabilization', 'Retrospective'];
+  const long = Array.from({length: 16}, (_, i) => ({label: `${words[i % 4]}`, sub: 'owner and due date'}));
+  const run = async (extra: object) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chev16w-')), file = path.join(dir, 'deck.json');
+    fs.writeFileSync(file, JSON.stringify({slides: [{title: 'S', figure: {version: 1, title: 't', parts: [{type: 'chevron', steps: long, ...extra}]}}]}));
+    const r = loadDeck(file);
+    assert.ok(r.ok);
+    const out = await renderDeck(r.loaded, cfg);
+    fs.rmSync(dir, {recursive: true, force: true});
+    return out.errors;
+  };
+  const errs = await run({rows: 2});
+  assert.ok(errs.length > 0 && errs.some(e => /矢羽根に収まらない/.test(JSON.stringify(e))), JSON.stringify(errs));
+  assert.deepEqual(await run({rows: 'auto'}), []);
+});
