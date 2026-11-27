@@ -1,0 +1,18 @@
+forest plot spike (branch spike/forest-plot 67aab13e, not merged): invented data only (made-up sites of a made-up study-aid trial)
+measured with `svg-diagram pptx-deck spikes/forest-plot/deck.json` (1280x720 slide, default fit "fill"; the spike prints the plan's
+scale and minTextPt). All chart text is one size: 14px (labels, numbers, ticks, headings, axis title, favours note).
+
+slide                                            figure    scale  smallest text  pictures (PNG)
+1 forest-10 (10 rows + 2 headings + summary, log) 940x488   1.184  12.4pt         0 (all native shapes, text editable)
+2 same, with a lead line                          940x488   1.133  11.9pt         0
+3 same, fit "width"                               940x488   1.184  12.4pt         0
+4 baseline: rangeBars, same 11 intervals          940x564   1.025  10.8pt         0 (no point, no reference line, linear)
+5 forest-23 (22 rows + summary, log)              940x748   0.773   8.1pt         0 (under 9pt: deck warning)
+
+row pitch 26px (= max(14 + 12, 26)); figure height = 32 (header) + 26 x lines + 6 + axis (14+14 ticks, +22 axis title, +24 favours) + 4
+=> 9pt holds up to about 20 lines (rows + headings + summary) on a slide with a title only.
+
+log ticks: data 0.22..5.90 spans 27x > 16x so 1-2-5 per decade: 0.2 0.5 1 2 5 10 (the plot runs to 10 for one interval at 5.9)
+           data 0.41..2.52 (forest-log on the spike branch only, 6x) gives ref x 2^k: 0.25 0.5 1 2 4
+linear (forest-linear, mean difference, ref 0): "-4.2 (-7.9–-0.5)" reads badly: the en dash between negatives must change (D4)
+check-diagram --strict: forest-10, forest-23, baseline-rangebars pass (overlap checks of the chart band: 0 problems)
