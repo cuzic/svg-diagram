@@ -17,6 +17,8 @@ export const FILL_FIGURE_SCALE = 1.5;
 export const maxScale = (fit: FigureFit): number => fit === 'fill' ? FILL_FIGURE_SCALE : MAX_FIGURE_SCALE;
 /** The smallest text (pt) a scaled figure may have before the slide is reported as hard to read. */
 export const MIN_TEXT_PT = 9;
+/** The least a figure's smallest text may come to on the slide, in px (ADR 0085 D1): 14 px is the size every figure's text is drawn at before it is scaled. */
+export const MIN_FIGURE_TEXT_PX = 14;
 /** Line pitch as a multiple of the text size. */
 export const LINE = 1.3;
 /** The longest `source` (footnote), in characters (ADR 0055 D1, raised from 300). It wraps at STYLE.source.size, and the figure's room shrinks by its lines. */
@@ -306,12 +308,44 @@ export const roomMessage = (hasFigure: boolean, cover = false): string => cover
   ? 'the heading, lead, callouts and source leave no room for the figure: shorten them, or put the figure on a slide of its own'
   : 'the heading and lead run into the callouts and source: shorten them, or split the slide';
 
-/** A warning for a slide whose figure's smallest text is under MIN_TEXT_PT, or null. */
-export function smallTextWarning(p: {scale: number | null; minTextPt: number | null; sourceLines?: number}): string | null {
-  if (p.minTextPt === null || p.scale === null || p.minTextPt >= MIN_TEXT_PT) return null;
+/** The part types (`parts[].type`) of a deck figure's spec; empty for a file name, a non-spec value or a spec without parts. */
+export function figurePartTypes(spec: unknown): string[] {
+  const parts = typeof spec === 'object' && spec !== null && !Array.isArray(spec) ? (spec as {parts?: unknown}).parts : undefined;
+  if (!Array.isArray(parts)) return [];
+  return parts.flatMap((p: unknown) => {
+    const kind = typeof p === 'object' && p !== null ? (p as {type?: unknown})['type'] : undefined;
+    return typeof kind === 'string' ? [kind] : [];
+  });
+}
+
+/** Parts whose height is set by their own geometry (circles with a fixed radius): fewer items do not make their text larger (ADR 0085). */
+const FIXED_HEIGHT_PARTS: ReadonlySet<string> = new Set(['concentric', 'venn', 'cycle']);
+
+/** What to do about a figure whose text is small, by what makes it small (ADR 0085 D1). */
+function smallFigureAdvice(parts: readonly string[]): string {
+  const fixed = parts.filter(t => FIXED_HEIGHT_PARTS.has(t)), others = parts.length - fixed.length;
+  const height = 'give the figure more height (fewer callouts, or put it in a column beside the text)';
+  const items = 'cut items, or split the figure over two slides';
+  if (!parts.length) return 'give the figure more room, cut items, or split it over two slides';
+  if (!others) return height;
+  return fixed.length ? `${height}; for the other parts, ${items}` : items;
+}
+
+/**
+ * A warning for a slide whose figure's smallest text is under MIN_TEXT_PT, or (ADR 0085 D1) under MIN_FIGURE_TEXT_PX on the slide, or null.
+ * `parts`: the part types of the figure, to say what helps.
+ */
+export function smallTextWarning(p: {scale: number | null; minTextPt: number | null; sourceLines?: number; parts?: readonly string[]}): string | null {
+  if (p.minTextPt === null || p.scale === null) return null;
   const how = p.scale < 1 ? `scaled to ${Math.round(p.scale * 100)}% to fit the slide, its` : 'its';
-  const fix = (p.sourceLines ?? 0) > 4 ? 'split the figure, move text off the slide, or move part of the source to the notes' : 'split the figure, or move text off the slide';
-  return `${how} smallest text is ${p.minTextPt.toFixed(1)}pt (under ${MIN_TEXT_PT}pt): ${fix}`;
+  if (p.minTextPt < MIN_TEXT_PT) {
+    const fix = (p.sourceLines ?? 0) > 4 ? 'split the figure, move text off the slide, or move part of the source to the notes' : 'split the figure, or move text off the slide';
+    return `${how} smallest text is ${p.minTextPt.toFixed(1)}pt (under ${MIN_TEXT_PT}pt): ${fix}`;
+  }
+  const px = p.minTextPt * 96 / 72;
+  if (px >= MIN_FIGURE_TEXT_PX - 0.02) return null;
+  const scaled = p.scale < 1 ? `, scaled to ${Math.round(p.scale * 100)}% to fit the slide` : '';
+  return `figure text is ~${px.toFixed(1)}px on the slide (under ${MIN_FIGURE_TEXT_PX}px, the size it is drawn at before scaling)${scaled}: ${smallFigureAdvice(p.parts ?? [])}`;
 }
 
 /** The layout widths 'fill' tries (ADR 0060): the document's 940 and narrower, each about 12 % less, down to the spec's 320. */

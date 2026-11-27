@@ -14,7 +14,7 @@ import {figureKey} from './lib/deck-file.ts';
 import {loadDeckSelective} from './lib/deck-load-selective.ts';
 import {drawColumnFigure, renderDeckFigure} from './lib/deck-render-figure.ts';
 import {figureMinPt} from './lib/pptx/deck-figure.ts';
-import {deckEntries, deckTexts, planDeckSlide, slideIssues, type DeckFigure, type TextWidth} from './lib/pptx/deck.ts';
+import {figurePartTypes, deckEntries, deckTexts, planDeckSlide, slideIssues, type DeckFigure, type TextWidth} from './lib/pptx/deck.ts';
 import {planSlide, fontsOf} from './lib/pptx/slide.ts';
 import {fontFilesOf, rasterize} from './lib/pptx/emit.ts';
 import {zipStore} from './lib/pptx/zip-node.ts';
@@ -101,7 +101,7 @@ try {
     const cols = columns && sharedColumns(columns, shares[i]).map((c, j) => ({caption: c.caption, text: c.text, width: c.width, figure: columnFigures[i]?.[j]}));
     return planDeckSlide({...s, fit: fitOf(deck, deck.slides[i] ?? {}), ...(f ? {figure: f} : {}), ...(cols ? {columns: cols} : {})}, fonts, width);
   });
-  const reports = planned.map((p, i) => slideIssues(p, i, figures[i] !== undefined, (deck.slides[i]?.columns ?? []).map(c => c.text === undefined ? 'figure' : 'text')));
+  const reports = planned.map((p, i) => slideIssues(p, i, figures[i] !== undefined, (deck.slides[i]?.columns ?? []).map(c => c.text === undefined ? 'figure' : 'text'), {figure: figurePartTypes(deck.slides[i]?.figure), columns: (deck.slides[i]?.columns ?? []).map(c => figurePartTypes(c.figure))}));
   const noRoom = reports.flatMap(r => r.errors.map(e => `${e.path}: ${e.message}`));
   if (noRoom.length) fail(noRoom);
   for (const r of reports) for (const w of r.warnings) console.error(`⚠ ${w.path}: ${w.message}`);

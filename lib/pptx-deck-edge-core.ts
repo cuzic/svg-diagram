@@ -7,7 +7,7 @@ import {autoColumns, columnFallbackWarning, columnFigurePath, columnSpec, figure
 import {DOC_LAYOUT_WIDTH, chooseColumns, columnWidths, figureRooms, fillSearch, maxScale, ruleIds, type FigureFit} from './deck-layout.ts';
 import {guardedEngine, type TextEngine} from './spec-edge-core.ts';
 import {zipPackage, type FigurePlan, type PptxEdgeOptions} from './pptx-edge-core.ts';
-import {deckEntries, minTextPt, placeShapes, planDeckSlide, slideIssues, type DeckFigure, type PlannedSlide, type TextWidth} from './pptx/deck.ts';
+import {figurePartTypes, deckEntries, minTextPt, placeShapes, planDeckSlide, slideIssues, type DeckFigure, type PlannedSlide, type TextWidth} from './pptx/deck.ts';
 import {fontsOf} from './pptx/slide-core.ts';
 
 export interface DeckSlideResult {
@@ -120,7 +120,7 @@ export async function renderDeckPptxEdgeWith(input: unknown, givenEngine: TextEn
   });
   const warnings: SpecIssue[] = [...fallbacks];
   planned.forEach((p, i) => {
-    const r = slideIssues(p, i, figures[i] !== undefined, (deck.slides[i]?.columns ?? []).map(c => c.text === undefined ? 'figure' : 'text'));
+    const r = slideIssues(p, i, figures[i] !== undefined, (deck.slides[i]?.columns ?? []).map(c => c.text === undefined ? 'figure' : 'text'), {figure: figurePartTypes(deck.slides[i]?.figure), columns: (deck.slides[i]?.columns ?? []).map(c => figurePartTypes(c.figure))});
     issues.push(...r.errors);
     warnings.push(...r.warnings);
   });
