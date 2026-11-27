@@ -61,11 +61,12 @@ export function readDeckFile(deckFile: string): DeckFileError | {ok: true; loade
   const resolved = withCalloutObjects(resolved0);
   if (errors.length) return {ok: false, errors};
   // checked with a stand-in where a .ts figure was left out: a heading for a slide (a figure is enough), a text for a column
-  const checked = Array.isArray((resolved as {slides?: unknown} | null)?.slides)
-    ? {...(resolved as object), slides: (resolved as DeckSpec).slides.map((s, i) => s === null || typeof s !== 'object' ? s : ({
+  // as the author wrote it (a string callout is converted by the check itself, so its issues are placed on the string)
+  const checked = Array.isArray((resolved0 as {slides?: unknown} | null)?.slides)
+    ? {...(resolved0 as object), slides: (resolved0 as DeckSpec).slides.map((s, i) => s === null || typeof s !== 'object' ? s : ({
       ...(sources.has(figureKey(i)) && s.title === undefined ? {...s, title: '-'} : s),
       ...(Array.isArray(s.columns) ? {columns: s.columns.map((c, j) => sources.has(figureKey(i, j)) ? {...c, text: '-'} : c)} : {}),
-    }))} : resolved;
+    }))} : resolved0;
   return {ok: true, loaded: {deck: resolved as DeckSpec, sources, files}, checked};
 }
 

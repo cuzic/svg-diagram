@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {spawnSync} from 'node:child_process';
 import {deckSchema, validateDeck} from '../lib/deck-spec.ts';
 import {calloutOf, STRING_CALLOUT_HINT, withCalloutObjects} from '../lib/deck-spec-core.ts';
 import {loadDeck} from '../lib/deck-load.ts';
@@ -29,6 +30,8 @@ test('calloutOf: a string with a label field is split at its first ": " or "："
   assert.deepEqual(calloutOf('見出し：３０分'), {label: '見出し：', text: '３０分'}, 'digits only after it still split');
   const long = 'あ'.repeat(70) + '：本文';
   assert.deepEqual(calloutOf(long), {text: long}, 'a label over 60 characters: kept whole');
+  assert.deepEqual(calloutOf('あ'.repeat(60) + '：本文'), {text: 'あ'.repeat(60) + '：本文'}, 'a 61-character label stays whole');
+  assert.deepEqual(calloutOf('第3：説明'), {label: '第3：', text: '説明'}, 'a digit only before the colon: split');
   assert.deepEqual(calloutOf('あ'.repeat(59) + '：本文'), {label: 'あ'.repeat(59) + '：', text: '本文'});
   const obj = {label: 'x', text: 'y'};
   assert.equal(calloutOf(obj), obj);
@@ -49,7 +52,6 @@ test('validateDeck accepts string callouts and checks them as the objects they m
   const bad = validateDeck({slides: [{title: 'a', callouts: ['x'.repeat(301), '', '印: ' + 'y'.repeat(301)]}]});
   assert.deepEqual(bad.map(i => i.path), ['slides[0].callouts[0]', 'slides[0].callouts[1]', 'slides[0].callouts[2]']);
   for (const i of bad) assert.ok(i.message.endsWith(`(${STRING_CALLOUT_HINT})`), i.message);
-  assert.match(STRING_CALLOUT_HINT, /\{"text"/);
   assert.deepEqual(validateDeck({slides: [{title: 'a', callouts: [{text: 'x'.repeat(301)}]}]}).map(i => i.path), ['slides[0].callouts[0].text'], 'an object keeps its own place');
   assert.deepEqual(validateDeck({slides: [{title: 'a', callouts: [{label: 'x'}]}]}).map(i => [i.path, i.message]), [['slides[0].callouts[0].text', 'is required']]);
   assert.deepEqual(validateDeck({slides: [{title: 'a', callouts: ['あ'.repeat(70) + '：' + 'い'.repeat(100)]}]}), [], 'a long label part is kept whole as text, not refused as a label');
@@ -58,6 +60,28 @@ test('validateDeck accepts string callouts and checks them as the objects they m
   const items = (deckSchema as any).properties.slides.items.properties.callouts.items;
   assert.deepEqual(items.oneOf.map((b: {type: string}) => b.type), ['object', 'string']);
   assert.equal(items.oneOf[1].maxLength, items.oneOf[0].properties.text.maxLength, 'the string branch allows what a string with no separator is allowed');
+});
+
+test('a table row that is an object without cells is refused at its cells (the message of a one-object oneOf)', () => {
+  const t = {version: 1, title: '例', parts: [{type: 'table', columns: [{label: 'a'}], rows: [{}]}]};
+  assert.deepEqual(validateSpec(t).map(i => [i.path, i.message]), [['parts[0].rows[0].cells', 'is required']]);
+});
+
+test('a deck file: issues in a string callout are placed on the string, with the hint (loadDeck, and pptx-deck on the command line)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'deck-callout-err-'));
+  try {
+    const file = path.join(dir, 'deck.json');
+    fs.writeFileSync(file, JSON.stringify({slides: [{title: '題', callouts: ['x'.repeat(301), '   ', {text: 'y'.repeat(301)}]}]}));
+    const got = loadDeck(file);
+    assert.ok(!got.ok);
+    assert.deepEqual(got.errors.map(e => e.replace(/ \(it is written.*$/, '')), ['slides[0].callouts[0]: is 301 characters; the limit is 300', 'slides[0].callouts[1]: must not be empty', 'slides[0].callouts[2].text: is 301 characters; the limit is 300'].map(e => e));
+    assert.ok(got.errors[0]?.endsWith(`(${STRING_CALLOUT_HINT})`));
+    assert.ok(got.errors[1]?.endsWith(`(${STRING_CALLOUT_HINT})`));
+    assert.ok(!got.errors[2]?.includes(STRING_CALLOUT_HINT), 'an object callout gets no hint');
+    const cli = spawnSync(process.execPath, [path.join(import.meta.dirname, '../pptx-deck-diagram.ts'), file, '--out', path.join(dir, 'o.pptx')], {encoding: 'utf8'});
+    assert.notEqual(cli.status, 0);
+    assert.match(cli.stdout + cli.stderr, /slides\[0\]\.callouts\[0\]: is 301 characters; the limit is 300 \(it is written as a string/);
+  } finally { fs.rmSync(dir, {recursive: true, force: true}); }
 });
 
 test('loadDeck and the .pptx draw a string callout as its label and text', async () => {

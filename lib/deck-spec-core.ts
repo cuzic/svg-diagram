@@ -10,7 +10,7 @@ export const MAX_SLIDES = 300;
 export const MAX_CALLOUTS = 3;
 /** The longest callout label: a string whose label part would be longer is kept whole as the text. */
 const CALLOUT_LABEL_MAX = 60;
-export const STRING_CALLOUT_HINT = 'it is written as a string, which is split at its first ": " (or "：") into label and text; to keep it whole, write {"text": "…"}';
+export const STRING_CALLOUT_HINT = 'it is written as a string: a "label: text" is read as label and text, split at its first ": " (or "：")';
 /** Columns of a slide (ADR 0058). */
 export const MIN_COLUMNS = 2, MAX_COLUMNS = 3;
 
