@@ -186,14 +186,22 @@ test('bars() overlays: only vertical, not stacked; positions and counts are chec
   assert.throws(() => bars(d, {dir: 'v', lines: [{at: 1, tone: 'blue' as never}]}), /tone/);
 });
 
-test('bars() lines: a reference line sits at its value; a label that would touch another goes a row higher; none overlap', async () => {
+test('bars() lines: a reference line sits at its value; a label that would touch another takes the other side or a row higher; none overlap', async () => {
   const {laidOut, verdict} = await laid(bars([{label: 'a', value: 8}, {label: 'b', value: 6}, {label: 'c', value: 7}], {dir: 'v', max: 10, lines: [{at: 5, label: '目標'}], vlines: [{at: 1.5, label: '平均 1.5'}, {at: 1.6, label: '中央値 1.6'}, {at: 0, label: '左端'}]}));
   assert.deepEqual(verdict.problems, []);
   const b = laidOut.laidOut.find(x => x.type === 'bars') as LaidOutBars;
   const h = b.ink!.lines.find(l => l.y1 === l.y2)!;
   assert.ok(h.y1 > b.y && h.y1 < b.y + b.h);
-  const ys = ['平均 1.5', '中央値 1.6'].map(t => b.texts.find(x => x.text === t)!.y);
-  assert.notEqual(ys[0], ys[1]);
+  // two names at nearly one place: the second takes the other side of the line or a higher row, never the same spot
+  const boxes = b.labelBoxes.filter(x => x.bar === undefined && ['平均 1.5', '中央値 1.6'].includes(x.label));
+  assert.equal(boxes.length, 2);
+  const [p, q] = boxes as [typeof boxes[0], typeof boxes[0]];
+  assert.ok(p.x + p.w <= q.x || q.x + q.w <= p.x || p.y + p.h <= q.y || q.y + q.h <= p.y);
+  // three names on one place cannot all stand beside the line on one row: one goes a row higher
+  const three = await laid(bars([{label: 'a', value: 8}, {label: 'b', value: 6}, {label: 'c', value: 7}], {dir: 'v', max: 10, vlines: [{at: 1.5, label: '平均 1.5'}, {at: 1.51, label: '中央値 1.6'}, {at: 1.52, label: '最頻値'}]}));
+  const b3 = three.laidOut.laidOut.find(x => x.type === 'bars') as LaidOutBars;
+  assert.deepEqual(three.verdict.problems, []);
+  assert.ok(new Set(['平均 1.5', '中央値 1.6', '最頻値'].map(t => b3.texts.find(x => x.text === t)!.y)).size >= 2);
 });
 
 test('bars() vline label clears a value moved above its bar by a horizontal line', async () => {
