@@ -22,10 +22,15 @@ const spec = (rows: ForestRow[], opts: object = {}) => resolveForest(rows, opts)
 test('forest(): the log axis uses ref x 2^k up to 16x and 1-2-5 per decade beyond', () => {
   assert.deepEqual(forestScale(spec([study('a', 1, 0.25, 4)])).ticks, [0.25, 0.5, 1, 2, 4]);
   assert.deepEqual(forestScale(spec([study('a', 1, 0.5, 8)])).ticks, [0.5, 1, 2, 4, 8]);
-  assert.deepEqual(forestScale(spec([study('a', 1, 0.0625, 1)])).ticks, [0.0625, 0.125, 0.25, 0.5, 1], '16x exactly: still powers of two');
-  assert.deepEqual(forestScale(spec([study('a', 1, 0.06, 1)])).ticks, [0.05, 0.1, 0.2, 0.5, 1], 'just over 16x: 1-2-5');
+  assert.deepEqual(forestScale(spec([study('a', 0.5, 0.0625, 1)])).ticks, [0.0625, 0.125, 0.25, 0.5, 1, 2], '16x exactly: still powers of two (and one tick past the reference line)');
+  assert.deepEqual(forestScale(spec([study('a', 0.5, 0.06, 1)])).ticks, [0.05, 0.1, 0.2, 0.5, 1, 2], 'just over 16x: 1-2-5');
   assert.deepEqual(forestScale(spec([study('a', 2, 0.22, 5.9)])).ticks, [0.2, 0.5, 1, 2, 5, 10]);
   assert.deepEqual(forestScale(spec([study('a', 1, 1, 1)])).ticks, [0.5, 1, 2], 'a single point still has an axis');
+  assert.deepEqual(forestScale(spec([study('a', 1.1, 1.02, 1.3)])).ticks, [0.5, 1, 2], 'every interval above ref: one tick below it');
+  assert.deepEqual(forestScale(spec([study('a', 0.8, 0.6, 0.9)])).ticks, [0.5, 1, 2], 'every interval below ref: one tick above it');
+  assert.deepEqual(forestScale(spec([study('a', 1.1, 1.02, 1.3)], {domain: [1, 2]})).ticks, [1, 2], 'a written domain is the axis');
+  const lin = forestScale(spec([study('a', 2, 1, 3)], {scale: 'linear', ref: 0})).ticks;
+  assert.ok(lin[0]! < 0 && lin.includes(0), 'linear: one step past ref');
   const sc = forestScale(spec([study('a', 1, 0.5, 2)]));
   assert.ok(Math.abs(sc.pos(1) - 0.5) < 1e-9, 'the reference line of a symmetric ratio is in the middle');
 });
@@ -48,6 +53,8 @@ test('forest(): errors say what is wrong and how to fix it', () => {
   assert.throws(() => forest([study('A', 1, 0.5, 2)], {decimals: 4}), /decimals must be a whole number from 0 to 3/);
   assert.throws(() => forest([study('A', 1, 0.5, 2)], {scale: 'sqrt' as never}), /scale must be/);
   assert.throws(() => forest([study('A', 1, 0.5, 2)], {ref: 0}), /ref 0 is 0 or less/);
+  assert.throws(() => forest([study('A', 1, 0.5, 2)], {values: false, valueHeader: 'OR'}), /valueHeader .* values is false/);
+  assert.throws(() => forest([study('A', 1, 1e-7, 2)]), /below 0.000001/);
   assert.throws(() => forest([study('A', 1, 0.5, 2)], {domain: [0, 4]}), /domain \[0, 4\] has a value of 0 or less/);
 });
 
@@ -83,32 +90,64 @@ test('forest(): the number column is fixed in form; a negative number changes th
   assert.equal(forestValueText({decimals: 1}, {estimate: 0.3, low: -0.5, high: 1.2}), '0.3 (−0.5, 1.2)');
   assert.equal(forestValueText({decimals: 1}, {estimate: 0, low: -0.04, high: 1.2}), '0.0 (0.0–1.2)', 'a rounded zero has no sign');
   assert.equal(forestValueText({decimals: 0}, {estimate: 12, low: 8, high: 17}), '12 (8–17)');
+  assert.equal(forestValueText({decimals: 1, comma: true}, {estimate: 12.3, low: 3.5, high: 21}), '12.3 (3.5, 21.0)', 'once any row is negative the whole column uses the comma');
   const {chart, verdict} = await chartOf(forest([study('差', -4.2, -7.9, -0.5), study('差 2', 1, -1, 3)], {scale: 'linear', ref: 0, decimals: 1}));
   assert.deepEqual(verdict.problems, []);
   assert.ok(texts(chart).includes('−4.2 (−7.9, −0.5)'));
+  assert.ok(texts(chart).includes('1.0 (−1.0, 3.0)') && texts(chart).includes('−5') || texts(chart).includes('−4'), 'ticks use the same minus sign');
+  assert.ok(!texts(chart).some(t => /^-\d/.test(t)));
+  const mixed = await chartOf(forest([study('負', -4.2, -7.9, -0.5), study('正', 12.3, 3.5, 21)], {scale: 'linear', ref: 0, decimals: 1}));
+  assert.ok(texts(mixed.chart).includes('12.3 (3.5, 21.0)'));
   assert.ok(chart.alt.includes('−4.2 (−7.9, −0.5)'));
   const off = await chartOf(forest([study('A', 1.5, 1.2, 1.9)], {values: false}));
   assert.ok(!texts(off.chart).some(t => t.includes('(')));
 });
 
 // (vi) domain, arrowheads, info
-test('forest({domain}): an interval past the axis is cut with an arrowhead and an info; an estimate or ref past it is an error', async () => {
-  const rows = [study('A', 1.5, 0.9, 12), study('B', 1.3, 1, 1.7)];
+const path = (c: LaidOutChart, pick: (i: {d: string; stroke?: string; fill?: string; sw?: number; dash?: string}) => boolean) => c.items.flatMap(i => i.k === 'path' && pick(i as never) ? [(i as {d: string}).d] : []);
+const nums = (d: string) => [...d.matchAll(/-?\d+(?:\.\d+)?/g)].map(m => Number(m[0]));
+test('forest({domain}): an interval past the axis is cut at the plot end with an arrowhead and an info; an estimate or ref past it is an error', async () => {
+  const rows = [study('A', 1.5, 0.9, 12), study('L', 1.2, 0.3, 1.6), study('B', 1.3, 1, 1.7)];
   const {chart, verdict} = await chartOf(forest(rows, {domain: [0.5, 4]}));
   assert.deepEqual(verdict.problems, []);
   const info = verdict.findings.filter(f => f.rule === 'forest-clipped');
   assert.equal(info.length, 1);
   assert.equal(info[0]!.severity, 'info');
-  assert.match(info[0]!.message, /"A"/);
-  assert.doesNotMatch(info[0]!.message, /"B"/);
-  const arrows = chart.items.filter(i => i.k === 'path' && i.fill === 'text');
-  assert.equal(arrows.length, 1, 'one arrowhead, on the right end of A');
-  const free = await chartOf(forest(rows, {domain: [0.5, 16]}));
+  assert.match(info[0]!.message, /「A」/);
+  assert.match(info[0]!.message, /「L」/);
+  assert.doesNotMatch(info[0]!.message, /「B」/);
+  const [axis] = path(chart, i => i.stroke === 'muted').map(nums);
+  const plotL = axis![0]!, plotR = axis![2]!;
+  const lines = path(chart, i => i.stroke === 'text' && i.sw === 1.5 && i.fill === 'none' && !i.dash).map(nums);
+  assert.equal(lines.length, 3);
+  assert.deepEqual([lines[0]![0]! > plotL, lines[0]![2]!], [true, plotR], 'A: runs to the right end of the plot, not past it');
+  assert.deepEqual([lines[1]![0]!, lines[1]![2]! < plotR], [plotL, true], 'L: starts at the left end of the plot');
+  assert.ok(lines[2]![0]! > plotL && lines[2]![2]! < plotR, 'B is not cut');
+  assert.equal(path(chart, i => i.fill === 'text').length, 2, 'one arrowhead on the right of A and one on the left of L');
+  const free = await chartOf(forest(rows, {domain: [0.25, 16]}));
   assert.equal(free.verdict.findings.filter(f => f.rule === 'forest-clipped').length, 0);
-  assert.equal(free.chart.items.filter(i => i.k === 'path' && i.fill === 'text').length, 0);
+  assert.equal(path(free.chart, i => i.fill === 'text').length, 0);
   assert.throws(() => forest([study('A', 9, 5, 12)], {domain: [0.5, 4]}), /"A": estimate 9 is outside the axis/);
-  assert.throws(() => forest([study('A', 1.5, 1, 2)], {domain: [2, 4], ref: 1}), /outside the axis|estimate 1.5/);
   assert.throws(() => forest([study('A', 3, 2.5, 3.5)], {domain: [2, 4], ref: 1}), /ref 1 is outside the axis/);
+});
+
+test('forest({domain}): a summary row past the axis is a diamond cut flat at the plot end, and the info names it', async () => {
+  const diamond = (c: LaidOutChart) => path(c, i => i.fill === 'accent' && /^M[\d. ]+ L/.test(i.d) && i.d.includes('Z')).map(nums).find(p => p.length >= 8)!;
+  const {chart, verdict} = await chartOf(forest([study('A', 1.2, 0.9, 1.6), study('S', 1.5, 0.3, 3.5, {summary: true})], {domain: [0.5, 4]}));
+  assert.deepEqual(verdict.problems, []);
+  const [axis] = path(chart, i => i.stroke === 'muted').map(nums);
+  const pts = diamond(chart), xy = (k: number) => [pts[2 * k]!, pts[2 * k + 1]!];
+  assert.equal(pts.length, 10, 'five corners: a flat left edge');
+  assert.equal(xy(0)[0], axis![0]!, 'the flat edge is at the left end of the plot');
+  assert.equal(xy(4)[0], axis![0]!);
+  assert.ok(xy(4)[1]! > xy(0)[1]!, 'the edge has height (the diamond is not a point there)');
+  assert.ok(xy(1)[0]! > xy(0)[0]! && xy(1)[1]! < xy(0)[1]!, 'the top corner is at the estimate, higher than the cut');
+  assert.ok(xy(2)[0]! < axis![2]!, 'the right end (3.5) is a point inside the axis');
+  const info = verdict.findings.find(f => f.rule === 'forest-clipped')!;
+  assert.match(info.message, /「S」\(ひし形を端で平らに切る\)/);
+  assert.doesNotMatch(info.message, /「A」/);
+  const both = diamond((await chartOf(forest([study('S', 1.5, 0.3, 9, {summary: true})], {domain: [0.5, 4]}))).chart);
+  assert.equal(both.length, 12, 'cut on both sides: six corners');
 });
 
 // (vii) a 10-row figure passes the strict check
@@ -166,4 +205,24 @@ test('layoutForest(): the placement itself, at a given width: rows in order, the
   assert.equal(part.anchors.length, 1);
   assert.throws(() => layoutForest(s, {...geom, w: 200}), /too narrow/);
   assert.throws(() => layoutForest(s, {...geom, height: 20}), /too small/);
+});
+
+test('forest(): findings of a forest inside a row are reported; the right-hand favours must fit; headings are 12px left of the rows', async () => {
+  const {row} = await import('../lib/dsl.ts');
+  const clipped = forest([study('A', 1.5, 0.9, 12)], {domain: [0.5, 4]});
+  const d = await laid(row([clipped]));
+  assert.equal(d.verdict.findings.filter(f => f.rule === 'forest-clipped').length, 1);
+  const L = '右の注がとても長くてここに入らない言葉';
+  await assert.rejects(laid(forest([study('A', 0.9, 0.7, 1.1)], {favours: ['左', L.repeat(3)]})), /right of the reference line/);
+  const {chart} = await chartOf(forest([{heading: '見出し'}, study('行', 1.5, 1.2, 1.9)]));
+  const x = (t: string) => (chart.items.find(i => i.k === 'text' && i.s === t) as {x: number}).x;
+  assert.equal(x('行') - x('見出し'), 12);
+});
+
+test('forest(): when every interval is on one side of ref the notes still fit (the axis goes one tick past ref)', async () => {
+  const {verdict, chart} = await chartOf(forest([study('甲', 1.1, 1.02, 1.3), study('乙', 1.2, 1.05, 1.4), study('全体', 1.15, 1.06, 1.25, {summary: true})], {favours: ['対照が良い', '新方式が良い'], valueHeader: 'OR'}));
+  assert.deepEqual(verdict.problems, []);
+  assert.ok(texts(chart).includes('← 対照が良い'));
+  const low = await chartOf(forest([study('甲', 0.8, 0.6, 0.9)], {favours: ['対照が良い', '新方式が良い'], values: false}));
+  assert.deepEqual(low.verdict.problems, []);
 });
