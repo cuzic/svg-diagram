@@ -59,6 +59,7 @@ export function resolveForest(rows: readonly ForestRow[], opts: ForestOpts = {})
     const label = checkText('forest', `row ${k + 1}'s label`, r.label), at = `"${label}"`;
     const e = finiteNum('forest', `${at} estimate`, r.estimate), lo = finiteNum('forest', `${at} low`, r.low), hi = finiteNum('forest', `${at} high`, r.high);
     if (!(lo <= e && e <= hi)) fail('forest', `${at}: low ${lo} <= estimate ${e} <= high ${hi} does not hold (swap low and high, or fix the estimate)`);
+    if (scale === 'linear') for (const v of [e, lo, hi]) if (v !== 0 && Math.abs(v) < 1e-15) fail('forest', `${at}: ${v} is too small to write (below 1e-15): rescale the unit, for example to thousandths`);
     if (scale === 'log' && lo <= 0) fail('forest', `${at}: low ${lo} is 0 or less; ${logHint}`);
     if (scale === 'log' && lo < 1e-6) fail('forest', `${at}: low ${lo} is below 0.000001, which the axis cannot write (use values of 0.000001 or more)`);
     if (r.summary !== undefined && typeof r.summary !== 'boolean') fail('forest', `${at}: summary must be true`);
@@ -120,13 +121,12 @@ export function forestScale(s: ForestSpec): ForestScale {
 }
 
 const MINUS = '−';
-const noZero = (t: string): string => /^-0(\.0+)?$/.test(t) ? t.slice(1) : t;
 /** How many digits a cell needs: `decimals`, or more when a non-zero value is under half of the last digit (it would read 0.00): two significant digits of the smallest (never an exponent). */
 const cellDigits = (d: number, values: readonly number[]): number =>
   values.reduce((n, v) => v !== 0 && Math.abs(v) < 0.5 * 10 ** -d ? Math.max(n, Math.min(20, Math.ceil(-Math.log10(Math.abs(v))) + 1)) : n, d);
 /** "1.54 (1.22–1.95)"; once any row of the figure is negative (`comma`) every row reads "−4.2 (−7.9, −0.5)" (a dash between two negatives cannot be read). One cell has one number of digits. */
 export function forestValueText(s: Pick<ForestSpec, 'decimals'> & {comma?: boolean}, r: {estimate: number; low: number; high: number}): string {
-  const n = cellDigits(s.decimals, [r.estimate, r.low, r.high]), f = (v: number) => noZero(v.toFixed(n)).replace(/-/g, MINUS);
+  const n = cellDigits(s.decimals, [r.estimate, r.low, r.high]), f = (v: number) => v.toFixed(n).replace(/-/g, MINUS);
   const e = f(r.estimate), lo = f(r.low), hi = f(r.high);
   return `${e} (${lo}${s.comma || [e, lo, hi].some(t => t.startsWith(MINUS)) ? ', ' : '–'}${hi})`;
 }
@@ -162,7 +162,7 @@ export function layoutForest(s: ForestSpec, g: ChartGeom): LaidOutChartPart {
   const labelW = Math.min(Math.max(...rows.map(r => c.tw(labelOf(r), bold(r)) + (isHeading(r) ? 0 : indent))) + 12, g.w * 0.34);
   const valW = s.values ? Math.max(s.valueHeader ? c.tw(s.valueHeader, true) : 0, ...studies.map(r => c.tw(forestValueText(s, r), r.summary === true))) + 16 : 0;
   const plotL = g.x + labelW + 8, plotR = g.x + g.w - valW - 12;
-  if (plotR - plotL < 160) fail('forest', 'the figure is too narrow for its labels and numbers (raise width, or shorten the labels)');
+  if (plotR - plotL < 160) fail('forest', `the figure is too narrow for its labels and numbers (raise width, ${valW > labelW ? 'round the values or change the unit' : 'or shorten the labels'})`);
   const rawX = (v: number) => plotL + sc.pos(v) * (plotR - plotL);
   const xOf = (v: number) => plotL + Math.min(1, Math.max(0, sc.pos(v))) * (plotR - plotL);
   const r1 = (v: number) => Math.round(v * 10) / 10;

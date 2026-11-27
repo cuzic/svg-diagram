@@ -275,3 +275,13 @@ test('forest(): ticks and signs are written out, with U+2212; a log ref has its 
   assert.throws(() => forest([study('a', 1e-6, 1e-6, 3e-6)], {ref: 1e-7}), /ref 1e-7 is below 0.000001/);
   assert.doesNotThrow(() => forest([study('a', 1e-6, 1e-6, 3e-6)], {ref: 1e-6}));
 });
+
+test('forest(): a linear value below 1e-15 is an error that says to rescale; a negative ref and a three-digit small tick are written out', async () => {
+  assert.throws(() => forest([study('a', 2e-25, 1e-25, 3e-25)], {scale: 'linear', ref: 0}), /too small to write \(below 1e-15\): rescale the unit/);
+  assert.doesNotThrow(() => forest([study('a', 2e-14, 1e-14, 3e-14)], {scale: 'linear', ref: 0}));
+  const neg = forest([study('a', -1.5, -2, -1)], {scale: 'linear', ref: -1}).alt;
+  assert.ok(neg.startsWith('フォレストプロット（基準 −1）'), neg);
+  const {chart} = await chartOf(forest([study('a', 0.00015, 0.0001, 0.0003)], {ref: 0.000125}));
+  assert.ok(texts(chart).includes('0.000125'), `a tick of three significant digits: ${texts(chart)}`);
+  await assert.rejects(laid(forest([study('A', 5, 0.000000000001, 10)], {scale: 'linear', ref: 0, decimals: 3, width: 480})), /round the values or change the unit/);
+});

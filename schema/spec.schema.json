@@ -8300,7 +8300,7 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 3,
-          "description": "Digits of the numbers in the right-hand column (default 2)."
+          "description": "Digits of the numbers in the right-hand column (default 2). A cell with a value too small for them (under half of the last digit) is written with two significant digits of its smallest value, so it can have more digits."
         },
         "values": {
           "type": "boolean",

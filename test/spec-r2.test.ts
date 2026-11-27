@@ -106,4 +106,5 @@ test('forest spec: each mistake of a row or an option is reported at its own fie
   assert.deepEqual(at([row], {values: false, valueHeader: 'OR'}), ['parts[0].valueHeader']);
   assert.deepEqual(at([{...row, id: 'x'}, {...row, label: 'B', id: 'x'}]), ['parts[0].rows[1].id']);
   assert.deepEqual(at([{...row, low: -1, estimate: 0}], {scale: 'linear', ref: 0}), []);
+  assert.deepEqual(at([{label: 'A', estimate: 2e-25, low: 1e-25, high: 3e-25}], {scale: 'linear', ref: 0}), ['parts[0].rows[0].estimate', 'parts[0].rows[0].low', 'parts[0].rows[0].high']);
 });

@@ -21,7 +21,7 @@ export function defineForestPart<Result>(builder: (rows: never, opts: never) => 
       }, []), 40, 1),
       scale: oneOf('log', 'linear'),
       ref: {...NUM, description: 'The reference line: 1 on a log scale (default), 0 on a linear scale (default).'},
-      decimals: {type: 'integer', minimum: 0, maximum: 3, description: 'Digits of the numbers in the right-hand column (default 2).'},
+      decimals: {type: 'integer', minimum: 0, maximum: 3, description: 'Digits of the numbers in the right-hand column (default 2). A cell with a value too small for them (under half of the last digit) is written with two significant digits of its smallest value, so it can have more digits.'},
       values: {type: 'boolean', description: 'false: no number column.'},
       valueHeader: text('The heading of the number column, such as "OR (95% CI)".', 20),
       axisLabel: text('The title of the axis, such as "オッズ比(対数目盛)".', 30),
@@ -50,6 +50,7 @@ export function defineForestPart<Result>(builder: (rows: never, opts: never) => 
       const log = part['scale'] !== 'linear';
       items(part, 'rows').forEach((row, i) => {
         positive(row['weight'], `${at}.rows[${i}].weight`, 'a weight', issues);
+        if (!log) for (const k of ['estimate', 'low', 'high']) if (isNum(row[k]) && row[k] !== 0 && Math.abs(row[k] as number) < 1e-15) issues.push({path: `${at}.rows[${i}].${k}`, message: `${row[k]} is too small to write (below 1e-15): rescale the unit, for example to thousandths`});
         if (log && isNum(row['low']) && row['low'] < 1e-6) issues.push({path: `${at}.rows[${i}].low`, message: `${row['low']} is below 0.000001: a log scale needs values of 0.000001 or more (for differences write scale: linear)`});
       });
       if (log && isNum(part['ref']) && part['ref'] < 1e-6) issues.push({path: `${at}.ref`, message: 'a log scale needs a ref of 0.000001 or more'});
