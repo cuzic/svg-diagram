@@ -1,10 +1,10 @@
 // A deck's slides as outlined SVGs, for `serve` (ADR 0056 D2, D5): the figures drawn as `pptx-deck` draws them, the slide's text wrapped
 // with the same measuring, everything placed by lib/deck-layout.ts and outlined with the project's font files (lib/font-metrics.ts).
 import {createHash} from 'node:crypto';
-import {chooseColumns, columnWidths, deckTexts, figureRooms, maxScale, planDeckLayout, roomMessage, smallTextWarning, type FigureFit, type TextWidth} from '../deck-layout.ts';
+import {chooseColumns, columnWidths, deckTexts, figurePartTypes, figureRooms, maxScale, planDeckLayout, roomMessage, smallTextWarning, type FigureFit, type TextWidth} from '../deck-layout.ts';
 import {autoColumns, columnFigurePath, figurePath, figureProblemErrors, fitOf, sharedColumns} from '../deck-spec-core.ts';
 import {figureKey, hasSource, type LoadedDeck} from '../deck-file.ts';
-import {drawColumnFigure, renderDeckFigure} from '../deck-render-figure.ts';
+import {drawColumnFigure, growColumnFigure, renderDeckFigure} from '../deck-render-figure.ts';
 import {figureMinPt} from '../pptx/deck-figure.ts';
 import {measureAll, splitAtoms, textWidth} from '../measure.ts';
 import {outlineFontFromFiles, textBox} from '../font-metrics.ts';
@@ -75,7 +75,7 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
   const draw = async (i: number, spec: unknown, fit: FigureFit, room: {w: number; h: number} | null, j?: number, columnPx?: number): Promise<DrawnFigure | undefined | null> => {
     const source = sources.get(figureKey(i, j));
     if (spec === undefined && !source) return undefined;
-    const r = await renderDeckFigure(i, spec, source, cfg, fit === 'fill' && room ? {fresh: opts.fresh, column: j, fill: {box: room, cap: maxScale(fit)}} : {fresh: opts.fresh, column: j, columnPx});
+    const r = await renderDeckFigure(i, spec, source, cfg, {fresh: opts.fresh, column: j, ...(fit === 'fill' && room ? {fill: {box: room, cap: maxScale(fit)}} : {columnPx}), ...(room ? {grow: {box: room, cap: maxScale(fit)}} : {})});
     if (!r.ok) { errors.push(...r.errors); return null; }
     if (r.result.verdict.problems.length) { errors.push(...figureProblemErrors(j === undefined ? figurePath(i, null) : columnFigurePath(i, j, null), r.result.verdict.problems)); return null; }
     const lo = r.result.laidOut;
@@ -95,10 +95,13 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
     shares[i] = chosen.shares;
     const bad = chosen.figures.flatMap((f, j) => f ? figureProblemErrors(columnFigurePath(i, j, null), f.value.verdict.problems) : []);
     if (bad.length) { errors.push(...bad); return null; }
-    return chosen.figures.map(f => {
-      if (!f) return undefined;
-      const lo = f.value.laidOut;
-      return {svg: f.value.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: f.value.verdict.warnings};
+    // ADR 0085 D2: each column's figure drawn again with larger labels where its room (now the shares are chosen) makes that worthwhile
+    const room = figureRooms({...s, columns: sharedColumns(columns, chosen.shares)}, width);
+    const results = await Promise.all(chosen.figures.map((f, j) => f ? growColumnFigure(i, j, columns[j]?.figure, sources.get(figureKey(i, j)), cfg, f.value, room.columns[j] ?? null, maxScale(fitOf(deck, s)), opts.fresh) : undefined));
+    return results.map(r => {
+      if (!r) return undefined;
+      const lo = r.laidOut;
+      return {svg: r.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: r.verdict.warnings};
     });
   }));
   const shared = deck.slides.map((s, i) => ({...s, columns: s.columns && sharedColumns(s.columns, shares[i])}));
@@ -114,9 +117,9 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
   const box = (t: string, family: Parameters<typeof textBox>[1], size: number, weight: number) => textBox(t, family, size, weight, cfg.fonts);
   const pptxFonts = fontsOf(undefined);
   /** The smallest text of a figure scaled by k, counted as the .pptx counts it (ADR 0056 D2: the same warning on both). */
-  const smallText = (f: DrawnFigure, k: number, sourceLines: number): string | null => {
+  const smallText = (f: DrawnFigure, k: number, sourceLines: number, spec: unknown, column = false): string | null => {
     const plan = planSlide(f.laidOut, pptxFonts), inner = /<\/p:grpSpPr>([\s\S]*)<\/p:spTree>/.exec(plan.xml)?.[1] ?? '';
-    return smallTextWarning({scale: k, minTextPt: minTextPt(placeShapes(inner, k, 0, 0)), sourceLines});
+    return smallTextWarning({scale: k, minTextPt: minTextPt(placeShapes(inner, k, 0, 0)), sourceLines, parts: figurePartTypes(spec), column});
   };
   const slides = shared.map((s, i): RenderedSlide | null => {
     const here = `slides[${i}]`;
@@ -133,8 +136,8 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
       ? `${here}.columns[${j}].text: the text does not fit the column: shorten it, or give the column a larger width`
       : `${here}.columns[${j}]: the heading, lead, callouts and source leave the column's figure no room: shorten them, or split the slide`] : []);
     if (crowded.length) { errors.push(...crowded); return null; }
-    if (f && layout.figure) { const w = smallText(f, layout.figure.k, layout.sourceLines); if (w) said.push({at: '.figure', text: w}); }
-    layout.columns.forEach((c, j) => { const cf = cols[j]; if (cf && c.figure) { const w = smallText(cf, c.figure.k, layout.sourceLines); if (w) said.push({at: `.columns[${j}].figure`, text: w}); } });
+    if (f && layout.figure) { const w = smallText(f, layout.figure.k, layout.sourceLines, s.figure); if (w) said.push({at: '.figure', text: w}); }
+    layout.columns.forEach((c, j) => { const cf = cols[j]; if (cf && c.figure) { const w = smallText(cf, c.figure.k, layout.sourceLines, s.columns?.[j]?.figure, true); if (w) said.push({at: `.columns[${j}].figure`, text: w}); } });
     const out = slideSvg(layout, f ? {svg: f.svg} : undefined, font, box, cols.map(c => c ? {svg: c.svg} : undefined));
     for (const m of out.missing) errors.push(`${here}: no font has a glyph for 「${m.char}」 (in 「${m.text}」): name a font that has it in .svg-diagram.json "fonts"`);
     for (const u of out.unsupported) errors.push(`${here}: text drawn with ${u} cannot be outlined, so the slide would lose it: take it out of the figure${WORDART_HINT[u] ?? ''}`);

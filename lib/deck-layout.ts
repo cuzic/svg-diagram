@@ -17,6 +17,8 @@ export const FILL_FIGURE_SCALE = 1.5;
 export const maxScale = (fit: FigureFit): number => fit === 'fill' ? FILL_FIGURE_SCALE : MAX_FIGURE_SCALE;
 /** The smallest text (pt) a scaled figure may have before the slide is reported as hard to read. */
 export const MIN_TEXT_PT = 9;
+/** The least a figure's smallest text may come to on the slide, in px (ADR 0085 D1): 14 px is the size every figure's text is drawn at before it is scaled. */
+export const MIN_FIGURE_TEXT_PX = 14;
 /** Line pitch as a multiple of the text size. */
 export const LINE = 1.3;
 /** The longest `source` (footnote), in characters (ADR 0055 D1, raised from 300). It wraps at STYLE.source.size, and the figure's room shrinks by its lines. */
@@ -306,23 +308,72 @@ export const roomMessage = (hasFigure: boolean, cover = false): string => cover
   ? 'the heading, lead, callouts and source leave no room for the figure: shorten them, or put the figure on a slide of its own'
   : 'the heading and lead run into the callouts and source: shorten them, or split the slide';
 
-/** A warning for a slide whose figure's smallest text is under MIN_TEXT_PT, or null. */
-export function smallTextWarning(p: {scale: number | null; minTextPt: number | null; sourceLines?: number}): string | null {
-  if (p.minTextPt === null || p.scale === null || p.minTextPt >= MIN_TEXT_PT) return null;
+/** The part types (`parts[].type`) of a deck figure's spec; empty for a file name, a non-spec value or a spec without parts. */
+export function figurePartTypes(spec: unknown): string[] {
+  const parts = typeof spec === 'object' && spec !== null && !Array.isArray(spec) ? (spec as {parts?: unknown}).parts : undefined;
+  if (!Array.isArray(parts)) return [];
+  return parts.flatMap((p: unknown) => {
+    const kind = typeof p === 'object' && p !== null ? (p as {type?: unknown})['type'] : undefined;
+    return typeof kind === 'string' ? [kind] : [];
+  });
+}
+
+/** Parts whose height is set by their own geometry (circles with a fixed radius): fewer items do not make their text larger (ADR 0085). */
+const FIXED_HEIGHT_PARTS: ReadonlySet<string> = new Set(['concentric', 'venn', 'cycle']);
+
+/** What to do about a figure whose text is small, by what makes it small (ADR 0085 D1). */
+function smallFigureAdvice(parts: readonly string[], column: boolean): string {
+  const fixed = parts.filter(t => FIXED_HEIGHT_PARTS.has(t)), others = parts.length - fixed.length;
+  const height = column ? 'give the figure more height (fewer callouts)' : 'give the figure more height (fewer callouts, or put it in a column beside the text)';
+  const items = 'cut items, or split the figure over two slides';
+  if (!parts.length) return 'give the figure more room, cut items, or split it over two slides';
+  if (!others) return height;
+  return fixed.length ? `${height}; for the other parts, ${items}` : items;
+}
+
+/**
+ * A warning for a slide whose figure's smallest text is under MIN_TEXT_PT, or (ADR 0085 D1) under MIN_FIGURE_TEXT_PX on the slide, or null.
+ * `parts`: the part types of the figure, to say what helps.
+ */
+export function smallTextWarning(p: {scale: number | null; minTextPt: number | null; sourceLines?: number; parts?: readonly string[]; /** The figure is in a column of its slide. */ column?: boolean}): string | null {
+  if (p.minTextPt === null || p.scale === null) return null;
   const how = p.scale < 1 ? `scaled to ${Math.round(p.scale * 100)}% to fit the slide, its` : 'its';
-  const fix = (p.sourceLines ?? 0) > 4 ? 'split the figure, move text off the slide, or move part of the source to the notes' : 'split the figure, or move text off the slide';
-  return `${how} smallest text is ${p.minTextPt.toFixed(1)}pt (under ${MIN_TEXT_PT}pt): ${fix}`;
+  if (p.minTextPt < MIN_TEXT_PT) {
+    const fix = (p.sourceLines ?? 0) > 4 ? 'split the figure, move text off the slide, or move part of the source to the notes' : 'split the figure, or move text off the slide';
+    return `${how} smallest text is ${p.minTextPt.toFixed(1)}pt (under ${MIN_TEXT_PT}pt): ${fix}`;
+  }
+  const px = p.minTextPt * 96 / 72;
+  if (px >= MIN_FIGURE_TEXT_PX - 0.02) return null;
+  const scaled = p.scale < 1 ? `, scaled to ${Math.round(p.scale * 100)}% to fit the slide` : '';
+  return `figure text is ~${px.toFixed(1)}px on the slide (under ${MIN_FIGURE_TEXT_PX}px, the figure's text size at scale 1)${scaled}: ${smallFigureAdvice(p.parts ?? [], p.column === true)}`;
 }
 
 /** The layout widths 'fill' tries (ADR 0060): the document's 940 and narrower, each about 12 % less, down to the spec's 320. */
 export const FILL_WIDTHS: readonly number[] = [827, 728, 640, 563, 496, 436, 384, 338];
+
+/** The widest a spec's own `width` goes (ADR 0059): the document's text column. A wider layout is only the deck's choice (`wideWidths`). */
+export const DOC_LAYOUT_WIDTH = 940;
+/**
+ * The layout widths wider than the document's 940 that 'fill' may try in a room `boxW` wide (B6): the same step (about 12 %) up, and the room's own
+ * width, never past it (a layout wider than its room is drawn smaller than 1:1, so its text shrinks). Empty when the room is no wider than 940.
+ */
+export function wideWidths(boxW: number): number[] {
+  const hi = Math.floor(boxW);
+  return [Math.round(DOC_LAYOUT_WIDTH / 0.89), hi].filter((w, i, all) => w > DOC_LAYOUT_WIDTH && w <= hi && all.indexOf(w) === i);
+}
+
+/** The diagram laid out at `width` (past the spec's own 940: a deck's wide room), its doc-width threshold raised with it; as it is when there is none. */
+export function widenDiagram<D extends {width: number; maxWidth?: number}>(d: D, width?: number): D {
+  if (width !== undefined) Object.assign(d, {width, maxWidth: Math.max(width, d.maxWidth ?? 0)});
+  return d;
+}
 
 /** A figure laid out at one width: its size, and the checks it raised (rule ids such as text-mid-word-break), or why it could not be. */
 export type Drawn<T> = {ok: true; w: number; h: number; value: T; flags: readonly string[]} | {ok: false; why: string};
 
 /** The rule ids of a verdict's findings (`[rule-id] …`). */
 export const ruleIds = (findings: readonly string[]): string[] => [...new Set(findings.map(f => /\[([a-z0-9-]+)\]/.exec(f)?.[1] ?? f))];
-export interface FillResult<T> {ok: true; value: T; /** The layout width chosen, or null for the figure as it is (940). */ width: number | null; k: number; tried: number; /** Why the first narrower width that failed failed. */ narrower: {width: number; why: string} | null}
+export interface FillResult<T> {ok: true; value: T; /** The layout width chosen (past 940 only for a wide room), or null for the figure as it is (940). */ width: number | null; k: number; tried: number; /** Why the first narrower width that failed failed. */ narrower: {width: number; why: string} | null}
 
 /**
  * The layout width that draws a figure largest in `box` (ADR 0060): the figure as it is first, then narrower widths while it is the width
@@ -335,9 +386,36 @@ export async function fillSearch<T>(box: {w: number; h: number}, cap: number, dr
   const scale = (d: {w: number; h: number}) => Math.min(box.w / d.w, box.h / d.h, cap);
   const heightBound = (d: {w: number; h: number}) => box.h / d.h <= box.w / d.w;
   const first = await draw(null);
-  if (!first.ok) return first;
+  const wide = wideWidths(box.w);
+  // a figure that does not fit the document's 940 (a flowchart in one row) may fit a slide room wider than that (B6)
+  if (!first.ok) {
+    let found: FillResult<T> | null = null, tried = 1;
+    for (const width of wide) {
+      const d = await draw(width);
+      tried++;
+      if (!d.ok) continue;
+      const k = scale(d);
+      if (!found || k > found.k * 1.01) found = {ok: true, value: d.value, width, k, tried, narrower: null};
+      // a wider width is only worth trying while the height is not what holds this one back
+      if (!heightBound(d) || k >= cap) break;
+    }
+    return found ? {...found, tried} : first;
+  }
   let best: FillResult<T> = {ok: true, value: first.value, width: null, k: scale(first), tried: 1, narrower: null};
-  if (heightBound(first) || best.k >= cap) return best;
+  if (best.k >= cap) return best;
+  if (heightBound(first)) {
+    // held back by its height: a wider layout is flatter, and its text (which does not change with the layout width) is drawn larger
+    for (const width of wide) {
+      if (width <= first.w) continue;
+      const d = await draw(width);
+      best.tried++;
+      if (!d.ok || d.flags.some(f => !first.flags.includes(f))) break;
+      const k = scale(d);
+      if (k > best.k * 1.01) best = {...best, value: d.value, width, k};
+      if (!heightBound(d) || k >= cap) break;
+    }
+    return best;
+  }
   for (const width of FILL_WIDTHS) {
     if (width >= first.w) continue;
     const d = await draw(width);
@@ -409,7 +487,8 @@ export async function chooseColumns<T>(s: DeckTextIn & {columns: readonly {capti
         continue;
       }
       let pt: number | null | undefined;
-      const fit = await fillSearch(place.box, cap, async width => { const d = await drawn(j, width); if (d.ok) pt = d.minPt; return d; });
+      // a column's room is under 940 (at most 858), so no wide layout is tried here: the callers build `{...spec, width}`, which a width past 940 would break
+      const fit = await fillSearch(place.box, cap, async width => { if (width !== null && width > DOC_LAYOUT_WIDTH) return {ok: false as const, why: 'a column is narrower than the document width'}; const d = await drawn(j, width); if (d.ok) pt = d.minPt; return d; });
       if (!fit.ok) { failed = true; lastWhy = fit.why; break; }
       // the minPt of the width chosen: drawn again from the memo
       const chosen = await drawn(j, fit.width);

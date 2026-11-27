@@ -30,7 +30,7 @@ export interface BarsOpts extends RevealOpts, ScopeOpts {
   /** Horizontal bars only: how far the plot area starts from the figure's left edge and ends from its right edge, in px (default: what the labels need). Bars written with the same `plotInset` and the same `max` (or a chart's `domain`) draw the same value as the same length. Less than the labels need is an error that names the minimum. */
   plotInset?: readonly [left: number, right: number];
   stack?: boolean;
-  /** Figure height. Vertical bars default to 280; horizontal bars derive it from their count. */
+  /** Figure height. Vertical bars default to 280; horizontal bars derive it from their count. Horizontal bars with labelled `lines` add the rows of those labels above this height. */
   height?: number;
   /** Which labels to draw: both (default), the category labels only, or none. */
   labels?: 'all' | 'category' | 'none';
@@ -44,7 +44,7 @@ export interface BarsOpts extends RevealOpts, ScopeOpts {
   barRatio?: number;
   /** Leave out the value label of a bar that is 0 (a histogram's empty classes). */
   hideZero?: boolean;
-  /** Vertical bars only: horizontal reference lines (a target, a mean, a limit) at a value of the bars' axis. */
+  /** Reference lines (a target, a mean, a limit) at a value of the bars' axis: horizontal across vertical bars, vertical across horizontal bars (not stacked). */
   lines?: BarsLine[];
   /** Vertical bars only: vertical reference lines at a position along the bars (in bar slots: 0 is the left edge of the first bar, 1 the edge between the first and the second). A histogram's specification limits and mean. */
   vlines?: BarsLine[];
@@ -82,6 +82,8 @@ export interface LaidOutBars extends Rect, Dimmed {
   type: 'bars';
   /** Reference lines, the cumulative line and the curve of a bars() with those options. */
   ink?: BarsInk;
+  /** Reference-line labels raised without a leader (no way to keep the leaders clear): which line they name is unclear. */
+  bare?: string[];
   id?: string;
   dir: 'h' | 'v';
   stack: boolean;

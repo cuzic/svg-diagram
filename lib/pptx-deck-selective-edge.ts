@@ -14,6 +14,6 @@ export type DeckEdgeOptions = SelectedFigureOptions & PptxEdgeOptions;
 export function renderDeckPptxEdge(input: unknown, engine: TextEngine, opts: DeckEdgeOptions): Promise<DeckEdgeResult> {
   return renderDeckPptxEdgeWith(input, engine, opts, {
     validate: deck => validateDeckWith(deck, spec => validateSpec(spec, opts)),
-    plan: (spec, guarded) => planSelectedFigureEdge(spec, guarded, opts),
+    plan: (spec, guarded, width, textSize) => planSelectedFigureEdge(spec, guarded, opts, width, textSize),
   });
 }

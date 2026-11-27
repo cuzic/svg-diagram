@@ -4,7 +4,7 @@ import {
   faultTree, flowchart, funnel, isIsNot, isIsNotTests, legend, quadrant, raci, row, stat,
   stateMatrix, swimlane, table, wf, whyWhyTree, wireframe,
 } from '../../lib/dsl-pure.ts';
-import {image} from '../../lib/dsl.ts';
+import {decisionLadder, image} from '../../lib/dsl.ts';
 import {canvasFindings} from '../../lib/canvas-findings.ts';
 import {wrapFallbackFindings} from '../../lib/document-findings.ts';
 import {analysisFindings} from '../../lib/finding-rules.ts';
@@ -127,6 +127,7 @@ export function ruleLocationFixtures(): Case[] {
       {label: 'tiny', at: [0.8, 0.8], size: 1, tone: 'muted'},
     ]}),
   ], {});
+  add(['ladder-height-bound'], [decisionLadder([1, 2, 3, 4].map(i => ({q: `問い ${i}`, yes: `答え ${i}`})), '最後'), ], {width: 320});
   add(['flowchart-decision-edges'], [flowchart([{id: 'a', label: '確認', kind: 'decision'}, {id: 'b', label: '次'}],
     [{from: 'a', to: 'b'}])], {});
   add(['concentric-label-crossing'], [concentric(['Adopt', 'Trial', 'Assess', 'Hold'].map(label => ({label})), {

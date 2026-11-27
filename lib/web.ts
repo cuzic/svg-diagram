@@ -15,6 +15,8 @@ import {checkToday} from './today-auto.ts';
 import type {Diagram, DiagramData, MeasureRequest, Measured} from './types/core.ts';
 import type {LaidOutDiagram} from './types/index.ts';
 import type {Verdict} from './types/verdicts.ts';
+import {normalizeIdPrefix, prepareForEmbedding} from './svg-ids.ts';
+import type {EmbedOptions} from './svg-ids.ts';
 
 export * from './dsl-pure.ts';
 export {canvasMeasurer, svgMeasurer} from './web-measure.ts';
@@ -48,7 +50,8 @@ export const image = unsupported('image()', 'pictures are read from files by the
  * failed verification or a malformed SVG: both are in the result. A layout or build error still throws.
  * `today` ('YYYY-MM-DD'): the day a gantt({today: 'auto'}) draws; the library never reads the clock, so the page says which day it is.
  */
-export async function renderInBrowser(input: Diagram | DiagramData, opts: {measure: WebMeasurer; today?: string; nodeIds?: boolean}): Promise<WebRender> {
+export async function renderInBrowser(input: Diagram | DiagramData, opts: {measure: WebMeasurer; today?: string; nodeIds?: boolean} & EmbedOptions): Promise<WebRender> {
+  if (opts.idPrefix !== undefined) normalizeIdPrefix(opts.idPrefix);
   const d = detachData(opts.today === undefined ? input : {...input, today: checkToday(opts.today, 'renderInBrowser({today})')});
   if (d.slide || d.fill) throw new Error('renderInBrowser: diagram({slide, fill}) needs a measured slide, which the browser entry has not got');
   // The supplied engine runs in the page, without launching a separate browser.
@@ -57,7 +60,7 @@ export async function renderInBrowser(input: Diagram | DiagramData, opts: {measu
     d, {measure: opts.measure, nodeIds: opts.nodeIds},
     {spotlighter: legacySpotlighter, fitter: slideFitter, connectors: connectDefinition, captions: captionDefinition, autoLegend},
   );
-  return {svg, verdict, xml, width, height, fit, fontScale, laidOut};
+  return {svg: prepareForEmbedding(svg, opts), verdict, xml, width, height, fit, fontScale, laidOut};
 }
 
 export {renderComic} from './comic/render.ts';

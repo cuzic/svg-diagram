@@ -12,7 +12,7 @@ import {TEMPLATE} from './template.ts';
 import {attr, emu, sp, type Fonts} from './xml.ts';
 
 // the layout is shared with the slide SVG of `serve` (ADR 0056 D2); these stay importable from here
-export {deckTexts, MAX_FIGURE_SCALE, MIN_TEXT_PT, roomMessage, SLIDE_H, SLIDE_W, smallTextWarning, type TextWidth} from '../deck-layout.ts';
+export {deckTexts, figurePartTypes, MAX_FIGURE_SCALE, MIN_FIGURE_TEXT_PX, MIN_TEXT_PT, roomMessage, SLIDE_H, SLIDE_W, smallTextWarning, type TextWidth} from '../deck-layout.ts';
 
 export interface DeckFigure {plan: SlidePlan; /** Its laid-out size, px. */ w: number; h: number}
 /** A column of a slide (ADR 0058): its figure (laid out) or its text. */
@@ -158,13 +158,16 @@ const IMAGE_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relatio
 const SLIDE_CT = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml';
 const NOTES_CT = 'application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml';
 
-/** The notes page: one paragraph per line, blank lines kept as empty paragraphs (a break between thoughts), the leading and trailing blank lines dropped. */
+/**
+ * The notes page: one paragraph per line, blank lines kept as empty paragraphs (a break between thoughts), the leading and trailing blank lines dropped.
+ * `<a:t>` takes no attributes (pml.xsd; unlike WordprocessingML's w:t, no xml:space): DrawingML keeps a run's spaces as they are, so an indent survives without it.
+ */
 function notesXml(template: string, notes: string): string {
   const lines = notes.replace(/\t/g, '    ').split(/\r\n|\r|\n/).map(l => l.trimEnd());
   while (lines.length && !lines[0]) lines.shift();
   while (lines.length && !lines[lines.length - 1]) lines.pop();
   const empty = '<a:p><a:endParaRPr lang="ja-JP" dirty="0"/></a:p>';
-  const paras = lines.length ? lines.map(l => l ? `<a:p><a:r><a:rPr lang="ja-JP" dirty="0"/><a:t xml:space="preserve">${escapeXml(l)}</a:t></a:r></a:p>` : empty).join('') : empty;
+  const paras = lines.length ? lines.map(l => l ? `<a:p><a:r><a:rPr lang="ja-JP" dirty="0"/><a:t>${escapeXml(l)}</a:t></a:r></a:p>` : empty).join('') : empty;
   return once(template, /(<p:ph type="body" idx="1"\/>[\s\S]*?<a:lstStyle\/>)[\s\S]*?(<\/p:txBody>)/, (_m, a: string, b: string) => a + paras + b, 'the notes body');
 }
 
@@ -189,9 +192,9 @@ export function deckEntries(slides: readonly PlannedSlide[], pngs: readonly (rea
     let x = t;
     if (name === 'ppt/presentation.xml') {
       x = once(x, /<p:sldSz[^>]*\/>/, `<p:sldSz cx="${emu(SLIDE_W)}" cy="${emu(SLIDE_H)}"/>`, 'p:sldSz');
-      x = once(x, /<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/, '', 'p:sldIdLst');
-      // the schema's order is sldMasterIdLst, notesMasterIdLst, sldIdLst (the template has the slide list first, which pml.xsd rejects)
-      x = once(x, /(<p:notesMasterIdLst>[\s\S]*?<\/p:notesMasterIdLst>)/, `$1<p:sldIdLst>${slides.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${100 + i}"/>`).join('')}</p:sldIdLst>`, 'p:notesMasterIdLst');
+      // the slide list stays where the template has it, before the notes master list (ADR 0055): pml.xsd wants it after, but PowerPoint does
+      // not open a deck with notes in the schema's order (seen with Microsoft 365 PowerPoint 16.0.20326 and a user's PowerPoint), and opens this one
+      x = once(x, /<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>(?=<p:notesMasterIdLst>)/, `<p:sldIdLst>${slides.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${100 + i}"/>`).join('')}</p:sldIdLst>`, 'p:sldIdLst before p:notesMasterIdLst');
     } else if (name === 'ppt/_rels/presentation.xml.rels') {
       x = once(x, new RegExp(`<Relationship Id="rId\\d+" Type="${SLIDE_REL.replace(/[./]/g, '\\$&')}" Target="slides/slide1.xml"/>`), '', 'the slide relationship');
       x = once(x, '</Relationships>', slides.map((_, i) => `<Relationship Id="rId${100 + i}" Type="${SLIDE_REL}" Target="slides/slide${i + 1}.xml"/>`).join('') + '</Relationships>', 'Relationships');
@@ -230,12 +233,12 @@ export function deckEntries(slides: readonly PlannedSlide[], pngs: readonly (rea
  * What stops a planned slide (no room), and what it is warned about (small text), each with its place: the slide's figure, or each column's
  * (ADR 0058). `kinds`: what each column holds.
  */
-export function slideIssues(p: PlannedSlide, i: number, hasFigure: boolean, kinds: readonly ('figure' | 'text')[] = []): {errors: {path: string; message: string}[]; warnings: {path: string; message: string}[]} {
+export function slideIssues(p: PlannedSlide, i: number, hasFigure: boolean, kinds: readonly ('figure' | 'text')[] = [], parts: {figure?: readonly string[]; columns?: readonly (readonly string[])[]} = {}): {errors: {path: string; message: string}[]; warnings: {path: string; message: string}[]} {
   const errors: {path: string; message: string}[] = [], warnings: {path: string; message: string}[] = [];
   if (p.sourceError) return {errors: [{path: `slides[${i}].source`, message: p.sourceError}], warnings};
   if (!kinds.length) {
     if (p.noRoom) errors.push({path: `slides[${i}]`, message: roomMessage(hasFigure, p.cover)});
-    else { const w = smallTextWarning(p); if (w) warnings.push({path: `slides[${i}].figure`, message: w}); }
+    else { const w = smallTextWarning({...p, parts: parts.figure}); if (w) warnings.push({path: `slides[${i}].figure`, message: w}); }
     return {errors, warnings};
   }
   (p.columns ?? []).forEach((c, j) => {
@@ -243,7 +246,7 @@ export function slideIssues(p: PlannedSlide, i: number, hasFigure: boolean, kind
     if (c.noRoom) errors.push(kinds[j] === 'text'
       ? {path: `${at}.text`, message: 'the text does not fit the column: shorten it, or give the column a larger width'}
       : {path: at, message: 'the heading, lead, callouts and source leave the column\'s figure no room: shorten them, or split the slide'});
-    else { const w = smallTextWarning({...c, sourceLines: p.sourceLines}); if (w) warnings.push({path: `${at}.figure`, message: w}); }
+    else { const w = smallTextWarning({...c, sourceLines: p.sourceLines, parts: parts.columns?.[j], column: true}); if (w) warnings.push({path: `${at}.figure`, message: w}); }
   });
   if (p.noRoom && !errors.length) errors.push({path: `slides[${i}]`, message: roomMessage(true)});
   return {errors, warnings};

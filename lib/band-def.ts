@@ -127,6 +127,8 @@ interface BandHooks<D, L extends object> {
   verify?: {
     /** @internal Authored samples for the diagram-wide grayscale comparison. */
     tones?(data: D): readonly string[];
+    /** @internal What else tells this sample apart from another tone: its own outline (`dashed`, when it overrides the tone's). Read only by the grayscale comparison. */
+    toneMarks?(data: D): {readonly dashed?: boolean};
     /** @internal Placed samples for the diagram-wide grayscale comparison. */
     layoutTones?(laid: L): readonly string[];
     /** @internal A participant in the diagram-wide legend completeness check. */

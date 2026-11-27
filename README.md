@@ -72,8 +72,11 @@ CI で「SVG が最新か」だけ見るなら `svg-diagram check --drift diagra
 - 既定は `127.0.0.1` だけで待ち受ける。同じ LAN の端末に見せるには `--host 0.0.0.0`（QR が出る。LAN は暗号化されないので、会場の Wi-Fi では `--publish` を勧める）。
 - `--publish https://<自分の Worker>`（または `SVG_DIAGRAM_PUBLISH_ORIGIN`）と `SVG_DIAGRAM_PUBLISH_TOKEN` で、自分の Cloudflare にデプロイした Worker に送る。手元のサーバーは立ち上げず、保存するたびに送る。Worker のデプロイと設定は `worker/README.md`。
 - **表紙**（`pptx-deck` も同じ。ADR 0066）: スライドに `"layout": "cover"` を書くと、`event`（会・シリーズの名前）・`title`・`lead`（副題）・`date`・`presenter` を大きく中央にそろえて描く。`date` と `presenter` は書いたとおりに描く（「2026年11月27日」でも「2026-11-27」でもよい）。表紙は `title` が要り（2 行以上になる題名は、語の途中で割らない範囲で、最後の行が短く落ちないよう、行の長さをそろえて折り返す。ふつうのスライドの見出しも同じ。`title` に `\n` を書くとそこで必ず改行する）、`figure`・`columns`・`columnScale`・`fit`・`callouts` は書けない（場所つきの誤り）。`event`・`date`・`presenter` は表紙にだけ書ける。例: `{"layout": "cover", "event": "第3回 図の描き方 勉強会", "title": "図で伝える、要件の話", "lead": "言葉だけでは伝わらないことを、図にして渡す。", "date": "2026年12月4日", "presenter": "山田 花子"}`。
+- **スライドの `callouts` は文字列でも書ける**（`pptx-deck` / `serve` / `site` も同じ）: `{"label": "足す一文：", "text": "本文"}` の代わりに `"足す一文：本文"` と書ける。callout には `label` があるので、文字列は最初の `": "`（半角のコロンと空白）か全角の `：` で `label`（コロンまで。半角は後ろの空白も。ラベルと本文はつないで描く）と `text` に分ける。次のときは分けず、全体が `text`: 区切りが無い、片側が空、`label` が 60 字を超える、空白の無い半角のコロン（`12:30`）、両側が数字の全角 `：`（`１２：３０`）。分けたくないときはオブジェクト `{"text": "…"}` で書く。分けたあとの上限（`label` 60 字・`text` 300 字・3 つまで）はオブジェクトと同じで、文字列の誤りは `callouts[j]` の場所で、文字列として読んだことを添えて言う（`pptx-deck` / `serve` / `site` / MCP とも）。MCP プラグインの `render_deck` の説明（「label と text」の書き方）は、プラグインがこの版に上げるときに合わせる。
 
 - **脚注 `source`**（`pptx-deck` / `serve` / `site` も同じ。ADR 0055 D1 の追記）: スライドの `source` は 800 字まで（以前は 300 字）。調査の種類・標本の大きさ・指標と向き・信頼区間・用語の定義のように長い脚注は、そのまま書ける。長い脚注は、今までと同じ小さい文字（13px）のまま下の端で折り返し、増えた行の分だけ図の置き場が縮む（箱の高さは行数で決まるので、PPTX の脚注の箱も伸びる）。図の文字が 9pt を下回るほど縮めば、いつもの「smallest text」の警告が出る。折り返しが 12 行を超えると、そのスライドの誤り（`slides[i].source: the source (N characters) wraps to M lines …`）になり、描かれない。脚注を短くするか、詳細をノートへ移す。
+- **図の文字が小さいときの警告**（`pptx-deck` / `serve` / `site` も同じ。ADR 0085 D1）: スライドに置いた図のいちばん小さい文字が、スライド上で **14px 未満**（約 10.5pt。倍率 1 のときの図の文字の大きさ）になると、`slides[i].figure: figure text is ~Npx on the slide (under 14px, …)` の警告が出る（描画は変わらない。スライドにリードや強調の枠があるかは関係しない。段の図は `slides[i].columns[j].figure`）。9pt 未満まで縮んだ図には、**この警告の代わりに**上の「smallest text」の警告だけが出る（2 つは重ならない）。直し方は図の部品で変わる。concentric・venn・cycle のように図の高さが部品で決まるものは「図の高さを増やす（強調の枠を減らす、または段に置いて本文を横に置く。すでに段の図は「強調の枠を減らす」だけ）」、行を積む部品は「項目を減らす、またはスライドを分ける」、両方が混ざった図は両方、部品の種類が分からない `.ts` の図は「図に場所を与える、項目を減らす、または分ける」という一般の文になる。MCP の `render_deck` は図を文書の図として描くので、この警告は出ない（`export_deck_pptx` は出す）。
+- **デッキの図の部品の文字を大きくする**（`pptx-deck` / `serve` / `site` も同じ。ADR 0085 D2）: スライドに置いた concentric（`labels: 'inside'`、`sectors` なし）・venn・cycle（`links` なし）の文字は、図をスライドに縮めたとき実効が約 21px（`floor(21 / 倍率)`、最大 22px）になるまで大きく描き直される。14px 未満にはしない。輪の帯・円・節の中にラベルが収まる（使える幅の 0.92 倍）最大の大きさを選び、収まらなければ 14px のまま（その場合は上の 14px 未満の警告が出うる）。図が高くなる大きさは採らない（`frame` のある cycle は枠の題も大きくなって図が高くなるので、14px のまま）。文書の図（`build`・`renderSpec`）と `.ts` の図は変わらない。MCP の `render_deck` は図を文書の図として描くので、この引き上げは受けない（`export_deck_pptx` は受ける）。
 
 **複数のデッキをサイトにする（`svg-diagram site`）**: `svg-diagram site site.json --out dist`（またはデッキを並べて `svg-diagram site a/deck.json b/deck.json --out dist`）は、デッキを静的なサイトに書き出す（ADR 0067）。一覧のページと、デッキごとに `serve` の聴き手と同じ画面（発表者なし）・印刷のページ・スライドの SVG を作る。ノートは書き出さない。ネットワークには触れないので、置くのは自分で行う（Cloudflare なら `npx wrangler deploy`。手順は `docs/deck-site-deploy.md`）。
 
@@ -263,7 +266,7 @@ Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使�
     svg-diagram build <source.ts> --no-source-line       # diagram({sourceLine}) を描かない（スライド用と文書用を 1 つのソースで使い分ける。ソースは変えない。deck も同じフラグを受ける）
     svg-diagram build|check [--today YYYY-MM-DD] <source.ts>...   # gantt({today: 'auto'}) の日付を渡す（環境変数 SVG_DIAGRAM_TODAY、.svg-diagram.json の "today" でも可。「ガントチャート」の節）
     svg-diagram build <source.ts> --html                 # <name>.html も書く（文字・箱・表・線・矢印・曲線を HTML/CSS で。docs/adr/0006）
-    svg-diagram build <source.ts>... --id-prefix <p|auto>   # 複数の図を 1 つの HTML に貼るとき、SVG/HTML の内側の id（svg-title・dsl-arrow など）と参照に <p>-<id> を付ける。ソースが複数なら <p>-<ソース名>-<id>、auto は内容ハッシュ（sd<8 桁>）。<metadata id="svg-diagram"> は書き換えない（check --drift・--stale が読む）。付けなければ出力は 1 バイトも変わらない。--stale とは併用しても毎回作り直す（docs/adr/0012 D2）
+    svg-diagram build <source.ts>... --id-prefix <p|auto>   # 複数の図を 1 つの HTML に貼るとき、SVG/HTML の内側の id（svg-title・dsl-arrow など）と参照に <p>-<id> を付ける。ソースが複数なら <p>-<ソース名>-<id>、auto は内容ハッシュ（sd<8 桁>）。<metadata id="svg-diagram"> は書き換えない（check --drift・--stale が読む）。付けなければ出力は 1 バイトも変わらない。`--inline` を足すと、書き出す SVG から width / height を除いて viewBox だけにする（CSS で大きさを決めるページ向け。`check --drift --rebuild` は viewBox を大きさとして見るので、見た目の変化とは言わない）。--stale とは併用しても毎回作り直す（docs/adr/0012 D2）
     svg-diagram check [--strict] [--verbose] <source.ts>...        # ルール検査（SVG は書かない）
     svg-diagram check --forbid-draft <source.ts>...      # diagram({status: 'draft'}) の図を warn にする（公開ジョブだけが付ける。「下書きバッジ」の節）
     svg-diagram check --drift [--svg-dir DIR] [--rebuild [--jobs N] [--no-cache] [--cache-dir DIR]] <source.ts>...   # 生成済み SVG が最新か（--rebuild: 再生成と比べ、違いを言葉で説明。並列＋成功のキャッシュ: 下の「ズレ検査を速くする」）
@@ -305,7 +308,7 @@ Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使�
 | legend(items) | 線種・トーンの凡例 |
 | swimlane(lanes, steps, {flows, phases, boundaries, fit, laneOrder, labelW, focus}) | スイムレーン図。レーン=担当（人・チーム・システム）、列=時間。引き継ぎの矢印を自動で向きづけ。`col` で並行作業を揃える。列が狭くなるときは `fit: 'shrink'` でレーン名の列と列の間隔を詰める `laneOrder: 'auto'` は、`flows` の引き継ぎが最も短くなるレーン順に並べ替える（`fixed: true` のレーンはそのまま。8 本まで。同じ長さなら渡した順）。。**サービスブループリント**: `boundaries: [{between: ['cust', 'front'], label: '相互作用線'}, {between: ['front', 'back'], label: '可視線'}, …]` で、2 つのレーンの境目に太い破線を全幅に引き、`label` をラベル列のチップに書く（隣り合っていなければ throw。`{after: id}` も書ける。チップの分だけ両側のレーンが高くなり、名前が入る幅（`labelW` を書かなければ自動で広がり、書いて足りなければ throw）が要る。`fit: 'shrink'` もその幅より狭めない。失敗点・待ちは手順の `tag`。`examples/service-blueprint.ts`） `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
 | sequence(actors, steps) | シーケンス図。message / self / note / divider、自動番号 |
-| table(columns, rows, {title}) | 見出し付き表（ER の entity 兼用）。セルは {text, tone, bold, mono}、`cell('通る', {mark: 'ok'})` で ○△×◎ の記号つき（色だけに頼らない） |
+| table(columns, rows, {title}) | 見出し付き表（ER の entity 兼用）。セルは {text, tone, bold, mono}、`cell('通る', {mark: 'ok'})` で ○△×◎ の記号つき（色だけに頼らない）。列の幅は `flex`（1〜12 の整数、既定 1）の比で決まる（2 : 9 のような比も書ける。細い列は文字が字ごとに折り返すので、`check` と見た目で確かめる） |
 | wireframe(root, {title, tag, h, frame, notes, skeleton}) | 画面 1 枚のローファイ・ワイヤーフレーム + 番号つき注釈欄。部品は `wf.*`（下記）。`n:` で番号の丸、`mark:'new'/'changed'` で新規・改修の枠 |
 | screens(items, {cols, gap, rowGap, h, skeleton}) | 画面のサムネイルを並べる（画面遷移図）。item の `at:[行, 列]`（列は小数可）で配置、各 `id` を `connect()` で結ぶ。`skeleton` で文字を帯に |
 | stateMatrix(cols, rows, {required, cellH, cellFrame}) | 部品の**状態の一覧**。行=部品、列=状態（通常・読み込み中・空・エラー…）。欄は `wf.*` の図、`'na'` / `{na: '理由'}`（対象外）、未指定（**未設計**。`check` が警告）。`required` の列がなければ警告。行は `stateRow('在庫カード', stock, {通常: {}, 読み込み中: 'loading', ...})` で「部品 1 つ + 状態ごとの差分」としても書ける |
@@ -552,15 +555,16 @@ diagram({theme: 'blue', title: '来館者の受け付け', width: 640}).add(
       {q: '次回の入荷を待てる？', yes: '入荷の連絡を登録する', sub: '7 日間有効'},
     ],
     '後日の来館をお願いする',
+    {numbered: true}, // 質問に 1〜N の番号（任意）
   ),
 )
 ```
 
 - 判断が **1 本の鎖**(最初に「はい」になった質問が答えを決める)のときの図。質問を左の列に縦に積み、「はい」は右の答えの箱へ、「いいえ」は真下の次の質問へ進み、最後の「いいえ」は最後の箱で終わる。`flowchart` は同じ形が斜めの階段になり、16:9 で 7〜8pt まで縮む。「いいえ」が別の列へ分かれる・戻る流れは `flowchart`。
-- 段 `{q, yes, sub?, tone?, yesLabel?, noLabel?}`（`sub` と `tone` は答えの箱）。**最後の箱（第 2 引数）は必須**で、文字か `{label, sub?, tone?}`。選択肢は `yes` / `no`（矢印の言葉。既定 `はい` / `いいえ`。`''` で言葉なし。段の `yesLabel` / `noLabel` が優先）、`question: 'box' | 'diamond'`（既定は角の丸い箱。ひし形は行が高くなり、5 段で 9pt ほどまで縮む）、`maxNodeW`、`id`、`scope`、`reveal` / `until`。`focus` / `dir` / `returns` は無い（常に 2 列）。
+- 段 `{q, yes, sub?, tone?, yesLabel?, noLabel?}`（`sub` と `tone` は答えの箱）。**最後の箱（第 2 引数）は必須**で、文字か `{label, sub?, tone?}`。選択肢は `yes` / `no`（矢印の言葉。既定 `はい` / `いいえ`。`''` で言葉なし。段の `yesLabel` / `noLabel` が優先）、`question: 'box' | 'diamond'`（既定は角の丸い箱。ひし形は行が高くなり、5 段で 9pt ほどまで縮む）、`numbered: true`（質問に 1〜N の番号を付ける。`box({step})` と同じ丸いバッジが質問の箱の左に付く。答えと最後の箱には付かない。`question: 'diamond'` とは併用できない）、`maxNodeW`、`id`、`scope`、`reveal` / `until`。`focus` / `dir` / `returns` は無い（常に 2 列）。
 - 座標は書かない。2 列は図の幅の中央に置かれ、矢印はすべて 2 点の直線。anchor は質問 `q1`〜`qN`、答え `a1`〜`aN`、最後の箱 `otherwise`（`connect()` から指せる。同じ図に 2 つ置くときは `scope` を付ける）。
-- **幅は `diagram({width: 640})` が目安**: 既定の 900px だと図が 470px ほどで、スライドに載せたときの文字が 14pt にとどまる。640 なら 17pt。`maxNodeW`（既定 360）は折り返しの幅で、箱の幅の上限ではない（折り返せない語があると、その分だけ広くなる）。2 列が図の幅に入らないときは、直し方（図を広げる・文を短くする）を言って止まる。
-- JSON の spec は `{type: 'decisionLadder', steps, otherwise, yes?, no?, question?}`（`svg-diagram/spec/parts/decision-ladder`）。**1 つの spec に置けるのは 1 つ**（anchor `q1`… `a1`… `otherwise` は固定で、`scope` / `id` は無い）。2 つ以上は DSL で `scope` を付ける。例は `examples/decision-ladder.ts`、設計は ADR 0083。
+- **幅と高さ**: 行の高さは、質問の箱も答えの箱も同じ（答えの `sub` が 2 行でも、質問の箱は行の高さまで伸びる）ので、箱と箱の間隔はどの行でも同じ。答えの列は、横に余裕があれば `sub` が 1 行に収まる幅まで広がる（`maxNodeW` を書くとその幅で折り返す）。図が 16:9 のスライドより縦長になるときは、行の間（既定 32px）を詰める。下限は矢印の言葉のラベルの高さで、25px（`density: 'compact'` では 24px）。`yes` / `no` を空にした図は 20px（矢じり 12px + 8px。`compact` でも 20px）まで詰まる。それでも縦長（高さ + 余白 40px が幅 + 余白 40px の 0.47 倍を超える）なら、情報 `ladder-height-bound` を出す。メッセージは、幅を変えて図を組み直したとき、スライドの図の領域（幅の 0.47 倍の高さ）で文字の倍率が 3% 以上大きくなる幅があれば、その `diagram({width: N})` を示す（広げても狭めても、実際に大きくなる幅だけ）。なければ高さで決まるので、段を減らす・`sub` を短くする。`density: 'compact'` はほとんど効かない。2 列が図の幅に入らないときは、直し方（図を広げる・文を短くする）を言って止まる。
+- JSON の spec は `{type: 'decisionLadder', steps, otherwise, yes?, no?, question?, numbered?}`（`svg-diagram/spec/parts/decision-ladder`）。**1 つの spec に置けるのは 1 つ**（anchor `q1`… `a1`… `otherwise` は固定で、`scope` / `id` は無い）。2 つ以上は DSL で `scope` を付ける。例は `examples/decision-ladder.ts`、設計は ADR 0083。
 
 ### TOC の思考プロセス（`causeTree` / `cloud`）
 
@@ -641,7 +645,7 @@ matrix(['A 案', 'B 案'], ['コスト', '速さ'], [['○', '◎'], ['◎', '�
 ```
 
 - **`pareto`**: `max` は合計に固定される（100% が図の上端）。「その他」は大きさに関わらず最後（`other` で名前を変える）。`top: 5` は 5 位までを残して残りを「その他」にまとめる。`guide`（既定 80）の破線、`highlight: false` で色分けなし。累積の折れ線は原点から各棒の右上の角を通る（教科書の形）。
-- **`bars` の追加の指定**（縦棒・積み上げなし）: `lines: [{at, label?, tone?}]` は値の位置の横線、`vlines` は棒の並びの上の位置（0 が最初の棒の左端、1 が最初と 2 番目の境目）の縦線、`curve: {through: [[位置, 値], …]}` は棒の上に重ねる曲線、`cumulative: {guide?}` は累積の線と右の 0〜100% の軸、`edges: [...]` は棒の境目の下に書く文字（棒の数 + 1 個）。ラベルが重なったら `check` が止める（縦線の文字は、近いものや値の文字にかかるものを段にずらす。縦線にかかる値の文字は棒の中で横へよける。線が文字を貫くときも止まる。曲線だけは文字の上を通ってよい）。
+- **`bars` の追加の指定**（縦棒・積み上げなし。`lines` だけは横棒でも使える）: `lines: [{at, label?, tone?}]` は値の位置の基準線（縦棒では横線。横棒（`dir: 'h'`、既定）では、棒の上の行から軸まで引く縦線で、名前は棒の上に置く。近い名前は段をずらし、図の端では線の横に寄せる。線が値の文字にかかるときは、値を棒の中で寄せるか線の反対側に移す。積み上げでは使えない。名前の段の分だけ、`height` を書いた図でもその上に高さが足される）、`vlines` は棒の並びの上の位置（0 が最初の棒の左端、1 が最初と 2 番目の境目）の縦線、`curve: {through: [[位置, 値], …]}` は棒の上に重ねる曲線、`cumulative: {guide?}` は累積の線と右の 0〜100% の軸、`edges: [...]` は棒の境目の下に書く文字（棒の数 + 1 個）。ラベルが重なったら `check` が止める（縦線の文字は、近いものや値の文字にかかるものを段にずらす。縦線にかかる値の文字は棒の中で横へよける。線が文字を貫くときも止まる。曲線だけは文字の上を通ってよい）。
 - **`histogram`**: 区間は最大 60（限界がデータから遠いと止まる）。区間の幅はデータだけから決め、限界は範囲を広げるだけ。区間の境目の文字は、混むと k 個おきに書き、度数 0 の棒には値を書かない。区間の幅はデータだけから、1・2・5 × 10 のべき乗のうち `bins`（既定は Sturges の式）に近いものを選ぶ。`width` で指定もできる。境目の値は上の区間に入り、最大値は最後の区間に入る。`lsl` / `usl` の外の区間は赤。平均線は既定で付く（`mean: false` で消す）。`normal: true` で、データの平均と標準偏差の正規分布の曲線を重ねる。
 - **`controlChart`** の限界は 3σ（`x` は 2.66 × 移動範囲の平均、`xbar` / `r` は A2・D3・D4 の係数で群の大きさ 2〜10、`p` / `np` / `c` / `u` は二項・ポアソン分布）。`limits: {cl, ucl, lcl}` で、安定した期間から決めた限界を固定できる（外れた点を除いて計算し直すのは、書く側の仕事）。`rules: false` で外れの印を消す。連・傾向は 7 点（JIS Z 9021 の流儀。新しい JIS Z 9020-2 / ISO 7870-2 は連 9 点・傾向 6 点）。限界の一部だけ（`{cl}` だけ）を渡すと、`x` / `xbar` / `r` / `mr` は残りの限界が中心線と同じだけずれ、`p` / `np` / `c` / `u` は与えた中心線（標準の値）から限界を計算し直す。n が変わる p / u 管理図の限界は段になり、ラベルは「UCL（n による）」（最後の標本の下限が 0 のときは下限のラベルを省く）。`lcl < cl < ucl` でないと止まる。`at: ['10/1', …]` は軸の下に書く文字。印は色だけでなく形も違う（外れ ✕、連・傾向 ○）。
 - **`xbarR`** の 2 枚は、左の余白がそろう（サンプルが縦に並ぶ）。`limits` と `yLabel` は `{xbar, r}` で別々に、値だけ書くと X̄ 管理図に付く。
@@ -673,7 +677,7 @@ valueChain({support: ['全般管理', '人事・労務管理', '技術開発', '
 - `chevron` の折り返し（ADR 0082）: 横の `chevron` に手順が多いとき（16:9 のスライドに 7 つ以上など）は、`rows`（段数）か `perRow`（1 段に並べる数）で何段かに折り返せる。どの段も矢羽根の幅は同じで、最後の段が短ければ左に寄せる。段の終わりの矢羽根の下から、次の段の最初の矢羽根の上へ、続きを示す矢印が 1 本つく。`rows: 2` なら 7 つは 4 + 3、`perRow: 3` なら 3 + 3 + 1 になる。`rows: 'auto'` は、どの step のラベルも `sub` も折れない最少の段数を選ぶ（最大 4 段で、1 段に 3 つ未満にはしない。5 つ以下なら折り返さない。どの段数でも折れるときは、折れる行が少ない段数）。`rows` も `perRow` も書かない図、`rows: 1`、`perRow` が step の数以上の図は、今までと同じ出力になる。
   - エラーになる書き方: `rows` と `perRow` を両方書く、`direction: 'vertical'` と一緒に書く（縦は折り返さない。横にして使う）、`loopBack` と一緒に書く（2 段以上になりうる指定は、step が 2 つだけでも止まる）。`rows` は 1 以上の整数か `'auto'`、`perRow` は 1 以上の整数。
   - 木（`tree` / `mindmap`）のノードにした `chevron` で、子の `from` が上の段の step を指すと、funnel の線は指した step の高さではなく帯の端から出る。下の段の step から出ているように見えることがあるので、その図は目で確かめる。
-  - JSON spec では `chevron` の `rows`（1〜4 または `'auto'`）と `perRow`（1〜8）に書く。steps は 12 まで（折り返さない図は今までどおり 8 まで）。
+  - JSON spec では `chevron` の `rows`（1〜4 または `'auto'`）と `perRow`（1〜8）に書く。steps は 16 まで（16 でも rows: 'auto' は 4 段 × 4 で、16:9 の文字が折れない）（折り返さない図は今までどおり 8 まで）。
 
 ```ts
 chevron(
@@ -892,7 +896,7 @@ bpmn(
 
 - `dir` を**省略**した図が変わると、`check` の `auto-fit-applied` が **warn**（`check --strict` が落ち、`build` の警告にも載る。`dir を up から right に変えた(1460→880px)` のように何が変わったかを書く）。`dir: 'auto'` と書くと **info**（変えてよいと宣言した図）。`accept: {'auto-fit-applied': '理由'}` でも外せる。
 - `'auto'` のときは、収まる案の中で（交差, 折れ）が最良のものを選ぶ（高さが `canvas.height ?? maxDisplayHeight` を超える案は除く）。省略のときは最初に収まった案。
-- `diagram({maxWidth: 1200})` は、その図だけ `doc-width` の閾値を上げる（案件全体は `.svg-diagram.json` の `maxWidth`。図の指定が勝つ。正の有限数でなければ throw。`canvas` の図は検査しない）。**図の幅は広がらない**ので、広い図にするなら `width: 1200` も書く。
+- `diagram({maxWidth: 1200})` は、その図だけ `doc-width` の閾値を上げる（案件全体は `.svg-diagram.json` の `maxWidth`。図の指定が勝つ。正の有限数でなければ throw。`canvas` の図と `slide` + `fill` の図は検査しない。デッキが描くスライドの図にも出さないが、同じファイルの `check` / `build` は出す）。**図の幅は広がらない**ので、広い図にするなら `width: 1200` も書く。
 - **縦に長い図**（情報 `aspect-tall`、`--verbose`）: 文書の図で、高さが幅の 1.5 倍を超えると出る（本の版面は縦横比が 1.5〜1.6 ほど）。使っている部品に応じた直し方を添える（`causeTree` は `fold`、`row` / `group` の積み重ねは `row({cols})` で横に並べる、どれでもなければ図を分ける）。自動では変えない（図の見え方が黙って変わるため）。
 - `diagram({width: 'fit'})` は、細い図（`concentric`、縦の `chevron`、`cycle`、`venn`、`funnel`）の幅を内容 + 左右の余白（4px の格子、下限 320px）に縮める。文字の大きさは変わらない。既定の 940 は変えない（文書での図の大きさが変わるので opt-in）。縮むのは flow-shape の帯だけで、box / banner / 表など全幅の帯を持つ図は 940 のまま。`canvas` / `fill` / `slide` とは併用できない（throw）。`layout-figure-narrow`（info）の直し方になる。例は `examples/width-fit.ts`。
 
@@ -923,7 +927,23 @@ connect('plan.p0:right', 'sched.p0:left')
 - `resolveAnchor(table, id, has)`（`lib/anchor-scope.ts`。純関数）が、完全一致 → 素の名前が 1 つ → 曖昧（error）→ なし（error）の 4 段で決める。
 - ハンドル `.anchors.p0` は、scope 付きの帯では修飾名（`sched.p0:right`）を返すので、同じ素の id が複数あっても使える。型は、`.` を含む参照を形だけで通す（綴り間違いは実行時の候補つきエラーで捕まる。素の id が曖昧かどうかも実行時）。`@` を含む id は従来どおり型エラー。
 - `reveal` の段階は項目ごとに記録され、同じ素の id を持つ別の帯と混ざらない（`connect` の `reveal` の自動導出は、参照した側の段階になる）。spotlight は、gantt の task と tree の node を直接は指せない（scope があっても変わらない。図全体の `id` で指す）。
-- 複数の SVG を 1 つの HTML に貼るときの内部 id の衝突は、`build --id-prefix`（上の「使い方」）が別に防ぐ。
+- 複数の SVG を 1 つの HTML に貼るときの内部 id の衝突は、`build --id-prefix`（上の「使い方」）が別に防ぐ（プログラムから描くときは `idPrefix`、下の「HTML に埋め込む」）。
+
+### HTML に埋め込む（`idPrefix` / `inline` / `appearance: 'auto'`）
+
+SVG を 1 つの HTML ページ（または Artifact などのページ）に直接貼るときの 3 点。
+
+- **`idPrefix`**: 図ごとに `svg-title`・矢じり・グラデーション・`clipPath` などの id が同じになるので、2 枚目以降の参照が 1 枚目の定義を指してしまう。`idPrefix: 'fig1-'` を付けると、図の id と参照（`url(#…)`・`href` / `xlink:href="#…"`・`aria-labelledby` / `aria-describedby`・`<use>`・`<style>` の `#id`）が `fig1-<id>` になり、図ごとに閉じる。`fig1` と `fig1-` は同じ。付けなければ出力は変わらない。`<metadata id="svg-diagram">` は書き換えない。
+- **`inline: true`**: ルート `<svg>` の `width` / `height` を除き、`viewBox` だけにする。大きさは CSS（`svg { width: 100%; height: auto }` など）で決める。
+- **`appearance: 'auto'`**: 図に書くと、埋め込み先の `prefers-color-scheme` に追従する（上の「暗い背景と透明背景」）。ページ側の `data-theme` のような手動の切り替えには追従しない。
+
+```ts
+import {renderSpec} from 'svg-diagram/render';
+const r = await renderSpec(spec, {idPrefix: 'fig1-', inline: true});
+if (r.ok) page += r.svg; // 次の図は {idPrefix: 'fig2-', inline: true}
+```
+
+`renderSpec`（`svg-diagram/render`・`svg-diagram/spec/selective/node`）、`renderSource`（`svg-diagram/render`）、`renderDiagram`（`svg-diagram`）、`renderInBrowser`（`svg-diagram/browser`）、Workers 向けの `renderSpecEdge`（`svg-diagram/spec/edge`。字の輪郭の `<use href>` の id も図ごとに分かれる。`spec/selective/edge` は、バンドルの予算のためまだ取らない）が同じ 2 つのオプションを取る（ブラウザ版の `svg-diagram/spec/selective` の `renderSpec` は取らない）。`idPrefix` は英数字・`_`・`-` だけで、`idPrefix: 'auto'` は CLI の `--id-prefix auto` と同じ内容ハッシュ（`sd<8 桁>`）。不正な名前は描く前に `{ok: false}` の issue（`renderSpec`）か例外（`renderDiagram`）で返る。既知の限界: `appearance: 'auto'` の暗い配色の規則は `svg[data-appearance="auto"]` で選ぶので、同じページの `auto` の図すべてに掛かる（同じ色でトーンの上書きが違う図どうしは、暗い側で互いの色を変えうる）。CLI は `svg-diagram build <source>... --id-prefix <p|auto> --inline`。PPTX の出力は変わらない。
 
 ### コンサル系のチャート（`waterfall` / `radar` / `heatmap` / `lines` / `stackedBars` / `mekko` / `treemap` / `sankey` / `tornado` / `bubble` / `butterfly` / `combo` / `harvey`）
 
@@ -1053,7 +1073,7 @@ timeline({
 ```
 
 - 目盛りと値には `unit` が付く（`0ms`、`44ms`）。目盛りは 1・2・5 × 10^n の刻みで 8 本まで（`step` で固定）。
-- `lanes` は上から下の行で、名前が左に出る（省くと名前のない 1 行）。`events` / `spans` の `lane` で行を選ぶ（省くと先頭の行）。
+- `lanes` は上から下の行で、名前が左に出る（省くと名前のない 1 行）。JSON の spec では名前は 30 字まで。長い名前は、左の列（図の幅の 28% まで）の中で折り返し、残りは軸に使う。`events` / `spans` の `lane` で行を選ぶ（省くと先頭の行）。
 - `events` は点と、名前・値の旗。近いと段を変えて階段にする（それでも収まらなければ、行を分けるか短くするよう言って止まる）。
 - `spans` は既定が棒（`label` は棒に収まれば中、収まらなければ横）。`dim: true` は寸法線（両端に目盛り）で、`label` を省くと長さ（`344ms`）を上に書く。重なる区間は行を分ける。
 - 範囲外の値・`from >= to`・知らない `lane` は throw。例は `examples/timeline-ms.ts`。
@@ -1581,8 +1601,8 @@ Chromium の値との差は `test/font-metrics.test.ts` が見る。sans（Yu Go
 
 ## check のルール（規則 ID と説明は lib/rules.ts）
 `legend-missing` / `legend-incomplete`（`legend: 'auto'` で補える。記法が少なく凡例が要らない図は `diagram({legend: false})` で「凡例は要らない」と宣言する。凡例を足すためだけに足さない）、`quadrant-empty-cell`（`quadrant()` に項目のないマスがある。意図した空きは `allowEmpty`）、`a11y-text-contrast`（WCAG 4.5:1）、`a11y-nontext-contrast`（3:1）、
-`a11y-no-title`、`box-size-ignored`（警告: `box({size})` は効果がない。大きい文字は `stat()` などの役割で。次の版で throw する）、`source-wraps`（出典行が折り返している）、`connect-label-covers-arrow`（警告: 矢印のラベルが経路の 6 割超を覆い、見える部分が 20px 未満。箱の間隔を、文言に書いた要る間隔まで広げる・ラベルを短くする）、`glyph-missing`（警告: 絵文字として扱われない絵記号 ✅ ❌ など。字形が無いと空白になる。`icon.emoji()` か SVG アイコンへ）、`text-mid-word-break`（警告: カタカナ・英数字の語の途中で行が割れている。箱を広げる・`maxNodeW` や `dir` を変える・文言を短くする。漢字の途中は対象外）、`stat-fit-shrunk`（情報: `stat()` の値が箱に収まらず、自動で縮めた。`accept` で許容）、`draft-status`（情報: `diagram({status: 'draft'})` のまま。`check --forbid-draft` で warn。`accept` で許容）、`stat-no-source`（`diagram({evidenceCheck})` を書いた図だけ。出典のない `stat()` の数字。info、`'strict'` で warn）、`cjk-line-long`（見出し＝caption の title / display / stat と banner の headline の 1 行が、全角換算で本文幅 600px に収まる字数 — title 40・banner 37・stat 17・display 10 字 — を超える。半角は 0.5 字。目安以内でも、図が狭くて見出しが自動で折り返したときも出す。改行で分けるか短くする）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、`shrink-narrow-text`（`bpmn` / `swimlane` の `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。図を縦向きにする・2 つに分ける・文言を短くする・`maxWidth` を広げる）、`gray-tone-collision`（使っている 2 つのトーンの塗りが、白黒にすると見分けにくい。塗りを CIE L* にして、差が 10 未満なら警告。10 は、紙の白黒印刷で 2 つの平らな灰色が「違う」と読めなくなるあたり。soft（L* 約 93）と plain の白（100）が当たり、solid との組は当たらない。控えめにするトーン（muted / removed）は除く。破線の有無が違う組と、塗りが同じ組（new と accent、changed と plain。色でも塗りでは見分けていない）は除く。canvas() の、ピル（重点・中心など）で言葉にした領域は数えない。`diagram({accept})` で許容できる。`preview --gray` で目でも確かめる）、
-`image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`edge-bends`（情報: 自動配置の図の矢印が 5 回以上折れる、または帯の平均が 3 回超。下の `layoutCheck` の節の隣）、`auto-fit-applied`（`dir` を省略した自動配置の図を、幅に収めるためにレイアウトが変えた。warn。`dir: 'auto'` は info）、`one-story`、`canvas-region-empty`（`canvas({requireAll})` で内容のない領域）、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`font-floor-lowered`（情報: `canvas.minText` が 14 未満の図。「文字の下限を 14px から Npx に下げている（最小の文字 Mpx）。キャンバスは 1:1 で読まれる前提。投影には向かない」。`accept` で理由つきの info のまま許容できる）、`doc-width`（940px 以下。`maxWidth` で変更。図ごとは `diagram({maxWidth})`）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
+`a11y-no-title`、`box-size-ignored`（警告: `box({size})` は効果がない。大きい文字は `stat()` などの役割で。次の版で throw する）、`source-wraps`（出典行が折り返している）、`connect-label-covers-arrow`（警告: 矢印のラベルが経路の 6 割超を覆い、見える部分が 20px 未満。箱の間隔を、文言に書いた要る間隔まで広げる・ラベルを短くする）、`glyph-missing`（警告: 絵文字として扱われない絵記号 ✅ ❌ など。字形が無いと空白になる。`icon.emoji()` か SVG アイコンへ）、`text-mid-word-break`（警告: カタカナ・英数字の語の途中で行が割れている。箱を広げる・`maxNodeW` や `dir` を変える・文言を短くする。漢字の途中は対象外）、`stat-fit-shrunk`（情報: `stat()` の値が箱に収まらず、自動で縮めた。`accept` で許容）、`draft-status`（情報: `diagram({status: 'draft'})` のまま。`check --forbid-draft` で warn。`accept` で許容）、`stat-no-source`（`diagram({evidenceCheck})` を書いた図だけ。出典のない `stat()` の数字。info、`'strict'` で warn）、`cjk-line-long`（見出し＝caption の title / display / stat と banner の headline の 1 行が、全角換算で本文幅 600px に収まる字数 — title 40・banner 37・stat 17・display 10 字 — を超える。半角は 0.5 字。目安以内でも、図が狭くて見出しが自動で折り返したときも出す。改行で分けるか短くする）、`a11y-color-only-emphasis`（色だけの強調。`em.b()` を併用する）、`swimlane-lane-order`（レーン間の距離が最小になる順を提案。`fixed: true` のレーンは動かさない）、`swimlane-lanes`（6 本まで）、`rowheader-tone-collides`（表の行ラベルと同じ塗りの行トーン）、`shrink-narrow-text`（`bpmn` / `swimlane` の `fit: 'shrink'` で詰めた結果、task / step の本文が 1 行 2〜3 字ずつ折れている。図を縦向きにする・2 つに分ける・文言を短くする・`maxWidth` を広げる）、`gray-tone-collision`（使っている 2 つのトーンの塗りが、白黒にすると見分けにくい。塗りを CIE L* にして、差が 10 未満なら警告。10 は、紙の白黒印刷で 2 つの平らな灰色が「違う」と読めなくなるあたり。soft（L* 約 93）と plain の白（100）が当たり、solid との組は当たらない。控えめにするトーン（muted / removed）は除く。破線の有無が違う組と、塗りが同じ組（new と accent、changed と plain。色でも塗りでは見分けていない）は除く。canvas() の、ピル（重点・中心など）で言葉にした領域は数えない。箱ごとの `dashed` で一方が全部破線・他方が全部実線の組も除く（`solid` / `solid-danger` は枠が塗りと同じ色なので、`dashed` を書いても見分けにならず除かない）。`diagram({accept})` で許容できる。`legend-missing` / `legend-incomplete` も、2 本以上の破線・点線の `connect()` がすべて同じ `label` を持てば、その線種は数えない（1 本でも `label` がない・label が違う・1 本だけ、なら従来どおり。値のラベルと区別できないため）。`preview --gray` で目でも確かめる）、
+`image-large`（埋め込んだ画像が 300 KB 超）、`edge-crossings`、`edge-bends`（情報: 自動配置の図の矢印が 5 回以上折れる、または帯の平均が 3 回超。下の `layoutCheck` の節の隣）、`auto-fit-applied`（`dir` を省略した自動配置の図を、幅に収めるためにレイアウトが変えた。warn。`dir: 'auto'` は info）、`one-story`、`canvas-region-empty`（`canvas({requireAll})` で内容のない領域）、`slide-min-text` / `slide-canvas-overflow`（`diagram({canvas})` の図だけ。上の節）、`font-floor-lowered`（情報: `canvas.minText` が 14 未満の図。「文字の下限を 14px から Npx に下げている（最小の文字 Mpx）。キャンバスは 1:1 で読まれる前提。投影には向かない」。`accept` で理由つきの info のまま許容できる）、`doc-width`（940px 以下。`maxWidth` で変更。図ごとは `diagram({maxWidth})`。`canvas` の図と `slide` + `fill` の図は見ない。デッキが描くスライドの図は出さない（`renderDeck` / `pptx-deck`）が、同じファイルを単独で `check` / `build` すると出る。`slide` だけで `fill` のない図は幅が自前なので見る。`fig/*.ts` を `check --strict` するなら `accept` か案件の `maxWidth` で）、`density`、`arrow-labels`（情報: 矢印の一部にだけラベルがある。全部ラベルなしの図は「依存・次」を示す約束とみなして指摘しない）、`wf-callout-order`（情報: 図の番号が読む順でない。次の番号が、下の行か右の列にあれば順どおり。上かつ左へ戻るときだけ指摘）。案件全体で許容するなら `.svg-diagram.json` の `accept` に理由を書く（図ごとの `accept` が優先）。
 `lint-svg`（描画後の検査: コントラスト・キャンバスのはみ出し・文字の重なり・枠からのはみ出し・図形が文字に被る）は、SVG の幾何と文字の箱（レイアウトと同じフォントファイル）から調べる。`--engine browser` は同じ検査を実ブラウザで行う（`test/svg-lint-browser.test.ts` が両方を同じ SVG に当てて比べる。丸めの境界で 1px 違うことと、回転したグループの中のコントラストの比べ方（ブラウザ版は文字と図形を別々の座標系で比べていた）だけが違う）。
 `lint-svg` の文字の下限（`font-size-too-small`）は 14px。ただし図のルートに `data-min-text="N"`（`canvas.minText` を 14 未満にした図）があれば、それが下限になる（`--fix` も N まで引き上げる）。案件の `fontFloor ?? 14` より小さい値、または 10 以上の数でない値だと、`font-floor-not-permitted`（**エラー**）。許可された図には、失敗に数えない第 3 の階層「お知らせ」に `font-floor-lowered`（`minText Npx(案件の fontFloor M)`）を 1 行出す（`--strict` でも失敗しない）。設定は、cwd ではなく**各 SVG のあるディレクトリから上へ**探し、`--config <path>` で明示できる（`fonts` の設定も同じ設定から読む）。`data-min-text` のない SVG の挙動は変わらない。
 描画後の検査は、**後から描かれた図形が文字を覆う、または線が文字を貫く**ものも報告する（意図した重なりは、図形に `data-allow-cover`）。
