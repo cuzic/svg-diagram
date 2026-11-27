@@ -133,7 +133,7 @@
   "manage-icons.ts": {"count": 229, "reason": "Runs the icons CLI and manages project icon data."},
   "markdown-diagram.ts": {"count": 68, "reason": "Runs the Markdown CLI and writes Markdown and diagram outputs."},
   "notes-diagram.ts": {"count": 26, "reason": "Runs the notes CLI and prints wireframe notes."},
-  "pptx-deck-diagram.ts": {"count": 134, "reason": "Runs the PPTX deck CLI and writes a presentation."},
+  "pptx-deck-diagram.ts": {"count": 139, "reason": "Runs the PPTX deck CLI and writes a presentation."},
   "pptx-diagram.ts": {"count": 81, "reason": "Runs the PPTX CLI and exports presentations."},
   "preview-svg.ts": {"count": 63, "reason": "Runs the preview CLI and renders a PNG or terminal image."},
   "serve-diagram.ts": {"count": 170, "reason": "Runs the serve CLI and starts the presenter server."},

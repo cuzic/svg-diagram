@@ -12,7 +12,7 @@ import {closeMeasurer, configureMeasure, measureAll, splitAtoms, textWidth} from
 import {autoColumns, columnFigurePath, figurePath, figureProblemErrors, fitOf, sharedColumns} from './lib/deck-spec-core.ts';
 import {figureKey} from './lib/deck-file.ts';
 import {loadDeckSelective} from './lib/deck-load-selective.ts';
-import {drawColumnFigure, renderDeckFigure} from './lib/deck-render-figure.ts';
+import {drawColumnFigure, growColumnFigure, renderDeckFigure} from './lib/deck-render-figure.ts';
 import {figureMinPt} from './lib/pptx/deck-figure.ts';
 import {figurePartTypes, deckEntries, deckTexts, planDeckSlide, slideIssues, type DeckFigure, type TextWidth} from './lib/pptx/deck.ts';
 import {planSlide, fontsOf} from './lib/pptx/slide.ts';
@@ -58,7 +58,7 @@ try {
   const drawFigure = async (i: number, spec: unknown, fit: FigureFit, room: {w: number; h: number} | null, j?: number, columnPx?: number): Promise<DeckFigure | undefined> => {
     const source = sources.get(figureKey(i, j));
     if (spec === undefined && !source) return undefined;
-    const r = await renderDeckFigure(i, spec, source, cfg, fit === 'fill' && room ? {column: j, fill: {box: room, cap: maxScale(fit)}} : {column: j, columnPx});
+    const r = await renderDeckFigure(i, spec, source, cfg, {column: j, ...(fit === 'fill' && room ? {fill: {box: room, cap: maxScale(fit)}} : {columnPx}), ...(room ? {grow: {box: room, cap: maxScale(fit)}} : {})});
     if (!r.ok) { errors.push(...r.errors); return undefined; }
     const place = j === undefined ? figurePath(i, '') : columnFigurePath(i, j, '');
     if (r.result.verdict.problems.length) { errors.push(...figureProblemErrors(j === undefined ? figurePath(i, null) : columnFigurePath(i, j, null), r.result.verdict.problems)); return undefined; }
@@ -81,9 +81,12 @@ try {
       if (!chosen.ok) { errors.push(...failures.flat(), ...(failures.length ? [] : [`slides[${i}].columns: ${chosen.why}`])); figures.push(undefined); columnFigures.push([]); shares.push(undefined); continue; }
       const bad = chosen.figures.flatMap((f, j) => f ? figureProblemErrors(columnFigurePath(i, j, null), f.value.verdict.problems) : []);
       if (bad.length) { errors.push(...bad); figures.push(undefined); columnFigures.push([]); shares.push(undefined); continue; }
-      chosen.figures.forEach((f, j) => { if (f) for (const warning of f.value.verdict.warnings) console.error(`⚠ ${columnFigurePath(i, j, '')}: ${warning}`); });
       figures.push(undefined);
-      columnFigures.push(chosen.figures.map(f => f ? asDeckFigure(f.value) : undefined));
+      // ADR 0085 D2: each column's figure drawn again with larger labels where its room (now the shares are chosen) makes that worthwhile
+      const room = figureRooms({...s, columns: sharedColumns(columns, chosen.shares)}, width);
+      const results = await Promise.all(chosen.figures.map((f, j) => f ? growColumnFigure(i, j, columns[j]?.figure, sources.get(figureKey(i, j)), cfg, f.value, room.columns[j] ?? null, maxScale(fit)) : undefined));
+      results.forEach((r, j) => { if (r) for (const warning of r.verdict.warnings) console.error(`⚠ ${columnFigurePath(i, j, '')}: ${warning}`); });
+      columnFigures.push(results.map(r => r ? asDeckFigure(r) : undefined));
       shares.push(chosen.shares);
       continue;
     }
