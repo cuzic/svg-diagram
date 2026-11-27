@@ -57,6 +57,13 @@ test('timeline: crowded labels go to higher levels instead of overlapping; verif
   for (const [i, a] of t.labelBoxes.entries()) for (const b of t.labelBoxes.slice(i + 1)) assert.ok(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y, `${a.label} / ${b.label}`);
 });
 
+test('timeline: 8 close marks (once refused) now draw, staggered', async () => {
+  const marks = Array.from({length: 8}, (_, i) => ({at: `2026-11-0${i + 1}`, label: `ずっと長い名前のマーク${i}`}));
+  const {verdict, t} = await laid({from: '2026-10', to: '2026-12', now: {at: '2026-10'}, deadline: {at: '2026-12', label: '期限'}, marks});
+  assert.ok(verdict.ok, verdict.problems.join('\n'));
+  assert.equal(t.dots.length, 10);
+});
+
 test('timeline: labels that cannot be separated throw', async () => {
   const marks = Array.from({length: 14}, (_, i) => ({at: `2026-11-${String(i + 1).padStart(2, '0')}`, label: `ずっと長い名前のマーク${i}`})); // staggering over 5 rows still cannot hold 14
   await assert.rejects(laid({from: '2026-10', to: '2026-12', now: {at: '2026-10'}, deadline: {at: '2026-12', label: '期限'}, marks}), /do not fit above the axis, even staggered/);

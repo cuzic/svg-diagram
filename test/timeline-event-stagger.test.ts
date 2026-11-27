@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {checkDiagram, closeMeasurer, diagram, timeline} from '../lib/dsl.ts';
 import {configureMeasure} from '../lib/measure.ts';
+import {stagger} from '../lib/timeline.ts';
 import {renderDeck} from '../lib/present/render-deck.ts';
 import {loadDeck} from '../lib/deck-load.ts';
 import {JA_FONTS} from './helpers/text-engine.ts';
@@ -82,7 +83,7 @@ test('numeric timeline: seeded fuzz of events, lanes and spans is clean or refus
       noClash(t);
       drawn++;
     } catch (e) {
-      assert.match(String(e), /do not fit above the lane/);
+      assert.match(String(e), /do not fit above the lane|search gave up/);
       refused++;
     }
   }
@@ -108,4 +109,30 @@ test('numeric timeline: the repro draws in a deck (renderDeck)', async () => {
   fs.rmSync(dir, {recursive: true, force: true});
   assert.deepEqual(out.errors, []);
   assert.ok(out.slides[0]);
+});
+
+test('numeric timeline: a crowd that needs a long search (over 20k steps) still draws', async () => {
+  const w = (n: number): string => 'Word '.repeat(n).trim();
+  const events = [[2024.5, 5], [2018.7, 1], [2015.8, 5], [2025.3, 5], [2013.4, 6], [2008, 6], [2012.5, 4]].map(([at, n]) => ({at: at!, label: w(n!)}));
+  const {t, verdict} = await laid({unit: '', from: 2008, to: 2027, step: 2, events}, 700);
+  clean(verdict);
+  noClash(t);
+  assert.equal(t.dots.length, 7);
+});
+
+test('stagger: a search that cannot finish gives up (and says so), one that finishes without a placement does not', () => {
+  const mk = (n: number) => Array.from({length: n}, () => ({left: 0, level: -1}));
+  const last = (o: {left: number; level: number}[]) => (f: {left: number; level: number}) => f === o[o.length - 1] ? false : true;
+  const big = mk(20), r1 = stagger(big, () => [0, 1, 2], (f, k) => last(big)(f) && k >= 0);
+  assert.equal(r1?.gaveUp, true);
+  assert.ok(big.every(f => f.level === -1));
+  const small = mk(3), r2 = stagger(small, () => [0], () => false);
+  assert.equal(r2?.gaveUp, false);
+  assert.equal(stagger(mk(3), () => [0], () => true), undefined);
+});
+
+test('numeric timeline: a very large lane that fits greedily draws (no call-stack overflow, no step-limit refusal)', async () => {
+  const events = Array.from({length: 6500}, (_, i) => ({at: i, label: 'a'}));
+  const {t} = await laid({unit: '', from: 0, to: 6500, events}, 6500 * 40);
+  assert.equal(t.dots.length, 6500);
 });
