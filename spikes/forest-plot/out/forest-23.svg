@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="748" viewBox="0 0 940 748" role="img" aria-labelledby="svg-title svg-desc">
+  <title id="svg-title">行の多いフォレストプロット(例・作り話)</title>
+  <desc id="svg-desc">フォレストプロット（基準 1）: 会場 1 0.91 (0.60–1.29)、会場 2 1.22 (0.79–1.91)、会場 3 0.94 (0.70–1.69)、会場 4 1.30 (0.85–1.87)、会場 5 0.90 (0.70–1.58)、会場 6 1.56 (0.97–1.93)、会場 7 0.66 (0.40–1.12)、会場 8 1.21 (0.74–2.09)、会場 9 1.11 (0.66–1.63)、会場 10 1.74 (1.38–2.23)、会場 11 0.94 (0.59–1.57)、会場 12 1.15 (0.68–1.78)、会場 13 1.36 (0.88–2.37)、会場 14 1.79 (1.47–2.45)、会場 15 1.47 (1.13–2.52)、会場 16 1.78 (1.15–2.90)、会場 17 1.42 (0.79–1.93)、会場 18 0.68 (0.40–1.22)、会場 19 1.05 (0.85–1.83)、会場 20 0.98 (0.59–1.69)、会場 21 1.39 (0.84–1.98)、会場 22 1.03 (0.60–1.84)、全体(統合) 1.20 (1.08–1.33)</desc>
+  <metadata id="svg-diagram">{"generator":"svg-diagram","toolVersion":"0.5.0","source":"spikes/forest-plot/forest-23.ts","sourceSha256":"32d9a53be320b8cec1aa792e4b476d1afa397edafcab37b2df39fa6a1069402d","depsSha256":"1f4b5b16dac7e8626185afaaba6c629cd44cb180eef964f6c5326d27fab4738f"}</metadata>
+  <style>
+    text { font-family: 'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'Noto Sans JP',sans-serif; }
+    .emoji { font-family: 'Noto Color Emoji','Segoe UI Emoji',sans-serif; }
+  </style>
+  <rect x="0" y="0" width="940" height="748" fill="#ffffff"/>
+
+  <text x="920" y="34" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">OR (95% CI)</text>
+  <path d="M118.6,650 L782.6,650" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M118.6,650 L118.6,655" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <text x="119" y="672" text-anchor="middle" font-size="14" fill="#6f6659">0.25</text>
+  <path d="M284.6,650 L284.6,655" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <text x="285" y="672" text-anchor="middle" font-size="14" fill="#6f6659">0.5</text>
+  <path d="M450.6,650 L450.6,655" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <text x="451" y="672" text-anchor="middle" font-size="14" fill="#6f6659">1</text>
+  <path d="M616.6,650 L616.6,655" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <text x="617" y="672" text-anchor="middle" font-size="14" fill="#6f6659">2</text>
+  <path d="M782.6,650 L782.6,655" fill="none" stroke="#6f6659" stroke-width="2" stroke-linejoin="round"/>
+  <text x="783" y="672" text-anchor="middle" font-size="14" fill="#6f6659">4</text>
+  <text x="451" y="694" text-anchor="middle" font-size="14" fill="#6f6659">オッズ比(対数目盛)</text>
+  <path d="M450.6,42 L450.6,650" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="4 3"/>
+  <text x="32" y="64" font-size="14" fill="#22201b">会場 1</text>
+  <path d="M328.3,59 L511.6,59" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M419.3,50.3 H436.8 V67.8 H419.3 Z" fill="#1d5fa8"/>
+  <text x="920" y="64" text-anchor="end" font-size="14" fill="#22201b">0.91 (0.60–1.29)</text>
+  <text x="32" y="90" font-size="14" fill="#22201b">会場 2</text>
+  <path d="M394.2,85 L605.6,85" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M490,76.8 H506.5 V93.3 H490 Z" fill="#1d5fa8"/>
+  <text x="920" y="90" text-anchor="end" font-size="14" fill="#22201b">1.22 (0.79–1.91)</text>
+  <text x="32" y="116" font-size="14" fill="#22201b">会場 3</text>
+  <path d="M365.2,111 L576.3,111" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M427.6,102.8 H444.1 V119.3 H427.6 Z" fill="#1d5fa8"/>
+  <text x="920" y="116" text-anchor="end" font-size="14" fill="#22201b">0.94 (0.70–1.69)</text>
+  <text x="32" y="142" font-size="14" fill="#22201b">会場 4</text>
+  <path d="M411.7,137 L600.5,137" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M506.7,130.3 H520.2 V143.8 H506.7 Z" fill="#1d5fa8"/>
+  <text x="920" y="142" text-anchor="end" font-size="14" fill="#22201b">1.30 (0.85–1.87)</text>
+  <text x="32" y="168" font-size="14" fill="#22201b">会場 5</text>
+  <path d="M365.2,163 L560.2,163" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M417.5,155.1 H433.3 V170.9 H417.5 Z" fill="#1d5fa8"/>
+  <text x="920" y="168" text-anchor="end" font-size="14" fill="#22201b">0.90 (0.70–1.58)</text>
+  <text x="32" y="194" font-size="14" fill="#22201b">会場 6</text>
+  <path d="M443.3,189 L608.1,189" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M548.4,180.3 H565.8 V197.7 H548.4 Z" fill="#1d5fa8"/>
+  <text x="920" y="194" text-anchor="end" font-size="14" fill="#22201b">1.56 (0.97–1.93)</text>
+  <text x="32" y="220" font-size="14" fill="#22201b">会場 7</text>
+  <path d="M231.2,215 L477.8,215" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M343.7,207.6 H358.4 V222.3 H343.7 Z" fill="#1d5fa8"/>
+  <text x="920" y="220" text-anchor="end" font-size="14" fill="#22201b">0.66 (0.40–1.12)</text>
+  <text x="32" y="246" font-size="14" fill="#22201b">会場 8</text>
+  <path d="M378.5,241 L627.2,241" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M488.2,232.9 H504.4 V249.1 H488.2 Z" fill="#1d5fa8"/>
+  <text x="920" y="246" text-anchor="end" font-size="14" fill="#22201b">1.21 (0.74–2.09)</text>
+  <text x="32" y="272" font-size="14" fill="#22201b">会場 9</text>
+  <path d="M351.1,267 L567.6,267" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M469,260.4 H482.3 V273.7 H469 Z" fill="#1d5fa8"/>
+  <text x="920" y="272" text-anchor="end" font-size="14" fill="#22201b">1.11 (0.66–1.63)</text>
+  <text x="32" y="298" font-size="14" fill="#22201b">会場 10</text>
+  <path d="M527.7,293 L642.7,293" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M576.2,285.9 H590.4 V300.1 H576.2 Z" fill="#1d5fa8"/>
+  <text x="920" y="298" text-anchor="end" font-size="14" fill="#22201b">1.74 (1.38–2.23)</text>
+  <text x="32" y="324" font-size="14" fill="#22201b">会場 11</text>
+  <path d="M324.2,319 L558.6,319" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M428.3,311.5 H443.4 V326.6 H428.3 Z" fill="#1d5fa8"/>
+  <text x="920" y="324" text-anchor="end" font-size="14" fill="#22201b">0.94 (0.59–1.57)</text>
+  <text x="32" y="350" font-size="14" fill="#22201b">会場 12</text>
+  <path d="M358.2,345 L588.7,345" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M475.6,336.5 H492.6 V353.5 H475.6 Z" fill="#1d5fa8"/>
+  <text x="920" y="350" text-anchor="end" font-size="14" fill="#22201b">1.15 (0.68–1.78)</text>
+  <text x="32" y="376" font-size="14" fill="#22201b">会場 13</text>
+  <path d="M420,371 L657.3,371" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M515.3,362 H533.3 V380 H515.3 Z" fill="#1d5fa8"/>
+  <text x="920" y="376" text-anchor="end" font-size="14" fill="#22201b">1.36 (0.88–2.37)</text>
+  <text x="32" y="402" font-size="14" fill="#22201b">会場 14</text>
+  <path d="M542.9,397 L665.2,397" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M581.4,388.3 H598.9 V405.8 H581.4 Z" fill="#1d5fa8"/>
+  <text x="920" y="402" text-anchor="end" font-size="14" fill="#22201b">1.79 (1.47–2.45)</text>
+  <text x="32" y="428" font-size="14" fill="#22201b">会場 15</text>
+  <path d="M479.9,423 L672,423" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M534.4,414.5 H551.4 V431.5 H534.4 Z" fill="#1d5fa8"/>
+  <text x="920" y="428" text-anchor="end" font-size="14" fill="#22201b">1.47 (1.13–2.52)</text>
+  <text x="32" y="454" font-size="14" fill="#22201b">会場 16</text>
+  <path d="M484.1,449 L705.6,449" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M581.6,441.9 H595.8 V456.1 H581.6 Z" fill="#1d5fa8"/>
+  <text x="920" y="454" text-anchor="end" font-size="14" fill="#22201b">1.78 (1.15–2.90)</text>
+  <text x="32" y="480" font-size="14" fill="#22201b">会場 17</text>
+  <path d="M394.2,475 L608.1,475" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M528,468.4 H541.1 V481.5 H528 Z" fill="#1d5fa8"/>
+  <text x="920" y="480" text-anchor="end" font-size="14" fill="#22201b">1.42 (0.79–1.93)</text>
+  <text x="32" y="506" font-size="14" fill="#22201b">会場 18</text>
+  <path d="M231.2,501 L498.2,501" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M351.9,494.7 H364.6 V507.4 H351.9 Z" fill="#1d5fa8"/>
+  <text x="920" y="506" text-anchor="end" font-size="14" fill="#22201b">0.68 (0.40–1.22)</text>
+  <text x="32" y="532" font-size="14" fill="#22201b">会場 19</text>
+  <path d="M411.7,527 L595.3,527" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M456.5,521.2 H468.1 V532.8 H456.5 Z" fill="#1d5fa8"/>
+  <text x="920" y="532" text-anchor="end" font-size="14" fill="#22201b">1.05 (0.85–1.83)</text>
+  <text x="32" y="558" font-size="14" fill="#22201b">会場 20</text>
+  <path d="M324.2,553 L576.3,553" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M439.8,547 H451.8 V559 H439.8 Z" fill="#1d5fa8"/>
+  <text x="920" y="558" text-anchor="end" font-size="14" fill="#22201b">0.98 (0.59–1.69)</text>
+  <text x="32" y="584" font-size="14" fill="#22201b">会場 21</text>
+  <path d="M408.8,579 L614.2,579" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M520.8,570.3 H538.2 V587.7 H520.8 Z" fill="#1d5fa8"/>
+  <text x="920" y="584" text-anchor="end" font-size="14" fill="#22201b">1.39 (0.84–1.98)</text>
+  <text x="32" y="610" font-size="14" fill="#22201b">会場 22</text>
+  <path d="M328.3,605 L596.6,605" fill="none" stroke="#22201b" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M449.3,596.6 H466.1 V613.4 H449.3 Z" fill="#1d5fa8"/>
+  <text x="920" y="610" text-anchor="end" font-size="14" fill="#22201b">1.03 (0.60–1.84)</text>
+  <text x="32" y="636" font-size="14" font-weight="700" fill="#22201b">全体(統合)</text>
+  <path d="M469 631 L494.3 622 L518.9 631 L494.3 640 Z" fill="#1d5fa8"/>
+  <path d="M494.3,42 L494.3,650" fill="none" stroke="#1d5fa8" stroke-width="1" stroke-linejoin="round" stroke-dasharray="2 3"/>
+  <text x="920" y="636" text-anchor="end" font-size="14" font-weight="700" fill="#22201b">1.20 (1.08–1.33)</text>
+  <text x="443" y="714" text-anchor="end" font-size="14" fill="#6f6659">← 対照が良い</text>
+  <text x="459" y="714" font-size="14" fill="#6f6659">アプリが良い →</text>
+</svg>
