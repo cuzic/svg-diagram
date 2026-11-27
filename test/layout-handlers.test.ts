@@ -8,7 +8,7 @@ const chartKinds = {
   waterfall: true, tornado: true, heatmap: true, stacked: true, radar: true, treemap: true,
   sankey: true, catplot: true, distplot: true, multiplot: true, regplot: true, clustermap: true,
   bubble: true, butterfly: true, combo: true, harvey: true, compare: true, pert: true,
-  causal: true, dependency: true,
+  causal: true, dependency: true, forest: true,
 } satisfies Record<ChartKind, true>;
 
 test('the tree-shaking checklist lists every band and chart kind once', () => {

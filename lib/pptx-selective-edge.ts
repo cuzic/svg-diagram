@@ -1,5 +1,6 @@
 import {guardedEngine, MAX_EDGE_HEIGHT, TextEngineError, type TextEngine} from './spec-edge-core.ts';
 import {noPptx, outlinePptxPictures, zipPackage, type PptxEdgeOptions, type PptxEdgeResult, type FigurePlan} from './pptx-edge-core.ts';
+import {growParts} from './flow-grow.ts';
 import {prepareSpecLayout, SpecError} from './spec-selective.ts';
 import type {SpecIssue} from './spec-kit.ts';
 import {layoutIssue} from './spec-result.ts';
@@ -12,9 +13,9 @@ export type SelectedFigureOptions = Parameters<typeof prepareSpecLayout>[1] & Se
 type Options = SelectedFigureOptions & PptxEdgeOptions;
 
 /** `width`: the deck's layout width past the spec's 940 (a wide slide room, B6); not an option, so a caller's or a figure's own width is never overridden. */
-export async function planSelectedFigureEdge(spec: unknown, engine: TextEngine, opts: SelectedFigureOptions, wide?: number): Promise<FigurePlan | {issues: SpecIssue[]}> {
+export async function planSelectedFigureEdge(spec: unknown, engine: TextEngine, opts: SelectedFigureOptions, wide?: number, textSize?: number): Promise<FigurePlan | {issues: SpecIssue[]}> {
   let prepared: Awaited<ReturnType<ReturnType<typeof prepareSpecLayout>>>;
-  try { prepared = await prepareSpecLayout(spec, opts, wide)(engine.measure); }
+  try { prepared = await prepareSpecLayout(spec, textSize === undefined ? opts : {...opts, parts: growParts(opts.parts, textSize)}, wide)(engine.measure); }
   catch (error) {
     if (error instanceof SpecError) return {issues: [...error.issues]};
     if (error instanceof TextEngineError) throw error;

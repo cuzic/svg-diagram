@@ -62,6 +62,7 @@ export const calls = {
   mekko: () => dsl.mekko([{label: 'A', parts: [{label: 'A', value: 1}]}]),
   heatmap: () => dsl.heatmap(['A'], ['A'], [[1]]),
   tornado: () => dsl.tornado([{label: 'A', low: 0, high: 2}], {base: 1}),
+  forest: () => dsl.forest([{label: 'A', estimate: 1, low: 0.5, high: 2}]),
   bubble: () => dsl.bubble([{label: 'A', x: 1, y: 1, size: 1}]),
   butterfly: () => dsl.butterfly([{label: 'A', left: 1, right: 2}], {leftLabel: 'A', rightLabel: 'B'}),
   combo: () => dsl.combo(['A', 'B'], [{label: 'A', type: 'bar', values: [1, 2]}]),

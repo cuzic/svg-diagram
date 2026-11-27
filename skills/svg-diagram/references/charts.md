@@ -13,6 +13,7 @@
 | 積み上げ・100%・マリメッコ | `stackedBars(columns, {percent})` / `mekko(columns)` | `{label, parts: [{label, value}]}`。マリメッコは幅が合計、高さが構成比 |
 | ツリーマップ | `treemap(tree)` | 葉 `{label, value}`、グループ `{label, children}` |
 | サンキー | `sankey(nodes, links)` | ノード（文字列か `{id, label}`）と `{from, to, value}`。層・並び・太さは自動。`values: false` でノードとリボンの数字を出さない（形だけ見せる）（リボンの数字も止まる。値は図に題名があるとき `<desc>` に入る。題名がないと警告） |
+| フォレストプロット | `forest(rows, {scale, ref, valueHeader, axisLabel, favours})` | `{label, estimate, low, high, weight?, id?}`・`{heading}`・`{…, summary: true}`（統合のひし形）。既定は対数目盛・基準 1。差は `scale: 'linear', ref: 0`。区間が `domain` を出ると矢じりで切る。spec は `type: 'forest'`（`rows`）。点推定や基準の線が要るなら `rangeBars` でなくこれ |
 | トルネード | `tornado(items, {base})` | `{label, low, high}`（その入力が低い・高いときの結果）。幅の大きい順 |
 | 回帰・残差 | `regplot({x, y, group}, {order, stats, lowess})` / `residplot({x, y})` | 生の値。直線（`order: 2` で曲線）と 95% 信頼帯、R² は自動。`lowess: true` は局所回帰の曲線 |
 | パネル分割 | `...facet({名前: 値}, (名前, 値, _i, axes) => 図(値, {...axes}), {cols, share})` | 軸は既定で全パネル共通（`axes` を図の opts に展開）。`share: 'none'` で個別 |

@@ -2,7 +2,7 @@
 // their place.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {bubble, closeMeasurer, diagram, heatmap, renderDiagram, sankey, strategyCanvas, tornado, treemap} from '../lib/dsl.ts';
+import {bubble, closeMeasurer, diagram, forest, heatmap, renderDiagram, sankey, strategyCanvas, tornado, treemap} from '../lib/dsl.ts';
 import {specToDiagram, validateSpec} from '../lib/spec.ts';
 import type {Diagram} from '../lib/types/index.ts';
 
@@ -78,4 +78,33 @@ test('the largest sankey and heatmap a spec allows still draw', async () => {
   const t = performance.now();
   await svgOf(specToDiagram(spec({type: 'heatmap', rows: Array.from({length: 15}, (_, i) => `行${i}`), cols: Array.from({length: 12}, (_, i) => `${i + 1}月`), values: Array.from({length: 15}, (_, i) => Array.from({length: 12}, (_, j) => i * j))})));
   assert.ok(performance.now() - t < 5000);
+});
+
+test('forest spec draws the same SVG as the DSL, and its mistakes are reported at their row', async () => {
+  const rows = [{heading: '甲の地域'}, {label: 'A', estimate: 1.5, low: 1.2, high: 1.9, weight: 10}, {label: '全体', estimate: 1.3, low: 1.1, high: 1.5, summary: true}];
+  await same({type: 'forest', rows, valueHeader: 'OR', favours: ['左', '右'], decimals: 1}, forest(rows as never, {valueHeader: 'OR', favours: ['左', '右'], decimals: 1}));
+  await same({type: 'forest', rows, scale: 'linear', domain: [-1, 4]}, forest(rows as never, {scale: 'linear', domain: [-1, 4]}));
+  const bad = (r: unknown[]) => pathsOf(spec({type: 'forest', rows: r}));
+  assert.deepEqual(bad([{heading: 'H', estimate: 1}, {label: 'A', estimate: 1, low: 0.5, high: 2}]), ['parts[0].rows[0]']);
+  assert.deepEqual(bad([{label: 'A', estimate: 3, low: 0.5, high: 2}]), ['parts[0].rows[0]']);
+  assert.deepEqual(bad([{label: 'A', estimate: 1, low: 0.5}]), ['parts[0].rows[0]']);
+  assert.deepEqual(bad([{label: 'A', estimate: 1, low: 0.5, high: 2, summary: true, weight: 3}]), ['parts[0].rows[0]']);
+  assert.deepEqual(bad([{heading: 'H'}]), ['parts[0].rows']);
+  assert.deepEqual(bad([{label: 'A', estimate: 1, low: 0.5, high: 2}]), []);
+});
+
+test('forest spec: each mistake of a row or an option is reported at its own field', () => {
+  const row = {label: 'A', estimate: 1, low: 0.5, high: 2};
+  const at = (rows: unknown[], extra: object = {}) => pathsOf(spec({type: 'forest', rows, ...extra}));
+  assert.deepEqual(at([{...row, weight: 0}]), ['parts[0].rows[0].weight']);
+  assert.deepEqual(at([{...row, weight: -2}]), ['parts[0].rows[0].weight']);
+  assert.deepEqual(at([{...row, low: 0, estimate: 0.5}]), ['parts[0].rows[0].low']);
+  assert.deepEqual(at([{...row, low: 1e-7}]), ['parts[0].rows[0].low']);
+  assert.deepEqual(at([row], {ref: 1e-7}), ['parts[0].ref']);
+  assert.deepEqual(at([row], {domain: [1e-8, 4]}), ['parts[0].domain']);
+  assert.deepEqual(at([row], {domain: [4, 1]}), ['parts[0].domain']);
+  assert.deepEqual(at([row], {values: false, valueHeader: 'OR'}), ['parts[0].valueHeader']);
+  assert.deepEqual(at([{...row, id: 'x'}, {...row, label: 'B', id: 'x'}]), ['parts[0].rows[1].id']);
+  assert.deepEqual(at([{...row, low: -1, estimate: 0}], {scale: 'linear', ref: 0}), []);
+  assert.deepEqual(at([{label: 'A', estimate: 2e-25, low: 1e-25, high: 3e-25}], {scale: 'linear', ref: 0}), ['parts[0].rows[0].estimate', 'parts[0].rows[0].low', 'parts[0].rows[0].high']);
 });

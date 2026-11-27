@@ -60,6 +60,7 @@ export const specPartLoaders: Readonly<Record<string, () => Promise<SelectedPart
   'swimlane': () => import('./spec-parts/selective/swimlane.ts').then(m => m.swimlanePart),
   'table': () => import('./spec-parts/selective/table.ts').then(m => m.tablePart),
   'timeline': () => import('./spec-parts/selective/timeline.ts').then(m => m.timelinePart),
+  'forest': () => import('./spec-parts/selective/forest.ts').then(m => m.forestPart),
   'tornado': () => import('./spec-parts/selective/tornado.ts').then(m => m.tornadoPart),
   'tree': () => import('./spec-parts/selective/tree.ts').then(m => m.treePart),
   'treemap': () => import('./spec-parts/selective/treemap.ts').then(m => m.treemapPart),

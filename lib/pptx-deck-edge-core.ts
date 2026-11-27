@@ -3,11 +3,12 @@
 // fallback) and scaled onto its slide with the heading, lead, callouts, source and notes (lib/pptx/deck.ts).
 import {capped} from './spec-validation.ts';
 import type {SpecIssue} from './spec-kit.ts';
-import {autoColumns, columnFallbackWarning, columnFigurePath, columnSpec, figurePath, figureProblemMessages, fitOf, sharedColumns, type DeckSpec} from './deck-spec-core.ts';
+import {autoColumns, columnFallbackWarning, columnFigurePath, columnSpec, figurePath, figureProblemMessages, fitOf, sharedColumns, withCalloutObjects, type DeckSpec} from './deck-spec-core.ts';
 import {DOC_LAYOUT_WIDTH, chooseColumns, columnWidths, figureRooms, fillSearch, maxScale, ruleIds, type FigureFit} from './deck-layout.ts';
+import {growFigure} from './deck-grow.ts';
 import {guardedEngine, type TextEngine} from './spec-edge-core.ts';
 import {zipPackage, type FigurePlan, type PptxEdgeOptions} from './pptx-edge-core.ts';
-import {deckEntries, minTextPt, placeShapes, planDeckSlide, slideIssues, type DeckFigure, type PlannedSlide, type TextWidth} from './pptx/deck.ts';
+import {figurePartTypes, deckEntries, minTextPt, placeShapes, planDeckSlide, slideIssues, type DeckFigure, type PlannedSlide, type TextWidth} from './pptx/deck.ts';
 import {fontsOf} from './pptx/slide-core.ts';
 
 export interface DeckSlideResult {
@@ -40,17 +41,27 @@ const none = (issues: SpecIssue[]): DeckEdgeResult => ({pptx: null, issues: capp
 export async function renderDeckPptxEdgeWith(input: unknown, givenEngine: TextEngine, opts: PptxEdgeOptions, services: {
   validate(input: unknown): SpecIssue[];
   /** `width`: a layout width past the spec's own 940 (a wide room, B6). */
-  plan(spec: unknown, engine: TextEngine, width?: number): Promise<FigurePlan | {issues: SpecIssue[]}>;
+  /** `textSize`: larger labels asked of the parts that can use them (the second drawing, ADR 0085 D2). */
+  plan(spec: unknown, engine: TextEngine, width?: number, textSize?: number): Promise<FigurePlan | {issues: SpecIssue[]}>;
 }): Promise<DeckEdgeResult> {
   const pngScale = opts.pngScale ?? 2;
   if (!(Number.isFinite(pngScale) && pngScale > 0)) throw new Error(`pngScale must be a positive number (got ${String(pngScale)})`);
   const invalid = services.validate(input);
   if (invalid.length) return none(invalid);
-  const deck = input as DeckSpec, engine = guardedEngine(givenEngine), fonts = fontsOf(opts.font);
+  const deck = withCalloutObjects(input) as DeckSpec, engine = guardedEngine(givenEngine), fonts = fontsOf(opts.font);
   const issues: SpecIssue[] = [];
   /** A figure planned as PowerPoint shapes: slide i's own, or its column j's (ADR 0058). */
   const fallbacks: SpecIssue[] = [];
   const width: TextWidth = (text, size, bold) => engine.textBox(text, 'sans', size, bold ? 700 : 400).w;
+  /** ADR 0085 D2: `f` (laid out at layout width `at`, or the spec's own) planned again with larger labels when that comes out larger on the slide. */
+  const grownPlan = async (spec: unknown, f: FigurePlan, room: {w: number; h: number} | null, cap: number, at?: number): Promise<FigurePlan> => {
+    const sized = (p: FigurePlan) => ({w: p.width, h: p.height, flags: ruleIds(p.findings), clean: p.problems.length === 0, f: p});
+    const out = await growFigure(spec, sized(f), room, cap, async size => {
+      const again = await (at === undefined ? services.plan(spec, engine, undefined, size) : at > DOC_LAYOUT_WIDTH ? services.plan(spec, engine, at, size) : services.plan({...(spec as object), width: at}, engine, undefined, size));
+      return 'issues' in again ? null : sized(again);
+    });
+    return out.f;
+  };
   const plan = async (i: number, spec: unknown, fit: FigureFit, room: {w: number; h: number} | null, j?: number, columnPx?: number): Promise<DeckFigure & {native: number} | undefined> => {
     if (spec === undefined) return undefined;
     const place = (p: string | null) => j === undefined ? figurePath(i, p) : columnFigurePath(i, j, p);
@@ -64,19 +75,22 @@ export async function renderDeckPptxEdgeWith(input: unknown, givenEngine: TextEn
       });
       if (!found.ok) { issues.push(...firstIssues.map(x => ({path: place(x.path), message: x.message}))); return undefined; }
       if (j !== undefined && found.width === null && found.narrower) fallbacks.push({path: place(''), message: columnFallbackWarning(found.narrower.width, found.narrower.why)});
-      const f = found.value;
+      const f = await grownPlan(spec, found.value, room, maxScale(fit), found.width ?? undefined);
       if (f.problems.length) { issues.push(...figureProblemMessages(f.problems).map(message => ({path: place(''), message}))); return undefined; }
       return {plan: f.plan, w: f.width, h: f.height, native: f.native};
     }
     // a column's figure is laid out at the column's width when it gives none; when it does not fit there, at the document's (ADR 0059)
     const narrow = j !== undefined && columnPx !== undefined ? columnSpec(spec, columnPx) : {spec, auto: null};
     let f = await services.plan(narrow.spec, engine);
+    let drewNarrow = true;
     // a problem that only the deck's own choice of width brings is like a spec error at that width (ADR 0059 D3: draw at the document's width and warn, never an error)
     if (narrow.auto !== null && ('issues' in f || f.problems.length)) {
       const why = 'issues' in f ? f.issues[0]?.message ?? '' : f.problems[0] ?? '', wide = await services.plan(spec, engine);
       if (!('issues' in wide) && !wide.problems.length) fallbacks.push({path: columnFigurePath(i, j as number, ''), message: columnFallbackWarning(narrow.auto, why)});
       f = wide;
+      drewNarrow = false;
     }
+    if (drewNarrow && !('issues' in f) && !f.problems.length) f = await grownPlan(narrow.spec, f, room, maxScale(fit));
     if ('issues' in f) { issues.push(...f.issues.map(x => ({path: j === undefined ? figurePath(i, x.path) : columnFigurePath(i, j, x.path), message: x.message}))); return undefined; }
     if (f.problems.length) { issues.push(...figureProblemMessages(f.problems).map(message => ({path: place(''), message}))); return undefined; }
     return {plan: f.plan, w: f.width, h: f.height, native: f.native};
@@ -100,7 +114,10 @@ export async function renderDeckPptxEdgeWith(input: unknown, givenEngine: TextEn
       const bad = chosen.figures.flatMap((f, j) => f ? figureProblemMessages(f.value.problems).map(message => ({path: columnFigurePath(i, j, ''), message})) : []);
       if (bad.length) { issues.push(...bad); figures.push(undefined); columnFigures.push([]); shares.push(undefined); continue; }
       figures.push(undefined);
-      columnFigures.push(chosen.figures.map(f => f ? {plan: f.value.plan, w: f.value.width, h: f.value.height, native: f.value.native} : undefined));
+      // ADR 0085 D2: each column's figure planned again with larger labels where its room (now the shares are chosen) makes that worthwhile
+      const room = figureRooms({...s, columns: sharedColumns(columns, chosen.shares)}, width);
+      const grownColumns = await Promise.all(chosen.figures.map((f, j) => f ? grownPlan(columns[j]?.figure, f.value, room.columns[j] ?? null, maxScale(fit), f.value.width) : undefined));
+      columnFigures.push(grownColumns.map(f => f ? {plan: f.plan, w: f.width, h: f.height, native: f.native} : undefined));
       shares.push(chosen.shares);
       continue;
     }
@@ -120,7 +137,7 @@ export async function renderDeckPptxEdgeWith(input: unknown, givenEngine: TextEn
   });
   const warnings: SpecIssue[] = [...fallbacks];
   planned.forEach((p, i) => {
-    const r = slideIssues(p, i, figures[i] !== undefined, (deck.slides[i]?.columns ?? []).map(c => c.text === undefined ? 'figure' : 'text'));
+    const r = slideIssues(p, i, figures[i] !== undefined, (deck.slides[i]?.columns ?? []).map(c => c.text === undefined ? 'figure' : 'text'), {figure: figurePartTypes(deck.slides[i]?.figure), columns: (deck.slides[i]?.columns ?? []).map(c => figurePartTypes(c.figure))});
     issues.push(...r.errors);
     warnings.push(...r.warnings);
   });

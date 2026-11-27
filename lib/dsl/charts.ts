@@ -9,6 +9,7 @@ export {treemap} from './treemap.ts';
 export {stackedBars, mekko} from './stacked.ts';
 export {heatmap} from './heatmap.ts';
 export {tornado} from './tornado.ts';
+export {forest} from './forest.ts';
 export {bubble} from './bubble.ts';
 export {butterfly} from './butterfly.ts';
 export {combo} from './combo.ts';

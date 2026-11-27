@@ -4,7 +4,7 @@ import type {PartDef} from '../spec-kit.ts';
 export function defineCyclePart<Result>(builder: (steps: never, opts: never) => Result): PartDef<Result> {
   return {
     type: 'cycle',
-    description: 'Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model.',
+    description: 'Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model. When the figure is wide, a `steps` part with `loopBack` reads better than a ring.',
     schema: object({
       type: {const: 'cycle'},
       steps: flowSteps(3, 8),

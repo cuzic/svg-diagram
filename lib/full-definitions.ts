@@ -61,6 +61,7 @@ import {swimlaneDefinition} from './bands/swimlane.ts';
 import {tableDefinition} from './bands/table.ts';
 import {timelineDefinition} from './bands/timeline.ts';
 import {tornadoDefinition} from './bands/tornado.ts';
+import {forestDefinition} from './bands/forest.ts';
 import {treeDefinition} from './bands/tree.ts';
 import {treemapDefinition} from './bands/treemap.ts';
 import {valueChainDefinition} from './bands/value-chain.ts';
@@ -93,6 +94,7 @@ const chartDefinitions = {
   sankey: sankeyDefinition,
   stacked: stackedDefinition,
   tornado: tornadoDefinition,
+  forest: forestDefinition,
   treemap: treemapDefinition,
   waterfall: waterfallDefinition,
 } satisfies Record<BandOf<'chart'>['kind'], BandDef<BandOf<'chart'>, object>>;

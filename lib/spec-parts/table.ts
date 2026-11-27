@@ -7,7 +7,7 @@ export function defineTablePart<Result>(builder: (columns: never, rows: never, o
     description: 'A table: columns with headings and rows of text or numbers, such as a comparison of options. A row can be an object with a tone to stand out.',
     schema: object({
       type: {const: 'table'},
-      columns: list(object({label: text('The heading.', 30), flex: {type: 'integer', minimum: 1, maximum: 6, description: 'The share of the width (default 1).'}}, ['label']), 8, 1),
+      columns: list(object({label: text('The heading.', 30), flex: {type: 'integer', minimum: 1, maximum: 12, description: 'The share of the width (1 to 12; default 1).'}}, ['label']), 8, 1),
       rows: list({oneOf: [
         {type: 'array', items: CELL, minItems: 1, maxItems: 8, description: 'The cells, one per column.'},
         object({cells: {type: 'array', items: CELL, minItems: 1, maxItems: 8}, tone: BOX_TONE}, ['cells']),

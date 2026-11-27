@@ -111,7 +111,7 @@ try {
   };
   const standaloneSpecBands = [
     'bowtie', 'bpmn', 'bubble', 'butterfly', 'chevron', 'cloud', 'combo', 'compare', 'concentric', 'cycle',
-    'funnel', 'gantt', 'harvey', 'heatmap', 'pert', 'pyramid', 'quadrant', 'radar', 'sankey', 'sequence',
+    'forest', 'funnel', 'gantt', 'harvey', 'heatmap', 'pert', 'pyramid', 'quadrant', 'radar', 'sankey', 'sequence',
     'timeline', 'tornado', 'treemap', 'value-chain', 'venn', 'waterfall',
   ];
   const specBandEntries = [
@@ -136,7 +136,7 @@ try {
     ['causal-loop', {esbuild: 160000, Vite: 216000}],
     ['cause-tree', {esbuild: 191000, Vite: 254000}],
     ['check-sheet', {esbuild: 100000, Vite: 121000}],
-    ['chevron', {esbuild: 69200, Vite: 91000}],
+    ['chevron', {esbuild: 69340, Vite: 91000}],
     ['class-diagram', {esbuild: 147000, Vite: 203000}],
     ['cloud', {esbuild: 72100, Vite: 93300}],
     ['combo', {esbuild: 87000, Vite: 108000}],
@@ -160,7 +160,7 @@ try {
     ['matrix', {esbuild: 101000, Vite: 122000}],
     ['mekko', {esbuild: 85000, Vite: 104000}],
     ['mindmap', {esbuild: 99890, Vite: 129170}],
-    ['pareto', {esbuild: 88000, Vite: 113000}],
+    ['pareto', {esbuild: 88000, Vite: 113240}],
     ['pdpc', {esbuild: 191000, Vite: 254000}],
     ['pert', {esbuild: 148000, Vite: 199000}],
     ['pyramid', {esbuild: 59300, Vite: 77900}],
@@ -168,7 +168,7 @@ try {
     ['quadrant', {esbuild: 108000, Vite: 135000}],
     ['raci', {esbuild: 100000, Vite: 122000}],
     ['radar', {esbuild: 82000, Vite: 101000}],
-    ['range-bars', {esbuild: 86000, Vite: 111000}],
+    ['range-bars', {esbuild: 86000, Vite: 111300}],
     ['relation-diagram', {esbuild: 192000, Vite: 255000}],
     ['sankey', {esbuild: 90000, Vite: 110000}],
     ['scatter', {esbuild: 83000, Vite: 107000}],
@@ -179,7 +179,8 @@ try {
     ['strategy-canvas', {esbuild: 84000, Vite: 110000}],
     ['swimlane', {esbuild: 152000, Vite: 192000}],
     ['table', {esbuild: 80000, Vite: 100000}],
-    ['timeline', {esbuild: 76500, Vite: 100000}],
+    ['timeline', {esbuild: 79450, Vite: 103730}],
+    ['forest', {esbuild: 88000, Vite: 116500}],
     ['tornado', {esbuild: 83000, Vite: 102000}],
     ['tree', {esbuild: 96050, Vite: 125130}],
     ['treemap', {esbuild: 80000, Vite: 100000}],
@@ -211,6 +212,7 @@ try {
         ...(!bands.includes('connect.js') ? ['verify-connection-graph.js'] : []),
         ...(!bands.some(band => /^(?:cause|states|classes|tree|fta|bowtie)\.js$/.test(band)) ? ['verify-layout-fit.js'] : []),
         ...(!bands.includes('fta.js') ? ['fta-rules.js'] : []),
+        ...(!bands.includes('forest.js') ? ['forest-rules.js'] : []),
         ...(!bands.includes('table.js') ? ['table-rules.js', 'table-number-rules.js'] : []),
         ...(!bands.includes('swimlane.js') ? ['swimlane-rules.js'] : []),
         ...(!bands.some(band => ['box.js', 'group.js', 'grid.js', 'row.js', 'quadrant.js'].includes(band)) ? ['layout-metrics.js'] : [])],
@@ -752,7 +754,7 @@ try {
       export const draw = () => renderSpecEdge({version: 1, title: 'Plan', parts: [
         {type: 'table', columns: [{label: 'Review'}], rows: [['Done']]},
       ]}, engine, {parts: [tablePart]});
-    `, include: 'spec-selective-edge.js', budget: {esbuild: 122000, Vite: 159000}, bands: ['table.js'],
+    `, include: 'spec-selective-edge.js', budget: {esbuild: 122040, Vite: 159000}, bands: ['table.js'],
       exclude: [...legacy, 'lib/spec.js', 'spec-edge.js', 'dsl-pure.js', 'bands/gantt.js', 'bands/box.js'], draw: true},
     {name: 'Selected table spec', source: `
       import {renderSpec} from 'svg-diagram/spec/selective';
@@ -894,7 +896,7 @@ try {
     ] as const).map(([name, sample]) => ({
       name, source: composedSource(name === 'bracket' ? ['box'] : ['box', 'spacer'], `${name === 'callout' ? 'spacer(64), ' : ''}box({id: 'a', title: 'Review'}), ${name === 'branch' ? 'spacer(64), ' : ''}box({id: 'b', title: 'Done'}), ${sample}`,
         `import {${name}} from 'svg-diagram/bands/connect';`),
-      include: `dsl/${name}.js`, budget: {esbuild: 116000, Vite: 145000}, bands: name === 'bracket' ? ['box.js', 'connect.js'] : ['box.js', 'connect.js', 'spacer.js'],
+      include: `dsl/${name}.js`, budget: {esbuild: 116000, Vite: 145800}, bands: name === 'bracket' ? ['box.js', 'connect.js'] : ['box.js', 'connect.js', 'spacer.js'],
       exclude: [...legacy, 'dsl/connect.js', ...['bracket', 'callout', 'branch'].filter(other => other !== name).map(other => `dsl/${other}.js`)],
       draw: true,
     })),
@@ -1007,6 +1009,8 @@ try {
       include: 'bands/bubble.js', budget: {esbuild: 98000, Vite: 121000}, exclude: [...legacy, 'dsl/charts.js', 'charts-dsl.js', 'lib/charts.js', 'charts-tornado.js', 'charts-butterfly.js', 'charts-harvey.js', 'charts-heatmap.js'], draw: true},
     {name: 'Butterfly', source: composedSource(['butterfly'], "butterfly([{label: 'Review', left: 4, right: 5}], {leftLabel: 'Left', rightLabel: 'Right'})"),
       include: 'bands/butterfly.js', budget: {esbuild: 93000, Vite: 114000}, exclude: [...legacy, 'dsl/charts.js', 'charts-dsl.js', 'lib/charts.js', 'charts-tornado.js', 'charts-bubble.js', 'charts-harvey.js', 'charts-heatmap.js'], draw: true},
+    {name: 'Forest', source: composedSource(['forest'], "forest([{label: 'Review', estimate: 1.5, low: 1.1, high: 2}])"),
+      include: 'bands/forest.js', budget: {esbuild: 97000, Vite: 118500}, exclude: [...legacy, 'dsl/charts.js', 'charts-dsl.js', 'lib/charts.js', 'charts-tornado.js', 'charts-butterfly.js', 'charts-bubble.js', 'charts-harvey.js', 'charts-heatmap.js'], draw: true},
     {name: 'Tornado', source: composedSource(['tornado'], "tornado([{label: 'Review', low: 3, high: 9}], {base: 5})"),
       include: 'bands/tornado.js', budget: {esbuild: 97000, Vite: 118500}, exclude: [...legacy, 'dsl/charts.js', 'charts-dsl.js', 'lib/charts.js', 'charts-butterfly.js', 'charts-bubble.js', 'charts-harvey.js', 'charts-heatmap.js'], draw: true},
     {name: 'clustermap', source: composedSource([], "clustermap(['Review', 'Next'], ['A', 'B'], [[1, 3], [4, 2]])", "import {clustermap} from 'svg-diagram/bands/clustermap';"),

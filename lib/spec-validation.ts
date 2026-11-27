@@ -72,7 +72,7 @@ function validateOneOf(branches: readonly JsonSchema[], v: unknown, at: string, 
     out.push({path: join(at, key), message: `must be one of ${objects.map(b => JSON.stringify(b.properties?.[key]?.const)).join(', ')} (got ${describe(o[key])})`});
     return;
   }
-  const hit = objects.find(b => (b.required ?? []).every(k => Object.hasOwn(o, k)));
+  const hit = objects.find(b => (b.required ?? []).every(k => Object.hasOwn(o, k))) ?? (objects.length === 1 ? objects[0] : undefined); // one object form: its own issues say what is missing
   if (hit) { validate(hit, v, at, out); return; }
   out.push({path: at, message: `must have the fields of one of these forms: ${objects.map(b => (b.required ?? []).join(' + ')).join(' / ')}`});
 }
