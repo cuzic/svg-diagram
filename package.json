@@ -154,6 +154,7 @@
     "./dist/lib/spec-parts/selective/fault-tree.js",
     "./dist/lib/spec-parts/selective/flowchart.js",
     "./dist/lib/spec-parts/selective/fmea.js",
+    "./dist/lib/spec-parts/selective/forest.js",
     "./dist/lib/spec-parts/selective/funnel.js",
     "./dist/lib/spec-parts/selective/gantt.js",
     "./dist/lib/spec-parts/selective/harvey.js",
@@ -426,6 +427,10 @@
     "./bands/waterfall": {
       "types": "./dist/lib/bands/waterfall.d.ts",
       "default": "./dist/lib/bands/waterfall.js"
+    },
+    "./bands/forest": {
+      "types": "./dist/lib/bands/forest.d.ts",
+      "default": "./dist/lib/bands/forest.js"
     },
     "./bands/tornado": {
       "types": "./dist/lib/bands/tornado.d.ts",
@@ -844,6 +849,10 @@
     "./spec/parts/timeline": {
       "types": "./dist/lib/spec-parts/selective/timeline.d.ts",
       "default": "./dist/lib/spec-parts/selective/timeline.js"
+    },
+    "./spec/parts/forest": {
+      "types": "./dist/lib/spec-parts/selective/forest.d.ts",
+      "default": "./dist/lib/spec-parts/selective/forest.js"
     },
     "./spec/parts/tornado": {
       "types": "./dist/lib/spec-parts/selective/tornado.d.ts",

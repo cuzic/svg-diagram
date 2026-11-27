@@ -111,7 +111,7 @@ try {
   };
   const standaloneSpecBands = [
     'bowtie', 'bpmn', 'bubble', 'butterfly', 'chevron', 'cloud', 'combo', 'compare', 'concentric', 'cycle',
-    'funnel', 'gantt', 'harvey', 'heatmap', 'pert', 'pyramid', 'quadrant', 'radar', 'sankey', 'sequence',
+    'forest', 'funnel', 'gantt', 'harvey', 'heatmap', 'pert', 'pyramid', 'quadrant', 'radar', 'sankey', 'sequence',
     'timeline', 'tornado', 'treemap', 'value-chain', 'venn', 'waterfall',
   ];
   const specBandEntries = [
@@ -168,7 +168,7 @@ try {
     ['quadrant', {esbuild: 108000, Vite: 135000}],
     ['raci', {esbuild: 100000, Vite: 122000}],
     ['radar', {esbuild: 82000, Vite: 101000}],
-    ['range-bars', {esbuild: 86000, Vite: 111160}],
+    ['range-bars', {esbuild: 86000, Vite: 111300}],
     ['relation-diagram', {esbuild: 192000, Vite: 255000}],
     ['sankey', {esbuild: 90000, Vite: 110000}],
     ['scatter', {esbuild: 83000, Vite: 107000}],
@@ -180,6 +180,7 @@ try {
     ['swimlane', {esbuild: 152000, Vite: 192000}],
     ['table', {esbuild: 80000, Vite: 100000}],
     ['timeline', {esbuild: 79450, Vite: 103730}],
+    ['forest', {esbuild: 88000, Vite: 116500}],
     ['tornado', {esbuild: 83000, Vite: 102000}],
     ['tree', {esbuild: 96050, Vite: 125130}],
     ['treemap', {esbuild: 80000, Vite: 100000}],
@@ -211,6 +212,7 @@ try {
         ...(!bands.includes('connect.js') ? ['verify-connection-graph.js'] : []),
         ...(!bands.some(band => /^(?:cause|states|classes|tree|fta|bowtie)\.js$/.test(band)) ? ['verify-layout-fit.js'] : []),
         ...(!bands.includes('fta.js') ? ['fta-rules.js'] : []),
+        ...(!bands.includes('forest.js') ? ['forest-rules.js'] : []),
         ...(!bands.includes('table.js') ? ['table-rules.js', 'table-number-rules.js'] : []),
         ...(!bands.includes('swimlane.js') ? ['swimlane-rules.js'] : []),
         ...(!bands.some(band => ['box.js', 'group.js', 'grid.js', 'row.js', 'quadrant.js'].includes(band)) ? ['layout-metrics.js'] : [])],
@@ -1007,6 +1009,8 @@ try {
       include: 'bands/bubble.js', budget: {esbuild: 98000, Vite: 121000}, exclude: [...legacy, 'dsl/charts.js', 'charts-dsl.js', 'lib/charts.js', 'charts-tornado.js', 'charts-butterfly.js', 'charts-harvey.js', 'charts-heatmap.js'], draw: true},
     {name: 'Butterfly', source: composedSource(['butterfly'], "butterfly([{label: 'Review', left: 4, right: 5}], {leftLabel: 'Left', rightLabel: 'Right'})"),
       include: 'bands/butterfly.js', budget: {esbuild: 93000, Vite: 114000}, exclude: [...legacy, 'dsl/charts.js', 'charts-dsl.js', 'lib/charts.js', 'charts-tornado.js', 'charts-bubble.js', 'charts-harvey.js', 'charts-heatmap.js'], draw: true},
+    {name: 'Forest', source: composedSource(['forest'], "forest([{label: 'Review', estimate: 1.5, low: 1.1, high: 2}])"),
+      include: 'bands/forest.js', budget: {esbuild: 97000, Vite: 118500}, exclude: [...legacy, 'dsl/charts.js', 'charts-dsl.js', 'lib/charts.js', 'charts-tornado.js', 'charts-butterfly.js', 'charts-bubble.js', 'charts-harvey.js', 'charts-heatmap.js'], draw: true},
     {name: 'Tornado', source: composedSource(['tornado'], "tornado([{label: 'Review', low: 3, high: 9}], {base: 5})"),
       include: 'bands/tornado.js', budget: {esbuild: 97000, Vite: 118500}, exclude: [...legacy, 'dsl/charts.js', 'charts-dsl.js', 'lib/charts.js', 'charts-butterfly.js', 'charts-bubble.js', 'charts-harvey.js', 'charts-heatmap.js'], draw: true},
     {name: 'clustermap', source: composedSource([], "clustermap(['Review', 'Next'], ['A', 'B'], [[1, 3], [4, 2]])", "import {clustermap} from 'svg-diagram/bands/clustermap';"),

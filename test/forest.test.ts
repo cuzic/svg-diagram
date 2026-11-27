@@ -94,7 +94,7 @@ test('forest(): the number column is fixed in form; a negative number changes th
   const {chart, verdict} = await chartOf(forest([study('差', -4.2, -7.9, -0.5), study('差 2', 1, -1, 3)], {scale: 'linear', ref: 0, decimals: 1}));
   assert.deepEqual(verdict.problems, []);
   assert.ok(texts(chart).includes('−4.2 (−7.9, −0.5)'));
-  assert.ok(texts(chart).includes('1.0 (−1.0, 3.0)') && texts(chart).includes('−5') || texts(chart).includes('−4'), 'ticks use the same minus sign');
+  assert.ok(texts(chart).includes('1.0 (−1.0, 3.0)') && (texts(chart).includes('−5') || texts(chart).includes('−4')), 'ticks use the same minus sign');
   assert.ok(!texts(chart).some(t => /^-\d/.test(t)));
   const mixed = await chartOf(forest([study('負', -4.2, -7.9, -0.5), study('正', 12.3, 3.5, 21)], {scale: 'linear', ref: 0, decimals: 1}));
   assert.ok(texts(mixed.chart).includes('12.3 (3.5, 21.0)'));
@@ -144,7 +144,7 @@ test('forest({domain}): a summary row past the axis is a diamond cut flat at the
   assert.ok(xy(1)[0]! > xy(0)[0]! && xy(1)[1]! < xy(0)[1]!, 'the top corner is at the estimate, higher than the cut');
   assert.ok(xy(2)[0]! < axis![2]!, 'the right end (3.5) is a point inside the axis');
   const info = verdict.findings.find(f => f.rule === 'forest-clipped')!;
-  assert.match(info.message, /「S」\(ひし形を端で平らに切る\)/);
+  assert.match(info.message, /「S」（ひし形を端で平らに切る）/);
   assert.doesNotMatch(info.message, /「A」/);
   const both = diamond((await chartOf(forest([study('S', 1.5, 0.3, 9, {summary: true})], {domain: [0.5, 4]}))).chart);
   assert.equal(both.length, 12, 'cut on both sides: six corners');
@@ -225,4 +225,18 @@ test('forest(): when every interval is on one side of ref the notes still fit (t
   assert.ok(texts(chart).includes('← 対照が良い'));
   const low = await chartOf(forest([study('甲', 0.8, 0.6, 0.9)], {favours: ['対照が良い', '新方式が良い'], values: false}));
   assert.deepEqual(low.verdict.problems, []);
+});
+
+test('forest(): the reference line just inside an axis end still gets room beyond it; a log floor of 0.000001; small values keep two digits', () => {
+  const lin = forestScale(spec([study('a', 50, 5, 95)], {scale: 'linear', ref: 5})).ticks;
+  assert.ok(lin[0]! < 0, 'ref 5 is within one step of the 0 end: one more step below');
+  const far = forestScale(spec([study('a', 50, 5, 95)], {scale: 'linear', ref: 50})).ticks;
+  assert.equal(far[0], 0, 'ref in the middle: no extension');
+  const log = forestScale(spec([study('a', 5, 1.5, 60)], {ref: 1.5})).ticks;
+  assert.ok(log[0]! < 1.5 && log[0]! <= 1, `log 1-2-5 axis, ref 1.5: ${log}`);
+  assert.throws(() => forest([study('a', 1, 0.5, 2)], {domain: [1e-8, 4]}), /domain .* below 0.000001/);
+  assert.throws(() => forest([study('a', 1e-7, 1e-7, 2)], {ref: 1e-7}), /below 0.000001/);
+  assert.equal(forestValueText({decimals: 3}, {estimate: 0.0004, low: 0.0002, high: 0.0009}), '0.00040 (0.00020–0.001)');
+  assert.equal(forestValueText({decimals: 2}, {estimate: 1.5, low: 1.2, high: 1.9}), '1.50 (1.20–1.90)');
+  assert.equal(forestValueText({decimals: 2}, {estimate: 0, low: 0, high: 0}), '0.00 (0.00–0.00)');
 });

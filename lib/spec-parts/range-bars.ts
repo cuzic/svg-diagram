@@ -6,7 +6,7 @@ import type {PartDef} from '../spec-kit.ts';
 export function defineRangeBarsPart<Result>(builder: (rows: never, opts: never) => Result): PartDef<Result> {
   return {
     type: 'rangeBars',
-    description: 'Range bars: one bar per label from a low to a high value, such as the price range of each plan, an estimate range or a minimum and maximum. Values are 0 or more.',
+    description: 'Range bars: one bar per label from a low to a high value, such as the price range of each plan, an estimate range or a minimum and maximum. Values are 0 or more. With point estimates or a reference line: forest.',
     schema: object({
       type: {const: 'rangeBars'},
       items: list(object({label: text('What the bar is.', 30), low: {...AMOUNT, description: 'Where the bar starts.'}, high: {...AMOUNT, description: 'Where it ends, above low.'}, tone: oneOf('accent', 'danger', 'muted')}, ['label', 'low', 'high']), 20, 1),

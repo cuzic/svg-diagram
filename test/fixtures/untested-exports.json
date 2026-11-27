@@ -504,6 +504,7 @@
   "spec-parts/fault-tree:defineFaultTreePart",
   "spec-parts/flowchart:defineFlowchartPart",
   "spec-parts/fmea:defineFmeaPart",
+  "spec-parts/forest:defineForestPart",
   "spec-parts/funnel:defineFunnelPart",
   "spec-parts/gantt:defineGanttPart",
   "spec-parts/harvey:defineHarveyPart",
