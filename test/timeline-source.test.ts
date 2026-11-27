@@ -58,8 +58,8 @@ test('timeline: crowded labels go to higher levels instead of overlapping; verif
 });
 
 test('timeline: labels that cannot be separated throw', async () => {
-  const marks = Array.from({length: 8}, (_, i) => ({at: `2026-11-0${i + 1}`, label: `ずっと長い名前のマーク${i}`}));
-  await assert.rejects(laid({from: '2026-10', to: '2026-12', now: {at: '2026-10'}, deadline: {at: '2026-12', label: '期限'}, marks}), /do not fit/);
+  const marks = Array.from({length: 14}, (_, i) => ({at: `2026-11-${String(i + 1).padStart(2, '0')}`, label: `ずっと長い名前のマーク${i}`})); // staggering over 5 rows still cannot hold 14
+  await assert.rejects(laid({from: '2026-10', to: '2026-12', now: {at: '2026-10'}, deadline: {at: '2026-12', label: '期限'}, marks}), /do not fit above the axis, even staggered/);
 });
 
 test('timeline: bad input throws, naming the field', () => {
