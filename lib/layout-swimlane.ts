@@ -8,6 +8,7 @@ import {narrowField} from './tree.ts';
 import type {LaidOutLane, LaidOutPhase, LaidOutSwimlane, SwimlaneBand} from './types/sequence-table-swimlane.ts';
 import {wrapAtoms} from './wrap.ts';
 
+const UNDER_ROOM = 16;
 export function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
   // a boundary's name sits in a chip across the label column: the column is never narrower than the longest name + the chip's round ends, fit: 'shrink' included
@@ -64,8 +65,9 @@ export function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number,
     const blockH = rows * maxStep + (rows - 1) * rowGap;
     // a named boundary below this lane puts a chip across the lane border: the centred lane label leaves room for half of it
     const chipHalf = boundaryChipH(roles.note) / 2 + 2, nChip = (band.boundaries ?? []).filter(b => b.label && (b.after === lane.id || band.lanes[i - 1]?.id === b.after)).length;
-    const h = Math.max(blockH, labelH + (nChip ? 2 * chipHalf : 0)) + 2 * padY;
-    const out = {y, h, labelLines, labelTop: y + (h - labelH) / 2, tone: lane.tone, maxStep, blockTop: y + (h - blockH) / 2};
+    const core = Math.max(blockH, labelH + (nChip ? 2 * chipHalf : 0)) + 2 * padY;
+    const h = core + (band.underRoom?.includes(lane.id) ? UNDER_ROOM : 0); // room under the boxes for a labelled way back
+    const out = {y, h, labelLines, labelTop: y + (h - labelH) / 2, tone: lane.tone, maxStep, blockTop: y + (core - blockH) / 2};
     y += h;
     return out;
   });

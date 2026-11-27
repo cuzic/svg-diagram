@@ -195,6 +195,8 @@ export interface SwimlaneBand {
   phases?: SwimlanePhase[];
   /** As placed by swimlane(): the lane each line sits below. */
   boundaries?: {after: string; label?: string}[];
+  /** As placed by swimlane(): the lanes with a labelled flow running back under their boxes; each gets room below the boxes for the line and its chip. */
+  underRoom?: string[];
   labelW?: number | 'fit';
   colGap?: number;
   fit?: 'shrink';

@@ -44,6 +44,7 @@ function focusSwimlane(steps: SwimlaneStep[], opts: SwimlaneOpts): {steps: Swiml
     opts: {...opts, flows: flows.map(f => ({...f, tone: litLink(at(f.from), at(f.to), hit) ? 'accent' as const : 'muted' as const}))},
   };
 }
+const UNDER_DIP = 8, UNDER_DIP_LABELLED = 12;
 export function swimlane<
   const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [], const Id extends string = never,
 >(lanes: L & LaneCheck<L>, steps: S & StepCheck<L, S>, opts?: Omit<SwimlaneOpts, 'flows' | 'id'> & {id?: Id; flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S> | Id> | ConnectBand)[] & AnchorsOf<StepIds<S> | Id>;
@@ -112,8 +113,13 @@ function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: Swimla
     const [fid, fside] = String(f.from).split(':'), [tid, tside] = String(f.to).split(':');
     const a = byId.get(fid), b = byId.get(tid);
     if (!a || !b) throw new Error(`swimlane(): flow ${f.from} -> ${f.to} refers to an unknown step id`);
-    let from = f.from, to = f.to, auto = false;
-    if (!fside && !tside) {
+    let from = f.from, to = f.to, auto = false, under = false;
+    // a way back along one lane, to the bottom of an earlier step (or past a step in between): run it under the lane's boxes, never through them
+    const sameRow = a.lane === b.lane && (a.row ?? 0) === (b.row ?? 0) && a.col > b.col + b.span - 1;
+    const blocked = sameRow && placed.some(o => o !== a && o !== b && o.lane === a.lane && (o.row ?? 0) === (a.row ?? 0) && o.col + o.span - 1 > b.col && o.col < a.col);
+    if (sameRow && tside === 'bottom' && (!fside || fside === 'bottom') || (sameRow && blocked && !fside && !tside)) {
+      under = true; from = `${fid}:bottom`; to = `${tid}:bottom`;
+    } else if (!fside && !tside) {
       auto = true;
       const la = must(laneIdx.get(a.lane)), lb = must(laneIdx.get(b.lane)); // every step's lane was checked against `laneIdx` above
       if (b.col > a.col + a.span - 1) { from = `${fid}:right`; to = `${tid}:left`; }
@@ -121,7 +127,7 @@ function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: Swimla
       else if (lb > la || (lb === la && (b.row ?? 0) > (a.row ?? 0))) { from = `${fid}:bottom`; to = `${tid}:top`; }
       else { from = `${fid}:top`; to = `${tid}:bottom`; }
     }
-    return {f, a, b, from, to, auto};
+    return {f, a, b, from, to, auto, under};
   });
   const uses = new Map();
   const note = (k: string) => uses.set(k, (uses.get(k) ?? 0) + 1);
@@ -134,13 +140,16 @@ function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: Swimla
     return `${ref}@${((k + 1) / (n + 1)).toFixed(2)}`;
   };
   const slot = new Map();
-  const flows = specs.map(({f, b, from, to, auto}) => {
+  const flows = specs.map(({f, b, from, to, auto, under}) => {
+    if (under) return connectBand(from, to, {route: 'loop-under', dip: f.label ? UNDER_DIP_LABELLED : UNDER_DIP, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.5, line: f.line, arrow: f.arrow, tone: f.tone}, false);
     if (auto) { from = spread(from); to = spread(to); }
     const k = slot.get(b.col) ?? 0; slot.set(b.col, k + 1);
     return connectBand(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone}, false);
   });
   if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`swimlane(): fit must be 'shrink' (got ${String(opts.fit)})`);
-  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, ...(boundaries?.length ? {boundaries} : {}), labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...scopeOpt(opts, 'swimlane()'), ...revealOf(opts)};
+  // a lane whose boxes have a labelled way back under them needs room below them for the line and its chip
+  const underRoom = [...new Set(specs.filter(sp => sp.under && sp.f.label).map(sp => sp.a.lane))];
+  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, ...(underRoom.length ? {underRoom} : {}), phases: opts.phases, ...(boundaries?.length ? {boundaries} : {}), labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...scopeOpt(opts, 'swimlane()'), ...revealOf(opts)};
   return withAnchors([block, ...flows], placed.map(st => st.id));
 }
 

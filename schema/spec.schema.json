@@ -210,7 +210,7 @@
               "A mind map: one root with branches, for organising a topic. `layout` also gives an org chart ('org'), an indented list ('list'), a brace map ('brace'), a fishbone cause-and-effect chart ('fishbone') and a timeline ('timeline').",
               "A matrix between two axes: 2x2 (or up to 4x4) cells, with items placed in a cell or at a coordinate, optionally as bubbles sized by a value. `preset` fills the axes and cells of a known framework: bcg (growth-share), ge (GE-McKinsey nine box), ansoff, nineBox (talent), impactEffort, risk (likelihood x impact), stakeholder (power x interest), positioning, eisenhower (urgent x important), actMatrix (ACT Matrix: five senses / inside x away / toward, with 気づいている自分 at the centre). The presets write their axes and cells in Japanese: with lang en, give x, y and cells (and centre) instead.",
               "Process steps as arrow shapes in a row (or a column): a sequence with no branches, such as the phases of a project. `current` marks the step in progress.",
-              "Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model.",
+              "Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model. In a wide place, steps with loopBack reads better than a ring.",
               "Layers stacked from a wide base to a narrow top, such as a hierarchy of needs or of priorities. The first layer is the base, the last the top.",
               "A state diagram: the states something goes through and the events that move it, such as an order or a ticket. `initial` draws the start dot; a final state has a double outline.",
               "A Gantt chart: tasks as bars on a calendar, grouped by sections, with milestones, progress and arrows from the tasks a task waits for. Dates are YYYY-MM-DD; give `today` to draw the line of today.",
@@ -1538,7 +1538,7 @@
           },
           {
             "label": "cycle",
-            "description": "Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model.",
+            "description": "Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model. In a wide place, steps with loopBack reads better than a ring.",
             "body": {
               "type": "cycle",
               "steps": [
@@ -5375,7 +5375,7 @@
         "steps"
       ],
       "additionalProperties": false,
-      "description": "Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model."
+      "description": "Steps that repeat in a circle, such as PDCA: the last step leads back to the first. A word can sit in the centre. With links, the steps sit on a regular polygon joined pair by pair inside an optional named frame: the CBT five-part model. In a wide place, steps with loopBack reads better than a ring."
     },
     "part.pyramid": {
       "type": "object",
