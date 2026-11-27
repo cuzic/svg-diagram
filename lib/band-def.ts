@@ -240,7 +240,7 @@ export function defOf(b: object): BandDef | undefined {
 }
 
 export function definedNestedBandsOf(band: Band): readonly Band[] {
-  return band.type === 'swimlane' ? band.steps : defOf(band)?.children?.(band) ?? [];
+  return band.type === 'swimlane' ? (band.arrange === 'auto' ? [] : band.steps) : defOf(band)?.children?.(band) ?? [];
 }
 
 /** Visit selected bands and their nested content in input order. */

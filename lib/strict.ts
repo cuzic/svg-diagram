@@ -217,9 +217,12 @@ export type LaneIds<L extends readonly {id: string}[]> = L[number]['id'];
 type StepIdOf<S> = S extends {readonly id: infer I extends string} ? I : never;
 export type StepIds<S extends readonly unknown[]> = StepIdOf<S[number]>;
 
-/** swimlane-lanes: more than 6 lanes is a type error. */
-export type LaneCheck<L extends readonly unknown[]> =
+/** swimlane-lanes: more than 6 lanes is a type error (8 with `cols: 'auto'`, like a vertical figure and laneOrder). */
+export type LaneCheck<L extends readonly unknown[], O = object> =
   number extends L['length'] ? unknown
+  : O extends {cols: 'auto'}
+    ? L['length'] extends 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 ? unknown
+    : Err<`swimlane(): ${L['length']} lanes with cols: 'auto' -- at most 8 (a vertical figure takes 8; laneOrder orders 8). Split the process, or drop the lanes nobody hands off through.`>
   : L['length'] extends 1 | 2 | 3 | 4 | 5 | 6 ? unknown
   : Err<`swimlane(): ${L['length']} lanes -- at most 6 (rule swimlane-lanes). Split the process, or drop the lanes nobody hands off through.`>;
 

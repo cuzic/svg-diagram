@@ -2,12 +2,13 @@ import {MAX_LANES_TO_ORDER, bestLaneOrder} from '../lane-order.ts';
 import {resolveIcon} from '../icon-registry.ts';
 import {assertSolidText, richBoxFields} from '../rich.ts';
 import type {ConnectBand} from '../types/containers.ts';
-import type {SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand} from '../types/sequence-table-swimlane.ts';
+import type {EmphasisTone} from '../types/core.ts';
+import type {SwimlaneAutoBand, SwimlaneAutoFlow, SwimlaneAutoNode, SwimlaneBand, SwimlaneLane, SwimlaneOpts, SwimlaneStep, SwimlaneStepBand, SwimlaneStepKind, SwimlaneTimedBand} from '../types/sequence-table-swimlane.ts';
 import type {AnchorsOf, Declares, FlowCheck, FlowIn, LaneCheck, StepCheck, StepIds, SwimlaneStepIn} from '../strict.ts';
 import {must} from '../must.ts';
 import {connectBand} from './defaults.ts';
 import {graphTones, litLink, resolveFocus} from '../focus.ts';
-import {assertBoxTone, assertFontSize, revealOf, scopeOpt, withAnchors} from './shared.ts';
+import {assertBoxTone, assertFontSize, revealOf, scopeOpt, TREE_TONES, withAnchors} from './shared.ts';
 
 // Swimlane diagram: who does what, in what order, and where the hand-offs are.
 //   lanes: [{id, label, tone?, fixed?}]  (fixed: svg-diagram check never suggests moving this lane)  — horizontal bands, top to bottom (an actor, a team, a system)
@@ -45,9 +46,12 @@ function focusSwimlane(steps: SwimlaneStep[], opts: SwimlaneOpts): {steps: Swiml
   };
 }
 export function swimlane<
-  const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [], const Id extends string = never,
->(lanes: L & LaneCheck<L>, steps: S & StepCheck<L, S>, opts?: Omit<SwimlaneOpts, 'flows' | 'id'> & {id?: Id; flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S> | Id> | ConnectBand)[] & AnchorsOf<StepIds<S> | Id>;
+  const L extends SwimlaneLane[], const S extends SwimlaneStepIn[], const F extends FlowIn[] = [], const Id extends string = never, const O extends object = object,
+>(lanes: L & LaneCheck<L, O>, steps: S & StepCheck<L, S>, opts?: O & Omit<SwimlaneOpts, 'flows' | 'id'> & {id?: Id; flows?: F & FlowCheck<StepIds<S>, F>}): (SwimlaneBand & Declares<StepIds<S> | Id> | ConnectBand)[] & AnchorsOf<StepIds<S> | Id>;
 export function swimlane(lanesIn: SwimlaneLane[], stepsIn: SwimlaneStep[], optsIn: SwimlaneOpts = {}): (SwimlaneBand | ConnectBand)[] {
+  // `cols: 'auto'`: the columns follow the flow; the flows stay in the band (no connect bands) and focus runs on the nodes
+  if (optsIn.cols === 'auto') return swimlaneAutoOf(lanesIn, stepsIn, optsIn);
+  if (optsIn.cols !== undefined) throw new Error(`swimlane(): cols must be 'auto' (got ${JSON.stringify(optsIn.cols)})`);
   const {steps, opts} = optsIn.focus === undefined ? {steps: stepsIn, opts: optsIn} : focusSwimlane(stepsIn, optsIn);
   if (optsIn.focus !== undefined) {
     try { return swimlaneOf(lanesIn, steps, opts); } catch (e) {
@@ -57,7 +61,13 @@ export function swimlane(lanesIn: SwimlaneLane[], stepsIn: SwimlaneStep[], optsI
   }
   return swimlaneOf(lanesIn, steps, opts);
 }
-function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts): (SwimlaneBand | ConnectBand)[] {
+function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: SwimlaneOpts): (SwimlaneTimedBand | ConnectBand)[] {
+  // dir: 'h' is the documented default: a no-op on explicit columns (only 'v' needs cols: 'auto', ADR 0086 D1)
+  if (opts.dir !== undefined && opts.dir !== 'h' && opts.dir !== 'v') throw new Error(`swimlane(): dir must be 'h' or 'v' (got ${String(opts.dir)})`);
+  if (opts.dir === 'v') throw new Error(`swimlane(): dir needs cols: 'auto' (got dir: 'v' on explicit columns)`);
+  for (const st of steps) {
+    if (st.kind !== undefined && st.kind !== 'task') throw new Error(`swimlane(): step "${st.id}" has kind '${st.kind}': add cols: 'auto' or drop kind`);
+  }
   if (opts.labelW !== undefined && opts.labelW !== 'fit' && !(typeof opts.labelW === 'number' && Number.isFinite(opts.labelW) && opts.labelW > 0)) throw new Error(`swimlane(): labelW must be a positive number or 'fit' (got ${JSON.stringify(opts.labelW)})`);
   const lanes = opts.laneOrder === undefined ? lanesIn : orderLanes(lanesIn, steps, opts);
   for (const l of lanes) assertBoxTone(l.tone, `swimlane() lane "${l.id}"`);
@@ -140,8 +150,69 @@ function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: Swimla
     return connectBand(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone}, false);
   });
   if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`swimlane(): fit must be 'shrink' (got ${String(opts.fit)})`);
-  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, ...(boundaries?.length ? {boundaries} : {}), labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...scopeOpt(opts, 'swimlane()'), ...revealOf(opts)};
+  const block: SwimlaneTimedBand = {type: 'swimlane', lanes, steps: placed, cols, phases: opts.phases, ...(boundaries?.length ? {boundaries} : {}), labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...scopeOpt(opts, 'swimlane()'), ...revealOf(opts)};
   return withAnchors([block, ...flows], placed.map(st => st.id));
+}
+
+/** `swimlane()` with `cols: 'auto'`: steps carry `kind` / `title` / `body`, the columns follow the flow, and the flows stay in the band. */
+const AUTO_STEP_KEYS = ['id', 'lane', 'kind', 'title', 'body', 'icon', 'iconTone', 'tone'];
+const AUTO_STEP_KINDS = ['task', 'start', 'end', 'xor', 'and', 'or'];
+function swimlaneAutoOf(lanesIn: SwimlaneLane[], stepsIn: SwimlaneStep[], opts: SwimlaneOpts): SwimlaneAutoBand[] {
+  if (!Array.isArray(lanesIn) || lanesIn.length === 0) throw new Error('swimlane(lanes, steps) needs at least one lane');
+  if (!Array.isArray(stepsIn) || stepsIn.length === 0) throw new Error('swimlane(lanes, steps) needs at least one step');
+  for (const key of ['phases', 'boundaries', 'labelW', 'colGap'] as const) {
+    if (opts[key] !== undefined) throw new Error(`swimlane(): ${key} needs explicit columns; drop ${key} or drop cols: 'auto'`);
+  }
+  if (opts.dir !== undefined && opts.dir !== 'h' && opts.dir !== 'v') throw new Error(`swimlane(): dir must be 'h' or 'v' (got ${String(opts.dir)})`);
+  if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`swimlane(): fit must be 'shrink' (got ${String(opts.fit)})`);
+  if (opts.dir === 'v' && opts.fit !== undefined) throw new Error("swimlane(): fit: 'shrink' is for the horizontal figure; a vertical one (dir: 'v') takes its column width from the lanes");
+  const lanes = opts.laneOrder === undefined ? lanesIn : orderLanes(lanesIn, stepsIn, opts);
+  for (const l of lanes) assertBoxTone(l.tone, `swimlane() lane "${l.id}"`);
+  const nodes: SwimlaneAutoNode[] = stepsIn.map(st => {
+    const rec = st as unknown as Record<string, unknown>;
+    const id = typeof rec['id'] === 'string' ? rec['id'] : '(missing id)';
+    for (const key of ['col', 'span', 'row', 'reveal', 'until']) {
+      if (rec[key] !== undefined) throw new Error(`swimlane(): step "${id}" has ${key}, which needs explicit columns; drop ${key} or drop cols: 'auto'`);
+    }
+    for (const key of Object.keys(rec)) {
+      if (!AUTO_STEP_KEYS.includes(key)) throw new Error(`swimlane(): step "${id}" has ${key}; with cols: 'auto' a step takes ${AUTO_STEP_KEYS.join(', ')} only`);
+    }
+    const kind = (rec['kind'] ?? 'task') as string;
+    if (!AUTO_STEP_KINDS.includes(kind)) throw new Error(`swimlane(): step "${id}" has kind ${String(rec['kind'])} (use ${AUTO_STEP_KINDS.join(' | ')})`);
+    if (rec['title'] !== undefined && typeof rec['title'] !== 'string') throw new Error(`swimlane(): step "${id}" title must be a plain string with cols: 'auto'`);
+    if (rec['body'] !== undefined && typeof rec['body'] !== 'string') throw new Error(`swimlane(): step "${id}" body must be a plain string with cols: 'auto'`);
+    if (rec['tone'] !== undefined && !TREE_TONES.includes(rec['tone'] as string)) throw new Error(`swimlane(): step "${id}" has tone ${String(rec['tone'])} (use ${TREE_TONES.join(', ')})`);
+    if ((rec['icon'] !== undefined || rec['iconTone'] !== undefined) && kind !== 'task') throw new Error(`swimlane(): step "${id}" is a ${kind} event/gateway; only a task takes an icon`);
+    if (rec['iconTone'] !== undefined && rec['icon'] === undefined) throw new Error(`swimlane(): step "${id}" has iconTone but no icon`);
+    return {
+      id: st.id as string, lane: st.lane,
+      ...(kind === 'task' ? {} : {kind: kind as SwimlaneStepKind}),
+      ...(typeof rec['title'] === 'string' ? {label: rec['title']} : {}),
+      ...(typeof rec['body'] === 'string' ? {sub: rec['body']} : {}),
+      ...(typeof rec['tone'] === 'string' ? {tone: rec['tone'] as EmphasisTone} : {}),
+      ...(st.icon === undefined ? {} : {icon: st.icon, iconGlyph: resolveIcon(st.icon, `swimlane() step "${id}" icon`)}),
+      ...(st.iconTone === undefined ? {} : {iconTone: st.iconTone}),
+    };
+  });
+  const flows: SwimlaneAutoFlow[] = (opts.flows ?? []).map(f => {
+    // a key neither loop names is dropped silently, like the explicit path (which reads only the fields it knows)
+    const rec = f as unknown as Record<string, unknown>;
+    for (const key of ['chip', 'labelAt', 'bend', 'bendOffset', 'arrow', 'tone']) {
+      if (rec[key] !== undefined) throw new Error(`swimlane(): flow ${String(rec['from'])} -> ${String(rec['to'])} has ${key}; with cols: 'auto' a flow takes from, to, label, line only`);
+    }
+    for (const end of [rec['from'], rec['to']]) {
+      if (typeof end === 'string' && end.includes(':')) throw new Error(`swimlane(): flow ${String(rec['from'])} -> ${String(rec['to'])}: 'id:side@t' needs explicit columns; name plain step ids`);
+    }
+    if (rec['line'] !== undefined && rec['line'] !== 'solid' && rec['line'] !== 'dashed') throw new Error(`swimlane(): flow ${String(rec['from'])} -> ${String(rec['to'])} has line ${String(rec['line'])} (use solid | dashed)`);
+    return {from: f.from, to: f.to, ...(f.label === undefined ? {} : {label: f.label}), ...(f.line === undefined ? {} : {line: f.line as 'solid' | 'dashed'})};
+  });
+  const focused = opts.focus === undefined ? undefined : resolveFocus(opts.focus, nodes.map(n => n.id), 'swimlane()');
+  const toned = focused === undefined ? nodes : (() => {
+    const ids = nodes.map(n => n.id), tones = graphTones(ids.length, flows.map(f => [ids.indexOf(f.from), ids.indexOf(f.to)] as const), focused);
+    return nodes.map((n, i) => ({...n, tone: must(tones[i])}));
+  })();
+  const band: SwimlaneAutoBand = {type: 'swimlane', arrange: 'auto', lanes: [...lanes], nodes: toned, flows, ...(focused === undefined ? {} : {focused: [...focused].map(i => must(nodes[i]).id)}), ...(opts.id === undefined ? {} : {id: opts.id}), ...(opts.fit === undefined ? {} : {fit: opts.fit}), ...(opts.dir === 'v' ? {dir: 'v' as const} : {}), ...scopeOpt(opts, 'swimlane()'), ...revealOf(opts)};
+  return withAnchors([band], nodes.map(n => n.id));
 }
 
 /** swimlane({laneOrder: 'auto'}): the lanes in the order with the shortest hand-offs between them, by the flows swimlane() was given. */

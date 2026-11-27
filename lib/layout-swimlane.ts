@@ -5,10 +5,10 @@ import {boundaryChipH, LINE_HEIGHT_EM, snapGrid, SWIMLANE_COMFY_COL} from './lay
 import {must} from './must.ts';
 import {qualify, scopeOf} from './scope-name.ts';
 import {narrowField} from './tree.ts';
-import type {LaidOutLane, LaidOutPhase, LaidOutSwimlane, SwimlaneBand} from './types/sequence-table-swimlane.ts';
+import type {LaidOutLane, LaidOutPhase, LaidOutSwimlane, SwimlaneTimedBand} from './types/sequence-table-swimlane.ts';
 import {wrapAtoms} from './wrap.ts';
 
-export function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: number): void {
+export function layoutSwimlane(band: SwimlaneTimedBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
   // a boundary's name sits in a chip across the label column: the column is never narrower than the longest name + the chip's round ends, fit: 'shrink' included
   const chipText = Math.max(0, ...(band.boundaries ?? []).filter(b => b.label).map(b => textWidth(widthOf, b.label as string, roles.note, 700)));

@@ -7,7 +7,6 @@ import {bannerDefinition} from './bands/banner.ts';
 import {barsDefinition} from './bands/bars.ts';
 import {bowtieDefinition} from './bands/bowtie.ts';
 import {boxDefinition} from './bands/box.ts';
-import {bpmnDefinition} from './bands/bpmn.ts';
 import {bubbleDefinition} from './bands/bubble.ts';
 import {butterflyDefinition} from './bands/butterfly.ts';
 import {captionDefinition} from './bands/caption.ts';
@@ -57,7 +56,7 @@ import {spacerDefinition} from './bands/spacer.ts';
 import {stackedDefinition} from './bands/stacked.ts';
 import {statesDefinition} from './bands/states.ts';
 import {statusDefinition} from './bands/status.ts';
-import {swimlaneDefinition} from './bands/swimlane.ts';
+import {swimlaneAutoDefinition, swimlaneDefinition} from './bands/swimlane.ts';
 import {tableDefinition} from './bands/table.ts';
 import {timelineDefinition} from './bands/timeline.ts';
 import {tornadoDefinition} from './bands/tornado.ts';
@@ -108,7 +107,7 @@ export const FULL_DEFINITIONS: FullDefinitions = {
   bars: barsDefinition,
   bowtie: bowtieDefinition,
   box: boxDefinition,
-  bpmn: bpmnDefinition,
+  bpmn: swimlaneAutoDefinition,
   caption: captionDefinition,
   cause: causeDefinition,
   chart: data => chartDefinitions[data.kind],

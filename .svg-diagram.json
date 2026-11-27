@@ -1,0 +1,6 @@
+{
+  "$schema": "./schema/config.schema.json",
+  "accept": {
+    "bpmn-deprecated": "別名のバイト一致の証拠として v1.0 まで残す"
+  }
+}

@@ -15,7 +15,7 @@ export function childrenOf(band: Band, definitionOf: DefinitionOf = defOf): Band
   return definitionOf(band)?.children?.(band) ?? [];
 }
 
-/** Like childrenOf, plus a swimlane's steps: every band that sits inside another one. */
+/** Like childrenOf, plus a swimlane's steps: every band that sits inside another one. A `cols: 'auto'` figure holds nodes, not bands, so it has none. */
 export function nestedBandsOf(band: Band, definitionOf: DefinitionOf = defOf): Band[] {
-  return band.type === 'swimlane' ? band.steps : childrenOf(band, definitionOf);
+  return band.type === 'swimlane' ? (band.arrange === 'auto' ? [] : band.steps) : childrenOf(band, definitionOf);
 }

@@ -2,7 +2,7 @@ import {fmt} from './axis-ticks.ts';
 import {visibleAt} from './reveal-visibility.ts';
 import type {BarsBand} from './types/bars.ts';
 import type {Band} from './types/index.ts';
-import type {SequenceBand, SwimlaneBand, TableBand} from './types/sequence-table-swimlane.ts';
+import type {SequenceBand, SwimlaneAutoBand, SwimlaneBand, SwimlaneTimedBand, TableBand} from './types/sequence-table-swimlane.ts';
 
 export const oneLine = (t: unknown): string => String(t ?? '').replace(/\s*\n\s*/g, ' ').trim();
 
@@ -20,10 +20,21 @@ export const describeTable = (band: TableBand): string =>
   `表${band.title ? `「${oneLine(band.title)}」` : ''}: 列 ${band.columns.map(column => oneLine(column.label)).join('、')}`;
 export const describeSequence = (band: SequenceBand): string =>
   `参加者: ${band.actors.map(actor => oneLine(actor.label)).join('、')}`;
-export function describeSwimlane(band: SwimlaneBand, stage?: number): string {
+export function describeSwimlane(band: SwimlaneTimedBand, stage?: number): string {
   const lanes = band.lanes.map(lane => oneLine(lane.label)).join('、');
   const steps = band.steps.filter(step => visibleAt(step, stage)).map(step => oneLine(step.title)).join('、');
   return `レーン: ${lanes}。手順: ${steps}`;
+}
+/** A `cols: 'auto'` figure: its lanes and the non-empty labels of its nodes. */
+export function describeSwimlaneAuto(band: SwimlaneAutoBand): string {
+  const lanes = band.lanes.map(lane => oneLine(lane.label)).join('、');
+  const steps = band.nodes.map(n => n.label).filter(label => !!label && !!label.trim()).map(label => oneLine(label)).join('、');
+  return `レーン: ${lanes}。手順: ${steps}`;
+}
+/** A swimlane figure's description, or undefined for one built through the deprecated `bpmn()` alias (it stays byte-identical to a bpmn figure, which has none). */
+export function describeSwimlaneFigure(band: SwimlaneBand, stage?: number): string | undefined {
+  if (band.arrange === 'auto') return band.via === 'bpmn' ? undefined : describeSwimlaneAuto(band);
+  return describeSwimlane(band, stage);
 }
 
 /** Group accessible descriptions in reading order, using box titles as a fallback. */
@@ -42,7 +53,10 @@ export function describeBands(all: Band[], stage?: number): string {
     if (band.type === 'image' && band.alt) parts.push(['image', `画像: ${oneLine(band.alt)}`]);
     if (band.type === 'math') parts.push(['math', `数式: ${oneLine(band.alt)}`]);
     if (!visibleAt(band, stage)) continue;
-    if (band.type === 'swimlane') parts.push(['structure', describeSwimlane(band, stage)]);
+    if (band.type === 'swimlane') {
+      const text = describeSwimlaneFigure(band, stage);
+      if (text !== undefined) parts.push(['structure', text]);
+    }
     else if (band.type === 'sequence') parts.push(['structure', describeSequence(band)]);
     else if (band.type === 'table') parts.push(['structure', describeTable(band)]);
     else if (band.type === 'box' && band.title) parts.push(['box', oneLine(band.title)]);

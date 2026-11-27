@@ -1,17 +1,18 @@
-// bpmn({dir: 'v'}): the same business flow with the lanes as columns and the flow running down (ADR 0042). A node's row is its layer
+// swimlane({cols: 'auto', dir: 'v'}): the same business flow with the lanes as columns and the flow running down (ADR 0042). A node's row is its layer
 // along the flow; its column is its lane. A flow is routed by trying many orthogonal paths (out of the bottom or a side, into the top or
 // a side, along a channel between the rows) and taking the shortest that touches no node or text and runs on no other flow.
 import {textWidth} from './atoms.ts';
 import {layoutLayered} from './graph-layout.ts';
 import type {Pt} from './graph-layout.ts';
-import {checkBpmnInput, isEvent, isGate, lineH, measureBpmnNodes, nodePart} from './bpmn.ts';
-import type {BpmnMeasure} from './bpmn.ts';
+import {checkSwimlaneAutoInput, isEvent, isGate, lineH, measureSwimlaneAutoNodes, nodePart} from './layout-swimlane-auto.ts';
+import type {SwimlaneAutoMeasure} from './layout-swimlane-auto.ts';
 import {must} from './must.ts';
 import {partStep} from './parts.ts';
 import {nodeRuns} from './tree.ts';
 import {wrapText} from './wrap.ts';
 import type {Roles, WidthOf, WrapEnv} from './types/core.ts';
-import type {BpmnBand, LaidOutBpmn} from './types/diagrams.ts';
+import type {LaidOutBpmn} from './types/diagrams.ts';
+import type {SwimlaneAutoBand} from './types/sequence-table-swimlane.ts';
 
 const COL_MAX = 240, TASK_MAX = 168, TASK_MIN = 80, HEAD_PAD = 10, TOP_PAD = 26, ROW_GAP = 44, CHIP_PAD = 5, ICON_H = 24, TASK_ICON = 20, EDGE = 6;
 
@@ -38,13 +39,14 @@ const simplify = (pts: Pt[]): Pt[] => {
 };
 const overlap = (a: Box, b: Box, pad = 0): boolean => a.x < b.x + b.w + pad && a.x + a.w > b.x - pad && a.y < b.y + b.h + pad && a.y + a.h > b.y - pad;
 
-export function layoutBpmnVertical(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv): LaidOutBpmn {
+export function layoutSwimlaneAutoVertical(band: SwimlaneAutoBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv): LaidOutBpmn {
+  const who = band.via === 'bpmn' ? "bpmn({dir: 'v'})" : "swimlane({dir: 'v'})"; // the checks say the words of the one that was called
   const B = roles.body, S = roles.note, space = env.space ?? 1;
-  const {laneIdx, kindOf} = checkBpmnInput(band);
+  const {laneIdx, kindOf} = checkSwimlaneAutoInput(band);
   const L = band.lanes.length, colW = Math.min(COL_MAX, Math.floor(w / L / 4) * 4), taskMax = Math.min(TASK_MAX, colW - 28); // colW: a multiple of 4, the lane borders are drawn on a 4px grid
   // no fixed number of lanes: the column width comes from the figure's width, so the most lanes is floor(w / (TASK_MIN + 28))
-  if (taskMax < TASK_MIN) throw new Error(`bpmn({dir: 'v'}): ${L} lanes leave each column ${colW}px wide (${Math.round(w)}px / ${L}), too narrow for a task (a column needs ${TASK_MIN + 28}px, so this width takes at most ${Math.floor(w / (TASK_MIN + 28))} lanes: use fewer lanes, a wider diagram, or dir: 'h')`);
-  const meas = measureBpmnNodes(band, kindOf, taskMax, widthOf, roles, env);
+  if (taskMax < TASK_MIN) throw new Error(`${who}: ${L} lanes leave each column ${colW}px wide (${Math.round(w)}px / ${L}), too narrow for a task (a column needs ${TASK_MIN + 28}px, so this width takes at most ${Math.floor(w / (TASK_MIN + 28))} lanes: use fewer lanes, a wider diagram, or dir: 'h')`);
+  const meas = measureSwimlaneAutoNodes(band, kindOf, taskMax, widthOf, roles, env);
   // a start / end event or gateway names itself beside its shape, in the room the column has to the right (6px from the shape, 2px
   // from the lane border). A name that does not fit there (or would stack in lines of a character or two) goes across the column:
   // a start event's above it (nothing comes into its top), an end event's or a gateway's under it (a gateway then leaves by its sides)
@@ -58,8 +60,8 @@ export function layoutBpmnVertical(band: BpmnBand, x: number, y: number, w: numb
     const side = room > 0 ? wrap(room) : [];
     if (side.length && widthIn(side) <= room && (side.length <= 2 || room >= 3 * B)) { named.set(n.id, {lines: side, at: 'side'}); continue; }
     const across = wrap(colW - 16), why = `the name of "${n.id}" (${n.label}) does not fit beside it in its ${colW}px column`;
-    if (widthIn(across) > colW - 16) throw new Error(`bpmn({dir: 'v'}): ${why}, nor across it (shorten the name, use fewer lanes or a wider diagram, or dir: 'h')`);
-    if (isGate(k) && outs(n.id) > 2) throw new Error(`bpmn({dir: 'v'}): ${why}, and under it, it would block the bottom vertex that one of its ${outs(n.id)} flows needs (shorten the name, use fewer lanes or a wider diagram, or dir: 'h')`);
+    if (widthIn(across) > colW - 16) throw new Error(`${who}: ${why}, nor across it (shorten the name, use fewer lanes or a wider diagram, or dir: 'h')`);
+    if (isGate(k) && outs(n.id) > 2) throw new Error(`${who}: ${why}, and under it, it would block the bottom vertex that one of its ${outs(n.id)} flows needs (shorten the name, use fewer lanes or a wider diagram, or dir: 'h')`);
     named.set(n.id, {lines: across, at: k === 'start' ? 'above' : 'below'});
   }
   const bottomFree = (id: string): boolean => named.get(id)?.at !== 'below'; // a name under the shape takes the bottom vertex
@@ -78,7 +80,7 @@ export function layoutBpmnVertical(band: BpmnBand, x: number, y: number, w: numb
   // the room a node takes above and below its centre: a gateway's name stacks up from just above the centre, an event's is centred
   // beside it, a name under the shape hangs below
   const extentOf = (id: string): {above: number; below: number} => {
-    const m: BpmnMeasure = must(meas.get(id)), nm = named.get(id), half = m.h / 2;
+    const m: SwimlaneAutoMeasure = must(meas.get(id)), nm = named.get(id), half = m.h / 2;
     if (!nm) return {above: half, below: half};
     const tH = nm.lines.length * lineH(B);
     if (nm.at === 'below') return {above: half, below: half + 4 + tH};

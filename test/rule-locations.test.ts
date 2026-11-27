@@ -262,6 +262,7 @@ const EXPECTED_SCOPE = {
   'semantic-table-warning': 'band',
   'swimlane-lanes': 'band',
   'swimlane-hand-offs': 'band',
+  'bpmn-deprecated': 'band',
   'edge-crossings': 'band-grouped',
   'edge-bends': 'band',
   'edge-parallel': 'band',

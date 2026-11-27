@@ -9,7 +9,11 @@ import type {ConnectBand, LegendBand, LegendItem} from './types/containers.ts';
 import type {ArrowWeight, EmphasisTone, LineStyle} from './types/core.ts';
 import type {CauseRole, FtaGate, FtaKind, TreeItem} from './types/diagrams.ts';
 import type {Band} from './types/index.ts';
+import type {SwimlaneAutoBand} from './types/sequence-table-swimlane.ts';
 import type {BoxBand} from './types/text-bands.ts';
+
+/** A `cols: 'auto'` swimlane figure: its tones and flows are read like a bpmn figure's. */
+const isAutoFigure = (b: Band): b is SwimlaneAutoBand => b.type === 'swimlane' && b.arrange === 'auto';
 
 export type LegendNotationBand = BoxBand | ConnectBand | LegendBand;
 
@@ -35,14 +39,14 @@ export function walkBands(bands: Band[], out: Band[] = [], definitionOf?: Defini
   return out;
 }
 
-// the node tones of the auto-layout bands (tree / mindmap, classDiagram, bpmn): their nodes are not box() bands, so legend: 'auto' reads them here
+// the node tones of the auto-layout bands (tree / mindmap, classDiagram, a `cols: 'auto'` swimlane figure): their nodes are not box() bands, so legend: 'auto' reads them here
 function bandTones(bands: Band[]): string[] {
   const out: string[] = [];
   const walk = (it: TreeItem): void => { out.push(it.tone ?? 'plain'); it.children?.forEach(walk); };
   for (const b of bands) {
     if (b.type === 'tree') walk(b.root);
     else if (b.type === 'classes') for (const c of b.classes) out.push(c.tone ?? 'plain');
-    else if (b.type === 'bpmn') for (const n of b.nodes) out.push(n.tone ?? 'plain');
+    else if (isAutoFigure(b)) for (const n of b.nodes) out.push(n.tone ?? 'plain');
   }
   return out;
 }
@@ -76,9 +80,9 @@ function usedBandNotation(all: readonly Band[], dimmed: ReadonlySet<Band>, worde
       if (b.arrow === 'both') used.add('arrow:both');
       if (b.weight) used.add(`weight:${b.weight}`);
     } else if (b.type === 'box' && b.tone && b.tone !== 'plain') used.add(`tone:${b.tone}`);
-    else if (withCause && (b.type === 'tree' || b.type === 'classes' || b.type === 'bpmn')) { // only legend: 'auto' reads these (a lone accent root would make legend-missing / gray-tone noisy in the lint); bpmn also a dashed message flow
+    else if (withCause && (b.type === 'tree' || b.type === 'classes' || isAutoFigure(b))) { // only legend: 'auto' reads these (a lone accent root would make legend-missing / gray-tone noisy in the lint); an auto figure also a dashed message flow
       for (const t of bandTones([b])) if (t !== 'plain') used.add(`tone:${t}`);
-      if (b.type === 'bpmn') for (const f of b.flows) lines.add(f.line === 'dashed' ? 'dashed' : 'solid');
+      if (isAutoFigure(b)) for (const f of b.flows) lines.add(f.line === 'dashed' ? 'dashed' : 'solid');
     }
     else if (b.type === 'cause' && withCause) { // only legend: 'auto' reads these (the legend-* checks keep their old count)
       // a role that roleTags writes in words on the node needs no swatch: two double-frame swatches side by side would only blur it

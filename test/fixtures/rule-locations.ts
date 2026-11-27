@@ -1,6 +1,6 @@
 // Rule inputs reused from their behavioral tests, and focused inputs for the remaining producers.
 import {
-  bars, bowtie, box, canvas, comic, caption, causeTree, concentric, connect, diagram, em,
+  bars, bowtie, box, bpmn, canvas, comic, caption, causeTree, concentric, connect, diagram, em,
   faultTree, flowchart, funnel, isIsNot, isIsNotTests, legend, quadrant, raci, row, stat,
   stateMatrix, swimlane, table, wf, whyWhyTree, wireframe,
 } from '../../lib/dsl-pure.ts';
@@ -115,6 +115,7 @@ export function ruleLocationFixtures(): Case[] {
     swimlane(Array.from({length: 7}, (_, i) => ({id: `lane${i}`, label: `役割${i}`})), [{lane: 'lane0', title: '作業'}]),
     swimlane([{id: 'a', label: '担当'}], [{lane: 'a', title: '別の作業'}]),
   ]);
+  add(['bpmn-deprecated'], [bpmn([{id: 'a', label: '担当'}], [{id: 'n', lane: 'a', label: '作業'}], [])]);
   add(['swimlane-lane-order'], [swimlane(
     [{id: 'x', label: 'X'}, {id: 'y', label: 'Y'}, {id: 'z', label: 'Z'}, {id: 'end', label: 'END', fixed: true}],
     [{id: 's1', lane: 'x', title: 's1'}, {id: 's2', lane: 'z', title: 's2'}, {id: 's3', lane: 'y', title: 's3'}, {id: 's4', lane: 'end', title: 's4'}],

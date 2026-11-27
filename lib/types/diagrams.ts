@@ -2,6 +2,7 @@
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
 import type {Anchor, Dimmed, EmphasisTone, FocusOpts, RcaInfo, Rect, RevealOpts, ScopeOpts, TagTone, TextTone} from './core.ts';
+import type {SwimlaneStepKind} from './sequence-table-swimlane.ts';
 import type {BoxTone} from './text-bands.ts';
 import type {Band} from './index.ts';
 import type {GanttText} from './timeline.ts';
@@ -393,7 +394,8 @@ export interface ClassesBand extends Omit<ClassesOpts, 'focus'> {
   classes: ClassItem[];
   relations: ClassRelation[];
 }
-export type BpmnNodeKind = 'task' | 'start' | 'end' | 'xor' | 'and' | 'or';
+/** The kind of a bpmn node: the swimlane step kinds (ADR 0086: `bpmn()` builds a `cols: 'auto'` swimlane figure). */
+export type BpmnNodeKind = SwimlaneStepKind;
 export interface BpmnLane {id: string; label: string; tone?: BoxTone}
 export interface BpmnNode {
   id: string;
@@ -427,6 +429,7 @@ export interface BpmnOpts extends RevealOpts, ScopeOpts, FocusOpts {
   /** 'v': the lanes are columns and the flow runs down (default 'h': the lanes are rows and the flow runs right). A vertical figure takes its column width from the lanes, so it has no `fit`. ADR 0042 */
   dir?: 'h' | 'v';
 }
+/** Kept for the placed-definition slot and readers of laid-out figures; the DSL no longer builds it (`bpmn()` builds a `SwimlaneAutoBand`, and raw `{type: 'bpmn'}` data no longer draws). */
 export interface BpmnBand extends Omit<BpmnOpts, 'focus'> {
   /** Set by `focus`: the focused items' ids. The arrows that touch one are drawn in the accent colour, the others muted. */
   focused?: string[];

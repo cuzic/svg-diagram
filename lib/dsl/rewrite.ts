@@ -87,7 +87,7 @@ function rewriteOne(orig: Band, fn: RewriteFn, path: readonly Band[], seen: Seen
   const patch = fn(orig, path);
   let cur = patch ? patched(orig, patch) : orig;
   const inner = [...path, cur]; // the patched band: a rule that reads an ancestor sees what it now is
-  if (cur.type === 'swimlane') {
+  if (cur.type === 'swimlane' && cur.arrange !== 'auto') {
     const steps = rewrite(cur.steps, fn, inner, seen);
     if (steps !== cur.steps) cur = Object.assign(cloneBand(cur), {steps});
   }

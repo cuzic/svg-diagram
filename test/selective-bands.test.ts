@@ -859,7 +859,7 @@ test('selective swimlanes preserve lane frames, step reveal and labelled hand-of
   const options = {flows: [{from: 'start', to: 'done', label: 'Review'}], boundaries: [{after: 'a', label: '境界'}]};
   const selected = swimlane(lanes, steps, options, connectDefinition);
   const laneBand = selected.find(band => band.type === 'swimlane');
-  assert.ok(laneBand);
+  assert.ok(laneBand && laneBand.type === 'swimlane' && laneBand.arrange !== 'auto');
   assert.equal(describeSwimlane(laneBand, 1), 'レーン: 画面、処理。手順: 開始');
   const expected = await renderInBrowser(diagram({theme: 'blue', title: 'Plan', legend: false})
     .add(legacySwimlane(lanes, steps, options)), {measure});
