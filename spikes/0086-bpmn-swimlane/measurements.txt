@@ -1,0 +1,41 @@
+U0 spike measurements (ADR 0086) — 2026-11-27, spike/0086-bpmn-swimlane (throwaway)
+Method: scripts/check-package-bundles.ts replicated exactly (same sources, same
+esbuild/Vite invocations) in spikes/0086-bpmn-swimlane/q4-bundles.ts; dist/ built
+from the spike tree (tsc -p tsconfig.build.json). Base numbers: same script on
+stashed base + rebuilt dist.
+
+--- bands/bpmn.js (alias -> swimlane impl) ---
+esbuild: base 106042, spike 138236 (delta +32194, +30.4%; budget 121000 -> OVER by 17236)
+Vite:    base 142554, spike 181672 (delta +39118, +27.4%; budget 165000 -> OVER by 16672)
+bands in bundle: [box.js, bpmn.js, swimlane.js] (was [bpmn.js]; U1 must update `bands`)
+excludes: all hold. draw: OK (Review figure, verdict clean).
+
+--- bands/swimlane.js (with auto engine) ---
+esbuild: base 94347, spike 151099 (delta +56752, +60.2%; budget 101500 -> OVER by 49599)
+Vite:    base 119143, spike 197739 (delta +78596, +66.0%; budget 130000 -> OVER by 67739)
+bands in bundle: [box.js, swimlane.js] (unchanged). excludes: all hold. draw: OK.
+
+--- D10 budget proposals (10% headroom, rounded up to 1000, per script convention) ---
+BPMN:     esbuild 153000 (was 121000), Vite 200000 (was 165000)
+Swimlane: esbuild 167000 (was 101500), Vite 218000 (was 130000)
+
+--- ./browser (scripts/bundle-size.ts; NOT in D10, needs a bump too) ---
+base 1081824 (budget 1085440, headroom 3616), spike 1087416 (delta +5592, +0.5%; OVER by 1976)
+gzip: base 403265, spike 404974 (+1709)
+proposal: 1092000 (restores ~base headroom). Old lib/bpmn*.js fully shaken out
+of the bundle (esbuild metafile); the +5.6KB is net new code, so spike ~= U1.
+
+--- M5 exclude fallout (q4b-excludes.ts) ---
+spec `bpmn` bundle now contains swimlane-rules.js and bands box+bpmn+swimlane:
+the :215 standalone exclude FAILS -> move spec bpmn out of standalone (as D10 says),
+and re-measure its budget (128000/170000 will not hold).
+Classes bundle contains neither old lib/bpmn*.js nor new layout-swimlane-auto*.js:
+the :980/:984 excludes pass vacuously -> rename them to layout-swimlane-auto*.js
+in U1 or the guard silently stops guarding.
+
+--- byte identity (Q2) ---
+build-diagram.ts examples/{bpmn,bpmn-vertical,bpmn-shrink}.ts --no-lint into
+/tmp/spike-out, cmp vs committed examples/out: all IDENTICAL (0 bytes diff),
+deterministic across rebuilds. examples/out untouched (git clean).
+PPTX: spike vs base pptx-diagram builds of examples/bpmn.ts: all 20 zip entries
+byte-identical (incl. ppt/slides/slide1.xml).
