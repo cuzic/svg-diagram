@@ -7,11 +7,11 @@ export function defineChevronPart<Result>(builder: (steps: never, opts: never) =
     description: 'Process steps as arrow shapes in a row (or a column): a sequence with no branches, such as the phases of a project. `current` marks the step in progress.',
     schema: object({
       type: {const: 'chevron'},
-      steps: flowSteps(2, 12),
+      steps: flowSteps(2, 16),
       direction: oneOf('horizontal', 'vertical'),
       rows: {oneOf: [{type: 'integer', minimum: 1, maximum: 4}, {type: 'string', enum: ['auto']}], description: "Wrap a horizontal chevron onto this many rows. 'auto': the fewest rows (at most 4, about 3+ steps per row) where no step's text wraps."},
       perRow: {type: 'integer', minimum: 1, maximum: 8, description: 'How many steps one row holds (horizontal only). Not together with rows.'},
-      current: {type: 'integer', minimum: 1, maximum: 12, description: 'The step in progress, from 1.'},
+      current: {type: 'integer', minimum: 1, maximum: 16, description: 'The step in progress, from 1.'},
     }, ['type', 'steps']),
     example: {type: 'chevron', steps: [{label: '計画', sub: '要件を確認'}, {label: '実装', sub: '小さく作る'}, {label: '検証', sub: '品質を確認'}, {label: '公開', sub: '利用を開始'}], current: 3},
     check(part, at, issues) {

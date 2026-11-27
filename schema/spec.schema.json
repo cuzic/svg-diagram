@@ -222,7 +222,7 @@
               "A why-why analysis (5 whys): the problem at the top, each answer to \"why?\" below the one it explains, root causes in a double frame, and what is done about each. Each answer should be a fact, not a person.",
               "A swimlane: who does what over time. Lanes are the actors, columns are time. A step without `col` goes in the column after the step written before it, in any lane, so give `col` to line steps up; at most 8 columns. A flow back to an earlier step of the same lane, to `id:bottom` or past a step in between, runs under the steps of that lane (the lane grows to hold them; `bend`, `bendOffset` or a start side other than bottom keeps the elbow). A label on a flow needs room: it fits on a flow that crosses both a lane and a column, but rarely between two touching steps.",
               "A sequence diagram: messages between participants in time order. A step is a message (from, to, label), a self call (self, label), a note (note, over) or a divider (divider).",
-              "A bar chart: one bar per label, such as sales by month or votes by option. Values are 0 or more. dir v (columns) suits a few short labels or a time order; h (rows, the default) suits long labels or a ranking. Reference lines (a target, an average) need dir v.",
+              "A bar chart: one bar per label, such as sales by month or votes by option. Values are 0 or more. dir v (columns) suits a few short labels or a time order; h (rows, the default) suits long labels or a ranking. Reference lines (a target, an average) work with both: horizontal across columns (dir v), vertical across rows (dir h).",
               "A line chart: how values change over categories in order (months, years, stages), one line per series, each named at its end. Up to 6 series (plus ideal/plan lines, drawn dashed). Values can be negative. Each series has one value per category.",
               "A stacked bar chart: each column is split into parts (the same series in every column), such as sales by product per quarter. The total is written on top. percent: true makes every column 100% and writes shares, for comparing make-up rather than size. Up to 6 series.",
               "A waterfall chart: how a starting amount becomes an ending one through increases and decreases, such as last year's profit to this year's. The first step is the start (its level); every other step is a change (+ rises, - falls), unless its kind is subtotal or total, which shows the running level (its value may be left out).",
@@ -1921,7 +1921,7 @@
           },
           {
             "label": "bars",
-            "description": "A bar chart: one bar per label, such as sales by month or votes by option. Values are 0 or more. dir v (columns) suits a few short labels or a time order; h (rows, the default) suits long labels or a ranking. Reference lines (a target, an average) need dir v.",
+            "description": "A bar chart: one bar per label, such as sales by month or votes by option. Values are 0 or more. dir v (columns) suits a few short labels or a time order; h (rows, the default) suits long labels or a ranking. Reference lines (a target, an average) work with both: horizontal across columns (dir v), vertical across rows (dir h).",
             "body": {
               "type": "bars",
               "dir": "v",
@@ -5174,7 +5174,7 @@
             "additionalProperties": false
           },
           "minItems": 2,
-          "maxItems": 12
+          "maxItems": 16
         },
         "direction": {
           "type": "string",
@@ -5208,7 +5208,7 @@
         "current": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 12,
+          "maximum": 16,
           "description": "The step in progress, from 1."
         }
       },
@@ -5919,8 +5919,8 @@
               "flex": {
                 "type": "integer",
                 "minimum": 1,
-                "maximum": 6,
-                "description": "The share of the width (default 1)."
+                "maximum": 12,
+                "description": "The share of the width (1 to 12; default 1)."
               }
             },
             "required": [
@@ -7072,7 +7072,7 @@
           },
           "minItems": 0,
           "maxItems": 4,
-          "description": "Horizontal reference lines across vertical bars (dir v only)."
+          "description": "Reference lines at a value: horizontal across columns (dir v), vertical across rows (dir h)."
         },
         "grid": {
           "type": "boolean",
@@ -7090,7 +7090,7 @@
         "data"
       ],
       "additionalProperties": false,
-      "description": "A bar chart: one bar per label, such as sales by month or votes by option. Values are 0 or more. dir v (columns) suits a few short labels or a time order; h (rows, the default) suits long labels or a ranking. Reference lines (a target, an average) need dir v."
+      "description": "A bar chart: one bar per label, such as sales by month or votes by option. Values are 0 or more. dir v (columns) suits a few short labels or a time order; h (rows, the default) suits long labels or a ranking. Reference lines (a target, an average) work with both: horizontal across columns (dir v), vertical across rows (dir h)."
     },
     "part.lines": {
       "type": "object",
@@ -8856,8 +8856,8 @@
           "items": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 20,
-            "description": "A row, top to bottom.",
+            "maxLength": 30,
+            "description": "A row, top to bottom. Up to 30 characters; a long name wraps in the lane column.",
             "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
             "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
           },
@@ -8885,7 +8885,7 @@
               "lane": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 20,
+                "maxLength": 30,
                 "description": "A lane.",
                 "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                 "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
@@ -8934,7 +8934,7 @@
               "lane": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 20,
+                "maxLength": 30,
                 "description": "A lane.",
                 "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                 "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."

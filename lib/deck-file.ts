@@ -1,7 +1,7 @@
 // Read deck files and resolve figure paths before choosing a spec validator.
 import fs from 'node:fs';
 import path from 'node:path';
-import type {DeckSlide, DeckSpec} from './deck-spec-core.ts';
+import {withCalloutObjects, type DeckSlide, type DeckSpec} from './deck-spec-core.ts';
 import {withoutSchemaField, type SpecIssue} from './spec-kit.ts';
 
 export interface LoadedDeck {
@@ -44,7 +44,7 @@ export function readDeckFile(deckFile: string): DeckFileError | {ok: true; loade
     errors.push(`${where}: a path must name a diagram source (.ts) or a spec file (.json); otherwise write the spec itself`);
     return {keep: false};
   };
-  const resolved = Array.isArray(slides) ? {...(raw as object), slides: slides.map((s: unknown, i) => {
+  const resolved0 = Array.isArray(slides) ? {...(raw as object), slides: slides.map((s: unknown, i) => {
     if (typeof s !== 'object' || s === null) return s;
     const {figure, columns, ...rest} = s as DeckSlide;
     const out: DeckSlide = {...rest};
@@ -58,13 +58,15 @@ export function readDeckFile(deckFile: string): DeckFileError | {ok: true; loade
     }) : columns;
     return out;
   })} : raw;
+  const resolved = withCalloutObjects(resolved0);
   if (errors.length) return {ok: false, errors};
   // checked with a stand-in where a .ts figure was left out: a heading for a slide (a figure is enough), a text for a column
-  const checked = Array.isArray((resolved as {slides?: unknown} | null)?.slides)
-    ? {...(resolved as object), slides: (resolved as DeckSpec).slides.map((s, i) => s === null || typeof s !== 'object' ? s : ({
+  // as the author wrote it (a string callout is converted by the check itself, so its issues are placed on the string)
+  const checked = Array.isArray((resolved0 as {slides?: unknown} | null)?.slides)
+    ? {...(resolved0 as object), slides: (resolved0 as DeckSpec).slides.map((s, i) => s === null || typeof s !== 'object' ? s : ({
       ...(sources.has(figureKey(i)) && s.title === undefined ? {...s, title: '-'} : s),
       ...(Array.isArray(s.columns) ? {columns: s.columns.map((c, j) => sources.has(figureKey(i, j)) ? {...c, text: '-'} : c)} : {}),
-    }))} : resolved;
+    }))} : resolved0;
   return {ok: true, loaded: {deck: resolved as DeckSpec, sources, files}, checked};
 }
 
