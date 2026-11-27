@@ -87,8 +87,8 @@ test('two wide labels on close lines in a narrow figure: no leader runs through 
   const b = r.laidOut.laidOut.find((x): x is LaidOutBars => x.type === 'bars')!;
   assert.deepEqual(crosses(b), []);
   // the raised label has no leader, so which line it names is unclear: check says so
-  assert.deepEqual(b.bare, ['Lower limit long label']);
-  assert.equal(r.verdict.problems.filter(p => /no leader/.test(p)).length, 1, JSON.stringify(r.verdict.problems));
+  assert.deepEqual(b.bare, ['"Lower limit long label" (line at 38)']);
+  assert.equal(r.verdict.problems.filter(p => /the label "Lower limit long label" \(line at 38\) has no leader.*\(shorten the label, widen the figure, or move the lines apart\)/.test(p)).length, 1, JSON.stringify(r.verdict.problems));
 });
 
 test('seeded fuzz: lines / vlines of random closeness and width never get a leader through a label', async () => {

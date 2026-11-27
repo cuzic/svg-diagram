@@ -77,7 +77,7 @@ export function layoutChevron(b: ChevronBand, out: LaidOutFlowShape, t: Texts, a
   const tip = vertical ? 16 : Math.min(TIP_MAX, cellW / 4), textW = vertical ? cellW - 24 : cellW - 2 * tip - 8;
   const blocks = b.steps.map(s => ({label: t.wrap(s.label, textW), sub: s.sub ? t.wrap(s.sub, textW, 400) : undefined}));
   // a word wider than its arrow would be drawn across the edges: an error with rows / perRow, a finding otherwise
-  const wide = vertical ? [] : blocks.flatMap((k, i) => Math.max(k.label.w, k.sub?.w ?? 0) > textW + 8 ? [i + 1] : []);
+  const wide = blocks.flatMap((k, i) => Math.max(k.label.w, k.sub?.w ?? 0) > textW + 8 ? [vertical ? -i - 1 : i + 1] : []);
   if (wide.length && b.rows !== 'auto' && (b.rows ?? b.perRow) !== undefined) throw new Error(`chevron(): ${wide[0]} 番目のステップが矢羽根に収まらない`);
   if (wide.length) out.wide = wide;
   const textH = (k: typeof blocks[number]) => k.label.h + (k.sub?.h ?? 0);

@@ -27,7 +27,7 @@ export function barsProblems(band: LaidOutBars): string[] {
     const o = rectOverlap(a, b);
     if (o) problems.push(`bars: value label "${a.label}" overlaps value label "${b.label}" by ${dxdy(o)}`);
   }
-  for (const t of band.bare ?? []) problems.push(`bars: ${t} no leader`);
+  for (const t of band.bare ?? []) problems.push(`bars: the label ${t} has no leader, so its line is unclear (shorten the label, widen the figure, or move the lines apart)`);
   return problems;
 }
 

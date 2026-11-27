@@ -70,8 +70,9 @@ test("rows: 'auto' counts a word wider than its arrow (it picks fewer steps a ro
   const d = await check(words, {});
   assert.deepEqual(d.problems, []);
   assert.ok(d.warnings.some(w => /矢羽根より広い（語を短く・図を広く・perRow を減らす）/.test(w)), 'default layout warns');
-  const v = await check([{label: 'Internationalization-and-localization-readiness-review'}], {direction: 'vertical'});
-  assert.ok(!v.warnings.some(w => /矢羽根より広い/.test(w)), 'a vertical chevron takes no rows / perRow advice');
+  const v = await check([{label: 'Plan'}, {label: 'Internationalization-and-localization-readiness-review-board'}, {label: 'Ship'}], {direction: 'vertical'});
+  assert.ok(v.warnings.some(w => /2 番目が矢羽根より広い（語を短く・chevron に width を指定して広く）/.test(w)), JSON.stringify(v.warnings));
+  assert.ok(!v.warnings.some(w => /perRow/.test(w)), 'no rows / perRow advice on a vertical chevron');
   await assert.rejects(checkDiagram(diagram({theme: 'blue', title: 't', width: 940}).add(chevron(words, {rows: 1}))), /矢羽根に収まらない/);
 });
 

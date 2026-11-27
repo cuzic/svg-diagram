@@ -122,9 +122,9 @@ function labelRows(boxes: (LabelBox[] | undefined)[], blocked: (b: LabelBox, row
 }
 
 /** A raised label gets a leader to its line, or is noted as `bare` when none can be kept clear. */
-function leaderOf(out: LaidOutBars, ink: BarsInk, at: Placed | undefined, x: number, y0: number, S: number, l: {label?: string; dashed?: boolean}, fill: ColorKey, part: string | undefined): void {
+function leaderOf(out: LaidOutBars, ink: BarsInk, at: Placed | undefined, x: number, y0: number, S: number, l: {label?: string; dashed?: boolean; at: number}, fill: ColorKey, part: string | undefined): void {
   if (!at?.row) return;
-  if (!at.leader) out.bare = [...out.bare ?? [], l.label as string];
+  if (!at.leader) out.bare = [...out.bare ?? [], `"${l.label}" (line at ${l.at})`];
   else ink.lines.push({x1: x, y1: y0 - at.row * (S + 4), x2: x, y2: y0, fill, dashed: l.dashed !== false, soft: true, part});
 }
 
