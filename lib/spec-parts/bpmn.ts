@@ -6,7 +6,7 @@ export function defineBpmnPart<Result>(builder: (lanes: never, nodes: never, flo
   return {
     type: 'bpmn',
     anchors: 'nodes',
-    description: "A business process in BPMN style: lanes (who) as rows, tasks, a start and an end event, and gateways (xor: one way, and: all ways in parallel, or: some ways) joined by flows. A flow out of a gateway carries its condition as a label; a dashed flow is a message between lanes. The columns follow the flow; a wide figure is narrowed to fit.",
+    description: "A business process in BPMN style: lanes (who) as rows, tasks, a start and an end event, and gateways (xor: one way, and: all ways in parallel, or: some ways) joined by flows. A flow out of a gateway carries its condition as a label; a dashed flow is a message between lanes. The columns follow the flow; a wide figure is narrowed to fit. Deprecated but working: for a new figure write a swimlane part with kind steps and cols: 'auto' (dir: 'v' for a vertical figure); this part is removed in v1.0.",
     schema: object({
       type: {const: 'bpmn'},
       lanes: list(object({id: id('Referred to by nodes.'), label: text('Who works in the lane.', 30), tone: BOX_TONE}, ['id', 'label']), 8, 1),

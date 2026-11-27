@@ -247,7 +247,7 @@ Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使�
 | `box`（単独、`row` / `grid` の子、`swimlane` の作業） | 枠の `<rect>` |
 | `tree` / `mindmap` | ノードの枠 |
 | `causeTree` / `whyWhyTree` | ノードの枠（六角形は付かない）。作り手が付けた名前（`unanchored`）は付かない |
-| `bpmn` | タスクの枠（イベントとゲートは付かない） |
+| `bpmn`（`swimlane` の `cols: 'auto'` も） | タスクの枠（イベントとゲートは付かない） |
 | `chevron` / `funnel` / `cycle` / `venn` / `concentric` / `emblem` / `valueChain` | 各項目の図形（矢羽根・段・丸・集合・輪・記号・活動の帯。concentric の印も）。項目の文字は付かない |
 | `quadrant` | 各項目の印（円・四角・菱形・三角）**と**名前の文字（折り返した行ごと） |
 
@@ -306,7 +306,7 @@ Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使�
 | hero({banner, stat, flow, caption, note}) | 章の頭に置く 1 枚: 帯（任意）の下に、流れの箱（`flow: [box(...), ...]`、矢印でつなぐ）とその行き着く大きな数字（`stat: {value, label, tone}`）を 1 行に並べ、その下に一言（`caption`）と出典・注（`note`）。箱が 5 つ以上なら数字を上に置く（`layout: 'stack'`）。既存の部品を並べるだけ。下の「章の頭の 1 枚」 |
 | connect / branch | 矢印。route(straight/elbow/loop-under/loop-side)、arrow(end/both/start/none)、line(solid/dashed/dotted/double)、weight(strong)、chip、labelAt、アンカー `id:side@0.2`。`a:right` → `b:left` は、片方の辺の真ん中がもう片方の箱の高さの中にあればその高さで、2 つの高さの重なりが十分にあれば重なりの真ん中で、水平に引く（`branch()` は元の端を動かさない。`@` で位置を書いた端も動かさない）。`via: {to: 'group'}`（`{from: 'group'}`、両端なら `'group'`）で、group の中の箱への端を、その箱を囲む枠のある group の枠の辺で止める（ADR 0069 D2。下の「矢印を group の枠で止める」） |
 | legend(items) | 線種・トーンの凡例 |
-| swimlane(lanes, steps, {flows, phases, boundaries, fit, laneOrder, labelW, focus}) | スイムレーン図。レーン=担当（人・チーム・システム）、列=時間。引き継ぎの矢印を自動で向きづけ。`col` で並行作業を揃える。列が狭くなるときは `fit: 'shrink'` でレーン名の列と列の間隔を詰める `laneOrder: 'auto'` は、`flows` の引き継ぎが最も短くなるレーン順に並べ替える（`fixed: true` のレーンはそのまま。8 本まで。同じ長さなら渡した順）。。**サービスブループリント**: `boundaries: [{between: ['cust', 'front'], label: '相互作用線'}, {between: ['front', 'back'], label: '可視線'}, …]` で、2 つのレーンの境目に太い破線を全幅に引き、`label` をラベル列のチップに書く（隣り合っていなければ throw。`{after: id}` も書ける。チップの分だけ両側のレーンが高くなり、名前が入る幅（`labelW` を書かなければ自動で広がり、書いて足りなければ throw）が要る。`fit: 'shrink'` もその幅より狭めない。失敗点・待ちは手順の `tag`。`examples/service-blueprint.ts`） `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
+| swimlane(lanes, steps, {flows, phases, boundaries, fit, laneOrder, labelW, cols, dir, focus}) | スイムレーン図。レーン=担当（人・チーム・システム）、列=時間。引き継ぎの矢印を自動で向きづけ。`col` で並行作業を揃える。列が狭くなるときは `fit: 'shrink'` でレーン名の列と列の間隔を詰める `laneOrder: 'auto'` は、`flows` の引き継ぎが最も短くなるレーン順に並べ替える（`fixed: true` のレーンはそのまま。8 本まで。同じ長さなら渡した順）。。手順に `kind`（タスク・開始/終了イベント・ゲートウェイ）、列に `cols: 'auto'` を付けると業務フローになり、列は流れから決まる（詳細は下の「業務フロー」）。**サービスブループリント**: `boundaries: [{between: ['cust', 'front'], label: '相互作用線'}, {between: ['front', 'back'], label: '可視線'}, …]` で、2 つのレーンの境目に太い破線を全幅に引き、`label` をラベル列のチップに書く（隣り合っていなければ throw。`{after: id}` も書ける。チップの分だけ両側のレーンが高くなり、名前が入る幅（`labelW` を書かなければ自動で広がり、書いて足りなければ throw）が要る。`fit: 'shrink'` もその幅より狭めない。失敗点・待ちは手順の `tag`。`examples/service-blueprint.ts`） `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
 | sequence(actors, steps) | シーケンス図。message / self / note / divider、自動番号 |
 | table(columns, rows, {title}) | 見出し付き表（ER の entity 兼用）。セルは {text, tone, bold, mono}、`cell('通る', {mark: 'ok'})` で ○△×◎ の記号つき（色だけに頼らない）。列の幅は `flex`（1〜12 の整数、既定 1）の比で決まる（2 : 9 のような比も書ける。細い列は文字が字ごとに折り返すので、`check` と見た目で確かめる） |
 | wireframe(root, {title, tag, h, frame, notes, skeleton}) | 画面 1 枚のローファイ・ワイヤーフレーム + 番号つき注釈欄。部品は `wf.*`（下記）。`n:` で番号の丸、`mark:'new'/'changed'` で新規・改修の枠 |
@@ -323,7 +323,7 @@ Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使�
 | cloud({a, b, c, d, d2}, {assumptions, conflictLabel, id}) | TOC のクラウド（対立解消図）。共通目的 A・必要条件 B/C・対立する要望 D/D' の 5 つの箱と、前提の番号付き一覧。詳細は下の「TOC の思考プロセス」 |
 | gantt(rows, {from, to, today, id}) | ガントチャート。行は、タスク `{label, start, end｜days, id?, progress?, after?, tone?, milestone?}` と、見出し `{section}`。日付は `'YYYY-MM-DD'`（`end` はその日を含む。`'2026-10'` のような略記は止まる）。軸・目盛り・今日の線・依存の矢印・進捗は自動。詳細は下の「ガントチャート（`gantt`）」 |
 | classDiagram(classes, relations, {dir, id}) | UML クラス図。クラス `{id, name?, stereotype?, abstract?, attrs?, methods?, tone?}` と関係 `{from, to, kind?, label?, fromMult?, toMult?}`。親が上になる層に自動配置し、矢印の端の記号は `kind` で決まる。詳細は下の「クラス図（`classDiagram`）」 `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
-| bpmn(lanes, nodes, flows, {id, fit, dir}) | BPMN 風の業務フロー。レーン（担当）に、タスク・開始/終了イベント・ゲートウェイ（排他 `xor`・並行 `and`・包括 `or`）を置き、矢印で結ぶ。列は流れから、行はレーンから決まる。破線は、レーンをまたぐメッセージ。詳細は下の「業務フロー（`bpmn`）」 `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
+| bpmn(lanes, nodes, flows, {id, fit, dir}) | （非推奨の別名。v1.0 で削除）`swimlane` の `cols: 'auto'` と同じ業務フローを描く。レーン（担当）に、タスク・開始/終了イベント・ゲートウェイ（排他 `xor`・並行 `and`・包括 `or`）を置き、矢印で結ぶ。列は流れから、行はレーンから決まる。破線は、レーンをまたぐメッセージ。新しく書く図は `swimlane` に書く。詳細は下の「業務フロー」 `focus` で「今ここ」（下の「図の中の「今ここ」」）。 |
 | faultTree(top, {id, maxNodeW, cutSets, quant, quantPeriod}) | 故障の木（FTA）。頂上事象から、ゲート（`and` / `or` / `vote`（`k`）/ `inhibit`（`condition`））で原因をたどり、基本事象（円）・未展開（ひし形）・家（`state`）で終わる。`inhibit` の `condition` は楕円（条件事象）。事象の文は矩形、記号はその下。同じ基本事象は `{ref: id}` で描き直す（線は飛ばさない）。線に矢じりは無い（下へ読む）。幅が足りないとき `maxNodeW` を省略すると縮めて警告、`'auto'` なら注、数値なら縮めず止まる。`ref` は葉の事象だけ。`cutSets: true` は単独で頂上を起こす事象（大きさ 1 の最小カットセット）に太枠とバッジ（基本事象は「単一故障点」、未展開は「未展開・単独で頂上へ」）。カットセットが多すぎる木（途中 5000 超）は止まる。`quant: true` は各葉の `p`（0〜1、ある期間の確率。家形以外の葉はすべて必須。ゲートのある事象と家形には書けない）から頂上の確率を求め、注に書く（`quantPeriod: '1 年間'` で期間も）。独立を仮定し、`ref` で共有した事象は場合分けで厳密に、共有が 12 個を超えると min-cut upper bound の上限（概算）。頻度（/年）は扱わない。`diagram({legend: 'auto'})` は使った事象と**ゲートの記号**の凡例を足す（`legend([{ftaEvent: 'basic', label}, {ftaGate: 'and', label}])` も可）。例は `examples/fta.ts` |
 | pareto(items, {top, other, guide, highlight, unit}) | パレート図（QC 七つ道具）。項目 `{label, value}` を大きい順の棒にし、右の 0〜100% の軸に累積比率の折れ線。80% に届くまでの項目だけ色が付く。詳細は下の「QC 七つ道具と新 QC 七つ道具」 |
 | histogram(values, {bins, width, lsl, usl, target, normal}) | ヒストグラム。測定値をそのまま渡す。区間の幅は切りのよい数、棒は接し、区間の境目が下に付く。規格の上下限・平均・正規分布の曲線 |
@@ -542,7 +542,7 @@ flowchart(
 - 座標は書かない。`stateDiagram` と同じ配置（層に分け、直角の矢印で結ぶ）で、**既定は上から下**（`dir: 'right'` / `'auto'` も書ける）。節の `kind`: `process`（角丸の箱。既定。`sub` で 2 行目、`tone`、`icon` も）/ `decision`（ひし形。**質問が中に入り、文字の長さに合わせて大きくなる**）/ `terminator`（開始・終了の、両端が丸い箱）。`initial` / `final` は無い（開始・終了は `terminator`）。
 - 矢印は `stateDiagram` の遷移と同じ（`label` / `line` / `tone` / `strong`）。判断から出る矢印の `label`（Yes / No など）は、ひし形のそばの矢印の脇に置かれる。判断から真下に出る矢印（2 本なら左右の角から、3 本なら左・下・右の角から）は、答えごとにひし形の角から出る（行き先が角の真下にないときは、ひし形の下の辺から。どの矢印の端も、ひし形の輪郭まで延びる）。
 - **戻る矢印（やり直し）は、既定で図の外側を回る**（`returns: 'outer'`。判断へ戻る矢印は横の頂点に入る）。`returns: 'inline'` にもできる（別のノードを通ると build が止まる）。判断・開始終了の自己ループは書けない。
-- ひし形は同じ文でも箱の 2〜3 倍の高さになる。判断が多い流れで縦に長くなるときは、`dir: 'right'` にするか、図を分ける（`aspect-tall` が知らせる）。レーン（担当）が要る業務フローは `bpmn`。
+- ひし形は同じ文でも箱の 2〜3 倍の高さになる。判断が多い流れで縦に長くなるときは、`dir: 'right'` にするか、図を分ける（`aspect-tall` が知らせる）。レーン（担当）が要る業務フローは `swimlane` の `cols: 'auto'`（下の「業務フロー」）。
 - 検査: 判断から出る矢印が 2 本未満・3 本以上・ラベルなし（情報 `flowchart-decision-edges`）。ほかは `stateDiagram` と同じ（`text-mid-word-break`・`edge-crossings` など）。例は `examples/flowchart.ts`、設計は ADR 0041。
 
 ### 判断のはしご（`decisionLadder`）
@@ -856,26 +856,30 @@ classDiagram(
 - 親が上（`dir: 'right'` なら左）になる層に並ぶ。継承の矢印が同じ親に集まるときは、辺の上で位置をずらす。自分自身への関係は、クラスの右に小さな輪で出る。
 - 関係が無関係なクラスを貫く・ラベルや多重度がクラスやほかのラベルに重なると、`check` / `build` が止まる（クラスの順を入れ替える、`dir` を変える、ラベルを短くする）。`id` はクラスごとに必須で、`connect()` の端点（`c.anchors.<id>` でも取れる）。例は `examples/class-diagram.ts`。
 
-### 業務フロー（`bpmn`）
+### 業務フロー（`swimlane` の `cols: 'auto'`）
 
 ```ts
-bpmn(
+swimlane(
   [{id: 'cust', label: '顧客'}, {id: 'shop', label: '店舗'}],
-  [{id: 's', lane: 'cust', kind: 'start', label: '注文'}, {id: 'chk', lane: 'shop', label: '在庫を確認'},
-   {id: 'g', lane: 'shop', kind: 'xor', label: '在庫'}, {id: 'e', lane: 'cust', kind: 'end', label: '受け取り'}],
-  [{from: 's', to: 'chk'}, {from: 'chk', to: 'g'}, {from: 'g', to: 'e', label: 'あり', line: 'dashed'}],
+  [{id: 's', lane: 'cust', kind: 'start', title: '注文'}, {id: 'chk', lane: 'shop', title: '在庫を確認'},
+   {id: 'g', lane: 'shop', kind: 'xor', title: '在庫'}, {id: 'e', lane: 'cust', kind: 'end', title: '受け取り'}],
+  {cols: 'auto', flows: [{from: 's', to: 'chk'}, {from: 'chk', to: 'g'}, {from: 'g', to: 'e', label: 'あり'}]},
 )
 ```
 
-- ノードの `kind`: `task`（既定。角丸の箱。`label` 必須、`sub` で 2 行目）/ `start`（細い円）/ `end`（太い円）/ `xor`（×）/ `and`（＋）/ `or`（○）の菱形。イベントの `label` は図形の下に、ゲートウェイの `label` は図形の左上に出る。
+- 業務フローは `swimlane` に書く: 手順に `kind`、列に `cols: 'auto'` を付けると、列は流れから決まる（ADR 0086）。`bpmn()` は同じ図を描く非推奨の別名で、`check` が `bpmn-deprecated` の warn を出し、v1.0 で削除する。JSON spec / MCP の部品 `bpmn` も同じく非推奨だが動き続け、`swimlane` 部品の `kind` / `cols: 'auto'` / `dir` が新しい書き方。
+- 手順の `kind`: `task`（既定。角丸の箱。`title`、2 行目は `body`）/ `start`（細い円）/ `end`（太い円）/ `xor`（×）/ `and`（＋）/ `or`（○）の菱形。イベントの `title` は図形の下に、ゲートウェイの `title` は図形の左上に出る。`task` 以外の `kind` は `cols: 'auto'` が要る（明示列に書くと throw）。
+- 自動図の手順に使えるのは `id` / `lane` / `kind` / `title` / `body` / `icon`（task のみ）/ `iconTone` / `tone` だけ。`flows` に使えるのは `from` / `to` / `label` / `line` だけで、帯の中に残る（`connect` 帯は生まれないので第 4 引数は要らない）。`phases` / `boundaries` / `labelW` / `colGap`、手順の `col` / `span` / `row` とは併用できず、書くと throw する。
 - レーンは上から並ぶ。列は、矢印の向きに沿った層（`start` が先頭）。同じレーンの同じ列に 2 つ以上あれば、縦に積む。レーンの高さは中身に合わせる。
-- 矢印は直角に折れる。同じ行なら一直線、ゲートウェイからほかのレーンへは、上か下の頂点から出る。戻る矢印（差し戻し）は、ノードの下を回る。間のノードを貫くときは、レーンの縁に沿って迂回し、それでも無関係なノードを貫くと `check` / `build` が止まる。`line: 'dashed'` は、レーンをまたぐメッセージ。ゲートウェイから出る矢印の `label` は、条件。
-- **縦向き（`{dir: 'v'}`）**: レーンを列、流れを上から下にする（ADR 0042）。列の幅はレーンの数で決まる（1 列は 240px まで。タスクは列より 28px 細い）ので `fit` とは併用できず、レーンが多すぎて列が狭くなると throw する（レーンの数に決まった上限はない。列は 108px 要るので、入るのは「帯の幅 ÷ 108」レーンまで。既定の幅 940px の図（帯 900px）なら 8 レーンまでで、9 レーンで throw する。エラーには、その幅で何レーンまで入るかを書く）。矢印は、出口（下 / 左右の頂点）・入口（上 / 左右）・横線の高さの候補を何百通りも作り、箱・文字・ほかの線に重ならず、短く、曲がりの少ないものを選ぶ。ゲートウェイの 2 本目以降の分岐は、行き先に面した左右の頂点から出る。戻る矢印は、列の外側を回って横から入る。ゲートウェイの名前は、頂点を通る横線の上（右上）に置き、その分の高さを行に取る。図形の右に収まらない名前（列が狭いときの長い語や、1 行 1〜2 字に積まれる日本語）は、開始イベントなら図形の上、終了イベントとゲートウェイなら下に置く（下に名前のあるゲートウェイは左右の頂点から出るので、出る矢印が 3 本以上なら throw する）。例は `examples/bpmn-vertical.ts`。結末が違うなら、終了イベントを分けて、その担当の列に置くと、遠い終了へ長い線を引かずに済む。
+- 矢印は直角に折れる。同じ行なら一直線、ゲートウェイからほかのレーンへは、上か下の頂点から出る。戻る矢印（差し戻し）は、手順の下を回る。間の手順を貫くときは、レーンの縁に沿って迂回し、それでも無関係な手順を貫くと `check` / `build` が止まる。`line: 'dashed'` は、レーンをまたぐメッセージ。ゲートウェイから出る矢印の `label` は、条件。
+- **縦向き（`{cols: 'auto', dir: 'v'}`）**: レーンを列、流れを上から下にする（ADR 0042。`dir: 'v'` は `cols: 'auto'` が要る）。列の幅はレーンの数で決まる（1 列は 240px まで。タスクは列より 28px 細い）ので `fit` とは併用できず、レーンが多すぎて列が狭くなると throw する（レーンの数に決まった上限はない。列は 108px 要るので、入るのは「帯の幅 ÷ 108」レーンまで。既定の幅 940px の図（帯 900px）なら 8 レーンまでで、9 レーンで throw する。エラーには、その幅で何レーンまで入るかを書く）。矢印は、出口（下 / 左右の頂点）・入口（上 / 左右）・横線の高さの候補を何百通りも作り、箱・文字・ほかの線に重ならず、短く、曲がりの少ないものを選ぶ。ゲートウェイの 2 本目以降の分岐は、行き先に面した左右の頂点から出る。戻る矢印は、列の外側を回って横から入る。ゲートウェイの名前は、頂点を通る横線の上（右上）に置き、その分の高さを行に取る。図形の右に収まらない名前（列が狭いときの長い語や、1 行 1〜2 字に積まれる日本語）は、開始イベントなら図形の上、終了イベントとゲートウェイなら下に置く（下に名前のあるゲートウェイは左右の頂点から出るので、出る矢印が 3 本以上なら throw する）。例は `examples/bpmn-vertical.ts`（別名のまま残るバイト一致の証拠）。結末が違うなら、終了イベントを分けて、その担当の列に置くと、遠い終了へ長い線を引かずに済む。
 - 標準の BPMN のすべては描かない（サブプロセス、タイマーやメッセージのイベント、プール間のメッセージ、データなどは対象外）。
-- **幅に収まらないとき**: 図が帯の幅より広いと、何 px 足りないかを書いて throw する（既定のまま）。`bpmn(..., {fit: 'shrink'})` を付けると、レーン名の列・列の間隔・タスクの幅を、収まるまで段階的に詰める（収まる最初の段階で止まる。もともと収まる図は変わらない）。詰めすぎて矢印のラベルが箱に重なると `check` / `build` が止まるので、ノードを減らすか図を 2 つに分ける。縦向き（レーンを列にして上から下へ）には自動で切り替えない。例は `examples/bpmn-shrink.ts`。
-- ノードの `id` は `connect()` の端点（`b.anchors.<id>` でも取れる）。例は `examples/bpmn.ts`。
+- **幅に収まらないとき**: 図が帯の幅より広いと、何 px 足りないかを書いて throw する（既定のまま）。`fit: 'shrink'` を付けると、収まるまで段階的に詰める（収まる最初の段階で止まる。もともと収まる図は変わらない）。詰める対象は列の決め方で違う: 明示列はレーン名の列・列の間隔・左右の余白、自動列（`cols: 'auto'`）はレーン名の列・列の間隔・タスクの幅・矢印のラベルの余白。詰めすぎて矢印のラベルが箱に重なると `check` / `build` が止まるので、手順を減らすか図を 2 つに分ける。縦向き（レーンを列にして上から下へ）には自動で切り替えない。例は `examples/bpmn-shrink.ts`（別名）。
+- 手順の `id` は `connect()` の端点（`b.anchors.<id>` でも取れる）。例は `examples/swimlane-auto.ts`。
+- **`bpmn()` からの移行**: 引数の型は同じだが、戻り値の型は `BpmnBand` ではなく `swimlane` の自動図の帯（`SwimlaneAutoBand` と id の宣言・ハンドル・アンカー）に変わった。生の `{type: 'bpmn'}` のデータ（JSON で読んだ図など）は描けず、`bpmn()` か `swimlane({cols: 'auto'})` で作り直す直し方を書いて throw する。
+- **数え方と説明**: `bpmn()` の別名で書いた図は、1 図 1 話（`one-story`）に数えず、読み上げの説明（`<desc>`）も出さない（別名の出力が 1 バイトも変わらないため）。`swimlane({cols: 'auto'})` で書いた図は数え、「レーン: …。手順: …」の説明を出す。
 
-### 自動配置の図の共通の注意（`tree` / `mindmap` / `stateDiagram` / `causeTree` / `cloud` / `gantt` / `classDiagram` / `bpmn` / `relationDiagram` / `pdpc` / `arrowDiagram`）
+### 自動配置の図の共通の注意（`tree` / `mindmap` / `stateDiagram` / `causeTree` / `cloud` / `gantt` / `classDiagram` / `swimlane`（`cols: 'auto'`） / `bpmn` / `relationDiagram` / `pdpc` / `arrowDiagram`）
 
 - 図の中の節（`id` を付けたもの）は、`connect()` の端点になり、`reveal` では図と一緒に出る。ただし spotlight は図ごと（図の `id`）で、節の `id` を指すと、そう書いて止まる。
 - `check` の「自動の凡例」（`legend: 'auto'`）と、色だけに頼る強調の検査は、これらの図の `tone`・破線・点線を数えない（`causeTree` 系の `role`・AND の弧・戻り・断つ辺・中核の印は例外で、凡例に入る）。`new` / `changed` / `removed` や破線の遷移・メッセージを使うときは、自分で `legend()` を置く。

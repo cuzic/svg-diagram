@@ -1,6 +1,6 @@
 # ADR 0086: `bpmn()` を `swimlane()` に統合する — 手順に `kind`（イベント・ゲート）、列に `cols: 'auto'` を足し、`bpmn()` は非推奨の別名にする
 
-- 状態: 仮承認(Conditionally approved。Opus レビュー round 1（`0086-opus-review-round1.md`。Blocker 1・Major 5・Minor 6）の指摘を反映済み。Q1・Q2 は決める人が決める。U0 済み（条件付き成立）。0085 は #502 が使ったため 0086 に改番)
+- 状態: 承認(Accepted。U1 merged・U2 はこの PR。Q1: 部品名 `bpmn` を残して委譲。Q2: `bpmn()` は v1.0 で削除、それまで非推奨 warn)
 - 日付: 2026-11-27
 - 基点: `origin/main`（601feee0）
 - 関連: ADR 0042（`dir: 'v'`）、ADR 0048（swimlane の boundaries）、ADR 0051（`focus`）、ADR 0027 / 0054 / 0055（PPTX）、ADR 0069（`partCatalog`）、ADR 0071（JSON Schema）、ADR 0080（`BandDef`、D2b のラチェット、tree shaking）、ADR 0041（`flowchart()` を薄い入口にした前例）、ADR 0083（`arrange: 'ladder'` の前例）
