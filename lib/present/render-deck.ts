@@ -114,9 +114,9 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
   const box = (t: string, family: Parameters<typeof textBox>[1], size: number, weight: number) => textBox(t, family, size, weight, cfg.fonts);
   const pptxFonts = fontsOf(undefined);
   /** The smallest text of a figure scaled by k, counted as the .pptx counts it (ADR 0056 D2: the same warning on both). */
-  const smallText = (f: DrawnFigure, k: number, sourceLines: number, spec: unknown): string | null => {
+  const smallText = (f: DrawnFigure, k: number, sourceLines: number, spec: unknown, column = false): string | null => {
     const plan = planSlide(f.laidOut, pptxFonts), inner = /<\/p:grpSpPr>([\s\S]*)<\/p:spTree>/.exec(plan.xml)?.[1] ?? '';
-    return smallTextWarning({scale: k, minTextPt: minTextPt(placeShapes(inner, k, 0, 0)), sourceLines, parts: figurePartTypes(spec)});
+    return smallTextWarning({scale: k, minTextPt: minTextPt(placeShapes(inner, k, 0, 0)), sourceLines, parts: figurePartTypes(spec), column});
   };
   const slides = shared.map((s, i): RenderedSlide | null => {
     const here = `slides[${i}]`;
@@ -134,7 +134,7 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
       : `${here}.columns[${j}]: the heading, lead, callouts and source leave the column's figure no room: shorten them, or split the slide`] : []);
     if (crowded.length) { errors.push(...crowded); return null; }
     if (f && layout.figure) { const w = smallText(f, layout.figure.k, layout.sourceLines, s.figure); if (w) said.push({at: '.figure', text: w}); }
-    layout.columns.forEach((c, j) => { const cf = cols[j]; if (cf && c.figure) { const w = smallText(cf, c.figure.k, layout.sourceLines, s.columns?.[j]?.figure); if (w) said.push({at: `.columns[${j}].figure`, text: w}); } });
+    layout.columns.forEach((c, j) => { const cf = cols[j]; if (cf && c.figure) { const w = smallText(cf, c.figure.k, layout.sourceLines, s.columns?.[j]?.figure, true); if (w) said.push({at: `.columns[${j}].figure`, text: w}); } });
     const out = slideSvg(layout, f ? {svg: f.svg} : undefined, font, box, cols.map(c => c ? {svg: c.svg} : undefined));
     for (const m of out.missing) errors.push(`${here}: no font has a glyph for 「${m.char}」 (in 「${m.text}」): name a font that has it in .svg-diagram.json "fonts"`);
     for (const u of out.unsupported) errors.push(`${here}: text drawn with ${u} cannot be outlined, so the slide would lose it: take it out of the figure${WORDART_HINT[u] ?? ''}`);

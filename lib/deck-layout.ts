@@ -322,9 +322,9 @@ export function figurePartTypes(spec: unknown): string[] {
 const FIXED_HEIGHT_PARTS: ReadonlySet<string> = new Set(['concentric', 'venn', 'cycle']);
 
 /** What to do about a figure whose text is small, by what makes it small (ADR 0085 D1). */
-function smallFigureAdvice(parts: readonly string[]): string {
+function smallFigureAdvice(parts: readonly string[], column: boolean): string {
   const fixed = parts.filter(t => FIXED_HEIGHT_PARTS.has(t)), others = parts.length - fixed.length;
-  const height = 'give the figure more height (fewer callouts, or put it in a column beside the text)';
+  const height = column ? 'give the figure more height (fewer callouts)' : 'give the figure more height (fewer callouts, or put it in a column beside the text)';
   const items = 'cut items, or split the figure over two slides';
   if (!parts.length) return 'give the figure more room, cut items, or split it over two slides';
   if (!others) return height;
@@ -335,7 +335,7 @@ function smallFigureAdvice(parts: readonly string[]): string {
  * A warning for a slide whose figure's smallest text is under MIN_TEXT_PT, or (ADR 0085 D1) under MIN_FIGURE_TEXT_PX on the slide, or null.
  * `parts`: the part types of the figure, to say what helps.
  */
-export function smallTextWarning(p: {scale: number | null; minTextPt: number | null; sourceLines?: number; parts?: readonly string[]}): string | null {
+export function smallTextWarning(p: {scale: number | null; minTextPt: number | null; sourceLines?: number; parts?: readonly string[]; /** The figure is in a column of its slide. */ column?: boolean}): string | null {
   if (p.minTextPt === null || p.scale === null) return null;
   const how = p.scale < 1 ? `scaled to ${Math.round(p.scale * 100)}% to fit the slide, its` : 'its';
   if (p.minTextPt < MIN_TEXT_PT) {
@@ -345,7 +345,7 @@ export function smallTextWarning(p: {scale: number | null; minTextPt: number | n
   const px = p.minTextPt * 96 / 72;
   if (px >= MIN_FIGURE_TEXT_PX - 0.02) return null;
   const scaled = p.scale < 1 ? `, scaled to ${Math.round(p.scale * 100)}% to fit the slide` : '';
-  return `figure text is ~${px.toFixed(1)}px on the slide (under ${MIN_FIGURE_TEXT_PX}px, the size it is drawn at before scaling)${scaled}: ${smallFigureAdvice(p.parts ?? [])}`;
+  return `figure text is ~${px.toFixed(1)}px on the slide (under ${MIN_FIGURE_TEXT_PX}px, the figure's text size at scale 1)${scaled}: ${smallFigureAdvice(p.parts ?? [], p.column === true)}`;
 }
 
 /** The layout widths 'fill' tries (ADR 0060): the document's 940 and narrower, each about 12 % less, down to the spec's 320. */

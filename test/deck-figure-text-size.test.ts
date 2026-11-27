@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {spawnSync} from 'node:child_process';
 import {configureMeasure} from '../lib/measure.ts';
 import {installResolveHook} from '../lib/resolve-hook.ts';
 import {loadDeck} from '../lib/deck-load.ts';
@@ -12,6 +13,7 @@ import {renderDeck} from '../lib/present/render-deck.ts';
 import {renderDeckPptxEdgeWith} from '../lib/pptx-deck-edge-core.ts';
 import {planFigureEdge} from '../lib/pptx-edge.ts';
 import {validateDeck} from '../lib/deck-spec.ts';
+import {slideIssues, type PlannedSlide} from '../lib/pptx/deck.ts';
 import {figurePartTypes, MIN_FIGURE_TEXT_PX, smallTextWarning} from '../lib/deck-layout.ts';
 import {closeMeasurer} from '../lib/dsl.ts';
 import type {Config} from '../lib/types/project.ts';
@@ -84,7 +86,7 @@ test('smallTextWarning: 14 px is the line (10.5 pt); the 9 pt message is unchang
   assert.equal(MIN_FIGURE_TEXT_PX, 14);
   assert.equal(smallTextWarning({scale: 1, minTextPt: 10.5}), null);
   assert.equal(smallTextWarning({scale: 1.2, minTextPt: 12}), null);
-  assert.match(smallTextWarning({scale: 0.9, minTextPt: 10.4, parts: ['venn']}) ?? '', /^figure text is ~13\.9px on the slide \(under 14px, the size it is drawn at before scaling\), scaled to 90% to fit the slide: give the figure more height/);
+  assert.match(smallTextWarning({scale: 0.9, minTextPt: 10.4, parts: ['venn']}) ?? '', /^figure text is ~13\.9px on the slide \(under 14px, the figure's text size at scale 1\), scaled to 90% to fit the slide: give the figure more height/);
   assert.equal(smallTextWarning({scale: 0.6, minTextPt: 8, sourceLines: 0}), 'scaled to 60% to fit the slide, its smallest text is 8.0pt (under 9pt): split the figure, or move text off the slide');
   assert.equal(smallTextWarning({scale: null, minTextPt: 8}), null);
   assert.equal(smallTextWarning({scale: 1, minTextPt: null}), null);
@@ -103,4 +105,74 @@ test('figurePartTypes: the part types of a spec; nothing for a file name or a ma
   assert.deepEqual(figurePartTypes('fig.diagram.ts'), []);
   assert.deepEqual(figurePartTypes({parts: 3}), []);
   assert.deepEqual(figurePartTypes(undefined), []);
+});
+
+// ---- the columns: each column's figure gets the advice for its own parts (and a figure already in a column is not told to go to one) ----
+const table = {type: 'table', columns: [{label: '項目'}, {label: '値'}], rows: [['甲', '1']]};
+const columnsSlide = {title: '見出し', lead: 'リード', columns: [{figure: figure(parts['versus']!)}, {figure: {version: 1, title: 'f', showTitle: false, parts: [parts['venn']!, table]}}]};
+const STACKED = /^figure text is ~1[0-3]\.\d+px on the slide \(under 14px, the figure's text size at scale 1\), scaled to \d+% to fit the slide: cut items, or split the figure over two slides$/;
+const MIXED = /^figure text is ~1[0-3]\.\d+px on the slide \(under 14px, the figure's text size at scale 1\), scaled to \d+% to fit the slide: give the figure more height \(fewer callouts\); for the other parts, cut items, or split the figure over two slides$/;
+
+test('renderDeck: two figure columns each get the advice for their own parts, without "put it in a column"', async () => {
+  const file = path.join(tmp, 'cols.json');
+  fs.writeFileSync(file, JSON.stringify({slides: [columnsSlide]}));
+  const r = loadDeck(file);
+  assert.ok(r.ok);
+  const out = await renderDeck(r.loaded, cfg);
+  assert.deepEqual(out.errors, []);
+  const at = (p: string) => out.warnings.filter(x => x.startsWith(`${p}: `)).map(x => x.slice(p.length + 2));
+  assert.equal(at('slides[0].columns[0].figure').length, 1, JSON.stringify(out.warnings));
+  assert.match(at('slides[0].columns[0].figure')[0]!, STACKED);
+  assert.equal(at('slides[0].columns[1].figure').length, 1, JSON.stringify(out.warnings));
+  assert.match(at('slides[0].columns[1].figure')[0]!, MIXED);
+});
+
+test('the edge writer: two figure columns each get the advice for their own parts', async () => {
+  const real = {validate: (i: unknown) => validateDeck(i), plan: (spec: unknown, engine: Parameters<typeof planFigureEdge>[1], width?: number) => planFigureEdge(spec, engine, {}, width)};
+  const r = await renderDeckPptxEdgeWith({slides: [columnsSlide]}, realEngine(), {rasterize: () => new Uint8Array([0])}, real);
+  assert.deepEqual(r.issues, []);
+  const at = (p: string) => r.warnings.filter(x => x.path === p).map(x => x.message);
+  assert.equal(at('slides[0].columns[0].figure').length, 1, JSON.stringify(r.warnings));
+  assert.match(at('slides[0].columns[0].figure')[0]!, STACKED);
+  assert.equal(at('slides[0].columns[1].figure').length, 1, JSON.stringify(r.warnings));
+  assert.match(at('slides[0].columns[1].figure')[0]!, MIXED);
+});
+
+test('slideIssues: a column is given its own part types; a figure in a column is not told to go to one', () => {
+  const small: PlannedSlide = {xml: '', notes: '', pictures: [], scale: 0.9, minTextPt: 9.5, noRoom: false, name: '', columns: [{scale: 0.9, minTextPt: 9.5, noRoom: false}, {scale: 0.9, minTextPt: 9.5, noRoom: false}]};
+  const r = slideIssues(small, 3, true, ['figure', 'figure'], {columns: [['versus'], ['venn']]});
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual(r.warnings.map(w => w.path), ['slides[3].columns[0].figure', 'slides[3].columns[1].figure']);
+  assert.match(r.warnings[0]!.message, /: cut items, or split the figure over two slides$/);
+  assert.match(r.warnings[1]!.message, /: give the figure more height \(fewer callouts\)$/);
+  const whole = slideIssues({...small, columns: []}, 0, true, [], {figure: ['venn']});
+  assert.match(whole.warnings[0]!.message, /: give the figure more height \(fewer callouts, or put it in a column beside the text\)$/);
+});
+
+// ---- the pptx-deck CLI calls slideIssues itself (it does not go through the edge core) ----
+const ROOT = path.resolve(import.meta.dirname, '..');
+function cli(name: string, slides: unknown[]): {status: number | null; stderr: string} {
+  const file = path.join(tmp, `${name}.json`);
+  fs.writeFileSync(file, JSON.stringify({slides}));
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'pptx-deck-diagram.ts'), file, '--out', path.join(tmp, `${name}.pptx`)], {encoding: 'utf8', cwd: ROOT});
+  return {status: r.status, stderr: r.stderr};
+}
+
+test('pptx-deck CLI: a small circle figure and a small stacked figure warn on stderr, each with its own advice', () => {
+  const circle = cli('cli-venn', [{title: '見出し', ...crowded, figure: figure(parts['venn']!)}]);
+  assert.equal(circle.status, 0, circle.stderr);
+  assert.match(circle.stderr, /⚠ slides\[0\]\.figure: figure text is ~1[0-3]\.\d+px on the slide \(under 14px, the figure's text size at scale 1\).*: give the figure more height \(fewer callouts, or put it in a column beside the text\)/);
+  const rows = cli('cli-versus', [{title: '見出し', ...crowded, figure: figure(parts['versus']!)}]);
+  assert.equal(rows.status, 0, rows.stderr);
+  assert.match(rows.stderr, /⚠ slides\[0\]\.figure: figure text is ~1[0-3]\.\d+px on the slide.*: cut items, or split the figure over two slides/);
+  const control = cli('cli-table', [{title: '見出し', ...crowded, figure: figure(parts['table']!)}]);
+  assert.equal(control.status, 0, control.stderr);
+  assert.ok(!/figure text is/.test(control.stderr), control.stderr);
+});
+
+test('pptx-deck CLI: figure columns get the advice for their own parts', () => {
+  const r = cli('cli-cols', [columnsSlide]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stderr, /⚠ slides\[0\]\.columns\[0\]\.figure: figure text is .*: cut items, or split the figure over two slides\n/);
+  assert.match(r.stderr, /⚠ slides\[0\]\.columns\[1\]\.figure: figure text is .*: give the figure more height \(fewer callouts\); for the other parts, cut items/);
 });

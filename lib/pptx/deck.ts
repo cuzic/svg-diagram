@@ -246,7 +246,7 @@ export function slideIssues(p: PlannedSlide, i: number, hasFigure: boolean, kind
     if (c.noRoom) errors.push(kinds[j] === 'text'
       ? {path: `${at}.text`, message: 'the text does not fit the column: shorten it, or give the column a larger width'}
       : {path: at, message: 'the heading, lead, callouts and source leave the column\'s figure no room: shorten them, or split the slide'});
-    else { const w = smallTextWarning({...c, sourceLines: p.sourceLines, parts: parts.columns?.[j]}); if (w) warnings.push({path: `${at}.figure`, message: w}); }
+    else { const w = smallTextWarning({...c, sourceLines: p.sourceLines, parts: parts.columns?.[j], column: true}); if (w) warnings.push({path: `${at}.figure`, message: w}); }
   });
   if (p.noRoom && !errors.length) errors.push({path: `slides[${i}]`, message: roomMessage(true)});
   return {errors, warnings};
