@@ -73,6 +73,8 @@ const rolesAt = (roles: Roles, size: number): Roles => size === roles.note ? rol
 type Data = {type: string; textSize?: number};
 /** The two hooks of a flow band's definition that the larger labels change (their environments are the definition's own). */
 interface GrowDef {
+  /** Set on a definition this module wrapped. */
+  grown?: true;
   measure?(data: Data, env: {roles: Roles}): void;
   layout(data: Data, env: {roles: Roles}): {h: number; laid: LaidOutFlowShape};
 }
@@ -81,14 +83,18 @@ interface GrowDef {
  * The band definition drawing every candidate size: it measures them all, and lays the shape out at the largest asked-for size at which `fits`
  * holds and the figure is no taller (else at the usual size). The band's own definition does the work with other roles.
  */
+/** A fit test that throws (a part of a caller's own that uses a built-in part's name) does not hold: the usual drawing is kept. */
+const holds = (fits: FitFn<never>, data: Data, laid: LaidOutFlowShape): boolean => { try { return fits(data as never, laid); } catch { return false; } };
+
 const grownDef = (def: GrowDef, fits: FitFn<never>): GrowDef => ({
   ...def,
+  grown: true,
   measure: (data, env) => { for (const size of [env.roles.note, ...growSizes(data.textSize, env.roles.note)]) def.measure?.(data, {...env, roles: rolesAt(env.roles, size)}); },
   layout: (data, env) => {
     const base = def.layout(data, env);
     for (const size of growSizes(data.textSize, env.roles.note)) {
       const grown = def.layout(data, {...env, roles: rolesAt(env.roles, size)});
-      if (grown.h <= base.h + 0.5 && fits(data as never, grown.laid)) return grown;
+      if (grown.h <= base.h + 0.5 && holds(fits, data, grown.laid)) return grown;
     }
     return base;
   },
@@ -100,6 +106,7 @@ const FITS: Record<string, FitFn<never>> = {concentric: concentricFits as FitFn<
 export function growBand<B extends {type: string}>(band: B, size: number, builtIn?: (band: B) => object | undefined): B {
   const fits = FITS[band.type], def = fits ? defOf(band) ?? builtIn?.(band) : undefined;
   if (!fits || !def) return band;
+  if ((def as GrowDef).grown) return Object.assign(band, {textSize: size}); // already wrapped: only the size changes
   return Object.defineProperty(Object.assign(band, {textSize: size}), DEF, {value: grownDef(def as unknown as GrowDef, fits), enumerable: true, writable: true, configurable: true});
 }
 

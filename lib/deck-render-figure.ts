@@ -11,6 +11,9 @@ import type {Diagram} from './types/core.ts';
 import type {Config} from './types/project.ts';
 import type {RenderResult} from './types/verdicts.ts';
 
+/** A drawing as `growFigure` takes it: its size on the slide, the rules it raised, whether it has no problem (ADR 0085 D2). */
+const sized = (r: RenderResult) => ({w: Math.max(96, r.laidOut.width), h: Math.max(96, r.laidOut.canvasHeight), flags: ruleIds([...r.verdict.warnings, ...r.verdict.problems]), clean: r.verdict.problems.length === 0, r});
+
 /** The diagram with larger labels asked of the parts that can use them (ADR 0085 D2); as it is without a size. */
 const askedDiagram = (d: Diagram, size?: number): Diagram => { askTextSize(d.bands, size, definitionFor); return d; };
 
@@ -46,12 +49,9 @@ export async function renderDeckFigure(i: number, spec: unknown, source: string 
   /** ADR 0085 D2: `result` (drawn at layout width `at`, or the spec's own) drawn again with larger labels when that comes out larger on the slide. */
   const grown = async (s: unknown, result: RenderResult, room: {box: {w: number; h: number}; cap: number} | undefined, at: number | undefined): Promise<RenderResult> => {
     if (source || !room) return result;
-    const flags = ruleIds([...result.verdict.warnings, ...result.verdict.problems]);
-    const box = (r: RenderResult) => ({w: Math.max(96, r.laidOut.width), h: Math.max(96, r.laidOut.canvasHeight)});
-    const out = await growFigure(s, {...box(result), r: result}, room.box, room.cap, async size => {
+    const out = await growFigure(s, sized(result), room.box, room.cap, async size => {
       const again = await draw(at === undefined || at > DOC_LAYOUT_WIDTH ? s : {...(s as object), width: at}, at !== undefined && at > DOC_LAYOUT_WIDTH ? at : undefined, size);
-      if (!again.ok || again.result.verdict.problems.length || ruleIds([...again.result.verdict.warnings, ...again.result.verdict.problems]).some(f => !flags.includes(f))) return null;
-      return {...box(again.result), r: again.result};
+      return again.ok ? sized(again.result) : null;
     });
     return out.r;
   };
@@ -100,12 +100,9 @@ export async function drawColumnFigure(i: number, j: number, spec: unknown, sour
  */
 export async function growColumnFigure(i: number, j: number, spec: unknown, source: string | undefined, cfg: Config, drawn: RenderResult, room: {w: number; h: number} | null, cap: number, fresh?: boolean): Promise<RenderResult> {
   if (source) return drawn;
-  const flags = ruleIds([...drawn.verdict.warnings, ...drawn.verdict.problems]);
-  const box = (r: RenderResult) => ({w: Math.max(96, r.laidOut.width), h: Math.max(96, r.laidOut.canvasHeight)});
-  const out = await growFigure(spec, {...box(drawn), r: drawn}, room, cap, async size => {
+  const out = await growFigure(spec, sized(drawn), room, cap, async size => {
     const again = await renderDeckFigure(i, {...(spec as object), width: drawn.laidOut.width}, undefined, cfg, {column: j, fresh, textSize: size});
-    if (!again.ok || again.result.verdict.problems.length || ruleIds([...again.result.verdict.warnings, ...again.result.verdict.problems]).some(f => !flags.includes(f))) return null;
-    return {...box(again.result), r: again.result};
+    return again.ok ? sized(again.result) : null;
   });
   return out.r;
 }

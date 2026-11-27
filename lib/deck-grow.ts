@@ -29,11 +29,12 @@ export function growsText(spec: unknown): boolean {
  * labels `redraw` is given the size of when that makes the text larger on the slide and the figure is not scaled down more for it. `redraw` returns
  * null when the second drawing is not acceptable (an error, a new problem).
  */
-export async function growFigure<R extends {w: number; h: number}>(spec: unknown, first: R, room: {w: number; h: number} | null, cap: number, redraw: (size: number) => Promise<R | null>): Promise<R> {
+export async function growFigure<R extends {w: number; h: number; flags: readonly string[]; clean: boolean}>(spec: unknown, first: R, room: {w: number; h: number} | null, cap: number, redraw: (size: number) => Promise<R | null>): Promise<R> {
   if (!room) return first;
   const scaleOf = (f: R): number => Math.min(room.w / f.w, room.h / f.h, cap);
   const k = scaleOf(first), size = askedTextSize(k);
   if (size === undefined || !growsText(spec)) return first;
   const again = await redraw(size);
-  return again && scaleOf(again) >= k - 1e-6 ? again : first;
+  const worse = !again || !again.clean || again.flags.some(f => !first.flags.includes(f));
+  return again && !worse && scaleOf(again) >= k - 1e-6 ? again : first;
 }

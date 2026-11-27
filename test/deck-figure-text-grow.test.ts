@@ -154,21 +154,36 @@ test('askedTextSize: floor(21 / k), and nothing when 14 px already comes out at 
   assert.equal(askedTextSize(0.868), 24);
 });
 
-test('growFigure: a second drawing that makes the figure scale down more is not taken; neither is a failed one', async () => {
+test('growFigure: a second drawing that makes the figure scale down more, fails, has a problem or raises a new rule is not taken', async () => {
   const spec = figure(parts['venn3']!), room = {w: 1168, h: 500};
-  const first = {w: 940, h: 560, tag: 'first'};
-  const taller = await growFigure(spec, first, room, 1.5, async () => ({w: 940, h: 600, tag: 'taller'}));
-  assert.equal(taller.tag, 'first');
-  const failed = await growFigure(spec, first, room, 1.5, async () => null);
-  assert.equal(failed.tag, 'first');
+  const drawing = (tag: string, extra: object = {}) => ({w: 940, h: 560, flags: ['text-mid-word-break'], clean: true, tag, ...extra});
+  const first = drawing('first');
+  assert.equal((await growFigure(spec, first, room, 1.5, async () => drawing('taller', {h: 600}))).tag, 'first');
+  assert.equal((await growFigure(spec, first, room, 1.5, async () => null)).tag, 'first');
+  assert.equal((await growFigure(spec, first, room, 1.5, async () => drawing('problem', {clean: false}))).tag, 'first');
+  assert.equal((await growFigure(spec, first, room, 1.5, async () => drawing('new-rule', {flags: ['text-mid-word-break', 'brand-new-rule']}))).tag, 'first');
+  assert.equal((await growFigure(spec, first, room, 1.5, async () => drawing('fewer-rules', {flags: []}))).tag, 'fewer-rules', 'a rule that went away is fine');
   let asked = 0;
-  const same = await growFigure(spec, first, room, 1.5, async size => { asked = size; return {w: 940, h: 560, tag: 'again'}; });
+  const same = await growFigure(spec, first, room, 1.5, async size => { asked = size; return drawing('again'); });
   assert.equal(same.tag, 'again');
   assert.equal(asked, Math.floor(21 / (500 / 560)));
-  const flat = await growFigure(spec, {w: 700, h: 100, tag: 'flat'}, room, 1.5, async () => { throw new Error('not asked: 14px already comes out at 21px'); });
+  const flat = await growFigure(spec, {...first, w: 700, h: 100, tag: 'flat'}, room, 1.5, async () => { throw new Error('not asked: 14px already comes out at 21px'); });
   assert.equal(flat.tag, 'flat');
   assert.equal((await growFigure(figure({type: 'table'}), first, room, 1.5, async () => { throw new Error('not a part that grows'); })).tag, 'first');
   assert.equal((await growFigure(spec, first, null, 1.5, async () => { throw new Error('no room'); })).tag, 'first');
+});
+
+test('growBand: a caller\'s own part named venn keeps its usual drawing when a fit test cannot read its shape, and a band is wrapped once', () => {
+  const env = {roles: {...ROLES}} as never;
+  const custom = band({type: 'venn', layout: () => ({h: 100, laid: {}})} as never, {type: 'venn', sets: [], overlaps: []} as never);
+  const out = growBand(custom, 20);
+  const def = defOf(out) as unknown as {layout(d: unknown, e: unknown): {h: number}; measure?: unknown};
+  assert.equal(def.layout(out, env).h, 100, 'no TypeError: the usual drawing');
+  // growing it again changes the size only (no second wrapper: the measure of a wrapper of a wrapper would run every size twice)
+  const first = defOf(out);
+  growBand(out, 18);
+  assert.equal(defOf(out), first);
+  assert.equal((out as unknown as {textSize: number}).textSize, 18);
 });
 
 // ---- the fit tests, on a laid-out shape ----

@@ -55,11 +55,10 @@ export async function renderDeckPptxEdgeWith(input: unknown, givenEngine: TextEn
   const width: TextWidth = (text, size, bold) => engine.textBox(text, 'sans', size, bold ? 700 : 400).w;
   /** ADR 0085 D2: `f` (laid out at layout width `at`, or the spec's own) planned again with larger labels when that comes out larger on the slide. */
   const grownPlan = async (spec: unknown, f: FigurePlan, room: {w: number; h: number} | null, cap: number, at?: number): Promise<FigurePlan> => {
-    const flags = ruleIds(f.findings);
-    const out = await growFigure(spec, {w: f.width, h: f.height, f}, room, cap, async size => {
+    const sized = (p: FigurePlan) => ({w: p.width, h: p.height, flags: ruleIds(p.findings), clean: p.problems.length === 0, f: p});
+    const out = await growFigure(spec, sized(f), room, cap, async size => {
       const again = await (at === undefined ? services.plan(spec, engine, undefined, size) : at > DOC_LAYOUT_WIDTH ? services.plan(spec, engine, at, size) : services.plan({...(spec as object), width: at}, engine, undefined, size));
-      if ('issues' in again || again.problems.length || ruleIds(again.findings).some(x => !flags.includes(x))) return null;
-      return {w: again.width, h: again.height, f: again};
+      return 'issues' in again ? null : sized(again);
     });
     return out.f;
   };
