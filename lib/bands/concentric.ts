@@ -6,8 +6,7 @@ import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {concentric as build} from '../dsl/concentric.ts';
-import {emitFlow, flowItemIds, measureFlow, verifyFlow} from '../flow-definition.ts';
-import {growTexts, placeGrown, concentricFits} from '../flow-grow.ts';
+import {emitFlow, flowItemIds, measureFlow, placeFlow, verifyFlow} from '../flow-definition.ts';
 import {concentricTexts, layoutConcentricShape} from '../flow-concentric.ts';
 import type {ConcentricBand, ConcentricOpts, ConcentricRing, LaidOutFlowShape} from '../flow-shapes.ts';
 
@@ -18,8 +17,8 @@ const definition = {
   title: data => [2, data.centre ?? data.rings[0]?.label],
   textSizes: texts,
   ids: data => flowItemIds([...data.rings, ...data.sectors ?? [], ...data.marks ?? []]),
-  measure: (data, env) => measureFlow(data, env, growTexts(concentricTexts)),
-  layout: (data, env) => placeGrown(data, env, layoutConcentricShape, concentricFits),
+  measure: (data, env) => measureFlow(data, env, concentricTexts),
+  layout: (data, env) => placeFlow(data, env, layoutConcentricShape),
   emit: emitFlow,
   nameNodes: nameFlowShapeNodes,
   svgDefs: laid => ({arrow: laid.primitives.some(p => p.k === 'path' && !!p.arrow)}),

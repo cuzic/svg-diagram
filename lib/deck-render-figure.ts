@@ -5,13 +5,14 @@ import {columnFallbackWarning, columnFigurePath, columnSpec, figurePath} from '.
 import {DOC_LAYOUT_WIDTH, fillSearch, widenDiagram, ruleIds, type DrawnFigure} from './deck-layout.ts';
 import {growFigure} from './deck-grow.ts';
 import {askTextSize} from './flow-grow.ts';
+import {definitionFor} from './full-definitions.ts';
 import {formatBuildError} from './error-format.ts';
 import type {Diagram} from './types/core.ts';
 import type {Config} from './types/project.ts';
 import type {RenderResult} from './types/verdicts.ts';
 
 /** The diagram with larger labels asked of the parts that can use them (ADR 0085 D2); as it is without a size. */
-const askedDiagram = (d: Diagram, size?: number): Diagram => { askTextSize(d.bands, size); return d; };
+const askedDiagram = (d: Diagram, size?: number): Diagram => { askTextSize(d.bands, size, definitionFor); return d; };
 
 /** A figure drawn as a deck slide's figure is sized to its slot, not to a document's text column: `doc-width` does not apply to it. */
 function forSlide(r: RenderResult): RenderResult {
@@ -73,7 +74,7 @@ export async function renderDeckFigure(i: number, spec: unknown, source: string 
   if (narrow.auto === null) return first.ok ? {ok: true, result: await grown(narrow.spec, first.result, opts.grow, undefined)} : {ok: false, errors: first.errors};
   // a problem that only the deck's own choice of width brings is like a spec error at that width: draw at the document's width and say so (ADR 0059 D3, never an error)
   const firstProblem = first.ok ? first.result.verdict.problems[0] : undefined;
-  if (first.ok && firstProblem === undefined) return first;
+  if (first.ok && firstProblem === undefined) return {ok: true, result: await grown(narrow.spec, first.result, opts.grow, undefined)};
   const wide = await draw(spec);
   if (!wide.ok) return {ok: false, errors: wide.errors};
   // both have problems: report the figure's own (at the width it would have without the column)

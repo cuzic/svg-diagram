@@ -5,8 +5,7 @@ import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {cycle as build} from '../dsl/cycle.ts';
-import {emitFlow, flowItemIds, measureFlow, verifyFlow} from '../flow-definition.ts';
-import {growTexts, placeGrown, cycleFits} from '../flow-grow.ts';
+import {emitFlow, flowItemIds, measureFlow, placeFlow, verifyFlow} from '../flow-definition.ts';
 import {cycleTexts, layoutCycleShape} from '../flow-cycle.ts';
 import type {CycleBand, CycleOpts, FlowStep, LaidOutFlowShape} from '../flow-shapes.ts';
 
@@ -17,8 +16,8 @@ const definition = {
   title: data => [2, data.steps[0]?.label],
   textSizes: texts,
   ids: data => flowItemIds(data.steps),
-  measure: (data, env) => measureFlow(data, env, growTexts(cycleTexts)),
-  layout: (data, env) => placeGrown(data, env, layoutCycleShape, cycleFits),
+  measure: (data, env) => measureFlow(data, env, cycleTexts),
+  layout: (data, env) => placeFlow(data, env, layoutCycleShape),
   emit: emitFlow,
   nameNodes: nameFlowShapeNodes,
   svgDefs: () => ({arrow: true}),

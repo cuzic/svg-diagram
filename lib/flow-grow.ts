@@ -2,11 +2,10 @@
 // as the rest of the slide. The deck asks with `textSize` (the largest size it wants); the part draws every candidate from there down to the usual
 // size and keeps the largest one whose labels still sit inside the circles they belong to (with a margin, the .pptx is set in another font)
 // and that does not make the figure taller (a taller figure would be shrunk by the deck, which is no gain).
-import type {PublicEnv} from './band-def.ts';
-import {placeFlow} from './flow-definition.ts';
-import type {FlowLayout} from './flow-layout-core.ts';
-import type {FlowShapeBand, LaidOutFlowShape} from './flow-types.ts';
-import type {FontFamily, Roles} from './types/core.ts';
+import {DEF, defOf} from './band-def.ts';
+import type {SelectedPart} from './spec-selective.ts';
+import type {LaidOutFlowShape} from './flow-types.ts';
+import type {Roles} from './types/core.ts';
 
 type Box = {x: number; y: number; w: number; h: number};
 type Circle = {cx: number; cy: number; r: number};
@@ -23,21 +22,6 @@ export const growSizes = (want: number | undefined, base: number): number[] => {
   for (let s = Math.min(Math.floor(want ?? 0), MAX_SIZE); s > base; s -= 2) sizes.push(s);
   return sizes;
 };
-
-/** The measurement requests of every candidate size (only a deck figure has any, so a document figure measures what it always did). */
-export function growTexts<B extends FlowShapeBand & {textSize?: number}>(texts: (b: B, roles: Roles) => [string, number, number, FontFamily][]): (b: B, roles: Roles) => [string, number, number, FontFamily][] {
-  return (b, roles) => [roles.note, ...growSizes(b.textSize, roles.note)].flatMap(size => texts(b, {...roles, note: size, label: size === roles.note ? roles.label : size}));
-}
-
-/** The shape drawn at the usual size, or at the largest asked-for size at which `fits` holds and the figure is no taller. */
-export function placeGrown<B extends FlowShapeBand & {textSize?: number}>(data: B, env: PublicEnv, draw: FlowLayout<B>, fits: FitFn<B>) {
-  const base = placeFlow(data, env, draw);
-  for (const size of growSizes(data.textSize, env.roles.note)) {
-    const grown = placeFlow(data, {...env, roles: {...env.roles, note: size, label: size}}, draw);
-    if (grown.h <= base.h + 0.5 && fits(data, grown.laid)) return grown;
-  }
-  return base;
-}
 
 const inflate = (b: Box): Box => ({x: b.x + b.w / 2 - b.w / 2 / MARGIN, y: b.y + b.h / 2 - b.h / 2 / MARGIN, w: b.w / MARGIN, h: b.h / MARGIN});
 const corners = (b: Box): [number, number][] => [[b.x, b.y], [b.x + b.w, b.y], [b.x, b.y + b.h], [b.x + b.w, b.y + b.h]];
@@ -83,8 +67,47 @@ export const cycleFits: FitFn<import('./flow-types.ts').CycleBand> = (b, out) =>
   }) && out.labelBoxes.filter(l => l.label === b.centre).map(inflate).every(box => corners(box).every(p => nodes.every(n => dist(p, n) >= n.r)));
 };
 
-const GROWN_BANDS: ReadonlySet<string> = new Set(['concentric', 'venn', 'cycle']);
-/** Asks the bands of a figure that can use it for labels up to `size` px (the deck's second drawing, ADR 0085 D2); nothing without a size. */
-export function askTextSize(bands: readonly {type: string}[], size?: number): void {
-  if (size !== undefined) for (const b of bands) if (GROWN_BANDS.has(b.type)) Object.assign(b, {textSize: size});
+/** The roles with the label sizes of a candidate: the usual ones for the usual size. */
+const rolesAt = (roles: Roles, size: number): Roles => size === roles.note ? roles : {...roles, note: size, label: size};
+
+type Data = {type: string; textSize?: number};
+/** The two hooks of a flow band's definition that the larger labels change (their environments are the definition's own). */
+interface GrowDef {
+  measure?(data: Data, env: {roles: Roles}): void;
+  layout(data: Data, env: {roles: Roles}): {h: number; laid: LaidOutFlowShape};
 }
+
+/**
+ * The band definition drawing every candidate size: it measures them all, and lays the shape out at the largest asked-for size at which `fits`
+ * holds and the figure is no taller (else at the usual size). The band's own definition does the work with other roles.
+ */
+const grownDef = (def: GrowDef, fits: FitFn<never>): GrowDef => ({
+  ...def,
+  measure: (data, env) => { for (const size of [env.roles.note, ...growSizes(data.textSize, env.roles.note)]) def.measure?.(data, {...env, roles: rolesAt(env.roles, size)}); },
+  layout: (data, env) => {
+    const base = def.layout(data, env);
+    for (const size of growSizes(data.textSize, env.roles.note)) {
+      const grown = def.layout(data, {...env, roles: rolesAt(env.roles, size)});
+      if (grown.h <= base.h + 0.5 && fits(data as never, grown.laid)) return grown;
+    }
+    return base;
+  },
+});
+
+const FITS: Record<string, FitFn<never>> = {concentric: concentricFits as FitFn<never>, venn: vennFits as FitFn<never>, cycle: cycleFits as FitFn<never>};
+
+/** A band of a part that can use larger labels, asked for labels up to `size` px (the deck's second drawing, ADR 0085 D2); other bands as they are. */
+export function growBand<B extends {type: string}>(band: B, size: number, builtIn?: (band: B) => object | undefined): B {
+  const fits = FITS[band.type], def = fits ? defOf(band) ?? builtIn?.(band) : undefined;
+  if (!fits || !def) return band;
+  return Object.defineProperty(Object.assign(band, {textSize: size}), DEF, {value: grownDef(def as unknown as GrowDef, fits), enumerable: true, writable: true, configurable: true});
+}
+
+/** The bands of a diagram asked for larger labels (`builtIn`: the definition of a band built from plain data, which carries none); nothing without a size. */
+export function askTextSize<B extends {type: string}>(bands: readonly B[], size: number | undefined, builtIn?: (band: B) => object | undefined): void {
+  if (size !== undefined) for (const b of bands) growBand(b, size, builtIn);
+}
+
+/** The selected parts, those that can use larger labels building bands that ask for them (the deck's second drawing). */
+export const growParts = (parts: readonly SelectedPart[], size: number): SelectedPart[] =>
+  parts.map(p => FITS[p.type] ? {...p, build: (part, at) => { const built = p.build(part, at); return Array.isArray(built) ? built.map(b => growBand(b, size)) : growBand(built as {type: string}, size); }} as SelectedPart : p);

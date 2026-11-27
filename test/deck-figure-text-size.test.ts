@@ -29,8 +29,8 @@ const named = (...names: string[]) => names.map(label => ({label}));
 const parts: Record<string, object> = {
   // a circle part that does not draw larger labels (ADR 0085 D2 leaves out concentric with sectors), so it stays small
   circle: {type: 'concentric', order: 'inner-first', labels: 'inside', centre: '利用者', rings: named('チーム', '顧客', '社会'), sectors: named('人', 'もの')},
-  // five thin rings: larger labels do not fit, so it keeps the usual size (ADR 0085 D2)
-  rings5: {type: 'concentric', order: 'inner-first', labels: 'inside', centre: '利用者', rings: named('チーム', '部門', '顧客と取引先', '業界', '社会')},
+  // long labels: the larger size does not fit the circles, so a cycle keeps the usual size (ADR 0085 D2) and, scaled down, still warns
+  longCycle: {type: 'cycle', steps: named('Procurement planning', 'Manufacturing operations', 'Quality assurance', 'Distribution review'), centre: 'Loop'},
   versus: {type: 'versus', left: {title: '前', tone: 'muted', items: [1, 2, 3, 4, 5].map(i => ({title: `紙で申請する${i}`, body: '承認まで三日かかる'}))}, right: {title: '後', tone: 'accent', items: [1, 2, 3, 4, 5].map(i => ({title: `画面で申請する${i}`, body: '当日中に承認される'}))}},
   mindmap: {type: 'mindmap', root: {label: '在庫', children: [{label: '目的', children: [{label: '時間を半分に'}]}, {label: '機能', children: [{label: '読み取り'}]}]}},
   chevron: {type: 'chevron', steps: ['計画', '設計', '実装', '検証'].map(label => ({label, sub: '要件を確認'})), current: 2},
@@ -69,7 +69,10 @@ test('renderDeck: a slide with no lead and no callout is checked too (the thresh
 
 test('renderDeck: the advice follows the cause (circles: more height; stacked rows: cut items)', async () => {
   assert.match((await warningsOf('circle'))[0]!, /give the figure more height \(fewer callouts, or put it in a column beside the text\)$/);
-  assert.match((await warningsOf('circle'))[0]!, /give the figure more height/);
+  // a cycle whose larger labels do not fit is refused growth (ADR 0085 D2) and, scaled down on a slide with a callout, warns as a circle part
+  const refused = await warningsOf('longCycle', {lead: '本文のリード文です。', callouts: [{label: '要点', text: '各段階の終わりに確認を入れる。'}]});
+  assert.equal(refused.length, 1, JSON.stringify(refused));
+  assert.match(refused[0]!, /figure text is ~12\.\d+px on the slide.*give the figure more height \(fewer callouts, or put it in a column beside the text\)$/);
   assert.match((await warningsOf('versus'))[0]!, /cut items, or split the figure over two slides$/);
 });
 
@@ -110,9 +113,9 @@ test('figurePartTypes: the part types of a spec; nothing for a file name or a ma
 });
 
 // ---- the columns: each column's figure gets the advice for its own parts (and a figure already in a column is not told to go to one) ----
-const columnsSlide = {title: '見出し', lead: 'リード', columns: [{figure: figure(parts['versus']!), width: 2}, {figure: figure(parts['rings5']!), width: 1}]};
+const columnsSlide = {title: '見出し', lead: 'リード', columns: [{figure: figure(parts['versus']!), width: 2}, {figure: {version: 1, title: 'f', showTitle: false, parts: [parts['longCycle']!, {type: 'table', columns: [{label: '項目'}, {label: '値'}], rows: [['甲', '1']]}]}, width: 1}]};
 const STACKED = /^figure text is ~1[0-3]\.\d+px on the slide \(under 14px, the figure's text size at scale 1\), scaled to \d+% to fit the slide: cut items, or split the figure over two slides$/;
-const CIRCLE = /^figure text is ~1[0-3]\.\d+px on the slide \(under 14px, the figure's text size at scale 1\), scaled to \d+% to fit the slide: give the figure more height \(fewer callouts\)$/;
+const MIXED = /^figure text is ~1[0-3]\.\d+px on the slide \(under 14px, the figure's text size at scale 1\), scaled to \d+% to fit the slide: give the figure more height \(fewer callouts\); for the other parts, cut items, or split the figure over two slides$/;
 
 test('renderDeck: two figure columns each get the advice for their own parts, without "put it in a column"', async () => {
   const file = path.join(tmp, 'cols.json');
@@ -125,7 +128,7 @@ test('renderDeck: two figure columns each get the advice for their own parts, wi
   assert.equal(at('slides[0].columns[0].figure').length, 1, JSON.stringify(out.warnings));
   assert.match(at('slides[0].columns[0].figure')[0]!, STACKED);
   assert.equal(at('slides[0].columns[1].figure').length, 1, JSON.stringify(out.warnings));
-  assert.match(at('slides[0].columns[1].figure')[0]!, CIRCLE);
+  assert.match(at('slides[0].columns[1].figure')[0]!, MIXED);
 });
 
 test('the edge writer: two figure columns each get the advice for their own parts', async () => {
@@ -136,7 +139,7 @@ test('the edge writer: two figure columns each get the advice for their own part
   assert.equal(at('slides[0].columns[0].figure').length, 1, JSON.stringify(r.warnings));
   assert.match(at('slides[0].columns[0].figure')[0]!, STACKED);
   assert.equal(at('slides[0].columns[1].figure').length, 1, JSON.stringify(r.warnings));
-  assert.match(at('slides[0].columns[1].figure')[0]!, CIRCLE);
+  assert.match(at('slides[0].columns[1].figure')[0]!, MIXED);
 });
 
 test('slideIssues: a column is given its own part types; a figure in a column is not told to go to one', () => {
@@ -175,5 +178,5 @@ test('pptx-deck CLI: figure columns get the advice for their own parts', () => {
   const r = cli('cli-cols', [columnsSlide]);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stderr, /⚠ slides\[0\]\.columns\[0\]\.figure: figure text is .*: cut items, or split the figure over two slides\n/);
-  assert.match(r.stderr, /⚠ slides\[0\]\.columns\[1\]\.figure: figure text is .*: give the figure more height \(fewer callouts\)\n/);
+  assert.match(r.stderr, /⚠ slides\[0\]\.columns\[1\]\.figure: figure text is .*: give the figure more height \(fewer callouts\); for the other parts, cut items, or split the figure over two slides\n/);
 });

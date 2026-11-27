@@ -75,7 +75,7 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
   const draw = async (i: number, spec: unknown, fit: FigureFit, room: {w: number; h: number} | null, j?: number, columnPx?: number): Promise<DrawnFigure | undefined | null> => {
     const source = sources.get(figureKey(i, j));
     if (spec === undefined && !source) return undefined;
-    const r = await renderDeckFigure(i, spec, source, cfg, fit === 'fill' && room ? {fresh: opts.fresh, column: j, fill: {box: room, cap: maxScale(fit)}} : {fresh: opts.fresh, column: j, columnPx, ...(room ? {grow: {box: room, cap: maxScale(fit)}} : {})});
+    const r = await renderDeckFigure(i, spec, source, cfg, {fresh: opts.fresh, column: j, ...(fit === 'fill' && room ? {fill: {box: room, cap: maxScale(fit)}} : {columnPx}), ...(room ? {grow: {box: room, cap: maxScale(fit)}} : {})});
     if (!r.ok) { errors.push(...r.errors); return null; }
     if (r.result.verdict.problems.length) { errors.push(...figureProblemErrors(j === undefined ? figurePath(i, null) : columnFigurePath(i, j, null), r.result.verdict.problems)); return null; }
     const lo = r.result.laidOut;

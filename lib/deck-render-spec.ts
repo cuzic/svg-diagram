@@ -4,6 +4,7 @@ import {bandTextSizes} from './placed-definitions.ts';
 import {measureAll} from './measure.ts';
 import {measureSettingsOf} from './measure-settings.ts';
 import {loadSpecPartsFor} from './spec-cli-parts.ts';
+import {growParts} from './flow-grow.ts';
 import {prepareSpecLayout} from './spec-selective.ts';
 import {xmlProblems} from './xml-check.ts';
 import type {Config} from './types/project.ts';
@@ -23,7 +24,7 @@ export async function renderDeckSpec(spec: unknown, cfg: Config, width?: number,
         ? import('./bands/legend.ts').then(m => m.autoLegend) : undefined,
     ]);
     const measure = measureSettingsOf(cfg);
-    const draw = prepareSpecLayout(spec, {parts, captions, autoLegend, project: cfg}, width, textSize);
+    const draw = prepareSpecLayout(spec, {parts: textSize === undefined ? parts : growParts(parts, textSize), captions, autoLegend, project: cfg}, width);
     const {placed, emit, verdict} = await draw({measureBatch: requests => measureAll(requests, measure)});
     const laidOut = applyConfig({...placed, legend: doc.legend, measure, fontScale: 1,
       showTitle: doc.showTitle === true, sourceLine: typeof doc.sourceLine === 'string' ? doc.sourceLine : undefined}, cfg);

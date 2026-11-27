@@ -10,18 +10,20 @@ import {installResolveHook} from '../lib/resolve-hook.ts';
 import {loadDeck} from '../lib/deck-load.ts';
 import {renderDeck} from '../lib/present/render-deck.ts';
 import {renderDeckSpec} from '../lib/deck-render-spec.ts';
+import {renderDeckFigure} from '../lib/deck-render-figure.ts';
 import {renderSpec} from '../lib/spec-render.ts';
 import {renderDeckPptxEdge as renderFullEdge} from '../lib/pptx-deck-edge.ts';
 import {renderDeckPptxEdge as renderSelectiveEdge} from '../lib/pptx-deck-selective-edge.ts';
 import {askedTextSize, growFigure, growsText, TARGET_EFFECTIVE_PX} from '../lib/deck-grow.ts';
-import {askTextSize, concentricFits, cycleFits, growSizes, growTexts, placeGrown, vennFits} from '../lib/flow-grow.ts';
+import {askTextSize, concentricFits, cycleFits, growBand, growParts, growSizes, vennFits} from '../lib/flow-grow.ts';
+import {band, defOf} from '../lib/band-def.ts';
 import {vennPart} from '../lib/spec-parts/selective/venn.ts';
 import {cyclePart} from '../lib/spec-parts/selective/cycle.ts';
 import {concentricPart} from '../lib/spec-parts/selective/concentric.ts';
 import {flowPptx} from '../lib/pptx/flow-band.ts';
 import {closeMeasurer} from '../lib/dsl.ts';
 import {ROLES} from '../lib/tokens.ts';
-import type {LaidOutFlowShape, VennBand, CycleBand, ConcentricBand} from '../lib/flow-types.ts';
+import type {LaidOutFlowShape, VennBand, CycleBand, CycleOpts, ConcentricBand} from '../lib/flow-types.ts';
 import type {Config} from '../lib/types/project.ts';
 import {JA_FONTS, realEngine} from './helpers/text-engine.ts';
 import {unzipEntry} from './helpers/pptx/unzip.ts';
@@ -132,19 +134,16 @@ test('a document figure is byte-identical: no size is asked, no candidate is mea
   const deckSvg = (await renderDeckSpec(figure(parts['venn3']!), cfg))?.svg;
   const asked = (await renderDeckSpec(figure(parts['venn3']!), cfg, undefined, undefined))?.svg;
   assert.equal(asked, deckSvg, 'no textSize: the same drawing');
-  const data = {type: 'venn', sets: [], overlaps: []} as unknown as VennBand;
-  const texts = () => [['x', ROLES.note, 700, 'sans']] as [string, number, number, 'sans'][];
-  assert.equal(growTexts(texts)(data, ROLES).length, 1, 'one request without a size');
-  assert.equal(growTexts(texts)({...data, textSize: 20}, ROLES).length, 1 + growSizes(20, ROLES.note).length);
   assert.deepEqual(growSizes(undefined, 14), []);
   assert.deepEqual(growSizes(14, 14), []);
   assert.deepEqual(growSizes(21, 14), [21, 19, 17, 15]);
   assert.deepEqual(growSizes(30, 14), [22, 20, 18, 16], 'the part never draws past 22px');
   const bands = [{type: 'venn'}, {type: 'table'}];
-  askTextSize(bands);
+  askTextSize(bands, undefined);
   assert.deepEqual(bands, [{type: 'venn'}, {type: 'table'}]);
-  askTextSize(bands, 18);
-  assert.deepEqual(bands, [{type: 'venn', textSize: 18}, {type: 'table'}]);
+  // a band without a definition of its own takes the built-in one the caller names
+  askTextSize(bands, 18, () => ({type: 'venn', layout: () => ({h: 1, laid: {}})}));
+  assert.deepEqual(bands.map(b => (b as {textSize?: number}).textSize), [18, undefined]);
 });
 
 // ---- the second layout pass ----
@@ -238,24 +237,75 @@ test('a size that makes the figure taller is not taken (a long katakana word gro
   assert.deepEqual(sizes(asked), sizes(base), 'drawn at the usual size');
 });
 
-test('placeGrown: the largest asked-for size at which the labels fit and the shape is no taller; else the usual size', () => {
-  const env = (note: number) => ({x: 0, y: 0, w: 940, widthOf: () => 10, roles: {...ROLES, note}, wrap: 'phrase'}) as never;
-  const drawn: number[] = [];
-  // a shape whose height is fixed; every drawing records the label size it was given
-  const draw = (_b: unknown, out: LaidOutFlowShape, _t: unknown, _a: unknown, roles: {note: number}) => { drawn.push(roles.note); out.h = 100; };
-  const data = (textSize?: number) => ({type: 'venn', sets: [], overlaps: [], ...(textSize ? {textSize} : {})}) as unknown as VennBand;
-  const sizeOf = (laid: unknown) => (laid as {h: number}).h;
-  assert.equal(sizeOf(placeGrown(data(), env(14), draw as never, () => true).laid), 100);
-  assert.deepEqual(drawn, [14], 'nothing asked: drawn once, at the usual size');
-  drawn.length = 0;
-  placeGrown(data(20), env(14), draw as never, (_b, out) => out.h === 100);
-  assert.deepEqual(drawn, [14, 20], 'asked 20: the first candidate fits, so no smaller one is drawn');
-  drawn.length = 0;
-  let tried = 0;
-  const chosen = placeGrown(data(20), env(14), draw as never, () => ++tried >= 3);
-  assert.deepEqual(drawn, [14, 20, 18, 16], 'the largest first, down to the first that fits');
-  assert.equal(sizeOf(chosen.laid), 100);
-  drawn.length = 0;
-  placeGrown(data(20), env(14), draw as never, () => false);
-  assert.deepEqual(drawn, [14, 20, 18, 16], 'none fits: the usual drawing is returned');
+// a band whose definition draws a venn of two circles with a label as wide as the label size makes it, so a size fits up to a point
+function fakeVenn(wideAbove: number) {
+  const drawn: number[] = [], measured: number[] = [];
+  const def = {
+    type: 'venn',
+    measure: (_d: unknown, env: {roles: {note: number}}) => { measured.push(env.roles.note); },
+    layout: (_d: unknown, env: {roles: {note: number}}) => {
+      drawn.push(env.roles.note);
+      const w = env.roles.note > wideAbove ? 400 : 20;
+      return {h: 100, laid: flowShape([circle(300, 250, 150), circle(500, 250, 150)], [{label: 'a', x: 300 - w / 2 - 60, y: 240, w, h: 20}])};
+    },
+  };
+  const data = {type: 'venn', sets: [{name: 'a'}, {name: 'b'}], overlaps: []};
+  return {drawn, measured, banded: band(def as never, data as never)};
+}
+
+test('growBand: measures every candidate size and draws the largest at which the labels fit; else the usual size', () => {
+  const env = (note = 14) => ({roles: {...ROLES, note}}) as never;
+  const run = (wideAbove: number, size?: number) => {
+    const {drawn, measured, banded} = fakeVenn(wideAbove);
+    const out = size === undefined ? banded : growBand(banded, size);
+    const def = defOf(out) as unknown as {measure(d: unknown, e: unknown): void; layout(d: unknown, e: unknown): {h: number}};
+    def.measure(out, env());
+    const placed = def.layout(out, env());
+    return {drawn, measured, placed};
+  };
+  const plain = run(99);
+  assert.deepEqual([plain.measured, plain.drawn], [[14], [14]], 'nothing asked: one size, drawn once');
+  const grown = run(18, 20);
+  assert.deepEqual(grown.measured, [14, 20, 18, 16], 'every candidate is measured');
+  assert.deepEqual(grown.drawn, [14, 20, 18], 'the largest first, down to the first that fits (18)');
+  assert.deepEqual(run(10, 20).drawn, [14, 20, 18, 16], 'none fits: the usual drawing is kept');
+  assert.equal(growBand({type: 'table'}, 20).type, 'table');
+  assert.deepEqual(growBand({type: 'table'}, 20), {type: 'table'}, 'a band of another part is left alone');
+});
+
+test('growParts: only the parts that can use larger labels build bands asking for them', () => {
+  const venn = {type: 'venn', build: () => band({type: 'venn', layout: () => ({h: 1, laid: {}})} as never, {type: 'venn'} as never)};
+  const table = {type: 'table', build: () => ({type: 'table'})};
+  const [v, t] = growParts([venn, table] as never, 18);
+  assert.equal((v as unknown as {build(p: unknown, at: string): {textSize?: number}}).build({}, '').textSize, 18);
+  assert.equal(t, table);
+});
+
+test('the fallback drawing (a canvas figure leaves the selected-parts path) is asked for the larger labels too', async () => {
+  const canvasSpec = {version: 1, title: 'f', showTitle: false, canvas: {minText: 14}, parts: [parts['concentric3']!]};
+  const sizes = async (textSize?: number) => {
+    const r = await renderDeckFigure(0, canvasSpec, undefined, cfg, {textSize});
+    assert.ok(r.ok);
+    return [...new Set(r.result.laidOut.laidOut.flatMap(b => 'texts' in b ? (b.texts as {size: number}[]).map(t => t.size) : []))];
+  };
+  assert.deepEqual(await sizes(), [14]);
+  assert.deepEqual(await sizes(22), [22]);
+});
+
+test('the centre label: inside the innermost ring (concentric), in the part all the sets share (venn), clear of the step circles (cycle)', () => {
+  const rings = {type: 'concentric', order: 'outer-first', labels: 'inside', centre: 'mid', rings: [{label: 'outer'}, {label: 'inner'}]} as unknown as ConcentricBand;
+  const ringCircles = [circle(470, 250, 200), circle(470, 250, 100)];
+  assert.equal(concentricFits(rings, flowShape(ringCircles, [{label: 'mid', x: 440, y: 240, w: 60, h: 20}])), true);
+  assert.equal(concentricFits(rings, flowShape(ringCircles, [{label: 'mid', x: 440, y: 120, w: 60, h: 20}])), false, 'the centre label is out of the innermost ring');
+  const v = {type: 'venn', sets: [{name: 'a'}, {name: 'b'}], overlaps: [], centre: 'both'} as unknown as VennBand;
+  const sets = [circle(300, 250, 150), circle(500, 250, 150)];
+  assert.equal(vennFits(v, flowShape(sets, [{label: 'both', x: 380, y: 240, w: 40, h: 20}])), true);
+  assert.equal(vennFits(v, flowShape(sets, [{label: 'both', x: 200, y: 240, w: 40, h: 20}])), false, 'the centre label is outside the shared part');
+  // a framed cycle keeps the usual size by the height guard, so nothing here (see the README)
+});
+
+test('textSize is not a public option of the DSL parts', () => {
+  // @ts-expect-error textSize is the deck's own request (ADR 0085), not an option of cycle()
+  const _bad: CycleOpts = {textSize: 22};
+  void _bad;
 });
