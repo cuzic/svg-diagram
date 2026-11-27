@@ -1,5 +1,5 @@
 // An orthogonal route that keeps clear of boxes, found by search: the last resort of a router that tries a fixed list of
-// shapes (bpmn.ts). The search runs on the grid made by the boxes' (inflated) edges and the given hint lines, so it finds a
+// shapes (layout-swimlane-auto.ts). The search runs on the grid made by the boxes' (inflated) edges and the given hint lines, so it finds a
 // route whenever the boxes leave a channel open; it prefers few bends, short runs and not riding on other flows.
 import type {Pt} from './graph-layout.ts';
 import {must} from './must.ts';

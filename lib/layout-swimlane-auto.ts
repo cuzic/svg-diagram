@@ -1,4 +1,4 @@
-// bpmn(): a business flow in lanes (pools' lanes), BPMN-style: tasks, start / end events and gateways (exclusive, parallel,
+// swimlane({cols: 'auto'}): a business flow in lanes, BPMN-style: tasks, start / end events and gateways (exclusive, parallel,
 // inclusive), joined by sequence flows (solid) and message flows (dashed). Lanes are given; the columns come from the flow
 // (graph-layout.ts layoutLayered, used for the layer of each node), the rows from the lane. Only the shapes and flow rules
 // that most flow diagrams use are here — not the whole standard.
@@ -11,20 +11,21 @@ import {measureNode, narrowField, nodeRuns} from './tree.ts';
 import type {NodeLines} from './tree.ts';
 import {wrapText} from './wrap.ts';
 import type {FontFamily, Roles, WidthOf, WrapEnv} from './types/core.ts';
-import type {BpmnBand, BpmnNodeKind, LaidOutBpmn} from './types/diagrams.ts';
+import type {LaidOutBpmn} from './types/diagrams.ts';
+import type {SwimlaneAutoBand, SwimlaneStepKind} from './types/sequence-table-swimlane.ts';
 
 import {must} from './must.ts';
 const LABEL_COL = 120, PAD_Y = 22, COL_GAP = 52, EVENT = 36, GATE = 44, TASK_MAX = 168, LABEL_MAX = 120, STUB = 16, CHIP_PAD = 5;
 const TASK_ICON = 20, ICON_H = TASK_ICON + 4; // an icon above a task's label: its size and the room it takes
 export const lineH = (s: number): number => Math.round(s * 1.4);
-export const isEvent = (k: BpmnNodeKind): boolean => k === 'start' || k === 'end';
-export const isGate = (k: BpmnNodeKind): boolean => k === 'xor' || k === 'and' || k === 'or';
-export const BPMN_KINDS = ['task', 'start', 'end', 'xor', 'and', 'or'] as const;
+export const isEvent = (k: SwimlaneStepKind): boolean => k === 'start' || k === 'end';
+export const isGate = (k: SwimlaneStepKind): boolean => k === 'xor' || k === 'and' || k === 'or';
+export const SWIMLANE_STEP_KINDS = ['task', 'start', 'end', 'xor', 'and', 'or'] as const;
 
 /** ADR 0054: a node's part, named by what it is (a task, an event, a gateway). */
-export const nodePart = (id: string, kind: BpmnNodeKind, label: string): string => partStep(kind === 'task' ? 'task' : kind === 'start' || kind === 'end' ? 'event' : 'gateway', id, label);
+export const nodePart = (id: string, kind: SwimlaneStepKind, label: string): string => partStep(kind === 'task' ? 'task' : kind === 'start' || kind === 'end' ? 'event' : 'gateway', id, label);
 
-export function bpmnTexts(band: BpmnBand, roles: Roles): [string, number, number, FontFamily][] {
+export function swimlaneAutoTexts(band: SwimlaneAutoBand, roles: Roles): [string, number, number, FontFamily][] {
   const out: [string, number, number, FontFamily][] = [];
   for (const l of band.lanes) out.push([l.label, roles.body, 700, 'sans']);
   for (const n of band.nodes) out.push([n.label ?? '', roles.body, (n.kind ?? 'task') === 'task' ? 700 : 400, 'sans'], [n.sub ?? '', roles.note, 400, 'sans']);
@@ -33,34 +34,39 @@ export function bpmnTexts(band: BpmnBand, roles: Roles): [string, number, number
 }
 
 /** The checks both directions share: lane ids, node ids and kinds, flows between known nodes, no flow into a start or out of an end. */
-export function checkBpmnInput(band: BpmnBand): {laneIdx: Map<string, number>; kindOf: Map<string, BpmnNodeKind>} {
+/** Error messages say the words of the one that was called: the deprecated `bpmn()` alias or `swimlane()`. */
+const callerOf = (band: SwimlaneAutoBand): string => band.via === 'bpmn' ? 'bpmn()' : 'swimlane()';
+
+export function checkSwimlaneAutoInput(band: SwimlaneAutoBand): {laneIdx: Map<string, number>; kindOf: Map<string, SwimlaneStepKind>} {
+  const who = callerOf(band);
   const laneIdx = new Map(band.lanes.map((l, i) => [l.id, i]));
-  if (laneIdx.size !== band.lanes.length) throw new Error('bpmn(): duplicate lane id');
+  if (laneIdx.size !== band.lanes.length) throw new Error(`${who}: duplicate lane id`);
   const ids = new Set<string>();
   for (const n of band.nodes) {
-    if (typeof n.id !== 'string' || !n.id) throw new Error('bpmn(): every node needs an id');
-    if (ids.has(n.id)) throw new Error(`bpmn(): duplicate node id "${n.id}"`);
+    if (typeof n.id !== 'string' || !n.id) throw new Error(`${who}: every node needs an id`);
+    if (ids.has(n.id)) throw new Error(`${who}: duplicate node id "${n.id}"`);
     ids.add(n.id);
-    if (!laneIdx.has(n.lane)) throw new Error(`bpmn(): node "${n.id}" uses unknown lane "${n.lane}"`);
+    if (!laneIdx.has(n.lane)) throw new Error(`${who}: node "${n.id}" uses unknown lane "${n.lane}"`);
     const k = n.kind ?? 'task';
-    if (!(BPMN_KINDS as readonly string[]).includes(k)) throw new Error(`bpmn(): node "${n.id}" has kind ${String(k)} (use ${BPMN_KINDS.join(' | ')})`);
-    if (k === 'task' && !(n.label ?? '').trim()) throw new Error(`bpmn(): task "${n.id}" needs a label`);
-    if ((n.icon !== undefined || n.iconTone !== undefined) && k !== 'task') throw new Error(`bpmn(): node "${n.id}" is a ${k} event/gateway; only a task takes an icon`);
-    if (n.iconTone !== undefined && n.icon === undefined) throw new Error(`bpmn(): node "${n.id}" has iconTone but no icon`);
+    if (!(SWIMLANE_STEP_KINDS as readonly string[]).includes(k)) throw new Error(`${who}: node "${n.id}" has kind ${String(k)} (use ${SWIMLANE_STEP_KINDS.join(' | ')})`);
+    // a task step is written with `title` through swimlane(), with `label` through the deprecated bpmn() alias
+    if (k === 'task' && !(n.label ?? '').trim()) throw new Error(band.via === 'bpmn' ? `${who}: task "${n.id}" needs a label` : `${who}: task "${n.id}" needs a title`);
+    if ((n.icon !== undefined || n.iconTone !== undefined) && k !== 'task') throw new Error(`${who}: node "${n.id}" is a ${k} event/gateway; only a task takes an icon`);
+    if (n.iconTone !== undefined && n.icon === undefined) throw new Error(`${who}: node "${n.id}" has iconTone but no icon`);
   }
-  for (const f of band.flows) for (const e of [f.from, f.to]) if (!ids.has(e)) throw new Error(`bpmn(): flow ${f.from} -> ${f.to} names unknown node "${e}"`);
-  const kindOf = new Map(band.nodes.map(n => [n.id, n.kind ?? 'task' as BpmnNodeKind]));
+  for (const f of band.flows) for (const e of [f.from, f.to]) if (!ids.has(e)) throw new Error(`${who}: flow ${f.from} -> ${f.to} names unknown node "${e}"`);
+  const kindOf = new Map(band.nodes.map(n => [n.id, n.kind ?? 'task' as SwimlaneStepKind]));
   for (const f of band.flows) {
-    if (kindOf.get(f.to) === 'start') throw new Error(`bpmn(): flow ${f.from} -> ${f.to}: a start event takes no flow into it (a message start event is not drawn; start from a task instead)`);
-    if (kindOf.get(f.from) === 'end') throw new Error(`bpmn(): flow ${f.from} -> ${f.to}: an end event has no flow out of it`);
+    if (kindOf.get(f.to) === 'start') throw new Error(`${who}: flow ${f.from} -> ${f.to}: a start event takes no flow into it (a message start event is not drawn; start from a task instead)`);
+    if (kindOf.get(f.from) === 'end') throw new Error(`${who}: flow ${f.from} -> ${f.to}: an end event has no flow out of it`);
   }
   return {laneIdx, kindOf};
 }
 
 /** The size of each node (the shape; an event / gateway label hangs below it, or beside it in a vertical flow: `extent` is for the horizontal layout). */
-export interface BpmnMeasure {w: number; h: number; lines?: NodeLines; label: string[]; extent: number}
-export function measureBpmnNodes(band: BpmnBand, kindOf: ReadonlyMap<string, BpmnNodeKind>, taskMax: number, widthOf: WidthOf, roles: Roles, env: WrapEnv): Map<string, BpmnMeasure> {
-  const B = roles.body, meas = new Map<string, BpmnMeasure>();
+export interface SwimlaneAutoMeasure {w: number; h: number; lines?: NodeLines; label: string[]; extent: number}
+export function measureSwimlaneAutoNodes(band: SwimlaneAutoBand, kindOf: ReadonlyMap<string, SwimlaneStepKind>, taskMax: number, widthOf: WidthOf, roles: Roles, env: WrapEnv): Map<string, SwimlaneAutoMeasure> {
+  const B = roles.body, meas = new Map<string, SwimlaneAutoMeasure>();
   for (const n of band.nodes) {
     const k = must(kindOf.get(n.id)); // kindOf has every node
     if (k === 'task') { const m = measureNode(must(n.label), n.sub, taskMax, widthOf, roles, env.wrap, env.keepWords, {keepWordsCap: 168 - 28}); const h = m.h + (n.icon ? ICON_H : 0); meas.set(n.id, {w: m.w, h, lines: m, label: [], extent: h}); continue; }
@@ -72,7 +78,7 @@ export function measureBpmnNodes(band: BpmnBand, kindOf: ReadonlyMap<string, Bpm
 }
 
 /** fit: 'shrink' tries these in order until the figure fits: narrower lane-name column, tighter column gaps, narrower task boxes. */
-const SHRINK_STEPS: BpmnMetrics[] = [
+const SHRINK_STEPS: SwimlaneAutoMetrics[] = [
   {labelCol: LABEL_COL, colGap: COL_GAP, taskMax: TASK_MAX, flowRoom: 2 * STUB},
   {labelCol: 96, colGap: 36, taskMax: 140, flowRoom: STUB},
   {labelCol: 80, colGap: 28, taskMax: 116, flowRoom: 0},
@@ -80,24 +86,25 @@ const SHRINK_STEPS: BpmnMetrics[] = [
   {labelCol: 64, colGap: 16, taskMax: 80, flowRoom: null},
 ];
 /** flowRoom: the extra width a column gap keeps beside the widest flow label; null keeps none (a label then sits wherever beside its flow is free). */
-interface BpmnMetrics {labelCol: number; colGap: number; taskMax: number; flowRoom: number | null}
+interface SwimlaneAutoMetrics {labelCol: number; colGap: number; taskMax: number; flowRoom: number | null}
 
-export function layoutBpmn(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv): LaidOutBpmn {
+export function layoutSwimlaneAuto(band: SwimlaneAutoBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv): LaidOutBpmn {
   const steps = band.fit === 'shrink' ? SHRINK_STEPS : SHRINK_STEPS.slice(0, 1);
-  for (const m of steps.slice(0, -1)) { const out = layoutBpmnAt(band, x, y, w, widthOf, roles, env, m, false); if (out) return out; }
-  return layoutBpmnAt(band, x, y, w, widthOf, roles, env, must(steps[steps.length - 1]), true);
+  for (const m of steps.slice(0, -1)) { const out = layoutSwimlaneAutoAt(band, x, y, w, widthOf, roles, env, m, false); if (out) return out; }
+  return layoutSwimlaneAutoAt(band, x, y, w, widthOf, roles, env, must(steps[steps.length - 1]), true);
 }
 
-function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: BpmnMetrics, final: true): LaidOutBpmn;
-function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: BpmnMetrics, final: boolean): LaidOutBpmn | null;
-function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: BpmnMetrics, final: boolean): LaidOutBpmn | null {
+function layoutSwimlaneAutoAt(band: SwimlaneAutoBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: SwimlaneAutoMetrics, final: true): LaidOutBpmn;
+function layoutSwimlaneAutoAt(band: SwimlaneAutoBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: SwimlaneAutoMetrics, final: boolean): LaidOutBpmn | null;
+function layoutSwimlaneAutoAt(band: SwimlaneAutoBand, x: number, y: number, w: number, widthOf: WidthOf, roles: Roles, env: WrapEnv, metrics: SwimlaneAutoMetrics, final: boolean): LaidOutBpmn | null {
+  const who = callerOf(band);
   const {taskMax: TASK_MAX, flowRoom} = metrics, COL_GAP = Math.round(metrics.colGap * (env.space ?? 1));
   const B = roles.body, S = roles.note;
   // the lane-name column never gets narrower than the longest word of a lane name: a word is not broken, so it would run out of the column
   const LABEL_COL = Math.max(metrics.labelCol, Math.ceil(Math.max(0, ...band.lanes.flatMap(l => splitAtoms(l.label).map(a => widthOf(a, B, 700, 'sans'))))) + 16);
-  const {laneIdx, kindOf} = checkBpmnInput(band);
-  const meas = measureBpmnNodes(band, kindOf, TASK_MAX, widthOf, roles, env);
-  type M = BpmnMeasure;
+  const {laneIdx, kindOf} = checkSwimlaneAutoInput(band);
+  const meas = measureSwimlaneAutoNodes(band, kindOf, TASK_MAX, widthOf, roles, env);
+  type M = SwimlaneAutoMeasure;
   const labelWidth = (m: M): number => Math.max(m.w, ...m.label.map(l => Math.ceil(textWidth(widthOf, l, B, 400))));
 
   // columns: the layer of each node along the flow (starts first)
@@ -116,7 +123,7 @@ function layoutBpmnAt(band: BpmnBand, x: number, y: number, w: number, widthOf: 
   const total = must(colX[nLayers - 1]) + must(colW[nLayers - 1]) + gap / 2 - x;
   if (total > w + 0.5) {
     if (!final) return null;
-    throw new Error(`bpmn(): the figure is ${Math.ceil(total)}px wide but it has ${Math.round(w)}px (${band.fit === 'shrink' ? 'even shrunk; ' : "set fit: 'shrink', "}merge steps, shorten labels, or split the flow into two figures)`);
+    throw new Error(`${who}: the figure is ${Math.ceil(total)}px wide but it has ${Math.round(w)}px (${band.fit === 'shrink' ? 'even shrunk; ' : "set fit: 'shrink', "}merge steps, shorten labels, or split the flow into two figures)`);
   }
   const width = w;
 

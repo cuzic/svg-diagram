@@ -69,7 +69,7 @@ const ALLOWED: Record<string, {max: number; why: string}> = {
   'layout-metrics.ts': {max: 10, why: DEBT},
   'layout-util.ts': {max: 1, why: CORE},
   'legacy-core.ts': {max: 19, why: DEBT},
-  'legend-notation.ts': {max: 17, why: DEBT},
+  'legend-notation.ts': {max: 15, why: DEBT},
   'located.ts': {max: 1, why: CORE},
   'locations-map.ts': {max: 9, why: DEBT},
   'markdown-it.ts': {max: 11, why: NOT_BAND},

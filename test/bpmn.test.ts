@@ -2,8 +2,8 @@ import test from 'node:test';
 import './helpers/strict-width.ts'; // a label the layout did not register for measuring throws instead of measuring 0 wide
 import assert from 'node:assert/strict';
 import {bpmn, box, checkDiagram, closeMeasurer, connect, diagram, renderDiagram} from '../lib/dsl.ts';
-import {layoutBpmnVertical} from '../lib/bpmn-vertical.ts';
-import {checkBpmnInput, isEvent, isGate, lineH, measureBpmnNodes, nodePart} from '../lib/bpmn.ts';
+import {layoutSwimlaneAutoVertical} from '../lib/layout-swimlane-auto-vertical.ts';
+import {checkSwimlaneAutoInput, isEvent, isGate, lineH, measureSwimlaneAutoNodes, nodePart} from '../lib/layout-swimlane-auto.ts';
 import {ROLES} from '../lib/tokens.ts';
 import {must} from '../lib/must.ts';
 import type {LaidOutBpmn} from '../lib/types/diagrams.ts';
@@ -135,17 +135,17 @@ test("bpmn({dir: 'v'}): the default stays horizontal; a bad dir, fit with dir 'v
   assert.throws(() => bpmn([{id: 'a', label: 'A'}], [{id: 'n', lane: 'a', label: 'N'}], [], {dir: 'x' as never}), /dir must be 'h' or 'v'/);
   assert.throws(() => bpmn([{id: 'a', label: 'A'}], [{id: 'n', lane: 'a', label: 'N'}], [], {dir: 'v', fit: 'shrink'}), /fit: 'shrink' is for the horizontal/);
   await assert.rejects(laid(bpmn(Array.from({length: 9}, (_, i) => ({id: `l${i}`, label: `L${i}`})), [{id: 'n', lane: 'l0', label: 'N'}], [], {dir: 'v'})), /too narrow for a task/);
-  assert.equal(typeof layoutBpmnVertical, 'function');
+  assert.equal(typeof layoutSwimlaneAutoVertical, 'function');
 });
 
-test('checkBpmnInput / measureBpmnNodes: the checks and sizes both directions share', () => {
+test('checkSwimlaneAutoInput / measureSwimlaneAutoNodes: the checks and sizes both directions share', () => {
   const b = bpmn([{id: 'a', label: '担当'}], [{id: 's', lane: 'a', kind: 'start', label: '開始'}, {id: 'g', lane: 'a', kind: 'xor', label: '分岐'}, {id: 't', lane: 'a', label: 'タスク'}], [{from: 's', to: 't'}, {from: 't', to: 'g'}]);
-  const {laneIdx, kindOf} = checkBpmnInput(b);
+  const {laneIdx, kindOf} = checkSwimlaneAutoInput(b);
   assert.deepEqual([...laneIdx], [['a', 0]]);
   assert.deepEqual([...kindOf.values()], ['start', 'xor', 'task']);
-  assert.throws(() => checkBpmnInput({...b, nodes: [{id: 'x', lane: 'nope', label: 'X'}]}), /unknown lane "nope"/);
-  assert.throws(() => checkBpmnInput({...b, flows: [{from: 't', to: 's'}]}), /start event takes no flow into it/);
-  const m = measureBpmnNodes(b, kindOf, 168, (a, size) => a.length * size * 0.5, ROLES, {wrap: 'bunsetsu', keepWords: false});
+  assert.throws(() => checkSwimlaneAutoInput({...b, nodes: [{id: 'x', lane: 'nope', label: 'X'}]}), /unknown lane "nope"/);
+  assert.throws(() => checkSwimlaneAutoInput({...b, flows: [{from: 't', to: 's'}]}), /start event takes no flow into it/);
+  const m = measureSwimlaneAutoNodes(b, kindOf, 168, (a, size) => a.length * size * 0.5, ROLES, {wrap: 'bunsetsu', keepWords: false});
   assert.deepEqual([m.get('s')!.w, m.get('g')!.w], [36, 44]);
   assert.ok(m.get('t')!.w <= 168 && m.get('t')!.lines);
   assert.ok(isGate('xor') && isGate('and') && isGate('or') && !isGate('task') && !isGate('end'));
@@ -253,7 +253,7 @@ test("bpmn({dir: 'v'}): a loop on a task in the rightmost lane turns to the left
 test("bpmn({dir: 'v'}): the lane header is on the 4px grid; the error for too many lanes says how many fit", async () => {
   // body 15: a line is 21px high, so the header (a line + 2 × 10) is 41px before it is rounded up
   const b = bpmn([{id: 'a', label: '担当'}], [{id: 't', lane: 'a', label: '作業'}], []);
-  const t = layoutBpmnVertical(b, 0, 0, 600, (a, size) => a.length * size, {...ROLES, body: 15}, {wrap: 'bunsetsu', keepWords: false});
+  const t = layoutSwimlaneAutoVertical(b, 0, 0, 600, (a, size) => a.length * size, {...ROLES, body: 15}, {wrap: 'bunsetsu', keepWords: false});
   assert.equal(t.lanes[0]!.labelH, 44);
   await assert.rejects(laid(bpmn(Array.from({length: 9}, (_, i) => ({id: `l${i}`, label: `L${i}`})), [{id: 'n', lane: 'l0', label: 'N'}], [], {dir: 'v'})), /at most 8 lanes/);
 });

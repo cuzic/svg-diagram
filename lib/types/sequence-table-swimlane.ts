@@ -2,6 +2,7 @@
 import type {IconGlyph} from '../icon-store.ts';
 import type {IconName} from '../icons.ts';
 import type {Align, Arrow, Bend, Dimmed, LineStyle, Rect, RevealOpts, RcaInfo, ScopeOpts, TextTone, FocusOpts} from './core.ts';
+import type {BpmnFlow, BpmnNode} from './diagrams.ts';
 import type {BoxBand, BoxOpts, BoxTone, LaidOutBox} from './text-bands.ts';
 
 export interface SequenceActor {
@@ -143,10 +144,14 @@ export interface SwimlaneLane {
   /** `svg-diagram check` never suggests moving this lane. */
   fixed?: boolean;
 }
+/** What a step of a `cols: 'auto'` figure is: 'task' (default) | 'start' / 'end' event | 'xor' exclusive, 'and' parallel, 'or' inclusive gateway. */
+export type SwimlaneStepKind = 'task' | 'start' | 'end' | 'xor' | 'and' | 'or';
 /** A step: any box() field, plus the lane it sits in. Columns are time; `row` stacks overlapping work of one lane. */
 export interface SwimlaneStep extends BoxOpts {
   lane: string;
   row?: number;
+  /** 'task' (default) draws the step as a box. With `cols: 'auto'` a step can also be a start / end event or a gateway; any other kind needs `cols: 'auto'`. */
+  kind?: SwimlaneStepKind;
 }
 export interface SwimlaneFlow {
   /** Step id, or 'id:side[@t]'. */
@@ -177,6 +182,10 @@ export interface SwimlaneOpts extends RevealOpts, ScopeOpts, FocusOpts {
   fit?: 'shrink';
   /** 'auto': put the lanes in the order that makes the hand-offs shortest (the sum of the distances between the lanes each of `flows` joins). A lane with `fixed: true` keeps its place; a tie keeps the order given. Default: the order given. Up to 8 lanes. */
   laneOrder?: 'auto';
+  /** 'auto': the columns follow the flow (tasks, events and gateways joined by flows) instead of explicit time columns. Steps then take `id` / `lane` / `kind` / `title` / `body` / `icon` / `iconTone` / `tone` only, and flows stay in the band with `from` / `to` / `label` / `line` only. Without it the columns are explicit time. */
+  cols?: 'auto';
+  /** 'v' needs `cols: 'auto'`: the lanes are columns and the flow runs down (default 'h': the lanes are rows and the flow runs right). A vertical figure takes its column width from the lanes, so it has no `fit`. */
+  dir?: 'h' | 'v';
   id?: string;
 }
 /** A step after swimlane() placed it in a column. */
@@ -186,8 +195,9 @@ export interface SwimlaneStepBand extends BoxBand {
   col: number;
   span: number;
 }
-export interface SwimlaneBand {
+export interface SwimlaneTimedBand {
   type: 'swimlane';
+  arrange?: undefined;
   lanes: SwimlaneLane[];
   steps: SwimlaneStepBand[];
   /** Number of columns used. */
@@ -207,6 +217,25 @@ export interface SwimlaneBand {
   reveal?: number;
   until?: number;
 }
+/** A node of a `cols: 'auto'` figure: the shape of a bpmn node, without a band `type`. */
+export type SwimlaneAutoNode = BpmnNode;
+/** A flow of a `cols: 'auto'` figure: from / to, an optional label, solid or dashed. */
+export type SwimlaneAutoFlow = BpmnFlow;
+/** A swimlane figure whose columns follow the flow (`cols: 'auto'`): the auto engine lays it out and the placed figure keeps the `bpmn` laid-out shape. It holds `nodes`, not `steps`, so the walkers that follow nested bands skip its content like a bpmn figure's. */
+export interface SwimlaneAutoBand extends RevealOpts, ScopeOpts {
+  type: 'swimlane';
+  arrange: 'auto';
+  lanes: SwimlaneLane[];
+  nodes: SwimlaneAutoNode[];
+  flows: SwimlaneAutoFlow[];
+  focused?: string[];
+  dir?: 'v';
+  fit?: 'shrink';
+  id?: string;
+  /** Set when built through the deprecated `bpmn()` alias: the figure is described and counted like a bpmn figure. */
+  via?: 'bpmn';
+}
+export type SwimlaneBand = SwimlaneTimedBand | SwimlaneAutoBand;
 /** The swimlane frame (lane backgrounds, labels, phases); its steps follow as separate LaidOutStep bands. */
 export interface LaidOutLane {
   y: number; h: number;

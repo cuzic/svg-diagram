@@ -89,7 +89,7 @@
         "text-mid-word-break": {
           "type": "string",
           "minLength": 1,
-          "description": "レイアウトが、カタカナの語(「コンテキス/ト」)や英数字の語の途中で行を割っている。箱や列が最長の語より狭いときに起きる。diagram({keepWords: true}) で、箱を最長のカタカナの語より狭くしない(causeTree / tree / mindmap / faultTree / states / bpmn の task。cloud・chevron・cycle・swimlane には効かない)。ほかに、箱の幅を広げる・向き(dir)や maxNodeW を変える・文言を短くする・語の前後で改行を書く。漢字どうしの途中の改行は対象外。スペースの無い複合語の境目(「キャプチャ/ステージ」)は辞書なしでは見分けられず、誤検出になりうる(accept で許容する)（許容する理由を書く）"
+          "description": "レイアウトが、カタカナの語(「コンテキス/ト」)や英数字の語の途中で行を割っている。箱や列が最長の語より狭いときに起きる。diagram({keepWords: true}) で、箱を最長のカタカナの語より狭くしない(causeTree / tree / mindmap / faultTree / states / swimlane（cols: 'auto'）・bpmn の task。cloud・chevron・cycle・swimlane（明示列）には効かない)。ほかに、箱の幅を広げる・向き(dir)や maxNodeW を変える・文言を短くする・語の前後で改行を書く。漢字どうしの途中の改行は対象外。スペースの無い複合語の境目(「キャプチャ/ステージ」)は辞書なしでは見分けられず、誤検出になりうる(accept で許容する)（許容する理由を書く）"
         },
         "glyph-missing": {
           "type": "string",
@@ -140,6 +140,11 @@
           "type": "string",
           "minLength": 1,
           "description": "レーンをまたぐ引き継ぎの数（情報）（許容する理由を書く）"
+        },
+        "bpmn-deprecated": {
+          "type": "string",
+          "minLength": 1,
+          "description": "`bpmn()` は非推奨。`swimlane()` に `kind` と `cols: 'auto'` を書く（ADR 0086）（許容する理由を書く）"
         },
         "edge-crossings": {
           "type": "string",

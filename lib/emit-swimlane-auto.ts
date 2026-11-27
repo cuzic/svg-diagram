@@ -10,7 +10,7 @@ import {must} from './must.ts';
 import {marked, partAttr, partsOn} from './parts.ts';
 import {focusInk} from './emit-focus.ts';
 
-export function renderBpmn(b: LaidOutBpmn, day: Theme, tones: ToneEnv): string {
+export function renderSwimlaneAuto(b: LaidOutBpmn, day: Theme, tones: ToneEnv): string {
   const out: string[] = [], on = partsOn(b), pa = (part?: string): string => part ? partAttr(on, part) : '';
   const ink = b.dim ? PALETTE.muted : PALETTE.text, bg = PALETTE.bg;
   for (const l of b.lanes) {

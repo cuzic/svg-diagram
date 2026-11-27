@@ -207,6 +207,7 @@ test('source locations: steps, swimlane and versus give generated descendants th
     const [lane] = calls.swimlane();
     const [sides] = calls.versus();
     assert.equal(lane?.type, 'swimlane');
+    assert.ok(lane?.type === 'swimlane' && lane.arrange !== 'auto');
     assert.equal(sides?.type, 'grouprow');
     const refs = [sourceOf(stepRow), sourceOf(lane), sourceOf(sides)];
     for (const ref of refs) assert.ok(ref);

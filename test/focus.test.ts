@@ -87,7 +87,7 @@ test('swimlane focus: steps and flows, the flow heads in the flow colour', async
   const sw = swimlane([{id: 'x', label: 'X'}, {id: 'y', label: 'Y'}], [{id: 'a', lane: 'x', title: 'A', col: 1}, {id: 'b', lane: 'y', title: 'B', col: 2}, {id: 'c', lane: 'x', title: 'C', col: 3}, {id: 'd', lane: 'x', title: 'D', col: 4}],
     {flows: [{from: 'a', to: 'b'}, {from: 'b:right', to: 'c'}, {from: 'c', to: 'd'}], focus: 'b'});
   const lane = sw.find(b => b.type === 'swimlane');
-  assert.deepEqual(lane && lane.type === 'swimlane' ? lane.steps.map(s => s.tone) : [], ['accent', 'solid', 'accent', 'muted']);
+  assert.deepEqual(lane && lane.type === 'swimlane' && lane.arrange !== 'auto' ? lane.steps.map(s => s.tone) : [], ['accent', 'solid', 'accent', 'muted']);
   assert.deepEqual(sw.filter(b => b.type === 'connect').map(c => c.type === 'connect' ? c.tone : ''), ['accent', 'accent', 'muted']);
   const svg = await svgOf(sw);
   assert.match(svg, /<marker id="dsl-arrow-accent"/);
@@ -148,7 +148,7 @@ test('bpmn: an iconTone does not vanish on a filled task (the icon is white ther
 test('swimlane: focus on a step with its own text tones fills it (white text) instead of refusing', () => {
   const sw = swimlaneFn([{id: 'x', label: 'X'}], [{id: 'a', lane: 'x', title: 'A', titleTone: 'accent', bodyTone: 'muted', body: 'b', col: 1}, {id: 'c', lane: 'x', title: 'C', col: 2}], {flows: [{from: 'a', to: 'c'}], focus: 'a'});
   const lane = sw.find(b => b.type === 'swimlane');
-  const step = lane && lane.type === 'swimlane' ? lane.steps[0] : undefined;
+  const step = lane && lane.type === 'swimlane' && lane.arrange !== 'auto' ? lane.steps[0] : undefined;
   assert.equal(step?.tone, 'solid');
   assert.equal(step && 'titleTone' in step ? step.titleTone : undefined, undefined);
 });

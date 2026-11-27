@@ -3,7 +3,7 @@ import type {LaidOutBpmn} from './types/diagrams.ts';
 import {dxdy, rectOverlap, routeHits, routesThroughNodes} from './verify-base.ts';
 
 // A flow must not run through a node it does not touch; flow labels must stay clear of nodes and each other.
-export function bpmnProblems(band: LaidOutBpmn): string[] {
+export function swimlaneAutoProblems(band: LaidOutBpmn): string[] {
   const problems: string[] = [];
   problems.push(...routesThroughNodes(band.edges, band.anchors, (e, n) => `bpmn: flow ${e.from} -> ${e.to} runs through "${n.id}" (move a node to another lane, or reorder the flow)`));
   // the text of an event / gateway (and a task's name): inside the figure and clear of the lane names, of every flow, and of the other nodes

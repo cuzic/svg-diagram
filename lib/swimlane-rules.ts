@@ -3,10 +3,10 @@ import {MAX_LANES_TO_ORDER, bestLaneOrder, laneDistance} from './lane-order.ts';
 import {must} from './must.ts';
 import {qualify, scopeOf} from './scope-name.ts';
 import type {LaidOutConnect} from './types/containers.ts';
-import type {SwimlaneBand} from './types/sequence-table-swimlane.ts';
+import type {SwimlaneTimedBand} from './types/sequence-table-swimlane.ts';
 import type {Finding} from './types/verdicts.ts';
 
-export function swimlaneFindings(sl: SwimlaneBand, connects: readonly Pick<LaidOutConnect, 'fromId' | 'toId'>[]): Finding[] {
+export function swimlaneFindings(sl: SwimlaneTimedBand, connects: readonly Pick<LaidOutConnect, 'fromId' | 'toId'>[]): Finding[] {
   const out: Finding[] = [];
   const n = sl.lanes.length;
   if (n > 6) out.push({...at(sl), rule: 'swimlane-lanes', severity: 'warn', message: `レーンが ${n} 本ある（6 本までが目安）`});
@@ -32,4 +32,5 @@ export const swimlaneRules = /* @__PURE__ */ Object.freeze({
   'swimlane-lanes': {doc: 'レーンが多い（6 本まで）', scope: 'band'},
   'swimlane-hand-offs': {doc: 'レーンをまたぐ引き継ぎの数（情報）', scope: 'band'},
   'one-story': {doc: '1 つの図に、スイムレーンが複数ある（1 図 1 話）', scope: 'diagram'},
+  'bpmn-deprecated': {doc: '`bpmn()` は非推奨。`swimlane()` に `kind` と `cols: \'auto\'` を書く（ADR 0086）', scope: 'band'},
 } as const);

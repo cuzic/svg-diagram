@@ -7,14 +7,14 @@ import {must} from './must.ts';
 import {qualify, scopeOf} from './scope-name.ts';
 import {narrowField} from './tree.ts';
 import type {LaidOutBox} from './types/text-bands.ts';
-import type {LaidOutLane, LaidOutPhase, LaidOutSwimlane, SwimlaneBand} from './types/sequence-table-swimlane.ts';
+import type {LaidOutLane, LaidOutPhase, LaidOutSwimlane, SwimlaneTimedBand} from './types/sequence-table-swimlane.ts';
 import {wrapAtoms} from './wrap.ts';
 
 /**
  * The ways back under a row's boxes are resolved after the layout (ctx.deferred), with the depth the row's lowest box gives them: `dip` is how far below the
  * ends they run. Their labels slide along the line to where no other flow's vertical leg (or its label) crosses them (the least covered place when there is none).
  */
-function placeUnderFlows(band: SwimlaneBand, ctx: LayoutCtx, steps: LaidOutBox[], rowBottoms: Map<string, number>): void {
+function placeUnderFlows(band: SwimlaneTimedBand, ctx: LayoutCtx, steps: LaidOutBox[], rowBottoms: Map<string, number>): void {
   const stepOf = new Map(steps.map(s => [s.id, s]));
   // where a flow end sits: x and y on its box (a side end at its @t), and which side
   const end = (ref: string) => {
@@ -48,7 +48,7 @@ function placeUnderFlows(band: SwimlaneBand, ctx: LayoutCtx, steps: LaidOutBox[]
     if (labelAt !== undefined) ctx.nodeBottoms.set(`${key}@`, labelAt);
   });
 }
-export function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: number): void {
+export function layoutSwimlane(band: SwimlaneTimedBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
   // a boundary's name sits in a chip across the label column: the column is never narrower than the longest name + the chip's round ends, fit: 'shrink' included
   const chipText = Math.max(0, ...(band.boundaries ?? []).filter(b => b.label).map(b => textWidth(widthOf, b.label as string, roles.note, 700)));

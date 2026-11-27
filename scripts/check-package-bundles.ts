@@ -66,6 +66,8 @@ try {
   `;
   const fullRenderer = ['web.js', 'layout-handlers.js', 'verify-handlers.js', 'emit-handlers.js', 'fit-handlers.js', 'rules.js', 'inventory.js', 'math-tex.js', 'spotlight.js', 'full-definitions.js'];
   const legacy = [...fullRenderer, 'spotlight-core.js', 'slide-fill.js'];
+  // the swimlane auto engine (ADR 0086): the moved layout/emit/verify files, plus the bpmn alias shells that reach them (the old 'bpmn.js' endsWith entry covered those shells too)
+  const swimlaneAutoEngine = ['layout-swimlane-auto.js', 'layout-swimlane-auto-vertical.js', 'emit-swimlane-auto.js', 'verify-swimlane-auto.js', 'bands/bpmn.js', 'dsl/bpmn.js'];
   const otherSpotlightBands = ['emit-spotlight-chart.js', 'emit-bars.js', 'emit-flow-shape.js', 'emit-image.js'];
   const flowSamples = [
     ['chevron', 'layoutChevron', "chevron([{label: 'Review'}, {label: 'Release'}])"],
@@ -96,6 +98,7 @@ try {
     'box caption connect group group-row row spacer': ['versus'],
     'caption cause': ['why-why-tree'],
     'box connect swimlane': ['swimlane'],
+    'box bpmn swimlane': ['bpmn'],
     bars: ['bars', 'histogram', 'pareto', 'range-bars'],
     catplot: ['boxplot'],
     causal: ['causal-loop'],
@@ -110,7 +113,7 @@ try {
     tree: ['mindmap', 'tree'],
   };
   const standaloneSpecBands = [
-    'bowtie', 'bpmn', 'bubble', 'butterfly', 'chevron', 'cloud', 'combo', 'compare', 'concentric', 'cycle',
+    'bowtie', 'bubble', 'butterfly', 'chevron', 'cloud', 'combo', 'compare', 'concentric', 'cycle',
     'forest', 'funnel', 'gantt', 'harvey', 'heatmap', 'pert', 'pyramid', 'quadrant', 'radar', 'sankey', 'sequence',
     'timeline', 'tornado', 'treemap', 'value-chain', 'venn', 'waterfall',
   ];
@@ -128,7 +131,7 @@ try {
     ['board', {esbuild: 167000, Vite: 210000}],
     ['bowtie', {esbuild: 79000, Vite: 99000}],
     ['boxplot', {esbuild: 89000, Vite: 110000}],
-    ['bpmn', {esbuild: 128000, Vite: 170000}],
+    ['bpmn', {esbuild: 170000, Vite: 222000}], // 128000/170000 -> 170000/222000 (measured 154194/202085): the alias part draws through the swimlane auto engine (ADR 0086)
     ['bubble', {esbuild: 83000, Vite: 103000}],
     ['burndown', {esbuild: 84000, Vite: 110000}],
     ['burnup', {esbuild: 84000, Vite: 111000}],
@@ -136,7 +139,7 @@ try {
     ['causal-loop', {esbuild: 160000, Vite: 216000}],
     ['cause-tree', {esbuild: 191000, Vite: 254000}],
     ['check-sheet', {esbuild: 100000, Vite: 121000}],
-    ['chevron', {esbuild: 69340, Vite: 91000}],
+    ['chevron', {esbuild: 69400, Vite: 91000}], // 69340 -> 69400 esbuild (measured 69351): the shared rule catalog grows (ADR 0086's bpmn-deprecated)
     ['class-diagram', {esbuild: 147000, Vite: 203000}],
     ['cloud', {esbuild: 72100, Vite: 93300}],
     ['combo', {esbuild: 87000, Vite: 108000}],
@@ -160,7 +163,7 @@ try {
     ['matrix', {esbuild: 101000, Vite: 122000}],
     ['mekko', {esbuild: 85000, Vite: 104000}],
     ['mindmap', {esbuild: 99890, Vite: 129170}],
-    ['pareto', {esbuild: 88000, Vite: 113240}],
+    ['pareto', {esbuild: 88000, Vite: 113300}], // 113240 -> 113300 Vite (measured 113265): the shared rule catalog grows (ADR 0086's bpmn-deprecated)
     ['pdpc', {esbuild: 191000, Vite: 254000}],
     ['pert', {esbuild: 148000, Vite: 199000}],
     ['pyramid', {esbuild: 59300, Vite: 77900}],
@@ -177,9 +180,9 @@ try {
     ['state-diagram', {esbuild: 169000, Vite: 229000}],
     ['steps', {esbuild: 141000, Vite: 178000}],
     ['strategy-canvas', {esbuild: 84000, Vite: 110000}],
-    ['swimlane', {esbuild: 152000, Vite: 192000}],
+    ['swimlane', {esbuild: 224000, Vite: 291000}], // 152000/192000 -> 224000/291000 (measured 203463/265202): the auto engine moves into the swimlane part (ADR 0086)
     ['table', {esbuild: 80000, Vite: 100000}],
-    ['timeline', {esbuild: 79450, Vite: 103730}],
+    ['timeline', {esbuild: 79500, Vite: 103800}], // 79450/103730 -> 79500/103800 (measured 79457/103747): the shared rule catalog grows (ADR 0086's bpmn-deprecated)
     ['forest', {esbuild: 88000, Vite: 116500}],
     ['tornado', {esbuild: 83000, Vite: 102000}],
     ['tree', {esbuild: 96050, Vite: 125130}],
@@ -619,7 +622,7 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
         bands: {box: boxPptx}, spans: {swimlane: swimlaneSpan}, svgShapes: svgShapesXml, strict: true,
       });
-    `, include: 'pptx/swimlane-span.js', budget: {esbuild: 185000, Vite: 224000}, bands: ['box.js', 'swimlane.js'],
+    `, include: 'pptx/swimlane-span.js', budget: {esbuild: 256000, Vite: 322000}, bands: ['box.js', 'swimlane.js'], // 185000/224000 -> 256000/322000 (measured 232562/292748): the auto engine moves into bands/swimlane (ADR 0086)
       exclude: [...legacy, 'pptx/bands.js', 'pptx/group-span.js', 'pptx/cause.js', 'pptx/states.js'], draw: true},
     {name: 'Selective PPTX Cause', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
@@ -754,7 +757,7 @@ try {
       export const draw = () => renderSpecEdge({version: 1, title: 'Plan', parts: [
         {type: 'table', columns: [{label: 'Review'}], rows: [['Done']]},
       ]}, engine, {parts: [tablePart]});
-    `, include: 'spec-selective-edge.js', budget: {esbuild: 122040, Vite: 159000}, bands: ['table.js'],
+    `, include: 'spec-selective-edge.js', budget: {esbuild: 122100, Vite: 159000}, bands: ['table.js'], // 122040 -> 122100 esbuild (measured 122057): the shared rule catalog grows (ADR 0086's bpmn-deprecated)
       exclude: [...legacy, 'lib/spec.js', 'spec-edge.js', 'dsl-pure.js', 'bands/gantt.js', 'bands/box.js'], draw: true},
     {name: 'Selected table spec', source: `
       import {renderSpec} from 'svg-diagram/spec/selective';
@@ -979,17 +982,17 @@ try {
     {name: 'Cloud', source: composedSource(['cloud'], "cloud({a: 'Goal', b: 'Quality', c: 'Time', d: 'Test', d2: 'Ship'}, {assumptions: [{on: 'bd', text: 'Review'}]})"),
       include: 'bands/cloud.js', budget: {esbuild: 67500, Vite: 89500}, exclude: [...legacy, 'emit-figures.js', 'toc.js', 'layered-route.js', 'cause-hop.js', 'layout-connect.js', 'dsl/diagrams.js'], draw: true},
     {name: 'Classes', source: composedSource([], "classDiagram([{id: 'a', name: 'Review'}, {id: 'b'}], [{from: 'b', to: 'a', kind: 'inherit'}])", "import {classDiagram} from 'svg-diagram/bands/classes';"),
-      include: 'bands/classes.js', budget: {esbuild: 142000, Vite: 200000}, exclude: [...legacy, 'emit-figures.js', 'bpmn.js', 'bpmn-vertical.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
+      include: 'bands/classes.js', budget: {esbuild: 142000, Vite: 200000}, exclude: [...legacy, 'emit-figures.js', ...swimlaneAutoEngine, 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
     {name: 'BPMN', source: composedSource(['bpmn'], "bpmn([{id: 'work', label: 'Work'}], [{id: 'a', lane: 'work', label: 'Review'}], [])"),
-      include: 'bands/bpmn.js', budget: {esbuild: 121000, Vite: 165000}, exclude: [...legacy, 'emit-figures.js', 'classes.js', 'verify-density.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
+      include: 'bands/bpmn.js', budget: {esbuild: 153000, Vite: 200000}, bands: ['box.js', 'bpmn.js', 'swimlane.js'], exclude: [...legacy, 'emit-figures.js', 'classes.js', 'verify-density.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true}, // 121000/165000 -> 153000/200000 (measured 138284/182382): the alias draws through bands/swimlane (ADR 0086)
     {name: 'States', source: composedSource([], "stateDiagram([{id: 'a', label: 'Review'}, {id: 'b', label: 'Done'}], [{from: 'a', to: 'b'}])", "import {stateDiagram} from 'svg-diagram/bands/states';"),
-      include: 'bands/states.js', budget: {esbuild: 160000, Vite: 222000}, exclude: [...legacy, 'emit-figures.js', 'classes.js', 'bpmn.js', 'verify-cause-spacing.js', 'verify-shrink.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
+      include: 'bands/states.js', budget: {esbuild: 160000, Vite: 222000}, exclude: [...legacy, 'emit-figures.js', 'classes.js', ...swimlaneAutoEngine, 'verify-cause-spacing.js', 'verify-shrink.js', 'toc.js', 'dsl/diagrams.js', 'layout-connect.js'], draw: true},
     {name: 'Tree', source: composedSource(['tree'], "tree({label: 'Review', children: [{label: 'Plan'}, {label: 'Decide'}]})"),
       include: 'bands/tree.js', budget: {esbuild: 90000, Vite: 120000}, exclude: [...legacy, 'emit-figures.js', 'states.js', 'toc.js', 'layout-connect.js', 'dsl/diagrams.js', 'layout-row.js', 'layout-grid.js'], draw: true},
     {name: 'Cause', source: composedSource([], "causeTree([{id: 'a', label: 'Review'}, {id: 'b', label: 'Done'}], [{from: 'a', to: 'b'}], {tree: 'crt'})", "import {causeTree} from 'svg-diagram/bands/cause';"),
       include: 'layout-cause-fit.js', bands: ['cause.js'], budget: {esbuild: 177000, Vite: 238000}, exclude: [...legacy, 'emit-figures.js', 'cloud.js', 'states.js', 'classes.js', 'dsl/diagrams.js', 'layout-connect.js', 'rca-rules.js'], draw: true},
     {name: 'Swimlane', source: composedSource(['swimlane'], "...swimlane([{id: 'work', label: 'Work'}], [{id: 'a', lane: 'work', title: 'Review'}])"),
-      include: 'bands/swimlane.js', budget: {esbuild: 101500, Vite: 130000}, exclude: [...legacy, 'dsl/sequence-table-swimlane.js', 'dsl/sequence.js', 'dsl/table.js', 'emit-boxes.js', 'emit-legend.js', 'layout-connect.js', 'bands/connect.js', 'seq-table.js', 'wireframe.js', 'layout-row.js'], draw: true,
+      include: 'bands/swimlane.js', budget: {esbuild: 167000, Vite: 218000}, exclude: [...legacy, 'dsl/sequence-table-swimlane.js', 'dsl/sequence.js', 'dsl/table.js', 'emit-boxes.js', 'emit-legend.js', 'layout-connect.js', 'bands/connect.js', 'seq-table.js', 'wireframe.js', 'layout-row.js'], draw: true, // 101500/130000 -> 167000/218000 (measured 151427/198748): the auto engine moves into bands/swimlane (ADR 0086)
       bands: ['box.js', 'swimlane.js']},
     {name: 'Radar', source: composedSource(['radar'], "radar(['A', 'B', 'C'], [{label: 'Review', values: [3, 4, 5]}], {max: 5})"),
       include: 'bands/radar.js', budget: {esbuild: 97000, Vite: 120000}, exclude: [...legacy, 'dsl/charts.js', 'charts-dsl.js', 'lib/charts.js', 'charts-waterfall.js', 'charts-sankey.js', 'semnet.js', 'layout-connect.js'], draw: true},
@@ -1527,7 +1530,8 @@ try {
     assert.match(result.svg, /<text[^>]*>Review<\/text>/, label);
     const bytes = Buffer.byteLength(code);
     // 119500 -> 119700: the Node selective renderSpec takes idPrefix / inline (ADR 0012 D2), which brings the id rewriter (lib/svg-ids.ts) into this bundle
-    assert.ok(bytes <= 119700, `${label}: ${bytes} bytes exceeds 119700`);
+    // 119700 -> 119800 (measured 119706): the shared rule catalog grows (ADR 0086's bpmn-deprecated)
+    assert.ok(bytes <= 119800, `${label}: ${bytes} bytes exceeds 119800`);
     console.log(`${label}: ${bytes} bytes`);
   }
 

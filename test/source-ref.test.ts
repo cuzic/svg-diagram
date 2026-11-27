@@ -57,7 +57,8 @@ function expectedBands(input: Diagram, laidOut: LaidOutDiagram): ExpectedBand[] 
       expected.push({type: band.type, owner: band, children: band.children});
       return;
     }
-    expected.push({type: band.type, owner: band});
+    // design B (ADR 0086): a `cols: 'auto'` swimlane figure is placed as a `bpmn` band
+    expected.push({type: band.type === 'swimlane' && band.arrange === 'auto' ? 'bpmn' : band.type, owner: band});
     // Layout emits the group title after its frame and before its authored children.
     if (band.type === 'group' && band.title) expected.push({type: 'caption', owner: band});
     for (const child of nestedBandsOf(band, definitionOfBand)) visit(child);
