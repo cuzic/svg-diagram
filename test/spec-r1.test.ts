@@ -51,7 +51,8 @@ test('in English, a Pareto chart folds the rest into Other', async () => {
 });
 
 test('chart mistakes are reported at their place', () => {
-  assert.deepEqual(pathsOf(spec({type: 'bars', data: [{label: 'a', value: 1}, {label: 'a', value: 2}], lines: [{at: 1}]})), ['parts[0].data[1].label', 'parts[0].lines']);
+  assert.deepEqual(pathsOf(spec({type: 'bars', data: [{label: 'a', value: 1}, {label: 'a', value: 2}], lines: [{at: 1}]})), ['parts[0].data[1].label']);
+  assert.deepEqual(pathsOf(spec({type: 'bars', dir: 'h', data: [{label: 'a', value: 1}], lines: [{at: 5}]})), ['parts[0].lines[0].at']);
   assert.deepEqual(pathsOf(spec({type: 'bars', dir: 'v', data: [{label: 'a', value: 1}], lines: [{at: 5}]})), ['parts[0].lines[0].at']);
   assert.deepEqual(pathsOf(spec({type: 'bars', data: [{label: 'a', value: -1}]})), ['parts[0].data[0].value']);
   assert.deepEqual(pathsOf(spec({type: 'lines', categories: ['a', 'b'], series: [{label: 's', values: [1, 2, 3]}]})), ['parts[0].series[0].values']);
