@@ -10,6 +10,8 @@ import {MEMO_LIMIT, currentMeasure, measureAtoms, measureMemoSize} from '../lib/
 import {xmlProblems} from '../lib/xml-check.ts';
 import {installResolveHook} from '../lib/resolve-hook.ts';
 import {CANVAS_LIMITS, MAX_CAUSE_LINKS, MAX_CAUSE_NODES, MAX_EMOJI, MAX_ISSUES, MAX_SWIMLANE_COLS, MAX_TOTAL_TEXT, MAX_TREE_DEPTH, SpecError, capped, cappedMessages, fieldsHolding, layoutIssue, locateMessage, locateVerdict, partCatalog, specSchema, specToDiagram, validateSpec} from '../lib/spec.ts';
+import {MAX_LANES_TO_ORDER} from '../lib/lane-order.ts';
+import {swimlaneAutoExample} from '../lib/spec-parts/swimlane.ts';
 import {MAX_PNG_PIXELS, lintMessages, lintRendering, renderSpec, svgToPng} from '../lib/spec-render.ts';
 import type {Diagram} from '../lib/types/index.ts';
 import {JA_FONTS} from './helpers/text-engine.ts';
@@ -383,6 +385,114 @@ test('a swimlane stays within the columns it has room for, and says so before la
   assert.deepEqual(pathsOf(lane(steps(MAX_SWIMLANE_COLS + 1))), ['parts[0].steps']);
   assert.deepEqual(pathsOf(lane([{id: 's', lane: 'a', title: '手順', col: MAX_SWIMLANE_COLS + 1}])), ['parts[0].steps[0].col']);
   assert.match(validateSpec(lane(steps(12)))[0]?.message ?? '', /same col/);
+});
+
+test('a swimlane with cols: auto draws the same SVG as the DSL, horizontally and vertically', async () => {
+  assert.deepEqual(validateSpec(spec(swimlaneAutoExample)), []);
+  const ex = swimlaneAutoExample as {lanes: unknown; steps: unknown; flows: unknown};
+  for (const dir of [undefined, 'v'] as const) {
+    const part = dir === undefined ? swimlaneAutoExample : {...swimlaneAutoExample, dir};
+    assert.deepEqual(validateSpec(spec(part)), [], `dir ${dir ?? 'h'}`);
+    const dsl = diagram({theme: 'blue', title: '例'}).add(pure.swimlane(ex.lanes as never, ex.steps as never, {cols: 'auto', flows: ex.flows, ...(dir === undefined ? {} : {dir})} as never) as never);
+    assert.equal(await svgOf(specToDiagram(spec(part))), await svgOf(dsl as unknown as Diagram), `dir ${dir ?? 'h'}`);
+  }
+});
+
+test("a swimlane with cols: 'auto' refuses explicit-column fields, and explicit columns refuse kind and a vertical dir", () => {
+  const auto = (extra: Record<string, unknown>, step: Record<string, unknown> = {}, flow: Record<string, unknown> = {}) => spec({type: 'swimlane', cols: 'auto', lanes: [{id: 'a', label: '人'}, {id: 'b', label: '人'}], steps: [{id: 's', lane: 'a', kind: 'start', title: '始', ...step}, {id: 't', lane: 'b', title: '終'}], flows: [{from: 's', to: 't', ...flow}], ...extra});
+  assert.deepEqual(pathsOf(auto({phases: [{label: '段', from: 1, to: 1}]})), ['parts[0].phases']);
+  assert.deepEqual(pathsOf(auto({boundaries: [{after: 'a'}]})), ['parts[0].boundaries']);
+  assert.deepEqual(pathsOf(auto({colGap: 48})), ['parts[0].colGap']);
+  assert.deepEqual(pathsOf(auto({}, {col: 1})), ['parts[0].steps[0].col']);
+  assert.deepEqual(pathsOf(auto({}, {span: 2})), ['parts[0].steps[0].span']);
+  assert.deepEqual(pathsOf(auto({}, {row: 1})), ['parts[0].steps[0].row']);
+  assert.deepEqual(pathsOf(auto({}, {note: '注'})), ['parts[0].steps[0].note']);
+  assert.deepEqual(pathsOf(auto({}, {tag: '札'})), ['parts[0].steps[0].tag']);
+  assert.deepEqual(pathsOf(auto({}, {}, {arrow: 'none'})), ['parts[0].flows[0].arrow']);
+  assert.deepEqual(pathsOf(auto({}, {}, {tone: 'muted'})), ['parts[0].flows[0].tone']);
+  assert.deepEqual(pathsOf(auto({}, {}, {line: 'dotted'})), ['parts[0].flows[0].line']);
+  assert.deepEqual(pathsOf(auto({}, {}, {from: 's:bottom'})), ['parts[0].flows[0].from']);
+  assert.deepEqual(pathsOf(auto({}, {}, {to: 't:top@0.5'})), ['parts[0].flows[0].to']);
+  const timed = (extra: Record<string, unknown>, step: Record<string, unknown> = {}) => spec({type: 'swimlane', lanes: [{id: 'a', label: '人'}], steps: [{id: 's', lane: 'a', title: '手順', ...step}], ...extra});
+  assert.deepEqual(pathsOf(timed({}, {kind: 'xor'})), ['parts[0].steps[0].kind']);
+  assert.deepEqual(pathsOf(timed({dir: 'v'})), ['parts[0].dir']);
+  assert.deepEqual(pathsOf(spec({type: 'swimlane', cols: 'sideways', lanes: [{id: 'a', label: '人'}], steps: [{id: 's', lane: 'a', title: '手順'}]})), ['parts[0].cols']);
+  assert.deepEqual(validateSpec(timed({dir: 'h'}, {kind: 'task'})), []);
+  assert.deepEqual(validateSpec(auto({dir: 'h'})), []);
+  assert.deepEqual(validateSpec(auto({})), []);
+});
+
+test("a swimlane with cols: 'auto' is not limited to 8 columns: the layers follow the flow", () => {
+  const n = MAX_SWIMLANE_COLS + 4;
+  const steps = Array.from({length: n}, (_, i) => ({id: `s${i}`, lane: 'a', title: '手順'}));
+  const flows = Array.from({length: n - 1}, (_, i) => ({from: `s${i}`, to: `s${i + 1}`}));
+  // validateSpec runs build() too, so a column limit applied to the auto band would fail here
+  assert.deepEqual(validateSpec(spec({type: 'swimlane', cols: 'auto', lanes: [{id: 'a', label: '人'}], steps, flows})), []);
+});
+
+test("a swimlane with cols: 'auto' checks its steps and flows like the bpmn part, at the field", () => {
+  const lanes = [{id: 'c', label: '顧客'}, {id: 's', label: '店舗'}];
+  const steps = [{id: 'st', lane: 'c', kind: 'start', title: '注文'}, {id: 'chk', lane: 's', title: '在庫を確認'}, {id: 'e', lane: 'c', kind: 'end', title: '受け取り'}];
+  const of = (s: unknown, f: unknown) => spec({type: 'swimlane', cols: 'auto', lanes, steps: s, flows: f});
+  assert.deepEqual(validateSpec(of(steps, [{from: 'st', to: 'chk'}, {from: 'chk', to: 'e'}])), []);
+  assert.deepEqual(pathsOf(of([{lane: 'c', kind: 'start', title: '注文'}, steps[1], steps[2]], [{from: 'chk', to: 'e'}])), ['parts[0].steps[0].id']);
+  assert.deepEqual(pathsOf(of(steps, [{from: 'chk', to: 'chk'}])), ['parts[0].flows[0].to']);
+  const endOut = validateSpec(of(steps, [{from: 'e', to: 'chk'}]));
+  assert.deepEqual(endOut.map(i => i.path), ['parts[0].flows[0].from']);
+  assert.match(endOut[0]?.message ?? '', /"e" is an end event/);
+  const startIn = validateSpec(of(steps, [{from: 'chk', to: 'st'}]));
+  assert.deepEqual(startIn.map(i => i.path), ['parts[0].flows[0].to']);
+  assert.match(startIn[0]?.message ?? '', /"st" is a start event/);
+});
+
+test("a swimlane with cols: 'auto' takes at most 8 lanes; explicit columns still take 12", () => {
+  const lanes = (n: number) => Array.from({length: n}, (_, i) => ({id: `l${i}`, label: '担当'}));
+  const auto = (n: number) => spec({type: 'swimlane', cols: 'auto', lanes: lanes(n), steps: [{id: 's', lane: 'l0', title: '手順'}]});
+  assert.deepEqual(validateSpec(auto(MAX_LANES_TO_ORDER)), []);
+  assert.deepEqual(pathsOf(auto(MAX_LANES_TO_ORDER + 1)), ['parts[0].lanes']);
+  assert.deepEqual(validateSpec(spec({type: 'swimlane', lanes: lanes(12), steps: [{id: 's', lane: 'l0', title: '手順'}]})), []);
+});
+
+test("a swimlane with cols: 'auto' lends its step ids to the figure: a second part cannot reuse one", () => {
+  const clash = validateSpec(spec(swimlaneAutoExample, {type: 'flowchart', nodes: [{id: 'chk', label: '確認'}, {id: 'z', label: '終'}], edges: []}));
+  assert.equal(clash.length, 1);
+  assert.equal(clash[0]?.path, 'parts[1].nodes[0].id');
+  assert.match(clash[0]?.message ?? '', /"chk" is already used in parts\[0\]/);
+});
+
+test("a swimlane with cols: 'auto' and fit: 'shrink' draws a process too wide to fit plain", async () => {
+  const lanes = [{id: 'c', label: '顧客'}, {id: 's', label: '店舗'}];
+  const steps: {id: string; lane: string; kind?: string; title: string}[] = [
+    {id: 's0', lane: 'c', kind: 'start', title: '注文'},
+    {id: 's1', lane: 's', title: '在庫を確認する'},
+    {id: 's2', lane: 's', title: '発送する'},
+    {id: 's3', lane: 's', title: '送り状を発行する'},
+    {id: 's4', lane: 's', title: '完了を通知する'},
+    {id: 's5', lane: 'c', kind: 'end', title: '受け取り'},
+  ];
+  const flows = [{from: 's0', to: 's1'}, {from: 's1', to: 's2'}, {from: 's2', to: 's3'}, {from: 's3', to: 's4'}, {from: 's4', to: 's5'}];
+  const part = {type: 'swimlane', cols: 'auto', lanes, steps, flows};
+  const plain = await renderSpec(spec(part));
+  assert.equal(plain.ok, false);
+  assert.match(plain.issues[0]?.message ?? '', /fit: 'shrink'/);
+  const nodes = steps.map(s => ({id: s.id, lane: s.lane, ...(s.kind === undefined ? {} : {kind: s.kind}), label: s.title}));
+  assert.equal((await renderSpec(spec({type: 'bpmn', lanes, nodes, flows}))).ok, true);
+  const fitted = {...part, fit: 'shrink'};
+  assert.deepEqual(validateSpec(spec(fitted)), []);
+  assert.equal((await renderSpec(spec(fitted))).ok, true);
+  const dsl = diagram({theme: 'blue', title: '例'}).add(pure.swimlane(lanes as never, steps as never, {cols: 'auto', flows, fit: 'shrink'} as never) as never);
+  assert.equal(await svgOf(specToDiagram(spec(fitted))), await svgOf(dsl as unknown as Diagram));
+  assert.deepEqual(pathsOf(spec({...fitted, dir: 'v'})), ['parts[0].fit']);
+  assert.deepEqual(pathsOf(spec({...part, fit: 'grow'})), ['parts[0].fit']);
+});
+
+test("a swimlane with explicit columns takes fit: 'shrink', and dir: 'v' without cols reports only dir", async () => {
+  const lanes = [{id: 'c', label: '顧客'}, {id: 's', label: '店舗'}];
+  const steps = [{id: 'a', lane: 'c', title: '問い合わせる'}, {id: 'b', lane: 's', title: '見積もりを出す', col: 2}];
+  const fitted = spec({type: 'swimlane', lanes, steps, flows: [{from: 'a', to: 'b'}], fit: 'shrink'});
+  assert.deepEqual(validateSpec(fitted), []);
+  assert.equal((await renderSpec(fitted)).ok, true);
+  assert.deepEqual(pathsOf(spec({type: 'swimlane', dir: 'v', fit: 'shrink', lanes, steps})), ['parts[0].dir']);
 });
 
 test('boundaries are checked against the lane order, at the boundary', () => {

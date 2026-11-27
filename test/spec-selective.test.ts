@@ -31,6 +31,7 @@ import {journeyMapPart} from '../lib/spec-parts/selective/journey-map.ts';
 import {raciPart} from '../lib/spec-parts/selective/raci.ts';
 import {swimlanePart} from '../lib/spec-parts/selective/swimlane.ts';
 import {sequencePart} from '../lib/spec-parts/selective/sequence.ts';
+import {swimlaneAutoExample} from '../lib/spec-parts/swimlane.ts';
 
 import {barsPart} from '../lib/spec-parts/selective/bars.ts';
 import {linesPart} from '../lib/spec-parts/selective/lines.ts';
@@ -212,6 +213,17 @@ test('selected cause analysis reports the same band findings as the legacy spec'
       .map(({rule, severity, message}) => ({rule, severity, message}));
     assert.deepEqual(notes(actual), notes(legacy), part.type);
   }
+});
+
+test('a selected swimlane with cols: auto draws like the legacy spec (its connectDefinition stays unused)', async () => {
+  const input = {version: 1, title: 'Plan', legend: false, parts: [swimlaneAutoExample]};
+  const measure = ({text, size}: {text: string; size: number}) => ({w: [...text].length * size * 0.6, h: size});
+  const actual = await renderSpec(input, {parts: [swimlanePart], measure});
+  const legacy = await renderInBrowser(specToDiagram(input), {measure});
+  const body = (svg: string) => svg.slice(svg.indexOf('  <style>'));
+  assert.deepEqual(actual.xml, []);
+  assert.deepEqual(validateSpec(input, {parts: [swimlanePart]}), []);
+  assert.equal(body(actual.svg), body(legacy.svg));
 });
 
 test('selected tables and swimlanes report the same band findings as the legacy spec', async () => {
