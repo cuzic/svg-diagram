@@ -35,6 +35,12 @@ function checkConnects(d: LaidOutDiagram, rects: CheckRect[]): Issue[] {
         if (labelHit) issues.push(issueAt(`${who} label "${c.label}" overlaps "${r.label}" by ${Math.round(labelHit.dx)}x${Math.round(labelHit.dy)}px`, loc, r.loc));
       }
     }
+    // a swimlane's way back and the other flows keep their chips off each other's lines (the layout slides the way back's chip along its line); what is left is reported, from both sides
+    if (c.labelBox) for (const o of d.connects) {
+      if (o === c || !(c.under || o.under)) continue;
+      const hit = [c.under ? o.labelBox : undefined, ...o.pathSegments].map(r => r && rectOverlap(c.labelBox as Rect, r)).find(Boolean);
+      if (hit) issues.push(issueAt(`${who} label "${c.label}" overlaps ${connectName(o)} by ${Math.round(hit.dx)}x${Math.round(hit.dy)}px (write labelAt on the flow, or shorten the label)`, loc, sourceOf(o)));
+    }
   }
   return issues;
 }

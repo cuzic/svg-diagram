@@ -249,6 +249,8 @@ export interface ConnectOpts extends RevealOpts {
 }
 export interface ConnectBand {
   type: 'connect';
+  /** Set by swimlane(): a way back under the boxes of a row (its number among the swimlane's ways back, from 1). Its depth and label place come from the swimlane's layout (resolveConnect throws without them), and it reserves no space of its own. */
+  under?: number;
   /** Set by the loopBack pass: this is the arrow back of a row of steps, not an edge of a graph (graph-orphan-node / graph-disconnected leave it out). */
   loopBack?: true;
   /** Made by branch(): one of several arrows leaving the same point of the source, so levelling (layout-connect.ts) moves only the target end. */
