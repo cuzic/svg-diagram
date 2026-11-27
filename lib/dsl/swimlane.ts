@@ -173,7 +173,7 @@ function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: Swimla
     if (under) {
       const at = must(underAt.get(sp)), g = must(groups.get(at.group));
       underFlows.push({from: ref.from, to: ref.to, ...(f.label === undefined ? {} : {label: f.label}), group: at.group, off: underOffset(g.label, at.level), moveLabel: f.labelAt === undefined});
-      return [Object.assign(connectBand(ref.from, ref.to, {route: 'loop-under', label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.5, line: f.line, arrow: f.arrow, tone: f.tone}, false), {under: true as const})];
+      return [Object.assign(connectBand(ref.from, ref.to, {route: 'loop-under', label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.5, line: f.line, arrow: f.arrow, tone: f.tone}, false), {under: underFlows.length})];
     }
     const k = slot.get(b.col) ?? 0; slot.set(b.col, k + 1);
     return [connectBand(auto ? ref.from : sp.from, auto ? ref.to : sp.to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone}, false)];

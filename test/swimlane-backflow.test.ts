@@ -9,7 +9,7 @@ import type {LaidOutBox} from '../lib/types/text-bands.ts';
 test.after(() => closeMeasurer());
 
 type Step = {id: string; lane: string; title: string; col: number; row?: number};
-type Flow = {from: string; to: string; label?: string; bend?: 'start' | 'end' | number; bendOffset?: number};
+type Flow = {from: string; to: string; label?: string; labelAt?: number; bend?: 'start' | 'end' | number; bendOffset?: number};
 const lanes = [{id: 'a', label: '担当A'}, {id: 'b', label: '担当B'}, {id: 'c', label: '担当C'}];
 const chain: Step[] = [
   {id: 'x1', lane: 'a', title: '受付', col: 1}, {id: 'p', lane: 'b', title: '下書き', col: 2},
@@ -175,7 +175,7 @@ test('swimlane: the bands survive a JSON round trip, and a way back without its 
   const viaJson = await checkDiagram(diagram({theme: 'blue'}).add(...(JSON.parse(JSON.stringify(bands)) as typeof bands)));
   assert.deepEqual(viaJson.laidOut.connects.map(c => c.points), direct.laidOut.connects.map(c => c.points));
   const lone = bands.filter(b => b.type === 'connect').slice(-1);
-  await assert.rejects(checkDiagram(diagram({theme: 'blue'}).add(box({id: 'p', title: 'x'}), box({id: 'r', title: 'y'}), ...lone)), /swimlane way back: no layout/);
+  await assert.rejects(checkDiagram(diagram({theme: 'blue'}).add(box({id: 'p', title: 'x'}), box({id: 'r', title: 'y'}), ...lone)), /way back without its swimlane/);
 });
 
 test('edgeStats: two ways back under a row that share an end and run on one line are an overlap; a shared end alone is not', async () => {
@@ -184,4 +184,61 @@ test('edgeStats: two ways back under a row that share an end and run on one line
   assert.equal(edgeStats([way('loop-under', 'b', 140, 300), way('loop-under', 'c', 140, 200)]).overlaps, 1);
   assert.equal(edgeStats([way('loop-under', 'b', 140, 300), way('loop-under', 'c', 170, 200)]).overlaps, 0);
   assert.equal(edgeStats([way('elbow', 'b', 140, 300), way('elbow', 'c', 140, 200)]).overlaps, 0);
+});
+
+const mid = (c: LaidOutConnect): number => (c.points[0]!.x + c.points[3]!.x) / 2;
+const two: Step[] = [...five, {id: 'c2', lane: 'c', title: '渡す先', col: 2}, {id: 'c3', lane: 'c', title: '受け取る', col: 3}];
+
+test('swimlane: one pair written twice (with and without :bottom, or the same way) runs at two depths with two chips', async () => {
+  for (const pair of [
+    [{from: 's5', to: 's1:bottom', label: 'A'}, {from: 's5', to: 's1', label: 'B'}],
+    [{from: 's5', to: 's1:bottom', label: 'A'}, {from: 's5', to: 's1:bottom', label: 'B'}],
+    [{from: 's5', to: 's1:bottom'}, {from: 's5', to: 's1:bottom'}],
+  ] as Flow[][]) {
+    const {all, verdict} = await laid(five, [...fwd5, ...pair]);
+    assert.deepEqual(verdict.problems, [], JSON.stringify(pair));
+    const [x, y] = all.filter(c => c.route === 'loop-under') as [LaidOutConnect, LaidOutConnect];
+    assert.notEqual(runY(x), runY(y));
+    if (x.chipBox && y.chipBox) assert.ok(x.chipBox.y + x.chipBox.h <= y.chipBox.y || y.chipBox.y + y.chipBox.h <= x.chipBox.y, 'two chips');
+  }
+});
+
+test('swimlane: the chip of a way back stays in the middle when no other flow crosses its line', async () => {
+  const {back} = await laid(five, [...fwd5, {from: 's5', to: 's1:bottom', label: 'Again'}]);
+  assert.ok(Math.abs(back.labelX! - mid(back)) <= 1, `${back.labelX} vs ${mid(back)}`);
+});
+
+test('swimlane: an explicit labelAt keeps its place, and a scoped swimlane lays out its ways back', async () => {
+  const flows: Flow[] = [...fwd5, {from: 's5', to: 's1:bottom', label: 'Again', labelAt: 0.5}, {from: 's3', to: 'c3'}];
+  const sl = [{id: 'b', label: '担当B'}, {id: 'c', label: '担当C'}];
+  const fixed = await checkDiagram(diagram({theme: 'blue'}).add(...swimlane(sl, two as never, {flows} as never)));
+  const back = fixed.laidOut.connects.find(c => c.route === 'loop-under')!;
+  assert.ok(Math.abs(back.labelX! - mid(back)) <= 1, 'kept at 0.5, on the leg');
+  const scoped = await checkDiagram(diagram({theme: 'blue'}).add(...swimlane(sl, two as never, {flows: [...fwd5, {from: 's5', to: 's1:bottom', label: 'Again'}], scope: 'one'} as never)));
+  assert.deepEqual(scoped.verdict.problems, []);
+  assert.equal(scoped.laidOut.connects.filter(c => c.route === 'loop-under').length, 1);
+});
+
+test('swimlane: a long hand-over label is kept clear of, not only its leg', async () => {
+  const sl = [{id: 'b', label: '担当B'}, {id: 'c', label: '担当C'}];
+  const {laidOut, verdict} = await checkDiagram(diagram({theme: 'blue'}).add(...swimlane(sl, two as never, {flows: [...fwd5, {from: 's5', to: 's1:bottom', label: 'Again'}, {from: 's3', to: 'c3', label: '引き継ぎを依頼する'}]} as never)));
+  assert.deepEqual(verdict.problems, []);
+  const back = laidOut.connects.find(c => c.route === 'loop-under')!, hand = laidOut.connects.find(c => c.toId === 'c3')!;
+  const [p, q] = [back.chipBox!, hand.chipBox!];
+  assert.ok(p.x + p.w <= q.x || q.x + q.w <= p.x || p.y + p.h <= q.y || q.y + q.h <= p.y);
+});
+
+test('swimlane: a chip that has no free place goes where it covers least, and the overlap that is left is reported', async () => {
+  const sl = [{id: 'b', label: '担当B'}, {id: 'c', label: '担当C'}];
+  const {verdict} = await checkDiagram(diagram({theme: 'blue'}).add(...swimlane(sl, two as never, {flows: [...fwd5, {from: 's3', to: 's1:bottom', label: 'Go back and redo it all'}, {from: 's2', to: 'c2', label: 'Hand it over right now'}]} as never)));
+  assert.ok(verdict.problems.some(p => /label overlaps connect\(s2:bottom -> c2:top\)/.test(p)), verdict.problems.join('\n'));
+});
+
+test('swimlane: a flow that ends above the line (a hand-over into the box from the lane above) does not push the chip off the middle', async () => {
+  const sl = [{id: 'a', label: '担当A'}, {id: 'b', label: '担当B'}];
+  const st: Step[] = [{id: 'a3', lane: 'a', title: '依頼', col: 3}, ...five];
+  const {laidOut, verdict} = await checkDiagram(diagram({theme: 'blue'}).add(...swimlane(sl, st as never, {flows: [...fwd5, {from: 'a3', to: 's3'}, {from: 's5', to: 's1:bottom', label: 'Again'}]} as never)));
+  assert.deepEqual(verdict.problems, []);
+  const back = laidOut.connects.find(c => c.route === 'loop-under')!;
+  assert.ok(Math.abs(back.labelX! - mid(back)) <= 1, `${back.labelX} vs ${mid(back)}`);
 });

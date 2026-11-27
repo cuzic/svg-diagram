@@ -220,8 +220,8 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
   if (band.plumb && (toRef.side === 'top' || toRef.side === 'bottom')) to.x = Math.min(toEnd.x + toEnd.w, Math.max(toEnd.x, from.x));
   levelSides(band, fromRef.side, toRef.side, fromEnd, toEnd, from, to);
   if (band.under) { // a swimlane's way back: its layout says how deep it runs (an absolute y) and where its label sits
-    const k = `~${fromRef.id}>${toRef.id}`;
-    band = {...band, dip: must(nodeBottoms.get(k), 'swimlane way back: no layout') - Math.max(from.y, to.y), labelAt: nodeBottoms.get(`${k}@`) ?? band.labelAt};
+    const k = `~${fromRef.id}~${band.under}`;
+    band = {...band, dip: must(nodeBottoms.get(k), `${band.from}: swimlane() way back without its swimlane`) - Math.max(from.y, to.y), labelAt: nodeBottoms.get(`${k}@`) ?? band.labelAt};
   }
   let points = routePoints(band, from, to, fromRef.side);
   if (band.route === 'elbow' && band.bend === 'auto') {

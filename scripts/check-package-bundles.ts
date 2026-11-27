@@ -894,7 +894,7 @@ try {
     ] as const).map(([name, sample]) => ({
       name, source: composedSource(name === 'bracket' ? ['box'] : ['box', 'spacer'], `${name === 'callout' ? 'spacer(64), ' : ''}box({id: 'a', title: 'Review'}), ${name === 'branch' ? 'spacer(64), ' : ''}box({id: 'b', title: 'Done'}), ${sample}`,
         `import {${name}} from 'svg-diagram/bands/connect';`),
-      include: `dsl/${name}.js`, budget: {esbuild: 116000, Vite: 145300}, bands: name === 'bracket' ? ['box.js', 'connect.js'] : ['box.js', 'connect.js', 'spacer.js'],
+      include: `dsl/${name}.js`, budget: {esbuild: 116000, Vite: 145550}, bands: name === 'bracket' ? ['box.js', 'connect.js'] : ['box.js', 'connect.js', 'spacer.js'],
       exclude: [...legacy, 'dsl/connect.js', ...['bracket', 'callout', 'branch'].filter(other => other !== name).map(other => `dsl/${other}.js`)],
       draw: true,
     })),
