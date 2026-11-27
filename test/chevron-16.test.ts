@@ -58,3 +58,22 @@ test('16 long Latin steps with rows: 2 on a 16:9 slide are reported (a word wide
   assert.ok(errs.length > 0 && errs.some(e => /矢羽根に収まらない/.test(JSON.stringify(e))), JSON.stringify(errs));
   assert.deepEqual(await run({rows: 'auto'}), []);
 });
+
+test("rows: 'auto' counts a word wider than its arrow (it picks fewer steps a row); the default one-row layout warns instead of throwing", async () => {
+  const {chevron, checkDiagram, diagram} = await import('../lib/dsl.ts');
+  const check = async (steps: {label: string; sub?: string}[], opts: object) => (await checkDiagram(diagram({theme: 'blue', title: 't', width: 940}).add(chevron(steps, opts)))).verdict;
+  const auto = Array.from({length: 16}, (_, i) => ({label: i === 5 ? 'Internationalization' : 'Step'}));
+  const a = await check(auto, {rows: 'auto'});
+  assert.deepEqual(a.problems, []);
+  assert.deepEqual(a.warnings, [], 'auto found a 4-per-row layout that fits the word');
+  const words = ['Requirements', 'Implementation', 'Stabilization', 'Retrospective', 'Deployment', 'Verification'].map(label => ({label}));
+  const d = await check(words, {});
+  assert.deepEqual(d.problems, []);
+  assert.ok(d.warnings.some(w => /矢羽根より広い/.test(w)), 'default layout warns');
+  await assert.rejects(checkDiagram(diagram({theme: 'blue', title: 't', width: 940}).add(chevron(words, {rows: 1}))), /矢羽根に収まらない/);
+});
+
+test('the overflow error names the Nth step', async () => {
+  const {chevron, checkDiagram, diagram} = await import('../lib/dsl.ts');
+  await assert.rejects(checkDiagram(diagram({theme: 'blue', title: 't', width: 940}).add(chevron([{label: 'Step'}, {label: 'Internationalization'}, {label: 'Step'}, {label: 'Step'}, {label: 'Step'}, {label: 'Step'}, {label: 'Step'}, {label: 'Step'}], {perRow: 8}))), /2 番目のステップ/);
+});

@@ -186,7 +186,7 @@ test('bars() overlays: only vertical, not stacked; positions and counts are chec
   assert.throws(() => bars(d, {dir: 'v', lines: [{at: 1, tone: 'blue' as never}]}), /tone/);
 });
 
-test('bars() lines: a reference line sits at its value; a label that would touch another goes a row higher; none overlap', async () => {
+test('bars() lines: a reference line sits at its value; a label that would touch another takes the other side or a row higher; none overlap', async () => {
   const {laidOut, verdict} = await laid(bars([{label: 'a', value: 8}, {label: 'b', value: 6}, {label: 'c', value: 7}], {dir: 'v', max: 10, lines: [{at: 5, label: '目標'}], vlines: [{at: 1.5, label: '平均 1.5'}, {at: 1.6, label: '中央値 1.6'}, {at: 0, label: '左端'}]}));
   assert.deepEqual(verdict.problems, []);
   const b = laidOut.laidOut.find(x => x.type === 'bars') as LaidOutBars;

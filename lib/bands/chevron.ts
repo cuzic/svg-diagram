@@ -23,7 +23,7 @@ const definition = {
   emit: emitFlow,
   nameNodes: nameFlowShapeNodes,
   svgDefs: laid => ({arrow: laid.primitives.some(p => p.k === 'path' && !!p.arrow)}),
-  verify: {...verifyFlow, rects: figureRects},
+  verify: {...verifyFlow, rects: figureRects, check: (laid, ctx) => [...verifyFlow.check?.(laid, ctx) ?? [], ...laid.wide ? [{rule: 'chevron', severity: 'warn' as const, message: `chevron: ${laid.wide} 番目の語が矢羽根より広い（rows / perRow を減らす）`}] : []]},
 } satisfies BandDef<ChevronBand, LaidOutFlowShape>;
 
 export function chevron<const Id extends string = never, const I extends readonly FlowStep[] = readonly FlowStep[]>(steps: I, opts?: ChevronOpts & {id?: Id}): WithBandDef<ReturnType<typeof build<Id, I>>, LaidOutFlowShape> {

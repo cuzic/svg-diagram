@@ -80,3 +80,12 @@ test('lane names: a kanji compound is not split where it can be avoided', async 
   const lines = await laneLines('デジタルトランスフォーメーション推進プロジェクト室');
   assert.ok(!lines.some((l, i) => l.endsWith('推') && lines[i + 1]?.startsWith('進')), lines.join('|'));
 });
+
+test('a lane name split mid-word: the advice does not offer keepWords (it has no effect on lanes)', async () => {
+  const lanes = ['デジタルトランスフォーメーション推進プロジェクト室', '品質'];
+  const r = await checkDiagram(specToDiagram({...fig(lanes), width: 560} as never));
+  const f = r.verdict.findings.find(x => x.rule === 'text-mid-word-break');
+  assert.ok(f, JSON.stringify(r.verdict.findings.map(x => x.rule)));
+  assert.ok(!/keepWords/.test(f.message), f.message);
+  assert.match(f.message, /timeline/);
+});

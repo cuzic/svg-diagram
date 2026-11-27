@@ -11,9 +11,9 @@ function checkRows(opts: ChevronOpts, n: number): void {
   const {rows, perRow} = opts;
   if (rows === undefined && perRow === undefined) return;
   if (rows !== undefined && perRow !== undefined) throw new Error('chevron(): rows と perRow は一緒に指定できない。どちらか 1 つにする');
-  if (rows !== undefined && rows !== 'auto' && !(Number.isInteger(rows) && rows >= 1)) throw new Error(`chevron(): rows は 1 以上の整数か 'auto'（指定は ${String(rows)}）。rows: 2 や rows: 'auto' のように書く`);
-  if (perRow !== undefined && !(Number.isInteger(perRow) && perRow >= 1)) throw new Error(`chevron(): perRow は 1 以上の整数（指定は ${String(perRow)}）。perRow: 4 のように書く`);
-  if ((opts.direction ?? 'horizontal') !== 'horizontal') throw new Error("chevron({direction: 'vertical'}): 縦の chevron は折り返さない。横にして rows / perRow を使うか、rows / perRow を外す");
+  if (rows !== undefined && rows !== 'auto' && !(Number.isInteger(rows) && rows >= 1)) throw new Error(`chevron(): rows は 1 以上の整数か 'auto'（指定は ${String(rows)}）`);
+  if (perRow !== undefined && !(Number.isInteger(perRow) && perRow >= 1)) throw new Error(`chevron(): perRow は 1 以上の整数（指定は ${String(perRow)}）`);
+  if ((opts.direction ?? 'horizontal') !== 'horizontal') throw new Error("chevron({direction: 'vertical'}): 縦の chevron は折り返さない（rows / perRow を外す）");
   const multi = rows === 'auto' || (rows !== undefined && rows >= 2) || (perRow !== undefined && perRow < n);
   if (opts.loopBack !== undefined && multi) throw new Error('chevron(): 2 段以上に折り返しうる chevron に loopBack は付けられない（戻る線が下の段の矢羽根を横切る）。loopBack を外すか、rows / perRow を外す');
 }
@@ -31,8 +31,8 @@ function autoPerRow(b: ChevronBand, w: number, t: Texts): number {
   const n = b.steps.length, minR = Math.ceil(n / 8), maxR = Math.max(minR, Math.min(4, Math.floor(n / 3)));
   const measure = (text: string | undefined, textW: number, weight: 400 | 700) => {
     if (text === undefined) return {extra: 0, lines: 0};
-    const lines = t.wrap(text, textW, weight).lines.length;
-    return {extra: Math.max(0, lines - text.split('\n').length), lines};
+    const w = t.wrap(text, textW, weight), lines = w.lines.length;
+    return {extra: Math.max(0, lines - text.split('\n').length) + +(w.w > textW + 8), lines};
   };
   const cands = Array.from({length: maxR - minR + 1}, (_, k) => {
     const perRow = Math.ceil(n / (minR + k)), {textW} = colsGeometry(w, b.gap, Math.min(perRow, n));
@@ -76,9 +76,10 @@ export function layoutChevron(b: ChevronBand, out: LaidOutFlowShape, t: Texts, a
   // horizontal: the notch on the left and the point on the right each take `tip` of the width; vertical: the point takes the bottom
   const tip = vertical ? 16 : Math.min(TIP_MAX, cellW / 4), textW = vertical ? cellW - 24 : cellW - 2 * tip - 8;
   const blocks = b.steps.map(s => ({label: t.wrap(s.label, textW), sub: s.sub ? t.wrap(s.sub, textW, 400) : undefined}));
-  // a word wider than its arrow (rows / perRow given) would be drawn across the edges
-  const wide = b.rows === 'auto' || b.rows === b.perRow ? -1 : blocks.findIndex(k => Math.max(k.label.w, k.sub?.w ?? 0) > textW + 1);
-  if (wide >= 0) throw new Error(`chevron(): ${wide + 1} 番目の文字が矢羽根に収まらない。rows を増やす・perRow を減らす・文を短くする`);
+  // a word wider than its arrow would be drawn across the edges: an error with rows / perRow, a finding otherwise
+  const wide = blocks.flatMap((k, i) => Math.max(k.label.w, k.sub?.w ?? 0) > textW + 8 ? [i + 1] : []);
+  if (wide.length && b.rows !== 'auto' && (b.rows ?? b.perRow) !== undefined) throw new Error(`chevron(): ${wide[0]} 番目のステップが矢羽根に収まらない`);
+  if (wide.length) out.wide = wide;
   const textH = (k: typeof blocks[number]) => k.label.h + (k.sub?.h ?? 0);
   const cellH = Math.max(60, Math.max(...blocks.map(textH)) + 20 + (vertical ? tip : 0));
   out.h = vertical ? n * cellH + (n - 1) * b.gap : rows * cellH + (rows - 1) * ROW_GAP;

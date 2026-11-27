@@ -8,6 +8,7 @@ import {fullWidthUnits} from './verify-caption.ts';
 /** How to fix a mid-word break depends on whether the part's boxes can be widened: a chevron / cycle / swimlane fixes the frame first. */
 const MID_WORD_FIX: Record<string, string> = {
   chevron: "矢羽根の幅は 1 段に並ぶ数で決まる。`rows` / `perRow` で 1 段の数を減らす（`'auto'` も使える）、`direction: 'vertical'` にする、文言を短くする",
+  timeline: '幅を広げる',
   valueChain: '矢羽根の幅は主活動の数で決まる。主活動を減らす、文言を短くする、マージンの矢印を外す（`margin: false`）',
   cycle: '円は、カタカナの語に合わせて幅・高さの上限（幅 −8px、高さ 760px）まで広がる。それでも入らない語は、文言を短くする、項目を減らす',
   swimlane: "列の幅は段数で決まる。`fit: 'shrink'` を外す、列を減らす、文言を短くする",

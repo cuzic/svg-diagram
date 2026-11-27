@@ -80,3 +80,25 @@ test('the same holds for the labels of vlines on vertical bars', async () => {
   assert.equal(b.ink!.lines.filter(l => l.soft).length, raised(b, vl.map(l => l.label)));
   assert.ok(raised(b, vl.map(l => l.label)) >= 1);
 });
+
+// M1 (round 2): when no placement keeps every leader clear, a leader is left out rather than drawn through a label
+test('two wide labels on close lines in a narrow figure: no leader runs through a label (horizontal bars)', async () => {
+  const r = await checkDiagram(diagram({theme: 'blue', title: 't', width: 320}).add(bars(DATA, {max: 100, lines: [{at: 30, label: 'Upper limit long label'}, {at: 38, label: 'Lower limit long label'}]})));
+  const b = r.laidOut.laidOut.find((x): x is LaidOutBars => x.type === 'bars')!;
+  assert.deepEqual(crosses(b), []);
+  assert.deepEqual(r.verdict.problems, []);
+});
+
+test('seeded fuzz: lines / vlines of random closeness and width never get a leader through a label', async () => {
+  let seed = 12345;
+  const rnd = (n: number) => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % n; };
+  const words = ['Cap', 'Upper limit', 'Lower limit long label', 'Mean', 'Aim', 'Reference value'];
+  for (let k = 0; k < 150; k++) {
+    const dir = k % 2 ? 'v' : 'h', n = 1 + rnd(7), width = [320, 560, 940][rnd(3)], base = 10 + rnd(50);
+    const ls = Array.from({length: n}, (_, i) => ({at: dir === 'h' ? base + i * (1 + rnd(5)) : 0.3 + i * (0.05 + rnd(30) / 100), label: words[rnd(words.length)] + (rnd(2) ? ` ${i}` : '')}));
+    const opts = dir === 'h' ? {max: 100, lines: ls} : {dir: 'v' as const, max: 100, vlines: ls};
+    const r = await checkDiagram(diagram({theme: 'blue', title: 't', width}).add(bars(DATA, {unit: '件', ...opts})));
+    const b = r.laidOut.laidOut.find((x): x is LaidOutBars => x.type === 'bars')!;
+    assert.deepEqual(crosses(b), [], `k=${k} ${dir} ${width} ${JSON.stringify(ls)}`);
+  }
+});
