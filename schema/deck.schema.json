@@ -167,33 +167,45 @@
           "callouts": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "label": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 60,
-                  "description": "Plain words before the emphasised text, such as 「足す一文：」.",
-                  "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
-                  "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60,
+                      "description": "Plain words before the emphasised text, such as 「足す一文：」.",
+                      "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                      "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300,
+                      "description": "The emphasised text, drawn bold in a tinted box near the bottom of the slide.",
+                      "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                      "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+                    }
+                  },
+                  "required": [
+                    "text"
+                  ],
+                  "additionalProperties": false
                 },
-                "text": {
+                {
                   "type": "string",
                   "minLength": 1,
-                  "maxLength": 300,
-                  "description": "The emphasised text, drawn bold in a tinted box near the bottom of the slide.",
+                  "maxLength": 360,
+                  "description": "Shorthand for an object: \"label: text\" is split at its first \": \" (or full-width \"：\") into a label (the colon kept) and a text; a string with neither is the text alone.",
                   "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                   "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
                 }
-              },
-              "required": [
-                "text"
-              ],
-              "additionalProperties": false
+              ]
             },
             "minItems": 0,
             "maxItems": 3,
-            "description": "Up to three emphasised lines near the bottom of the slide. Not on a cover."
+            "description": "Up to three emphasised lines near the bottom of the slide. Each is an object {label?, text} or a string. Not on a cover."
           },
           "source": {
             "type": "string",

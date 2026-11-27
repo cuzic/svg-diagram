@@ -1,7 +1,7 @@
 // Read deck files and resolve figure paths before choosing a spec validator.
 import fs from 'node:fs';
 import path from 'node:path';
-import type {DeckSlide, DeckSpec} from './deck-spec-core.ts';
+import {withCalloutObjects, type DeckSlide, type DeckSpec} from './deck-spec-core.ts';
 import {withoutSchemaField, type SpecIssue} from './spec-kit.ts';
 
 export interface LoadedDeck {
@@ -44,7 +44,7 @@ export function readDeckFile(deckFile: string): DeckFileError | {ok: true; loade
     errors.push(`${where}: a path must name a diagram source (.ts) or a spec file (.json); otherwise write the spec itself`);
     return {keep: false};
   };
-  const resolved = Array.isArray(slides) ? {...(raw as object), slides: slides.map((s: unknown, i) => {
+  const resolved0 = Array.isArray(slides) ? {...(raw as object), slides: slides.map((s: unknown, i) => {
     if (typeof s !== 'object' || s === null) return s;
     const {figure, columns, ...rest} = s as DeckSlide;
     const out: DeckSlide = {...rest};
@@ -58,6 +58,7 @@ export function readDeckFile(deckFile: string): DeckFileError | {ok: true; loade
     }) : columns;
     return out;
   })} : raw;
+  const resolved = withCalloutObjects(resolved0);
   if (errors.length) return {ok: false, errors};
   // checked with a stand-in where a .ts figure was left out: a heading for a slide (a figure is enough), a text for a column
   const checked = Array.isArray((resolved as {slides?: unknown} | null)?.slides)

@@ -3,7 +3,7 @@
 // fallback) and scaled onto its slide with the heading, lead, callouts, source and notes (lib/pptx/deck.ts).
 import {capped} from './spec-validation.ts';
 import type {SpecIssue} from './spec-kit.ts';
-import {autoColumns, columnFallbackWarning, columnFigurePath, columnSpec, figurePath, figureProblemMessages, fitOf, sharedColumns, type DeckSpec} from './deck-spec-core.ts';
+import {autoColumns, columnFallbackWarning, columnFigurePath, columnSpec, figurePath, figureProblemMessages, fitOf, sharedColumns, withCalloutObjects, type DeckSpec} from './deck-spec-core.ts';
 import {DOC_LAYOUT_WIDTH, chooseColumns, columnWidths, figureRooms, fillSearch, maxScale, ruleIds, type FigureFit} from './deck-layout.ts';
 import {guardedEngine, type TextEngine} from './spec-edge-core.ts';
 import {zipPackage, type FigurePlan, type PptxEdgeOptions} from './pptx-edge-core.ts';
@@ -46,7 +46,7 @@ export async function renderDeckPptxEdgeWith(input: unknown, givenEngine: TextEn
   if (!(Number.isFinite(pngScale) && pngScale > 0)) throw new Error(`pngScale must be a positive number (got ${String(pngScale)})`);
   const invalid = services.validate(input);
   if (invalid.length) return none(invalid);
-  const deck = input as DeckSpec, engine = guardedEngine(givenEngine), fonts = fontsOf(opts.font);
+  const deck = withCalloutObjects(input) as DeckSpec, engine = guardedEngine(givenEngine), fonts = fontsOf(opts.font);
   const issues: SpecIssue[] = [];
   /** A figure planned as PowerPoint shapes: slide i's own, or its column j's (ADR 0058). */
   const fallbacks: SpecIssue[] = [];

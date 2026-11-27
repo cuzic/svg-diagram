@@ -12,6 +12,8 @@ export const MAX_CALLOUTS = 3;
 export const MIN_COLUMNS = 2, MAX_COLUMNS = 3;
 
 export interface DeckCallout {label?: string; text: string}
+/** What a slide's `callouts` may hold on input: an object, or a string written as `"label: text"` (see `calloutOf`). A DeckSpec holds the objects: the deck is read as `unknown`, and `withCalloutObjects` turns the strings into them first. */
+export type DeckCalloutInput = DeckCallout | string;
 /** One column of a slide (ADR 0058): a figure or short text, under an optional caption, `width` its share of the row. */
 export interface DeckColumn {caption?: string; figure?: unknown; text?: string; /** Its share of the row (1 to 3), or 'auto' (ADR 0061; leaving it out is 'auto' too). */ width?: number | 'auto'}
 export interface DeckSlide {title?: string; lead?: string; figure?: unknown; columns?: DeckColumn[]; columnScale?: 'each' | 'same'; fit?: 'fill' | 'width'; callouts?: DeckCallout[]; source?: string; notes?: string; /** ADR 0066: a cover, and the fields only a cover has. */ layout?: 'cover'; event?: string; date?: string; presenter?: string}
@@ -21,6 +23,28 @@ export const NOT_ON_COVER = ['figure', 'columns', 'columnScale', 'fit', 'callout
 export const COVER_ONLY = ['event', 'date', 'presenter'] as const;
 /** The message for a field a cover does not draw. */
 export const notOnCover = (field: string): string => `is not drawn on a cover (layout "cover"): put the ${field} on a slide of its own, or take "layout" out`;
+
+/**
+ * A callout written as a string, as the object it means. A callout has a `label` field, so the string is split at its first ": " (colon and
+ * space) or full-width "：" into label (the colon kept, as 「足す一文：」 is written) and text; a string with neither, or with nothing on one side
+ * of it, is the text alone. Anything else is left as written (the schema check then says what is wrong with it).
+ */
+export function calloutOf(c: unknown): unknown {
+  if (typeof c !== 'string') return c;
+  const cut = /: |：/.exec(c);
+  if (cut) {
+    const label = c.slice(0, cut.index + cut[0].length), text = c.slice(cut.index + cut[0].length).trim();
+    if (c.slice(0, cut.index).trim() && text) return {label: label.trimStart(), text};
+  }
+  return {text: c};
+}
+/** The deck with every slide's string callouts as objects (a copy only where something changes). */
+export function withCalloutObjects<T>(input: T): T {
+  const slides = (input as Json | null)?.['slides'];
+  const has = (s: unknown): boolean => typeof s === 'object' && s !== null && Array.isArray((s as Json)['callouts']) && ((s as Json)['callouts'] as unknown[]).some(c => typeof c === 'string');
+  if (!Array.isArray(slides) || !slides.some(has)) return input;
+  return {...(input as object), slides: slides.map((s: unknown) => has(s) ? {...(s as Json), callouts: ((s as Json)['callouts'] as unknown[]).map(calloutOf)} : s)} as T;
+}
 export interface DeckSpec {title?: string; fit?: 'fill' | 'width'; slides: DeckSlide[]}
 
 /** How slide i's figures take its room (ADR 0060): the slide's `fit`, else the deck's, else 'fill'. */
@@ -42,10 +66,13 @@ const slideShape = (figure: JsonSchema): JsonSchema => object({
   }, [], 'One column: a figure or short text.'), MAX_COLUMNS, MIN_COLUMNS), description: 'Two or three columns side by side, in place of the figure. Not on a cover.'},
   columnScale: {...oneOf('each', 'same'), description: '"each" (default): each column\'s figure as large as it fits; "same": every figure at one scale (to compare a before and an after). Not on a cover.'},
   fit: {...oneOf('fill', 'width'), description: 'How the figures take the room the slide leaves: "fill" (default) lays each out at the width that draws it largest (up to 1.5 times), so little room is left empty; "width" keeps each at its own width (or its column\'s) and scales it up to 1.25 times. Not on a cover.'},
-  callouts: {...list(object({
-    label: text('Plain words before the emphasised text, such as 「足す一文：」.', 60),
-    text: text('The emphasised text, drawn bold in a tinted box near the bottom of the slide.', 300),
-  }, ['text']), MAX_CALLOUTS), description: 'Up to three emphasised lines near the bottom of the slide. Not on a cover.'},
+  callouts: {...list({oneOf: [
+    object({
+      label: text('Plain words before the emphasised text, such as 「足す一文：」.', 60),
+      text: text('The emphasised text, drawn bold in a tinted box near the bottom of the slide.', 300),
+    }, ['text']),
+    text('Shorthand for an object: "label: text" is split at its first ": " (or full-width "：") into a label (the colon kept) and a text; a string with neither is the text alone.', 360),
+  ]}, MAX_CALLOUTS), description: 'Up to three emphasised lines near the bottom of the slide. Each is an object {label?, text} or a string. Not on a cover.'},
   source: text(`Where the facts come from, drawn small at the bottom (up to ${SOURCE_MAX_CHARS} characters). It wraps to more lines, and the figure gets less room; more than ${SOURCE_MAX_LINES} lines is an error.`, SOURCE_MAX_CHARS),
   notes: text('Speaker notes. Lines are separated by "\\n".', 5000),
 }, [], 'One 16:9 slide. Every field is optional, but a slide needs a title, a figure or columns. figure and columns do not go together. With "layout": "cover" it is a cover: title (required), lead, event, date, presenter, source and notes only.');
@@ -89,7 +116,7 @@ export async function validateDeckWithAsync(input: unknown, validateFigure: (fig
 type FigureLocation = (path: string | null) => string;
 
 function deckIssues<T>(input: unknown, validateFigure: (figure: unknown, at: FigureLocation) => T): (SpecIssue | T)[] {
-  const flat = withoutBreaks(withoutSchemaField(input)); // a deck file names its schema for the editor (ADR 0071)
+  const flat = withoutBreaks(withCalloutObjects(withoutSchemaField(input))); // a deck file names its schema for the editor (ADR 0071)
   const issues: (SpecIssue | T)[] = validateAgainst(SHAPE, flat);
   const slides = (flat as Json | null)?.['slides'];
   if (Array.isArray(slides)) slides.forEach((s: unknown, i) => {
