@@ -1,6 +1,6 @@
 # ADR 0084: フォレストプロット（`forest()`）— 行ごとの点推定と区間を、基準の線（1 = 差がない）と数値の列といっしょに描く
 
-- 状態: 提案（Proposed。2026-11-26。Q1〜Q8 を決める人に聞く）
+- 状態: 承認(Accepted。2026-11-27。Q1〜Q8 は決める人がすべて推奨どおりに決定。U1 → U2 の順で実装する)
 - 日付: 2026-11-26
 - 基点: `main`（3c403fa3）
 - 関連: ADR 0080（帯の定義 `BandDef`、tree shaking）、ADR 0054（PPTX の部品と名前）、ADR 0055 / 0060（デッキ、`fit`、9pt の警告）、ADR 0069（`partCatalog`）、ADR 0071（JSON Schema）
@@ -136,7 +136,7 @@ forest(
 - 説明文（`list_diagram_parts` に出る）:「フォレストプロット: 行ごとに点推定と区間（信頼区間など）を、基準の線（既定 1 = 差がない）と右の数値の列といっしょに描く。比は対数目盛（既定）、差は scale: linear, ref: 0。見出しの行と、統合のひし形を書ける」。`rangeBars` の説明に「点推定と基準の線が要るなら forest」を 1 文足す。
 - `pnpm schema` で作り直す。
 
-## 決める人への質問
+## 決める人への質問（決定済み: すべて推奨どおり）
 
 | # | 質問 | 推奨 |
 |---|---|---|
@@ -149,7 +149,7 @@ forest(
 | Q7 | 数値の列の書式 | **固定の形 + `decimals`**。負の数のときは `, ` 区切り（D4）。ひな形と列の追加は、要望が出たら別の ADR |
 | Q8 | `domain` の外に出る区間 | **端で切って矢じり + info**（論文のフォレストプロットの慣習）。点推定が外ならエラー |
 
-## 作業の順（Q の答えが出てから）
+## 作業の順
 
 1. **U1 配置と DSL**: `lib/charts-forest.ts`（D2〜D7。試しのコードはそのまま使わず、ラベルの折り返し・`domain` と矢じり・負の数の区切り・D7 のエラーを足して書き直す）、`lib/bands/forest.ts`、`ChartKind` と `full-definitions.ts`・`charts.ts` の表、`dsl-pure.ts` の export。テスト: (i) 対数の目盛（16 倍の境目の両側）、(ii) `low > estimate` などのエラーの文言、(iii) 重みの四角の大きさの順、(iv) 統合が 1 つのときだけ点線、(v) 負の数の数値の列、(vi) `domain` の外の区間に矢じりと info、(vii) 10 行の図が `check --strict` を通る。
 2. **U2 spec と文書と例**: `lib/spec-parts/forest.ts`（D9）、`pnpm schema`、`rangeBars` の説明文、README、`skills/svg-diagram/` の部品の参照、`examples/forest.ts`（10 行・対数・数値の列・向きの注）と golden（Docker）、デッキの例を 1 枚（`examples/` のデッキ）。
