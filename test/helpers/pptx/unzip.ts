@@ -12,3 +12,15 @@ export function unzipEntry(zip: Buffer, wanted: string): Buffer {
   }
   throw new Error(`${wanted} not found in zip`);
 }
+
+/** The names of the entries of a zip written by lib/pptx/zip.ts, in order. */
+export function unzipNames(zip: Buffer): string[] {
+  const names: string[] = [];
+  let off = 0;
+  while (off + 30 <= zip.length && zip.readUInt32LE(off) === 0x04034b50) {
+    const size = zip.readUInt32LE(off + 18), nameLen = zip.readUInt16LE(off + 26), extraLen = zip.readUInt16LE(off + 28);
+    names.push(zip.subarray(off + 30, off + 30 + nameLen).toString());
+    off += 30 + nameLen + extraLen + size;
+  }
+  return names;
+}

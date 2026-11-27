@@ -1,7 +1,7 @@
 // prefixSvgIds / idPrefixFor (ADR 0012 D2): a pure rewrite of ids and the references to them.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {prefixSvgIds, idPrefixFor} from '../lib/svg-ids.ts';
+import {prefixSvgIds, prefixTagIds, idPrefixFor} from '../lib/svg-ids.ts';
 
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svg-title svg-desc">
   <title id="svg-title">t</title><desc id="svg-desc">d</desc>
@@ -56,4 +56,10 @@ test('idPrefixFor: one source is <p>, several are <p>-<basename>; unsafe charact
   assert.equal(idPrefixFor('s1', null), 's1');
   assert.equal(idPrefixFor('s1', 'flow'), 's1-flow');
   assert.equal(idPrefixFor('s1', 'my flow'), 's1-my-flow');
+});
+
+test('prefixTagIds: attributes only; a <style> and the text of a label are left as they are', () => {
+  const src = '<svg aria-labelledby="t"><title id="t">url(#t)</title><style>#t { fill: red }</style><path fill="url(#t)"/><use href="#t"/></svg>';
+  assert.equal(prefixTagIds(src, 'q'), '<svg aria-labelledby="q-t"><title id="q-t">url(#t)</title><style>#t { fill: red }</style><path fill="url(#q-t)"/><use href="#q-t"/></svg>');
+  assert.match(prefixSvgIds(src, 'q'), /<style>#q-t \{/); // the full form follows the style too
 });

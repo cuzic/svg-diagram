@@ -4,8 +4,25 @@ on:
     branches: [main]
   pull_request:
 jobs:
+  # the ECMA-376 transitional schemas (test/helpers/pptx/xsd.ts, SHA-256 pinned there), downloaded once per key and saved to the cache here,
+  # so the three test shards restore them instead of each downloading (only one job can save a key)
+  ooxml-xsd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/ooxml-xsd
+          key: ooxml-xsd-${{ hashFiles('test/helpers/pptx/xsd.ts') }}
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: node -e "import('./test/helpers/pptx/xsd.ts').then(m => m.fetchXsd())"
   test:
     name: test (${{ matrix.shard }}/3)
+    needs: ooxml-xsd
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -19,8 +36,8 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - name: Japanese fonts (text widths are read from the font files; the browser comparisons need the same fonts)
-        run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+      - name: Japanese fonts (text widths are read from the font files; the browser comparisons need the same fonts), and xmllint for the PPTX schema checks
+        run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk libxml2-utils
       # the edge entries (spec/edge, pptx/edge) are tested with the font a Worker bundles, Noto Sans JP; it is kept out of fontconfig so the
       # browser comparisons above still see the same fonts (test/helpers/text-engine.ts reads SVG_DIAGRAM_JA_FONTS)
       - name: Noto Sans JP for the edge entries
@@ -36,6 +53,14 @@ jobs:
           )
           echo "SVG_DIAGRAM_JA_FONTS=$d" >> "$GITHUB_ENV"
       - run: pnpm install --frozen-lockfile
+      # the schemas the ooxml-xsd job cached: with them and xmllint the PPTX schema checks run; under CI they fail rather than skip without them
+      # (test/helpers/pptx/xsd.ts schemaCheckSkipped). Downloaded here only if the cache could not be restored.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache/ooxml-xsd
+          key: ooxml-xsd-${{ hashFiles('test/helpers/pptx/xsd.ts') }}
+      - name: OOXML schemas
+        run: node -e "import('./test/helpers/pptx/xsd.ts').then(m => m.hasXsd() || m.fetchXsd())"
       # the tests that compare with a real browser (lint --engine browser, --engine chromium, the Chromium measuring engine) need one
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm typecheck

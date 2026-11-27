@@ -532,7 +532,7 @@ try {
         measure: ({text, size}) => ({w: [...text].length * size * 0.6, h: size}),
         bands: {banner: bannerPptx}, strict: true,
       });
-    `, include: 'pptx/banner-band.js', budget: {esbuild: 110300, Vite: 140700}, bands: ['banner.js'],
+    `, include: 'pptx/banner-band.js', budget: {esbuild: 111800, Vite: 140700}, bands: ['banner.js'],
       exclude: [...legacy, 'pptx/box-band.js', 'emit-box.js', 'pptx/box-bands.js', 'pptx/bands.js', 'pptx/table-band.js', 'pptx/svg-shapes.js', 'pptx/zip-node.js'], draw: true},
     {name: 'Selective PPTX Grid', source: `
       import {renderBandsPptx} from 'svg-diagram/pptx';
@@ -1522,7 +1522,8 @@ try {
     assert.equal(result.ok, true, label);
     assert.match(result.svg, /<text[^>]*>Review<\/text>/, label);
     const bytes = Buffer.byteLength(code);
-    assert.ok(bytes <= 119500, `${label}: ${bytes} bytes exceeds 119500`);
+    // 119500 -> 119700: the Node selective renderSpec takes idPrefix / inline (ADR 0012 D2), which brings the id rewriter (lib/svg-ids.ts) into this bundle
+    assert.ok(bytes <= 119700, `${label}: ${bytes} bytes exceeds 119700`);
     console.log(`${label}: ${bytes} bytes`);
   }
 

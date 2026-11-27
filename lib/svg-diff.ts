@@ -8,7 +8,12 @@ const metaOf = (s: string): string => (s.match(/<metadata[^>]*>([\s\S]*?)<\/meta
 const elementsOf = (s: string): string[] => [...strip(s).matchAll(/<(text|rect|circle|ellipse|path|line|polygon)\b[^>]*?(?:\/>|>[^<]*<\/\1>)/g)].map(m => m[0]);
 const isInvisible = (e: string): boolean => /fill-opacity="0"/.test(e);
 const textKey = (e: string): string => (e.match(/>([^<]*)</) ?? [])[1] ?? '';
-const size = (s: string): string => (s.match(/<svg[^>]*\bwidth="(\d+)"[^>]*\bheight="(\d+)"/) ?? []).slice(1).join('x');
+// width x height of the root; an inline figure (`build --inline`) has no such attributes, so its viewBox is the size
+const size = (s: string): string => {
+  const root = /<svg\b[^>]*>/.exec(s)?.[0] ?? '';
+  const wh = (root.match(/\bwidth="(\d+)"[^>]*\bheight="(\d+)"/) ?? []).slice(1).join('x');
+  return wh || (/\bviewBox="0 0 (\d+) (\d+)"/.exec(root) ?? []).slice(1).join('x');
+};
 
 function diffMultiset(a: string[], b: string[]): {added: string[]; removed: string[]} {
   const count = new Map<string, number>();

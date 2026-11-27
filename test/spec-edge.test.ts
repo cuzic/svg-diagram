@@ -362,3 +362,33 @@ test('the selected edge renderer matches the legacy catalog results in finding o
     }
   }
 });
+
+test('idPrefix and inline reach spec/edge; the outlined glyph ids are per figure; a bad prefix is an issue', async () => {
+  const {tablePart} = await import('../lib/spec-parts/selective/table.ts');
+  const input = {...spec(tablePart.example), legend: false};
+  const engine = realEngine();
+  const ids = (svg: string) => [...svg.matchAll(/\sid="([^"]+)"/g)].map(m => m[1] as string);
+  const r = await renderSpecEdge(input, engine, {idPrefix: 'e1-', inline: true});
+  assert.ok(r.svg);
+  assert.ok(ids(r.svg).some(i => i.startsWith('e1-sd-glyph-')));
+  assert.ok(ids(r.svg).every(i => i.startsWith('e1-')));
+  assert.match(r.svg, /<use href="#e1-sd-glyph-/);
+  assert.doesNotMatch(/<svg\b[^>]*>/.exec(r.svg)?.[0] ?? '', /\s(?:width|height)=/);
+  const bad = await renderSpecEdge(input, engine, {idPrefix: 'a.b'});
+  assert.equal(bad.ok, false);
+  assert.match(bad.issues[0]?.message ?? '', /idPrefix/);
+});
+
+test('spec/edge: label text that reads url(#id) stays as written, also as the outlined aria-label; a non-string idPrefix is an issue', async () => {
+  const {tablePart} = await import('../lib/spec-parts/selective/table.ts');
+  const engine = realEngine();
+  const input = {...spec(tablePart.example), title: 'see url(#svg-title) here', showTitle: true, legend: false};
+  const r = await renderSpecEdge(input, engine, {idPrefix: 'f1'});
+  assert.ok(r.svg);
+  assert.match(r.svg, /aria-label="see url\(#svg-title\) here"/);
+  assert.doesNotMatch(r.svg, /aria-label="[^"]*f1-/);
+  assert.match(r.svg, /id="f1-svg-title"/);
+  const bad = await renderSpecEdge(input, engine, {idPrefix: 5 as unknown as string});
+  assert.equal(bad.ok, false);
+  assert.match(bad.issues[0]?.message ?? '', /idPrefix/);
+});

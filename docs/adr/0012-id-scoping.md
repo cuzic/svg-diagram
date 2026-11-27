@@ -1,6 +1,6 @@
 # ADR 0012: id のスコープ化(band をまたぐ `duplicate anchor id`)と、複数 SVG の埋め込みでの内部 id 衝突
 
-- 状態: 実装済み(第1段。D1 の明示 `scope` と実行時の解決、reveal / spotlight の修飾名、D2 の `--id-prefix`。第2段の `idScope: 'auto'` と `Declares` の修飾名(単位 D)は未着手。下の「実装での補足」を参照)
+- 状態: 実装済み(第1段。D1 の明示 `scope` と実行時の解決、reveal / spotlight の修飾名、D2 の `--id-prefix`、`renderSpec` / `renderDiagram` / `renderInBrowser` の `idPrefix` と `inline`(同じ後処理 `prepareForEmbedding`)。第2段の `idScope: 'auto'` と `Declares` の修飾名(単位 D)は未着手。下の「実装での補足」を参照)
 - 日付: 2026-10-13
 - 基点: `main`(4e58744、PR #120 まで)
 - 関連: ADR 0007(結果が入力だけで決まること), ADR 0008(`--html`)。要望原文は「ツール側の要望」の D1 / D2

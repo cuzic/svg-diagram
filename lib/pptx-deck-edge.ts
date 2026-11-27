@@ -11,5 +11,5 @@ export type {DeckEdgeResult, DeckSlideResult} from './pptx-deck-edge-core.ts';
 export type DeckEdgeOptions = PptxEdgeOptions;
 
 export function renderDeckPptxEdge(input: unknown, engine: TextEngine, opts: DeckEdgeOptions): Promise<DeckEdgeResult> {
-  return renderDeckPptxEdgeWith(input, engine, opts, {validate: validateDeck, plan: (spec, guarded) => planFigureEdge(spec, guarded, opts)});
+  return renderDeckPptxEdgeWith(input, engine, opts, {validate: validateDeck, plan: (spec, guarded, width) => planFigureEdge(spec, guarded, opts, width)});
 }

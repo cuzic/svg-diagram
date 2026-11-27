@@ -11,6 +11,7 @@ import {depsOf} from './source-deps.ts';
 import {findManifest} from './icon-registry.ts';
 import {renderDiagram} from './dsl/render.ts';
 import {closeMeasurer} from './measure.ts';
+import type {EmbedOptions} from './svg-ids.ts';
 
 let hooked = false;
 function ensureResolveHook(): void {
@@ -19,7 +20,7 @@ function ensureResolveHook(): void {
   hooked = true;
 }
 
-export interface RenderSourceOptions {
+export interface RenderSourceOptions extends EmbedOptions {
   /** 'cacheOnly' (default) never starts a dev server to measure a slide; 'measure' does, and caches the result. */
   budget?: 'measure' | 'cacheOnly';
   /** Re-read the source, and the local files it imports, even if they were imported before (for watch mode). */
@@ -53,7 +54,7 @@ export async function renderSource(file: string, opts: RenderSourceOptions = {})
   const config = loadConfig(opts.configFrom ?? path.dirname(abs));
   const d = await loadDiagram(abs, config, {fresh: opts.fresh});
   if (opts.noSourceLine) d.sourceLine = undefined; // d is this call's own Diagram (define() ran just now)
-  const r = await renderDiagram(d, {name: path.basename(abs, path.extname(abs)) + '.svg', budget: opts.budget ?? 'cacheOnly', html: opts.html});
+  const r = await renderDiagram(d, {name: path.basename(abs, path.extname(abs)) + '.svg', budget: opts.budget ?? 'cacheOnly', html: opts.html, idPrefix: opts.idPrefix, inline: opts.inline});
   const problems = [...r.verdict.problems, ...r.xml];
   return {svg: r.svg, ...(r.html !== undefined ? {html: r.html} : {}), ok: problems.length === 0, problems, warnings: r.verdict.warnings, notes: r.notes, width: r.width, height: r.height, deps: [...new Set([abs, ...depsOf(abs).files, ...[config._file, findManifest(path.dirname(abs))].filter((f): f is string => !!f)])]};
 }
