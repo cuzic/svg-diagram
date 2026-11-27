@@ -195,8 +195,10 @@ export interface SwimlaneBand {
   phases?: SwimlanePhase[];
   /** As placed by swimlane(): the lane each line sits below. */
   boundaries?: {after: string; label?: string}[];
-  /** As placed by swimlane(): the flows that run back under the boxes of a row. `underNeed`: the room (px) each such row needs below its boxes; `underRows`: filled by the layout with the bottom of each row ('lane|row'), where the flows find it. */
-  underRows?: Record<string, number>;
+  /** As placed by swimlane(): the flows that run back under the boxes of a row. The swimlane's layout works out the depth and the label place of each (`underFlows`; `underNeed`: the room (px) each such row needs below its boxes) and hands them to the connects that follow; the labels keep clear of the other flows (`otherFlows`). */
+  /** Each way back under the boxes of one row (its connect band follows the swimlane): `group` is 'lane|row', `off` how far below the row's lowest box the line runs; `moveLabel`: the chip may slide along the line to clear other flows. */
+  underFlows?: {from: string; to: string; label?: string; group: string; off: number; moveLabel: boolean}[];
+  otherFlows?: {from: string; to: string; label?: string}[];
   underNeed?: {lane: string; row: number; need: number}[];
   labelW?: number | 'fit';
   colGap?: number;

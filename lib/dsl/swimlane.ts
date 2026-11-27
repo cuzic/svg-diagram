@@ -138,10 +138,10 @@ function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: Swimla
     return {f, a, b, from, to, auto, under};
   });
   // each way back under a lane's boxes gets a depth of its own (the outer one of two that nest runs deeper; ones that only partly overlap differ too), so no two share a line or a label slot
-  const underRows: Record<string, number> = {}; // filled by the layout: the bottom of each row of each lane, by 'lane|row'
-  const underAt = new Map<typeof specs[number], {group: string; level: number}>();
+  type Spec = typeof specs[number];
+  const underAt = new Map<Spec, {group: string; level: number}>();
   const groups = new Map<string, {lane: string; row: number; label: boolean; levels: number}>();
-  const reach = (sp: typeof specs[number]): [number, number] => [sp.b.col + (sp.b.span - 1) / 2, sp.a.col + (sp.a.span - 1) / 2];
+  const reach = (sp: Spec): [number, number] => [sp.b.col + (sp.b.span - 1) / 2, sp.a.col + (sp.a.span - 1) / 2];
   for (const sp of [...specs.filter(x => x.under)].sort((x, y) => (reach(x)[1] - reach(x)[0]) - (reach(y)[1] - reach(y)[0]))) {
     const row = sp.a.row ?? 0, group = `${sp.a.lane}|${row}`, [lo, hi] = reach(sp);
     let level = 0;
@@ -151,33 +151,37 @@ function swimlaneOf(lanesIn: SwimlaneLane[], steps: SwimlaneStep[], opts: Swimla
     g.label ||= !!sp.f.label; g.levels = Math.max(g.levels, level + 1);
     groups.set(group, g);
   }
-  const uses = new Map();
-  const note = (k: string) => uses.set(k, (uses.get(k) ?? 0) + 1);
-  for (const sp of specs) if (sp.auto || sp.under) { note(sp.from); note(sp.to); }
-  const seen = new Map();
-  const spread = (ref: string): string => {
-    const n = uses.get(ref) ?? 1;
-    if (n < 2) return ref;
-    const k = seen.get(ref) ?? 0; seen.set(ref, k + 1);
-    return `${ref}@${((k + 1) / (n + 1)).toFixed(2)}`;
-  };
+  // the ends that share a side of one step are spread along it. By the routes, not by the order written: along a bottom, the ends of ways back that leave to the left
+  // come first (the deeper one nearer the middle), then the ends that go straight down, then the ends of ways back that come in from the right (the deeper one nearer the middle too);
+  // so that nested and outer ways back from one box never cross, and two that meet at one box never share a run
+  const ends = new Map<string, {sp: Spec; role: 'from' | 'to'; g: number; depth: number}[]>();
+  for (const sp of specs) if (sp.auto || sp.under) for (const role of ['from', 'to'] as const) {
+    const list = ends.get(sp[role]) ?? [];
+    list.push({sp, role, g: !sp.under ? 1 : role === 'from' ? 0 : 2, depth: sp.under ? must(underAt.get(sp)).level : 0});
+    ends.set(sp[role], list);
+  }
+  const slotRef = new Map<Spec, {from: string; to: string}>(specs.map(sp => [sp, {from: sp.from, to: sp.to}]));
+  for (const [ref, list] of ends) {
+    if (list.length < 2) continue;
+    list.sort((x, y) => x.g - y.g || (x.g === 0 ? x.depth - y.depth : x.g === 2 ? y.depth - x.depth : 0));
+    list.forEach((e, k) => { must(slotRef.get(e.sp))[e.role] = `${ref}@${((k + 1) / (list.length + 1)).toFixed(2)}`; });
+  }
   const slot = new Map();
-  const flows = specs.map(sp => {
-    const {f, b, auto, under} = sp;
-    let {from, to} = sp;
+  const underFlows: NonNullable<SwimlaneBand['underFlows']> = [];
+  const flows = specs.flatMap(sp => {
+    const {f, b, auto, under} = sp, ref = must(slotRef.get(sp));
     if (under) {
       const at = must(underAt.get(sp)), g = must(groups.get(at.group));
-      const band = connectBand(spread(from), spread(to), {route: 'loop-under', label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.5, line: f.line, arrow: f.arrow, tone: f.tone}, false);
-      return Object.assign(band, {under: {rows: underRows, group: at.group, off: underOffset(g.label, at.level)}});
+      underFlows.push({from: ref.from, to: ref.to, ...(f.label === undefined ? {} : {label: f.label}), group: at.group, off: underOffset(g.label, at.level), moveLabel: f.labelAt === undefined});
+      return [Object.assign(connectBand(ref.from, ref.to, {route: 'loop-under', label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.5, line: f.line, arrow: f.arrow, tone: f.tone}, false), {under: true as const})];
     }
-    if (auto) { from = spread(from); to = spread(to); }
     const k = slot.get(b.col) ?? 0; slot.set(b.col, k + 1);
-    return connectBand(from, to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone}, false);
+    return [connectBand(auto ? ref.from : sp.from, auto ? ref.to : sp.to, {route: 'elbow', bend: f.bend ?? 'auto', bendOffset: f.bendOffset ?? 6 + (k % 3) * 7, label: f.label, chip: f.chip ?? !!f.label, labelAt: f.labelAt ?? 0.4, line: f.line, arrow: f.arrow, tone: f.tone}, false)];
   });
   if (opts.fit !== undefined && opts.fit !== 'shrink') throw new Error(`swimlane(): fit must be 'shrink' (got ${String(opts.fit)})`);
   // the room each row of a lane needs below its boxes for the ways back that run there
   const underNeed = [...groups.values()].map(g => ({lane: g.lane, row: g.row, need: underOffset(g.label, g.levels - 1) + (g.label ? UNDER_CHIP_HALF : 0) + UNDER_MARGIN}));
-  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, ...(underNeed.length ? {underRows, underNeed} : {}), phases: opts.phases, ...(boundaries?.length ? {boundaries} : {}), labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...scopeOpt(opts, 'swimlane()'), ...revealOf(opts)};
+  const block: SwimlaneBand = {type: 'swimlane', lanes, steps: placed, cols, ...(underNeed.length ? {underNeed, underFlows, otherFlows: flows.filter(c => !c.under).map(c => ({from: c.from, to: c.to, ...(c.label === undefined ? {} : {label: c.label})}))} : {}), phases: opts.phases, ...(boundaries?.length ? {boundaries} : {}), labelW: opts.labelW, colGap: opts.colGap, ...(opts.fit === undefined ? {} : {fit: opts.fit}), id: opts.id, ...scopeOpt(opts, 'swimlane()'), ...revealOf(opts)};
   return withAnchors([block, ...flows], placed.map(st => st.id));
 }
 

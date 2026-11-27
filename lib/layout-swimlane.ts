@@ -1,3 +1,4 @@
+import {connectLabelWidth} from './connect-geometry.ts';
 import {splitAtoms, textWidth} from './atoms.ts';
 import type {LayoutCtx} from './layout-ctx.ts';
 import {setScope} from './layout-placed.ts';
@@ -5,9 +6,43 @@ import {boundaryChipH, LINE_HEIGHT_EM, snapGrid, SWIMLANE_COMFY_COL} from './lay
 import {must} from './must.ts';
 import {qualify, scopeOf} from './scope-name.ts';
 import {narrowField} from './tree.ts';
+import type {LaidOutBox} from './types/text-bands.ts';
 import type {LaidOutLane, LaidOutPhase, LaidOutSwimlane, SwimlaneBand} from './types/sequence-table-swimlane.ts';
 import {wrapAtoms} from './wrap.ts';
 
+/**
+ * The ways back under a row's boxes are resolved after the layout (ctx.deferred), with the depth the row's lowest box gives them: `dip` is how far below the
+ * ends they run. Their labels slide along the line to where no other flow's vertical leg (or its label) crosses them.
+ */
+function placeUnderFlows(band: SwimlaneBand, ctx: LayoutCtx, steps: LaidOutBox[], rowBottoms: Map<string, number>): void {
+  const stepOf = new Map(steps.flatMap(s => (s.id ? [[s.id, s] as const] : [])));
+  const end = (ref: string): {x: number; bottom: number; side: string; left: number} => {
+    const [id = '', rest = ''] = ref.split(':'), [side = '', at] = rest.split('@'), st = must(stepOf.get(id));
+    return {x: st.x + st.w * (at === undefined ? 0.5 : Number(at)), bottom: st.y + st.h, side, left: st.x};
+  };
+  const labelW = (label: string): number => connectLabelWidth(label, ctx.roles, ctx.widthOf) + 16;
+  // x of the vertical legs the other flows draw, and how wide their chip is there: the ends on a top / bottom side go straight up or down; an elbow into a left side turns just before it
+  const legs = [
+    ...(band.otherFlows ?? []).flatMap(f => [f.from, f.to].map(r => ({r, w: f.label ? labelW(f.label) : 0}))),
+    ...(band.underFlows ?? []).flatMap(u => [u.from, u.to].map(r => ({r, w: 0}))),
+  ].map(({r, w}) => { const e = end(r); return {x: e.side === 'left' ? e.left - 13 : e.side === 'right' ? e.x + 13 : e.x, w, own: r}; });
+  for (const u of band.underFlows ?? []) {
+    const a = end(u.from), b = end(u.to), bottom = must(rowBottoms.get(u.group));
+    let labelAt: number | undefined;
+    if (u.moveLabel && u.label) {
+      const w = labelW(u.label), lo = Math.min(a.x, b.x) + w / 2 + 4, hi = Math.max(a.x, b.x) - w / 2 - 4;
+      const free = (c: number): boolean => legs.every(l => l.own === u.from || l.own === u.to || Math.abs(c - l.x) >= w / 2 + l.w / 2 + 4);
+      const mid = (a.x + b.x) / 2;
+      for (let d = 0; lo <= hi && d <= (hi - lo) / 2 + 6; d += 6) {
+        const c = [mid + d, mid - d].find(x => x >= lo && x <= hi && free(x));
+        if (c !== undefined) { labelAt = (c - a.x) / (b.x - a.x); break; }
+      }
+    }
+    const key = `~${qualify(scopeOf(band), u.from.split(':')[0] ?? '')}>${qualify(scopeOf(band), u.to.split(':')[0] ?? '')}`; // what resolveConnect looks the flow up by
+    ctx.nodeBottoms.set(key, bottom + u.off); // the line's y
+    if (labelAt !== undefined) ctx.nodeBottoms.set(`${key}@`, labelAt);
+  }
+}
 export function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
   // a boundary's name sits in a chip across the label column: the column is never narrower than the longest name + the chip's round ends, fit: 'shrink' included
@@ -88,15 +123,17 @@ export function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number,
     if (ctx.anchors.has(band.id)) ctx.claimed(band.id, 'a swimlane takes an id that another anchor already has');
     ctx.anchors.set(band.id, {x: frame.x, y: frame.y, w: frame.w, h: frame.h});
   }
+  const rowBottoms = new Map<string, number>();
   for (const st of stepsPlaced) {
     const ln = must(lanes[laneIndex.get(st.lane) ?? -1], `a lane "${st.lane}" in the swimlane (a step's lane is not one of the lanes)`); // an unknown lane id throws here, as before
     const rowTop = ln.blockTop + must(must(ln.rowTops)[st.row ?? 0]);
     st.y = snapGrid(rowTop + (ln.maxStep - st.h) / 2);
-    if (band.underRows) band.underRows[`${st.lane}|${st.row ?? 0}`] = rowTop + ln.maxStep; // where the ways back under this row start
+    rowBottoms.set(`${st.lane}|${st.row ?? 0}`, rowTop + ln.maxStep); // where the ways back under this row start // where the ways back under this row start
     if (st.id) ctx.anchors.set(qualify(scopeOf(band), st.id), {x: st.x, y: st.y, w: st.w, h: st.h}); // placeBoxLike already claimed (and checked) the id; this moves it to the lane row
     if (st.tagBox) st.tagBox.y = st.y - st.tagBox.h / 2;
     ctx.laidOut.push(st);
   }
+  placeUnderFlows(band, ctx, stepsPlaced, rowBottoms);
   frame.span = stepsPlaced.length;
   ctx.y = top0 + (y - startY) + d.gap;
 }

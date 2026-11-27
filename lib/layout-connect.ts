@@ -219,9 +219,10 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
   if (!toVia && toRef.side === 'bottom' && nodeBottoms.has(toRef.id)) to.y = must(nodeBottoms.get(toRef.id));
   if (band.plumb && (toRef.side === 'top' || toRef.side === 'bottom')) to.x = Math.min(toEnd.x + toEnd.w, Math.max(toEnd.x, from.x));
   levelSides(band, fromRef.side, toRef.side, fromEnd, toEnd, from, to);
-  // a way back under a swimlane row runs below the row's lowest box, not below its two end boxes
-  const u = band.under, rowBottom = u?.rows[u.group];
-  if (u && rowBottom !== undefined) band = {...band, dip: rowBottom + u.off - Math.max(from.y, to.y)};
+  if (band.under) { // a swimlane's way back: its layout says how deep it runs (an absolute y) and where its label sits
+    const k = `~${fromRef.id}>${toRef.id}`;
+    band = {...band, dip: must(nodeBottoms.get(k), 'swimlane way back: no layout') - Math.max(from.y, to.y), labelAt: nodeBottoms.get(`${k}@`) ?? band.labelAt};
+  }
   let points = routePoints(band, from, to, fromRef.side);
   if (band.route === 'elbow' && band.bend === 'auto') {
     // Pick the first bend whose path stays clear of every box except the two it joins.

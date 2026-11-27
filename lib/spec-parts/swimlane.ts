@@ -5,7 +5,7 @@ export function defineSwimlanePart<Result extends readonly {type: string; cols?:
   return {
     type: 'swimlane',
     anchors: 'steps',
-    description: 'A swimlane: who does what over time. Lanes are the actors, columns are time. A step without `col` goes in the column after the step written before it, in any lane, so give `col` to line steps up; at most 8 columns. A flow back to an earlier step of the same lane, to `id:bottom` or past a step in between, runs under the steps of that lane (the lane grows for its label; a `bend` keeps the elbow). A label on a flow needs room: it fits on a flow that crosses both a lane and a column, but rarely between two touching steps.',
+    description: 'A swimlane: who does what over time. Lanes are the actors, columns are time. A step without `col` goes in the column after the step written before it, in any lane, so give `col` to line steps up; at most 8 columns. A flow back to an earlier step of the same lane, to `id:bottom` or past a step in between, runs under the steps of that lane (the lane grows to hold them; `bend`, `bendOffset` or a start side other than bottom keeps the elbow). A label on a flow needs room: it fits on a flow that crosses both a lane and a column, but rarely between two touching steps.',
     schema: object({
       type: {const: 'swimlane'},
       lanes: list(object({

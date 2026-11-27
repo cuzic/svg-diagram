@@ -9,7 +9,7 @@ import type {LaidOutBox} from '../lib/types/text-bands.ts';
 test.after(() => closeMeasurer());
 
 type Step = {id: string; lane: string; title: string; col: number; row?: number};
-type Flow = {from: string; to: string; label?: string; bend?: 'start' | 'end' | number};
+type Flow = {from: string; to: string; label?: string; bend?: 'start' | 'end' | number; bendOffset?: number};
 const lanes = [{id: 'a', label: '担当A'}, {id: 'b', label: '担当B'}, {id: 'c', label: '担当C'}];
 const chain: Step[] = [
   {id: 'x1', lane: 'a', title: '受付', col: 1}, {id: 'p', lane: 'b', title: '下書き', col: 2},
@@ -53,6 +53,7 @@ test('swimlane: a way back to the next box (nothing between) keeps its side-to-s
 test('swimlane: an explicit start side, or an explicit bend, keeps the elbow', async () => {
   assert.equal((await laid(chain, [{from: 'r:right', to: 'p:bottom'}])).back.route, 'elbow');
   assert.equal((await laid(chain, [{from: 'r', to: 'p:bottom', bend: 'end'}])).back.route, 'elbow');
+  assert.equal((await laid(chain, [{from: 'r', to: 'p:bottom', bendOffset: 10}])).back.route, 'elbow');
 });
 
 test('swimlane: a back-flow without a label fits in the lane as it is (the lane does not grow)', async () => {
@@ -130,4 +131,57 @@ test('swimlane: a hand-over from the bottom of a box that a back-flow comes back
   assert.notEqual(back.to.x, hand.from.x, 'the arrowhead and the hand-over start are apart');
   const chip = hand.chipBox ?? hand.labelBox!;
   assert.ok(!(chip.x < back.to.x + 6 && back.to.x - 6 < chip.x + chip.w && chip.y < back.to.y + 6 && back.to.y - 6 < chip.y + chip.h), 'the hand-over label does not cover the arrowhead');
+});
+
+const five: Step[] = [1, 2, 3, 4, 5].map(i => ({id: `s${i}`, lane: 'b', title: `手順${i}`, col: i}));
+const fwd5 = forward(['s1', 's2', 's3', 's4', 's5']);
+const runY = (c: LaidOutConnect): number => c.points[1]!.y;
+const runs = (c: LaidOutConnect): [number, number] => [Math.min(c.points[1]!.x, c.points[2]!.x), Math.max(c.points[1]!.x, c.points[2]!.x)];
+
+test('swimlane: two ways back that meet at one box never share a run, whichever flow is written first', async () => {
+  for (const pair of [
+    [{from: 's5', to: 's3:bottom', label: 'Q'}, {from: 's3', to: 's1:bottom', label: 'P'}],
+    [{from: 's5', to: 's3:bottom'}, {from: 's3', to: 's1:bottom'}],
+    [{from: 's5', to: 's1:bottom', label: 'Redo'}, {from: 's5', to: 's3:bottom', label: 'Fix'}],
+    [{from: 's5', to: 's1:bottom'}, {from: 's5', to: 's3:bottom'}],
+    [{from: 's3', to: 's1:bottom'}, {from: 's5', to: 's1:bottom'}],
+  ] as Flow[][]) for (const order of [pair, [...pair].reverse()]) {
+    const {all, verdict} = await laid(five, [...fwd5, ...order]);
+    const under = all.filter(c => c.route === 'loop-under');
+    assert.deepEqual(verdict.problems, []);
+    assert.deepEqual(verdict.warnings.filter(w => /交差|重なり/.test(w)), [], JSON.stringify(order));
+    const [x, y] = under as [LaidOutConnect, LaidOutConnect];
+    if (runY(x) === runY(y)) assert.ok(runs(x)[1] <= runs(y)[0] + 0.5 || runs(y)[1] <= runs(x)[0] + 0.5, `same line, runs ${runs(x)} ${runs(y)}`);
+  }
+});
+
+test('swimlane: a hand-over from a box in the middle does not pass through the chip of a way back (with and without its own label)', async () => {
+  const sl = [{id: 'b', label: '担当B'}, {id: 'c', label: '担当C'}];
+  const st: Step[] = [...five, {id: 'c3', lane: 'c', title: '引き継ぎ先', col: 3}];
+  for (const label of [undefined, '渡す']) {
+    const flows: Flow[] = [...fwd5, {from: 's5', to: 's1:bottom', label: 'やり直し'}, {from: 's3', to: 'c3', ...(label ? {label} : {})}];
+    const {laidOut, verdict} = await checkDiagram(diagram({theme: 'blue'}).add(...swimlane(sl, st as never, {flows} as never)));
+    assert.deepEqual(verdict.problems, []);
+    const back = laidOut.connects.find(c => c.route === 'loop-under')!, hand = laidOut.connects.find(c => c.toId === 'c3')!;
+    const chip = back.chipBox!, leg = hand.points[0]!;
+    assert.ok(leg.x < chip.x - 2 || leg.x > chip.x + chip.w + 2, `the hand-over leg at ${leg.x} clears the chip ${chip.x}..${chip.x + chip.w}`);
+    if (hand.chipBox) assert.ok(hand.chipBox.x + hand.chipBox.w <= chip.x || chip.x + chip.w <= hand.chipBox.x || hand.chipBox.y + hand.chipBox.h <= chip.y || chip.y + chip.h <= hand.chipBox.y, 'the chips do not touch');
+  }
+});
+
+test('swimlane: the bands survive a JSON round trip, and a way back without its swimlane layout is refused', async () => {
+  const bands = swimlane(lanes, chain as never, {flows: [...base, {from: 'r', to: 'p:bottom', label: 'やり直し'}]} as never);
+  const direct = await checkDiagram(diagram({theme: 'blue'}).add(...bands));
+  const viaJson = await checkDiagram(diagram({theme: 'blue'}).add(...(JSON.parse(JSON.stringify(bands)) as typeof bands)));
+  assert.deepEqual(viaJson.laidOut.connects.map(c => c.points), direct.laidOut.connects.map(c => c.points));
+  const lone = bands.filter(b => b.type === 'connect').slice(-1);
+  await assert.rejects(checkDiagram(diagram({theme: 'blue'}).add(box({id: 'p', title: 'x'}), box({id: 'r', title: 'y'}), ...lone)), /swimlane way back: no layout/);
+});
+
+test('edgeStats: two ways back under a row that share an end and run on one line are an overlap; a shared end alone is not', async () => {
+  const {edgeStats} = await import('../lib/verify-connect-crossings.ts');
+  const way = (route: string, toId: string, y: number, x2: number) => ({route, fromId: 'a', toId, points: [{x: 500, y: 100}, {x: 500, y}, {x: x2, y}, {x: x2, y: 100}]}) as unknown as LaidOutConnect;
+  assert.equal(edgeStats([way('loop-under', 'b', 140, 300), way('loop-under', 'c', 140, 200)]).overlaps, 1);
+  assert.equal(edgeStats([way('loop-under', 'b', 140, 300), way('loop-under', 'c', 170, 200)]).overlaps, 0);
+  assert.equal(edgeStats([way('elbow', 'b', 140, 300), way('elbow', 'c', 140, 200)]).overlaps, 0);
 });
