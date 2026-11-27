@@ -196,8 +196,8 @@
                 {
                   "type": "string",
                   "minLength": 1,
-                  "maxLength": 360,
-                  "description": "Shorthand for an object: \"label: text\" is split at its first \": \" (or full-width \"：\") into a label (the colon kept) and a text; a string with neither is the text alone.",
+                  "maxLength": 300,
+                  "description": "Shorthand for an object: \"label: text\" is split at its first \": \" (or full-width \"：\") into a label (the colon kept) and a text; a string with neither is the text alone (up to 300 characters; the limits of label and text apply after the split).",
                   "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
                   "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
                 }

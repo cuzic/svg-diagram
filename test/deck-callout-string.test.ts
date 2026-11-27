@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {deckSchema, validateDeck} from '../lib/deck-spec.ts';
-import {calloutOf, withCalloutObjects} from '../lib/deck-spec-core.ts';
+import {calloutOf, STRING_CALLOUT_HINT, withCalloutObjects} from '../lib/deck-spec-core.ts';
 import {loadDeck} from '../lib/deck-load.ts';
 import {renderDeckPptxEdge} from '../lib/pptx-deck-edge.ts';
 import {validateSpec} from '../lib/spec.ts';
@@ -24,6 +24,12 @@ test('calloutOf: a string with a label field is split at its first ": " or "："
   assert.deepEqual(calloutOf('本文だけ'), {text: '本文だけ'});
   assert.deepEqual(calloutOf(': 先頭'), {text: ': 先頭'}, 'nothing before the separator: all text');
   assert.deepEqual(calloutOf('末尾: '), {text: '末尾: '}, 'nothing after it: all text');
+  assert.deepEqual(calloutOf('１２：３０に集合'), {text: '１２：３０に集合'}, 'a full-width colon between digits is a time');
+  assert.deepEqual(calloutOf('3：1 の比: 説明'), {label: '3：1 の比: ', text: '説明'}, 'the next separator is used');
+  assert.deepEqual(calloutOf('見出し：３０分'), {label: '見出し：', text: '３０分'}, 'digits only after it still split');
+  const long = 'あ'.repeat(70) + '：本文';
+  assert.deepEqual(calloutOf(long), {text: long}, 'a label over 60 characters: kept whole');
+  assert.deepEqual(calloutOf('あ'.repeat(59) + '：本文'), {label: 'あ'.repeat(59) + '：', text: '本文'});
   const obj = {label: 'x', text: 'y'};
   assert.equal(calloutOf(obj), obj);
 });
@@ -39,12 +45,19 @@ test('withCalloutObjects turns string callouts into objects, leaves a deck witho
 
 test('validateDeck accepts string callouts and checks them as the objects they mean', () => {
   assert.deepEqual(validateDeck({slides: [{title: 'a', callouts: ['ラベル: 本文', {text: '本文'}, '本文だけ']}]}), []);
-  assert.deepEqual(validateDeck({slides: [{title: 'a', callouts: ['x'.repeat(301)]}]}).map(i => i.path), ['slides[0].callouts[0].text']);
-  assert.deepEqual(validateDeck({slides: [{title: 'a', callouts: ['']}]}).map(i => i.path), ['slides[0].callouts[0].text']);
+  // an issue in a string callout is placed on the string, with how it was read and how to keep it whole
+  const bad = validateDeck({slides: [{title: 'a', callouts: ['x'.repeat(301), '', '印: ' + 'y'.repeat(301)]}]});
+  assert.deepEqual(bad.map(i => i.path), ['slides[0].callouts[0]', 'slides[0].callouts[1]', 'slides[0].callouts[2]']);
+  for (const i of bad) assert.ok(i.message.endsWith(`(${STRING_CALLOUT_HINT})`), i.message);
+  assert.match(STRING_CALLOUT_HINT, /\{"text"/);
+  assert.deepEqual(validateDeck({slides: [{title: 'a', callouts: [{text: 'x'.repeat(301)}]}]}).map(i => i.path), ['slides[0].callouts[0].text'], 'an object keeps its own place');
+  assert.deepEqual(validateDeck({slides: [{title: 'a', callouts: [{label: 'x'}]}]}).map(i => [i.path, i.message]), [['slides[0].callouts[0].text', 'is required']]);
+  assert.deepEqual(validateDeck({slides: [{title: 'a', callouts: ['あ'.repeat(70) + '：' + 'い'.repeat(100)]}]}), [], 'a long label part is kept whole as text, not refused as a label');
   assert.deepEqual(validateDeck({slides: [{title: 'a', callouts: ['1', '2', '3', '4']}]}).map(i => i.path), ['slides[0].callouts']);
   assert.deepEqual(validateDeck({slides: [{title: 'a', callouts: [3]}]}).map(i => i.path), ['slides[0].callouts[0]']);
   const items = (deckSchema as any).properties.slides.items.properties.callouts.items;
   assert.deepEqual(items.oneOf.map((b: {type: string}) => b.type), ['object', 'string']);
+  assert.equal(items.oneOf[1].maxLength, items.oneOf[0].properties.text.maxLength, 'the string branch allows what a string with no separator is allowed');
 });
 
 test('loadDeck and the .pptx draw a string callout as its label and text', async () => {
@@ -59,7 +72,8 @@ test('loadDeck and the .pptx draw a string callout as its label and text', async
   const r = await renderDeckPptxEdge({slides: [{title: '題', callouts: ['見本の印：見本の本文']}]}, realEngine(), {rasterize: () => new Uint8Array()});
   assert.deepEqual([r.issues, r.warnings], [[], []]);
   const xml = unzipEntry(Buffer.from(r.pptx as Uint8Array), 'ppt/slides/slide1.xml').toString();
-  assert.ok(xml.includes('見本の印：見本の本文') || (xml.includes('見本の印：') && xml.includes('見本の本文')));
+  // two runs: the label plain (b="0"), the text bold (b="1")
+  assert.match(xml, /<a:rPr [^>]*b="0"[^>]*>(?:(?!<\/a:rPr>).)*<\/a:rPr><a:t>見本の印：<\/a:t><\/a:r><a:r><a:rPr [^>]*b="1"[^>]*>(?:(?!<\/a:rPr>).)*<\/a:rPr><a:t>見本の本文<\/a:t>/s);
 });
 
 test('table column flex goes up to 12 (a ratio such as 2:9), and 13 is refused at its place', async () => {

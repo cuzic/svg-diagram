@@ -8,6 +8,9 @@ import {columnLayoutWidth, SOURCE_MAX_CHARS, SOURCE_MAX_LINES} from './deck-layo
 /** Slides in one deck (ADR 0055 D1, raised from 30 to 300 on 2026-11-15: see the ADR for what the number rests on). */
 export const MAX_SLIDES = 300;
 export const MAX_CALLOUTS = 3;
+/** The longest callout label: a string whose label part would be longer is kept whole as the text. */
+const CALLOUT_LABEL_MAX = 60;
+export const STRING_CALLOUT_HINT = 'it is written as a string, which is split at its first ": " (or "：") into label and text; to keep it whole, write {"text": "…"}';
 /** Columns of a slide (ADR 0058). */
 export const MIN_COLUMNS = 2, MAX_COLUMNS = 3;
 
@@ -31,10 +34,12 @@ export const notOnCover = (field: string): string => `is not drawn on a cover (l
  */
 export function calloutOf(c: unknown): unknown {
   if (typeof c !== 'string') return c;
-  const cut = /: |：/.exec(c);
+  // a full-width colon between digits is a time or a ratio (１２：３０), not a separator
+  const digit = /[0-9０-９]/;
+  const cut = [...c.matchAll(/: |：/g)].find(m => m[0] === ': ' || !(digit.test(c[m.index - 1] ?? '') && digit.test(c[m.index + 1] ?? '')));
   if (cut) {
-    const label = c.slice(0, cut.index + cut[0].length), text = c.slice(cut.index + cut[0].length).trim();
-    if (c.slice(0, cut.index).trim() && text) return {label: label.trimStart(), text};
+    const label = c.slice(0, cut.index + cut[0].length).trimStart(), text = c.slice(cut.index + cut[0].length).trim();
+    if (c.slice(0, cut.index).trim() && text && label.length <= CALLOUT_LABEL_MAX) return {label, text};
   }
   return {text: c};
 }
@@ -68,10 +73,10 @@ const slideShape = (figure: JsonSchema): JsonSchema => object({
   fit: {...oneOf('fill', 'width'), description: 'How the figures take the room the slide leaves: "fill" (default) lays each out at the width that draws it largest (up to 1.5 times), so little room is left empty; "width" keeps each at its own width (or its column\'s) and scales it up to 1.25 times. Not on a cover.'},
   callouts: {...list({oneOf: [
     object({
-      label: text('Plain words before the emphasised text, such as 「足す一文：」.', 60),
+      label: text('Plain words before the emphasised text, such as 「足す一文：」.', CALLOUT_LABEL_MAX),
       text: text('The emphasised text, drawn bold in a tinted box near the bottom of the slide.', 300),
     }, ['text']),
-    text('Shorthand for an object: "label: text" is split at its first ": " (or full-width "：") into a label (the colon kept) and a text; a string with neither is the text alone.', 360),
+    text('Shorthand for an object: "label: text" is split at its first ": " (or full-width "：") into a label (the colon kept) and a text; a string with neither is the text alone (up to 300 characters; the limits of label and text apply after the split).', 300),
   ]}, MAX_CALLOUTS), description: 'Up to three emphasised lines near the bottom of the slide. Each is an object {label?, text} or a string. Not on a cover.'},
   source: text(`Where the facts come from, drawn small at the bottom (up to ${SOURCE_MAX_CHARS} characters). It wraps to more lines, and the figure gets less room; more than ${SOURCE_MAX_LINES} lines is an error.`, SOURCE_MAX_CHARS),
   notes: text('Speaker notes. Lines are separated by "\\n".', 5000),
@@ -113,11 +118,22 @@ export async function validateDeckWithAsync(input: unknown, validateFigure: (fig
   return capped((await Promise.all(issues)).flat());
 }
 
+/** An issue inside a callout that was written as a string is placed on the string (`callouts[j]`), with how it was read. */
+function stringCalloutIssues(input: unknown, found: SpecIssue[]): SpecIssue[] {
+  const slides = (withoutSchemaField(input) as Json | null)?.['slides'];
+  if (!Array.isArray(slides)) return found;
+  return found.map(f => {
+    const m = /^(slides\[(\d+)\]\.callouts\[(\d+)\])\.(?:label|text)$/.exec(f.path);
+    const callout = m ? ((slides[Number(m[2])] as Json | null)?.['callouts'] as unknown[] | undefined)?.[Number(m[3])] : undefined;
+    return m && typeof callout === 'string' ? {path: m[1] as string, message: `${f.message} (${STRING_CALLOUT_HINT})`} : f;
+  });
+}
+
 type FigureLocation = (path: string | null) => string;
 
 function deckIssues<T>(input: unknown, validateFigure: (figure: unknown, at: FigureLocation) => T): (SpecIssue | T)[] {
   const flat = withoutBreaks(withCalloutObjects(withoutSchemaField(input))); // a deck file names its schema for the editor (ADR 0071)
-  const issues: (SpecIssue | T)[] = validateAgainst(SHAPE, flat);
+  const issues: (SpecIssue | T)[] = stringCalloutIssues(input, validateAgainst(SHAPE, flat));
   const slides = (flat as Json | null)?.['slides'];
   if (Array.isArray(slides)) slides.forEach((s: unknown, i) => {
     if (typeof s !== 'object' || s === null) return;
