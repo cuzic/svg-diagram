@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {chooseColumns, columnWidths, deckTexts, figurePartTypes, figureRooms, maxScale, planDeckLayout, roomMessage, smallTextWarning, type FigureFit, type TextWidth} from '../deck-layout.ts';
 import {autoColumns, columnFigurePath, figurePath, figureProblemErrors, fitOf, sharedColumns} from '../deck-spec-core.ts';
 import {figureKey, hasSource, type LoadedDeck} from '../deck-file.ts';
-import {drawColumnFigure, renderDeckFigure} from '../deck-render-figure.ts';
+import {drawColumnFigure, growColumnFigure, renderDeckFigure} from '../deck-render-figure.ts';
 import {figureMinPt} from '../pptx/deck-figure.ts';
 import {measureAll, splitAtoms, textWidth} from '../measure.ts';
 import {outlineFontFromFiles, textBox} from '../font-metrics.ts';
@@ -75,7 +75,7 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
   const draw = async (i: number, spec: unknown, fit: FigureFit, room: {w: number; h: number} | null, j?: number, columnPx?: number): Promise<DrawnFigure | undefined | null> => {
     const source = sources.get(figureKey(i, j));
     if (spec === undefined && !source) return undefined;
-    const r = await renderDeckFigure(i, spec, source, cfg, fit === 'fill' && room ? {fresh: opts.fresh, column: j, fill: {box: room, cap: maxScale(fit)}} : {fresh: opts.fresh, column: j, columnPx});
+    const r = await renderDeckFigure(i, spec, source, cfg, fit === 'fill' && room ? {fresh: opts.fresh, column: j, fill: {box: room, cap: maxScale(fit)}} : {fresh: opts.fresh, column: j, columnPx, ...(room ? {grow: {box: room, cap: maxScale(fit)}} : {})});
     if (!r.ok) { errors.push(...r.errors); return null; }
     if (r.result.verdict.problems.length) { errors.push(...figureProblemErrors(j === undefined ? figurePath(i, null) : columnFigurePath(i, j, null), r.result.verdict.problems)); return null; }
     const lo = r.result.laidOut;
@@ -95,10 +95,13 @@ export async function renderDeck(loaded: LoadedDeck, cfg: Config, opts: {fresh?:
     shares[i] = chosen.shares;
     const bad = chosen.figures.flatMap((f, j) => f ? figureProblemErrors(columnFigurePath(i, j, null), f.value.verdict.problems) : []);
     if (bad.length) { errors.push(...bad); return null; }
-    return chosen.figures.map(f => {
-      if (!f) return undefined;
-      const lo = f.value.laidOut;
-      return {svg: f.value.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: f.value.verdict.warnings};
+    // ADR 0085 D2: each column's figure drawn again with larger labels where its room (now the shares are chosen) makes that worthwhile
+    const room = figureRooms({...s, columns: sharedColumns(columns, chosen.shares)}, width);
+    const results = await Promise.all(chosen.figures.map((f, j) => f ? growColumnFigure(i, j, columns[j]?.figure, sources.get(figureKey(i, j)), cfg, f.value, room.columns[j] ?? null, maxScale(fitOf(deck, s)), opts.fresh) : undefined));
+    return results.map(r => {
+      if (!r) return undefined;
+      const lo = r.laidOut;
+      return {svg: r.svg, w: Math.max(96, lo.width), h: Math.max(96, lo.canvasHeight), title: lo.title ?? '', laidOut: lo, warnings: r.verdict.warnings};
     });
   }));
   const shared = deck.slides.map((s, i) => ({...s, columns: s.columns && sharedColumns(s.columns, shares[i])}));

@@ -14,6 +14,7 @@ import {LEGEND_EN, MAX_EMOJI, MAX_TOTAL_TEXT, PART_EN, SpecError, withoutSchemaF
 import type {Json, JsonSchema, PartDef, SpecIssue} from './spec-kit.ts';
 import {capped, checkAnchors, countEmoji, totalText, validateAgainst} from './spec-validation.ts';
 import {schemaForParts} from './spec-schema.ts';
+import {askTextSize} from './flow-grow.ts';
 
 type SelectedBand = Parameters<typeof renderBands>[0][number];
 type Connectors = Parameters<typeof renderBands>[1]['connectors'];
@@ -153,9 +154,10 @@ export function prepareVerifiedSpecRender(input: unknown, options: PrepareOption
 }
 
 /** @internal Provide the prepared geometry and SVG emitter to consumers such as the deck renderer. */
-/** `wideWidth`: the deck's own layout width past the spec's 940 (a wide slide room, B6); internal, never part of the options a caller gives. */
-export function prepareSpecLayout(input: unknown, options: PrepareOptions & {project?: SpecProject}, wideWidth?: number) {
+/** `wideWidth`: the deck's own layout width past the spec's 940 (a wide slide room, B6); internal, never part of the options a caller gives. `textSize`: the deck's request for larger labels (ADR 0085 D2), likewise. */
+export function prepareSpecLayout(input: unknown, options: PrepareOptions & {project?: SpecProject}, wideWidth?: number, textSize?: number) {
   const {doc, bands, drawOptions: written} = prepareSpec(input, options);
+  askTextSize(bands, textSize);
   const drawOptions = wideWidth === undefined ? written : {...written, width: wideWidth};
   const {wrap, keepWords, tones, accept, terms} = options.project ?? {};
   // a layout the deck widened is not "wider than the text column" (doc-width): the slide has the room

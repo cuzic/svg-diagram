@@ -9,8 +9,8 @@ import {xmlProblems} from './xml-check.ts';
 import type {Config} from './types/project.ts';
 import type {RenderResult} from './types/verdicts.ts';
 
-/** `width`: a layout width past the spec's own 940 (a deck's wide room, B6). */
-export async function renderDeckSpec(spec: unknown, cfg: Config, width?: number): Promise<RenderResult | undefined> {
+/** `width`: a layout width past the spec's own 940 (a deck's wide room, B6). `textSize`: larger labels asked of the parts that can use them (ADR 0085 D2). */
+export async function renderDeckSpec(spec: unknown, cfg: Config, width?: number, textSize?: number): Promise<RenderResult | undefined> {
   const parts = await loadSpecPartsFor(spec);
   if (!parts) return undefined;
   const doc = spec as {canvas?: unknown; showTitle?: unknown; sourceLine?: unknown; legend?: 'auto' | false};
@@ -23,7 +23,7 @@ export async function renderDeckSpec(spec: unknown, cfg: Config, width?: number)
         ? import('./bands/legend.ts').then(m => m.autoLegend) : undefined,
     ]);
     const measure = measureSettingsOf(cfg);
-    const draw = prepareSpecLayout(spec, {parts, captions, autoLegend, project: cfg}, width);
+    const draw = prepareSpecLayout(spec, {parts, captions, autoLegend, project: cfg}, width, textSize);
     const {placed, emit, verdict} = await draw({measureBatch: requests => measureAll(requests, measure)});
     const laidOut = applyConfig({...placed, legend: doc.legend, measure, fontScale: 1,
       showTitle: doc.showTitle === true, sourceLine: typeof doc.sourceLine === 'string' ? doc.sourceLine : undefined}, cfg);

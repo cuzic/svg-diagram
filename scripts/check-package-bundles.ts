@@ -143,7 +143,7 @@ try {
     ['compare', {esbuild: 79000, Vite: 103000}],
     ['concentric', {esbuild: 85000, Vite: 112000}],
     ['control-chart', {esbuild: 107000, Vite: 135000}],
-    ['cycle', {esbuild: 73000, Vite: 96000}],
+    ['cycle', {esbuild: 73200, Vite: 96600}], // ADR 0085 U2: the deck's larger labels (fit test + candidate sizes), +~100 bytes esbuild / +~530 Vite
     ['decision-ladder', {esbuild: 171000, Vite: 230000}], // ADR 0083 U4: numbered badges, even rows and the width search of ladder-height-bound (+~1 KB; cannot be trimmed without dropping them)
     ['dependency-network', {esbuild: 148000, Vite: 200000}],
     ['fault-tree', {esbuild: 96000, Vite: 122000}],

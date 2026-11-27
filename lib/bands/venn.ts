@@ -5,7 +5,8 @@ import {texts} from '../band-text-sizes.ts';
 import {band} from '../band-def.ts';
 import type {BandDef, WithBandDef} from '../band-def.ts';
 import {venn as build} from '../dsl/venn.ts';
-import {emitFlow, flowItemIds, measureFlow, placeFlow, verifyFlow} from '../flow-definition.ts';
+import {emitFlow, flowItemIds, measureFlow, verifyFlow} from '../flow-definition.ts';
+import {growTexts, placeGrown, vennFits} from '../flow-grow.ts';
 import {vennTexts, layoutVenn} from '../flow-venn.ts';
 import type {VennBand, VennOpts, VennSet, LaidOutFlowShape} from '../flow-shapes.ts';
 
@@ -16,8 +17,8 @@ const definition = {
   title: data => [2, data.sets.map(set => set.label ?? set.name).join('・')],
   textSizes: texts,
   ids: data => flowItemIds(data.sets),
-  measure: (data, env) => measureFlow(data, env, vennTexts),
-  layout: (data, env) => placeFlow(data, env, layoutVenn),
+  measure: (data, env) => measureFlow(data, env, growTexts(vennTexts)),
+  layout: (data, env) => placeGrown(data, env, layoutVenn, vennFits),
   emit: emitFlow,
   nameNodes: nameFlowShapeNodes,
   verify: {...verifyFlow, rects: overlappingFigureRects},

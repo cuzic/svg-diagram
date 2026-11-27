@@ -10,6 +10,8 @@ export interface FunnelOpts extends RevealOpts, ScopeOpts, FocusOpts {id?: strin
 /** A link of a cycle with `links` (ADR 0065): two steps (1-based number, id or label), two-way unless `direction: 'forward'`. */
 export interface CycleLink {from: number | string; to: number | string; label?: string; direction?: 'both' | 'forward'}
 export interface CycleOpts extends RevealOpts, ScopeOpts, FocusOpts {
+  /** @internal ADR 0085 U2: the deck asks for text up to this size (px); the part uses the largest size that fits, never below the usual one. Not part of the spec. */
+  textSize?: number;
   id?: string; centre?: string; direction?: 'cw' | 'ccw'; width?: number;
   /** ADR 0065: instead of the arrows round the ring, the steps on a regular polygon joined pair by pair — 'all' (every pair, two-way; up to 6 steps) or the links to draw. The CBT five-part model. */
   links?: 'all' | readonly CycleLink[];
@@ -18,13 +20,15 @@ export interface CycleOpts extends RevealOpts, ScopeOpts, FocusOpts {
 }
 export interface VennSet {name: string; label?: string; /** Short bullet lines drawn under the set's title, inside the part only this set covers. */ items?: readonly string[]; id?: string; tone?: TextTone}
 export interface VennOverlap {sets: readonly string[]; label: string}
-export interface VennOpts extends RevealOpts, ScopeOpts {id?: string; overlaps?: readonly VennOverlap[]; centre?: string; universe?: string | boolean; width?: number}
+export interface VennOpts extends RevealOpts, ScopeOpts {/** @internal ADR 0085 U2: see CycleOpts.textSize. */ textSize?: number; id?: string; overlaps?: readonly VennOverlap[]; centre?: string; universe?: string | boolean; width?: number}
 export interface ConcentricRing {label: string; description?: string; id?: string; tone?: TextTone}
 export type {EmblemShape} from './emblem-shapes.ts';
 export interface EmblemItem {label: string; sub?: string; shape?: EmblemShape; id?: string; tone?: EmphasisTone}
 export interface EmblemOpts extends RevealOpts, ScopeOpts, FocusOpts {id?: string; /** The shape of every item that does not name its own. */ shape?: EmblemShape; gap?: number; /** The least width of a shape (the shapes grow to hold their text, all to the same size). */ minSize?: number; width?: number}
 export interface ValueChainOpts extends RevealOpts, ScopeOpts, FocusOpts {id?: string; /** The label of the margin arrow at the right end; `false` leaves the arrow out. Default 'マージン'. */ margin?: string | false; /** The captions over the support bars and the primary chevrons; `false` leaves them out. Default ['支援活動', '主活動']. */ titles?: readonly [support: string, primary: string] | false; width?: number}
 export interface ConcentricOpts extends RevealOpts, ScopeOpts {
+  /** @internal ADR 0085 U2: see CycleOpts.textSize. */
+  textSize?: number;
   id?: string; order?: 'outer-first' | 'inner-first'; labels?: 'inside' | 'side'; centre?: string; width?: number;
   /** ADR 0065: the rings cut into sectors, from 12 o'clock clockwise (1-8): the Values Bullseye's life domains, a technology radar's quadrants. */
   sectors?: readonly ConcentricSector[];
