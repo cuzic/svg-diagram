@@ -195,7 +195,8 @@ Q6(決定: **a**). **作業の順**: a U1 → U2 → U3(決まったとき)→ U
 
 - **引き上げる条件**: D2 の「`14 × k` が T を下回るときだけ」は、実装では `floor(21 / k) > 14` のとき、つまり **k < 1.4** のとき(`askedTextSize`、`lib/deck-grow.ts`)。k が 1 以上 1.4 未満でも、輪 3 の concentric は 18px へ上がる(Q3 の「実効約 21px」と目安の例に合う)。k ≥ 1.4 では `floor(21 / k) ≤ 15` で、14px のまま(k=1.5 は 14px)。
 - **上限 22px**: 部品が受ける大きさは最大 22px(`MAX_SIZE`、`lib/flow-grow.ts`)で、2px 刻みの候補を大きい順に描く。k=0.868 の venn は `floor(21/0.868)=24` を求められるが 22px までで、実効は 19.1px になる(21px には届かない)。
-- **内部の指定**: `textSize` は部品の option にも spec の項目にも無い(公開の型に出ない)。デッキが帯のデータへ直接書き(`askTextSize`)、同時に `lib/flow-definition.ts` のフックへ引き上げの実装(`lib/flow-grow.ts`)を登録する。フックは最初に大きさを求められるまで空なので、`./browser` の束にはフックの数十バイトしか入らず、収まりの検査と候補の処理はデッキを使う入口の束だけに入る(予算 ./browser: main に +105 バイト)。
+- **内部の指定**: `textSize` は部品の option にも spec の項目にも無い(公開の型に出ない)。デッキが帯の値へ直接書き(`growBand`、`lib/flow-grow.ts`)、同時にその帯が持つ定義(`[DEF]`)を、`measure` で全候補の大きさを測り `layout` で収まる最大の大きさを選ぶ写しに差し替える。写しは元の定義をそのまま使い(roles だけ変える)、元の定義は変えない。`lib/flow-definition.ts` にフックは無く、登録も無い(モジュールの状態を持たない)。同じ帯を 2 度包まない(印を見る)。収まりの検査が例外を投げる別の部品(同じ名前の呼び出し側の部品)では、普通の描画のままにする。引き上げの実装はデッキ専用なので、`./browser` の束は main と同じ(+0 バイト)。
+- **採る条件**: 2 回目の描画は、問題が無く、1 回目に無かった規則を出さず、スライドへの倍率が下がらないときだけ採る(`growFigure`、`lib/deck-grow.ts`。3 つの入口で共通)。
 - **入口**: `renderDeckFigure`(固定の段・単独の図、`fit: 'fill'` で幅を持つ spec と `fit: 'width'` の段を含む。部屋は `opts.fill ?? opts.grow`)、自動の段(`chooseColumns` の後の `growColumnFigure`)、端の `plan`(full と selected)、CLI。パリティは `test/deck-figure-text-parity.test.ts`(fit と図の置き方の組み合わせで 4 つの経路を照合)。
 - **`frame` のある cycle**: 枠の題も大きくなって図が高くなり、高さの検査で 14px のままになる(安全な側)。
 
