@@ -195,8 +195,9 @@ export interface SwimlaneBand {
   phases?: SwimlanePhase[];
   /** As placed by swimlane(): the lane each line sits below. */
   boundaries?: {after: string; label?: string}[];
-  /** As placed by swimlane(): the lanes with a labelled flow running back under their boxes; each gets room below the boxes for the line and its chip. */
-  underRoom?: string[];
+  /** As placed by swimlane(): the flows that run back under the boxes of a row. `underNeed`: the room (px) each such row needs below its boxes; `underRows`: filled by the layout with the bottom of each row ('lane|row'), where the flows find it. */
+  underRows?: Record<string, number>;
+  underNeed?: {lane: string; row: number; need: number}[];
   labelW?: number | 'fit';
   colGap?: number;
   fit?: 'shrink';
@@ -213,6 +214,8 @@ export interface LaidOutLane {
   /** Tallest step of this lane. */
   maxStep: number;
   blockTop: number;
+  /** Top of each row of steps, from `blockTop` (rows can have different gaps below them). */
+  rowTops?: number[];
 }
 export interface LaidOutPhase {x: number; w: number; lines: string[]}
 export interface LaidOutSwimlane extends Rect {

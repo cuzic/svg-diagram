@@ -8,7 +8,6 @@ import {narrowField} from './tree.ts';
 import type {LaidOutLane, LaidOutPhase, LaidOutSwimlane, SwimlaneBand} from './types/sequence-table-swimlane.ts';
 import {wrapAtoms} from './wrap.ts';
 
-const UNDER_ROOM = 16;
 export function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number, cw: number): void {
   const {d, roles, widthOf} = ctx;
   // a boundary's name sits in a chip across the label column: the column is never narrower than the longest name + the chip's round ends, fit: 'shrink' included
@@ -62,12 +61,18 @@ export function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number,
     const mine = stepsPlaced.filter(s => laneIndex.get(s.lane) === i);
     const maxStep = Math.max(0, ...mine.map(s => s.h));
     const rows = 1 + Math.max(0, ...mine.map(s => s.row ?? 0));
-    const blockH = rows * maxStep + (rows - 1) * rowGap;
+    // a row's ways back under its boxes need room below it: more than the gap to the next row (or the lane's bottom padding) is added to that gap
+    const need = (r: number): number => Math.max(0, ...(band.underNeed ?? []).filter(u => u.lane === lane.id && u.row === r).map(u => u.need));
+    const gapBelow = (r: number): number => r < rows - 1 ? Math.max(rowGap, need(r)) : Math.max(0, need(r) - padY);
+    const rowTops: number[] = [];
+    for (let r = 0, top = 0; r < rows; r++) { rowTops.push(top); top += maxStep + gapBelow(r); }
+    const blockH = must(rowTops[rows - 1]) + maxStep;
     // a named boundary below this lane puts a chip across the lane border: the centred lane label leaves room for half of it
     const chipHalf = boundaryChipH(roles.note) / 2 + 2, nChip = (band.boundaries ?? []).filter(b => b.label && (b.after === lane.id || band.lanes[i - 1]?.id === b.after)).length;
+    const underBelow = gapBelow(rows - 1); // the room for the last row's ways back, below the boxes and the lane's bottom padding
     const core = Math.max(blockH, labelH + (nChip ? 2 * chipHalf : 0)) + 2 * padY;
-    const h = core + (band.underRoom?.includes(lane.id) ? UNDER_ROOM : 0); // room under the boxes for a labelled way back
-    const out = {y, h, labelLines, labelTop: y + (h - labelH) / 2, tone: lane.tone, maxStep, blockTop: y + (core - blockH) / 2};
+    const h = core + underBelow;
+    const out = {y, h, labelLines, labelTop: y + (h - labelH) / 2, tone: lane.tone, maxStep, blockTop: y + (core - blockH) / 2, rowTops};
     y += h;
     return out;
   });
@@ -85,7 +90,9 @@ export function layoutSwimlane(band: SwimlaneBand, ctx: LayoutCtx, padX: number,
   }
   for (const st of stepsPlaced) {
     const ln = must(lanes[laneIndex.get(st.lane) ?? -1], `a lane "${st.lane}" in the swimlane (a step's lane is not one of the lanes)`); // an unknown lane id throws here, as before
-    st.y = snapGrid(ln.blockTop + (st.row ?? 0) * (ln.maxStep + rowGap) + (ln.maxStep - st.h) / 2);
+    const rowTop = ln.blockTop + must(must(ln.rowTops)[st.row ?? 0]);
+    st.y = snapGrid(rowTop + (ln.maxStep - st.h) / 2);
+    if (band.underRows) band.underRows[`${st.lane}|${st.row ?? 0}`] = rowTop + ln.maxStep; // where the ways back under this row start
     if (st.id) ctx.anchors.set(qualify(scopeOf(band), st.id), {x: st.x, y: st.y, w: st.w, h: st.h}); // placeBoxLike already claimed (and checked) the id; this moves it to the lane row
     if (st.tagBox) st.tagBox.y = st.y - st.tagBox.h / 2;
     ctx.laidOut.push(st);

@@ -219,6 +219,9 @@ export function resolveConnect(band: ConnectBand, anchors: Map<string, Rect>, ar
   if (!toVia && toRef.side === 'bottom' && nodeBottoms.has(toRef.id)) to.y = must(nodeBottoms.get(toRef.id));
   if (band.plumb && (toRef.side === 'top' || toRef.side === 'bottom')) to.x = Math.min(toEnd.x + toEnd.w, Math.max(toEnd.x, from.x));
   levelSides(band, fromRef.side, toRef.side, fromEnd, toEnd, from, to);
+  // a way back under a swimlane row runs below the row's lowest box, not below its two end boxes
+  const u = band.under, rowBottom = u?.rows[u.group];
+  if (u && rowBottom !== undefined) band = {...band, dip: rowBottom + u.off - Math.max(from.y, to.y)};
   let points = routePoints(band, from, to, fromRef.side);
   if (band.route === 'elbow' && band.bend === 'auto') {
     // Pick the first bend whose path stays clear of every box except the two it joins.
@@ -317,7 +320,7 @@ export function layoutConnect(band: ConnectBand, ctx: LayoutCtx): void {
   ctx.connects.push(resolved);
   // a bracket / callout under its boxes needs room for its line and label, as a loop-under does
   if (band.annot?.side === 'below') ctx.y = Math.max(ctx.y, ...resolved.pathSegments.map(r => r.y + r.h), resolved.labelBox ? resolved.labelBox.y + resolved.labelBox.h : 0) + 8;
-  if (band.route === 'loop-under') {
+  if (band.route === 'loop-under' && !band.under) { // a swimlane's ways back have their room inside the lane already
     const labelClearance = band.label ? 24 : 8;
     ctx.y = Math.max(resolved.from.y, resolved.to.y, ctx.y) + band.dip + labelClearance;
   }

@@ -1,47 +1,133 @@
 import test from 'node:test';
 import './helpers/strict-width.ts';
 import assert from 'node:assert/strict';
-import {checkDiagram, closeMeasurer, diagram, swimlane} from '../lib/dsl.ts';
+import {box, checkDiagram, closeMeasurer, diagram, swimlane} from '../lib/dsl.ts';
 import type {LaidOutConnect} from '../lib/types/containers.ts';
 import type {LaidOutSwimlane} from '../lib/types/sequence-table-swimlane.ts';
 import type {LaidOutBox} from '../lib/types/text-bands.ts';
 
 test.after(() => closeMeasurer());
 
-const lanes = [{id: 'a', label: '担当A'}, {id: 'b', label: '担当B'}];
-const steps: {id: string; lane: string; title: string; col: number}[] = [
+type Step = {id: string; lane: string; title: string; col: number; row?: number};
+type Flow = {from: string; to: string; label?: string; bend?: 'start' | 'end' | number};
+const lanes = [{id: 'a', label: '担当A'}, {id: 'b', label: '担当B'}, {id: 'c', label: '担当C'}];
+const chain: Step[] = [
   {id: 'x1', lane: 'a', title: '受付', col: 1}, {id: 'p', lane: 'b', title: '下書き', col: 2},
   {id: 'q', lane: 'b', title: '点検', col: 3}, {id: 'r', lane: 'b', title: '仕上げ', col: 4},
 ];
+const forward = (ids: string[]): Flow[] => ids.slice(1).map((id, i) => ({from: ids[i]!, to: id}));
 
-const laid = async (flows: {from: string; to: string; label?: string}[]) => {
-  const {laidOut, verdict} = await checkDiagram(diagram({theme: 'blue'}).add(...swimlane(lanes, steps, {flows} as never)));
+const laid = async (steps: Step[], flows: Flow[], next = false) => {
+  const d = diagram({theme: 'blue'}).add(...swimlane(lanes, steps as never, {flows} as never));
+  const {laidOut, verdict} = await checkDiagram(next ? d.add(box({id: 'after', title: '次'})) : d);
+  const boxes = laidOut.laidOut.filter(b => b.type === 'box') as LaidOutBox[];
   return {
     frame: laidOut.laidOut.find(b => b.type === 'swimlane') as LaidOutSwimlane,
-    boxes: laidOut.laidOut.filter(b => b.type === 'box') as LaidOutBox[],
+    boxes, verdict, all: laidOut.connects as LaidOutConnect[],
     back: laidOut.connects.at(-1) as LaidOutConnect,
-    verdict,
+    after: boxes.find(b => b.id === 'after'),
   };
 };
-const flows = (back: {from: string; to: string; label?: string}) => [{from: 'x1', to: 'p'}, {from: 'p', to: 'q'}, {from: 'q', to: 'r'}, back];
+const base = forward(['x1', 'p', 'q', 'r']);
 
 test('swimlane: a labelled flow back along one lane runs under the boxes between and its label overlaps none', async () => {
-  const {boxes, back, frame, verdict} = await laid(flows({from: 'r', to: 'p:bottom', label: 'やり直し'}));
+  const {boxes, back, frame, verdict} = await laid(chain, [...base, {from: 'r', to: 'p:bottom', label: 'やり直し'}]);
   assert.deepEqual(verdict.problems, []);
   const lowest = Math.max(...boxes.filter(b => b.y >= frame.lanes[1]!.y).map(b => b.y + b.h));
-  assert.ok(back.points.every(pt => pt.y >= lowest - 0.5 || pt === back.points[0] || pt === back.points.at(-1)), 'the run is under the boxes');
+  assert.ok(back.points.slice(1, -1).every(pt => pt.y >= lowest), 'the run is under the boxes');
   const lane = frame.lanes[1]!;
-  assert.ok(Number.isFinite(lowest), 'the lane has boxes');
   assert.ok(back.labelBox !== undefined && back.labelBox.y + back.labelBox.h <= lane.y + lane.h, 'the label stays inside its lane (the lane grew for it)');
 });
 
 test('swimlane: a flow back past a box in the same lane, with no side given, also runs under the boxes', async () => {
-  const {verdict, back} = await laid(flows({from: 'r', to: 'p', label: 'やり直し'}));
+  const {verdict, back} = await laid(chain, [...base, {from: 'r', to: 'p', label: 'やり直し'}]);
   assert.deepEqual(verdict.problems, []);
   assert.equal(back.route, 'loop-under');
 });
 
 test('swimlane: a way back to the next box (nothing between) keeps its side-to-side route', async () => {
-  const {back} = await laid([{from: 'q', to: 'p'}]);
+  const {back} = await laid(chain, [{from: 'q', to: 'p'}]);
   assert.equal(back.route, 'elbow');
+});
+
+test('swimlane: an explicit start side, or an explicit bend, keeps the elbow', async () => {
+  assert.equal((await laid(chain, [{from: 'r:right', to: 'p:bottom'}])).back.route, 'elbow');
+  assert.equal((await laid(chain, [{from: 'r', to: 'p:bottom', bend: 'end'}])).back.route, 'elbow');
+});
+
+test('swimlane: a back-flow without a label fits in the lane as it is (the lane does not grow)', async () => {
+  const [plain, one] = await Promise.all([laid(chain, base), laid(chain, [...base, {from: 'r', to: 'p:bottom'}])]);
+  assert.deepEqual(one.verdict.problems, []);
+  assert.equal(one.frame.h, plain.frame.h);
+});
+
+test('swimlane: the space after the swimlane does not change with the number of back-flows (0, 1, 3)', async () => {
+  const five: Step[] = [1, 2, 3, 4, 5].map(i => ({id: `s${i}`, lane: 'b', title: `手順${i}`, col: i}));
+  const f = forward(['s1', 's2', 's3', 's4', 's5']);
+  const backs: Flow[] = [{from: 's5', to: 's1:bottom', label: '全部やり直し'}, {from: 's4', to: 's2:bottom', label: '直す'}, {from: 's3', to: 's2:bottom', label: '戻す'}];
+  const cases = await Promise.all([0, 1, 3].map(n => laid(five, [...f, ...backs.slice(0, n)], true)));
+  const gaps = cases.map(c => c.after!.y - (c.frame.y + c.frame.h));
+  // the next band's top is rounded to the 4px grid: the gap may differ by that much, never by a dip's worth (it was 36px per labelled back-flow)
+  for (const g of gaps.slice(1)) assert.ok(Math.abs(g! - gaps[0]!) < 4, `gaps ${gaps.join(', ')}`);
+  assert.ok(cases[2]!.frame.h > cases[0]!.frame.h, 'the lane itself holds the stacked levels');
+});
+
+test('swimlane: nested and overlapping back-flows in one lane each get a line and a label slot of their own', async () => {
+  const five: Step[] = [1, 2, 3, 4, 5].map(i => ({id: `s${i}`, lane: 'b', title: `手順${i}`, col: i}));
+  const f = forward(['s1', 's2', 's3', 's4', 's5']);
+  for (const backs of [
+    [{from: 's5', to: 's1:bottom', label: '全部やり直し'}, {from: 's4', to: 's2:bottom', label: '直す'}],
+    [{from: 's4', to: 's1', label: '前半へ'}, {from: 's5', to: 's2', label: '後半へ'}],
+  ] as Flow[][]) {
+    const {all, verdict} = await laid(five, [...f, ...backs]);
+    assert.deepEqual(verdict.problems, []);
+    const under = all.filter(c => c.route === 'loop-under');
+    assert.equal(under.length, 2);
+    assert.notEqual(under[0]!.points[1]!.y, under[1]!.points[1]!.y, 'two depths');
+    const [x, y] = [under[0]!.labelBox!, under[1]!.labelBox!];
+    assert.ok(x.x + x.w <= y.x || y.x + y.w <= x.x || x.y + x.h <= y.y || y.y + y.h <= x.y, 'the chips do not touch');
+  }
+  const nested = await laid(five, [...f, {from: 's5', to: 's1:bottom'}, {from: 's4', to: 's2:bottom'}]);
+  const [outer, inner] = nested.all.filter(c => c.route === 'loop-under');
+  assert.ok(outer!.points[1]!.y > inner!.points[1]!.y, 'the outer one runs deeper');
+});
+
+test('swimlane: a taller box between the ends is cleared by the line and its label', async () => {
+  const tall: Step[] = [
+    {id: 's1', lane: 'b', title: '短い', col: 1},
+    {id: 's2', lane: 'b', title: '長い長い長い長い長い長い長い長い長い長い長い長い説明の手順', col: 2},
+    {id: 's3', lane: 'b', title: '短い', col: 3},
+  ];
+  const {verdict, back, boxes} = await laid(tall, [{from: 's1', to: 's2'}, {from: 's2', to: 's3'}, {from: 's3', to: 's1:bottom', label: '戻す'}]);
+  assert.deepEqual(verdict.problems, []);
+  const lowest = Math.max(...boxes.map(b => b.y + b.h));
+  assert.ok(back.points[1]!.y > lowest, 'the line is under the tallest box');
+});
+
+test('swimlane: in a lane with rows, a back-flow in the first row gets room under that row and crosses no box', async () => {
+  const rows: Step[] = [...[1, 2, 3, 4, 5].map(i => ({id: `s${i}`, lane: 'b', title: `手順${i}`, col: i})), {id: 't', lane: 'b', title: '別作業', col: 3, row: 1}];
+  const f = forward(['s1', 's2', 's3', 's4', 's5']);
+  const [plain, withBack] = await Promise.all([laid(rows, f), laid(rows, [...f, {from: 's5', to: 's2:bottom', label: 'やり直し'}])]);
+  assert.deepEqual(withBack.verdict.problems, []);
+  const t = withBack.boxes.find(b => b.id === 't')!, s1 = withBack.boxes.find(b => b.id === 's1')!;
+  assert.ok(withBack.back.labelBox!.y + withBack.back.labelBox!.h <= t.y, 'the chip ends above the second row');
+  assert.ok(t.y - (s1.y + s1.h) > plain.boxes.find(b => b.id === 't')!.y - (plain.boxes.find(b => b.id === 's1')!.y + s1.h), 'the gap under row 1 grew');
+  assert.ok(withBack.frame.h > plain.frame.h);
+});
+
+test('swimlane: a way back from one row of a lane to another is not run under the boxes', async () => {
+  const two: Step[] = [{id: 'u', lane: 'b', title: '上の段', col: 1}, {id: 'v', lane: 'b', title: '中', col: 2}, {id: 'w', lane: 'b', title: '下の段', col: 3, row: 1}];
+  assert.equal((await laid(two, [{from: 'w', to: 'u:bottom'}])).back.route, 'elbow');
+});
+
+test('swimlane: a hand-over from the bottom of a box that a back-flow comes back to does not share its point', async () => {
+  const sl = [{id: 'b', label: '担当B'}, {id: 'c', label: '担当C'}];
+  const st: Step[] = [...[1, 2, 3, 4, 5].map(i => ({id: `s${i}`, lane: 'b', title: `手順${i}`, col: i})), {id: 'c2', lane: 'c', title: '引き継ぐ', col: 2}];
+  const flows: Flow[] = [...forward(['s1', 's2', 's3', 's4', 's5']), {from: 's5', to: 's2:bottom', label: 'やり直し'}, {from: 's2', to: 'c2', label: '引き継ぎ'}];
+  const {all, verdict} = await checkDiagram(diagram({theme: 'blue'}).add(...swimlane(sl, st as never, {flows} as never))).then(r => ({all: r.laidOut.connects, verdict: r.verdict}));
+  assert.deepEqual(verdict.problems, []);
+  const back = all.find(c => c.route === 'loop-under')!, hand = all.find(c => c.label === '引き継ぎ')!;
+  assert.notEqual(back.to.x, hand.from.x, 'the arrowhead and the hand-over start are apart');
+  const chip = hand.chipBox ?? hand.labelBox!;
+  assert.ok(!(chip.x < back.to.x + 6 && back.to.x - 6 < chip.x + chip.w && chip.y < back.to.y + 6 && back.to.y - 6 < chip.y + chip.h), 'the hand-over label does not cover the arrowhead');
 });
