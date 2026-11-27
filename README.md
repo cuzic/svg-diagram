@@ -147,7 +147,7 @@ if (verdict.ok && !xml.length) document.body.innerHTML = svg;
 
 ### 使う帯だけをバンドルする
 
-`svg-diagram/core` の `renderBands` は、配列に渡した帯を縦に並べて SVG に描きます。帯ごとの入口は現在 `svg-diagram/bands/box`、`bands/gantt`、`bands/row`、`bands/grid`、`bands/connect`、`bands/caption`、`bands/spacer`、`bands/group`、`bands/group-row`、`bands/areas`、`bands/banner`、`bands/raw`、`bands/curve`、`bands/pyramid`、`bands/chevron`、`bands/funnel`、`bands/cycle`、`bands/venn`、`bands/concentric`、`bands/emblem`、`bands/value-chain`、`bands/people`、`bands/dots`、`bands/timeline`、`bands/status`、`bands/wordart`、`bands/legend`、`bands/quadrant`、`bands/plane`、`bands/bars`、`bands/sequence`、`bands/table`、`bands/wireframe`、`bands/screens`、`bands/fta`、`bands/bowtie`、`bands/cloud`、`bands/classes`、`bands/bpmn`、`bands/states`、`bands/tree`、`bands/cause`、`bands/swimlane`、`bands/radar`、`bands/waterfall`、`bands/sankey`、`bands/heatmap`、`bands/stacked`（`stackedBars` と `mekko`）、`bands/treemap`、`bands/tornado`、`bands/butterfly`、`bands/bubble`、`bands/harvey`、`bands/catplot`、`bands/distplot`、`bands/multiplot`、`bands/regplot`、`bands/clustermap`、`bands/combo`、`bands/compare`、`bands/pert`、`bands/causal`、`bands/dependency`、`bands/image`、`bands/comic`、`bands/chat` にあります。使う帯だけを import すると、esbuild や Vite は使わない帯の実装をバンドルから除外できます。
+`svg-diagram/core` の `renderBands` は、配列に渡した帯を縦に並べて SVG に描きます。帯ごとの入口は現在 `svg-diagram/bands/box`、`bands/gantt`、`bands/row`、`bands/grid`、`bands/connect`、`bands/caption`、`bands/spacer`、`bands/group`、`bands/group-row`、`bands/areas`、`bands/banner`、`bands/raw`、`bands/curve`、`bands/pyramid`、`bands/chevron`、`bands/funnel`、`bands/cycle`、`bands/venn`、`bands/concentric`、`bands/emblem`、`bands/value-chain`、`bands/people`、`bands/dots`、`bands/timeline`、`bands/status`、`bands/wordart`、`bands/legend`、`bands/quadrant`、`bands/plane`、`bands/bars`、`bands/sequence`、`bands/table`、`bands/wireframe`、`bands/screens`、`bands/fta`、`bands/bowtie`、`bands/cloud`、`bands/classes`、`bands/bpmn`、`bands/states`、`bands/tree`、`bands/cause`、`bands/swimlane`、`bands/radar`、`bands/waterfall`、`bands/sankey`、`bands/heatmap`、`bands/stacked`（`stackedBars` と `mekko`）、`bands/treemap`、`bands/tornado`、`bands/forest`、`bands/butterfly`、`bands/bubble`、`bands/harvey`、`bands/catplot`、`bands/distplot`、`bands/multiplot`、`bands/regplot`、`bands/clustermap`、`bands/combo`、`bands/compare`、`bands/pert`、`bands/causal`、`bands/dependency`、`bands/image`、`bands/comic`、`bands/chat` にあります。使う帯だけを import すると、esbuild や Vite は使わない帯の実装をバンドルから除外できます。
 
 本文の表示幅、縦長の図、文節折り返し、表示できない可能性がある絵記号、文字量や箱の数を選択描画で検査するには、`svg-diagram/verify/document` の `documentFindings` と `documentAcceptHint` を `renderBands(bands, {measure, maxWidth, diagramFindings: documentFindings, diagramAcceptHint: documentAcceptHint})` に渡します。デッキ用の `prepareSpecLayout` では自動で検査し、プロジェクトの `terms` に基づく用語の検査も行います。
 
@@ -344,7 +344,7 @@ Node.js で TeX を描く場合は `svg-diagram/bands/math` の `math()` を使�
 | treemap(tree, {unit, percent, strict}) | ツリーマップ（squarified）。面積 ∝ 値（グループの枠と見出しの分も補正し、グループの中でも外でも同じ比）。名前と値が入らない小さなセルは描かず `<desc>` に残る（`strict: true` はエラー） |
 | sankey(nodes, links, {unit, align, values}) | サンキー図。層に分け、ノードの高さとリボンの太さは値に比例（目盛りは図全体で一つ）、ノードの名前に値、重ならない。リンクのないノードはエラー |
 | tornado(items, {base, unit}) | トルネード図（感度分析）。基準値から低ケース・高ケースの棒、幅の大きい順 |
-| forest(rows, opts) | フォレストプロット。行ごとの点推定と区間、基準の線（既定 1、対数目盛）、右に数値の列。`{heading}` の見出しの行と `summary: true` の統合のひし形、`weight` で四角の大きさ。差は `{scale: 'linear', ref: 0}`（ADR 0084、spec の部品は U2） |
+| forest(rows, opts) | フォレストプロット。行ごとの点推定と区間、基準の線（既定 1、対数目盛）、右に数値の列。`{heading}` の見出しの行と `summary: true` の統合のひし形、`weight` で四角の大きさ。差は `{scale: 'linear', ref: 0}`（ADR 0084。spec の部品は `type: 'forest'`、`rows` に同じ形の行） |
 | bubble(points, {x, y, sizeTitle, sizeUnit}) | バブルチャート。x・y が数値軸、円の**面積**が 3 つ目の指標（凡例の円つき）。`x.line` / `y.line` で境目の破線。名前は円の中か横、軸は円がはみ出さないよう自動で広がる |
 | butterfly(rows, {leftLabel, rightLabel, unit}) | バタフライチャート。中央の項目名をはさんで、左右の群の棒を同じ目盛りで比べる。`sort: 'left'｜'right'` |
 | combo(categories, series, {y, y2}) | コンボチャート（棒 + 折れ線）。棒は左軸、折れ線は右軸（`axis: 'left'` で左）。値は単位つきで全部書き、入らないものは `<desc>` に残る |
@@ -410,7 +410,7 @@ row([
 
 `bars(data, opts)` は横棒（既定）、縦棒（`dir: 'v'`）、積み上げ（`stack: true`）を描く。`series` は `a | b | c` で、それぞれ accent / text / muted。棒ごとに `tone: 'accent' | 'danger' | 'muted'` も選べる（`danger` が赤。`series` とは併用できない。`examples/spotlight-dim-fill.ts`）。`max` を省くと通常は最大値、積み上げでは合計値になる。値ラベルは必ず描かれ、`unit` は値の後ろに付く。各項目の `id` は `connect()` のアンカーとして使える。
 
-**範囲の浮き棒（`range` / `rangeBars`）**: 見積りの幅や信頼区間のように「最小〜最大」を 1 本で描くなら、データに `value` の代わりに `range: [lo, hi]` を書く（`rangeBars([{label: '設計', range: [3.2, 5.8]}], {unit: '万円'})` も同じ。`value` と `range` はどちらか 1 つ）。棒は 0 から伸びず、`lo` から `hi` まで浮く（軸は 0 から。`max` を省くと、いちばん大きい `hi`）。値の文言は `3.2〜5.8万円`、`<desc>` も範囲で書く。`0 <= lo < hi` で、`lo` が負だと止まる。`stack` / `cumulative` / `hideZero` / `replaces` とは併用できない。範囲を読むための凡例は自動では出さない（棒の両端と文言が説明する）。例は `examples/bars-range.ts`。
+**範囲の浮き棒（`range` / `rangeBars`）**: 見積りの幅や信頼区間のように「最小〜最大」を 1 本で描くなら、データに `value` の代わりに `range: [lo, hi]` を書く（`rangeBars([{label: '設計', range: [3.2, 5.8]}], {unit: '万円'})` も同じ。`value` と `range` はどちらか 1 つ）。棒は 0 から伸びず、`lo` から `hi` まで浮く（軸は 0 から。`max` を省くと、いちばん大きい `hi`）。値の文言は `3.2〜5.8万円`、`<desc>` も範囲で書く。`0 <= lo < hi` で、`lo` が負だと止まる。`stack` / `cumulative` / `hideZero` / `replaces` とは併用できない。範囲を読むための凡例は自動では出さない（棒の両端と文言が説明する）。例は `examples/bars-range.ts`。 点推定や基準の線（比・差）が要るなら `forest`（ADR 0084）。
 
 ```ts
 bars([
@@ -968,6 +968,7 @@ if (r.ok) page += r.svg; // 次の図は {idPrefix: 'fig2-', inline: true}
 | マリメッコ図 | `mekko(columns)` | `examples/chart-mekko.ts` |
 | ツリーマップ | `treemap(tree)` | `examples/chart-treemap.ts` |
 | サンキー図 | `sankey(nodes, links)` | `examples/chart-sankey.ts` |
+| フォレストプロット | `forest(rows, {valueHeader, favours})` | `examples/forest.ts`、デッキは `examples/forest-deck.json` |
 | トルネード図 | `tornado(items, {base})` | `examples/chart-tornado.ts` |
 | 回帰つき散布図 / 残差プロット（seaborn の `regplot` / `lmplot` / `residplot`） | `regplot({x, y, group?}, {order, stats})` / `residplot({x, y})` | `examples/chart-reg.ts` |
 | パネル分割（seaborn の `FacetGrid` / `col=`） | `...facet({東京: a, 大阪: b}, (名前, 値, _i, axes) => histplot(値, {...axes}), {cols: 3})` | `examples/facet.ts` |
@@ -1011,6 +1012,7 @@ harvey(['価格', '品質'], ['A 社', 'B 社'], [[4, 2], [1, 3]], {highlight: [
 - **`treemap`**: 葉は `{label, value}`、グループは `children`（4 階層まで。グループの値は子の合計で、書くなら一致が必要）。葉の `tone: 'accent'｜'danger'` は塗りつぶし。グループの名前が入らないときも `<desc>` に残る。グループの枠と見出しの帯が子の場所を取る分は重みを補正するので、葉の面積はグループの中でも外でも値に比例する。`percent: true` で全体に対する割合を添える。
 - **`sankey`**: ノードは文字列か `{id, label?, tone?}`（どのリンクにも出てこないノードはエラー）。層は最長経路で決まり（循環は止まる）、出ていかないノードは最後の層に寄る（`align: 'left'` で寄せない）。ノードの並びは交差が少なくなるように入れ替える。ノードの高さが値に比例するので、名前が収まらないほど低いノードでも、名前の高さ分の場所は空ける。リボンには、両端のどちらの名前にも載っていない値（分岐・合流の途中）だけ数字が入る。`values: false` で、ノードの名前とリボンの数字から値を外す（流れの形だけを見せたいとき。名前だけで折り返し・右の余白を決め、高さと太さ、代替テキスト（alt）の値はそのまま。リボンの数字は `linkLabels` が `true` でも出ない。値は図に題名があるとき `<desc>` に入り、題名がなければ警告 `bars-values-hidden`）。`tone: 'danger'` のリボンは赤の破線で縁取る。
 - **`tornado`**: `low` / `high` は「その入力が低い / 高いときの結果」（結果が低いとは限らない）。結果が基準と同じならその棒は描かず数字だけ書く。両方が基準の同じ側に出るときは、棒を 2 段に分ける。
+- **`forest`**（ADR 0084）: 行は `{label, estimate, low, high, weight?, id?}`、見出しの行は `{heading}`、統合の行は `{…, summary: true}`（ひし形。`weight` は持たない）。比は対数目盛・基準 1 が既定で、差は `scale: 'linear'`（基準は 0）。`weight` で四角の面積が決まり、`decimals` は右の数値の列の桁。`domain` の外に出る区間は端で切って矢じり（統合はひし形を平らに切る）、点推定が外ならエラー。区間がすべて基準の片側でも、基準の線の向こうに 1 目盛の余白を取る。spec の部品は `type: 'forest'`（`rows` に同じ形の行）。点推定と基準の線が要るときは `rangeBars` でなくこちら。
 - **`regplot` / `residplot`**: `{x: [..], y: [..], group?: [..]}`（生の値）。最小二乗の直線（`order: 2｜3` で多項式の曲線）と、平均の 95% 信頼帯（解析解。t 分布）を描き（`lowess: true` は多項式の代わりに LOWESS = 局所回帰の曲線。外れ値に強い反復つきで、`frac`（各点の当てはめに使う点の割合、既定 2/3）が小さいほど細かく追う。帯・式・R² はない（`stats` と併用すると止まる）。`order` とも併用できない）、`band: false` で帯なし、`stats: true` で凡例に式（直線のとき）と R²。グループごとに別の回帰（印・線の種類・色が違う）。x の異なる値が `order + 1` 個、点が `order + 2` 個ないと止まる。`residplot` は同じ当てはめからの残差と、破線の 0 の線（曲がりが残っていれば形に出る）。`lowess: true` は残差の LOWESS 曲線を重ね、直線が取りこぼした形を見せる。
 - **`facet(data, make, {cols, share})`**: `data` のキーごとに 1 枚、`make(キー, 値, 番号, axes)` が返す図を枠つき（キーが見出し）で並べる（`cols` 列ずつ、最後の行も同じ列幅）。**軸は既定で全パネル共通**（seaborn の sharex / sharey）: 一度ふつうに描いて各パネルの軸を調べ、全体の範囲を `axes`（`{xRange, yRange}`）として渡して描き直すので、`make` は `axes` をそのまま図の opts に展開する（`histplot(値, {...axes})`）。`share: 'x'｜'y'｜'xy'｜'none'`。共有できるのは `histplot` / `kdeplot` / `ecdfplot` / `displot` / `regplot` / `residplot` のパネル（ほかの図は何もされず、そういうパネルしかないのに `share` を明示すると止まる）。`...facet()` で `.add()` に展開する。
 - **`kde2d`**: 2 変数のガウス KDE（各軸 Scott の帯域幅）を、最大密度の 10・30・50・70・90% の 5 段の塗りと等高線（marching squares）で。点を小さく重ねる（400 点まで）。

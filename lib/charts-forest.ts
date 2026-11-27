@@ -43,10 +43,12 @@ export function resolveForest(rows: readonly ForestRow[], opts: ForestOpts = {})
   const ref = finiteNum('forest', 'ref', opts.ref ?? (scale === 'log' ? 1 : 0));
   const logHint = "a log scale needs values above 0 (for differences write scale: 'linear', ref: 0)";
   if (scale === 'log' && ref <= 0) fail('forest', `ref ${ref} is 0 or less; ${logHint}`);
+  if (scale === 'log' && ref < 1e-6) fail('forest', `ref ${ref} is below 0.000001, which the axis cannot write (use 0.000001 or more)`);
   const decimals = opts.decimals ?? 2;
   if (!Number.isInteger(decimals) || decimals < 0 || decimals > 3) fail('forest', `decimals must be a whole number from 0 to 3 (got ${String(decimals)})`);
   const domain = checkDomain('forest', opts.domain);
   if (domain && scale === 'log' && domain[0] <= 0) fail('forest', `domain [${domain[0]}, ${domain[1]}] has a value of 0 or less; ${logHint}`);
+  if (domain && scale === 'log' && domain[0] < 1e-6) fail('forest', `domain [${domain[0]}, ${domain[1]}] starts below 0.000001, which the axis cannot write (start at 0.000001 or more)`);
   const list = rows.map((r, k): ForestRow => {
     if (r === null || typeof r !== 'object') fail('forest', `row ${k + 1} must be an object`);
     if ('heading' in r) {
@@ -57,6 +59,7 @@ export function resolveForest(rows: readonly ForestRow[], opts: ForestOpts = {})
     const label = checkText('forest', `row ${k + 1}'s label`, r.label), at = `"${label}"`;
     const e = finiteNum('forest', `${at} estimate`, r.estimate), lo = finiteNum('forest', `${at} low`, r.low), hi = finiteNum('forest', `${at} high`, r.high);
     if (!(lo <= e && e <= hi)) fail('forest', `${at}: low ${lo} <= estimate ${e} <= high ${hi} does not hold (swap low and high, or fix the estimate)`);
+    if (scale === 'linear') for (const v of [e, lo, hi]) if (v !== 0 && Math.abs(v) < 1e-15) fail('forest', `${at}: ${v} is too small to write (below 1e-15): rescale the unit, for example to thousandths`);
     if (scale === 'log' && lo <= 0) fail('forest', `${at}: low ${lo} is 0 or less; ${logHint}`);
     if (scale === 'log' && lo < 1e-6) fail('forest', `${at}: low ${lo} is below 0.000001, which the axis cannot write (use values of 0.000001 or more)`);
     if (r.summary !== undefined && typeof r.summary !== 'boolean') fail('forest', `${at}: summary must be true`);
@@ -89,12 +92,12 @@ export interface ForestScale {min: number; max: number; ticks: number[]; pos: (v
 export function forestScale(s: ForestSpec): ForestScale {
   const data = measured(s.rows).flatMap(r => [r.low, r.high]);
   const lo = s.domain ? s.domain[0] : Math.min(s.ref, ...data), hi = s.domain ? s.domain[1] : Math.max(s.ref, ...data);
-  // without a domain the reference line is never an end of the axis: one more tick beyond it (room for the notes and the squares)
-  const open = !s.domain, near = (a: number, b: number) => Math.abs(a - b) <= Math.abs(b) * 1e-9;
+  // without a domain the reference line is never at (or within a tick of) an end of the axis: one more tick beyond it (room for the notes and the squares)
+  const open = !s.domain;
   if (s.scale === 'linear') {
     const n = niceScale(lo, hi), ticks = [...n.ticks];
-    if (open && near(n.min, s.ref)) ticks.unshift(parseFloat((n.min - n.step).toPrecision(12)));
-    if (open && near(n.max, s.ref)) ticks.push(parseFloat((n.max + n.step).toPrecision(12)));
+    if (open && s.ref < n.min + n.step * (1 - 1e-9)) ticks.unshift(parseFloat((n.min - n.step).toPrecision(12)));
+    if (open && s.ref > n.max - n.step * (1 - 1e-9)) ticks.push(parseFloat((n.max + n.step).toPrecision(12)));
     const min = must(ticks[0]), max = must(ticks[ticks.length - 1]);
     return {min, max, ticks, pos: v => (v - min) / (max - min), eps: () => 1e-9};
   }
@@ -108,8 +111,8 @@ export function forestScale(s: ForestSpec): ForestScale {
     for (let e = Math.floor(Math.log10(lo)) - 2; e <= Math.ceil(Math.log10(hi)) + 2; e++) for (const m of [1, 2, 5]) all.push(parseFloat((m * 10 ** e).toPrecision(12)));
     let a = all.findLastIndex(v => v <= lo * (1 + 1e-9)), b = all.findIndex(v => v >= hi * (1 - 1e-9));
     if (a < 0 || b < 0) { a = Math.max(a, 0); b = b < 0 ? all.length - 1 : b; }
-    if (open && near(must(all[a]), s.ref)) a = Math.max(0, a - 1);
-    if (open && near(must(all[b]), s.ref)) b = Math.min(all.length - 1, b + 1);
+    if (open && s.ref < must(all[a + 1]) * (1 - 1e-9)) a = Math.max(0, a - 1);
+    if (open && s.ref > must(all[b - 1]) * (1 + 1e-9)) b = Math.min(all.length - 1, b + 1);
     ticks = all.slice(a, b + 1);
   }
   if (ticks.length < 2) { const t = must(ticks[0]); ticks = [t / 2, t, t * 2]; }
@@ -118,20 +121,27 @@ export function forestScale(s: ForestSpec): ForestScale {
 }
 
 const MINUS = '−';
-const fixed = (v: number, d: number): string => { const t = v.toFixed(d); return /^-0(\.0+)?$/.test(t) ? t.slice(1) : t.replace('-', MINUS); };
-/** "1.54 (1.22–1.95)"; once any row of the figure is negative (`comma`) every row reads "−4.2 (−7.9, −0.5)" (a dash between two negatives cannot be read). */
+/** How many digits a cell needs: `decimals`, or more when a non-zero value is under half of the last digit (it would read 0.00): two significant digits of the smallest (never an exponent). */
+const cellDigits = (d: number, values: readonly number[]): number =>
+  values.reduce((n, v) => v !== 0 && Math.abs(v) < 0.5 * 10 ** -d ? Math.max(n, Math.min(20, Math.ceil(-Math.log10(Math.abs(v))) + 1)) : n, d);
+/** "1.54 (1.22–1.95)"; once any row of the figure is negative (`comma`) every row reads "−4.2 (−7.9, −0.5)" (a dash between two negatives cannot be read). One cell has one number of digits. */
 export function forestValueText(s: Pick<ForestSpec, 'decimals'> & {comma?: boolean}, r: {estimate: number; low: number; high: number}): string {
-  const e = fixed(r.estimate, s.decimals), lo = fixed(r.low, s.decimals), hi = fixed(r.high, s.decimals);
+  const n = cellDigits(s.decimals, [r.estimate, r.low, r.high]), f = (v: number) => v.toFixed(n).replace(/-/g, MINUS);
+  const e = f(r.estimate), lo = f(r.low), hi = f(r.high);
   return `${e} (${lo}${s.comma || [e, lo, hi].some(t => t.startsWith(MINUS)) ? ', ' : '–'}${hi})`;
 }
-const tickText = (v: number) => numText(parseFloat(v.toPrecision(3))).replace('-', MINUS);
+/** A tick: three significant digits, written out (never an exponent), with the minus sign U+2212. */
+const tickText = (v: number) => {
+  const t = Math.abs(v) < 1e-3 && v !== 0 ? v.toFixed(Math.min(20, Math.ceil(-Math.log10(Math.abs(v))) + 2)).replace(/\.?0+$/, '') : numText(parseFloat(v.toPrecision(3)));
+  return t.replace(/-/g, MINUS);
+};
 /** The side of a study's square: 8 to 18px by the square root of its weight (10px without one). */
 export function forestSquare(weight: number | undefined, maxWeight: number): number {
   return weight === undefined ? 10 : 8 + 10 * Math.sqrt(weight / maxWeight);
 }
 
 export function forestAlt(s: ForestSpec): string {
-  return `フォレストプロット（基準 ${numText(s.ref)}）: ${s.rows.map(r => isHeading(r) ? `【${r.heading}】` : `${r.label} ${forestValueText(s, r)}`).join('、')}`;
+  return `フォレストプロット（基準 ${numText(s.ref).replace('-', MINUS)}）: ${s.rows.map(r => isHeading(r) ? `【${r.heading}】` : `${r.label} ${forestValueText(s, r)}`).join('、')}`;
 }
 export function forestTexts(s: ForestSpec): [string, number][] {
   const out: [string, number][] = [];
@@ -152,7 +162,7 @@ export function layoutForest(s: ForestSpec, g: ChartGeom): LaidOutChartPart {
   const labelW = Math.min(Math.max(...rows.map(r => c.tw(labelOf(r), bold(r)) + (isHeading(r) ? 0 : indent))) + 12, g.w * 0.34);
   const valW = s.values ? Math.max(s.valueHeader ? c.tw(s.valueHeader, true) : 0, ...studies.map(r => c.tw(forestValueText(s, r), r.summary === true))) + 16 : 0;
   const plotL = g.x + labelW + 8, plotR = g.x + g.w - valW - 12;
-  if (plotR - plotL < 160) fail('forest', 'the figure is too narrow for its labels and numbers (raise width, or shorten the labels)');
+  if (plotR - plotL < 160) fail('forest', `the figure is too narrow for its labels and numbers (raise width, ${valW > labelW ? 'round the values or change the unit' : 'or shorten the labels'})`);
   const rawX = (v: number) => plotL + sc.pos(v) * (plotR - plotL);
   const xOf = (v: number) => plotL + Math.min(1, Math.max(0, sc.pos(v))) * (plotR - plotL);
   const r1 = (v: number) => Math.round(v * 10) / 10;
@@ -182,7 +192,7 @@ export function layoutForest(s: ForestSpec, g: ChartGeom): LaidOutChartPart {
   const weights = studies.flatMap(r => r.summary === true || r.weight === undefined ? [] : [r.weight]), wMax = weights.length ? Math.max(...weights) : 1;
   const notes: NonNullable<LaidOutChartPart['notes']> = [];
   const plain = studies.filter(r => r.summary !== true), weighted = plain.filter(r => r.weight !== undefined);
-  if (weighted.length > 0 && weighted.length < plain.length) notes.push({rule: 'forest-weight-partial', message: `forest(): ${plain.length} 行のうち ${weighted.length} 行だけに weight がある。ほかの行は 10px の四角で描く(全部の行に weight を付けるか、全部外す)`});
+  if (weighted.length > 0 && weighted.length < plain.length) notes.push({rule: 'forest-weight-partial', message: `forest(): ${plain.length} 行のうち ${weighted.length} 行だけに weight がある。ほかの行は 10px の四角で描く（全部の行に weight を付けるか、全部外す）`});
   const clipped: string[] = [];
   let y = y0;
   rows.forEach((r, k) => {
@@ -194,7 +204,7 @@ export function layoutForest(s: ForestSpec, g: ChartGeom): LaidOutChartPart {
       c.lines(lines, g.x + indent, base, 'start', 'text', {bold: summary, of});
       const xl = r1(xOf(r.low)), xh = r1(xOf(r.high)), xe = r1(xOf(r.estimate));
       const cutL = sc.pos(r.low) < -1e-9, cutH = sc.pos(r.high) > 1 + 1e-9;
-      if (cutL || cutH) clipped.push(summary ? `「${r.label}」(ひし形を端で平らに切る)` : `「${r.label}」(矢じりで切る)`);
+      if (cutL || cutH) clipped.push(summary ? `「${r.label}」（ひし形を端で平らに切る）` : `「${r.label}」（矢じりで切る）`);
       let side: number;
       if (summary) {
         side = Math.min(18, pitch - 6);

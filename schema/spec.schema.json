@@ -165,6 +165,7 @@
               "heatmap",
               "bubble",
               "tornado",
+              "forest",
               "strategyCanvas",
               "bpmn",
               "classDiagram",
@@ -233,6 +234,7 @@
               "A heatmap: a table of numbers shaded by size, such as sales by month and store or a cohort retention. Every cell has a number; the darker, the larger.",
               "A bubble chart: items placed by two measures (x, y) with a circle whose area is a third, such as products by growth, share and sales. Axes can have a dashed threshold line.",
               "A tornado chart: how much a result moves when each input goes from its low to its high value, longest bar first, such as the sensitivity of a profit forecast. `base` is the result of the base case.",
+              "A forest plot: one row per study or group with its point estimate and interval (a confidence interval, for example), a reference line (1 = no difference), and the numbers in a column on the right. A ratio (odds, hazard, risk) is on a log scale by default; for a difference write scale: linear (the reference is then 0). Rows may be headings (a group name) and one row may be the pooled estimate (summary: true, drawn as a diamond). Use this, not rangeBars, when each row has a point estimate or the figure needs a reference line.",
               "A strategy canvas (Blue Ocean): the factors of competition along the bottom and the level each company offers on each, one line per company. Levels run from min to max (default 0 to 5).",
               "A business process in BPMN style: lanes (who) as rows, tasks, a start and an end event, and gateways (xor: one way, and: all ways in parallel, or: some ways) joined by flows. A flow out of a gateway carries its condition as a label; a dashed flow is a message between lanes. The columns follow the flow; a wide figure is narrowed to fit.",
               "A UML class diagram: classes with attributes and methods, and relations. inherit and implement run from the child to the parent (triangle at the parent); compose and aggregate put the diamond on `from`, the whole; arrow is a directed association, depend a dashed dependency, assoc a plain line. Parents are placed above.",
@@ -263,7 +265,7 @@
               "A scatter diagram (QC): one point per pair of values, to see whether two things move together. Points with a group get a colour and a shape per group (at most 4 groups). regression: true draws the least-squares line and writes the correlation coefficient r.",
               "A control chart (QC): the values in time order, the centre line and the 3-sigma limits worked out from the data; points outside the limits and runs of 7 are marked red. chart: x / mr / c take values; xbar / r take subgroups (2-10 measurements each); p / np / u take samples ({n inspected, d defective or defects}).",
               "A check sheet (QC): the items (kinds of defect) down the side, the columns (days, machines, shifts) across, and the counts as tally marks with totals. Leave out counts for an empty sheet to fill in by hand.",
-              "Range bars: one bar per label from a low to a high value, such as the price range of each plan, an estimate range or a minimum and maximum. Values are 0 or more.",
+              "Range bars: one bar per label from a low to a high value, such as the price range of each plan, an estimate range or a minimum and maximum. Values are 0 or more. With point estimates or a reference line: forest.",
               "A box plot: the spread of the raw values of each group, the box from the first to the third quartile with the median, whiskers to 1.5 IQR and the values beyond as rings. Compares groups such as branches, lines or months.",
               "A quality function deployment (QFD, house of quality without the roof): customer demands as rows, each with its importance, against quality characteristics as columns, with ◎ (strong, 9), ○ (3) or △ (1) where a characteristic serves a demand. Each column gets a score, Σ importance x value, and its share in percent; the top characteristic is marked.",
               "A why-why analysis as a table: the problem in the first column, then each chain of answers to \"why?\" across a row (why 1, why 2, ...), its root cause and what is done about it. Use it when the chains do not branch much; whyWhyTree draws the same analysis as a tree. A cause two chains share is written in each row.",
@@ -739,6 +741,21 @@
             },
             "then": {
               "$ref": "#/definitions/part.tornado"
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "forest"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "$ref": "#/definitions/part.forest"
             }
           },
           {
@@ -2316,6 +2333,62 @@
             }
           },
           {
+            "label": "forest",
+            "description": "A forest plot: one row per study or group with its point estimate and interval (a confidence interval, for example), a reference line (1 = no difference), and the numbers in a column on the right. A ratio (odds, hazard, risk) is on a log scale by default; for a difference write scale: linear (the reference is then 0). Rows may be headings (a group name) and one row may be the pooled estimate (summary: true, drawn as a diamond). Use this, not rangeBars, when each row has a point estimate or the figure needs a reference line.",
+            "body": {
+              "type": "forest",
+              "valueHeader": "OR (95% CI)",
+              "axisLabel": "オッズ比(対数目盛)",
+              "favours": [
+                "従来が良い",
+                "新方式が良い"
+              ],
+              "rows": [
+                {
+                  "heading": "東の地域"
+                },
+                {
+                  "label": "拠点 A",
+                  "estimate": 1.54,
+                  "low": 1.22,
+                  "high": 1.95,
+                  "weight": 180
+                },
+                {
+                  "label": "拠点 B",
+                  "estimate": 1.31,
+                  "low": 0.98,
+                  "high": 1.75,
+                  "weight": 140
+                },
+                {
+                  "heading": "西の地域"
+                },
+                {
+                  "label": "拠点 C",
+                  "estimate": 0.92,
+                  "low": 0.61,
+                  "high": 1.39,
+                  "weight": 70
+                },
+                {
+                  "label": "拠点 D",
+                  "estimate": 1.4,
+                  "low": 1.1,
+                  "high": 1.78,
+                  "weight": 200
+                },
+                {
+                  "label": "全体(統合)",
+                  "estimate": 1.29,
+                  "low": 1.12,
+                  "high": 1.49,
+                  "summary": true
+                }
+              ]
+            }
+          },
+          {
             "label": "strategyCanvas",
             "description": "A strategy canvas (Blue Ocean): the factors of competition along the bottom and the level each company offers on each, one line per company. Levels run from min to max (default 0 to 5).",
             "body": {
@@ -3365,7 +3438,7 @@
           },
           {
             "label": "rangeBars",
-            "description": "Range bars: one bar per label from a low to a high value, such as the price range of each plan, an estimate range or a minimum and maximum. Values are 0 or more.",
+            "description": "Range bars: one bar per label from a low to a high value, such as the price range of each plan, an estimate range or a minimum and maximum. Values are 0 or more. With point estimates or a reference line: forest.",
             "body": {
               "type": "rangeBars",
               "unit": "万円",
@@ -8139,6 +8212,146 @@
       ],
       "additionalProperties": false,
       "description": "A tornado chart: how much a result moves when each input goes from its low to its high value, longest bar first, such as the sensitivity of a profit forecast. `base` is the result of the base case."
+    },
+    "part.forest": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "forest"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "heading": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40,
+                "description": "A heading row (a group name): this row has no numbers, so write no other field in it.",
+                "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40,
+                "description": "The study or group of this row.",
+                "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+              },
+              "estimate": {
+                "type": "number",
+                "minimum": -1000000000000,
+                "maximum": 1000000000000,
+                "description": "The point estimate (the square)."
+              },
+              "low": {
+                "type": "number",
+                "minimum": -1000000000000,
+                "maximum": 1000000000000,
+                "description": "The lower end of the interval."
+              },
+              "high": {
+                "type": "number",
+                "minimum": -1000000000000,
+                "maximum": 1000000000000,
+                "description": "The upper end of the interval."
+              },
+              "weight": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000000000000,
+                "description": "Optional, above 0 (0 is refused): the size of the square follows the weight (its area is about proportional)."
+              },
+              "summary": {
+                "type": "boolean",
+                "description": "true: the pooled estimate, drawn as a diamond (no weight)."
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40,
+                "description": "Optional: the id a connector or a spotlight can point at.",
+                "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+                "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 40
+        },
+        "scale": {
+          "type": "string",
+          "enum": [
+            "log",
+            "linear"
+          ]
+        },
+        "ref": {
+          "type": "number",
+          "minimum": -1000000000000,
+          "maximum": 1000000000000,
+          "description": "The reference line: 1 on a log scale (default), 0 on a linear scale (default)."
+        },
+        "decimals": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3,
+          "description": "Digits of the numbers in the right-hand column (default 2). A cell with a value too small for them (under half of the last digit) is written with two significant digits of its smallest value, so it can have more digits."
+        },
+        "values": {
+          "type": "boolean",
+          "description": "false: no number column."
+        },
+        "valueHeader": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20,
+          "description": "The heading of the number column, such as \"OR (95% CI)\".",
+          "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+          "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+        },
+        "axisLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30,
+          "description": "The title of the axis, such as \"オッズ比(対数目盛)\".",
+          "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+          "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+        },
+        "favours": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "description": "The side each end of the axis favours.",
+            "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u001f\\u007f-\\u009f]*$",
+            "patternErrorMessage": "Write plain text on one line: not blank, no line break or other control character."
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "domain": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": -1000000000000,
+            "maximum": 1000000000000
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "required": [
+        "type",
+        "rows"
+      ],
+      "additionalProperties": false,
+      "description": "A forest plot: one row per study or group with its point estimate and interval (a confidence interval, for example), a reference line (1 = no difference), and the numbers in a column on the right. A ratio (odds, hazard, risk) is on a log scale by default; for a difference write scale: linear (the reference is then 0). Rows may be headings (a group name) and one row may be the pooled estimate (summary: true, drawn as a diamond). Use this, not rangeBars, when each row has a point estimate or the figure needs a reference line."
     },
     "part.strategyCanvas": {
       "type": "object",
@@ -13091,7 +13304,7 @@
         "items"
       ],
       "additionalProperties": false,
-      "description": "Range bars: one bar per label from a low to a high value, such as the price range of each plan, an estimate range or a minimum and maximum. Values are 0 or more."
+      "description": "Range bars: one bar per label from a low to a high value, such as the price range of each plan, an estimate range or a minimum and maximum. Values are 0 or more. With point estimates or a reference line: forest."
     },
     "part.boxplot": {
       "type": "object",
