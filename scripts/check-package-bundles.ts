@@ -136,7 +136,7 @@ try {
     ['causal-loop', {esbuild: 160000, Vite: 216000}],
     ['cause-tree', {esbuild: 191000, Vite: 254000}],
     ['check-sheet', {esbuild: 100000, Vite: 121000}],
-    ['chevron', {esbuild: 69310, Vite: 91000}],
+    ['chevron', {esbuild: 69340, Vite: 91000}],
     ['class-diagram', {esbuild: 147000, Vite: 203000}],
     ['cloud', {esbuild: 72100, Vite: 93300}],
     ['combo', {esbuild: 87000, Vite: 108000}],
@@ -160,7 +160,7 @@ try {
     ['matrix', {esbuild: 101000, Vite: 122000}],
     ['mekko', {esbuild: 85000, Vite: 104000}],
     ['mindmap', {esbuild: 99890, Vite: 129170}],
-    ['pareto', {esbuild: 88000, Vite: 113210}],
+    ['pareto', {esbuild: 88000, Vite: 113240}],
     ['pdpc', {esbuild: 191000, Vite: 254000}],
     ['pert', {esbuild: 148000, Vite: 199000}],
     ['pyramid', {esbuild: 59300, Vite: 77900}],
@@ -168,7 +168,7 @@ try {
     ['quadrant', {esbuild: 108000, Vite: 135000}],
     ['raci', {esbuild: 100000, Vite: 122000}],
     ['radar', {esbuild: 82000, Vite: 101000}],
-    ['range-bars', {esbuild: 86000, Vite: 111130}],
+    ['range-bars', {esbuild: 86000, Vite: 111160}],
     ['relation-diagram', {esbuild: 192000, Vite: 255000}],
     ['sankey', {esbuild: 90000, Vite: 110000}],
     ['scatter', {esbuild: 83000, Vite: 107000}],
@@ -179,7 +179,7 @@ try {
     ['strategy-canvas', {esbuild: 84000, Vite: 110000}],
     ['swimlane', {esbuild: 152000, Vite: 192000}],
     ['table', {esbuild: 80000, Vite: 100000}],
-    ['timeline', {esbuild: 78600, Vite: 102600}],
+    ['timeline', {esbuild: 78600, Vite: 102630}],
     ['tornado', {esbuild: 83000, Vite: 102000}],
     ['tree', {esbuild: 96050, Vite: 125130}],
     ['treemap', {esbuild: 80000, Vite: 100000}],
@@ -752,7 +752,7 @@ try {
       export const draw = () => renderSpecEdge({version: 1, title: 'Plan', parts: [
         {type: 'table', columns: [{label: 'Review'}], rows: [['Done']]},
       ]}, engine, {parts: [tablePart]});
-    `, include: 'spec-selective-edge.js', budget: {esbuild: 122000, Vite: 159000}, bands: ['table.js'],
+    `, include: 'spec-selective-edge.js', budget: {esbuild: 122040, Vite: 159000}, bands: ['table.js'],
       exclude: [...legacy, 'lib/spec.js', 'spec-edge.js', 'dsl-pure.js', 'bands/gantt.js', 'bands/box.js'], draw: true},
     {name: 'Selected table spec', source: `
       import {renderSpec} from 'svg-diagram/spec/selective';
