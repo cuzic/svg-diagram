@@ -191,4 +191,11 @@ Q6(決定: **a**). **作業の順**: a U1 → U2 → U3(決まったとき)→ U
 
 ## 実装メモ
 
-(まだ無い)
+### U2(PR #505)
+
+- **引き上げる条件**: D2 の「`14 × k` が T を下回るときだけ」は、実装では `floor(21 / k) > 14` のとき、つまり **k < 1.4** のとき(`askedTextSize`、`lib/deck-grow.ts`)。k が 1 以上 1.4 未満でも、輪 3 の concentric は 18px へ上がる(Q3 の「実効約 21px」と目安の例に合う)。k ≥ 1.4 では `floor(21 / k) ≤ 15` で、14px のまま(k=1.5 は 14px)。
+- **上限 22px**: 部品が受ける大きさは最大 22px(`MAX_SIZE`、`lib/flow-grow.ts`)で、2px 刻みの候補を大きい順に描く。k=0.868 の venn は `floor(21/0.868)=24` を求められるが 22px までで、実効は 19.1px になる(21px には届かない)。
+- **内部の指定**: `textSize` は部品の option にも spec の項目にも無い(公開の型に出ない)。デッキが帯のデータへ直接書き(`askTextSize`)、同時に `lib/flow-definition.ts` のフックへ引き上げの実装(`lib/flow-grow.ts`)を登録する。フックは最初に大きさを求められるまで空なので、`./browser` の束にはフックの数十バイトしか入らず、収まりの検査と候補の処理はデッキを使う入口の束だけに入る(予算 ./browser: main に +105 バイト)。
+- **入口**: `renderDeckFigure`(固定の段・単独の図、`fit: 'fill'` で幅を持つ spec と `fit: 'width'` の段を含む。部屋は `opts.fill ?? opts.grow`)、自動の段(`chooseColumns` の後の `growColumnFigure`)、端の `plan`(full と selected)、CLI。パリティは `test/deck-figure-text-parity.test.ts`(fit と図の置き方の組み合わせで 4 つの経路を照合)。
+- **`frame` のある cycle**: 枠の題も大きくなって図が高くなり、高さの検査で 14px のままになる(安全な側)。
+
